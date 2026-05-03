@@ -1,0 +1,36 @@
+id: hc-sr501
+name: HC-SR501 PIR motion sensor
+category: binary_sensor
+use_cases: [motion, occupancy, presence]
+
+electrical:
+  vcc_min: 4.5
+  vcc_max: 20.0
+  current_ma_typical: 50
+  current_ma_peak: 65
+  pins:
+    - {role: VCC, kind: power}
+    - {role: GND, kind: ground}
+    - {role: OUT, kind: digital_out, voltage: 3.3}
+  passives: []
+
+esphome:
+  required_components: []
+  yaml_template: |
+    binary_sensor:
+      - platform: gpio
+        pin: {{ pins.OUT }}
+        name: "{{ label }}"
+        device_class: motion
+
+params_schema:
+  retrigger:
+    type: string
+    enum: [H, L]
+    default: H
+    description: "Retrigger jumper position (H=repeat, L=single)"
+  pulse_ms:
+    type: integer
+    default: 2500
+
+notes: "Requires 5V supply. OUT signal is 3.3V, safe for ESP32 GPIO."
