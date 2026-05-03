@@ -1,0 +1,47 @@
+id: ws2812b
+name: WS2812B addressable LED (NeoPixel)
+category: light
+use_cases: [indicator, status_led, ambient]
+aliases: [ws2811, sk6812, neopixel]
+
+electrical:
+  vcc_min: 3.5
+  vcc_max: 5.3
+  current_ma_typical: 20
+  current_ma_peak: 60
+  pins:
+    - {role: VCC, kind: power}
+    - {role: GND, kind: ground}
+    - {role: DIN, kind: digital_in, voltage: 5.0}
+  passives:
+    - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+
+esphome:
+  required_components: []
+  yaml_template: |
+    light:
+      - platform: neopixelbus
+        variant: {{ params.variant | default('WS2812') }}
+        method: {{ params.method | default('ESP8266_UART1') }}
+        type: {{ params.type | default('GRB') }}
+        pin: {{ pins.DIN }}
+        num_leds: {{ params.num_leds | default(1) }}
+        name: "{{ label }}"
+        id: {{ id }}
+    {%- if params.on_turn_on is defined %}
+        on_turn_on: {{ params.on_turn_on | tojson }}
+    {%- endif %}
+    {%- if params.on_turn_off is defined %}
+        on_turn_off: {{ params.on_turn_off | tojson }}
+    {%- endif %}
+
+params_schema:
+  variant: { type: string, default: "WS2812",
+             enum: ["WS2811", "WS2812", "WS2812X", "400KBPS", "SK6812", "TM1814"] }
+  method:  { type: string, default: "ESP8266_UART1",
+             enum: ["BIT_BANG", "ESP8266_UART0", "ESP8266_UART1", "ESP8266_DMA",
+                    "ESP32_RMT", "ESP32_I2S0", "ESP32_I2S1"] }
+  type:    { type: string, default: "GRB" }
+  num_leds: { type: integer, default: 1, minimum: 1 }
+
+notes: "Current rises ~60mA per LED at full white. Budget accordingly. Add a 300-500ohm series resistor on DIN and a 1000uF cap across VCC/GND for strips >8 LEDs."

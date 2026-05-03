@@ -45,3 +45,23 @@ def test_awning_box_consistent_width(awning_control_design, library):
 def test_awning_warning_surfaced(awning_control_design, library):
     text = render_ascii(awning_control_design, library)
     assert "[info] expander_pins_in_extras" in text
+
+
+def test_wasserpir_matches_golden(wasserpir_design, library, golden_dir):
+    expected = (golden_dir / "wasserpir.txt").read_text().rstrip("\n")
+    assert render_ascii(wasserpir_design, library) == expected
+
+
+def test_oled_matches_golden(oled_design, library, golden_dir):
+    expected = (golden_dir / "oled.txt").read_text().rstrip("\n")
+    assert render_ascii(oled_design, library) == expected
+
+
+def test_bluemotion_matches_golden(bluemotion_design, library, golden_dir):
+    expected = (golden_dir / "bluemotion.txt").read_text().rstrip("\n")
+    assert render_ascii(bluemotion_design, library) == expected
+
+
+def test_bluemotion_box_consistent_width(bluemotion_design, library):
+    widths = {len(line) for line in render_ascii(bluemotion_design, library).splitlines()}
+    assert len(widths) == 1

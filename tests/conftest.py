@@ -38,5 +38,20 @@ def awning_control_design() -> Design:
 
 
 @pytest.fixture
+def wasserpir_design() -> Design:
+    return Design.model_validate(json.loads((REPO_ROOT / "examples" / "wasserpir.json").read_text()))
+
+
+@pytest.fixture
+def oled_design() -> Design:
+    return Design.model_validate(json.loads((REPO_ROOT / "examples" / "oled.json").read_text()))
+
+
+@pytest.fixture
+def bluemotion_design() -> Design:
+    return Design.model_validate(json.loads((REPO_ROOT / "examples" / "bluemotion.json").read_text()))
+
+
+@pytest.fixture
 def golden_dir() -> Path:
     return Path(__file__).parent / "golden"

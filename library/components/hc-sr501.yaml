@@ -22,6 +22,15 @@ esphome:
         pin: {{ pins.OUT }}
         name: "{{ label }}"
         device_class: motion
+    {%- if params.filters is defined %}
+        filters: {{ params.filters | tojson }}
+    {%- endif %}
+    {%- if params.on_press is defined %}
+        on_press: {{ params.on_press | tojson }}
+    {%- endif %}
+    {%- if params.on_release is defined %}
+        on_release: {{ params.on_release | tojson }}
+    {%- endif %}
 
 params_schema:
   retrigger:

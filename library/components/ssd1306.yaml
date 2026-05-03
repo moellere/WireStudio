@@ -25,10 +25,19 @@ esphome:
   yaml_template: |
     display:
       - platform: ssd1306_i2c
-        model: "SSD1306 128x64"
+        model: "{{ params.model | default('SSD1306 128x64') }}"
         address: "{{ params.address | default('0x3C') }}"
         i2c_id: {{ bus.id }}
         id: {{ id }}
+    {%- if pins.RESET is defined %}
+        reset_pin: {{ pins.RESET }}
+    {%- endif %}
+    {%- if params.update_interval is defined %}
+        update_interval: {{ params.update_interval }}
+    {%- endif %}
+    {%- if params.lambda_ is defined %}
+        lambda: {{ params.lambda_ | tojson }}
+    {%- endif %}
 
 params_schema:
   address:

@@ -1,0 +1,27 @@
++-------------------------------------------------------------------+
+|  WeMos D1 Mini  ---  oled                                         |
++-------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                              |
+|                                                                   |
+|  oled1  [SSD1306 OLED display (I2C)]  -- Status OLED              |
+|    VCC   -> rail 3V3                                              |
+|    GND   -> rail GND                                              |
+|    SDA   -> i2c0 (D2)                                             |
+|    SCL   -> i2c0 (D1)                                             |
+|    RESET -> D0                                                    |
+|                                                                   |
+|  Passives:                                                        |
+|    c1: 100nF capacitor, oled1.VCC  <->  GND   (decoupling oled1)  |
+|    r1: 4.7k resistor, i2c0.SDA  <->  3V3   (I2C pull-up)          |
+|    r2: 4.7k resistor, i2c0.SCL  <->  3V3   (I2C pull-up)          |
+|                                                                   |
+|  BOM:                                                             |
+|    - WeMos D1 Mini                                                |
+|    - SSD1306 OLED display (I2C)  (oled1)                          |
+|    - 1x 100nF capacitor                                           |
+|    - 2x 4.7k resistor                                             |
+|                                                                   |
+|  Power: ~8mA typical, ~20mA peak (budget 500mA)  OK               |
+|                                                                   |
+|  Warnings: none                                                   |
++-------------------------------------------------------------------+

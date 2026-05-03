@@ -1,0 +1,87 @@
+{
+  "schema_version": "0.1",
+  "id": "oled",
+  "name": "Status OLED",
+  "description": "ESP8266 D1 Mini driving an SSD1306 128x64 I2C OLED with reset on D0. Shows time, date, and the device IP.",
+  "created_at": "2020-09-01T00:00:00Z",
+  "updated_at": "2026-05-03T12:00:00Z",
+
+  "board": {
+    "library_id": "wemos-d1-mini",
+    "mcu": "esp8266",
+    "framework": "arduino"
+  },
+
+  "power": {
+    "supply": "usb-5v",
+    "rail_voltage_v": 5.0,
+    "regulator": "onboard-rt9013",
+    "budget_ma": 500
+  },
+
+  "requirements": [
+    { "id": "r1", "kind": "capability",  "text": "render time, date, and IP on a 128x64 OLED" },
+    { "id": "r2", "kind": "capability",  "text": "publish uptime and wifi_signal sensors" }
+  ],
+
+  "components": [
+    {
+      "id": "oled1",
+      "library_id": "ssd1306",
+      "label": "Status OLED",
+      "role": "display",
+      "params": {
+        "address": "0x3C",
+        "update_interval": "2s",
+        "lambda_": "it.strftime(0, 11, id(font1), \"Time: %H:%M\", id(time1).now());\nit.strftime(0, 23, id(font1), \"Date: %d.%m.%Y\", id(time1).now());\nit.printf(0, 35, id(font1),  WiFi.localIP().toString().c_str());\n"
+      }
+    }
+  ],
+
+  "buses": [
+    { "id": "i2c0", "type": "i2c", "frequency_hz": 100000, "sda": "D2", "scl": "D1" }
+  ],
+
+  "connections": [
+    { "component_id": "oled1", "pin_role": "VCC",   "target": { "kind": "rail", "rail": "3V3" } },
+    { "component_id": "oled1", "pin_role": "GND",   "target": { "kind": "rail", "rail": "GND" } },
+    { "component_id": "oled1", "pin_role": "SDA",   "target": { "kind": "bus",  "bus_id": "i2c0" } },
+    { "component_id": "oled1", "pin_role": "SCL",   "target": { "kind": "bus",  "bus_id": "i2c0" } },
+    { "component_id": "oled1", "pin_role": "RESET", "target": { "kind": "gpio", "pin": "D0" } }
+  ],
+
+  "passives": [
+    { "id": "c1", "kind": "capacitor", "value": "100nF",
+      "between": ["oled1.VCC", "GND"], "purpose": "decoupling oled1" },
+    { "id": "r1", "kind": "resistor",  "value": "4.7k",
+      "between": ["i2c0.SDA", "3V3"],  "purpose": "I2C pull-up" },
+    { "id": "r2", "kind": "resistor",  "value": "4.7k",
+      "between": ["i2c0.SCL", "3V3"],  "purpose": "I2C pull-up" }
+  ],
+
+  "warnings": [],
+
+  "esphome_extras": {
+    "logger": {},
+    "time": [
+      { "platform": "homeassistant", "id": "time1" }
+    ],
+    "font": [
+      { "file": "common/fonts/arial.ttf", "id": "font1", "size": 10 }
+    ],
+    "sensor": [
+      { "platform": "uptime",      "name": "oled System Uptime" },
+      { "platform": "wifi_signal", "name": "oled WiFi Signal", "update_interval": "15s" }
+    ]
+  },
+
+  "fleet": {
+    "device_name": "oled",
+    "tags": ["indoor", "display"],
+    "secrets_ref": {
+      "wifi_ssid": "!secret wifi_ssid",
+      "wifi_password": "!secret wifi_password",
+      "api_key": "!secret api_key"
+    }
+  }
+}

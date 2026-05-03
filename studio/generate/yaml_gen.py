@@ -22,7 +22,18 @@ yaml.add_representer(Secret, _secret_representer)
 yaml.SafeDumper.add_representer(Secret, _secret_representer)
 
 
+def _str_representer(dumper: yaml.Dumper, data: str) -> yaml.ScalarNode:
+    if "\n" in data:
+        return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")
+    return dumper.represent_scalar("tag:yaml.org,2002:str", data)
+
+
+yaml.add_representer(str, _str_representer)
+yaml.SafeDumper.add_representer(str, _str_representer)
+
+
 _jinja = Environment(undefined=StrictUndefined, keep_trailing_newline=False)
+_jinja.policies["json.dumps_kwargs"] = {"sort_keys": False, "ensure_ascii": False}
 
 
 def _bus_for(component_id: str, design: Design) -> Bus | None:
@@ -90,10 +101,10 @@ def build_yaml_dict(design: Design, library: Library) -> dict[str, Any]:
     device_name = (design.fleet.device_name if design.fleet and design.fleet.device_name else design.id)
     out["esphome"] = {"name": device_name}
 
-    out[board.chip_variant] = {
-        "board": board.platformio_board,
-        "framework": {"type": design.board.framework},
-    }
+    chip_block: dict[str, Any] = {"board": board.platformio_board}
+    if board.chip_variant.startswith("esp32"):
+        chip_block["framework"] = {"type": design.board.framework}
+    out[board.chip_variant] = chip_block
 
     extras = dict(design.esphome_extras or {})
     out["logger"] = extras.pop("logger", {})

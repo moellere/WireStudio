@@ -1,0 +1,28 @@
++-----------------------------------------------------------------+
+|  WeMos D1 Mini  ---  bluemotion                                 |
++-----------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                            |
+|                                                                 |
+|  pir1  [HC-SR501 PIR motion sensor]  -- Blue Motion             |
+|    VCC   -> rail 5V                                             |
+|    GND   -> rail GND                                            |
+|    OUT   -> GPIO4                                               |
+|                                                                 |
+|  led1  [WS2812B addressable LED (NeoPixel)]  -- LED 1           |
+|    VCC   -> rail 5V                                             |
+|    GND   -> rail GND                                            |
+|    DIN   -> GPIO14                                              |
+|                                                                 |
+|  Passives:                                                      |
+|    c1: 100nF capacitor, led1.VCC  <->  GND   (decoupling led1)  |
+|                                                                 |
+|  BOM:                                                           |
+|    - WeMos D1 Mini                                              |
+|    - HC-SR501 PIR motion sensor  (pir1)                         |
+|    - WS2812B addressable LED (NeoPixel)  (led1)                 |
+|    - 1x 100nF capacitor                                         |
+|                                                                 |
+|  Power: ~70mA typical, ~125mA peak (budget 500mA)  OK           |
+|                                                                 |
+|  Warnings: none                                                 |
++-----------------------------------------------------------------+

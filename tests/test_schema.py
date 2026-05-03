@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import jsonschema
+import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -17,4 +18,11 @@ def test_garage_motion_validates_against_schema():
 def test_awning_control_validates_against_schema():
     schema = json.loads((REPO_ROOT / "schema" / "design.schema.json").read_text())
     design = json.loads((REPO_ROOT / "examples" / "awning-control.json").read_text())
+    jsonschema.validate(design, schema)
+
+
+@pytest.mark.parametrize("name", ["wasserpir", "oled", "bluemotion"])
+def test_pr1_examples_validate_against_schema(name):
+    schema = json.loads((REPO_ROOT / "schema" / "design.schema.json").read_text())
+    design = json.loads((REPO_ROOT / "examples" / f"{name}.json").read_text())
     jsonschema.validate(design, schema)

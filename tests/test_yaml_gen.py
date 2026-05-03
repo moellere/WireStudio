@@ -60,3 +60,64 @@ def test_awning_address_kept_as_string(awning_control_design, library):
     text = render_yaml(awning_control_design, library)
     assert "address: '0x20'" in text
     assert "address: 32" not in text
+
+
+def test_esp8266_omits_framework_type(awning_control_design, library):
+    text = render_yaml(awning_control_design, library)
+    assert "type: arduino" not in text
+
+
+def test_wasserpir_matches_golden(wasserpir_design, library, golden_dir):
+    expected = (golden_dir / "wasserpir.yaml").read_text()
+    actual = render_yaml(wasserpir_design, library)
+    assert actual == expected
+
+
+def test_wasserpir_filters_render(wasserpir_design, library):
+    text = render_yaml(wasserpir_design, library)
+    assert "filters:" in text
+    assert "delayed_on: 100ms" in text
+
+
+def test_oled_matches_golden(oled_design, library, golden_dir):
+    expected = (golden_dir / "oled.yaml").read_text()
+    actual = render_yaml(oled_design, library)
+    assert actual == expected
+
+
+def test_oled_lambda_renders_as_literal_block(oled_design, library):
+    text = render_yaml(oled_design, library)
+    assert "lambda: |" in text
+    assert "WiFi.localIP()" in text
+    assert 'lambda: "it.strftime' not in text
+
+
+def test_oled_reset_pin_emitted(oled_design, library):
+    parsed = yaml.unsafe_load(render_yaml(oled_design, library))
+    assert parsed["display"][0]["reset_pin"] == "D0"
+
+
+def test_bluemotion_matches_golden(bluemotion_design, library, golden_dir):
+    expected = (golden_dir / "bluemotion.yaml").read_text()
+    actual = render_yaml(bluemotion_design, library)
+    assert actual == expected
+
+
+def test_bluemotion_neopixel_pin_and_method(bluemotion_design, library):
+    parsed = yaml.unsafe_load(render_yaml(bluemotion_design, library))
+    light = parsed["light"][0]
+    assert light["pin"] == "GPIO14"
+    assert light["method"] == "BIT_BANG"
+    assert light["variant"] == "400KBPS"
+
+
+def test_bluemotion_on_press_key_order_preserved(bluemotion_design, library):
+    text = render_yaml(bluemotion_design, library)
+    id_pos = text.find("id: led1\n        brightness")
+    assert id_pos != -1, "expected 'id' to come before 'brightness' in light.turn_on"
+
+
+def test_bluemotion_on_boot_merged_into_esphome_block(bluemotion_design, library):
+    parsed = yaml.unsafe_load(render_yaml(bluemotion_design, library))
+    assert parsed["esphome"]["name"] == "bluemotion1"
+    assert "on_boot" in parsed["esphome"]

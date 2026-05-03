@@ -1,0 +1,18 @@
++-------------------------------------------------------------+
+|  WeMos D1 Mini  ---  wasserpir                              |
++-------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                        |
+|                                                             |
+|  pir1  [HC-SR501 PIR motion sensor]  -- Wasserstein Motion  |
+|    VCC   -> rail 5V                                         |
+|    GND   -> rail GND                                        |
+|    OUT   -> D2                                              |
+|                                                             |
+|  BOM:                                                       |
+|    - WeMos D1 Mini                                          |
+|    - HC-SR501 PIR motion sensor  (pir1)                     |
+|                                                             |
+|  Power: ~50mA typical, ~65mA peak (budget 500mA)  OK        |
+|                                                             |
+|  Warnings: none                                             |
++-------------------------------------------------------------+
