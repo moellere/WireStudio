@@ -1,0 +1,32 @@
++-----------------------------------------------------------------+
+|  ESP32-DevKitC-V4  ---  garage-motion-v1                        |
++-----------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                            |
+|                                                                 |
+|  pir1  [HC-SR501 PIR motion sensor]  -- Driveway PIR            |
+|    VCC   -> rail 5V                                             |
+|    GND   -> rail GND                                            |
+|    OUT   -> GPIO13                                              |
+|                                                                 |
+|  bme1  [Bosch BME280 (T/H/P)]  -- Porch climate                 |
+|    VCC   -> rail 3V3                                            |
+|    GND   -> rail GND                                            |
+|    SDA   -> i2c0 (GPIO21)                                       |
+|    SCL   -> i2c0 (GPIO22)                                       |
+|                                                                 |
+|  Passives:                                                      |
+|    c1: 100nF capacitor, bme1.VCC  <->  GND   (decoupling bme1)  |
+|    r1: 4.7k resistor, i2c0.SDA  <->  3V3   (I2C pull-up)        |
+|    r2: 4.7k resistor, i2c0.SCL  <->  3V3   (I2C pull-up)        |
+|                                                                 |
+|  BOM:                                                           |
+|    - ESP32-DevKitC-V4                                           |
+|    - HC-SR501 PIR motion sensor  (pir1)                         |
+|    - Bosch BME280 (T/H/P)  (bme1)                               |
+|    - 1x 100nF capacitor                                         |
+|    - 2x 4.7k resistor                                           |
+|                                                                 |
+|  Power: ~50mA typical, ~69mA peak (budget 500mA)  OK            |
+|                                                                 |
+|  Warnings: none                                                 |
++-----------------------------------------------------------------+
