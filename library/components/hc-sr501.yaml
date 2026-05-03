@@ -19,7 +19,7 @@ esphome:
   yaml_template: |
     binary_sensor:
       - platform: gpio
-        pin: {{ pins.OUT }}
+        pin: {{ pins.OUT | tojson }}
         name: "{{ label }}"
         device_class: motion
     {%- if params.filters is defined %}

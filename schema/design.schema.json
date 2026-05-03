@@ -125,6 +125,18 @@
                   "kind": { "const": "bus" },
                   "bus_id": { "type": "string" }
                 }
+              },
+              {
+                "type": "object",
+                "required": ["kind", "expander_id", "number"],
+                "additionalProperties": false,
+                "properties": {
+                  "kind": { "const": "expander_pin" },
+                  "expander_id": { "type": "string" },
+                  "number": { "type": "integer", "minimum": 0 },
+                  "mode": { "type": "string", "enum": ["INPUT", "INPUT_PULLUP", "INPUT_PULLDOWN", "OUTPUT", "OUTPUT_OPEN_DRAIN"] },
+                  "inverted": { "type": "boolean" }
+                }
               }
             ]
           }

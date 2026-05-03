@@ -20,9 +20,6 @@ mcp23008:
 - id: mcp23008_hub
   address: '0x20'
   i2c_id: i2c0
-time:
-- platform: homeassistant
-  id: homeassistant_time
 binary_sensor:
 - platform: gpio
   pin:
@@ -31,8 +28,8 @@ binary_sensor:
     mode: INPUT_PULLUP
     inverted: true
   name: Awning Closed Sensor
-  device_class: opening
   id: awning_closed_sensor
+  device_class: opening
 - platform: gpio
   pin:
     mcp23008: mcp23008_hub
@@ -40,8 +37,8 @@ binary_sensor:
     mode: INPUT_PULLUP
     inverted: true
   name: Awning Open Sensor
-  device_class: opening
   id: awning_open_sensor
+  device_class: opening
 - platform: gpio
   pin:
     mcp23008: mcp23008_hub
@@ -80,15 +77,6 @@ binary_sensor:
         - cover.stop: awning_cover
   on_release:
   - cover.stop: awning_cover
-output:
-- platform: esp8266_pwm
-  pin: D5
-  frequency: 1000 Hz
-  id: out_pwm
-- platform: esp8266_pwm
-  pin: D6
-  frequency: 1000 Hz
-  id: in_pwm
 switch:
 - platform: gpio
   pin:
@@ -97,8 +85,8 @@ switch:
     mode: OUTPUT
     inverted: true
   name: Awning power
-  icon: mdi:power-plug
   id: awning_power
+  icon: mdi:power-plug
 - platform: gpio
   pin:
     mcp23008: mcp23008_hub
@@ -108,6 +96,18 @@ switch:
   id: motor_enable
 - platform: restart
   name: Awning Control Restart
+time:
+- platform: homeassistant
+  id: homeassistant_time
+output:
+- platform: esp8266_pwm
+  pin: D5
+  frequency: 1000 Hz
+  id: out_pwm
+- platform: esp8266_pwm
+  pin: D6
+  frequency: 1000 Hz
+  id: in_pwm
 cover:
 - platform: endstop
   name: Deck Awning

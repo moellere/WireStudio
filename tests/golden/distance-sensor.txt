@@ -1,0 +1,30 @@
++----------------------------------------------------------------------------------------------------+
+|  NodeMCU v2 (ESP-12E/F)  ---  distance-sensor                                                      |
++----------------------------------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                                               |
+|                                                                                                    |
+|  distance  [HC-SR04 ultrasonic distance sensor]  -- Ultrasonic Sensor                              |
+|    VCC   -> rail 5V                                                                                |
+|    GND   -> rail GND                                                                               |
+|    TRIGGER -> D5                                                                                   |
+|    ECHO  -> D6                                                                                     |
+|                                                                                                    |
+|  distancelight  [WS2812B addressable LED (NeoPixel)]  -- Distance Sensor Light                     |
+|    VCC   -> rail 5V                                                                                |
+|    GND   -> rail GND                                                                               |
+|    DIN   -> D1                                                                                     |
+|                                                                                                    |
+|  Passives:                                                                                         |
+|    c1: 100nF capacitor, distancelight.VCC  <->  GND   (decoupling neopixel)                        |
+|                                                                                                    |
+|  BOM:                                                                                              |
+|    - NodeMCU v2 (ESP-12E/F)                                                                        |
+|    - HC-SR04 ultrasonic distance sensor  (distance)                                                |
+|    - WS2812B addressable LED (NeoPixel)  (distancelight)                                           |
+|    - 1x 100nF capacitor                                                                            |
+|                                                                                                    |
+|  Power: ~35mA typical, ~90mA peak (budget 500mA)  OK                                               |
+|                                                                                                    |
+|  Warnings:                                                                                         |
+|    [warn] echo_pin_5v: HC-SR04 ECHO is 5V; add a voltage divider to ESP8266 GPIO or use HC-SR04P.  |
++----------------------------------------------------------------------------------------------------+

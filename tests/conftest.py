@@ -14,8 +14,14 @@ def _secret_ctor(loader: yaml.Loader, node: yaml.ScalarNode) -> str:
     return f"!secret {node.value}"
 
 
+def _lambda_ctor(loader: yaml.Loader, node: yaml.ScalarNode) -> str:
+    return f"!lambda {node.value}"
+
+
 yaml.SafeLoader.add_constructor("!secret", _secret_ctor)
 yaml.UnsafeLoader.add_constructor("!secret", _secret_ctor)
+yaml.SafeLoader.add_constructor("!lambda", _lambda_ctor)
+yaml.UnsafeLoader.add_constructor("!lambda", _lambda_ctor)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -50,6 +56,16 @@ def oled_design() -> Design:
 @pytest.fixture
 def bluemotion_design() -> Design:
     return Design.model_validate(json.loads((REPO_ROOT / "examples" / "bluemotion.json").read_text()))
+
+
+@pytest.fixture
+def distance_sensor_design() -> Design:
+    return Design.model_validate(json.loads((REPO_ROOT / "examples" / "distance-sensor.json").read_text()))
+
+
+@pytest.fixture
+def securitypanel_design() -> Design:
+    return Design.model_validate(json.loads((REPO_ROOT / "examples" / "securitypanel.json").read_text()))
 
 
 @pytest.fixture

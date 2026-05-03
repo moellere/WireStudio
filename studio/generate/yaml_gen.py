@@ -45,12 +45,34 @@ def _bus_for(component_id: str, design: Design) -> Bus | None:
     return None
 
 
-def _pins_for(component_id: str, design: Design) -> dict[str, str]:
-    return {
-        c.pin_role: c.target.pin
-        for c in design.connections
-        if c.component_id == component_id and c.target.kind == "gpio"
-    }
+def _pins_for(component_id: str, design: Design) -> dict[str, Any]:
+    """Return a dict of pin_role -> pin spec.
+
+    For native GPIO connections, the value is the bare pin string (e.g. "GPIO13").
+    For expander_pin connections, the value is the dict ESPHome expects under
+    `pin:` -- with the expander's library_id as the discriminator key.
+    """
+    pins: dict[str, Any] = {}
+    by_id = {c.id: c for c in design.components}
+    for c in design.connections:
+        if c.component_id != component_id:
+            continue
+        t = c.target
+        if t.kind == "gpio":
+            pins[c.pin_role] = t.pin
+        elif t.kind == "expander_pin":
+            expander = by_id.get(t.expander_id)
+            if expander is None:
+                raise ValueError(
+                    f"connection {component_id}.{c.pin_role} references unknown expander '{t.expander_id}'"
+                )
+            block: dict[str, Any] = {expander.library_id: t.expander_id, "number": t.number}
+            if t.mode:
+                block["mode"] = t.mode
+            if t.inverted:
+                block["inverted"] = t.inverted
+            pins[c.pin_role] = block
+    return pins
 
 
 def _deep_merge(dst: dict, src: dict) -> dict:
@@ -148,7 +170,12 @@ def build_yaml_dict(design: Design, library: Library) -> dict[str, Any]:
     return out
 
 
-_SECRET_QUOTED = re.compile(r"!secret '([^']*)'")
+# Two forms of YAML tag quoting that need fixing up:
+#  1. tag-then-quote: `!secret 'api_key'` -- emitted by the Secret class.
+#  2. quote-then-tag: `'!lambda return x;'` -- emitted by PyYAML when an ordinary
+#     string starts with `!`, since it would otherwise be parsed as a tag.
+_TAGGED_THEN_QUOTED = re.compile(r"!(secret|lambda) '([^']*)'")
+_QUOTED_TAG = re.compile(r"'(!(?:secret|lambda) [^']*)'")
 
 
 def render_yaml(design: Design, library: Library) -> str:
@@ -160,4 +187,6 @@ def render_yaml(design: Design, library: Library) -> str:
         allow_unicode=True,
         width=120,
     )
-    return _SECRET_QUOTED.sub(r"!secret \1", text)
+    text = _TAGGED_THEN_QUOTED.sub(r"!\1 \2", text)
+    text = _QUOTED_TAG.sub(r"\1", text)
+    return text

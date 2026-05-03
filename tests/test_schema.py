@@ -21,8 +21,11 @@ def test_awning_control_validates_against_schema():
     jsonschema.validate(design, schema)
 
 
-@pytest.mark.parametrize("name", ["wasserpir", "oled", "bluemotion"])
-def test_pr1_examples_validate_against_schema(name):
+@pytest.mark.parametrize(
+    "name",
+    ["wasserpir", "oled", "bluemotion", "distance-sensor", "securitypanel"],
+)
+def test_examples_validate_against_schema(name):
     schema = json.loads((REPO_ROOT / "schema" / "design.schema.json").read_text())
     design = json.loads((REPO_ROOT / "examples" / f"{name}.json").read_text())
     jsonschema.validate(design, schema)

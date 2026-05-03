@@ -37,10 +37,12 @@ diff-friendly summary of the wiring, BOM, and power budget.
 | Example | Board | What it is |
 |---|---|---|
 | [`garage-motion.json`](examples/garage-motion.json) | ESP32-DevKitC-V4 | PIR + BME280 (temp/humidity/pressure) over I2C |
-| [`awning-control.json`](examples/awning-control.json) | WeMos D1 Mini | Cover controller — limit switches + manual buttons via MCP23008 expander, dual-PWM motor drive |
+| [`awning-control.json`](examples/awning-control.json) | WeMos D1 Mini | Cover controller — 4 limit switches + buttons via MCP23008 expander, 2 GPIO relays, dual-PWM motor drive |
 | [`wasserpir.json`](examples/wasserpir.json) | WeMos D1 Mini | Single PIR with a scheduled nightly reboot |
 | [`oled.json`](examples/oled.json) | WeMos D1 Mini | SSD1306 status display rendering time, date, IP |
 | [`bluemotion.json`](examples/bluemotion.json) | WeMos D1 Mini | PIR + WS2812B NeoPixel; motion lights the LED |
+| [`distance-sensor.json`](examples/distance-sensor.json) | NodeMCU v2 | HC-SR04 ultrasonic + WS2812B NeoPixel; LED color tracks distance |
+| [`securitypanel.json`](examples/securitypanel.json) | WeMos D1 Mini | 12 door/window/motion sensors via MCP23017 expander, RTTTL piezo, GPIO siren |
 
 Generated artifacts for each are pinned as goldens in
 [`tests/golden/`](tests/golden/).
@@ -71,13 +73,24 @@ Currently shipped:
 **Boards** (`library/boards/`)
 - `esp32-devkitc-v4` — ESP32 DevKitC V4 (ESP32-WROOM-32, 4MB flash)
 - `wemos-d1-mini` — WeMos D1 Mini (ESP-12F module, ESP8266)
+- `nodemcu-v2` — NodeMCU v2 (ESP-12E/F module, ESP8266, breaks out RX/TX/MISO/MOSI as D9-D12)
 
 **Components** (`library/components/`)
 - `bme280` — Bosch temperature/humidity/pressure sensor (I2C)
+- `hc-sr04` — ultrasonic distance sensor (4-pin: VCC, GND, TRIGGER, ECHO)
 - `hc-sr501` — PIR motion sensor (used as a generic PIR)
 - `ssd1306` — 128×64 OLED (I2C)
 - `mcp23008` — 8-bit I2C GPIO expander
+- `mcp23017` — 16-bit I2C GPIO expander
 - `ws2812b` — addressable RGB LED (NeoPixel/neopixelbus)
+- `gpio_input` — generic binary_sensor on a GPIO or expander pin (buttons, limit switches, door/window/motion sensors)
+- `gpio_output` — generic switch on a GPIO or expander pin (relays, indicators)
+
+The `gpio_input` / `gpio_output` components and the `kind: expander_pin`
+connection target together let downstream platforms hang off any expander
+without bloating `esphome_extras`. See `examples/securitypanel.json` for a
+12-sensor MCP23017 wiring or `examples/awning-control.json` for a mix of
+expander inputs and outputs.
 
 The library is intentionally small. It will grow as we convert more
 device configs from the corpus in `moellere/esphome`. See
