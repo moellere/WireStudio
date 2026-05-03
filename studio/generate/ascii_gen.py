@@ -32,13 +32,17 @@ def render_ascii(design: Design, library: Library) -> str:
                 lines.append(f"  {conn.pin_role:<5} -> {t.pin}")
             elif t.kind == "rail":
                 lines.append(f"  {conn.pin_role:<5} -> rail {t.rail}")
-            else:
+            elif t.kind == "bus":
                 bus = next((b for b in design.buses if b.id == t.bus_id), None)
                 if bus and bus.type == "i2c":
                     pin = bus.sda if conn.pin_role == "SDA" else bus.scl if conn.pin_role == "SCL" else "?"
                     lines.append(f"  {conn.pin_role:<5} -> {bus.id} ({pin})")
                 else:
                     lines.append(f"  {conn.pin_role:<5} -> bus {t.bus_id}")
+            elif t.kind == "expander_pin":
+                mode = f" {t.mode}" if t.mode else ""
+                inv = " inverted" if t.inverted else ""
+                lines.append(f"  {conn.pin_role:<5} -> {t.expander_id}.{t.number}{mode}{inv}")
         lines.append("")
 
     if design.passives:

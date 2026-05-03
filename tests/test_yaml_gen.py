@@ -121,3 +121,52 @@ def test_bluemotion_on_boot_merged_into_esphome_block(bluemotion_design, library
     parsed = yaml.unsafe_load(render_yaml(bluemotion_design, library))
     assert parsed["esphome"]["name"] == "bluemotion1"
     assert "on_boot" in parsed["esphome"]
+
+
+def test_distance_sensor_matches_golden(distance_sensor_design, library, golden_dir):
+    expected = (golden_dir / "distance-sensor.yaml").read_text()
+    actual = render_yaml(distance_sensor_design, library)
+    assert actual == expected
+
+
+def test_distance_sensor_lambda_renders_unquoted(distance_sensor_design, library):
+    text = render_yaml(distance_sensor_design, library)
+    assert "red: !lambda return (100-x)/100.0;" in text
+    assert "'!lambda" not in text
+
+
+def test_securitypanel_matches_golden(securitypanel_design, library, golden_dir):
+    expected = (golden_dir / "securitypanel.yaml").read_text()
+    actual = render_yaml(securitypanel_design, library)
+    assert actual == expected
+
+
+def test_securitypanel_expander_pins_render(securitypanel_design, library):
+    parsed = yaml.unsafe_load(render_yaml(securitypanel_design, library))
+    sensors = parsed["binary_sensor"]
+    # All 12 sensors should be on the mcp23017 hub.
+    assert len(sensors) == 12
+    for s in sensors:
+        assert "mcp23017" in s["pin"]
+        assert s["pin"]["mcp23017"] == "mcp_hub"
+        assert s["pin"]["mode"] == "INPUT"
+        assert s["pin"]["inverted"] is True
+        assert isinstance(s["pin"]["number"], int)
+
+
+def test_securitypanel_expander_uses_library_id_as_pin_key(securitypanel_design, library):
+    text = render_yaml(securitypanel_design, library)
+    assert "mcp23017: mcp_hub" in text
+    assert "mcp23xxx" not in text
+
+
+def test_awning_uses_expander_pins_not_extras(awning_control_design, library):
+    parsed = yaml.unsafe_load(render_yaml(awning_control_design, library))
+    sensors = parsed["binary_sensor"]
+    assert len(sensors) == 4  # closed, open, out_button, in_button
+    for s in sensors:
+        assert s["pin"]["mcp23008"] == "mcp23008_hub"
+    switches = [s for s in parsed["switch"] if s["platform"] == "gpio"]
+    assert len(switches) == 2  # awning_power, motor_enable
+    for s in switches:
+        assert s["pin"]["mcp23008"] == "mcp23008_hub"

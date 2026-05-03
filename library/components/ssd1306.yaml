@@ -30,7 +30,7 @@ esphome:
         i2c_id: {{ bus.id }}
         id: {{ id }}
     {%- if pins.RESET is defined %}
-        reset_pin: {{ pins.RESET }}
+        reset_pin: {{ pins.RESET | tojson }}
     {%- endif %}
     {%- if params.update_interval is defined %}
         update_interval: {{ params.update_interval }}

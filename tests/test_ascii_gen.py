@@ -44,7 +44,9 @@ def test_awning_box_consistent_width(awning_control_design, library):
 
 def test_awning_warning_surfaced(awning_control_design, library):
     text = render_ascii(awning_control_design, library)
-    assert "[info] expander_pins_in_extras" in text
+    # awning still has a deferred-extras warning, but the *kind* of deferral
+    # changed once the expander_pin refactor landed.
+    assert "[info] pwm_and_cover_in_extras" in text
 
 
 def test_wasserpir_matches_golden(wasserpir_design, library, golden_dir):
@@ -65,3 +67,24 @@ def test_bluemotion_matches_golden(bluemotion_design, library, golden_dir):
 def test_bluemotion_box_consistent_width(bluemotion_design, library):
     widths = {len(line) for line in render_ascii(bluemotion_design, library).splitlines()}
     assert len(widths) == 1
+
+
+def test_distance_sensor_matches_golden(distance_sensor_design, library, golden_dir):
+    expected = (golden_dir / "distance-sensor.txt").read_text().rstrip("\n")
+    assert render_ascii(distance_sensor_design, library) == expected
+
+
+def test_securitypanel_matches_golden(securitypanel_design, library, golden_dir):
+    expected = (golden_dir / "securitypanel.txt").read_text().rstrip("\n")
+    assert render_ascii(securitypanel_design, library) == expected
+
+
+def test_securitypanel_renders_expander_pin_lines(securitypanel_design, library):
+    text = render_ascii(securitypanel_design, library)
+    assert "IN    -> mcp_hub.4 INPUT inverted" in text
+    assert "OUT   -> mcp_hub.3 OUTPUT inverted" in text
+
+
+def test_awning_no_longer_shows_expander_pins_in_extras_warning(awning_control_design, library):
+    text = render_ascii(awning_control_design, library)
+    assert "expander_pins_in_extras" not in text

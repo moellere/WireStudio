@@ -1,0 +1,186 @@
+esphome:
+  name: securitypanel
+  on_boot:
+    priority: -10
+    then:
+    - wait_until:
+        api.connected: null
+    - logger.log: API is connected!
+    - rtttl.play: success:d=24,o=5,b=100:c,g,b
+esp8266:
+  board: d1_mini
+logger: {}
+api:
+  encryption:
+    key: !secret api_key
+  services:
+  - service: play_rtttl
+    variables:
+      song_str: string
+    then:
+    - rtttl.play:
+        rtttl: !lambda return song_str;
+ota:
+- platform: esphome
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+i2c:
+- id: i2c0
+  sda: D2
+  scl: D1
+  frequency: 100kHz
+mcp23017:
+- id: mcp_hub
+  address: '0x20'
+  i2c_id: i2c0
+binary_sensor:
+- platform: gpio
+  pin:
+    mcp23017: mcp_hub
+    number: 4
+    mode: INPUT
+    inverted: true
+  name: MBR Door/Window
+  id: mbr_door
+  device_class: door
+  on_press:
+  - rtttl.play: short:d=4,o=5,b=100:16e6,16e6
+- platform: gpio
+  pin:
+    mcp23017: mcp_hub
+    number: 5
+    mode: INPUT
+    inverted: true
+  name: Living Room Doors
+  id: living_room_doors
+  device_class: door
+  on_press:
+  - rtttl.play: short:d=4,o=5,b=100:16e6,16e6
+- platform: gpio
+  pin:
+    mcp23017: mcp_hub
+    number: 6
+    mode: INPUT
+    inverted: true
+  name: Office/Dining Room Windows
+  id: office_dining_windows
+  device_class: window
+  on_press:
+  - rtttl.play: short:d=4,o=5,b=100:16e6,16e6
+- platform: gpio
+  pin:
+    mcp23017: mcp_hub
+    number: 7
+    mode: INPUT
+    inverted: true
+  name: Pin A7
+  id: pin_a7
+  on_press:
+  - rtttl.play: short:d=4,o=5,b=100:16e6,16e6
+- platform: gpio
+  pin:
+    mcp23017: mcp_hub
+    number: 8
+    mode: INPUT
+    inverted: true
+  name: Kitchen Door
+  id: kitchen_door
+  device_class: door
+  on_press:
+  - rtttl.play: short:d=4,o=5,b=100:16e6,16e6
+- platform: gpio
+  pin:
+    mcp23017: mcp_hub
+    number: 9
+    mode: INPUT
+    inverted: true
+  name: Kitchen Window
+  id: kitchen_window
+  device_class: window
+  on_press:
+  - rtttl.play: short:d=4,o=5,b=100:16e6,16e6
+- platform: gpio
+  pin:
+    mcp23017: mcp_hub
+    number: 10
+    mode: INPUT
+    inverted: true
+  name: Living Room Motion
+  id: living_room_motion
+  device_class: motion
+- platform: gpio
+  pin:
+    mcp23017: mcp_hub
+    number: 11
+    mode: INPUT
+    inverted: true
+  name: Garage Hall Door
+  id: garage_hall_door
+  device_class: door
+  on_press:
+  - rtttl.play: short:d=4,o=5,b=100:16e6,16e6
+- platform: gpio
+  pin:
+    mcp23017: mcp_hub
+    number: 12
+    mode: INPUT
+    inverted: true
+  name: Front Door
+  id: front_door
+  device_class: door
+  on_press:
+  - rtttl.play: short:d=4,o=5,b=100:16e6,16e6
+- platform: gpio
+  pin:
+    mcp23017: mcp_hub
+    number: 13
+    mode: INPUT
+    inverted: true
+  name: Laundry Room
+  id: laundry_room
+  device_class: door
+  on_press:
+  - rtttl.play: short:d=4,o=5,b=100:16e6,16e6
+- platform: gpio
+  pin:
+    mcp23017: mcp_hub
+    number: 14
+    mode: INPUT
+    inverted: true
+  name: Pin B6
+  id: pin_b6
+  on_press:
+  - rtttl.play: short:d=4,o=5,b=100:16e6,16e6
+- platform: gpio
+  pin:
+    mcp23017: mcp_hub
+    number: 15
+    mode: INPUT
+    inverted: true
+  name: Pin B7
+  id: pin_b7
+  on_press:
+  - rtttl.play: short:d=4,o=5,b=100:16e6,16e6
+switch:
+- platform: gpio
+  pin:
+    mcp23017: mcp_hub
+    number: 3
+    mode: OUTPUT
+    inverted: true
+  name: Security Siren
+  id: security_siren
+- platform: restart
+  name: Security Panel Restart
+time:
+- platform: homeassistant
+  id: homeassistant_time
+output:
+- platform: esp8266_pwm
+  pin: D7
+  id: rtttl_out
+rtttl:
+  output: rtttl_out
+  on_finished_playback:
+  - logger.log: RTTTL ended!

@@ -24,7 +24,7 @@ esphome:
         variant: {{ params.variant | default('WS2812') }}
         method: {{ params.method | default('ESP8266_UART1') }}
         type: {{ params.type | default('GRB') }}
-        pin: {{ pins.DIN }}
+        pin: {{ pins.DIN | tojson }}
         num_leds: {{ params.num_leds | default(1) }}
         name: "{{ label }}"
         id: {{ id }}

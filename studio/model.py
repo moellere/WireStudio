@@ -65,8 +65,16 @@ class BusTarget(_Strict):
     bus_id: str
 
 
+class ExpanderPinTarget(_Strict):
+    kind: Literal["expander_pin"]
+    expander_id: str
+    number: int
+    mode: Optional[str] = None
+    inverted: bool = False
+
+
 ConnectionTarget = Annotated[
-    Union[RailTarget, GpioTarget, BusTarget],
+    Union[RailTarget, GpioTarget, BusTarget, ExpanderPinTarget],
     Field(discriminator="kind"),
 ]
 

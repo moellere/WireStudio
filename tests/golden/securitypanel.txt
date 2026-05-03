@@ -1,0 +1,78 @@
++--------------------------------------------------------------------------------------+
+|  WeMos D1 Mini  ---  securitypanel                                                   |
++--------------------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                                 |
+|                                                                                      |
+|  mcp_hub  [Microchip MCP23017 (16-bit I2C GPIO expander)]  -- Sensor IO expander     |
+|    VCC   -> rail 3V3                                                                 |
+|    GND   -> rail GND                                                                 |
+|    SDA   -> i2c0 (D2)                                                                |
+|    SCL   -> i2c0 (D1)                                                                |
+|                                                                                      |
+|  mbr_door  [Generic GPIO binary sensor]  -- MBR Door/Window                          |
+|    IN    -> mcp_hub.4 INPUT inverted                                                 |
+|                                                                                      |
+|  living_room_doors  [Generic GPIO binary sensor]  -- Living Room Doors               |
+|    IN    -> mcp_hub.5 INPUT inverted                                                 |
+|                                                                                      |
+|  office_dining_windows  [Generic GPIO binary sensor]  -- Office/Dining Room Windows  |
+|    IN    -> mcp_hub.6 INPUT inverted                                                 |
+|                                                                                      |
+|  pin_a7  [Generic GPIO binary sensor]  -- Pin A7                                     |
+|    IN    -> mcp_hub.7 INPUT inverted                                                 |
+|                                                                                      |
+|  kitchen_door  [Generic GPIO binary sensor]  -- Kitchen Door                         |
+|    IN    -> mcp_hub.8 INPUT inverted                                                 |
+|                                                                                      |
+|  kitchen_window  [Generic GPIO binary sensor]  -- Kitchen Window                     |
+|    IN    -> mcp_hub.9 INPUT inverted                                                 |
+|                                                                                      |
+|  living_room_motion  [Generic GPIO binary sensor]  -- Living Room Motion             |
+|    IN    -> mcp_hub.10 INPUT inverted                                                |
+|                                                                                      |
+|  garage_hall_door  [Generic GPIO binary sensor]  -- Garage Hall Door                 |
+|    IN    -> mcp_hub.11 INPUT inverted                                                |
+|                                                                                      |
+|  front_door  [Generic GPIO binary sensor]  -- Front Door                             |
+|    IN    -> mcp_hub.12 INPUT inverted                                                |
+|                                                                                      |
+|  laundry_room  [Generic GPIO binary sensor]  -- Laundry Room                         |
+|    IN    -> mcp_hub.13 INPUT inverted                                                |
+|                                                                                      |
+|  pin_b6  [Generic GPIO binary sensor]  -- Pin B6                                     |
+|    IN    -> mcp_hub.14 INPUT inverted                                                |
+|                                                                                      |
+|  pin_b7  [Generic GPIO binary sensor]  -- Pin B7                                     |
+|    IN    -> mcp_hub.15 INPUT inverted                                                |
+|                                                                                      |
+|  security_siren  [Generic GPIO switch / relay output]  -- Security Siren             |
+|    OUT   -> mcp_hub.3 OUTPUT inverted                                                |
+|                                                                                      |
+|  Passives:                                                                           |
+|    c1: 100nF capacitor, mcp_hub.VCC  <->  GND   (decoupling mcp23017)                |
+|    r1: 4.7k resistor, i2c0.SDA  <->  3V3   (I2C pull-up)                             |
+|    r2: 4.7k resistor, i2c0.SCL  <->  3V3   (I2C pull-up)                             |
+|                                                                                      |
+|  BOM:                                                                                |
+|    - WeMos D1 Mini                                                                   |
+|    - Microchip MCP23017 (16-bit I2C GPIO expander)  (mcp_hub)                        |
+|    - Generic GPIO binary sensor  (mbr_door)                                          |
+|    - Generic GPIO binary sensor  (living_room_doors)                                 |
+|    - Generic GPIO binary sensor  (office_dining_windows)                             |
+|    - Generic GPIO binary sensor  (pin_a7)                                            |
+|    - Generic GPIO binary sensor  (kitchen_door)                                      |
+|    - Generic GPIO binary sensor  (kitchen_window)                                    |
+|    - Generic GPIO binary sensor  (living_room_motion)                                |
+|    - Generic GPIO binary sensor  (garage_hall_door)                                  |
+|    - Generic GPIO binary sensor  (front_door)                                        |
+|    - Generic GPIO binary sensor  (laundry_room)                                      |
+|    - Generic GPIO binary sensor  (pin_b6)                                            |
+|    - Generic GPIO binary sensor  (pin_b7)                                            |
+|    - Generic GPIO switch / relay output  (security_siren)                            |
+|    - 1x 100nF capacitor                                                              |
+|    - 2x 4.7k resistor                                                                |
+|                                                                                      |
+|  Power: ~1mA typical, ~65mA peak (budget 500mA)  OK                                  |
+|                                                                                      |
+|  Warnings: none                                                                      |
++--------------------------------------------------------------------------------------+

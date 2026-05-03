@@ -2,9 +2,9 @@
   "schema_version": "0.1",
   "id": "awning-control",
   "name": "Deck awning controller",
-  "description": "ESP8266 D1 Mini drives a motorized retractable deck awning via H-bridge PWM, with limit switches and manual buttons read through an MCP23008 I2C port expander. Per-pin platforms hang off the expander; until 0.2 supports expander-pin connections, those plus cover automations live in esphome_extras.",
+  "description": "ESP8266 D1 Mini drives a motorized retractable deck awning via H-bridge PWM, with limit switches and manual buttons read through an MCP23008 I2C port expander. Sensors and switches are now modeled as gpio_input/gpio_output components with expander_pin connections; PWM outputs and the cover platform stay in esphome_extras.",
   "created_at": "2020-11-04T01:53:00Z",
-  "updated_at": "2026-05-03T12:00:00Z",
+  "updated_at": "2026-05-04T00:00:00Z",
 
   "board": {
     "library_id": "wemos-d1-mini",
@@ -27,30 +27,70 @@
   ],
 
   "components": [
+    { "id": "mcp23008_hub", "library_id": "mcp23008", "label": "Awning IO expander", "role": "io_expander",
+      "params": { "address": "0x20" } },
+
+    { "id": "awning_closed_sensor", "library_id": "gpio_input", "label": "Awning Closed Sensor",
+      "params": { "device_class": "opening" } },
+    { "id": "awning_open_sensor",   "library_id": "gpio_input", "label": "Awning Open Sensor",
+      "params": { "device_class": "opening" } },
     {
-      "id": "mcp23008_hub",
-      "library_id": "mcp23008",
-      "label": "Awning IO expander",
-      "role": "io_expander",
-      "params": { "address": "0x20" }
-    }
+      "id": "out_button", "library_id": "gpio_input", "label": "Awning Out",
+      "params": {
+        "on_press": {
+          "then": [
+            {
+              "if": {
+                "condition": { "binary_sensor.is_off": "awning_open_sensor" },
+                "then": [ { "cover.open": "awning_cover" } ],
+                "else": [ { "cover.stop": "awning_cover" } ]
+              }
+            }
+          ]
+        },
+        "on_release": [ { "cover.stop": "awning_cover" } ]
+      }
+    },
+    {
+      "id": "in_button", "library_id": "gpio_input", "label": "Awning In",
+      "params": {
+        "on_press": {
+          "then": [
+            {
+              "if": {
+                "condition": { "binary_sensor.is_off": "awning_closed_sensor" },
+                "then": [ { "cover.close": "awning_cover" } ],
+                "else": [ { "cover.stop": "awning_cover" } ]
+              }
+            }
+          ]
+        },
+        "on_release": [ { "cover.stop": "awning_cover" } ]
+      }
+    },
+
+    { "id": "awning_power", "library_id": "gpio_output", "label": "Awning power",
+      "params": { "icon": "mdi:power-plug" } },
+    { "id": "motor_enable", "library_id": "gpio_output", "label": "Motor Enable" }
   ],
 
   "buses": [
-    {
-      "id": "i2c0",
-      "type": "i2c",
-      "frequency_hz": 100000,
-      "sda": "D2",
-      "scl": "D1"
-    }
+    { "id": "i2c0", "type": "i2c", "frequency_hz": 100000, "sda": "D2", "scl": "D1" }
   ],
 
   "connections": [
     { "component_id": "mcp23008_hub", "pin_role": "VCC", "target": { "kind": "rail", "rail": "3V3" } },
     { "component_id": "mcp23008_hub", "pin_role": "GND", "target": { "kind": "rail", "rail": "GND" } },
-    { "component_id": "mcp23008_hub", "pin_role": "SDA", "target": { "kind": "bus", "bus_id": "i2c0" } },
-    { "component_id": "mcp23008_hub", "pin_role": "SCL", "target": { "kind": "bus", "bus_id": "i2c0" } }
+    { "component_id": "mcp23008_hub", "pin_role": "SDA", "target": { "kind": "bus",  "bus_id": "i2c0" } },
+    { "component_id": "mcp23008_hub", "pin_role": "SCL", "target": { "kind": "bus",  "bus_id": "i2c0" } },
+
+    { "component_id": "awning_closed_sensor", "pin_role": "IN", "target": { "kind": "expander_pin", "expander_id": "mcp23008_hub", "number": 0, "mode": "INPUT_PULLUP", "inverted": true } },
+    { "component_id": "awning_open_sensor",   "pin_role": "IN", "target": { "kind": "expander_pin", "expander_id": "mcp23008_hub", "number": 1, "mode": "INPUT_PULLUP", "inverted": true } },
+    { "component_id": "out_button",           "pin_role": "IN", "target": { "kind": "expander_pin", "expander_id": "mcp23008_hub", "number": 2, "mode": "INPUT_PULLUP", "inverted": true } },
+    { "component_id": "in_button",            "pin_role": "IN", "target": { "kind": "expander_pin", "expander_id": "mcp23008_hub", "number": 3, "mode": "INPUT_PULLUP", "inverted": true } },
+
+    { "component_id": "motor_enable", "pin_role": "OUT", "target": { "kind": "expander_pin", "expander_id": "mcp23008_hub", "number": 6, "mode": "OUTPUT" } },
+    { "component_id": "awning_power", "pin_role": "OUT", "target": { "kind": "expander_pin", "expander_id": "mcp23008_hub", "number": 7, "mode": "OUTPUT", "inverted": true } }
   ],
 
   "passives": [
@@ -59,8 +99,8 @@
   ],
 
   "warnings": [
-    { "level": "info", "code": "expander_pins_in_extras",
-      "text": "Expander-pin platforms and cover automations are stashed in esphome_extras; 0.2 will model these declaratively." }
+    { "level": "info", "code": "pwm_and_cover_in_extras",
+      "text": "PWM motor drivers (esp8266_pwm on D5/D6) and the endstop cover platform live in esphome_extras until library entries for those land." }
   ],
 
   "esphome_extras": {
@@ -68,65 +108,11 @@
     "time": [
       { "platform": "homeassistant", "id": "homeassistant_time" }
     ],
-    "binary_sensor": [
-      {
-        "platform": "gpio",
-        "pin": { "mcp23008": "mcp23008_hub", "number": 0, "mode": "INPUT_PULLUP", "inverted": true },
-        "name": "Awning Closed Sensor",
-        "device_class": "opening",
-        "id": "awning_closed_sensor"
-      },
-      {
-        "platform": "gpio",
-        "pin": { "mcp23008": "mcp23008_hub", "number": 1, "mode": "INPUT_PULLUP", "inverted": true },
-        "name": "Awning Open Sensor",
-        "device_class": "opening",
-        "id": "awning_open_sensor"
-      },
-      {
-        "platform": "gpio",
-        "pin": { "mcp23008": "mcp23008_hub", "number": 2, "mode": "INPUT_PULLUP", "inverted": true },
-        "name": "Awning Out",
-        "id": "out_button",
-        "on_press": { "then": [
-          { "if": {
-              "condition": { "binary_sensor.is_off": "awning_open_sensor" },
-              "then": [ { "cover.open": "awning_cover" } ],
-              "else": [ { "cover.stop": "awning_cover" } ]
-          } }
-        ] },
-        "on_release": [ { "cover.stop": "awning_cover" } ]
-      },
-      {
-        "platform": "gpio",
-        "pin": { "mcp23008": "mcp23008_hub", "number": 3, "mode": "INPUT_PULLUP", "inverted": true },
-        "name": "Awning In",
-        "id": "in_button",
-        "on_press": { "then": [
-          { "if": {
-              "condition": { "binary_sensor.is_off": "awning_closed_sensor" },
-              "then": [ { "cover.close": "awning_cover" } ],
-              "else": [ { "cover.stop": "awning_cover" } ]
-          } }
-        ] },
-        "on_release": [ { "cover.stop": "awning_cover" } ]
-      }
-    ],
     "output": [
       { "platform": "esp8266_pwm", "pin": "D5", "frequency": "1000 Hz", "id": "out_pwm" },
-      { "platform": "esp8266_pwm", "pin": "D6", "frequency": "1000 Hz", "id": "in_pwm" }
+      { "platform": "esp8266_pwm", "pin": "D6", "frequency": "1000 Hz", "id": "in_pwm"  }
     ],
     "switch": [
-      {
-        "platform": "gpio",
-        "pin": { "mcp23008": "mcp23008_hub", "number": 7, "mode": "OUTPUT", "inverted": true },
-        "name": "Awning power", "icon": "mdi:power-plug", "id": "awning_power"
-      },
-      {
-        "platform": "gpio",
-        "pin": { "mcp23008": "mcp23008_hub", "number": 6, "mode": "OUTPUT" },
-        "name": "Motor Enable", "id": "motor_enable"
-      },
       { "platform": "restart", "name": "Awning Control Restart" }
     ],
     "cover": [
@@ -148,11 +134,11 @@
         "close_action": [
           { "switch.turn_on": "awning_power" },
           { "switch.turn_on": "motor_enable" },
-          { "output.set_level": { "id": "in_pwm", "level": "75%" } }
+          { "output.set_level": { "id": "in_pwm",  "level": "75%" } }
         ],
         "stop_action": [
           { "switch.turn_off": "motor_enable" },
-          { "output.set_level": { "id": "in_pwm", "level": "0%" } },
+          { "output.set_level": { "id": "in_pwm",  "level": "0%" } },
           { "output.set_level": { "id": "out_pwm", "level": "0%" } },
           { "switch.turn_off": "awning_power" }
         ]
