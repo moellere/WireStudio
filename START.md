@@ -1,7 +1,20 @@
-# esphome-studio — Kickoff State
+# esphome-studio — Working State
 
-Handoff doc for starting a fresh session in `moellere/esphome-studio`. Captures
-vision, decisions, schemas, and the first-PR plan from the kickoff conversation.
+Living planning doc. Captures vision, decisions, schemas, and phase plan.
+For day-to-day work tracking we'll spin off GitHub issues once a phase is
+in flight; this doc stays as the strategic reference and decision log.
+
+## Status (as of 2026-05-03)
+
+- **0.1 MVP is in main.** `python -m studio.generate examples/<name>.json`
+  produces ESPHome YAML + ASCII diagrams pinned by goldens.
+- **5 example designs:** `garage-motion`, `awning-control`, `wasserpir`,
+  `oled`, `bluemotion`.
+- **Library:** 2 boards (`esp32-devkitc-v4`, `wemos-d1-mini`), 5 components
+  (`bme280`, `hc-sr501`, `ssd1306`, `mcp23008`, `ws2812b`).
+- **Tests:** 34 passing, ruff clean.
+- **Decided:** option 1 (`kind: expander_pin`) for expander wiring; will
+  land in PR2 of the moellere/esphome conversion sequence.
 
 ## Vision
 
@@ -33,26 +46,111 @@ Sister project to `weirded/distributed-esphome`. Knowledge base seeded from
   3. Generators (pure functions) — `design.json` → YAML / ASCII / BOM.
 - **Secrets:** Never in `design.json`. Reference `distributed-esphome`'s
   `secrets.yaml` via `!secret name`.
-- **Knowledge base sources:**
-  - ESPHome `schema.json` (from `esphome/schema_gen.py`) for component config keys.
-  - PlatformIO board manifests for board catalog.
-  - Hand-curated `library/components/<id>.yaml` for electrical metadata
-    (pins, passives, power, pull-ups) — ESPHome doesn't carry this.
+- **Knowledge base sources** (see *Library sourcing strategy* below for the
+  hybrid plan): ESPHome integrations for YAML schema, PlatformIO board JSON
+  for board metadata, hand-curation + LLM-extracted datasheet data for the
+  electrical layer ESPHome doesn't carry.
 
 ## Phasing
 
-- **0.1 — MVP, no agent.** Document → artifacts pipeline. 3 boards, ~10
-  components. ASCII diagrams. `python -m studio.generate examples/...json`
-  produces YAML + ASCII. Goldens pinned in tests.
-- **0.2 — Agent layer.** Claude tool-using agent with constrained tool surface
-  (see below). Component search, add/remove, param edit, validate.
-- **0.3 — CSP solver.** Pin assignment, bus allocation, current budget.
-  Recommendation mode ("I want motion detection" → ranked options).
-- **0.4 — distributed-esphome handoff.** POST device + YAML, trigger precompile.
-- **0.5 — Enclosure suggestions.** Thingiverse/Printables lookup; parametric
-  OpenSCAD stretch.
-- **Future spec — KiCad schematic + PCB layout.** Reuse the netlist;
-  Freerouting for autorouting; Gerber + JLCPCB CPL/BOM export.
+UI-first ordering: a manual web UI ships before the agent so users have an
+immediate way in and the agent (when it arrives) lands in a working surface.
+
+- **0.1 — MVP pipeline.** ✅ Shipped. `design.json` → ESPHome YAML + ASCII.
+  No agent, no API, no UI. Goldens pinned. Library has 2 boards + 5 components.
+- **0.2 — HTTP API.** FastAPI server (matches distributed-esphome stack).
+  Endpoints:
+  - `GET  /library/boards`, `GET /library/boards/{id}`
+  - `GET  /library/components` (with category/use_case/bus filters),
+    `GET /library/components/{id}`
+  - `POST /design/validate` (returns design + warnings)
+  - `POST /design/render` (returns YAML + ASCII + BOM + power summary)
+  - `GET  /examples` (lists bundled examples; useful for the UI's seed picker)
+  Pure layer over the existing generators. No state on the server in 0.2.
+- **0.3 — Studio Web UI v1.** React 19 + Vite + Tailwind + shadcn. Three
+  panels (see *Studio web UI* section below). No agent yet — manual edits
+  only. Live ASCII + BOM + warnings re-render as the design changes.
+- **0.4 — USB device bootstrap.** "Connect device" button →
+  [`esptool-js`](https://github.com/espressif/esptool-js) over WebSerial in
+  the browser. Detects chip variant, flash size, MAC. Cross-references
+  against the board library, suggests likely board matches. Selecting one
+  bootstraps a fresh `design.json` with `board:` filled. Pure browser, no
+  backend. Same approach web.esphome.io uses.
+- **0.5 — Agent layer.** Claude tool-using agent with the constrained tool
+  surface in *Agent tool surface* below. Lands as a sidebar in the UI;
+  also exposed via `POST /agent/turn`. Conversation history in
+  `sessions/<id>.jsonl`, separate from `design.json`.
+- **0.6 — CSP solver.** Pin assignment, bus allocation, current budget.
+  Surface as a `solve_pins()` agent tool and a "Auto-assign pins" UI
+  button. Recommendation mode ("I want motion detection" → ranked
+  options) sits on top of the same solver.
+- **0.7 — distributed-esphome handoff.** POST device + YAML to the
+  ha-addon, trigger compile + OTA.
+- **0.8 — Enclosure suggestions.** Thingiverse/Printables lookup against
+  the chosen board + components; parametric OpenSCAD stretch.
+- **Future — KiCad schematic + PCB layout.** Reuse the netlist; Freerouting
+  for autorouting; Gerber + JLCPCB CPL/BOM export.
+
+The UI-first ordering means 0.5's agent and 0.6's solver each have a
+visible place to land. If the agent lands first (alternative ordering),
+it ships as a CLI/tool-only surface and we re-skin it later — strictly
+worse for the headline feature.
+
+## Studio web UI (0.3)
+
+Three-panel layout, all driven by the API in 0.2.
+
+- **Library panel (left).**
+  - Search box, category facets (sensor, display, switch, expander, light,
+    io_expander, …), bus-type chips (i2c, spi, uart, 1wire, i2s).
+  - Two tabs: *Components* and *Boards*.
+  - Drag a component card onto the canvas to add to the current design.
+- **Design canvas (center).**
+  - Top: board pinout diagram with active connections drawn as wires
+    between board pins and component blocks. Reuses the `gpio_capabilities`
+    map from board YAMLs to color pins by capability.
+  - Middle: ASCII diagram block (the current `ascii_gen` output, rendered
+    in a monospace box). Live re-render on every design change.
+  - Bottom: BOM table + power summary + warnings tray.
+- **Inspector panel (right).**
+  - When a component is selected: editable form for `params`, derived from
+    the component's `params_schema`. Connection list with per-pin assignment.
+  - When a connection is selected: kind selector (rail / gpio / bus /
+    expander_pin once 0.4-ish); pin picker filtered by capability.
+  - When the design root is selected: board picker, power supply, fleet
+    metadata, secrets references, requirements list.
+- **Toolbar.**
+  - "Connect device" (0.4) → triggers WebSerial detect.
+  - "Talk to agent" (0.5) → opens agent sidebar.
+  - "Solve pins" (0.6) → runs CSP, applies result, shows diff.
+  - "Push to fleet" (0.7) → POST to distributed-esphome.
+  - Export YAML / Export ASCII / Export `design.json`.
+
+Recommendation surfaces (ranked component options for a stated capability)
+fold into the library panel as a separate "Suggest" mode.
+
+## USB device bootstrap (0.4)
+
+Flow:
+
+1. User clicks "Connect device". Browser prompts for serial port permission
+   (Chrome WebSerial; no extension or backend needed).
+2. `esptool-js` reads chip variant (`esp32`, `esp32s3`, `esp32c3`, `esp8266`,
+   `esp8285`, `esp32c6`, etc.), flash size, MAC.
+3. Studio cross-references the chip variant against `library/boards/*.yaml`,
+   filtering to boards whose `mcu` / `chip_variant` match.
+4. UI shows top 3-5 candidates ("ESP32 chip with 4MB flash and PSRAM
+   detected — likely candidates: ESP32-DevKitC-V4, ESP32-WROVER-Kit. Pick
+   one, or pick *Generic ESP32-WROOM-32*."). User picks.
+5. Studio bootstraps a `design.json` with the `board:` block populated and
+   an empty `components: []`. `power.budget_ma` defaults from the board's
+   regulator metadata.
+6. Normal design flow from there. Detected chip is also retained as a
+   `warnings[]` entry if the user later changes the board to something
+   incompatible with what's actually plugged in.
+
+This is where the studio earns its "agentic but grounded" framing: the
+agent never has to *guess* what hardware you have — the device tells us.
 
 ## `design.json` (schema_version 0.1)
 
@@ -277,6 +375,38 @@ Discrete operations the LLM is allowed to call:
 
 Constrained surface = predictable agent.
 
+## Library sourcing strategy
+
+Hybrid. Different parts of the library map to different sources; some are
+mineable, some have to be hand-curated.
+
+| Studio field | Best source | Mineable |
+|---|---|---|
+| Board: `mcu`, `chip_variant`, `platformio_board`, `flash_size_mb` | PlatformIO board JSON ([`platform-espressif32/boards/*.json`](https://github.com/platformio/platform-espressif32/tree/develop/boards), `platform-espressif8266/boards/*.json`) | yes — clean JSON |
+| Board: GPIO list + per-pin capabilities (PWM, ADC, strap, I2C, SPI, input-only) | espressif/esp-idf hw-reference + per-module datasheets ([`docs.espressif.com/.../hw-reference/`](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/hw-reference/)) | partial — RST tables, needs scraping |
+| Board: rails (5V/3V3/GND, regulator), USB chip | datasheet / dev-board schematic | no — hand-curate one entry per *module class*, not per board |
+| Component: ESPHome YAML template + config schema | [esphome/esphome `components/<name>/`](https://github.com/esphome/esphome/tree/dev/esphome/components) — START already plans `schema_gen.py` | yes — ESPHome's own `CONFIG_SCHEMA` (voluptuous) |
+| Component: pin role names, required buses, framework constraints | also from the integration code (`PROTOCOL_HOOKS` for I2C/SPI; `cv.GPIOSensor`) | partial |
+| Component: voltage range, current draw, pull-up requirements, decoupling caps | datasheet | no — hand-curated, but the agent (0.5) is the natural extractor |
+
+Plan:
+
+- **Don't aim for exhaustive.** Cover the ~30 most common components seen
+  across `moellere/esphome` (the survey already enumerated them) and the
+  boards actually in use. That's >90% real-world fit.
+- **Module classes, not boards.** Curate ESP32-WROOM-32, ESP32-S3-WROOM-1,
+  ESP-12F (esp8266), etc. Specific boards (DevKitC-V4, NodeMCU-32S,
+  WeMos D1 Mini) inherit pin capabilities from their module and only
+  override what they expose differently.
+- **Datasheet → component pipeline.** When the agent (0.5) lands, build a
+  one-shot tool: feed it a datasheet PDF/URL + an ESPHome integration
+  name; it emits a candidate `library/components/<id>.yaml` for human
+  review. Same prompt-cached component KB the agent uses for design
+  conversations.
+- **License hygiene.** Schema-derived data from ESPHome (GPLv3 runtime,
+  MIT python frontend) is fine; vendoring source is not. See *License
+  hygiene* under Open considerations.
+
 ## Open considerations / revisit later
 
 - **Strict-mode toggle.** Per-design opt-in for blocking on electrical violations.
@@ -298,20 +428,24 @@ Constrained surface = predictable agent.
 
 ## Pending logistics
 
-- **MCP scope.** Claude's GitHub tools were locked to
-  `moellere/distributed-esphome` in the kickoff session. New session in
-  `moellere/esphome-studio` will need that repo added to the MCP allow-list.
-- **Local checkout.** New session should `git clone
-  git@github.com:moellere/esphome-studio.git` into the working directory
-  before starting.
-- **Branching strategy.** TBD. Suggest mirroring distributed-esphome:
-  `develop` (integration) + `main` (releases via PR). Confirm at kickoff.
-- **CLAUDE.md.** Worth porting the relevant slices of distributed-esphome's
-  CLAUDE.md (concision, no-emoji, design-judgment rules, TODO format,
-  documentation hygiene). Skip the deployment/test-matrix/HA-specific bits.
+- **Branching strategy.** Currently committing direct-to-main with linear
+  history. When 0.2 work spans multiple PRs we'll switch to feature
+  branches; for now the constraint is that this repo has no other humans
+  pushing.
+- **Issue tracking.** Once 0.2 (HTTP API) starts, spin off a milestone with
+  one issue per endpoint + one for the OpenAPI spec. Same pattern for 0.3
+  (one issue per UI panel).
+- **License hygiene.** ESPHome runtime is GPLv3; python frontend is MIT.
+  Studio is MIT (matches ESPHome python frontend). Schema-derived data is
+  fine; vendoring source needs review. Land a `LICENSES.md` when a third
+  source enters the tree.
 
 ## Reference
 
 - distributed-esphome (sister project): https://github.com/weirded/distributed-esphome
+- moellere/esphome (curated device fleet, agent reference corpus): https://github.com/moellere/esphome
 - ESPHome upstream: https://github.com/esphome/esphome
-- Schema source: `esphome/schema_gen.py` in upstream.
+- ESPHome schema source: `esphome/schema_gen.py` in upstream
+- PlatformIO ESP32 board JSON: https://github.com/platformio/platform-espressif32/tree/develop/boards
+- esptool-js (browser USB detect): https://github.com/espressif/esptool-js
+- Espressif HW reference: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/hw-reference/
