@@ -1,0 +1,31 @@
+id: wemos-d1-mini
+name: WeMos D1 Mini
+mcu: esp8266
+chip_variant: esp8266
+framework: arduino
+platformio_board: d1_mini
+flash_size_mb: 4
+
+rails:
+  - {name: "5V",  voltage: 5.0, source: usb}
+  - {name: "3V3", voltage: 3.3, source: onboard_regulator}
+  - {name: "GND", voltage: 0.0}
+
+default_buses:
+  i2c: {sda: D2, scl: D1}
+  spi: {clk: D5, miso: D6, mosi: D7}
+
+# D-labels are how ESPHome refers to D1 Mini pins. Underlying GPIO in parens.
+gpio_capabilities:
+  D0:  [gpio]                     # GPIO16
+  D1:  [gpio, i2c_scl]            # GPIO5
+  D2:  [gpio, i2c_sda]            # GPIO4
+  D3:  [gpio, strap]              # GPIO0  (10k pull-up; boot mode)
+  D4:  [gpio, strap, builtin_led] # GPIO2
+  D5:  [gpio, spi_clk, pwm]       # GPIO14
+  D6:  [gpio, spi_miso, pwm]      # GPIO12
+  D7:  [gpio, spi_mosi, pwm]      # GPIO13
+  D8:  [gpio, spi_cs, strap]      # GPIO15 (10k pull-down)
+  RX:  [gpio, uart_rx]            # GPIO3
+  TX:  [gpio, uart_tx]            # GPIO1
+  A0:  [adc, input_only]

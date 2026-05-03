@@ -131,8 +131,8 @@ def build_yaml_dict(design: Design, library: Library) -> dict[str, Any]:
     for comp in design.components:
         _deep_merge(out, _render_component(comp, design, library))
 
-    for k, v in extras.items():
-        out[k] = v
+    if extras:
+        _deep_merge(out, extras)
 
     return out
 

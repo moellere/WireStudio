@@ -12,3 +12,9 @@ def test_garage_motion_validates_against_schema():
     schema = json.loads((REPO_ROOT / "schema" / "design.schema.json").read_text())
     design = json.loads((REPO_ROOT / "examples" / "garage-motion.json").read_text())
     jsonschema.validate(design, schema)
+
+
+def test_awning_control_validates_against_schema():
+    schema = json.loads((REPO_ROOT / "schema" / "design.schema.json").read_text())
+    design = json.loads((REPO_ROOT / "examples" / "awning-control.json").read_text())
+    jsonschema.validate(design, schema)

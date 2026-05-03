@@ -1,0 +1,172 @@
+{
+  "schema_version": "0.1",
+  "id": "awning-control",
+  "name": "Deck awning controller",
+  "description": "ESP8266 D1 Mini drives a motorized retractable deck awning via H-bridge PWM, with limit switches and manual buttons read through an MCP23008 I2C port expander. Per-pin platforms hang off the expander; until 0.2 supports expander-pin connections, those plus cover automations live in esphome_extras.",
+  "created_at": "2020-11-04T01:53:00Z",
+  "updated_at": "2026-05-03T12:00:00Z",
+
+  "board": {
+    "library_id": "wemos-d1-mini",
+    "mcu": "esp8266",
+    "framework": "arduino"
+  },
+
+  "power": {
+    "supply": "usb-5v",
+    "rail_voltage_v": 5.0,
+    "regulator": "onboard-rt9013",
+    "budget_ma": 500
+  },
+
+  "requirements": [
+    { "id": "r1", "kind": "capability",  "text": "open/close motorized awning via cover entity" },
+    { "id": "r2", "kind": "capability",  "text": "two physical buttons toggle in/out" },
+    { "id": "r3", "kind": "capability",  "text": "two limit switches stop the motor at endstops" },
+    { "id": "r4", "kind": "constraint",  "text": "8 GPIO needed; expand via MCP23008 to keep native pins for PWM" }
+  ],
+
+  "components": [
+    {
+      "id": "mcp23008_hub",
+      "library_id": "mcp23008",
+      "label": "Awning IO expander",
+      "role": "io_expander",
+      "params": { "address": "0x20" }
+    }
+  ],
+
+  "buses": [
+    {
+      "id": "i2c0",
+      "type": "i2c",
+      "frequency_hz": 100000,
+      "sda": "D2",
+      "scl": "D1"
+    }
+  ],
+
+  "connections": [
+    { "component_id": "mcp23008_hub", "pin_role": "VCC", "target": { "kind": "rail", "rail": "3V3" } },
+    { "component_id": "mcp23008_hub", "pin_role": "GND", "target": { "kind": "rail", "rail": "GND" } },
+    { "component_id": "mcp23008_hub", "pin_role": "SDA", "target": { "kind": "bus", "bus_id": "i2c0" } },
+    { "component_id": "mcp23008_hub", "pin_role": "SCL", "target": { "kind": "bus", "bus_id": "i2c0" } }
+  ],
+
+  "passives": [
+    { "id": "c1", "kind": "capacitor", "value": "100nF",
+      "between": ["mcp23008_hub.VCC", "GND"], "purpose": "decoupling mcp23008" }
+  ],
+
+  "warnings": [
+    { "level": "info", "code": "expander_pins_in_extras",
+      "text": "Expander-pin platforms and cover automations are stashed in esphome_extras; 0.2 will model these declaratively." }
+  ],
+
+  "esphome_extras": {
+    "logger": {},
+    "time": [
+      { "platform": "homeassistant", "id": "homeassistant_time" }
+    ],
+    "binary_sensor": [
+      {
+        "platform": "gpio",
+        "pin": { "mcp23008": "mcp23008_hub", "number": 0, "mode": "INPUT_PULLUP", "inverted": true },
+        "name": "Awning Closed Sensor",
+        "device_class": "opening",
+        "id": "awning_closed_sensor"
+      },
+      {
+        "platform": "gpio",
+        "pin": { "mcp23008": "mcp23008_hub", "number": 1, "mode": "INPUT_PULLUP", "inverted": true },
+        "name": "Awning Open Sensor",
+        "device_class": "opening",
+        "id": "awning_open_sensor"
+      },
+      {
+        "platform": "gpio",
+        "pin": { "mcp23008": "mcp23008_hub", "number": 2, "mode": "INPUT_PULLUP", "inverted": true },
+        "name": "Awning Out",
+        "id": "out_button",
+        "on_press": { "then": [
+          { "if": {
+              "condition": { "binary_sensor.is_off": "awning_open_sensor" },
+              "then": [ { "cover.open": "awning_cover" } ],
+              "else": [ { "cover.stop": "awning_cover" } ]
+          } }
+        ] },
+        "on_release": [ { "cover.stop": "awning_cover" } ]
+      },
+      {
+        "platform": "gpio",
+        "pin": { "mcp23008": "mcp23008_hub", "number": 3, "mode": "INPUT_PULLUP", "inverted": true },
+        "name": "Awning In",
+        "id": "in_button",
+        "on_press": { "then": [
+          { "if": {
+              "condition": { "binary_sensor.is_off": "awning_closed_sensor" },
+              "then": [ { "cover.close": "awning_cover" } ],
+              "else": [ { "cover.stop": "awning_cover" } ]
+          } }
+        ] },
+        "on_release": [ { "cover.stop": "awning_cover" } ]
+      }
+    ],
+    "output": [
+      { "platform": "esp8266_pwm", "pin": "D5", "frequency": "1000 Hz", "id": "out_pwm" },
+      { "platform": "esp8266_pwm", "pin": "D6", "frequency": "1000 Hz", "id": "in_pwm" }
+    ],
+    "switch": [
+      {
+        "platform": "gpio",
+        "pin": { "mcp23008": "mcp23008_hub", "number": 7, "mode": "OUTPUT", "inverted": true },
+        "name": "Awning power", "icon": "mdi:power-plug", "id": "awning_power"
+      },
+      {
+        "platform": "gpio",
+        "pin": { "mcp23008": "mcp23008_hub", "number": 6, "mode": "OUTPUT" },
+        "name": "Motor Enable", "id": "motor_enable"
+      },
+      { "platform": "restart", "name": "Awning Control Restart" }
+    ],
+    "cover": [
+      {
+        "platform": "endstop",
+        "name": "Deck Awning",
+        "device_class": "awning",
+        "id": "awning_cover",
+        "open_endstop": "awning_open_sensor",
+        "open_duration": "15s",
+        "close_endstop": "awning_closed_sensor",
+        "close_duration": "20s",
+        "max_duration": "20s",
+        "open_action": [
+          { "switch.turn_on": "awning_power" },
+          { "switch.turn_on": "motor_enable" },
+          { "output.set_level": { "id": "out_pwm", "level": "50%" } }
+        ],
+        "close_action": [
+          { "switch.turn_on": "awning_power" },
+          { "switch.turn_on": "motor_enable" },
+          { "output.set_level": { "id": "in_pwm", "level": "75%" } }
+        ],
+        "stop_action": [
+          { "switch.turn_off": "motor_enable" },
+          { "output.set_level": { "id": "in_pwm", "level": "0%" } },
+          { "output.set_level": { "id": "out_pwm", "level": "0%" } },
+          { "switch.turn_off": "awning_power" }
+        ]
+      }
+    ]
+  },
+
+  "fleet": {
+    "device_name": "awningcontrol",
+    "tags": ["outdoor", "deck", "cover"],
+    "secrets_ref": {
+      "wifi_ssid": "!secret wifi_ssid",
+      "wifi_password": "!secret wifi_password",
+      "api_key": "!secret api_key"
+    }
+  }
+}

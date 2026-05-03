@@ -1,0 +1,24 @@
++-----------------------------------------------------------------------------------------------------------------------------------------------------+
+|  WeMos D1 Mini  ---  awning-control                                                                                                                 |
++-----------------------------------------------------------------------------------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                                                                                                |
+|                                                                                                                                                     |
+|  mcp23008_hub  [Microchip MCP23008 (8-bit I2C GPIO expander)]  -- Awning IO expander                                                                |
+|    VCC   -> rail 3V3                                                                                                                                |
+|    GND   -> rail GND                                                                                                                                |
+|    SDA   -> i2c0 (D2)                                                                                                                               |
+|    SCL   -> i2c0 (D1)                                                                                                                               |
+|                                                                                                                                                     |
+|  Passives:                                                                                                                                          |
+|    c1: 100nF capacitor, mcp23008_hub.VCC  <->  GND   (decoupling mcp23008)                                                                          |
+|                                                                                                                                                     |
+|  BOM:                                                                                                                                               |
+|    - WeMos D1 Mini                                                                                                                                  |
+|    - Microchip MCP23008 (8-bit I2C GPIO expander)  (mcp23008_hub)                                                                                   |
+|    - 1x 100nF capacitor                                                                                                                             |
+|                                                                                                                                                     |
+|  Power: ~1mA typical, ~35mA peak (budget 500mA)  OK                                                                                                 |
+|                                                                                                                                                     |
+|  Warnings:                                                                                                                                          |
+|    [info] expander_pins_in_extras: Expander-pin platforms and cover automations are stashed in esphome_extras; 0.2 will model these declaratively.  |
++-----------------------------------------------------------------------------------------------------------------------------------------------------+

@@ -32,5 +32,11 @@ def garage_motion_design() -> Design:
 
 
 @pytest.fixture
+def awning_control_design() -> Design:
+    path = REPO_ROOT / "examples" / "awning-control.json"
+    return Design.model_validate(json.loads(path.read_text()))
+
+
+@pytest.fixture
 def golden_dir() -> Path:
     return Path(__file__).parent / "golden"
