@@ -5,7 +5,12 @@ import { LeftSidebar } from "./components/LeftSidebar";
 import { DesignPane } from "./components/DesignPane";
 import { Inspector, type Selection } from "./components/Inspector";
 import { useDebouncedValue } from "./lib/debounce";
-import { isDirty, updateComponentParam } from "./lib/design";
+import {
+  isDirty,
+  updateComponentParam,
+  updateConnectionTarget,
+  type ConnectionTarget,
+} from "./lib/design";
 
 export default function App() {
   const [examples, setExamples] = useState<ExampleSummary[] | null>(null);
@@ -21,6 +26,8 @@ export default function App() {
   const [render, setRender] = useState<RenderResponse | null>(null);
   const [renderError, setRenderError] = useState<string | null>(null);
   const [rendering, setRendering] = useState(false);
+
+  const [boardData, setBoardData] = useState<unknown | null>(null);
 
   const [selection, setSelection] = useState<Selection>({ kind: "design" });
 
@@ -74,6 +81,18 @@ export default function App() {
     return () => { cancelled = true; };
   }, [selectedExample]);
 
+  // Cache the full library board for the design's `board.library_id`.
+  // ConnectionForm needs rails + GPIO capabilities; refetching per inspector
+  // selection would re-hit the API on every back-and-forth.
+  const boardLibraryId = (design && (design.board as Record<string, unknown> | undefined)?.library_id) as
+    | string | undefined;
+  useEffect(() => {
+    if (!boardLibraryId) { setBoardData(null); return; }
+    let cancelled = false;
+    api.getBoard(boardLibraryId).then((b) => { if (!cancelled) setBoardData(b); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [boardLibraryId]);
+
   // Debounced render whenever the design changes.
   useEffect(() => {
     if (!debouncedDesign) return;
@@ -120,6 +139,14 @@ export default function App() {
 
   function handleParamChange(componentInstanceId: string, paramKey: string, value: unknown) {
     setDesign((d) => (d ? updateComponentParam(d, componentInstanceId, paramKey, value) : d));
+  }
+
+  function handleConnectionChange(connectionIndex: number, target: ConnectionTarget) {
+    setDesign((d) => (d ? updateConnectionTarget(d, connectionIndex, target) : d));
+  }
+
+  function handleDesignChange(updater: (d: Design) => Design) {
+    setDesign((d) => (d ? updater(d) : d));
   }
 
   if (bootError) {
@@ -186,8 +213,13 @@ export default function App() {
         <Inspector
           selection={selection}
           design={design}
+          boardData={boardData}
+          libraryBoards={boards}
+          libraryComponents={components}
           onSelect={setSelection}
           onParamChange={handleParamChange}
+          onConnectionChange={handleConnectionChange}
+          onDesignChange={handleDesignChange}
         />
       </main>
     </div>

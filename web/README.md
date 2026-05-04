@@ -3,11 +3,18 @@
 Studio web UI. React 19 + Vite + TypeScript + Tailwind v4.
 
 Pick an example from the left sidebar; the API renders it into YAML +
-ASCII in the center pane. The right inspector shows the design's
-component instances. Click any instance to drill into its params, edit
-them, and watch the rendered output update in <250ms (debounced).
-Connection / bus / board edits, drag-and-drop, and the agent sidebar
-come in later 0.3+ iterations.
+ASCII in the center pane. The right inspector lets you edit:
+
+- **From the design view:** the board (dropdown of all library boards),
+  fleet metadata (device_name + tags), requirements, warnings.
+- **From a component-instance view:** params (form generated from the
+  library's `params_schema`) and connections (target kind + kind-specific
+  controls — rail, gpio, design bus, expander pin).
+
+Every edit pushes through a debounced (250ms) `POST /design/render` so
+the YAML and ASCII update in real time. Adding/removing components and
+buses, drag-and-drop wiring, and the agent sidebar come in later
+iterations.
 
 Header buttons:
 - **Reset** reverts the current design to the loaded example.
@@ -40,21 +47,35 @@ npm run preview     # serve the built bundle on :4173
 ```
 src/
 ├── api/
-│   └── client.ts         # typed fetch wrapper for /library, /design, /examples
+│   └── client.ts            # typed fetch wrapper for /library, /design, /examples
 ├── types/
-│   └── api.ts            # wire types matching studio/api/schemas.py
+│   └── api.ts               # wire types matching studio/api/schemas.py
 ├── lib/
-│   ├── debounce.ts       # useDebouncedValue
-│   └── design.ts         # immutable design helpers, isDirty, readComponents
+│   ├── debounce.ts          # useDebouncedValue
+│   ├── design.ts            # immutable design helpers (params, connections,
+│   │                        # board, fleet, requirements, warnings)
+│   └── design.test.ts       # vitest unit tests covering the helpers
 ├── components/
-│   ├── LeftSidebar.tsx   # tabs: Examples / Boards / Components, with search
-│   ├── DesignPane.tsx    # tabs: ASCII / YAML / JSON; design metadata header
-│   ├── Inspector.tsx     # routes between design / board / component / instance views
-│   └── ParamForm.tsx     # form generated from params_schema
-├── App.tsx               # state + data flow; three-pane grid
+│   ├── LeftSidebar.tsx      # tabs: Examples / Boards / Components, with search
+│   ├── DesignPane.tsx       # tabs: ASCII / YAML / JSON; design metadata header
+│   ├── Inspector.tsx        # routes between design / board / component / instance views
+│   ├── ParamForm.tsx        # form generated from params_schema
+│   └── ConnectionForm.tsx   # per-connection editor (rail/gpio/bus/expander_pin)
+├── App.tsx                  # state + data flow; three-pane grid
 ├── main.tsx
-└── index.css             # Tailwind v4 + dark-mode base
+└── index.css                # Tailwind v4 + dark-mode base
 ```
+
+## Tests
+
+```sh
+npm test            # vitest, runs once
+npm run test:watch  # watch mode
+```
+
+Currently focused on `lib/design.ts` (20 tests covering the immutable
+patch helpers, isDirty, and the array readers). Component-level RTL
+tests are a future iteration once we set up jsdom.
 
 ## Editing model
 
