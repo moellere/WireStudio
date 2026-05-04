@@ -109,6 +109,7 @@ Useful endpoints:
 | `GET`  | `/fleet/status` | check whether `FLEET_URL` + `FLEET_TOKEN` reach a distributed-esphome ha-addon |
 | `POST` | `/fleet/push` | render `design.json` and push it as `<device_name>.yaml` (optionally `compile: true`) |
 | `GET`  | `/fleet/jobs/{run_id}/log?offset=N` | poll the addon's build log for a compile run; returns `{log, offset, finished}` |
+| `GET`  | `/fleet/jobs/{run_id}/log/stream` | Server-Sent Events relay over the same log endpoint; ~300ms cadence, exits with `event: done` when the build finishes |
 
 The server is a thin layer over `studio.generate` — same code path the CLI
 uses, no server-side state. Permissive CORS for `localhost:5173` /

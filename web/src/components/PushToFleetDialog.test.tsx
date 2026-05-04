@@ -138,6 +138,127 @@ describe("build-log polling", () => {
   });
 });
 
+describe("build-log SSE transport", () => {
+  // A minimal EventSource stub: tests reach in and call the captured
+  // onmessage / addEventListener handlers to drive the dialog through
+  // the streaming path without a real network connection.
+  type Listener = (ev: MessageEvent) => void;
+  class FakeEventSource {
+    static instances: FakeEventSource[] = [];
+    static OPEN = 1;
+    static CLOSED = 2;
+    url: string;
+    readyState = FakeEventSource.OPEN;
+    onmessage: ((ev: MessageEvent) => void) | null = null;
+    onerror: (() => void) | null = null;
+    listeners: Record<string, Listener[]> = {};
+    constructor(url: string) {
+      this.url = url;
+      FakeEventSource.instances.push(this);
+    }
+    addEventListener(name: string, cb: Listener) {
+      (this.listeners[name] ??= []).push(cb);
+    }
+    close() { this.readyState = FakeEventSource.CLOSED; }
+    emitMessage(payload: object) {
+      this.onmessage?.({ data: JSON.stringify(payload) } as MessageEvent);
+    }
+    emitNamed(name: string, data: object) {
+      const ev = { data: JSON.stringify(data) } as MessageEvent;
+      (this.listeners[name] ?? []).forEach((cb) => cb(ev));
+    }
+  }
+
+  beforeEach(() => {
+    FakeEventSource.instances = [];
+    (globalThis as unknown as { EventSource: typeof FakeEventSource }).EventSource =
+      FakeEventSource;
+  });
+  afterEach(() => {
+    delete (globalThis as { EventSource?: unknown }).EventSource;
+  });
+
+  it("streams chunks via EventSource and stops on the done event", async () => {
+    mockApi.fleetStatus.mockResolvedValue({ available: true, reason: null, url: "http://addon" });
+    mockApi.fleetPush.mockResolvedValue({
+      filename: "garage-motion.yaml",
+      created: false,
+      run_id: "run-77",
+      enqueued: 1,
+    });
+    render(<PushToFleetDialog design={design} onClose={() => {}} />);
+    const pushBtn = await screen.findByRole("button", { name: /^Push/i });
+    await waitFor(() => expect(pushBtn).not.toBeDisabled());
+    await userEvent.click(screen.getByRole("checkbox", { name: /compile after upload/i }));
+    await userEvent.click(pushBtn);
+
+    await waitFor(() => expect(FakeEventSource.instances.length).toBe(1));
+    const es = FakeEventSource.instances[0];
+    expect(es.url).toMatch(/\/api\/fleet\/jobs\/run-77\/log\/stream/);
+
+    es.emitMessage({ log: "compiling...\n", offset: 13, finished: false });
+    await waitFor(() => screen.getByText(/compiling\.\.\./));
+    expect(screen.getByText(/tailing.*\(stream\)/i)).toBeInTheDocument();
+
+    es.emitMessage({ log: "build ok\n", offset: 22, finished: true });
+    await waitFor(() => screen.getByText(/build ok/));
+    await waitFor(() => screen.getByText(/finished/i));
+    // The polling endpoint stays untouched -- SSE handled the run.
+    expect(mockApi.fleetJobLog).not.toHaveBeenCalled();
+  });
+
+  it("falls back to HTTP polling on a transport error", async () => {
+    mockApi.fleetStatus.mockResolvedValue({ available: true, reason: null, url: "http://addon" });
+    mockApi.fleetPush.mockResolvedValue({
+      filename: "garage-motion.yaml",
+      created: false,
+      run_id: "run-88",
+      enqueued: 1,
+    });
+    mockApi.fleetJobLog.mockResolvedValueOnce({
+      log: "fallback ok\n", offset: 12, finished: true,
+    });
+    render(<PushToFleetDialog design={design} onClose={() => {}} />);
+    const pushBtn = await screen.findByRole("button", { name: /^Push/i });
+    await waitFor(() => expect(pushBtn).not.toBeDisabled());
+    await userEvent.click(screen.getByRole("checkbox", { name: /compile after upload/i }));
+    await userEvent.click(pushBtn);
+
+    await waitFor(() => expect(FakeEventSource.instances.length).toBe(1));
+    const es = FakeEventSource.instances[0];
+    // Simulate a transport hiccup: onerror fires while readyState is OPEN.
+    es.onerror?.();
+
+    await waitFor(() => expect(mockApi.fleetJobLog).toHaveBeenCalledTimes(1));
+    await waitFor(() => screen.getByText(/fallback ok/));
+    await waitFor(() => screen.getByText(/finished/i));
+    expect(screen.queryByText(/\(stream\)/i)).not.toBeInTheDocument();
+  });
+
+  it("surfaces a server-emitted error event without falling back", async () => {
+    mockApi.fleetStatus.mockResolvedValue({ available: true, reason: null, url: "http://addon" });
+    mockApi.fleetPush.mockResolvedValue({
+      filename: "garage-motion.yaml",
+      created: false,
+      run_id: "run-bad",
+      enqueued: 1,
+    });
+    render(<PushToFleetDialog design={design} onClose={() => {}} />);
+    const pushBtn = await screen.findByRole("button", { name: /^Push/i });
+    await waitFor(() => expect(pushBtn).not.toBeDisabled());
+    await userEvent.click(screen.getByRole("checkbox", { name: /compile after upload/i }));
+    await userEvent.click(pushBtn);
+
+    await waitFor(() => expect(FakeEventSource.instances.length).toBe(1));
+    const es = FakeEventSource.instances[0];
+    es.emitNamed("error", { message: "unknown run_id 'run-bad'" });
+
+    await waitFor(() => screen.getByText(/log error: unknown run_id/i));
+    // Server-side logical error does NOT trigger the polling fallback.
+    expect(mockApi.fleetJobLog).not.toHaveBeenCalled();
+  });
+});
+
 describe("build-log multi-chunk polling", () => {
   beforeEach(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true });

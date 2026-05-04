@@ -27,11 +27,33 @@ stays as a back-compat wrapper. Pytest +21 (179 total), vitest 49, ruff
 + build clean.
 
 **Next up candidates:**
-- Full SSE/WS log relay (current 0.7+ uses HTTP polling at 1.5s intervals)
 - Drag-and-drop pinout (long-running: 0.3 already pre-flagged this as
   a follow-on iteration)
-- ADS1115 hub-only mode (channels-as-separate-components) once a
-  user wants to mix gain/update_interval per logical sensor
+- ADS1115 hub-only split: needs schema design first. The clean shape
+  is a new `kind: "component"` connection target that points an
+  `ads1115_channel` instance at its hub `ads1115` instance. Touches
+  schema/model/generator/pin solver/UI -- a 2-3 commit refactor that
+  wants its own focused session.
+
+**SSE log relay shipped.** New `GET /fleet/jobs/{run_id}/log/stream`
+endpoint server-side-polls the addon's `/ui/api/jobs/{id}/log` at
+~300ms (vs the browser-driven 1.5s) and emits Server-Sent Events:
+`data:` frames carry `{log, offset, finished}` chunks; an
+`event: done` frame caps a successful run; an `event: error` frame
+surfaces logical failures (unknown run_id) so the client knows not
+to retry. `interval_ms` query param tunes the cadence with a 100ms
+floor.
+
+PushToFleetDialog tries `EventSource` first; on transport error it
+closes and falls back to the existing 1.5s `setTimeout` polling
+loop, picking up at the offset of the last accepted chunk so no log
+bytes are lost. The status pill shows `(stream)` or `(poll)` so
+testers can see which path is in use. EventSource isn't on jsdom by
+default, so the existing polling tests stay green; the SSE path got
+3 new tests using a FakeEventSource stub (chunk -> done flow,
+transport-error fallback to polling, server-emitted error event).
+
+241 pytest (+3), 108 vitest (+3), ruff + tsc + vite build clean.
 
 **Library expansion v3 shipped (5 components).**
 - `bmp180` — older Bosch barometric T/P (I2C, fixed 0x77, no humidity).

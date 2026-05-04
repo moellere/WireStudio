@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -473,6 +474,64 @@ def create_app(
             raise HTTPException(status_code=502, detail=str(e)) from e
         return FleetJobLogResponse(
             log=chunk.log, offset=chunk.offset, finished=chunk.finished,
+        )
+
+    @app.get("/fleet/jobs/{run_id}/log/stream", tags=["fleet"])
+    def fleet_job_log_stream(run_id: str, offset: int = 0, interval_ms: int = 300):
+        """Server-Sent Events relay over the addon's HTTP log endpoint.
+
+        Polls `fc.get_job_log(run_id)` server-side at ~300ms (vs the 1.5s
+        the browser-driven loop uses) and streams each chunk to the client
+        as an SSE event of shape `data: {"log": "...", "offset": N,
+        "finished": bool}`. The stream emits a final `event: done` frame
+        when the addon reports finished and exits. Errors yield an
+        `event: error` frame and exit.
+
+        EventSource connections die on browser tab close; the polling
+        loop sees the resulting transport error and exits cleanly. The
+        addon's polling endpoint is idempotent so a reconnect with a
+        fresh offset just resumes.
+        """
+        fc = make_fleet()
+        if not fc.is_configured():
+            raise HTTPException(
+                status_code=503,
+                detail="fleet not configured (set FLEET_URL and FLEET_TOKEN)",
+            )
+        # Cap the lower bound so a malicious / mistaken caller can't tar-pit
+        # the studio + addon by polling at 1ms.
+        sleep_seconds = max(0.1, interval_ms / 1000.0)
+
+        def _events():
+            current = offset
+            while True:
+                try:
+                    chunk = fc.get_job_log(run_id, offset=current)
+                except FleetUnavailable as e:
+                    yield (
+                        "event: error\n"
+                        f"data: {json.dumps({'message': str(e)})}\n\n"
+                    )
+                    return
+                payload = {
+                    "log": chunk.log,
+                    "offset": chunk.offset,
+                    "finished": chunk.finished,
+                }
+                yield f"data: {json.dumps(payload)}\n\n"
+                current = chunk.offset
+                if chunk.finished:
+                    yield "event: done\ndata: {}\n\n"
+                    return
+                time.sleep(sleep_seconds)
+
+        return StreamingResponse(
+            _events(),
+            media_type="text/event-stream",
+            # Disable any intermediate buffering so the chunks land
+            # incrementally rather than getting batched at the proxy
+            # layer (Vite + nginx both honour this).
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
 
     @app.get("/agent/status", tags=["agent"])

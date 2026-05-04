@@ -37,8 +37,10 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
   const [logText, setLogText] = useState<string>("");
   const [logFinished, setLogFinished] = useState<boolean>(false);
   const [logError, setLogError] = useState<string | null>(null);
+  const [logTransport, setLogTransport] = useState<"sse" | "poll" | null>(null);
   const logScrollRef = useRef<HTMLPreElement | null>(null);
   const pollAbortRef = useRef<{ stop: boolean }>({ stop: false });
+  const eventSourceRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -56,6 +58,8 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
     return () => {
       cancelled = true;
       pollAbortRef.current.stop = true;
+      eventSourceRef.current?.close();
+      eventSourceRef.current = null;
     };
   }, []);
 
@@ -66,13 +70,87 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
     }
   }, [logText]);
 
-  async function pollJobLog(runId: string) {
-    const abort = pollAbortRef.current;
-    abort.stop = false;
-    let offset = 0;
+  /**
+   * Open an EventSource against `/api/fleet/jobs/<runId>/log/stream` and
+   * append each chunk to the log viewer. Returns true on success (the
+   * EventSource opened); returns false if the browser doesn't have
+   * EventSource at all so the caller can fall back to polling.
+   *
+   * The server emits `data:` frames (chunks), an `event: done` frame at
+   * the end of a successful run, and an `event: error` frame when the
+   * addon rejects the stream (e.g., unknown run_id). A transport-level
+   * onerror flips us back to polling so a flaky proxy never strands the
+   * UI in "tailing…" forever.
+   */
+  function streamJobLog(runId: string): boolean {
+    if (typeof EventSource === "undefined") return false;
     setLogText("");
     setLogFinished(false);
     setLogError(null);
+    setLogTransport("sse");
+    const es = new EventSource(`/api/fleet/jobs/${encodeURIComponent(runId)}/log/stream`);
+    eventSourceRef.current = es;
+    let lastOffset = 0;
+
+    es.onmessage = (ev) => {
+      try {
+        const chunk = JSON.parse(ev.data) as {
+          log: string; offset: number; finished: boolean;
+        };
+        if (chunk.log) setLogText((prev) => prev + chunk.log);
+        lastOffset = chunk.offset;
+        if (chunk.finished) {
+          setLogFinished(true);
+          es.close();
+          eventSourceRef.current = null;
+        }
+      } catch {
+        // Ignore malformed frames; the next valid one will land.
+      }
+    };
+    es.addEventListener("done", () => {
+      setLogFinished(true);
+      es.close();
+      eventSourceRef.current = null;
+    });
+    es.addEventListener("error", (ev) => {
+      // Server-emitted error frame (named `error`). The data carries a
+      // {message} envelope; surface it and stop -- no fallback poll
+      // because this is a logical failure, not a transport hiccup.
+      const me = ev as MessageEvent;
+      try {
+        const data = JSON.parse(me.data ?? "{}") as { message?: string };
+        if (data.message) setLogError(data.message);
+      } catch {
+        // Server-emitted error without a parseable body.
+      }
+      es.close();
+      eventSourceRef.current = null;
+    });
+    es.onerror = () => {
+      // Transport-level failure (network, proxy buffering, server died).
+      // Fall back to polling from the offset we last accepted.
+      if (es.readyState === EventSource.CLOSED) return;
+      es.close();
+      eventSourceRef.current = null;
+      setLogTransport("poll");
+      void pollJobLog(runId, lastOffset);
+    };
+    return true;
+  }
+
+  /** HTTP polling fallback. Used directly when EventSource isn't
+   *  available, or as a fallback when the SSE transport errors. */
+  async function pollJobLog(runId: string, startOffset = 0) {
+    const abort = pollAbortRef.current;
+    abort.stop = false;
+    let offset = startOffset;
+    if (startOffset === 0) {
+      setLogText("");
+      setLogFinished(false);
+      setLogError(null);
+    }
+    setLogTransport("poll");
     while (!abort.stop) {
       try {
         const chunk = await api.fleetJobLog(runId, offset);
@@ -93,6 +171,15 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
     }
   }
 
+  /** Pick the best transport for tailing this run's log. Tries SSE
+   *  first; the polling path is the fallback the SSE handler installs
+   *  on transport error. */
+  function tailJobLog(runId: string) {
+    if (!streamJobLog(runId)) {
+      void pollJobLog(runId);
+    }
+  }
+
   async function handlePush() {
     setPushing(true);
     setPushError(null);
@@ -106,8 +193,9 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
       });
       setResult(r);
       if (r.run_id) {
-        // Fire-and-forget: the polling loop respects pollAbortRef.
-        void pollJobLog(r.run_id);
+        // Fire-and-forget: SSE first, polling as a fallback. Both paths
+        // respect the abort/event-source refs cleaned up on unmount.
+        tailJobLog(r.run_id);
       }
     } catch (e) {
       let msg: string;
@@ -257,7 +345,11 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
                   build log
                 </label>
                 <span className="text-[11px] text-zinc-500">
-                  {logFinished ? "finished" : logError ? "stopped" : "tailing…"}
+                  {logFinished
+                    ? "finished"
+                    : logError
+                      ? "stopped"
+                      : `tailing… ${logTransport === "sse" ? "(stream)" : logTransport === "poll" ? "(poll)" : ""}`}
                 </span>
               </div>
               <pre

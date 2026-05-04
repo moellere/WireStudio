@@ -401,3 +401,61 @@ def test_fleet_job_log_unknown_run_id_returns_502(monkeypatch, tmp_path):
     client = _make_client(monkeypatch, tmp_path, addon=addon)
     r = client.get("/fleet/jobs/nope/log")
     assert r.status_code == 502
+
+
+# ---------------------------------------------------------------------------
+# SSE log relay
+# ---------------------------------------------------------------------------
+
+def _parse_sse(body: str) -> list[dict]:
+    """Parse the studio's SSE stream into a list of {event, data} entries."""
+    events: list[dict] = []
+    for raw in body.split("\n\n"):
+        if not raw.strip():
+            continue
+        ev: dict = {"event": "message"}
+        for line in raw.splitlines():
+            if line.startswith("event: "):
+                ev["event"] = line[len("event: "):]
+            elif line.startswith("data: "):
+                ev["data"] = json.loads(line[len("data: "):])
+        events.append(ev)
+    return events
+
+
+def test_fleet_job_log_stream_emits_chunks_then_done(monkeypatch, tmp_path):
+    addon = FakeFleetAddon()
+    addon.job_logs["run-1"] = {"log": "compiling...\nlinking...\nbuild ok\n", "finished": True}
+    client = _make_client(monkeypatch, tmp_path, addon=addon)
+    # interval_ms=0 (clamped to 100ms by the server) is fine; the loop
+    # exits on the first iteration since finished=True from the start.
+    r = client.get("/fleet/jobs/run-1/log/stream?interval_ms=0")
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("text/event-stream")
+    events = _parse_sse(r.text)
+    # At least one data frame and a final done frame.
+    assert events[0]["event"] == "message"
+    assert events[0]["data"]["log"].startswith("compiling")
+    assert events[0]["data"]["finished"] is True
+    assert events[-1]["event"] == "done"
+
+
+def test_fleet_job_log_stream_unconfigured_returns_503(monkeypatch, tmp_path):
+    client = _make_client(monkeypatch, tmp_path, addon=None)
+    r = client.get("/fleet/jobs/run-1/log/stream")
+    assert r.status_code == 503
+
+
+def test_fleet_job_log_stream_unknown_run_id_emits_error_event(monkeypatch, tmp_path):
+    """The addon returns 404 for unknown run_ids; the SSE relay surfaces
+    that as an `event: error` frame and exits, rather than 502'ing the
+    whole stream (HTTP status is already committed by the time the
+    polling loop sees the failure)."""
+    addon = FakeFleetAddon()
+    client = _make_client(monkeypatch, tmp_path, addon=addon)
+    r = client.get("/fleet/jobs/nope/log/stream?interval_ms=0")
+    assert r.status_code == 200
+    events = _parse_sse(r.text)
+    assert any(e["event"] == "error" for e in events), events
+    err = next(e for e in events if e["event"] == "error")
+    assert "nope" in err["data"]["message"]
