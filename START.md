@@ -28,13 +28,12 @@ stays as a back-compat wrapper. Pytest +21 (179 total), vitest 49, ruff
 
 **Next up candidates:**
 - 0.8 — Enclosure suggestions (Thingiverse/Printables search;
-  parametric OpenSCAD stretch)
-- 0.9 — KiCad schematic export. SKiDL recommended (Python DSL that
-  takes parts + nets and emits `.kicad_sch` directly). Each
-  `library/components/<id>.yaml` gains a `kicad:` block mapping to
-  the matching kicad-symbols entry (BME280 -> `Sensor:BME280`,
-  ADS1115 -> `Analog_ADC:ADS1115xDGS`, etc.). Boards likewise gain
-  a kicad: block. PCB layout deferred to 1.0+.
+  parametric OpenSCAD stretch).
+- 0.9 — KiCad schematic export. Full scope in the Roadmap section
+  below; key points: SKiDL-driven, `kicad:` reference block per
+  component/board (we stay canonical for ESPHome semantics, KiCad
+  for schematic rendering), `studio/kicad/scaffold.py` helper for
+  cheap library expansion, PCB deferred to 1.0+.
 
 **Drag-and-drop pinout shipped.** New `PinoutView` component renders
 a two-column view in the component-instance inspector: left lists
@@ -533,8 +532,74 @@ immediate way in and the agent (when it arrives) lands in a working surface.
   device list to pick a target name from.
 - **0.8 — Enclosure suggestions.** Thingiverse/Printables lookup against
   the chosen board + components; parametric OpenSCAD stretch.
-- **Future — KiCad schematic + PCB layout.** Reuse the netlist; Freerouting
-  for autorouting; Gerber + JLCPCB CPL/BOM export.
+- **0.9 — KiCad schematic export.** Walk `design.json` and emit a
+  `.kicad_sch` (KiCad 6+ s-expression format) the user opens in
+  KiCad. SKiDL is the recommended path: a mature Python DSL that
+  takes parts + nets and writes the schematic for us. Concretely:
+
+  - **Library mapping, not duplication.** Our `library/components/<id>.yaml`
+    stays the canonical source for ESPHome semantics; it gains a small
+    `kicad:` block that *references* the matching `kicad-symbols`
+    entry rather than copying its pin geometry. The two libraries
+    sit at orthogonal layers -- KiCad's covers schematic rendering
+    (pin numbers, electrical types, footprint, datasheet); ours
+    covers the rest (Jinja YAML template, use_cases, required buses,
+    `params_schema`, electrical bounds, capability tags). Replacing
+    one with the other moves the data, doesn't eliminate it.
+
+    Block shape:
+    ```yaml
+    kicad:
+      symbol_lib: Sensor
+      symbol: BME280
+      footprint: Package_LGA:LGA-8_2.5x2.5mm_P0.65mm_LayoutBorder3x3y
+      pin_map:                # studio role -> KiCad pin name
+        VCC: VDD
+        GND: GND
+        SDA: SDA
+        SCL: SCL
+    ```
+
+    Pin map handles the cases where our role names differ from a
+    symbol's (e.g., our `VCC` vs Bosch's `VDD`); most parts are 1:1.
+
+  - **Boards likewise.** `library/boards/<id>.yaml` gains the same
+    `kicad:` block (e.g., WeMos D1 Mini -> `MCU_Module:WeMos_D1_mini`),
+    so the schematic gets the right module symbol, not just a sea of
+    nets.
+
+  - **Generator.** New `studio/kicad/` module: walks `design.json`,
+    converts each component instance into a SKiDL `Part(...)`, each
+    connection into a Net assignment, and either emits a SKiDL Python
+    script (the user runs it themselves) or invokes SKiDL in-process
+    to write `<design_id>.kicad_sch` directly. New endpoint
+    `POST /design/kicad` returns the artifact; CLI gets a
+    `--out-kicad` flag.
+
+  - **Scaffold helper.** Cheap tooling win: `studio/kicad/scaffold.py`
+    reads a `.kicad_sym` file and prints a starter
+    `library/components/<id>.yaml` skeleton (pin roles + voltage
+    hints prefilled from the symbol's pin electrical_types). Cuts
+    ~80% of the boilerplate when adding a new library entry. Author
+    fills in the ESPHome template + use_cases + params_schema after.
+
+  - **Coverage.** `kicad-symbols` (the libraries shipped with KiCad,
+    CC-BY-SA + GPL exception) covers nearly every component we
+    already have: BME280, BMP180, HTU21D, DS18B20, MPU6050, ADS1115,
+    TSL2561, MAX31855, HX711, SSD1306, MCP23008/17, SX127x, WS2812B,
+    plus the board modules. The PIRs (HC-SR501) and microwave radar
+    (RCWL-0516) are typically wired as 3-pin `Connector_Generic`
+    instances since they're breakouts; same for HC-SR04. SnapEDA /
+    Component Search Engine cover the remaining manufacturer parts
+    (RC522 etc.) for free.
+
+  - **PCB layout deferred to 1.0+.** SKiDL can also emit netlists
+    that feed Freerouting + KiCad's PCB editor, but auto-routed
+    boards are a per-design quality concern that wants its own
+    iteration. 0.9 ships only the schematic.
+
+- **Future — KiCad PCB layout.** Reuse the schematic's netlist;
+  Freerouting for autorouting; Gerber + JLCPCB CPL/BOM export.
 
 The UI-first ordering means 0.5's agent and 0.6's solver each have a
 visible place to land. If the agent lands first (alternative ordering),
