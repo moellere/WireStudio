@@ -13,6 +13,9 @@ restrictions that conflict with the use:
 - `adc2_wifi_conflict`  -- analog_in landed on an `adc2`-tagged pin on a
                             classic ESP32 board; the WiFi driver claims ADC2
                             so reads return errors / stale values
+- `locked_pin_invalid`  -- a component's `locked_pins[role]` points at a
+                            board pin whose capabilities don't satisfy the
+                            library role's required kind
 
 Pure: doesn't mutate the design, doesn't render, doesn't hit the network.
 Cheap enough to run on every render call.
@@ -231,6 +234,66 @@ def check_pin_compatibility(design: dict, library: Library) -> list[Compatibilit
     # capability (no_i2c) and serial-console pins.
     out.extend(_bus_pin_warnings(design, board))
 
+    # 7. locked_pins capability validation. A user-locked pin should
+    # actually be able to play the role's library kind (analog_in lock
+    # on a non-ADC pin is a mistake worth surfacing).
+    out.extend(_locked_pin_warnings(components_by_id, lib_components, board))
+
+    return out
+
+
+# Mirror of pin_solver's required-cap map. Kept local to avoid an import
+# cycle and because the two modules are deliberately independent.
+_LOCKED_PIN_REQUIRED_CAPS: dict[str, set[str]] = {
+    "analog_in": {"adc"},
+    # digital_in / digital_out / spi_cs all just need `gpio`; the lock is
+    # validated against the same set the solver uses.
+    "digital_in":  {"gpio"},
+    "digital_out": {"gpio"},
+    "spi_cs":      {"gpio"},
+    "i2s_dout":    {"gpio"},
+}
+
+
+def _locked_pin_warnings(
+    components_by_id: dict[str, dict],
+    lib_components: dict[str, LibraryComponent],
+    board,
+) -> list[CompatibilityWarning]:
+    out: list[CompatibilityWarning] = []
+    for cid, comp in components_by_id.items():
+        locked = comp.get("locked_pins") or {}
+        if not isinstance(locked, dict) or not locked:
+            continue
+        lib_comp = lib_components.get(cid)
+        if lib_comp is None:
+            continue
+        for role, pin_name in locked.items():
+            lib_pin = next(
+                (p for p in lib_comp.electrical.pins if p.role == role), None,
+            )
+            if lib_pin is None:
+                # The solver already flags unknown roles; skip here.
+                continue
+            caps = set(board.gpio_capabilities.get(str(pin_name), []))
+            if not caps:
+                # Unknown pin name: solver/schema territory, not capability.
+                continue
+            required = _LOCKED_PIN_REQUIRED_CAPS.get(lib_pin.kind, set())
+            if required and not required.issubset(caps):
+                missing = ", ".join(sorted(required - caps))
+                out.append(CompatibilityWarning(
+                    severity="error",
+                    code="locked_pin_invalid",
+                    pin=str(pin_name),
+                    component_id=cid,
+                    pin_role=role,
+                    message=(
+                        f"{cid}.{role} is locked to {pin_name}, but that pin "
+                        f"lacks {missing} which {lib_pin.kind} requires. "
+                        f"Pick a different pin or remove the lock."
+                    ),
+                ))
     return out
 
 
@@ -242,10 +305,17 @@ def _bus_pin_warnings(design: dict, board) -> list[CompatibilityWarning]:
     # role -> ("out" | "in") direction for each bus type. The MCU drives the
     # output side; serial console and no_i2c apply to any pin assigned.
     bus_roles: dict[str, dict[str, str]] = {
-        "i2c":  {"sda": "io",  "scl": "out"},
-        "spi":  {"clk": "out", "mosi": "out", "miso": "in", "cs": "out"},
-        "uart": {"tx": "out",  "rx": "in"},
-        "i2s":  {"lrclk": "out", "bclk": "out"},
+        "i2c":   {"sda": "io",  "scl": "out"},
+        "spi":   {"clk": "out", "mosi": "out", "miso": "in", "cs": "out"},
+        "uart":  {"tx": "out",  "rx": "in"},
+        "i2s":   {"lrclk": "out", "bclk": "out"},
+        # 1-wire is bidirectional on a single line; the master holds the
+        # pull-up high and either side drops it. We tag direction "io"
+        # because the boot-strap warnings on the master side still apply
+        # (the host configures the pin) but input-only pins are usable
+        # in slave-only configurations -- we leave that nuance for a
+        # later pass and treat the pin like the i2c sda case.
+        "1wire": {"pin": "io"},
     }
 
     for bus in design.get("buses") or []:

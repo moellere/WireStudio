@@ -132,6 +132,57 @@ def test_render_unknown_library_id_returns_422(client):
     assert r.status_code == 422
 
 
+def test_render_strict_mode_clean_design_passes(client):
+    """A design with no compatibility hits renders normally under strict."""
+    design = json.loads((EXAMPLES_DIR / "garage-motion.json").read_text())
+    r = client.post("/design/render?strict=true", json=design)
+    assert r.status_code == 200
+    body = r.json()
+    assert body["yaml"].startswith("esphome:")
+
+
+def test_render_strict_mode_blocks_on_compat_warning(client):
+    """A design with a known boot-strap warning (TTGO LoRa32 has one)
+    422s with the strict_mode_blocked detail under strict=true, but
+    still renders fine in permissive mode."""
+    design = json.loads((EXAMPLES_DIR / "ttgo-lora32.json").read_text())
+
+    # Permissive (default) -> 200, warnings travel in the body.
+    permissive = client.post("/design/render", json=design)
+    assert permissive.status_code == 200
+    assert any(
+        w["severity"] in ("warn", "error")
+        for w in permissive.json()["compatibility_warnings"]
+    )
+
+    # Strict -> 422 with the warnings in detail.
+    strict = client.post("/design/render?strict=true", json=design)
+    assert strict.status_code == 422
+    detail = strict.json()["detail"]
+    assert detail["error"] == "strict_mode_blocked"
+    assert "compatibility issue" in detail["message"]
+    assert len(detail["warnings"]) >= 1
+    assert all(
+        w["severity"] in ("warn", "error") for w in detail["warnings"]
+    )
+
+
+def test_render_strict_mode_ignores_info_severity(client):
+    """info-severity entries (like the D1 Mini A0 voltage_limit) should
+    NOT trip strict mode -- they're educational, not blocking. We use
+    the real bluemotion example which is known to have no warn/error
+    entries; if this regresses, the strict test above will fire instead."""
+    design = json.loads((EXAMPLES_DIR / "bluemotion.json").read_text())
+    permissive = client.post("/design/render", json=design).json()
+    severities = {w["severity"] for w in permissive["compatibility_warnings"]}
+    assert "warn" not in severities and "error" not in severities, (
+        "bluemotion gained a warn/error compat entry; pick a different example "
+        "for the info-passes-strict test"
+    )
+    r = client.post("/design/render?strict=true", json=design)
+    assert r.status_code == 200
+
+
 def test_render_missing_bus_returns_422_with_message(client):
     """A design that validates but references a non-existent bus
     (e.g. a freshly-added I2C component before the user adds an i2c bus)

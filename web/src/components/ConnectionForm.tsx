@@ -16,7 +16,7 @@ import {
 import type { Design } from "../types/api";
 
 type Kind = ConnectionTarget["kind"];
-const KINDS: Kind[] = ["rail", "gpio", "bus", "expander_pin"];
+const KINDS: Kind[] = ["rail", "gpio", "bus", "expander_pin", "component"];
 
 interface Props {
   rows: ConnectionRow[];
@@ -24,10 +24,11 @@ interface Props {
   boardData: unknown;
   libraryComponents: ComponentSummary[] | null;
   onChange: (connectionIndex: number, target: ConnectionTarget) => void;
+  onLockedPinChange: (componentId: string, pinRole: string, pin: string | null) => void;
 }
 
 export function ConnectionForm({
-  rows, design, boardData, libraryComponents, onChange,
+  rows, design, boardData, libraryComponents, onChange, onLockedPinChange,
 }: Props) {
   if (rows.length === 0) {
     return <div className="text-xs text-zinc-500">No connections.</div>;
@@ -39,6 +40,9 @@ export function ConnectionForm({
   const gpioPins = Object.keys((board.gpio_capabilities ?? {}) as Record<string, unknown>);
   const buses = readBuses(design);
   const expanders = expandersFromDesign(design, libraryComponents);
+  const componentInstances = readComponents(design).map((c) => ({
+    id: c.id, library_id: c.library_id,
+  }));
 
   return (
     <div className="space-y-2">
@@ -50,7 +54,9 @@ export function ConnectionForm({
           gpioPins={gpioPins}
           buses={buses}
           expanders={expanders}
+          componentInstances={componentInstances}
           onChange={(t) => onChange(row.index, t)}
+          onLockedPinChange={(pin) => onLockedPinChange(row.component_id, row.pin_role, pin)}
         />
       ))}
     </div>
@@ -58,20 +64,23 @@ export function ConnectionForm({
 }
 
 function Row({
-  row, railNames, gpioPins, buses, expanders, onChange,
+  row, railNames, gpioPins, buses, expanders, componentInstances,
+  onChange, onLockedPinChange,
 }: {
   row: ConnectionRow;
   railNames: string[];
   gpioPins: string[];
   buses: { id: string; type: string }[];
   expanders: { id: string; library_id: string }[];
+  componentInstances: { id: string; library_id: string }[];
   onChange: (t: ConnectionTarget) => void;
+  onLockedPinChange: (pin: string | null) => void;
 }) {
   const t = row.target;
 
   const onKindChange = (k: Kind) => {
     if (k === t.kind) return;
-    onChange(defaultTargetForKind(k, { railNames, gpioPins, buses, expanders }));
+    onChange(defaultTargetForKind(k, { railNames, gpioPins, buses, expanders, componentInstances }));
   };
 
   return (
@@ -99,13 +108,29 @@ function Row({
       )}
 
       {t.kind === "gpio" && (
-        <SelectInput
-          label="pin"
-          value={t.pin}
-          options={gpioPins}
-          allowFree
-          onChange={(v) => onChange({ kind: "gpio", pin: v })}
-        />
+        <div className="flex items-center gap-1">
+          <div className="flex-1">
+            <SelectInput
+              label="pin"
+              value={t.pin}
+              options={gpioPins}
+              allowFree
+              onChange={(v) => onChange({ kind: "gpio", pin: v })}
+            />
+          </div>
+          <LockToggle
+            lockedPin={row.locked_pin}
+            currentPin={t.pin}
+            onLock={() => onLockedPinChange(t.pin || null)}
+            onUnlock={() => onLockedPinChange(null)}
+          />
+        </div>
+      )}
+      {t.kind === "gpio" && row.locked_pin && row.locked_pin !== t.pin && (
+        <div className="mt-1 rounded border border-amber-700/40 bg-amber-900/15 px-1.5 py-0.5 text-[10px] text-amber-200">
+          locked to <code>{row.locked_pin}</code> but bound to <code>{t.pin || "<unset>"}</code>;
+          solver will flag a mismatch.
+        </div>
       )}
 
       {t.kind === "bus" && (
@@ -128,7 +153,81 @@ function Row({
           onChange={onChange}
         />
       )}
+
+      {t.kind === "component" && (
+        <SelectInput
+          label="hub"
+          value={t.component_id}
+          options={componentInstances
+            .filter((c) => c.id !== row.component_id)
+            .map((c) => c.id)}
+          renderLabel={(id) => {
+            const c = componentInstances.find((x) => x.id === id);
+            return c ? `${c.id} (${c.library_id})` : id;
+          }}
+          onChange={(v) => onChange({ kind: "component", component_id: v })}
+        />
+      )}
     </div>
+  );
+}
+
+/**
+ * Per-row lock toggle. Three states:
+ *  - locked & in sync: solid badge, click to unlock.
+ *  - locked & diverged: amber-tinted badge showing the locked target;
+ *                       click to unlock. (Re-locking from here would
+ *                       overwrite the lock with whatever is currently
+ *                       bound, which is rarely what the user wants.)
+ *  - unlocked: outline button "lock"; click to write
+ *              locked_pins[role] = currently bound pin.
+ *
+ * The solver's `locked_pin_mismatch` warning surfaces the diverged case
+ * in the design pane; this control gives the user a one-click escape.
+ */
+function LockToggle({
+  lockedPin, currentPin, onLock, onUnlock,
+}: {
+  lockedPin: string | null;
+  currentPin: string;
+  onLock: () => void;
+  onUnlock: () => void;
+}) {
+  if (lockedPin === null) {
+    return (
+      <button
+        type="button"
+        onClick={onLock}
+        disabled={!currentPin}
+        title={
+          currentPin
+            ? `Lock this role to ${currentPin}; the pin solver will not move it.`
+            : "Pick a pin first, then lock it."
+        }
+        className="shrink-0 rounded border border-zinc-800 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-zinc-400 enabled:hover:border-zinc-600 enabled:hover:text-zinc-200 disabled:opacity-40"
+      >
+        🔓 lock
+      </button>
+    );
+  }
+  const diverged = lockedPin !== currentPin;
+  return (
+    <button
+      type="button"
+      onClick={onUnlock}
+      title={
+        diverged
+          ? `Locked to ${lockedPin} (bound: ${currentPin || "<unset>"}). Click to unlock.`
+          : `Locked to ${lockedPin}. Click to unlock.`
+      }
+      className={`shrink-0 rounded border px-1.5 py-0.5 text-[10px] uppercase tracking-wide ${
+        diverged
+          ? "border-amber-600/50 bg-amber-900/20 text-amber-200 hover:bg-amber-900/30"
+          : "border-emerald-600/50 bg-emerald-900/20 text-emerald-200 hover:bg-emerald-900/30"
+      }`}
+    >
+      🔒 {lockedPin}
+    </button>
   );
 }
 
@@ -246,6 +345,7 @@ function defaultTargetForKind(
     gpioPins: string[];
     buses: { id: string; type: string }[];
     expanders: { id: string; library_id: string }[];
+    componentInstances: { id: string; library_id: string }[];
   },
 ): ConnectionTarget {
   switch (k) {
@@ -263,5 +363,7 @@ function defaultTargetForKind(
         mode: "INPUT_PULLUP",
         inverted: false,
       };
+    case "component":
+      return { kind: "component", component_id: ctx.componentInstances[0]?.id ?? "" };
   }
 }
