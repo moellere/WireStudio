@@ -56,3 +56,34 @@ export interface ValidateResponse {
 // design.json is opaque on the wire; the UI reads/writes specific fields it
 // cares about (id, name, board) but otherwise treats it as a plain JSON value.
 export type Design = Record<string, unknown>;
+
+export interface AgentStatus {
+  available: boolean;
+  reason: string | null;
+}
+
+export interface AgentToolCall {
+  tool: string;
+  input: Record<string, unknown>;
+  is_error: boolean;
+}
+
+export interface AgentTurnResponse {
+  session_id: string;
+  design: Design;
+  assistant_text: string;
+  tool_calls: AgentToolCall[];
+  stop_reason: string;
+  usage: Record<string, number>;
+}
+
+export interface AgentSessionMessage {
+  role: string;
+  content: string;
+  timestamp: string;
+}
+
+export interface AgentSession {
+  session_id: string;
+  messages: AgentSessionMessage[];
+}

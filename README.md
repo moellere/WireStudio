@@ -9,14 +9,17 @@ which handles compile + OTA deploy.
 
 ## Status
 
-`0.4` (in flight) — Studio web UI with USB device bootstrap. Three-pane
-layout (examples sidebar, design preview, inspector). Edit board, fleet,
-requirements, warnings, params, and connections; add/remove components
-with auto-wiring and auto-bus from the board's defaults. Header
-**Connect device** runs esptool-js over WebSerial against a plugged-in
-ESP, detects the chip family, and bootstraps a fresh `design.json` with
-a matching board pre-filled. See [`web/README.md`](web/README.md) for
-UI details and [`START.md`](START.md) for the full roadmap.
+`0.5` (in flight) — Studio with a Claude tool-using agent. Three-pane web
+UI for manual editing (board, fleet, requirements, warnings, params,
+connections; add/remove components with auto-wiring and auto-bus). USB
+device bootstrap (esptool-js over WebSerial) seeds a fresh design from
+a plugged-in ESP. **Agent** sidebar drives the design via natural
+language — the agent calls a constrained tool surface (search the
+library, add/remove/configure components, edit connections, change the
+board, validate, render) and the live YAML/ASCII updates as it works.
+Set `ANTHROPIC_API_KEY` in the API server's environment to enable.
+See [`web/README.md`](web/README.md) for UI details and
+[`START.md`](START.md) for the full roadmap.
 
 ## Quickstart
 
@@ -43,6 +46,17 @@ python -m studio.api --reload           # dev mode (auto-reload on edits)
 ```
 
 Browse the auto-generated OpenAPI docs at <http://127.0.0.1:8765/docs>.
+
+To enable the **agent** endpoints (`/agent/turn`, `/agent/sessions/{id}`),
+export an Anthropic API key before starting the server:
+
+```sh
+export ANTHROPIC_API_KEY=sk-ant-...
+python -m studio.api
+```
+
+Without a key, `/agent/status` reports `available: false` and the agent
+sidebar in the UI shows a friendly notice instead of trying to talk.
 
 ### Web UI
 
@@ -185,7 +199,8 @@ same diff as the code change.
 - **0.1** ✅ pipeline + library scaffolding
 - **0.2** ✅ HTTP API (FastAPI) — same generators, exposed over JSON
 - **0.3** ✅ Studio web UI v1 — three-pane shell + form-based editing
-- **0.4** 🚧 USB device bootstrap (WebSerial + esptool-js)
+- **0.4** ✅ USB device bootstrap (WebSerial + esptool-js)
+- **0.5** 🚧 Agent layer (Claude tool-using; sessions in `sessions/<id>.jsonl`)
 - **0.4** USB device bootstrap via WebSerial / esptool-js
 - **0.5** Agent layer (Claude tool-using, in the UI sidebar)
 - **0.6** CSP solver — pin/bus/budget assignment + ranked recommendations

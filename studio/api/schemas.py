@@ -55,3 +55,35 @@ class ValidateResponse(_S):
     bus_count: int
     connection_count: int
     warnings: list[dict]
+
+
+class AgentTurnRequest(_S):
+    session_id: Optional[str] = None
+    design: dict
+    message: str
+
+
+class AgentToolCall(_S):
+    tool: str
+    input: dict
+    is_error: bool
+
+
+class AgentTurnResponse(_S):
+    session_id: str
+    design: dict
+    assistant_text: str
+    tool_calls: list[AgentToolCall]
+    stop_reason: str
+    usage: dict
+
+
+class AgentSessionMessage(_S):
+    role: str
+    content: str
+    timestamp: str
+
+
+class AgentSession(_S):
+    session_id: str
+    messages: list[AgentSessionMessage]

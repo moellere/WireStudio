@@ -5,6 +5,7 @@ import { LeftSidebar } from "./components/LeftSidebar";
 import { DesignPane } from "./components/DesignPane";
 import { Inspector, type Selection } from "./components/Inspector";
 import { UsbDetectDialog } from "./components/UsbDetectDialog";
+import { AgentSidebar } from "./components/AgentSidebar";
 import { useDebouncedValue } from "./lib/debounce";
 import {
   addComponent,
@@ -37,6 +38,7 @@ export default function App() {
 
   const [selection, setSelection] = useState<Selection>({ kind: "design" });
   const [showUsbDialog, setShowUsbDialog] = useState(false);
+  const [showAgent, setShowAgent] = useState(false);
 
   const dirty = useMemo(() => isDirty(originalDesign, design), [originalDesign, design]);
   const debouncedDesign = useDebouncedValue(design, 250);
@@ -197,6 +199,13 @@ export default function App() {
     setShowUsbDialog(false);
   }
 
+  function handleAgentDesignReplaced(next: Design) {
+    // Agent edits flow into the working design; originalDesign stays as the
+    // user's "reset target" -- they can still revert agent changes via the
+    // header's Reset button, just as with manual edits.
+    setDesign(next);
+  }
+
   if (bootError) {
     return (
       <div className="flex h-full items-center justify-center p-6 text-sm">
@@ -225,6 +234,13 @@ export default function App() {
           )}
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowAgent(true)}
+            className="rounded bg-blue-500/15 px-2 py-1 text-xs text-blue-100 ring-1 ring-blue-400/40 hover:bg-blue-500/25"
+            title="Open the design agent"
+          >
+            Agent
+          </button>
           <button
             onClick={() => setShowUsbDialog(true)}
             className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
@@ -286,6 +302,12 @@ export default function App() {
           onAdopt={handleAdoptDetectedDesign}
         />
       )}
+      <AgentSidebar
+        open={showAgent}
+        design={design}
+        onClose={() => setShowAgent(false)}
+        onDesignReplaced={handleAgentDesignReplaced}
+      />
     </div>
   );
 }
