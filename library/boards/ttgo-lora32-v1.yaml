@@ -1,0 +1,48 @@
+id: ttgo-lora32-v1
+name: TTGO LoRa32 V1 (T3)
+mcu: esp32
+chip_variant: esp32
+framework: arduino
+platformio_board: ttgo-lora32-v1
+flash_size_mb: 4
+
+rails:
+  - {name: "5V",  voltage: 5.0, source: usb}
+  - {name: "3V3", voltage: 3.3, source: onboard_regulator}
+  - {name: "GND", voltage: 0.0}
+
+# Onboard SX1276 LoRa radio + SSD1306 OLED + LiPo charger. Pinout matches
+# the LilyGO T3 v1.6 schematic. v2/v2.1 boards differ on a few pins.
+default_buses:
+  spi: {clk: GPIO5, miso: GPIO19, mosi: GPIO27}
+  i2c: {sda: GPIO21, scl: GPIO22}
+
+onboard_peripherals:
+  lora_sx1276: {cs: GPIO18, rst: GPIO23, dio0: GPIO26}
+  oled_ssd1306: {address: "0x3C", reset: GPIO16}
+  battery_adc:  {pin: GPIO35, divider: 2.0}
+  led:          {pin: GPIO25}
+
+gpio_capabilities:
+  GPIO0:  [boot, strap]
+  GPIO2:  [strap, gpio]
+  GPIO4:  [gpio, adc, pwm]
+  GPIO5:  [gpio, spi_clk]
+  GPIO12: [gpio, adc, strap]
+  GPIO13: [gpio, adc, pwm]
+  GPIO14: [gpio, adc, pwm]
+  GPIO15: [gpio, adc, strap]
+  GPIO16: [gpio, oled_reset]
+  GPIO17: [gpio]
+  GPIO18: [gpio, lora_cs]
+  GPIO19: [gpio, spi_miso]
+  GPIO21: [gpio, i2c_sda]
+  GPIO22: [gpio, i2c_scl]
+  GPIO23: [gpio, lora_rst]
+  GPIO25: [gpio, led]
+  GPIO26: [gpio, lora_dio0]
+  GPIO27: [gpio, spi_mosi]
+  GPIO34: [gpio, adc, input_only]
+  GPIO35: [gpio, adc, input_only, battery_sense]
+  GPIO36: [gpio, adc, input_only]
+  GPIO39: [gpio, adc, input_only]

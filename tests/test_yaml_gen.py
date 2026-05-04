@@ -193,6 +193,54 @@ def test_esp32_audio_uses_idf_framework(esp32_audio_design, library):
     assert parsed["esp32"]["framework"]["type"] == "esp-idf"
 
 
+def test_bluesonoff_matches_golden(bluesonoff_design, library, golden_dir):
+    expected = (golden_dir / "bluesonoff.yaml").read_text()
+    assert render_yaml(bluesonoff_design, library) == expected
+
+
+def test_bluesonoff_targets_esp01_1m(bluesonoff_design, library):
+    parsed = yaml.unsafe_load(render_yaml(bluesonoff_design, library))
+    assert parsed["esp8266"]["board"] == "esp01_1m"
+    assert "framework" not in parsed["esp8266"]
+
+
+def test_wemosgps_matches_golden(wemosgps_design, library, golden_dir):
+    expected = (golden_dir / "wemosgps.yaml").read_text()
+    assert render_yaml(wemosgps_design, library) == expected
+
+
+def test_wemosgps_uart_bus_emitted(wemosgps_design, library):
+    parsed = yaml.unsafe_load(render_yaml(wemosgps_design, library))
+    uart = parsed["uart"][0]
+    assert uart["id"] == "my_uart"
+    assert uart["rx_pin"] == "D2"
+    assert uart["tx_pin"] == "D1"
+    assert uart["baud_rate"] == 9600
+
+
+def test_wemosgps_gps_sensors_render(wemosgps_design, library):
+    parsed = yaml.unsafe_load(render_yaml(wemosgps_design, library))
+    gps = parsed["gps"]
+    assert gps["uart_id"] == "my_uart"
+    assert gps["latitude"]["name"] == "Latitude"
+    assert gps["satellites"]["name"] == "Visible Satellites"
+
+
+def test_ttgo_lora32_matches_golden(ttgo_lora32_design, library, golden_dir):
+    expected = (golden_dir / "ttgo-lora32.yaml").read_text()
+    assert render_yaml(ttgo_lora32_design, library) == expected
+
+
+def test_ttgo_lora32_radio_block(ttgo_lora32_design, library):
+    parsed = yaml.unsafe_load(render_yaml(ttgo_lora32_design, library))
+    radio = parsed["sx127x"]
+    assert radio["cs_pin"] == "GPIO18"
+    assert radio["rst_pin"] == "GPIO23"
+    assert radio["dio0_pin"] == "GPIO26"
+    assert radio["spi_id"] == "spi0"
+    assert radio["frequency"] == 915000000
+
+
 def test_awning_uses_expander_pins_not_extras(awning_control_design, library):
     parsed = yaml.unsafe_load(render_yaml(awning_control_design, library))
     sensors = parsed["binary_sensor"]

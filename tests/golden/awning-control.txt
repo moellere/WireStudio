@@ -1,48 +1,49 @@
-+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-|  WeMos D1 Mini  ---  awning-control                                                                                                                                      |
-+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-|  Rails: 5V, 3V3, GND                                                                                                                                                     |
-|                                                                                                                                                                          |
-|  mcp23008_hub  [Microchip MCP23008 (8-bit I2C GPIO expander)]  -- Awning IO expander                                                                                     |
-|    VCC   -> rail 3V3                                                                                                                                                     |
-|    GND   -> rail GND                                                                                                                                                     |
-|    SDA   -> i2c0 (D2)                                                                                                                                                    |
-|    SCL   -> i2c0 (D1)                                                                                                                                                    |
-|                                                                                                                                                                          |
-|  awning_closed_sensor  [Generic GPIO binary sensor]  -- Awning Closed Sensor                                                                                             |
-|    IN    -> mcp23008_hub.0 INPUT_PULLUP inverted                                                                                                                         |
-|                                                                                                                                                                          |
-|  awning_open_sensor  [Generic GPIO binary sensor]  -- Awning Open Sensor                                                                                                 |
-|    IN    -> mcp23008_hub.1 INPUT_PULLUP inverted                                                                                                                         |
-|                                                                                                                                                                          |
-|  out_button  [Generic GPIO binary sensor]  -- Awning Out                                                                                                                 |
-|    IN    -> mcp23008_hub.2 INPUT_PULLUP inverted                                                                                                                         |
-|                                                                                                                                                                          |
-|  in_button  [Generic GPIO binary sensor]  -- Awning In                                                                                                                   |
-|    IN    -> mcp23008_hub.3 INPUT_PULLUP inverted                                                                                                                         |
-|                                                                                                                                                                          |
-|  awning_power  [Generic GPIO switch / relay output]  -- Awning power                                                                                                     |
-|    OUT   -> mcp23008_hub.7 OUTPUT inverted                                                                                                                               |
-|                                                                                                                                                                          |
-|  motor_enable  [Generic GPIO switch / relay output]  -- Motor Enable                                                                                                     |
-|    OUT   -> mcp23008_hub.6 OUTPUT                                                                                                                                        |
-|                                                                                                                                                                          |
-|  Passives:                                                                                                                                                               |
-|    c1: 100nF capacitor, mcp23008_hub.VCC  <->  GND   (decoupling mcp23008)                                                                                               |
-|                                                                                                                                                                          |
-|  BOM:                                                                                                                                                                    |
-|    - WeMos D1 Mini                                                                                                                                                       |
-|    - Microchip MCP23008 (8-bit I2C GPIO expander)  (mcp23008_hub)                                                                                                        |
-|    - Generic GPIO binary sensor  (awning_closed_sensor)                                                                                                                  |
-|    - Generic GPIO binary sensor  (awning_open_sensor)                                                                                                                    |
-|    - Generic GPIO binary sensor  (out_button)                                                                                                                            |
-|    - Generic GPIO binary sensor  (in_button)                                                                                                                             |
-|    - Generic GPIO switch / relay output  (awning_power)                                                                                                                  |
-|    - Generic GPIO switch / relay output  (motor_enable)                                                                                                                  |
-|    - 1x 100nF capacitor                                                                                                                                                  |
-|                                                                                                                                                                          |
-|  Power: ~1mA typical, ~35mA peak (budget 500mA)  OK                                                                                                                      |
-|                                                                                                                                                                          |
-|  Warnings:                                                                                                                                                               |
-|    [info] pwm_and_cover_in_extras: PWM motor drivers (esp8266_pwm on D5/D6) and the endstop cover platform live in esphome_extras until library entries for those land.  |
-+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
++---------------------------------------------------------------------------------------------------------------------+
+|  WeMos D1 Mini  ---  awning-control                                                                                 |
++---------------------------------------------------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                                                                |
+|                                                                                                                     |
+|  mcp23008_hub  [Microchip MCP23008 (8-bit I2C GPIO expander)]  -- Awning IO expander                                |
+|    VCC   -> rail 3V3                                                                                                |
+|    GND   -> rail GND                                                                                                |
+|    SDA   -> i2c0 (D2)                                                                                               |
+|    SCL   -> i2c0 (D1)                                                                                               |
+|                                                                                                                     |
+|  awning_closed_sensor  [Generic GPIO binary sensor]  -- Awning Closed Sensor                                        |
+|    IN    -> mcp23008_hub.0 INPUT_PULLUP inverted                                                                    |
+|                                                                                                                     |
+|  awning_open_sensor  [Generic GPIO binary sensor]  -- Awning Open Sensor                                            |
+|    IN    -> mcp23008_hub.1 INPUT_PULLUP inverted                                                                    |
+|                                                                                                                     |
+|  out_button  [Generic GPIO binary sensor]  -- Awning Out                                                            |
+|    IN    -> mcp23008_hub.2 INPUT_PULLUP inverted                                                                    |
+|                                                                                                                     |
+|  in_button  [Generic GPIO binary sensor]  -- Awning In                                                              |
+|    IN    -> mcp23008_hub.3 INPUT_PULLUP inverted                                                                    |
+|                                                                                                                     |
+|  awning_power  [Generic GPIO switch / relay output]  -- Awning power                                                |
+|    OUT   -> mcp23008_hub.7 OUTPUT inverted                                                                          |
+|                                                                                                                     |
+|  motor_enable  [Generic GPIO switch / relay output]  -- Motor Enable                                                |
+|    OUT   -> mcp23008_hub.6 OUTPUT                                                                                   |
+|                                                                                                                     |
+|  Passives:                                                                                                          |
+|    c1: 100nF capacitor, mcp23008_hub.VCC  <->  GND   (decoupling mcp23008)                                          |
+|                                                                                                                     |
+|  BOM:                                                                                                               |
+|    - WeMos D1 Mini                                                                                                  |
+|    - Microchip MCP23008 (8-bit I2C GPIO expander)  (mcp23008_hub)                                                   |
+|    - Generic GPIO binary sensor  (awning_closed_sensor)                                                             |
+|    - Generic GPIO binary sensor  (awning_open_sensor)                                                               |
+|    - Generic GPIO binary sensor  (out_button)                                                                       |
+|    - Generic GPIO binary sensor  (in_button)                                                                        |
+|    - Generic GPIO switch / relay output  (awning_power)                                                             |
+|    - Generic GPIO switch / relay output  (motor_enable)                                                             |
+|    - 1x 100nF capacitor                                                                                             |
+|                                                                                                                     |
+|  Power: ~1mA typical, ~35mA peak (budget 500mA)  OK                                                                 |
+|                                                                                                                     |
+|  Warnings:                                                                                                          |
+|    [info] pwm_and_cover_in_extras: PWM motor drivers (esp8266_pwm on D5/D6) and the endstop cover platform live in  |
+|                                    esphome_extras until library entries for those land.                             |
++---------------------------------------------------------------------------------------------------------------------+

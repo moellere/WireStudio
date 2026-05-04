@@ -1,0 +1,35 @@
+id: uart_gps
+name: Generic UART GPS module (NEO-6M / NEO-8M)
+category: sensor
+use_cases: [gps, location, time_sync, navigation]
+aliases: [neo-6m, neo-8m, beitian-880, gp-02]
+
+electrical:
+  vcc_min: 3.0
+  vcc_max: 5.5
+  current_ma_typical: 30
+  current_ma_peak: 80
+  pins:
+    - {role: VCC, kind: power}
+    - {role: GND, kind: ground}
+    - {role: TX,  kind: uart_tx, voltage: 3.3}
+    - {role: RX,  kind: uart_rx, voltage: 3.3}
+    # PPS pin (1Hz pulse per second) is rarely connected; omit for 0.1.
+  passives:
+    - {kind: capacitor, value: "10uF", between: [VCC, GND], purpose: bulk decoupling}
+
+esphome:
+  required_components: [uart]
+  yaml_template: |
+    gps:
+      uart_id: {{ bus.id }}
+    {%- for sensor_key, sensor_cfg in (params.sensors or {}).items() %}
+      {{ sensor_key }}: {{ sensor_cfg | tojson }}
+    {%- endfor %}
+
+params_schema:
+  sensors:
+    type: object
+    description: "Sub-sensors to expose. Keys are GPS sensor names (latitude, longitude, altitude, speed, course, satellites, hdop), values are the sensor config (typically `{ name: ... }`)."
+
+notes: "ESPHome's `gps:` is a singleton. Wire the GPS module's TX to the MCU's RX (i.e. uart bus rx pin) and vice versa -- the module sends NMEA, the MCU only listens. Some clones output 9600 baud out of the box; others 115200."

@@ -1,0 +1,61 @@
+esphome:
+  name: wemosgps
+esp8266:
+  board: d1_mini
+logger: {}
+api:
+  encryption:
+    key: !secret wemosgps_api_key
+ota:
+- platform: esphome
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+uart:
+- id: my_uart
+  rx_pin: D2
+  tx_pin: D1
+  baud_rate: 9600
+gps:
+  uart_id: my_uart
+  latitude:
+    name: Latitude
+  longitude:
+    name: Longitude
+  altitude:
+    name: Altitude
+  satellites:
+    name: Visible Satellites
+  speed:
+    name: Speed
+time:
+- platform: homeassistant
+  id: homeassistant_time
+- platform: gps
+  id: gps_time
+switch:
+- platform: restart
+  name: wemosgps Restart
+select:
+- id: change_baud_rate
+  name: Baud rate
+  platform: template
+  options:
+  - '2400'
+  - '9600'
+  - '38400'
+  - '57600'
+  - '115200'
+  - '256000'
+  - '512000'
+  - '921600'
+  initial_option: '115200'
+  optimistic: true
+  restore_value: true
+  internal: false
+  entity_category: config
+  icon: mdi:swap-horizontal
+  set_action:
+  - lambda: !lambda id(my_uart).flush(); uint32_t new_baud_rate = stoi(x); ESP_LOGD("change_baud_rate", "Changing baud rate
+      from %i to %i",id(my_uart).get_baud_rate(), new_baud_rate); if (id(my_uart).get_baud_rate() != new_baud_rate) { id(my_uart).set_baud_rate(new_baud_rate);
+      id(my_uart).load_settings(); }

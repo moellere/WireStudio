@@ -104,3 +104,33 @@ def test_esp32_audio_renders_i2s_bus_lines(esp32_audio_design, library):
     text = render_ascii(esp32_audio_design, library)
     assert "LRCLK -> i2s0 (GPIO33)" in text
     assert "BCLK  -> i2s0 (GPIO25)" in text
+
+
+def test_bluesonoff_matches_golden(bluesonoff_design, library, golden_dir):
+    expected = (golden_dir / "bluesonoff.txt").read_text().rstrip("\n")
+    assert render_ascii(bluesonoff_design, library) == expected
+
+
+def test_wemosgps_matches_golden(wemosgps_design, library, golden_dir):
+    expected = (golden_dir / "wemosgps.txt").read_text().rstrip("\n")
+    assert render_ascii(wemosgps_design, library) == expected
+
+
+def test_wemosgps_uart_bus_pin_display(wemosgps_design, library):
+    text = render_ascii(wemosgps_design, library)
+    assert "TX    -> my_uart (D2)" in text
+    assert "RX    -> my_uart (D1)" in text
+
+
+def test_ttgo_lora32_matches_golden(ttgo_lora32_design, library, golden_dir):
+    expected = (golden_dir / "ttgo-lora32.txt").read_text().rstrip("\n")
+    assert render_ascii(ttgo_lora32_design, library) == expected
+
+
+def test_long_warning_text_wrapped(bluesonoff_design, library):
+    """Warnings longer than ~80 chars wrap on word boundaries; box stays sane."""
+    text = render_ascii(bluesonoff_design, library)
+    widths = {len(line) for line in text.splitlines()}
+    assert len(widths) == 1
+    # Pre-wrap, the box ballooned to ~260 chars; wrapping caps it.
+    assert max(widths) < 130

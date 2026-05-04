@@ -1,0 +1,35 @@
+esphome:
+  name: bluesonoff
+esp8266:
+  board: esp01_1m
+logger: {}
+api:
+  encryption:
+    key: !secret api_key
+ota:
+- platform: esphome
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+binary_sensor:
+- platform: gpio
+  pin: GPIO0
+  name: Soffit Outlet Switch
+  id: front_button
+  on_press:
+  - switch.toggle: soffitoutlets
+switch:
+- platform: gpio
+  pin: GPIO12
+  name: Soffit Outlets
+  id: soffitoutlets
+  restore_mode: ALWAYS_ON
+- platform: restart
+  name: bluesonoff Restart
+time:
+- platform: homeassistant
+  id: homeassistant_time
+status_led:
+  pin:
+    number: GPIO13
+    inverted: true

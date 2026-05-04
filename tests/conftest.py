@@ -79,5 +79,20 @@ def esp32_audio_design() -> Design:
 
 
 @pytest.fixture
+def bluesonoff_design() -> Design:
+    return Design.model_validate(json.loads((REPO_ROOT / "examples" / "bluesonoff.json").read_text()))
+
+
+@pytest.fixture
+def wemosgps_design() -> Design:
+    return Design.model_validate(json.loads((REPO_ROOT / "examples" / "wemosgps.json").read_text()))
+
+
+@pytest.fixture
+def ttgo_lora32_design() -> Design:
+    return Design.model_validate(json.loads((REPO_ROOT / "examples" / "ttgo-lora32.json").read_text()))
+
+
+@pytest.fixture
 def golden_dir() -> Path:
     return Path(__file__).parent / "golden"
