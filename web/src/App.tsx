@@ -17,6 +17,8 @@ import { UsbDetectDialog } from "./components/UsbDetectDialog";
 import { AgentSidebar } from "./components/AgentSidebar";
 import { SolveResultBanner } from "./components/SolveResultBanner";
 import { NewDesignDialog } from "./components/NewDesignDialog";
+import { PushToFleetDialog } from "./components/PushToFleetDialog";
+import { CapabilityPickerDialog } from "./components/CapabilityPickerDialog";
 import { useDebouncedValue } from "./lib/debounce";
 import {
   addComponent,
@@ -60,6 +62,8 @@ export default function App() {
   const [savedDesigns, setSavedDesigns] = useState<SavedDesignSummary[] | null>(null);
   const [selectedSaved, setSelectedSaved] = useState<string | null>(null);
   const [showNewDialog, setShowNewDialog] = useState(false);
+  const [showFleetDialog, setShowFleetDialog] = useState(false);
+  const [showCapabilityDialog, setShowCapabilityDialog] = useState(false);
   const [savingState, setSavingState] = useState<"idle" | "saving" | "saved">("idle");
 
   const dirty = useMemo(() => isDirty(originalDesign, design), [originalDesign, design]);
@@ -383,6 +387,22 @@ export default function App() {
             Connect device
           </button>
           <button
+            disabled={!design}
+            onClick={() => setShowCapabilityDialog(true)}
+            className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 enabled:hover:bg-zinc-900 disabled:opacity-40"
+            title="Pick a capability and add a matching component"
+          >
+            Add by function
+          </button>
+          <button
+            disabled={!design}
+            onClick={() => setShowFleetDialog(true)}
+            className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 enabled:hover:bg-zinc-900 disabled:opacity-40"
+            title="Push the rendered YAML to distributed-esphome"
+          >
+            Push to fleet
+          </button>
+          <button
             disabled={!dirty}
             onClick={handleReset}
             className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 enabled:hover:bg-zinc-900 disabled:opacity-40"
@@ -454,6 +474,21 @@ export default function App() {
           boards={boards}
           onCancel={() => setShowNewDialog(false)}
           onAdopt={handleAdoptNewDesign}
+        />
+      )}
+      {showFleetDialog && design && (
+        <PushToFleetDialog
+          design={design}
+          onClose={() => setShowFleetDialog(false)}
+        />
+      )}
+      {showCapabilityDialog && (
+        <CapabilityPickerDialog
+          designReady={!!design}
+          onAdd={async (libraryId) => {
+            await handleAddComponent(libraryId);
+          }}
+          onClose={() => setShowCapabilityDialog(false)}
         />
       )}
       <AgentSidebar

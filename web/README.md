@@ -60,6 +60,22 @@ Header buttons:
   (this also reverts any edits the agent made — its changes count
   as part of the working copy).
 - **Download JSON** saves the (possibly modified) `design.json` to disk.
+- **Push to fleet** opens a dialog that POSTs the rendered YAML to a
+  configured distributed-esphome ha-addon (`FLEET_URL` + `FLEET_TOKEN`
+  on the API server). The dialog shows live status (configured /
+  unauthorized / unreachable), the device-name slug that will land on
+  the fleet, and an opt-in "compile after upload" checkbox. When a
+  compile is enqueued the dialog tails the build log (1.5s polling
+  over `/fleet/jobs/{run_id}/log`) into a scrolling viewer until the
+  job finishes.
+- **Add by function** opens a two-pane picker. The left column lists
+  every capability advertised by the library (sorted by how many
+  components support it) plus a free-text input; the right column
+  ranks library components for the active query (same recommender
+  the agent uses) and offers a one-click **Add** button per result.
+  The top match is badged "top pick" but the user is free to pick a
+  different one — handy when you have a specific part on hand and
+  want to use *that* sensor rather than the library default.
 
 ## Dev
 

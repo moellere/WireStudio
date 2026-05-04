@@ -24,6 +24,10 @@ from studio.api.schemas import (
     CompatibilityWarning as CompatWire,
     ComponentSummary,
     ExampleSummary,
+    FleetJobLogResponse,
+    FleetPushRequest,
+    FleetPushResponse,
+    FleetStatus,
     PinAssignment,
     Recommendation as RecommendationWire,
     RecommendRequest,
@@ -34,8 +38,10 @@ from studio.api.schemas import (
     SavedDesignSummary,
     SolvePinsResponse,
     SolverWarning,
+    UseCaseEntry,
     ValidateResponse,
 )
+from studio.fleet.client import FleetClient, FleetUnavailable
 from studio.csp.compatibility import check_pin_compatibility
 from studio.csp.pin_solver import solve_pins as run_solve_pins
 from studio.recommend.recommender import Constraints, recommend_components
@@ -100,10 +106,14 @@ def create_app(
     library: Optional[Library] = None,
     sessions: Optional[SessionStore] = None,
     designs: Optional[DesignStore] = None,
+    fleet_client_factory=None,
 ) -> FastAPI:
     lib = library or default_library()
     sessions_store = sessions or SessionStore()
     designs_store = designs or DesignStore()
+    # Tests substitute a factory that returns a FleetClient bound to an
+    # httpx.MockTransport so we never hit the network in CI.
+    make_fleet: callable = fleet_client_factory or (lambda: FleetClient())
 
     # `docs_url=None` disables FastAPI's built-in /docs so we can serve our
     # own that points Swagger UI at /api/openapi.json -- which works whether
@@ -302,6 +312,31 @@ def create_app(
             raise HTTPException(status_code=404, detail=f"no saved design with id {design_id!r}")
         return {"deleted": True, "id": design_id}
 
+    @app.get("/library/use_cases", response_model=list[UseCaseEntry], tags=["library"])
+    def list_use_cases() -> list[UseCaseEntry]:
+        """Distinct use_cases across the library, with the count of components
+        that advertise each plus a small sample of library_ids for hover.
+
+        Used by the **Add by function** picker so the user can browse the
+        canonical capability vocabulary instead of typing free text into
+        the recommender.
+        """
+        agg: dict[str, list[str]] = {}
+        for c in lib.list_components():
+            for uc in c.use_cases:
+                agg.setdefault(uc, []).append(c.id)
+        rows = [
+            UseCaseEntry(
+                use_case=uc,
+                count=len(ids),
+                example_components=sorted(ids)[:3],
+            )
+            for uc, ids in agg.items()
+        ]
+        # Most-supported capabilities first, ties broken alphabetically.
+        rows.sort(key=lambda r: (-r.count, r.use_case))
+        return rows
+
     @app.post("/library/recommend", response_model=RecommendResponse, tags=["library"])
     def recommend(req: RecommendRequest) -> RecommendResponse:
         constraints = Constraints(**(req.constraints or {})) if req.constraints else Constraints()
@@ -321,6 +356,73 @@ def create_app(
                 )
                 for r in results
             ],
+        )
+
+    # ---------------------------------------------------------------------
+    # Fleet handoff (distributed-esphome ha-addon)
+    # ---------------------------------------------------------------------
+
+    @app.get("/fleet/status", response_model=FleetStatus, tags=["fleet"])
+    def fleet_status() -> FleetStatus:
+        fc = make_fleet()
+        if not fc.is_configured():
+            reason = "FLEET_URL not set" if not fc.base_url else "FLEET_TOKEN not set"
+            return FleetStatus(available=False, reason=reason, url=fc.base_url or None)
+        ok, reason = fc.is_available()
+        return FleetStatus(available=ok, reason=reason, url=fc.base_url or None)
+
+    @app.post("/fleet/push", response_model=FleetPushResponse, tags=["fleet"])
+    def fleet_push(req: FleetPushRequest) -> FleetPushResponse:
+        try:
+            d = Design.model_validate(req.design)
+        except ValidationError as e:
+            raise HTTPException(status_code=422, detail=e.errors()) from e
+        try:
+            yaml_text = render_yaml(d, lib)
+        except (FileNotFoundError, ValueError) as e:
+            raise HTTPException(status_code=422, detail=str(e)) from e
+
+        # Filename precedence: explicit override > fleet.device_name > design.id.
+        device_name = (
+            req.device_name
+            or (d.fleet.device_name if d.fleet and d.fleet.device_name else None)
+            or d.id
+        )
+
+        fc = make_fleet()
+        if not fc.is_configured():
+            raise HTTPException(
+                status_code=503,
+                detail="fleet not configured (set FLEET_URL and FLEET_TOKEN)",
+            )
+        try:
+            result = fc.push_device(device_name, yaml_text, compile=req.compile)
+        except ValueError as e:
+            # _validate_filename rejected the name.
+            raise HTTPException(status_code=422, detail=str(e)) from e
+        except FleetUnavailable as e:
+            raise HTTPException(status_code=502, detail=str(e)) from e
+        return FleetPushResponse(
+            filename=result.filename,
+            created=result.created,
+            run_id=result.run_id,
+            enqueued=result.enqueued,
+        )
+
+    @app.get("/fleet/jobs/{run_id}/log", response_model=FleetJobLogResponse, tags=["fleet"])
+    def fleet_job_log(run_id: str, offset: int = 0) -> FleetJobLogResponse:
+        fc = make_fleet()
+        if not fc.is_configured():
+            raise HTTPException(
+                status_code=503,
+                detail="fleet not configured (set FLEET_URL and FLEET_TOKEN)",
+            )
+        try:
+            chunk = fc.get_job_log(run_id, offset=offset)
+        except FleetUnavailable as e:
+            raise HTTPException(status_code=502, detail=str(e)) from e
+        return FleetJobLogResponse(
+            log=chunk.log, offset=chunk.offset, finished=chunk.finished,
         )
 
     @app.get("/agent/status", tags=["agent"])

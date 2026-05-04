@@ -6,6 +6,12 @@ import type {
   BoardSummary,
   ComponentSummary,
   ExampleSummary,
+  FleetJobLogResponse,
+  FleetPushResponse,
+  FleetStatus,
+  RecommendConstraints,
+  RecommendResponse,
+  UseCaseEntry,
   RenderResponse,
   SaveDesignResponse,
   SavedDesignSummary,
@@ -87,6 +93,24 @@ export const api = {
   deleteSavedDesign: (id: string) =>
     request<{ deleted: boolean; id: string }>(`/designs/${encodeURIComponent(id)}`, {
       method: "DELETE",
+    }),
+
+  fleetStatus: () => request<FleetStatus>("/fleet/status"),
+  fleetPush: (body: { design: Design; compile?: boolean; device_name?: string }) =>
+    request<FleetPushResponse>("/fleet/push", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  fleetJobLog: (runId: string, offset: number) =>
+    request<FleetJobLogResponse>(
+      `/fleet/jobs/${encodeURIComponent(runId)}/log?offset=${offset}`,
+    ),
+
+  listUseCases: () => request<UseCaseEntry[]>("/library/use_cases"),
+  recommend: (body: { query: string; limit?: number; constraints?: RecommendConstraints }) =>
+    request<RecommendResponse>("/library/recommend", {
+      method: "POST",
+      body: JSON.stringify(body),
     }),
 };
 

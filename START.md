@@ -27,12 +27,51 @@ stays as a back-compat wrapper. Pytest +21 (179 total), vitest 49, ruff
 + build clean.
 
 **Next up candidates:**
-- 0.7 distributed-esphome handoff
-- ADC2/WiFi conflict detection (small, follow-on to port compat)
 - Bus editor in the UI
 - Strict-mode pin locks (`locked_pins` already in schema)
-- Server-side design persistence
 - Frontend RTL/jsdom component tests
+- Full SSE/WS log relay (current 0.7+ uses HTTP polling at 1.5s intervals)
+- Capability picker: bus-aware constraint pre-fill (auto-set required_bus
+  from the design's existing buses so I2C designs don't surface SPI parts)
+- Capability picker: per-result "alternatives" tooltip surfacing the
+  recommender's full ranking when the user wants to compare
+
+**Capability-driven "Add by function" picker shipped.** New backend
+endpoint `GET /library/use_cases` aggregates the library's canonical
+capability vocabulary (sorted by component count, with a 3-id sample
+per row). Header button **Add by function** opens a two-pane dialog:
+left shows the use_case rows + a free-text override; right runs the
+existing `/library/recommend` and renders ranked matches with rationale,
+current draw, voltage range, and a one-click Add button that reuses the
+same `handleAddComponent` path as the inspector. The first result is
+badged "top pick" but the user can grab any of the eight returned —
+the case where you already have a specific part on hand.
+
+**0.7+ build-log polling shipped.** Studio relays the addon's HTTP
+fallback `GET /ui/api/jobs/{id}/log?offset=N` as `GET /fleet/jobs/{run_id}/log`
+and the Push-to-fleet dialog tails it (1.5s poll) into a scrolling
+viewer below the result banner once a compile is enqueued. 6 new fleet
+tests cover unconfigured 503, unknown run_id 502, and the offset-based
+chunking contract.
+
+**ADC2/WiFi conflict detection shipped.** All three ESP32 boards
+(esp32-devkitc-v4, nodemcu-32s, ttgo-lora32-v1) carry `adc1` / `adc2`
+pin tags. compatibility.py emits `adc2_wifi_conflict` warnings when an
+analog_in lands on an ADC2 pin on a classic ESP32 (chip_variant ==
+"esp32"); the pin solver uses a secondary preference key so unbound
+analog_in connections land on ADC1 pins (GPIO32-39) by default. 4
+new tests pin both paths.
+
+**0.7 distributed-esphome handoff shipped.** `studio/fleet/client.py`
+talks to the ha-addon's `/ui/api/*` surface using a Bearer token.
+`GET /fleet/status` + `POST /fleet/push` expose this to the UI;
+**Push to fleet** in the header opens a modal with the device-name
+input, a status banner, and a "compile after upload" toggle. Config:
+`FLEET_URL` + `FLEET_TOKEN` env vars on the API server. Tests use
+`httpx.MockTransport` to stand in for the addon -- 18 new tests
+covering filename validation, configured-vs-unauthorized status,
+pending-rename create flow, in-place overwrite, compile enqueue,
+and the HTTP contract end-to-end.
 
 ## Status (as of 2026-05-04)
 
@@ -222,8 +261,14 @@ immediate way in and the agent (when it arrives) lands in a working surface.
   options), strict-mode pin locks, multi-objective optimization
   (minimize used pins, minimize current draw, maximize headroom),
   proper backtracking on hard constraints.
-- **0.7 — distributed-esphome handoff.** POST device + YAML to the
-  ha-addon, trigger compile + OTA.
+- **0.7 — distributed-esphome handoff.** ✅ Shipped (initial). The studio
+  API talks to the ha-addon's `/ui/api/*` surface using `FLEET_URL` +
+  `FLEET_TOKEN`. Push uses the addon's staged-create flow (`.pending.<n>.yaml`
+  -> `<n>.yaml`) for new devices, in-place writes for existing ones.
+  Optional `compile: true` enqueues an OTA build via `POST /ui/api/compile`.
+  UI: **Push to fleet** modal with status banner + device-name input.
+  Future: live build-log tailing, queue/history surface, fleet-side
+  device list to pick a target name from.
 - **0.8 — Enclosure suggestions.** Thingiverse/Printables lookup against
   the chosen board + components; parametric OpenSCAD stretch.
 - **Future — KiCad schematic + PCB layout.** Reuse the netlist; Freerouting
