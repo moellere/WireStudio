@@ -183,6 +183,33 @@ def test_render_strict_mode_ignores_info_severity(client):
     assert r.status_code == 200
 
 
+def test_enclosure_openscad_returns_attachment(client):
+    design = json.loads((EXAMPLES_DIR / "garage-motion.json").read_text())
+    r = client.post("/design/enclosure/openscad", json=design)
+    assert r.status_code == 200
+    assert "filename=\"garage-motion-v1.scad\"" in r.headers.get("content-disposition", "")
+    body = r.text
+    assert "module shell()" in body
+    assert "module standoffs()" in body
+    assert "board_l = 54.4;" in body          # ESP32 DevKitC dimensions
+    assert "// usb_micro on short_a" in body
+
+
+def test_enclosure_openscad_invalid_design_returns_422(client):
+    r = client.post("/design/enclosure/openscad", json={"id": "broken"})
+    assert r.status_code == 422
+
+
+def test_enclosure_openscad_unknown_board_returns_422(client):
+    """Boards without enclosure metadata (ESP-01S) raise cleanly."""
+    design = json.loads((EXAMPLES_DIR / "bluesonoff.json").read_text())
+    r = client.post("/design/enclosure/openscad", json=design)
+    assert r.status_code == 422
+    detail = r.json()["detail"]
+    assert "esp01_1m" in detail
+    assert "no enclosure metadata" in detail
+
+
 def test_render_missing_bus_returns_422_with_message(client):
     """A design that validates but references a non-existent bus
     (e.g. a freshly-added I2C component before the user adds an i2c bus)

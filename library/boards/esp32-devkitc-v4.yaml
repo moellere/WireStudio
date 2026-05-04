@@ -56,3 +56,23 @@ gpio_capabilities:
   GPIO35: [gpio, adc, adc1, input_only, no_pull_internal]
   GPIO36: [gpio, adc, adc1, input_only, no_pull_internal]
   GPIO39: [gpio, adc, adc1, input_only, no_pull_internal]
+
+# Enclosure geometry (mm). 38-pin ESP32-DevKitC V4. Length runs along
+# +X (54.4mm); width along +Y (28.6mm). Micro-USB on short_a (x=0),
+# centred. Two mounting holes near the short edges, between the headers.
+enclosure:
+  pcb:
+    length_mm: 54.4
+    width_mm: 28.6
+    thickness_mm: 1.6
+  mount_holes:
+    - {x_mm:  3.0,  y_mm: 14.3,  hole_diameter_mm: 3.2}
+    - {x_mm: 51.4,  y_mm: 14.3,  hole_diameter_mm: 3.2}
+  ports:
+    - kind: usb_micro
+      edge: short_a
+      offset_mm: 10.3          # centred on the 28.6mm short edge
+      width_mm: 8.0
+      height_mm: 3.0
+      height_above_pcb_mm: 1.5
+  component_height_max_mm: 13.0

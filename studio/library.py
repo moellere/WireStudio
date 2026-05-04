@@ -69,6 +69,53 @@ class Rail(_Strict):
     source: Optional[str] = None
 
 
+class PcbDimensions(_Strict):
+    """PCB outline dimensions in millimetres. Origin at the bottom-left
+    corner; PCB extends in +X (length) and +Y (width). Thickness is the
+    standard 1.6mm by default; bumped to 1.0/0.8mm for thin breakouts."""
+    length_mm: float
+    width_mm: float
+    thickness_mm: float = 1.6
+
+
+class MountHole(_Strict):
+    """A single PCB mounting hole. (x, y) is the hole centre measured
+    from the PCB's origin corner. hole_diameter_mm is the through-hole
+    diameter; the screw size matches (M2 ≈ 2.4mm, M2.5 ≈ 3.0mm,
+    M3 ≈ 3.4mm clearance)."""
+    x_mm: float
+    y_mm: float
+    hole_diameter_mm: float
+
+
+class BoardPort(_Strict):
+    """A connector / cutout that needs to clear the enclosure wall.
+    edge values: short_a (x=0), short_b (x=length), long_a (y=0),
+    long_b (y=width). offset_mm is measured from the start of the edge
+    (bottom or left depending on the edge); width_mm and height_mm are
+    the cutout dimensions in the enclosure-wall plane.
+
+    height_above_pcb_mm is how far the connector body sits above the
+    PCB's top surface (for centering the cutout vertically).
+    """
+    kind: str  # usb_micro | usb_c | usb_b | barrel_jack | sma | jst | header
+    edge: str
+    offset_mm: float
+    width_mm: float
+    height_mm: float
+    height_above_pcb_mm: float = 0.0
+
+
+class BoardEnclosure(_Strict):
+    """Geometry needed to autogenerate a parametric enclosure shell or
+    rank a community-uploaded model. Optional on each board -- modules
+    that plug into a host PCB (ESP-01S etc.) skip the block."""
+    pcb: PcbDimensions
+    mount_holes: list[MountHole] = Field(default_factory=list)
+    ports: list[BoardPort] = Field(default_factory=list)
+    component_height_max_mm: float = 12.0
+
+
 class LibraryBoard(_Strict):
     id: str
     name: str
@@ -81,6 +128,7 @@ class LibraryBoard(_Strict):
     default_buses: dict = Field(default_factory=dict)
     onboard_peripherals: dict = Field(default_factory=dict)
     gpio_capabilities: dict[str, list[str]] = Field(default_factory=dict)
+    enclosure: Optional[BoardEnclosure] = None
 
 
 class Library:
