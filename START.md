@@ -27,10 +27,41 @@ stays as a back-compat wrapper. Pytest +21 (179 total), vitest 49, ruff
 + build clean.
 
 **Next up candidates:**
-- Frontend RTL/jsdom component tests
 - Full SSE/WS log relay (current 0.7+ uses HTTP polling at 1.5s intervals)
-- Capability picker: per-result "alternatives" tooltip surfacing the
-  recommender's full ranking when the user wants to compare
+- More component tests: ConnectionForm (lock toggle), Inspector
+  (DesignInspector composition), PushToFleetDialog (log polling)
+- Drag-and-drop pinout (long-running: 0.3 already pre-flagged this as
+  a follow-on iteration)
+- Strict-mode toggle that promotes pin-conflict warnings to render
+  errors (today everything is permissive)
+
+**Capability picker alternatives disclosure shipped.** Each match in
+the picker now carries a small "▸ N alternatives" toggle below its
+metadata row. Clicking expands an inline list of the OTHER currently-
+visible matches (filtered through the same bus filter) with their
+score and the delta against the row -- emerald-tinted when an
+alternative beats the row's score, muted-zinc when it's worse.
+Single-expanded-at-a-time policy: opening one closes the previous so
+the result list never grows multiple stacked alternatives panels.
+
+**RTL/jsdom component tests scaffolded.** New `vitest.config.ts`
+extends the existing vite config with `environment: "jsdom"` and a
+setup file that imports `@testing-library/jest-dom` matchers. First
+two suites cover the surfaces with the most state machinery:
+- `BusList.test.tsx`: rename draft commits on Enter, reverts on
+  Escape (caught and fixed a real bug -- the previous Escape handler
+  blurred the input, racing the queued state reset and leaking the
+  stale draft through commitRename), rejects collision with another
+  bus's id, inline compat warnings filter to the matching card.
+- `CapabilityPickerDialog.test.tsx`: alternatives disclosure shows
+  "N alternatives" toggle on every multi-match list, expansion is
+  single-row-at-a-time with aria-expanded synchronised, score delta
+  carries the sign and the right tint, bus filter hides + counter
+  surface and the unhide path. Plus an Add round-trip that confirms
+  onAdd receives the library_id and the row flips to the affirmation.
+
+15 new vitest cases (53 -> 68 -> 83); the network surface is mocked
+at the api/client boundary so the suite stays fast (2.4s for all 83).
 
 **Bus rename propagation + inline bus card warnings shipped.** New
 `renameBus(d, oldId, newId)` helper rewrites the bus's id and every

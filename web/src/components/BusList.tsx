@@ -147,10 +147,14 @@ function BusCard({
             onBlur={commitRename}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
+                // commitRename runs from onBlur; this just triggers the blur.
                 e.currentTarget.blur();
               } else if (e.key === "Escape") {
+                // Reset the draft and bail out without blurring -- blurring
+                // here would race the queued state reset and the stale
+                // draftId would slip through commitRename as a real rename.
                 setDraftId(id);
-                e.currentTarget.blur();
+                e.preventDefault();
               }
             }}
             title={

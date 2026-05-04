@@ -40,6 +40,10 @@ export function CapabilityPickerDialog({ designReady, designBusTypes, onAdd, onC
   const [adding, setAdding] = useState<string | null>(null); // library_id mid-add
   const [added, setAdded] = useState<Set<string>>(new Set());
   const [filterByBuses, setFilterByBuses] = useState<boolean>(true);
+  /** library_id of the match whose "alternatives" disclosure is open. Only
+   *  one expansion at a time -- a single open panel keeps the list compact
+   *  and avoids the user having to scroll past several stacked panels. */
+  const [expandedAlts, setExpandedAlts] = useState<string | null>(null);
 
   const designBusSet = useMemo(() => new Set(designBusTypes), [designBusTypes]);
 
@@ -276,6 +280,8 @@ export function CapabilityPickerDialog({ designReady, designBusTypes, onAdd, onC
                       {visible.map((m, idx) => {
                     const isAdded = added.has(m.library_id);
                     const isAdding = adding === m.library_id;
+                    const alternatives = visible.filter((alt) => alt.library_id !== m.library_id);
+                    const altsOpen = expandedAlts === m.library_id;
                     return (
                       <li
                         key={m.library_id}
@@ -312,6 +318,55 @@ export function CapabilityPickerDialog({ designReady, designBusTypes, onAdd, onC
                                 </span>
                               )}
                             </div>
+                            {alternatives.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => setExpandedAlts(altsOpen ? null : m.library_id)}
+                                aria-expanded={altsOpen}
+                                className="mt-1 text-[11px] text-zinc-500 hover:text-zinc-300"
+                              >
+                                {altsOpen ? "▾" : "▸"} {alternatives.length} alternative
+                                {alternatives.length === 1 ? "" : "s"}
+                              </button>
+                            )}
+                            {altsOpen && (
+                              <ul className="mt-1 space-y-0.5 border-l border-zinc-800 pl-2">
+                                {alternatives.map((alt) => (
+                                  <li
+                                    key={alt.library_id}
+                                    className="flex items-baseline justify-between gap-2 text-[11px]"
+                                  >
+                                    <span className="min-w-0 truncate">
+                                      <span className="text-zinc-300">{alt.name}</span>
+                                      <code className="ml-1 text-zinc-500">{alt.library_id}</code>
+                                      {alt.required_components.length > 0 && (
+                                        <span className="ml-1 text-zinc-500">
+                                          · {alt.required_components.join(", ")}
+                                        </span>
+                                      )}
+                                      {alt.current_ma_peak != null && (
+                                        <span className="ml-1 text-zinc-500">
+                                          · {alt.current_ma_peak}mA
+                                        </span>
+                                      )}
+                                    </span>
+                                    <span className="shrink-0 text-zinc-500">
+                                      score {alt.score}{" "}
+                                      <span
+                                        className={
+                                          alt.score < m.score
+                                            ? "text-zinc-600"
+                                            : "text-emerald-300"
+                                        }
+                                      >
+                                        ({alt.score >= m.score ? "+" : ""}
+                                        {(alt.score - m.score).toFixed(1)})
+                                      </span>
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
                           </div>
                           <div className="flex shrink-0 flex-col items-end gap-1">
                             <span className="text-[10px] text-zinc-500">score {m.score}</span>
