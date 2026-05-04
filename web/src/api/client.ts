@@ -99,7 +99,7 @@ export const api = {
     }),
 
   fleetStatus: () => request<FleetStatus>("/fleet/status"),
-  fleetPush: (body: { design: Design; compile?: boolean; device_name?: string }) =>
+  fleetPush: (body: { design: Design; compile?: boolean; device_name?: string; strict?: boolean }) =>
     request<FleetPushResponse>("/fleet/push", {
       method: "POST",
       body: JSON.stringify(body),

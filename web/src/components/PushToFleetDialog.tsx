@@ -6,6 +6,10 @@ const LOG_POLL_INTERVAL_MS = 1500;
 
 interface Props {
   design: Design;
+  /** When true, ask the server to refuse the push if the design has any
+   *  warn/error compatibility entries. Defaults to false; the App's
+   *  header strict-mode toggle drives this. */
+  strict?: boolean;
   onClose: () => void;
 }
 
@@ -18,7 +22,7 @@ interface Props {
  * Status is fetched on open so we can disable the button + show why the
  * fleet isn't reachable when it isn't.
  */
-export function PushToFleetDialog({ design, onClose }: Props) {
+export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
   const [status, setStatus] = useState<FleetStatus | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
   const fleet = (design.fleet as Record<string, unknown> | undefined) ?? undefined;
@@ -98,6 +102,7 @@ export function PushToFleetDialog({ design, onClose }: Props) {
         design,
         compile,
         device_name: deviceName.trim() || undefined,
+        strict,
       });
       setResult(r);
       if (r.run_id) {
@@ -105,10 +110,27 @@ export function PushToFleetDialog({ design, onClose }: Props) {
         void pollJobLog(r.run_id);
       }
     } catch (e) {
-      const msg = e instanceof ApiError
-        ? `${e.status}: ${typeof e.body === "object" && e.body && "detail" in e.body
-            ? String((e.body as { detail: unknown }).detail) : e.message}`
-        : e instanceof Error ? e.message : String(e);
+      let msg: string;
+      if (e instanceof ApiError) {
+        const body = e.body as
+          | { detail?: unknown }
+          | undefined;
+        const detail = body?.detail;
+        if (
+          typeof detail === "object" && detail !== null &&
+          (detail as { error?: string }).error === "strict_mode_blocked"
+        ) {
+          // Surface the strict envelope's friendly message; the warnings
+          // themselves already render in the design pane via the regular
+          // compatibility flow.
+          const d = detail as { message?: string; warnings?: unknown[] };
+          msg = `${e.status}: ${d.message ?? "strict mode refused the push"}`;
+        } else {
+          msg = `${e.status}: ${typeof detail === "string" ? detail : e.message}`;
+        }
+      } else {
+        msg = e instanceof Error ? e.message : String(e);
+      }
       setPushError(msg);
     } finally {
       setPushing(false);
@@ -183,6 +205,14 @@ export function PushToFleetDialog({ design, onClose }: Props) {
               Lowercase letters, digits, and hyphens only (max 64).
             </p>
           </div>
+
+          {strict && (
+            <div className="rounded border border-amber-700/40 bg-amber-900/15 px-3 py-2 text-[11px] text-amber-200">
+              Strict mode is on. The push will be refused if the design has any
+              warn/error compatibility entries; resolve them or toggle strict
+              off in the header to ship anyway.
+            </div>
+          )}
 
           <label className="flex cursor-pointer items-start gap-2 rounded border border-zinc-800 bg-zinc-900/40 px-3 py-2">
             <input

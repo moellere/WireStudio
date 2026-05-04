@@ -306,6 +306,39 @@ def test_fleet_push_invalid_device_name_returns_422(monkeypatch, tmp_path, garag
     assert r.status_code == 422
 
 
+def test_fleet_push_strict_clean_design_passes(monkeypatch, tmp_path, garage_motion_design):
+    """garage-motion is warning-clean; strict push goes through."""
+    addon = FakeFleetAddon()
+    client = _make_client(monkeypatch, tmp_path, addon=addon)
+    r = client.post(
+        "/fleet/push",
+        json={"design": garage_motion_design, "strict": True},
+    )
+    assert r.status_code == 200
+    assert r.json()["created"] is True
+
+
+def test_fleet_push_strict_blocks_on_compat_warning(monkeypatch, tmp_path):
+    """ttgo-lora32 has a known boot_strap_output warning; strict push 422s
+    with the same envelope as /design/render?strict=true so the UI can
+    surface it the same way. The non-strict path still ships the file."""
+    design = json.loads((EXAMPLES_DIR / "ttgo-lora32.json").read_text())
+    addon = FakeFleetAddon()
+    client = _make_client(monkeypatch, tmp_path, addon=addon)
+
+    permissive = client.post("/fleet/push", json={"design": design})
+    assert permissive.status_code == 200, permissive.json()
+
+    strict = client.post("/fleet/push", json={"design": design, "strict": True})
+    assert strict.status_code == 422
+    detail = strict.json()["detail"]
+    assert detail["error"] == "strict_mode_blocked"
+    assert "compatibility issue" in detail["message"]
+    assert all(w["severity"] in ("warn", "error") for w in detail["warnings"])
+    # The push must NOT have hit the addon when strict refuses.
+    assert len(addon.compile_runs) == 0
+
+
 # ---------------------------------------------------------------------------
 # Build log polling
 # ---------------------------------------------------------------------------

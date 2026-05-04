@@ -3,6 +3,7 @@ from __future__ import annotations
 import yaml
 
 from studio.generate.yaml_gen import render_yaml
+from studio.model import Design
 
 
 def test_garage_motion_matches_golden(garage_motion_design, library, golden_dir):
@@ -251,3 +252,84 @@ def test_awning_uses_expander_pins_not_extras(awning_control_design, library):
     assert len(switches) == 2  # awning_power, motor_enable
     for s in switches:
         assert s["pin"]["mcp23008"] == "mcp23008_hub"
+
+
+# ---------------------------------------------------------------------------
+# DS18B20 + RCWL-0516 (library expansion)
+# ---------------------------------------------------------------------------
+
+def _wemos_d1_mini_skeleton(components: list[dict], connections: list[dict]) -> dict:
+    """Minimal-but-valid design.json scaffold the new-component tests build on."""
+    base = {
+        "schema_version": "0.1",
+        "id": "fixture",
+        "name": "Fixture",
+        "board": {"library_id": "wemos-d1-mini", "mcu": "esp8266"},
+        "fleet": {"device_name": "fixture", "tags": []},
+        "power": {"supply": "usb-5v", "rail_voltage_v": 5.0, "budget_ma": 500},
+        "components": components,
+        "buses": [],
+        "connections": connections,
+        "requirements": [],
+        "warnings": [],
+    }
+    return base
+
+
+def test_ds18b20_renders_one_wire_and_dallas_blocks(library):
+    design_dict = _wemos_d1_mini_skeleton(
+        components=[{"id": "temp1", "library_id": "ds18b20", "label": "Temp 1", "params": {}}],
+        connections=[
+            {"component_id": "temp1", "pin_role": "VCC",  "target": {"kind": "rail", "rail": "3V3"}},
+            {"component_id": "temp1", "pin_role": "GND",  "target": {"kind": "rail", "rail": "GND"}},
+            {"component_id": "temp1", "pin_role": "DATA", "target": {"kind": "gpio", "pin": "D6"}},
+        ],
+    )
+    parsed = yaml.unsafe_load(render_yaml(Design.model_validate(design_dict), library))
+    assert parsed["one_wire"] == [{"platform": "gpio", "pin": "D6", "id": "temp1_bus"}]
+    sensors = [s for s in parsed.get("sensor") or [] if s.get("platform") == "dallas_temp"]
+    assert len(sensors) == 1
+    assert sensors[0]["one_wire_id"] == "temp1_bus"
+    assert sensors[0]["update_interval"] == "60s"
+
+
+def test_two_ds18b20_instances_merge_one_wire_lists(library):
+    """Two DS18B20s on different pins each contribute their own one_wire
+    and dallas_temp entries; _deep_merge concatenates the lists rather
+    than dropping one."""
+    design_dict = _wemos_d1_mini_skeleton(
+        components=[
+            {"id": "temp1", "library_id": "ds18b20", "label": "Temp 1", "params": {}},
+            {"id": "temp2", "library_id": "ds18b20", "label": "Temp 2", "params": {}},
+        ],
+        connections=[
+            {"component_id": "temp1", "pin_role": "VCC",  "target": {"kind": "rail", "rail": "3V3"}},
+            {"component_id": "temp1", "pin_role": "GND",  "target": {"kind": "rail", "rail": "GND"}},
+            {"component_id": "temp1", "pin_role": "DATA", "target": {"kind": "gpio", "pin": "D5"}},
+            {"component_id": "temp2", "pin_role": "VCC",  "target": {"kind": "rail", "rail": "3V3"}},
+            {"component_id": "temp2", "pin_role": "GND",  "target": {"kind": "rail", "rail": "GND"}},
+            {"component_id": "temp2", "pin_role": "DATA", "target": {"kind": "gpio", "pin": "D6"}},
+        ],
+    )
+    parsed = yaml.unsafe_load(render_yaml(Design.model_validate(design_dict), library))
+    bus_ids = {b["id"] for b in parsed["one_wire"]}
+    assert bus_ids == {"temp1_bus", "temp2_bus"}
+    sensors = [s for s in parsed["sensor"] if s.get("platform") == "dallas_temp"]
+    assert {s["one_wire_id"] for s in sensors} == {"temp1_bus", "temp2_bus"}
+
+
+def test_rcwl_0516_renders_motion_binary_sensor(library):
+    design_dict = _wemos_d1_mini_skeleton(
+        components=[{"id": "radar", "library_id": "rcwl-0516", "label": "Hall radar", "params": {}}],
+        connections=[
+            {"component_id": "radar", "pin_role": "VCC", "target": {"kind": "rail", "rail": "5V"}},
+            {"component_id": "radar", "pin_role": "GND", "target": {"kind": "rail", "rail": "GND"}},
+            {"component_id": "radar", "pin_role": "OUT", "target": {"kind": "gpio", "pin": "D7"}},
+        ],
+    )
+    parsed = yaml.unsafe_load(render_yaml(Design.model_validate(design_dict), library))
+    bs = parsed["binary_sensor"][0]
+    assert bs["platform"] == "gpio"
+    assert bs["pin"] == "D7"
+    assert bs["name"] == "Hall radar"
+    assert bs["device_class"] == "motion"

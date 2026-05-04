@@ -180,6 +180,8 @@ Currently shipped:
 - `ws2812b` — addressable RGB LED (NeoPixel/neopixelbus)
 - `gpio_input` — generic binary_sensor on a GPIO or expander pin (buttons, limit switches, door/window/motion sensors)
 - `gpio_output` — generic switch on a GPIO or expander pin (relays, indicators)
+- `ds18b20` — Dallas 1-wire temperature sensor (single-pin bus + 4.7kΩ pull-up)
+- `rcwl-0516` — microwave doppler motion sensor (low-power PIR alternative)
 
 The `gpio_input` / `gpio_output` components and the `kind: expander_pin`
 connection target together let downstream platforms hang off any expander

@@ -31,10 +31,42 @@ stays as a back-compat wrapper. Pytest +21 (179 total), vitest 49, ruff
 - Inspector composition tests (DesignInspector wiring)
 - Drag-and-drop pinout (long-running: 0.3 already pre-flagged this as
   a follow-on iteration)
-- Push-to-fleet "strict-only" mode: refuse the push when strict-mode
-  is on AND the design has pending warn/error compat hits
-- Library expansion: more sensor categories (DS18B20 1-wire temp,
-  RCWL-0516 microwave motion, ADS1115 ADC, MPU6050 IMU)
+- Library expansion: ADS1115 4-channel I2C ADC + MPU6050 6-axis IMU
+- 1-wire bus type promotion: a proper `Bus` field for the DATA pin
+  so multiple DS18B20s can share a single physical bus (today each
+  instance creates its own `<id>_bus`; works but wasteful with many
+  sensors on one wire)
+- Goldens for the new components (a one-DS18B20 + one-RCWL design
+  pinned to `tests/golden/`)
+
+**Strict-only push gate shipped.** `POST /fleet/push` now accepts
+`strict: bool` and refuses the push with the same `strict_mode_blocked`
+envelope that `/design/render?strict=true` uses when any warn/error
+compat entry remains. The studio app threads its global strict-mode
+toggle into `PushToFleetDialog` as a prop; the dialog renders an
+amber notice when strict is on and the result-banner formatter
+recognises the envelope so the user sees the friendly message
+instead of the raw JSON. 2 new pytest cases pin the gate.
+
+**Library expansion: RCWL-0516 + DS18B20 shipped.**
+- `library/components/rcwl-0516.yaml`: microwave doppler motion sensor.
+  Same VCC/GND/OUT pin set as the HC-SR501 PIR but draws ~3 mA peak
+  vs ~50 mA, so it complements the PIR for battery builds. No params
+  (sensitivity/on-time live on the SMD resistors). Recommender ranks
+  it alongside the PIR for `motion`/`occupancy`/`presence` queries.
+- `library/components/ds18b20.yaml`: first 1-wire library citizen.
+  VCC/GND/DATA + the canonical 4.7kΩ pull-up between DATA and VCC
+  encoded in `passives`. Each instance renders its own
+  `one_wire: [{ id: <comp>_bus }]` block plus a `dallas_temp` sensor
+  pointing at it; the existing `_deep_merge` of list-typed top-level
+  blocks means N independent DS18B20s on N different pins coexist
+  cleanly. Sharing a single physical bus among multiple sensors is
+  noted in the component's `notes` field but not yet wired -- that's
+  a 1-wire-bus promotion candidate above. Params expose `address`
+  (ROM), `update_interval`, `resolution` (9-12 bits).
+
+7 new pytest cases (yaml gen for both + recommender ranks both +
+strict push). 220 pytest, 96 vitest, ruff + tsc + build clean.
 
 **ConnectionForm + PushToFleetDialog component tests shipped.** New
 `ConnectionForm.test.tsx` (7 tests) covers the LockToggle's three

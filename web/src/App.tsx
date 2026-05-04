@@ -520,6 +520,7 @@ export default function App() {
       {showFleetDialog && design && (
         <PushToFleetDialog
           design={design}
+          strict={strictMode}
           onClose={() => setShowFleetDialog(false)}
         />
       )}

@@ -410,6 +410,28 @@ def create_app(
         except (FileNotFoundError, ValueError) as e:
             raise HTTPException(status_code=422, detail=str(e)) from e
 
+        # Strict-only push: refuse to ship when any warn/error compatibility
+        # entry remains. Mirrors the /design/render?strict=true gate so a
+        # client can use the same envelope to surface the same warnings.
+        if req.strict:
+            blocking = [
+                w for w in check_pin_compatibility(req.design, lib)
+                if w.severity in ("warn", "error")
+            ]
+            if blocking:
+                raise HTTPException(
+                    status_code=422,
+                    detail={
+                        "error": "strict_mode_blocked",
+                        "message": (
+                            f"strict mode refused the push: "
+                            f"{len(blocking)} compatibility issue"
+                            f"{'s' if len(blocking) != 1 else ''} need attention"
+                        ),
+                        "warnings": [w.model_dump() for w in _wire_compat(blocking)],
+                    },
+                )
+
         # Filename precedence: explicit override > fleet.device_name > design.id.
         device_name = (
             req.device_name

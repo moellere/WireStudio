@@ -1,0 +1,59 @@
+id: ds18b20
+name: DS18B20 1-wire temperature sensor
+category: sensor
+use_cases: [temperature]
+aliases: ["dallas", "1-wire temp", "onewire", "ds1820"]
+
+electrical:
+  vcc_min: 3.0
+  vcc_max: 5.5
+  current_ma_typical: 1
+  current_ma_peak: 2
+  pins:
+    - {role: VCC,  kind: power}
+    - {role: GND,  kind: ground}
+    - {role: DATA, kind: digital_in, voltage: 3.3}
+  passives:
+    - {kind: resistor, value: "4.7k", between: ["DATA", "VCC"], purpose: "1-wire bus pull-up"}
+
+esphome:
+  required_components: []
+  yaml_template: |
+    one_wire:
+      - platform: gpio
+        pin: {{ pins.DATA | tojson }}
+        id: {{ id }}_bus
+
+    sensor:
+      - platform: dallas_temp
+        one_wire_id: {{ id }}_bus
+        name: "{{ label }}"
+    {%- if params.address is defined %}
+        address: {{ params.address }}
+    {%- endif %}
+        update_interval: {{ params.update_interval | default('60s') }}
+    {%- if params.resolution is defined %}
+        resolution: {{ params.resolution }}
+    {%- endif %}
+
+params_schema:
+  address:
+    type: string
+    description: "ROM address (e.g., 0x1c0000031edd2a28). Omit for single-sensor buses."
+  update_interval:
+    type: string
+    default: "60s"
+  resolution:
+    type: integer
+    enum: [9, 10, 11, 12]
+    description: "Bits of resolution (9 = 0.5°C / fast, 12 = 0.0625°C / slow)"
+
+notes: |
+  1-wire bus: needs a single 4.7kΩ pull-up between DATA and VCC. Each
+  instance creates its own one_wire bus block so the YAML renders cleanly
+  even with multiple DS18B20s on different pins. To share a single
+  physical bus among multiple sensors, give them the same DATA pin AND
+  set distinct `address` params (left blank, ESPHome auto-discovers but
+  emits a warning when more than one device is on the bus). Output is
+  3.3V-compatible. Parasite power is supported by ESPHome but not
+  modeled here -- wire VCC.

@@ -32,6 +32,23 @@ def test_motion_query_ranks_pir_first(lib):
     assert "motion" in out[0].rationale
 
 
+def test_motion_query_surfaces_rcwl_alongside_pir(lib):
+    """RCWL-0516 advertises the same use_cases as the PIR but is the
+    microwave alternative, so it should appear in the top 3 motion picks."""
+    out = recommend_components(lib, "motion")
+    ids = [r.library_id for r in out[:3]]
+    assert "rcwl-0516" in ids
+
+
+def test_temperature_query_surfaces_ds18b20(lib):
+    """DS18B20 is the canonical 1-wire temp sensor; recommending
+    'temperature' must include it (BME280 still wins on 'temperature
+    humidity' because it covers both, but DS18B20 should be visible)."""
+    out = recommend_components(lib, "temperature")
+    ids = [r.library_id for r in out]
+    assert "ds18b20" in ids
+
+
 def test_temperature_humidity_query_returns_bme280(lib):
     out = recommend_components(lib, "temperature humidity")
     ids = [r.library_id for r in out]
