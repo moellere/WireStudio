@@ -1,0 +1,43 @@
+id: m5stack-atom
+name: M5Stack Atom Lite / Echo
+mcu: esp32
+chip_variant: esp32
+framework: arduino
+platformio_board: m5stack-atom
+flash_size_mb: 4
+
+rails:
+  - {name: "5V",  voltage: 5.0, source: usb}
+  - {name: "3V3", voltage: 3.3, source: onboard_regulator}
+  - {name: "GND", voltage: 0.0}
+
+# M5Stack Atom (Lite or Echo) is an ESP32-PICO-D4 in a 24mm cube.
+# Onboard: a single SK6812 RGB LED on GPIO27 and a programmable
+# button on GPIO39 (input-only, active low). Echo variant adds an
+# I2S MEMS mic on GPIO23 (PDM) and a NS4168 I2S DAC + speaker on
+# GPIO22 (DOUT) sharing the same i2s_audio bus on GPIO19/33.
+# Same ESP32 strap pin rules as the WROOM-32 boards -- see
+# esp32-devkitc-v4.yaml for the legend.
+default_buses:
+  i2c: {sda: GPIO26, scl: GPIO32}
+
+onboard_peripherals:
+  led_sk6812:    {pin: GPIO27}
+  button:        {pin: GPIO39, inverted: true}
+  echo_i2s:      {bclk: GPIO19, lrclk: GPIO33, din: GPIO23, dout: GPIO22}
+
+# Atom only breaks out a handful of pins on its base connector and
+# Grove port. Pin 21/25 are exposed but commonly reserved for the
+# Grove SDA/SCL by M5Stack convention; Atom Echo's PDM mic uses GPIO23
+# regardless, so list it as available with a note.
+gpio_capabilities:
+  GPIO19: [gpio, i2s_bclk]
+  GPIO21: [gpio, grove_sda, i2c_sda]
+  GPIO22: [gpio, i2s_dout]
+  GPIO23: [gpio, i2s_din]
+  GPIO25: [gpio, grove_scl, i2c_scl, dac, adc, adc2]
+  GPIO26: [gpio, dac, adc, adc2]
+  GPIO27: [gpio, builtin_led, adc, adc2, pwm]
+  GPIO32: [gpio, adc, adc1, pwm]
+  GPIO33: [gpio, adc, adc1, pwm, i2s_lrclk]
+  GPIO39: [gpio, button, adc, adc1, input_only, no_pull_internal]
