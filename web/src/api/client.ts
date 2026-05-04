@@ -48,6 +48,22 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
+/** Like `request` but expects a text/plain response (used for the OpenSCAD
+ *  enclosure download). Errors still come back as JSON, so the failure
+ *  parsing is shared. */
+async function requestText(path: string, init?: RequestInit): Promise<string> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
+    ...init,
+  });
+  if (!res.ok) {
+    let body: unknown = undefined;
+    try { body = await res.json(); } catch { /* not json */ }
+    throw new ApiError(res.status, `${init?.method ?? "GET"} ${path} -> ${res.status}`, body);
+  }
+  return await res.text();
+}
+
 export const api = {
   health: () => request<{ ok: boolean; version: string }>("/health"),
 
@@ -76,6 +92,8 @@ export const api = {
     ),
   solvePins: (design: Design) =>
     request<SolvePinsResponse>("/design/solve_pins", { method: "POST", body: JSON.stringify(design) }),
+  enclosureScad: (design: Design) =>
+    requestText("/design/enclosure/openscad", { method: "POST", body: JSON.stringify(design) }),
 
   agentStatus: () => request<AgentStatus>("/agent/status"),
   agentTurn: (body: { session_id?: string | null; design: Design; message: string }) =>

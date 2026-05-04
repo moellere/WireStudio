@@ -32,3 +32,23 @@ gpio_capabilities:
   D9:  [gpio, uart_rx, serial_rx]                          # GPIO3
   D10: [gpio, uart_tx, serial_tx]                          # GPIO1
   A0:  [adc, input_only, adc_max_1v]
+
+# Enclosure geometry (mm). NodeMCU v2 (Amica) -- 48 x 26 mm with
+# Micro-USB centred on the short_a edge. The legacy v1 LoLin variant
+# is wider; v2 is the current Amica board.
+enclosure:
+  pcb:
+    length_mm: 48.0
+    width_mm: 26.0
+    thickness_mm: 1.6
+  mount_holes:
+    - {x_mm:  2.5,  y_mm: 13.0,  hole_diameter_mm: 3.2}
+    - {x_mm: 45.5,  y_mm: 13.0,  hole_diameter_mm: 3.2}
+  ports:
+    - kind: usb_micro
+      edge: short_a
+      offset_mm: 9.0
+      width_mm: 8.0
+      height_mm: 3.0
+      height_above_pcb_mm: 1.5
+  component_height_max_mm: 13.0

@@ -27,13 +27,45 @@ stays as a back-compat wrapper. Pytest +21 (179 total), vitest 49, ruff
 + build clean.
 
 **Next up candidates:**
-- 0.8 — Enclosure suggestions (Thingiverse/Printables search;
-  parametric OpenSCAD stretch).
+- 0.8 v2 — Thingiverse / Printables search relay. Pulls
+  community-uploaded models that already fit the chosen board, ranks
+  them, and surfaces the top hits in the same dialog as the
+  generator. Thingiverse has a documented API (key + rate limits);
+  Printables needs scraping or unofficial endpoints. `httpx.MockTransport`
+  for tests, same pattern as the fleet client.
 - 0.9 — KiCad schematic export. Full scope in the Roadmap section
   below; key points: SKiDL-driven, `kicad:` reference block per
   component/board (we stay canonical for ESPHome semantics, KiCad
   for schematic rendering), `studio/kicad/scaffold.py` helper for
   cheap library expansion, PCB deferred to 1.0+.
+
+**0.8 v1 -- parametric OpenSCAD enclosure generator shipped.** Each
+of the 5 dev-board YAMLs (`wemos-d1-mini`, `esp32-devkitc-v4`,
+`nodemcu-32s`, `nodemcu-v2`, `ttgo-lora32-v1`) gains an `enclosure:`
+block carrying PCB outline (length / width / thickness in mm), mount
+hole positions + diameters, and port cutouts (USB micro on every
+board, plus the SMA jack on the TTGO LoRa32 V1). ESP-01S deliberately
+skips the block -- it's a header-mount module without a clear PCB
+outline.
+
+`studio/enclosure/openscad.py` walks a design's board metadata and
+emits a self-contained `.scad` file: tunables block at the top
+(wall, floor, clearance, standoff geometry, port_clearance) so the
+user can dial in fit without re-rendering, then a `module shell()`
+that subtracts an inner cavity + every defined port cutout from the
+outer hull, then a `module standoffs()` that places M2.5-clearance
+posts at each mount hole. Boards without enclosure metadata raise
+`EnclosureUnavailable` cleanly.
+
+`POST /design/enclosure/openscad` returns the text with a
+`Content-Disposition: attachment; filename="<design_id>.scad"`
+header. Header gains a **Generate enclosure** button that synthesises
+the request from the live design and triggers a browser download.
+
+10 new pytest cases pin the renderer (tunables present, dimensions
+appear verbatim, mount holes / ports render on the right walls,
+short_a vs short_b cutouts translate correctly, ESP-01S fallback);
+3 new API tests cover the endpoint contract.
 
 **Drag-and-drop pinout shipped.** New `PinoutView` component renders
 a two-column view in the component-instance inspector: left lists
@@ -530,8 +562,23 @@ immediate way in and the agent (when it arrives) lands in a working surface.
   UI: **Push to fleet** modal with status banner + device-name input.
   Future: live build-log tailing, queue/history surface, fleet-side
   device list to pick a target name from.
-- **0.8 — Enclosure suggestions.** Thingiverse/Printables lookup against
-  the chosen board + components; parametric OpenSCAD stretch.
+- **0.8 — Enclosure suggestions.** Two halves:
+  - **v1 ✅ Shipped (parametric OpenSCAD generator).** Each dev-board
+    YAML carries an `enclosure:` block with PCB outline + mount holes
+    + port cutouts. `studio/enclosure/openscad.py` emits a
+    self-contained `.scad` shell (bottom + 4 walls, mounting standoffs
+    aligned with the mount holes, edge cutouts for every port) with
+    tunables (wall, floor, clearance, standoff geometry) at the top
+    so the user dials in fit without re-rendering. Endpoint
+    `POST /design/enclosure/openscad`; header **Generate enclosure**
+    button triggers a browser download.
+  - **v2 — Thingiverse / Printables search relay.** Pull
+    community-uploaded models that fit the chosen board + components,
+    rank them, and surface the top hits alongside the generator.
+    Same `enclosure:` metadata feeds the search query.
+  - **Stretch — component dimensions on breakouts** (BME280 module,
+    OLED module, etc.) so the generator can place display windows
+    and stack-mount cutouts, not just the headline USB port.
 - **0.9 — KiCad schematic export.** Walk `design.json` and emit a
   `.kicad_sch` (KiCad 6+ s-expression format) the user opens in
   KiCad. SKiDL is the recommended path: a mature Python DSL that

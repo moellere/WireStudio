@@ -47,3 +47,22 @@ gpio_capabilities:
   GPIO35: [gpio, adc, adc1, input_only, no_pull_internal]
   GPIO36: [gpio, adc, adc1, input_only, no_pull_internal]
   GPIO39: [gpio, adc, adc1, input_only, no_pull_internal]
+
+# Enclosure geometry (mm). NodeMCU-32S, similar to DevKitC V4 but a
+# bit shorter at 48.6mm. Micro-USB centred on short_a.
+enclosure:
+  pcb:
+    length_mm: 48.6
+    width_mm: 28.3
+    thickness_mm: 1.6
+  mount_holes:
+    - {x_mm:  3.0,  y_mm: 14.15, hole_diameter_mm: 3.2}
+    - {x_mm: 45.6,  y_mm: 14.15, hole_diameter_mm: 3.2}
+  ports:
+    - kind: usb_micro
+      edge: short_a
+      offset_mm: 10.15
+      width_mm: 8.0
+      height_mm: 3.0
+      height_above_pcb_mm: 1.5
+  component_height_max_mm: 13.0

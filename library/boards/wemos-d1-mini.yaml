@@ -36,3 +36,26 @@ gpio_capabilities:
   RX:  [gpio, uart_rx, serial_rx]                          # GPIO3
   TX:  [gpio, uart_tx, serial_tx]                          # GPIO1
   A0:  [adc, input_only, adc_max_1v]                       # max 1.0V via onboard divider
+
+# Enclosure geometry (mm). Origin at the bottom-left corner of the PCB
+# (looking at the top side); +X runs along the long edge (34.2mm),
+# +Y along the short edge (25.6mm). USB micro-B is centred on the
+# short_a edge (x=0).
+enclosure:
+  pcb:
+    length_mm: 34.2
+    width_mm: 25.6
+    thickness_mm: 1.0
+  mount_holes:
+    - {x_mm:  2.0,  y_mm:  2.0,  hole_diameter_mm: 3.2}
+    - {x_mm:  2.0,  y_mm: 23.6,  hole_diameter_mm: 3.2}
+    - {x_mm: 32.2,  y_mm:  2.0,  hole_diameter_mm: 3.2}
+    - {x_mm: 32.2,  y_mm: 23.6,  hole_diameter_mm: 3.2}
+  ports:
+    - kind: usb_micro
+      edge: short_a
+      offset_mm: 8.8           # centre at y=12.8 - width/2
+      width_mm: 8.0
+      height_mm: 3.0
+      height_above_pcb_mm: 1.5
+  component_height_max_mm: 7.0
