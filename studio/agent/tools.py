@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 from typing import Any, Callable
 
+from studio.csp.compatibility import check_pin_compatibility
 from studio.csp.pin_solver import solve_pins as _solve_pins
 from studio.generate.ascii_gen import render_ascii
 from studio.generate.yaml_gen import render_yaml
@@ -379,6 +380,7 @@ def _run_validate(design: dict, library: Library) -> dict:
         render_yaml(d, library)
     except (FileNotFoundError, ValueError) as e:
         return {"ok": False, "error": str(e), "schema_ok": True}
+    compat = check_pin_compatibility(design, library)
     return {
         "ok": True,
         "design_id": d.id,
@@ -387,6 +389,14 @@ def _run_validate(design: dict, library: Library) -> dict:
         "buses": len(d.buses),
         "connections": len(d.connections),
         "warnings": [w.model_dump() for w in d.warnings],
+        "compatibility_warnings": [
+            {
+                "severity": w.severity, "code": w.code, "pin": w.pin,
+                "component_id": w.component_id, "pin_role": w.pin_role,
+                "message": w.message,
+            }
+            for w in compat
+        ],
     }
 
 

@@ -42,9 +42,19 @@ class ExampleSummary(_S):
     chip_family: str  # esp32 / esp8266 / ...
 
 
+class CompatibilityWarning(_S):
+    severity: str
+    code: str
+    pin: str
+    component_id: str
+    pin_role: str
+    message: str
+
+
 class RenderResponse(_S):
     yaml: str
     ascii: str
+    compatibility_warnings: list[CompatibilityWarning] = []
 
 
 class SolverWarning(_S):
@@ -65,6 +75,7 @@ class SolvePinsResponse(_S):
     assigned: list[PinAssignment]
     unresolved: list[SolverWarning]
     warnings: list[SolverWarning]
+    compatibility_warnings: list[CompatibilityWarning] = []
 
 
 class ValidateResponse(_S):
@@ -75,6 +86,7 @@ class ValidateResponse(_S):
     bus_count: int
     connection_count: int
     warnings: list[dict]
+    compatibility_warnings: list[CompatibilityWarning] = []
 
 
 class AgentTurnRequest(_S):

@@ -8,10 +8,15 @@ ASCII in the center pane. The right inspector lets you edit:
 - **From the design view:** the board (dropdown of all library boards),
   fleet metadata (device_name + tags), requirements, warnings, plus
   the components list with **+ Add component** at the bottom and a ✕
-  per instance.
+  per instance. A **Compatibility** section lists every pin that's
+  in violation of its chip-level restrictions (boot strap pins driven
+  as outputs, input-only pins used as outputs, pins shared with the
+  USB serial console, A0 voltage caps, no-i2c pins on an I2C bus).
+  Live: re-runs on every render.
 - **From a component-instance view:** params (form generated from the
-  library's `params_schema`) and connections (target kind + kind-specific
-  controls — rail, gpio, design bus, expander pin).
+  library's `params_schema`), connections (target kind + kind-specific
+  controls — rail, gpio, design bus, expander pin), and any
+  compatibility warnings filtered to that instance's pins.
 
 Every edit pushes through a debounced (250ms) `POST /design/render` so
 the YAML and ASCII update in real time.

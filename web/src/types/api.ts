@@ -32,9 +32,19 @@ export interface ExampleSummary {
   chip_family: string;
 }
 
+export interface CompatibilityWarning {
+  severity: "info" | "warn" | "error";
+  code: string;
+  pin: string;
+  component_id: string;
+  pin_role: string;
+  message: string;
+}
+
 export interface RenderResponse {
   yaml: string;
   ascii: string;
+  compatibility_warnings: CompatibilityWarning[];
 }
 
 export interface DesignWarning {
@@ -71,6 +81,7 @@ export interface SolvePinsResponse {
   assigned: PinAssignment[];
   unresolved: SolverWarning[];
   warnings: SolverWarning[];
+  compatibility_warnings: CompatibilityWarning[];
 }
 
 // design.json is opaque on the wire; the UI reads/writes specific fields it

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
-import type { BoardSummary, ComponentSummary, Design } from "../types/api";
+import type { BoardSummary, CompatibilityWarning, ComponentSummary, Design } from "../types/api";
 import {
   readComponents,
   readConnections,
@@ -34,6 +34,7 @@ interface Props {
   boardData: unknown;
   libraryBoards: BoardSummary[] | null;
   libraryComponents: ComponentSummary[] | null;
+  compatibilityWarnings: CompatibilityWarning[];
   onSelect: (s: Selection) => void;
   onParamChange: (componentInstanceId: string, paramKey: string, value: unknown) => void;
   onConnectionChange: (connectionIndex: number, target: ConnectionTarget) => void;
@@ -44,6 +45,7 @@ interface Props {
 
 export function Inspector({
   selection, design, boardData, libraryBoards, libraryComponents,
+  compatibilityWarnings,
   onSelect, onParamChange, onConnectionChange, onDesignChange,
   onAddComponent, onRemoveComponent,
 }: Props) {
@@ -75,6 +77,7 @@ export function Inspector({
             design={design}
             libraryBoards={libraryBoards}
             libraryComponents={libraryComponents}
+            compatibilityWarnings={compatibilityWarnings}
             onSelect={onSelect}
             onDesignChange={onDesignChange}
             onAddComponent={onAddComponent}
@@ -89,6 +92,7 @@ export function Inspector({
             design={design}
             boardData={boardData}
             libraryComponents={libraryComponents}
+            compatibilityWarnings={compatibilityWarnings}
             onParamChange={onParamChange}
             onConnectionChange={onConnectionChange}
           />
@@ -99,12 +103,13 @@ export function Inspector({
 }
 
 function DesignInspector({
-  design, libraryBoards, libraryComponents, onSelect, onDesignChange,
-  onAddComponent, onRemoveComponent,
+  design, libraryBoards, libraryComponents, compatibilityWarnings,
+  onSelect, onDesignChange, onAddComponent, onRemoveComponent,
 }: {
   design: Design | null;
   libraryBoards: BoardSummary[] | null;
   libraryComponents: ComponentSummary[] | null;
+  compatibilityWarnings: CompatibilityWarning[];
   onSelect: (s: Selection) => void;
   onDesignChange: (updater: (d: Design) => Design) => void;
   onAddComponent: (libraryId: string) => void;
@@ -160,6 +165,12 @@ function DesignInspector({
           onAdd={onAddComponent}
         />
       </Section>
+
+      {compatibilityWarnings.length > 0 && (
+        <Section title={`Compatibility (${compatibilityWarnings.length})`}>
+          <CompatibilityList warnings={compatibilityWarnings} />
+        </Section>
+      )}
 
       <Section title={`Requirements (${requirements.length})`}>
         <RequirementList
@@ -474,12 +485,14 @@ function LibraryComponentInspector({ id }: { id: string }) {
 }
 
 function ComponentInstanceInspector({
-  instanceId, design, boardData, libraryComponents, onParamChange, onConnectionChange,
+  instanceId, design, boardData, libraryComponents, compatibilityWarnings,
+  onParamChange, onConnectionChange,
 }: {
   instanceId: string;
   design: Design | null;
   boardData: unknown;
   libraryComponents: ComponentSummary[] | null;
+  compatibilityWarnings: CompatibilityWarning[];
   onParamChange: (componentInstanceId: string, paramKey: string, value: unknown) => void;
   onConnectionChange: (connectionIndex: number, target: ConnectionTarget) => void;
 }) {
@@ -526,6 +539,15 @@ function ComponentInstanceInspector({
           />
         ) : null}
       </Section>
+
+      {(() => {
+        const mine = compatibilityWarnings.filter((w) => w.component_id === inst.id);
+        return mine.length > 0 ? (
+          <Section title={`Compatibility (${mine.length})`}>
+            <CompatibilityList warnings={mine} />
+          </Section>
+        ) : null;
+      })()}
 
       <Section title={`From the library (${inst.library_id})`}>
         <FullComponentView comp={comp} compact />
@@ -579,6 +601,32 @@ function FullComponentView({ comp, compact = false }: { comp: unknown; compact?:
         <p className="text-[11px] text-zinc-400">{String(c.notes)}</p>
       )}
     </div>
+  );
+}
+
+function CompatibilityList({ warnings }: { warnings: CompatibilityWarning[] }) {
+  return (
+    <ul className="space-y-1.5">
+      {warnings.map((w, i) => {
+        const palette =
+          w.severity === "error"
+            ? "border-red-500/40 bg-red-500/10 text-red-200"
+            : w.severity === "warn"
+              ? "border-amber-500/40 bg-amber-500/10 text-amber-100"
+              : "border-blue-500/40 bg-blue-500/5 text-blue-100";
+        return (
+          <li key={i} className={`rounded border px-2 py-1.5 text-xs ${palette}`}>
+            <div className="flex items-baseline justify-between gap-2 font-mono">
+              <span>[{w.severity}] {w.code}</span>
+              <span className="text-[11px] opacity-80">
+                {w.pin} · {w.component_id}.{w.pin_role}
+              </span>
+            </div>
+            <div className="mt-1">{w.message}</div>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 

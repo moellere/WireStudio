@@ -89,8 +89,14 @@ def _gpio_candidates_for_pin(
             continue
         if is_output and _AVOID_FOR_OUTPUTS & cap_set:
             continue
-        # Prefer non-special pins (no boot/strap/builtin_led tags) over special ones.
-        special = bool(cap_set & {"boot", "strap", "builtin_led"})
+        # Prefer non-special pins. Boot strap pins (boot_high / boot_low) and
+        # the legacy `boot` / `strap` / `builtin_led` tags all count as
+        # "special" -- pickable as a last resort, never first.
+        special = bool(cap_set & {
+            "boot", "strap", "builtin_led",
+            "boot_high", "boot_low",
+            "serial_tx", "serial_rx",
+        })
         candidates.append((1 if special else 0, name))
     candidates.sort()
     return [name for _, name in candidates]

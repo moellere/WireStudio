@@ -18,6 +18,7 @@ from studio.api.schemas import (
     AgentTurnRequest,
     AgentTurnResponse,
     BoardSummary,
+    CompatibilityWarning as CompatWire,
     ComponentSummary,
     ExampleSummary,
     PinAssignment,
@@ -26,11 +27,23 @@ from studio.api.schemas import (
     SolverWarning,
     ValidateResponse,
 )
+from studio.csp.compatibility import check_pin_compatibility
 from studio.csp.pin_solver import solve_pins as run_solve_pins
 from studio.generate.ascii_gen import render_ascii
 from studio.generate.yaml_gen import render_yaml
 from studio.library import Library, LibraryBoard, LibraryComponent, default_library
 from studio.model import Design
+
+
+def _wire_compat(warnings) -> list[CompatWire]:
+    return [
+        CompatWire(
+            severity=w.severity, code=w.code, pin=w.pin,
+            component_id=w.component_id, pin_role=w.pin_role,
+            message=w.message,
+        )
+        for w in warnings
+    ]
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 EXAMPLES_DIR = REPO_ROOT / "examples"
@@ -145,6 +158,7 @@ def create_app(library: Optional[Library] = None, sessions: Optional[SessionStor
             bus_count=len(d.buses),
             connection_count=len(d.connections),
             warnings=[w.model_dump() for w in d.warnings],
+            compatibility_warnings=_wire_compat(check_pin_compatibility(design, lib)),
         )
 
     @app.post("/design/solve_pins", response_model=SolvePinsResponse, tags=["design"])
@@ -168,6 +182,7 @@ def create_app(library: Optional[Library] = None, sessions: Optional[SessionStor
             ],
             unresolved=[SolverWarning(level=w.level, code=w.code, text=w.text) for w in result.unresolved],
             warnings=[SolverWarning(level=w.level, code=w.code, text=w.text) for w in result.warnings],
+            compatibility_warnings=_wire_compat(check_pin_compatibility(result.design, lib)),
         )
 
     @app.post("/design/render", response_model=RenderResponse, tags=["design"])
@@ -177,10 +192,8 @@ def create_app(library: Optional[Library] = None, sessions: Optional[SessionStor
         except ValidationError as e:
             raise HTTPException(status_code=422, detail=e.errors()) from e
         try:
-            return RenderResponse(
-                yaml=render_yaml(d, lib),
-                ascii=render_ascii(d, lib),
-            )
+            yaml_text = render_yaml(d, lib)
+            ascii_text = render_ascii(d, lib)
         except FileNotFoundError as e:
             # Unknown component / board referenced.
             raise HTTPException(status_code=422, detail=str(e)) from e
@@ -188,6 +201,11 @@ def create_app(library: Optional[Library] = None, sessions: Optional[SessionStor
             # Surfaced from the generator for incomplete-but-validating designs:
             # missing bus matching a `kind: bus` connection, etc.
             raise HTTPException(status_code=422, detail=str(e)) from e
+        return RenderResponse(
+            yaml=yaml_text,
+            ascii=ascii_text,
+            compatibility_warnings=_wire_compat(check_pin_compatibility(design, lib)),
+        )
 
     @app.get("/examples", response_model=list[ExampleSummary], tags=["examples"])
     def list_examples() -> list[ExampleSummary]:

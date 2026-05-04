@@ -23,15 +23,21 @@ onboard_peripherals:
   battery_adc:  {pin: GPIO35, divider: 2.0}
   led:          {pin: GPIO25}
 
+# Same ESP32 strap pin rules as the WROOM-32 boards. Note GPIO5 is also the
+# LoRa SCK on this board -- the boot_high requirement is satisfied at boot
+# before SPI takes over the line, so the design works in practice but
+# remains a fragile pattern worth surfacing.
 gpio_capabilities:
-  GPIO0:  [boot, strap]
-  GPIO2:  [strap, gpio]
+  GPIO0:  [boot, strap, boot_high]
+  GPIO1:  [gpio, uart_tx, serial_tx]
+  GPIO2:  [strap, gpio, boot_low]
+  GPIO3:  [gpio, uart_rx, serial_rx]
   GPIO4:  [gpio, adc, pwm]
-  GPIO5:  [gpio, spi_clk]
-  GPIO12: [gpio, adc, strap]
+  GPIO5:  [gpio, spi_clk, boot_high]
+  GPIO12: [gpio, adc, strap, boot_low]
   GPIO13: [gpio, adc, pwm]
   GPIO14: [gpio, adc, pwm]
-  GPIO15: [gpio, adc, strap]
+  GPIO15: [gpio, adc, strap, boot_high]
   GPIO16: [gpio, oled_reset]
   GPIO17: [gpio]
   GPIO18: [gpio, lora_cs]
@@ -42,7 +48,7 @@ gpio_capabilities:
   GPIO25: [gpio, led]
   GPIO26: [gpio, lora_dio0]
   GPIO27: [gpio, spi_mosi]
-  GPIO34: [gpio, adc, input_only]
-  GPIO35: [gpio, adc, input_only, battery_sense]
-  GPIO36: [gpio, adc, input_only]
-  GPIO39: [gpio, adc, input_only]
+  GPIO34: [gpio, adc, input_only, no_pull_internal]
+  GPIO35: [gpio, adc, input_only, battery_sense, no_pull_internal]
+  GPIO36: [gpio, adc, input_only, no_pull_internal]
+  GPIO39: [gpio, adc, input_only, no_pull_internal]

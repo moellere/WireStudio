@@ -339,6 +339,7 @@ export default function App() {
           boardData={boardData}
           libraryBoards={boards}
           libraryComponents={components}
+          compatibilityWarnings={render?.compatibility_warnings ?? []}
           onSelect={setSelection}
           onParamChange={handleParamChange}
           onConnectionChange={handleConnectionChange}

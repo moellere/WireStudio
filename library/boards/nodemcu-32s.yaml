@@ -17,15 +17,19 @@ default_buses:
 
 # NodeMCU-32S exposes the same ESP32 pins as DevKitC-V4 plus an extra
 # couple. Pin capabilities mirror the ESP32-WROOM-32 module.
+# Same ESP32-WROOM-32 strap pin rules as ESP32-DevKitC-V4 -- see that file
+# for the boot-strap legend.
 gpio_capabilities:
-  GPIO0:  [boot, strap]
-  GPIO2:  [strap, gpio]
+  GPIO0:  [boot, strap, boot_high]
+  GPIO1:  [gpio, uart_tx, serial_tx]
+  GPIO2:  [strap, gpio, boot_low]
+  GPIO3:  [gpio, uart_rx, serial_rx]
   GPIO4:  [gpio, adc, pwm]
-  GPIO5:  [gpio, strap, spi_cs]
-  GPIO12: [gpio, adc, strap]
+  GPIO5:  [gpio, strap, spi_cs, boot_high]
+  GPIO12: [gpio, adc, strap, boot_low]
   GPIO13: [gpio, adc, pwm]
   GPIO14: [gpio, adc, pwm]
-  GPIO15: [gpio, adc, strap]
+  GPIO15: [gpio, adc, strap, boot_high]
   GPIO16: [gpio]
   GPIO17: [gpio]
   GPIO18: [gpio, spi_clk]
@@ -38,7 +42,7 @@ gpio_capabilities:
   GPIO27: [gpio, adc, pwm]
   GPIO32: [gpio, adc, pwm, i2s_dout]
   GPIO33: [gpio, adc, pwm, i2s_lrclk]
-  GPIO34: [gpio, adc, input_only]
-  GPIO35: [gpio, adc, input_only]
-  GPIO36: [gpio, adc, input_only]
-  GPIO39: [gpio, adc, input_only]
+  GPIO34: [gpio, adc, input_only, no_pull_internal]
+  GPIO35: [gpio, adc, input_only, no_pull_internal]
+  GPIO36: [gpio, adc, input_only, no_pull_internal]
+  GPIO39: [gpio, adc, input_only, no_pull_internal]

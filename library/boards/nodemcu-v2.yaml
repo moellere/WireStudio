@@ -17,16 +17,18 @@ default_buses:
 
 # D-labels match WeMos D1 Mini for the overlapping 9 GPIOs;
 # NodeMCU v2 also breaks out D9-D12 (RX, TX, MISO, MOSI dupes).
+# Tags layered on top of capability tags -- see wemos-d1-mini.yaml for the
+# canonical legend. NodeMCU v2's A0 has the same 1.0V divider.
 gpio_capabilities:
-  D0:  [gpio]                     # GPIO16
-  D1:  [gpio, i2c_scl]            # GPIO5
-  D2:  [gpio, i2c_sda]            # GPIO4
-  D3:  [gpio, strap]              # GPIO0
-  D4:  [gpio, strap, builtin_led] # GPIO2
-  D5:  [gpio, spi_clk, pwm]       # GPIO14
-  D6:  [gpio, spi_miso, pwm]      # GPIO12
-  D7:  [gpio, spi_mosi, pwm]      # GPIO13
-  D8:  [gpio, spi_cs, strap]      # GPIO15
-  D9:  [gpio, uart_rx]            # GPIO3
-  D10: [gpio, uart_tx]            # GPIO1
-  A0:  [adc, input_only]
+  D0:  [gpio, no_pwm, no_i2c, no_interrupt]                # GPIO16
+  D1:  [gpio, i2c_scl]                                     # GPIO5
+  D2:  [gpio, i2c_sda]                                     # GPIO4
+  D3:  [gpio, strap, boot_high, pull_up_external]          # GPIO0
+  D4:  [gpio, strap, builtin_led, boot_high, pull_up_external] # GPIO2
+  D5:  [gpio, spi_clk, pwm]                                # GPIO14
+  D6:  [gpio, spi_miso, pwm]                               # GPIO12
+  D7:  [gpio, spi_mosi, pwm]                               # GPIO13
+  D8:  [gpio, spi_cs, strap, boot_low, pull_down_external] # GPIO15
+  D9:  [gpio, uart_rx, serial_rx]                          # GPIO3
+  D10: [gpio, uart_tx, serial_tx]                          # GPIO1
+  A0:  [adc, input_only, adc_max_1v]

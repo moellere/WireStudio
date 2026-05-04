@@ -60,7 +60,23 @@ in flight; this doc stays as the strategic reference and decision log.
   working design on each turn so the live YAML/ASCII updates as the
   agent edits. Pytest +24 (114 total) covers every tool implementation,
   session JSONL round-trip, and the API contract (status / 503 / 404).
-- **0.6 CSP solver in flight.** `studio/csp/pin_solver.py` -- pure
+- **0.6 CSP solver + port compatibility validation in flight.** Pin
+  solver at `studio/csp/pin_solver.py`. Port compatibility validator at
+  `studio/csp/compatibility.py` walks every gpio + bus pin assignment
+  and emits codes (`input_only_as_output`, `boot_strap_output`,
+  `serial_console`, `voltage_limit`, `function_unsupported`) based on
+  the board YAML's semantic tags (`boot_high`, `boot_low`, `serial_tx`,
+  `serial_rx`, `pull_up_external`, `pull_down_external`, `adc_max_1v`,
+  `no_pwm`, `no_i2c`, `no_interrupt`, `no_pull_internal`). Auto-runs
+  on every `/design/render`, `/design/validate`, and
+  `/design/solve_pins`; surfaces in the Inspector's design view as a
+  Compatibility section, plus filtered to per-instance in the
+  component-instance view. Solver also deprioritizes boot-strap and
+  serial pins for output assignments. Pytest +14 (138 total) covers
+  every code path including a known-examples snapshot test that
+  catches regressions in the board YAML tags.
+
+- **legacy 0.6 entry below kept for context.** `studio/csp/pin_solver.py` -- pure
   Python, no external solver lib (problem size is tiny). Fills every
   unbound connection: `kind: gpio` with empty pin -> a board GPIO
   matching the library pin's capability (digital in/out -> any gpio,

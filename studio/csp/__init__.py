@@ -11,6 +11,10 @@ mode, multi-objective optimization. v1 is intentionally a single-pass
 greedy backtracker -- the search space is tiny (a few dozen pins).
 """
 
+from studio.csp.compatibility import CompatibilityWarning, check_pin_compatibility
 from studio.csp.pin_solver import SolveResult, solve_pins
 
-__all__ = ["solve_pins", "SolveResult"]
+__all__ = [
+    "solve_pins", "SolveResult",
+    "check_pin_compatibility", "CompatibilityWarning",
+]
