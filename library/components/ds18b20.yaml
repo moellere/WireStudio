@@ -1,0 +1,54 @@
+id: ds18b20
+name: DS18B20 1-wire temperature sensor
+category: sensor
+use_cases: [temperature]
+aliases: ["dallas", "1-wire temp", "onewire", "ds1820"]
+
+electrical:
+  vcc_min: 3.0
+  vcc_max: 5.5
+  current_ma_typical: 1
+  current_ma_peak: 2
+  pins:
+    - {role: VCC,  kind: power}
+    - {role: GND,  kind: ground}
+    - {role: DATA, kind: onewire_data, voltage: 3.3}
+  passives:
+    - {kind: resistor, value: "4.7k", between: ["DATA", "VCC"], purpose: "1-wire bus pull-up"}
+
+esphome:
+  required_components: ["1wire"]
+  yaml_template: |
+    sensor:
+      - platform: dallas_temp
+        one_wire_id: {{ bus.id }}
+        name: "{{ label }}"
+    {%- if params.address is defined %}
+        address: "{{ params.address }}"
+    {%- endif %}
+        update_interval: {{ params.update_interval | default('60s') }}
+    {%- if params.resolution is defined %}
+        resolution: {{ params.resolution }}
+    {%- endif %}
+
+params_schema:
+  address:
+    type: string
+    description: "ROM address (e.g., 0x1c0000031edd2a28). Required when more than one DS18B20 shares a bus."
+  update_interval:
+    type: string
+    default: "60s"
+  resolution:
+    type: integer
+    enum: [9, 10, 11, 12]
+    description: "Bits of resolution (9 = 0.5°C / fast, 12 = 0.0625°C / slow)"
+
+notes: |
+  Connects via a 1-wire bus -- the bus carries the DATA pin and any
+  number of DS18B20 (and other 1-wire devices) can share it. Needs a
+  4.7kΩ pull-up between the bus pin and VCC. When two or more sensors
+  share a wire, give each instance a distinct `address` param (the
+  factory-burned ROM); ESPHome auto-discovers but emits a warning
+  about ambiguous read order when the addresses are missing. Output
+  is 3.3V-compatible. Parasite power is supported by ESPHome but not
+  modeled here -- wire VCC.

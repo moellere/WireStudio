@@ -186,6 +186,7 @@ class FleetPushRequest(_S):
     design: dict
     compile: bool = False
     device_name: Optional[str] = None  # override; defaults to fleet.device_name or design.id
+    strict: bool = False  # refuse when warn/error compat entries remain
 
 
 class FleetPushResponse(_S):

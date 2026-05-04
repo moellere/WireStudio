@@ -122,6 +122,8 @@ def _is_unbound(target: dict) -> bool:
         return not target.get("bus_id")
     if kind == "expander_pin":
         return not target.get("expander_id")
+    if kind == "component":
+        return not target.get("component_id")
     return False
 
 
@@ -201,6 +203,16 @@ def solve_pins(design_in: dict, library: Library) -> SolveResult:
 
     assigned: list[PinAssignment] = []
     unresolved: list[SolverWarning] = []
+
+    # Apply locked_pins first. The user's manual pin choices override the
+    # solver's preferences; we either fill an empty target with the locked
+    # pin or flag a divergence between the bound target and the lock. Locks
+    # only apply to gpio targets today (the dict value is a board pin name);
+    # bus/expander locks are not yet defined.
+    lock_warnings = _apply_locked_pins(
+        design, components_by_id, library_components, used_gpios, assigned,
+    )
+    unresolved.extend(lock_warnings)
 
     for conn in design.get("connections", []):
         target = conn.get("target") or {}
@@ -294,6 +306,31 @@ def solve_pins(design_in: dict, library: Library) -> SolveResult:
             used_expander_pins.add(chosen)
             assigned.append(PinAssignment(comp["id"], conn["pin_role"], old, new))
 
+        elif kind == "component":
+            # Pick the first component instance whose library_id matches
+            # the role's `parent_library_id` hint. The hint lives on the
+            # library Pin so a hub-relative role (ads1115_channel.HUB)
+            # binds to the correct hub kind, not a random other component.
+            wanted = getattr(lib_pin, "parent_library_id", None)
+            options = [
+                cid for cid, c in components_by_id.items()
+                if c.get("library_id") == wanted and cid != comp["id"]
+            ] if wanted else []
+            if not options:
+                unresolved.append(SolverWarning(
+                    level="warn", code="no_parent_component",
+                    text=(
+                        f"{comp['id']}.{conn['pin_role']} needs a "
+                        f"{wanted or 'parent'} component but the design has none"
+                    ),
+                ))
+                continue
+            choice = options[0]
+            old = dict(target)
+            new = {"kind": "component", "component_id": choice}
+            conn["target"] = new
+            assigned.append(PinAssignment(comp["id"], conn["pin_role"], old, new))
+
     warnings = list(_static_warnings(design, board, library_components))
     return SolveResult(design=design, assigned=assigned, unresolved=unresolved, warnings=warnings)
 
@@ -305,6 +342,101 @@ def _solve_gpio(board: LibraryBoard, lib_pin: Pin, used: set[str]) -> Optional[s
     return None
 
 
+def _apply_locked_pins(
+    design: dict,
+    components_by_id: dict[str, dict],
+    library_components: dict[str, "LibraryComponent"],
+    used_gpios: set[str],
+    assigned: list[PinAssignment],
+) -> list[SolverWarning]:
+    """Walk every connection and reconcile it against its component's
+    `locked_pins` map (role -> board pin). Mutates ``design`` (in place
+    via the connection dict) and ``used_gpios``/``assigned``. Returns
+    any warnings produced."""
+    warnings: list[SolverWarning] = []
+
+    # First pass: surface lock entries that don't correspond to any role
+    # the library component declares. The connection loop below would skip
+    # these silently because nothing matches `conn.pin_role == role`.
+    for cid, comp in components_by_id.items():
+        locked = comp.get("locked_pins") or {}
+        if not isinstance(locked, dict):
+            continue
+        lib_comp = library_components.get(cid)
+        if lib_comp is None:
+            continue
+        valid_roles = {p.role for p in lib_comp.electrical.pins}
+        for role, locked_pin in locked.items():
+            if role not in valid_roles:
+                warnings.append(SolverWarning(
+                    level="warn", code="locked_pin_unknown_role",
+                    text=(
+                        f"{cid}.{role} is locked to '{locked_pin}' but the "
+                        f"role does not exist on library component "
+                        f"'{comp.get('library_id')}'."
+                    ),
+                ))
+
+    for conn in design.get("connections", []):
+        comp = components_by_id.get(conn.get("component_id"))
+        if not comp:
+            continue
+        locked = comp.get("locked_pins") or {}
+        if not isinstance(locked, dict) or not locked:
+            continue
+        role = conn.get("pin_role")
+        if role not in locked:
+            continue
+        locked_pin = str(locked[role])
+
+        # The lock is meaningless when the connection isn't a gpio target.
+        # We surface this so authors don't expect the solver to honour it.
+        target = conn.get("target") or {}
+        if target.get("kind") != "gpio":
+            warnings.append(SolverWarning(
+                level="warn", code="locked_pin_wrong_kind",
+                text=(
+                    f"{comp['id']}.{role} has locked_pins='{locked_pin}' but its "
+                    f"connection target is kind='{target.get('kind')}', not gpio. "
+                    f"The lock is being ignored."
+                ),
+            ))
+            continue
+
+        # The unknown-role check ran in the first pass above. compatibility.py
+        # handles the deeper capability check (locked pin lacks required caps).
+        existing = target.get("pin") or ""
+        if existing == locked_pin:
+            # Already aligned with the lock; ensure it's reserved so the
+            # downstream solver doesn't try to hand the same pin to a
+            # different unbound connection.
+            used_gpios.add(locked_pin)
+            continue
+
+        if existing and existing != locked_pin:
+            warnings.append(SolverWarning(
+                level="warn", code="locked_pin_mismatch",
+                text=(
+                    f"{comp['id']}.{role} is bound to '{existing}' but locked_pins "
+                    f"says '{locked_pin}'. Update the lock or the connection so "
+                    f"they agree."
+                ),
+            ))
+            # Don't auto-rewrite a bound pin -- the divergence might be
+            # intentional and the user needs to decide. Just reserve the
+            # locked pin to keep the rest of the solver out of conflict.
+            used_gpios.add(locked_pin)
+            continue
+
+        # Empty/unbound target -> apply the lock as the assignment.
+        old = dict(target)
+        new = {"kind": "gpio", "pin": locked_pin}
+        conn["target"] = new
+        used_gpios.add(locked_pin)
+        assigned.append(PinAssignment(comp["id"], role, old, new))
+    return warnings
+
+
 def _bus_type_for_pin(kind: str) -> Optional[str]:
     if kind in ("i2c_sda", "i2c_scl"):
         return "i2c"
@@ -314,6 +446,8 @@ def _bus_type_for_pin(kind: str) -> Optional[str]:
         return "i2s"
     if kind in ("uart_rx", "uart_tx"):
         return "uart"
+    if kind == "onewire_data":
+        return "1wire"
     return None
 
 

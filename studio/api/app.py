@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -233,7 +234,16 @@ def create_app(
         )
 
     @app.post("/design/render", response_model=RenderResponse, tags=["design"])
-    def render(design: dict) -> RenderResponse:
+    def render(design: dict, strict: bool = False) -> RenderResponse:
+        """Render a design to YAML + ASCII.
+
+        Permissive by default: compatibility warnings travel back in the
+        `compatibility_warnings` field for the UI to surface non-blocking
+        guidance. With `?strict=true`, any compatibility entry of severity
+        `warn` or `error` instead 422s -- the same gate the
+        distributed-esphome push path can use to refuse to ship a design
+        with unresolved hardware risks.
+        """
         try:
             d = Design.model_validate(design)
         except ValidationError as e:
@@ -248,10 +258,29 @@ def create_app(
             # Surfaced from the generator for incomplete-but-validating designs:
             # missing bus matching a `kind: bus` connection, etc.
             raise HTTPException(status_code=422, detail=str(e)) from e
+        compat = check_pin_compatibility(design, lib)
+        if strict:
+            blocking = [w for w in compat if w.severity in ("warn", "error")]
+            if blocking:
+                raise HTTPException(
+                    status_code=422,
+                    detail={
+                        "error": "strict_mode_blocked",
+                        "message": (
+                            f"strict mode rejected the render: "
+                            f"{len(blocking)} compatibility issue"
+                            f"{'s' if len(blocking) != 1 else ''} need attention"
+                        ),
+                        # HTTPException JSON-encodes its detail with the
+                        # standard json module, which doesn't know about
+                        # Pydantic models -- pre-dump.
+                        "warnings": [w.model_dump() for w in _wire_compat(blocking)],
+                    },
+                )
         return RenderResponse(
             yaml=yaml_text,
             ascii=ascii_text,
-            compatibility_warnings=_wire_compat(check_pin_compatibility(design, lib)),
+            compatibility_warnings=_wire_compat(compat),
         )
 
     @app.get("/examples", response_model=list[ExampleSummary], tags=["examples"])
@@ -382,6 +411,28 @@ def create_app(
         except (FileNotFoundError, ValueError) as e:
             raise HTTPException(status_code=422, detail=str(e)) from e
 
+        # Strict-only push: refuse to ship when any warn/error compatibility
+        # entry remains. Mirrors the /design/render?strict=true gate so a
+        # client can use the same envelope to surface the same warnings.
+        if req.strict:
+            blocking = [
+                w for w in check_pin_compatibility(req.design, lib)
+                if w.severity in ("warn", "error")
+            ]
+            if blocking:
+                raise HTTPException(
+                    status_code=422,
+                    detail={
+                        "error": "strict_mode_blocked",
+                        "message": (
+                            f"strict mode refused the push: "
+                            f"{len(blocking)} compatibility issue"
+                            f"{'s' if len(blocking) != 1 else ''} need attention"
+                        ),
+                        "warnings": [w.model_dump() for w in _wire_compat(blocking)],
+                    },
+                )
+
         # Filename precedence: explicit override > fleet.device_name > design.id.
         device_name = (
             req.device_name
@@ -423,6 +474,64 @@ def create_app(
             raise HTTPException(status_code=502, detail=str(e)) from e
         return FleetJobLogResponse(
             log=chunk.log, offset=chunk.offset, finished=chunk.finished,
+        )
+
+    @app.get("/fleet/jobs/{run_id}/log/stream", tags=["fleet"])
+    def fleet_job_log_stream(run_id: str, offset: int = 0, interval_ms: int = 300):
+        """Server-Sent Events relay over the addon's HTTP log endpoint.
+
+        Polls `fc.get_job_log(run_id)` server-side at ~300ms (vs the 1.5s
+        the browser-driven loop uses) and streams each chunk to the client
+        as an SSE event of shape `data: {"log": "...", "offset": N,
+        "finished": bool}`. The stream emits a final `event: done` frame
+        when the addon reports finished and exits. Errors yield an
+        `event: error` frame and exit.
+
+        EventSource connections die on browser tab close; the polling
+        loop sees the resulting transport error and exits cleanly. The
+        addon's polling endpoint is idempotent so a reconnect with a
+        fresh offset just resumes.
+        """
+        fc = make_fleet()
+        if not fc.is_configured():
+            raise HTTPException(
+                status_code=503,
+                detail="fleet not configured (set FLEET_URL and FLEET_TOKEN)",
+            )
+        # Cap the lower bound so a malicious / mistaken caller can't tar-pit
+        # the studio + addon by polling at 1ms.
+        sleep_seconds = max(0.1, interval_ms / 1000.0)
+
+        def _events():
+            current = offset
+            while True:
+                try:
+                    chunk = fc.get_job_log(run_id, offset=current)
+                except FleetUnavailable as e:
+                    yield (
+                        "event: error\n"
+                        f"data: {json.dumps({'message': str(e)})}\n\n"
+                    )
+                    return
+                payload = {
+                    "log": chunk.log,
+                    "offset": chunk.offset,
+                    "finished": chunk.finished,
+                }
+                yield f"data: {json.dumps(payload)}\n\n"
+                current = chunk.offset
+                if chunk.finished:
+                    yield "event: done\ndata: {}\n\n"
+                    return
+                time.sleep(sleep_seconds)
+
+        return StreamingResponse(
+            _events(),
+            media_type="text/event-stream",
+            # Disable any intermediate buffering so the chunks land
+            # incrementally rather than getting batched at the proxy
+            # layer (Vite + nginx both honour this).
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
 
     @app.get("/agent/status", tags=["agent"])
