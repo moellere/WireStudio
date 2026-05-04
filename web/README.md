@@ -60,6 +60,11 @@ Header buttons:
   (this also reverts any edits the agent made — its changes count
   as part of the working copy).
 - **Download JSON** saves the (possibly modified) `design.json` to disk.
+- **Push to fleet** opens a dialog that POSTs the rendered YAML to a
+  configured distributed-esphome ha-addon (`FLEET_URL` + `FLEET_TOKEN`
+  on the API server). The dialog shows live status (configured /
+  unauthorized / unreachable), the device-name slug that will land on
+  the fleet, and an opt-in "compile after upload" checkbox.
 
 ## Dev
 

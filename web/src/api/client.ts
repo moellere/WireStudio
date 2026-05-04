@@ -6,6 +6,8 @@ import type {
   BoardSummary,
   ComponentSummary,
   ExampleSummary,
+  FleetPushResponse,
+  FleetStatus,
   RenderResponse,
   SaveDesignResponse,
   SavedDesignSummary,
@@ -87,6 +89,13 @@ export const api = {
   deleteSavedDesign: (id: string) =>
     request<{ deleted: boolean; id: string }>(`/designs/${encodeURIComponent(id)}`, {
       method: "DELETE",
+    }),
+
+  fleetStatus: () => request<FleetStatus>("/fleet/status"),
+  fleetPush: (body: { design: Design; compile?: boolean; device_name?: string }) =>
+    request<FleetPushResponse>("/fleet/push", {
+      method: "POST",
+      body: JSON.stringify(body),
     }),
 };
 

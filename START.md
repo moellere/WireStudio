@@ -27,12 +27,22 @@ stays as a back-compat wrapper. Pytest +21 (179 total), vitest 49, ruff
 + build clean.
 
 **Next up candidates:**
-- 0.7 distributed-esphome handoff
+- 0.7+ build status streaming from the fleet (SSE over `/api/v1/jobs/{run_id}/log`?)
 - ADC2/WiFi conflict detection (small, follow-on to port compat)
 - Bus editor in the UI
 - Strict-mode pin locks (`locked_pins` already in schema)
-- Server-side design persistence
 - Frontend RTL/jsdom component tests
+
+**0.7 distributed-esphome handoff shipped.** `studio/fleet/client.py`
+talks to the ha-addon's `/ui/api/*` surface using a Bearer token.
+`GET /fleet/status` + `POST /fleet/push` expose this to the UI;
+**Push to fleet** in the header opens a modal with the device-name
+input, a status banner, and a "compile after upload" toggle. Config:
+`FLEET_URL` + `FLEET_TOKEN` env vars on the API server. Tests use
+`httpx.MockTransport` to stand in for the addon -- 18 new tests
+covering filename validation, configured-vs-unauthorized status,
+pending-rename create flow, in-place overwrite, compile enqueue,
+and the HTTP contract end-to-end.
 
 ## Status (as of 2026-05-04)
 
@@ -222,8 +232,14 @@ immediate way in and the agent (when it arrives) lands in a working surface.
   options), strict-mode pin locks, multi-objective optimization
   (minimize used pins, minimize current draw, maximize headroom),
   proper backtracking on hard constraints.
-- **0.7 — distributed-esphome handoff.** POST device + YAML to the
-  ha-addon, trigger compile + OTA.
+- **0.7 — distributed-esphome handoff.** ✅ Shipped (initial). The studio
+  API talks to the ha-addon's `/ui/api/*` surface using `FLEET_URL` +
+  `FLEET_TOKEN`. Push uses the addon's staged-create flow (`.pending.<n>.yaml`
+  -> `<n>.yaml`) for new devices, in-place writes for existing ones.
+  Optional `compile: true` enqueues an OTA build via `POST /ui/api/compile`.
+  UI: **Push to fleet** modal with status banner + device-name input.
+  Future: live build-log tailing, queue/history surface, fleet-side
+  device list to pick a target name from.
 - **0.8 — Enclosure suggestions.** Thingiverse/Printables lookup against
   the chosen board + components; parametric OpenSCAD stretch.
 - **Future — KiCad schematic + PCB layout.** Reuse the netlist; Freerouting

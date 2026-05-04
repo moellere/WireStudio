@@ -134,6 +134,19 @@ export interface SaveDesignResponse {
   saved_at: string;
 }
 
+export interface FleetStatus {
+  available: boolean;
+  reason?: string | null;
+  url?: string | null;
+}
+
+export interface FleetPushResponse {
+  filename: string;
+  created: boolean;
+  run_id?: string | null;
+  enqueued: number;
+}
+
 // Streaming agent events (one-of):
 export type AgentStreamEvent =
   | { type: "session_start"; session_id: string }

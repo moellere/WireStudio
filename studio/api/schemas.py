@@ -167,3 +167,22 @@ class SavedDesignSummary(_S):
     chip_family: str
     saved_at: str
     component_count: int
+
+
+class FleetStatus(_S):
+    available: bool
+    reason: Optional[str] = None
+    url: Optional[str] = None  # base URL when configured (no token)
+
+
+class FleetPushRequest(_S):
+    design: dict
+    compile: bool = False
+    device_name: Optional[str] = None  # override; defaults to fleet.device_name or design.id
+
+
+class FleetPushResponse(_S):
+    filename: str
+    created: bool
+    run_id: Optional[str] = None
+    enqueued: int = 0

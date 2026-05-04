@@ -9,8 +9,10 @@ which handles compile + OTA deploy.
 
 ## Status
 
-`0.6` (in flight) — Studio with a Claude tool-using agent and a CSP-style
-pin-assignment solver. Three-pane web UI for manual editing (board,
+`0.7` (in flight) — Studio with a Claude tool-using agent, a CSP-style
+pin-assignment solver, and a one-click handoff to the
+[distributed-esphome](https://github.com/weirded/distributed-esphome)
+ha-addon (push rendered YAML; optionally enqueue an OTA build). Three-pane web UI for manual editing (board,
 fleet, requirements, warnings, params, connections; add/remove
 components with auto-wiring and auto-bus). USB device bootstrap
 (esptool-js over WebSerial) seeds a fresh design from a plugged-in ESP.
@@ -60,6 +62,19 @@ python -m studio.api
 Without a key, `/agent/status` reports `available: false` and the agent
 sidebar in the UI shows a friendly notice instead of trying to talk.
 
+To enable the **fleet handoff** (`/fleet/push` and the **Push to fleet**
+header button), point the API at a running distributed-esphome ha-addon:
+
+```sh
+export FLEET_URL=http://homeassistant.local:8765
+export FLEET_TOKEN=$(grep -oP '(?<=token: )\S+' .../addon/secrets.yaml)
+python -m studio.api
+```
+
+`GET /fleet/status` reports `available: true` when both env vars are set
+and the addon answers a probe; otherwise the UI surfaces the specific
+reason (URL missing, unauthorized, unreachable).
+
 ### Web UI
 
 ```sh
@@ -89,6 +104,8 @@ Useful endpoints:
 | `POST` | `/design/render` | parse + render a `design.json` to `{yaml, ascii}` |
 | `GET`  | `/examples` | list bundled examples |
 | `GET`  | `/examples/{id}` | fetch an example as raw `design.json` |
+| `GET`  | `/fleet/status` | check whether `FLEET_URL` + `FLEET_TOKEN` reach a distributed-esphome ha-addon |
+| `POST` | `/fleet/push` | render `design.json` and push it as `<device_name>.yaml` (optionally `compile: true`) |
 
 The server is a thin layer over `studio.generate` — same code path the CLI
 uses, no server-side state. Permissive CORS for `localhost:5173` /
@@ -206,7 +223,7 @@ same diff as the code change.
 - **0.6** ✅ CSP solver — auto-assign unbound pins, detect conflicts and budget overruns; port-compatibility validation (boot straps, serial pins, input-only, A0 voltage cap)
 - **0.5+** ✅ streaming agent responses + recommendation mode
 - **0.6+** ✅ server-side design persistence + **New design** button
-- **0.7** distributed-esphome handoff — push device + YAML to ha-addon
+- **0.7** ✅ distributed-esphome handoff — push device + YAML to ha-addon, optional compile
 - **0.8** Enclosure suggestions
 - **Future** KiCad schematic + PCB layout
 
