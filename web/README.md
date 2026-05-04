@@ -28,12 +28,20 @@ shows as `(invalid: <unset>)` until you wire them.
 Drag-and-drop wiring and the agent sidebar are later iterations.
 
 Header buttons:
+- **Agent** opens the Claude tool-using sidebar. Type natural-language
+  edits ("add a BME280 over I2C", "swap the PIR to GPIO5", "validate")
+  and the agent calls a constrained tool surface; design changes flow
+  back into the live YAML/ASCII immediately. Requires
+  `ANTHROPIC_API_KEY` set on the API server. Conversation history is
+  stored server-side in `sessions/<id>.jsonl`.
 - **Connect device** opens a WebSerial dialog that runs esptool-js
   against a plugged-in ESP, reports the chip family + MAC, and lets
   you pick a matching board to bootstrap a fresh `design.json` from
   scratch. Chrome / Edge / Brave / Arc only — Firefox and Safari don't
   ship the WebSerial API.
-- **Reset** reverts the current design to the loaded example.
+- **Reset** reverts the current design to the loaded example
+  (this also reverts any edits the agent made — its changes count
+  as part of the working copy).
 - **Download JSON** saves the (possibly modified) `design.json` to disk.
 
 ## Dev
@@ -80,7 +88,8 @@ src/
 │   ├── Inspector.tsx        # routes between design / board / component / instance views
 │   ├── ParamForm.tsx        # form generated from params_schema
 │   ├── ConnectionForm.tsx   # per-connection editor (rail/gpio/bus/expander_pin)
-│   └── UsbDetectDialog.tsx  # WebSerial chip-detect modal + bootstrap picker
+│   ├── UsbDetectDialog.tsx  # WebSerial chip-detect modal + bootstrap picker
+│   └── AgentSidebar.tsx     # Claude agent chat drawer; replaces the working design on each turn
 ├── App.tsx                  # state + data flow; three-pane grid
 ├── main.tsx
 └── index.css                # Tailwind v4 + dark-mode base

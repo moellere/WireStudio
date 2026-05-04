@@ -1,4 +1,7 @@
 import type {
+  AgentSession,
+  AgentStatus,
+  AgentTurnResponse,
   BoardSummary,
   ComponentSummary,
   ExampleSummary,
@@ -58,6 +61,15 @@ export const api = {
     request<ValidateResponse>("/design/validate", { method: "POST", body: JSON.stringify(design) }),
   render: (design: Design) =>
     request<RenderResponse>("/design/render", { method: "POST", body: JSON.stringify(design) }),
+
+  agentStatus: () => request<AgentStatus>("/agent/status"),
+  agentTurn: (body: { session_id?: string | null; design: Design; message: string }) =>
+    request<AgentTurnResponse>("/agent/turn", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  agentSession: (id: string) =>
+    request<AgentSession>(`/agent/sessions/${encodeURIComponent(id)}`),
 };
 
 export { ApiError };

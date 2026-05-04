@@ -29,9 +29,9 @@ in flight; this doc stays as the strategic reference and decision log.
   example; Download JSON saves the modified design.json. Vitest covers
   `lib/design.ts` (41 tests). Drag-and-drop pinout and bus editor
   are follow-on iterations.
-- **0.4 USB device bootstrap in flight.** "Connect device" header
-  button opens a modal that runs `esptool-js` over WebSerial. Reads
-  chip family + MAC, normalizes the chip name (ESP32-S3 -> esp32s3),
+- **0.4 USB device bootstrap shipped.** "Connect device" header button
+  opens a modal that runs `esptool-js` over WebSerial. Reads chip
+  family + MAC, normalizes the chip name (ESP32-S3 -> esp32s3),
   filters the board library to candidates with the matching
   `chip_variant`, and on adopt seeds a fresh `design.json` with the
   picked board pre-filled and an `info` warning carrying the
@@ -42,6 +42,24 @@ in flight; this doc stays as the strategic reference and decision log.
   Firefox/Safari users to the manual flow. Vitest +8 tests
   (49 total) cover chip-name normalization, board candidate
   matching, and bootstrap-design shape.
+- **0.5 agent layer in flight.** Claude tool-using agent at
+  `studio/agent/` (`tools.py`, `session.py`, `agent.py`). 10-tool
+  surface: `search_components`, `list_boards`, `set_board`,
+  `add_component`, `remove_component`, `set_param`, `set_connection`,
+  `add_bus`, `render`, `validate`. Manual agentic loop on
+  `claude-opus-4-7` with adaptive thinking; library JSON cached in the
+  system prompt for ~90% read discount on subsequent turns; per-turn
+  design context goes in the user message so the cache stays valid as
+  the design changes. Conversation history persists in
+  `sessions/<id>.jsonl` (plain role/text only; the tool ceremony stays
+  in memory). API: `POST /agent/turn` returns updated design +
+  assistant text + a tool-calls log; `GET /agent/status` reports
+  availability; `GET /agent/sessions/{id}` returns the JSONL contents.
+  Agent endpoints 503 cleanly when `ANTHROPIC_API_KEY` is unset. Web
+  UI: header `Agent` button opens a sidebar drawer; chat replaces the
+  working design on each turn so the live YAML/ASCII updates as the
+  agent edits. Pytest +24 (114 total) covers every tool implementation,
+  session JSONL round-trip, and the API contract (status / 503 / 404).
 - **12 example designs** spanning ESP8266 + ESP32 + ESP-IDF + Sonoff:
   garage-motion, awning-control, wasserpir, oled, bluemotion,
   distance-sensor, securitypanel, rc522, esp32-audio, bluesonoff,
@@ -120,10 +138,14 @@ immediate way in and the agent (when it arrives) lands in a working surface.
   web.esphome.io uses. Future: also detect flash size + PSRAM presence
   for richer board disambiguation, and support specifying a custom
   baud rate / reset strategy for stubborn boards.
-- **0.5 — Agent layer.** Claude tool-using agent with the constrained tool
-  surface in *Agent tool surface* below. Lands as a sidebar in the UI;
-  also exposed via `POST /agent/turn`. Conversation history in
-  `sessions/<id>.jsonl`, separate from `design.json`.
+- **0.5 — Agent layer.** ✅ Shipped (initial). Claude tool-using agent
+  with the constrained tool surface in *Agent tool surface* below.
+  Lands as a sidebar in the UI; also exposed via `POST /agent/turn`.
+  Conversation history in `sessions/<id>.jsonl`, separate from
+  `design.json`. Future: streamed responses (currently waits for
+  end_turn before returning), agent-side handoff to 0.6's CSP solver
+  via a `solve_pins` tool, recommendation mode ("I want motion
+  detection" → ranked options).
 - **0.6 — CSP solver.** Pin assignment, bus allocation, current budget.
   Surface as a `solve_pins()` agent tool and a "Auto-assign pins" UI
   button. Recommendation mode ("I want motion detection" → ranked

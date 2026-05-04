@@ -9,7 +9,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import ValidationError
 
 from studio import __version__
+from studio.agent.agent import is_available as agent_available, run_turn
+from studio.agent.session import SessionStore
 from studio.api.schemas import (
+    AgentSession,
+    AgentSessionMessage,
+    AgentToolCall,
+    AgentTurnRequest,
+    AgentTurnResponse,
     BoardSummary,
     ComponentSummary,
     ExampleSummary,
@@ -62,8 +69,9 @@ def _example_summary(path: Path) -> ExampleSummary:
     )
 
 
-def create_app(library: Optional[Library] = None) -> FastAPI:
+def create_app(library: Optional[Library] = None, sessions: Optional[SessionStore] = None) -> FastAPI:
     lib = library or default_library()
+    sessions_store = sessions or SessionStore()
 
     app = FastAPI(
         title="esphome-studio API",
@@ -164,6 +172,48 @@ def create_app(library: Optional[Library] = None) -> FastAPI:
         if not path.exists():
             raise HTTPException(status_code=404, detail=f"Unknown example '{example_id}'")
         return json.loads(path.read_text())
+
+    @app.get("/agent/status", tags=["agent"])
+    def agent_status() -> dict:
+        ok, reason = agent_available()
+        return {"available": ok, "reason": reason}
+
+    @app.post("/agent/turn", response_model=AgentTurnResponse, tags=["agent"])
+    def agent_turn(req: AgentTurnRequest) -> AgentTurnResponse:
+        ok, reason = agent_available()
+        if not ok:
+            raise HTTPException(status_code=503, detail=reason)
+        try:
+            result = run_turn(
+                design=req.design,
+                user_message=req.message,
+                session_id=req.session_id,
+                library=lib,
+                sessions=sessions_store,
+            )
+        except RuntimeError as e:
+            raise HTTPException(status_code=502, detail=str(e)) from e
+        return AgentTurnResponse(
+            session_id=result.session_id,
+            design=result.design,
+            assistant_text=result.assistant_text,
+            tool_calls=[AgentToolCall(**tc) for tc in result.tool_calls],
+            stop_reason=result.stop_reason,
+            usage=result.usage,
+        )
+
+    @app.get("/agent/sessions/{session_id}", response_model=AgentSession, tags=["agent"])
+    def get_agent_session(session_id: str) -> AgentSession:
+        try:
+            messages = sessions_store.load(session_id)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
+        if not messages and not sessions_store.exists(session_id):
+            raise HTTPException(status_code=404, detail=f"Unknown session '{session_id}'")
+        return AgentSession(
+            session_id=session_id,
+            messages=[AgentSessionMessage(**m) for m in messages],
+        )
 
     return app
 
