@@ -5,7 +5,7 @@ import copy
 import json
 import os
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any, Iterator, Optional
 
 from studio.agent.session import SessionStore, new_session_id
 from studio.agent.tools import TOOL_SCHEMAS, execute_tool
@@ -82,7 +82,7 @@ def _build_user_message(design: dict, message: str) -> str:
     )
 
 
-def run_turn(
+def stream_turn_events(
     *,
     design: dict,
     user_message: str,
@@ -91,24 +91,35 @@ def run_turn(
     sessions: Optional[SessionStore] = None,
     model: str = "claude-opus-4-7",
     max_iterations: int = 12,
-) -> TurnResult:
-    """Run a single user turn through the agentic loop. Returns the updated
-    design plus the assistant's final text and a summary of the tool calls
-    issued during the turn."""
+) -> Iterator[dict]:
+    """Run a single user turn and yield events as they happen.
+
+    Event shapes (all dicts with a `type` key):
+      session_start    {session_id}
+      text_delta       {text}
+      tool_use_start   {tool_use_id, tool, input}
+      tool_result      {tool_use_id, tool, is_error}
+      turn_complete    {session_id, design, assistant_text, tool_calls,
+                        stop_reason, usage}
+      error            {message}    (yielded once before the iterator ends)
+
+    The non-streaming `run_turn()` consumes this and collapses events into
+    a TurnResult so existing callers don't need to change.
+    """
     available, reason = is_available()
     if not available:
-        raise RuntimeError(reason)
+        yield {"type": "error", "message": reason or "agent unavailable"}
+        return
 
     library = library or default_library()
     sessions = sessions or SessionStore()
     session_id = session_id or new_session_id()
 
+    yield {"type": "session_start", "session_id": session_id}
+
     history = sessions.load(session_id)
     working_design = copy.deepcopy(design)
 
-    # Build the API messages list. Prior turns are plain text; the new turn
-    # carries the current design as part of the user message so the cached
-    # system prefix stays valid as the design changes.
     messages: list[dict[str, Any]] = []
     for entry in history:
         messages.append({"role": entry["role"], "content": entry["content"]})
@@ -121,14 +132,15 @@ def run_turn(
 
     tool_calls_log: list[dict] = []
     accumulated_usage = {"input_tokens": 0, "output_tokens": 0,
-                        "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0}
+                         "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0}
 
-    final_text = ""
+    final_text_pieces: list[str] = []
     stop_reason = ""
 
-    for _ in range(max_iterations):
-        try:
-            response = client.messages.create(
+    try:
+        for _ in range(max_iterations):
+            # Stream this round-trip's API call so text deltas land live.
+            with client.messages.stream(
                 model=model,
                 max_tokens=4096,
                 thinking={"type": "adaptive"},
@@ -138,58 +150,118 @@ def run_turn(
                 ],
                 tools=TOOL_SCHEMAS,
                 messages=messages,
-            )
-        except anthropic.APIError as e:
-            raise RuntimeError(f"agent API call failed: {e}") from e
+            ) as stream:
+                for event in stream:
+                    etype = getattr(event, "type", None)
+                    if etype == "content_block_delta":
+                        delta = getattr(event, "delta", None)
+                        if delta is not None and getattr(delta, "type", None) == "text_delta":
+                            yield {"type": "text_delta", "text": delta.text}
+                response = stream.get_final_message()
 
-        for k in accumulated_usage:
-            accumulated_usage[k] += getattr(response.usage, k, 0) or 0
+            for k in accumulated_usage:
+                accumulated_usage[k] += getattr(response.usage, k, 0) or 0
 
-        stop_reason = response.stop_reason or ""
+            stop_reason = response.stop_reason or ""
 
-        # Extract any text blocks for the user-facing reply.
-        text_pieces = [b.text for b in response.content if getattr(b, "type", None) == "text"]
-        if text_pieces:
-            final_text = "\n\n".join(text_pieces).strip()
+            text_pieces = [b.text for b in response.content if getattr(b, "type", None) == "text"]
+            if text_pieces:
+                final_text_pieces = text_pieces
 
-        if response.stop_reason != "tool_use":
-            break
+            if response.stop_reason != "tool_use":
+                break
 
-        # Execute every tool_use block, then append assistant + user(tool_result) messages.
-        messages.append({"role": "assistant", "content": [b.model_dump() for b in response.content]})
-        tool_results: list[dict] = []
-        for block in response.content:
-            if getattr(block, "type", None) != "tool_use":
-                continue
-            result_str, is_error = execute_tool(
-                block.name, dict(block.input), working_design, library,
-            )
-            tool_calls_log.append({
-                "tool": block.name,
-                "input": dict(block.input),
-                "is_error": is_error,
-            })
-            tool_results.append({
-                "type": "tool_result",
-                "tool_use_id": block.id,
-                "content": result_str,
-                "is_error": is_error,
-            })
-        messages.append({"role": "user", "content": tool_results})
-    else:
-        # Loop hit max_iterations without end_turn.
-        if not final_text:
-            final_text = "(agent exceeded max iterations without finishing the turn)"
+            messages.append({"role": "assistant", "content": [b.model_dump() for b in response.content]})
+            tool_results: list[dict] = []
+            for block in response.content:
+                if getattr(block, "type", None) != "tool_use":
+                    continue
+                tool_input = dict(block.input)
+                yield {
+                    "type": "tool_use_start",
+                    "tool_use_id": block.id,
+                    "tool": block.name,
+                    "input": tool_input,
+                }
+                result_str, is_error = execute_tool(block.name, tool_input, working_design, library)
+                yield {
+                    "type": "tool_result",
+                    "tool_use_id": block.id,
+                    "tool": block.name,
+                    "is_error": is_error,
+                }
+                tool_calls_log.append({
+                    "tool": block.name,
+                    "input": tool_input,
+                    "is_error": is_error,
+                })
+                tool_results.append({
+                    "type": "tool_result",
+                    "tool_use_id": block.id,
+                    "content": result_str,
+                    "is_error": is_error,
+                })
+            messages.append({"role": "user", "content": tool_results})
+        else:
+            # Hit max_iterations without end_turn.
+            if not final_text_pieces:
+                final_text_pieces = ["(agent exceeded max iterations without finishing the turn)"]
+    except anthropic.APIError as e:
+        yield {"type": "error", "message": f"agent API call failed: {e}"}
+        return
 
-    # Persist the durable conversation: just user prompt + assistant text.
+    final_text = "\n\n".join(final_text_pieces).strip() if final_text_pieces else ""
+
+    # Persist the durable conversation.
     sessions.append(session_id, "user", user_message)
     sessions.append(session_id, "assistant", final_text or "(no reply)")
 
-    return TurnResult(
+    yield {
+        "type": "turn_complete",
+        "session_id": session_id,
+        "design": working_design,
+        "assistant_text": final_text,
+        "tool_calls": tool_calls_log,
+        "stop_reason": stop_reason,
+        "usage": accumulated_usage,
+    }
+
+
+def run_turn(
+    *,
+    design: dict,
+    user_message: str,
+    session_id: Optional[str] = None,
+    library: Optional[Library] = None,
+    sessions: Optional[SessionStore] = None,
+    model: str = "claude-opus-4-7",
+    max_iterations: int = 12,
+) -> TurnResult:
+    """Non-streaming wrapper. Consumes stream_turn_events and collapses
+    its events into a TurnResult so existing callers don't change."""
+    final: dict | None = None
+    error_msg: str | None = None
+    for event in stream_turn_events(
+        design=design,
+        user_message=user_message,
         session_id=session_id,
-        design=working_design,
-        assistant_text=final_text,
-        tool_calls=tool_calls_log,
-        stop_reason=stop_reason,
-        usage=accumulated_usage,
+        library=library,
+        sessions=sessions,
+        model=model,
+        max_iterations=max_iterations,
+    ):
+        if event["type"] == "turn_complete":
+            final = event
+        elif event["type"] == "error":
+            error_msg = event["message"]
+
+    if final is None:
+        raise RuntimeError(error_msg or "agent turn did not complete")
+    return TurnResult(
+        session_id=final["session_id"],
+        design=final["design"],
+        assistant_text=final["assistant_text"],
+        tool_calls=final["tool_calls"],
+        stop_reason=final["stop_reason"],
+        usage=final["usage"],
     )

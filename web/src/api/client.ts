@@ -1,6 +1,7 @@
 import type {
   AgentSession,
   AgentStatus,
+  AgentStreamEvent,
   AgentTurnResponse,
   BoardSummary,
   ComponentSummary,
@@ -74,5 +75,53 @@ export const api = {
   agentSession: (id: string) =>
     request<AgentSession>(`/agent/sessions/${encodeURIComponent(id)}`),
 };
+
+/**
+ * Stream an agent turn over SSE. Yields each event as it arrives. Throws
+ * ApiError on non-2xx status (e.g., 503 when the API has no ANTHROPIC_API_KEY).
+ */
+export async function* agentStream(body: {
+  session_id?: string | null;
+  design: Design;
+  message: string;
+}): AsyncGenerator<AgentStreamEvent> {
+  const res = await fetch(`${API_BASE}/agent/stream`, {
+    method: "POST",
+    headers: { "content-type": "application/json", accept: "text/event-stream" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    let errBody: unknown = undefined;
+    try { errBody = await res.json(); } catch { /* not json */ }
+    throw new ApiError(res.status, `POST /agent/stream -> ${res.status}`, errBody);
+  }
+  if (!res.body) {
+    throw new Error("agent/stream: no response body");
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    // SSE separates events by a blank line.
+    let sep: number;
+    while ((sep = buffer.indexOf("\n\n")) !== -1) {
+      const block = buffer.slice(0, sep);
+      buffer = buffer.slice(sep + 2);
+      for (const line of block.split("\n")) {
+        if (line.startsWith("data: ")) {
+          const json = line.slice(6);
+          try {
+            yield JSON.parse(json) as AgentStreamEvent;
+          } catch {
+            // ignore malformed event line
+          }
+        }
+      }
+    }
+  }
+}
 
 export { ApiError };

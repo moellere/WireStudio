@@ -118,3 +118,20 @@ export interface AgentSession {
   session_id: string;
   messages: AgentSessionMessage[];
 }
+
+// Streaming agent events (one-of):
+export type AgentStreamEvent =
+  | { type: "session_start"; session_id: string }
+  | { type: "text_delta"; text: string }
+  | { type: "tool_use_start"; tool_use_id: string; tool: string; input: Record<string, unknown> }
+  | { type: "tool_result"; tool_use_id: string; tool: string; is_error: boolean }
+  | {
+      type: "turn_complete";
+      session_id: string;
+      design: Design;
+      assistant_text: string;
+      tool_calls: AgentToolCall[];
+      stop_reason: string;
+      usage: Record<string, number>;
+    }
+  | { type: "error"; message: string };

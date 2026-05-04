@@ -203,7 +203,8 @@ same diff as the code change.
 - **0.3** ✅ Studio web UI v1 — three-pane shell + form-based editing
 - **0.4** ✅ USB device bootstrap (WebSerial + esptool-js)
 - **0.5** ✅ Agent layer (Claude tool-using; sessions in `sessions/<id>.jsonl`)
-- **0.6** 🚧 CSP solver — auto-assign unbound pins, detect conflicts and budget overruns; port-compatibility validation (boot straps, serial pins, input-only, A0 voltage cap)
+- **0.6** ✅ CSP solver — auto-assign unbound pins, detect conflicts and budget overruns; port-compatibility validation (boot straps, serial pins, input-only, A0 voltage cap)
+- **0.5+** 🚧 streaming agent responses + recommendation mode
 - **0.4** USB device bootstrap via WebSerial / esptool-js
 - **0.5** Agent layer (Claude tool-using, in the UI sidebar)
 - **0.6** CSP solver — pin/bus/budget assignment + ranked recommendations

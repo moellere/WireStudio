@@ -1,11 +1,20 @@
 import { useEffect, useRef, useState } from "react";
-import { api, ApiError } from "../api/client";
+import { agentStream, api, ApiError } from "../api/client";
 import type { AgentToolCall, Design } from "../types/api";
+
+interface PendingToolCall {
+  tool_use_id: string;
+  tool: string;
+  input: Record<string, unknown>;
+  is_error?: boolean;       // set when the matching tool_result arrives
+}
 
 interface ChatMessage {
   role: "user" | "assistant";
   text: string;
   toolCalls?: AgentToolCall[];
+  pendingToolCalls?: PendingToolCall[];  // populated mid-stream
+  streaming?: boolean;
   isError?: boolean;
 }
 
@@ -41,30 +50,86 @@ export function AgentSidebar({ open, design, onClose, onDesignReplaced }: Props)
     const text = draft.trim();
     if (!text || !design || pending) return;
     setError(null);
-    setMessages((prev) => [...prev, { role: "user", text }]);
+    // Append the user bubble + a streaming assistant bubble in one go.
+    setMessages((prev) => [
+      ...prev,
+      { role: "user", text },
+      { role: "assistant", text: "", streaming: true, pendingToolCalls: [] },
+    ]);
     setDraft("");
     setPending(true);
+
+    // Track which streaming bubble we're updating; new bubbles get appended,
+    // never inserted. The assistant bubble we just pushed is at index N+1.
+    let updatedDesign: Design | null = null;
     try {
-      const r = await api.agentTurn({ session_id: sessionId, design, message: text });
-      setSessionId(r.session_id);
-      onDesignReplaced(r.design);
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          text: r.assistant_text || "(no reply)",
-          toolCalls: r.tool_calls,
-        },
-      ]);
+      for await (const event of agentStream({ session_id: sessionId, design, message: text })) {
+        if (event.type === "session_start") {
+          setSessionId(event.session_id);
+        } else if (event.type === "text_delta") {
+          appendToLastAssistant((m) => ({ ...m, text: m.text + event.text }));
+        } else if (event.type === "tool_use_start") {
+          appendToLastAssistant((m) => ({
+            ...m,
+            pendingToolCalls: [
+              ...(m.pendingToolCalls ?? []),
+              { tool_use_id: event.tool_use_id, tool: event.tool, input: event.input },
+            ],
+          }));
+        } else if (event.type === "tool_result") {
+          appendToLastAssistant((m) => ({
+            ...m,
+            pendingToolCalls: (m.pendingToolCalls ?? []).map((tc) =>
+              tc.tool_use_id === event.tool_use_id
+                ? { ...tc, is_error: event.is_error }
+                : tc
+            ),
+          }));
+        } else if (event.type === "turn_complete") {
+          updatedDesign = event.design;
+          appendToLastAssistant((m) => ({
+            ...m,
+            text: event.assistant_text || m.text || "(no reply)",
+            toolCalls: event.tool_calls,
+            pendingToolCalls: undefined,
+            streaming: false,
+          }));
+        } else if (event.type === "error") {
+          appendToLastAssistant((m) => ({
+            ...m,
+            text: event.message,
+            isError: true,
+            streaming: false,
+          }));
+          setError(event.message);
+        }
+      }
+      // Swap the design once the turn is complete -- this triggers the
+      // existing 250ms debounced render path so YAML + ASCII update.
+      if (updatedDesign) onDesignReplaced(updatedDesign);
     } catch (e) {
       const msg = e instanceof ApiError
         ? `${e.status}: ${e.message}`
         : e instanceof Error ? e.message : String(e);
-      setMessages((prev) => [...prev, { role: "assistant", text: msg, isError: true }]);
+      appendToLastAssistant((m) => ({
+        ...m,
+        text: msg,
+        isError: true,
+        streaming: false,
+      }));
       setError(msg);
     } finally {
       setPending(false);
     }
+  }
+
+  function appendToLastAssistant(updater: (m: ChatMessage) => ChatMessage) {
+    setMessages((prev) => {
+      if (prev.length === 0) return prev;
+      const last = prev[prev.length - 1];
+      if (last.role !== "assistant") return prev;
+      return [...prev.slice(0, -1), updater(last)];
+    });
   }
 
   function handleNewSession() {
@@ -117,10 +182,6 @@ export function AgentSidebar({ open, design, onClose, onDesignReplaced }: Props)
         {messages.map((m, i) => (
           <Bubble key={i} message={m} />
         ))}
-
-        {pending && (
-          <div className="text-xs italic text-zinc-500">agent thinking…</div>
-        )}
       </div>
 
       <div className="border-t border-zinc-800 p-3">
@@ -174,6 +235,8 @@ function Welcome() {
 
 function Bubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === "user";
+  const hasPending = (message.pendingToolCalls?.length ?? 0) > 0;
+  const empty = !message.text && !hasPending;
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div
@@ -185,8 +248,37 @@ function Bubble({ message }: { message: ChatMessage }) {
               : "bg-zinc-900 text-zinc-200 ring-1 ring-zinc-800"
         }`}
       >
-        <div className="whitespace-pre-wrap text-sm">{message.text}</div>
-        {message.toolCalls && message.toolCalls.length > 0 && (
+        {/* Live tool-call indicators while streaming. */}
+        {hasPending && (
+          <ul className="mb-2 space-y-1 font-mono text-[11px]">
+            {message.pendingToolCalls!.map((tc) => {
+              const status = tc.is_error === undefined
+                ? "running…"
+                : tc.is_error ? "failed" : "ok";
+              const palette = tc.is_error === undefined
+                ? "text-blue-300"
+                : tc.is_error ? "text-red-300" : "text-emerald-300";
+              return (
+                <li key={tc.tool_use_id} className={palette}>
+                  <span className="opacity-90">{tc.tool}({summarizeInput(tc.input)})</span>
+                  <span className="ml-2 opacity-70">{status}</span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        {empty && message.streaming && (
+          <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-blue-400" />
+        )}
+        {!empty && (
+          <div className="whitespace-pre-wrap text-sm">
+            {message.text}
+            {message.streaming && <span className="ml-0.5 inline-block animate-pulse">▍</span>}
+          </div>
+        )}
+
+        {message.toolCalls && message.toolCalls.length > 0 && !message.streaming && (
           <details className="mt-2 text-[11px] text-zinc-500">
             <summary className="cursor-pointer hover:text-zinc-300">
               {message.toolCalls.length} tool call{message.toolCalls.length === 1 ? "" : "s"}

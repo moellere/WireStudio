@@ -119,3 +119,31 @@ class AgentSessionMessage(_S):
 class AgentSession(_S):
     session_id: str
     messages: list[AgentSessionMessage]
+
+
+class RecommendRequest(_S):
+    query: str
+    limit: int = 10
+    constraints: Optional[dict] = None
+
+
+class Recommendation(_S):
+    library_id: str
+    name: str
+    category: str
+    use_cases: list[str]
+    aliases: list[str]
+    required_components: list[str]
+    current_ma_typical: Optional[float] = None
+    current_ma_peak: Optional[float] = None
+    vcc_min: Optional[float] = None
+    vcc_max: Optional[float] = None
+    score: float
+    in_examples: int
+    rationale: str
+    notes: Optional[str] = None
+
+
+class RecommendResponse(_S):
+    query: str
+    matches: list[Recommendation]

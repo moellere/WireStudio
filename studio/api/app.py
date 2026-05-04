@@ -6,10 +6,11 @@ from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import ValidationError
 
 from studio import __version__
-from studio.agent.agent import is_available as agent_available, run_turn
+from studio.agent.agent import is_available as agent_available, run_turn, stream_turn_events
 from studio.agent.session import SessionStore
 from studio.api.schemas import (
     AgentSession,
@@ -22,6 +23,9 @@ from studio.api.schemas import (
     ComponentSummary,
     ExampleSummary,
     PinAssignment,
+    Recommendation as RecommendationWire,
+    RecommendRequest,
+    RecommendResponse,
     RenderResponse,
     SolvePinsResponse,
     SolverWarning,
@@ -29,6 +33,7 @@ from studio.api.schemas import (
 )
 from studio.csp.compatibility import check_pin_compatibility
 from studio.csp.pin_solver import solve_pins as run_solve_pins
+from studio.recommend.recommender import Constraints, recommend_components
 from studio.generate.ascii_gen import render_ascii
 from studio.generate.yaml_gen import render_yaml
 from studio.library import Library, LibraryBoard, LibraryComponent, default_library
@@ -218,6 +223,27 @@ def create_app(library: Optional[Library] = None, sessions: Optional[SessionStor
             raise HTTPException(status_code=404, detail=f"Unknown example '{example_id}'")
         return json.loads(path.read_text())
 
+    @app.post("/library/recommend", response_model=RecommendResponse, tags=["library"])
+    def recommend(req: RecommendRequest) -> RecommendResponse:
+        constraints = Constraints(**(req.constraints or {})) if req.constraints else Constraints()
+        results = recommend_components(lib, req.query, constraints=constraints, limit=req.limit)
+        return RecommendResponse(
+            query=req.query,
+            matches=[
+                RecommendationWire(
+                    library_id=r.library_id, name=r.name, category=r.category,
+                    use_cases=r.use_cases, aliases=r.aliases,
+                    required_components=r.required_components,
+                    current_ma_typical=r.current_ma_typical,
+                    current_ma_peak=r.current_ma_peak,
+                    vcc_min=r.vcc_min, vcc_max=r.vcc_max,
+                    score=r.score, in_examples=r.in_examples,
+                    rationale=r.rationale, notes=r.notes,
+                )
+                for r in results
+            ],
+        )
+
     @app.get("/agent/status", tags=["agent"])
     def agent_status() -> dict:
         ok, reason = agent_available()
@@ -245,6 +271,38 @@ def create_app(library: Optional[Library] = None, sessions: Optional[SessionStor
             tool_calls=[AgentToolCall(**tc) for tc in result.tool_calls],
             stop_reason=result.stop_reason,
             usage=result.usage,
+        )
+
+    @app.post("/agent/stream", tags=["agent"])
+    def agent_stream(req: AgentTurnRequest):
+        """Server-Sent Events variant of /agent/turn. Emits text_delta,
+        tool_use_start, tool_result, and turn_complete events as they
+        happen so the UI can render progress live."""
+        ok, reason = agent_available()
+        if not ok:
+            raise HTTPException(status_code=503, detail=reason)
+
+        def event_source():
+            try:
+                for event in stream_turn_events(
+                    design=req.design,
+                    user_message=req.message,
+                    session_id=req.session_id,
+                    library=lib,
+                    sessions=sessions_store,
+                ):
+                    yield f"data: {json.dumps(event, default=str)}\n\n"
+            except Exception as e:  # pragma: no cover - defensive guard
+                payload = {"type": "error", "message": str(e)}
+                yield f"data: {json.dumps(payload)}\n\n"
+
+        return StreamingResponse(
+            event_source(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",  # disable proxy buffering
+            },
         )
 
     @app.get("/agent/sessions/{session_id}", response_model=AgentSession, tags=["agent"])

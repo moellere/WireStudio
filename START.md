@@ -17,12 +17,22 @@ committed and pushed. To pick up where we left off:
 4. `pip install -e .[dev] && cd web && npm install` to get a working
    tree; `python -m pytest -q` and `cd web && npm test` should be green.
 
-**Last shipped commit:** `eab0bb5` — Port compatibility validation +
-boot-strap-aware pin solver.
+**Last shipped:** streaming agent responses + recommendation mode.
+Adds `POST /agent/stream` (SSE) emitting `text_delta`, `tool_use_start`,
+`tool_result`, `turn_complete` events; `POST /library/recommend` for
+deterministic component ranking; `recommend` agent tool. AgentSidebar
+consumes the SSE stream so text and tool calls land live with running/
+ok/failed status per tool. The non-streaming `POST /agent/turn` endpoint
+stays as a back-compat wrapper. Pytest +21 (179 total), vitest 49, ruff
++ build clean.
 
-**Next up:** streaming agent responses (SSE on `/agent/turn`) +
-`recommend(query)` agent tool. Both small. See *Phasing → 0.5+ follow-ons*
-below for the proposed shape.
+**Next up candidates:**
+- 0.7 distributed-esphome handoff
+- ADC2/WiFi conflict detection (small, follow-on to port compat)
+- Bus editor in the UI
+- Strict-mode pin locks (`locked_pins` already in schema)
+- Server-side design persistence
+- Frontend RTL/jsdom component tests
 
 ## Status (as of 2026-05-04)
 

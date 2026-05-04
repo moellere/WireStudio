@@ -42,11 +42,15 @@ Header buttons:
   warnings. Doesn't reassign already-bound pins -- those are the user's
   call.
 - **Agent** opens the Claude tool-using sidebar. Type natural-language
-  edits ("add a BME280 over I2C", "swap the PIR to GPIO5", "validate")
-  and the agent calls a constrained tool surface; design changes flow
-  back into the live YAML/ASCII immediately. Requires
-  `ANTHROPIC_API_KEY` set on the API server. Conversation history is
-  stored server-side in `sessions/<id>.jsonl`.
+  edits ("add a BME280 over I2C", "swap the PIR to GPIO5", "validate",
+  "what would I need for an outdoor weather station?") and the agent
+  calls a constrained tool surface; design changes flow back into the
+  live YAML/ASCII immediately. **Streamed**: text and tool calls land
+  live as the agent works, with each pending tool call showing
+  `running…` then `ok` / `failed` status. The `recommend` tool ranks
+  library components against capability queries before suggesting
+  anything. Requires `ANTHROPIC_API_KEY` set on the API server.
+  Conversation history is stored server-side in `sessions/<id>.jsonl`.
 - **Connect device** opens a WebSerial dialog that runs esptool-js
   against a plugged-in ESP, reports the chip family + MAC, and lets
   you pick a matching board to bootstrap a fresh `design.json` from

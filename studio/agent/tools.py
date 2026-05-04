@@ -15,6 +15,7 @@ from studio.generate.ascii_gen import render_ascii
 from studio.generate.yaml_gen import render_yaml
 from studio.library import Library
 from studio.model import Design
+from studio.recommend.recommender import Constraints, recommend_components
 
 
 # ---------------------------------------------------------------------------
@@ -189,6 +190,40 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
         "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
     },
     {
+        "name": "recommend",
+        "description": (
+            "Rank library components against a free-text capability query "
+            "(e.g. 'motion detection', 'temperature humidity', 'rfid'). "
+            "Returns up to `limit` candidates with their electrical "
+            "metadata, an in-examples count (a proxy for battle-tested), "
+            "and a one-line rationale per pick. Read-only -- doesn't add "
+            "anything to the design. Use this when the user asks for "
+            "open-ended component suggestions; for known library_ids use "
+            "search_components or add_component directly. Optionally pass "
+            "constraints (voltage rail, max peak current, required bus, "
+            "excluded categories) to filter before ranking."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string"},
+                "limit": {"type": "integer", "minimum": 1, "maximum": 25, "default": 10},
+                "constraints": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "voltage": {"type": "number", "description": "Rail voltage the part will run on."},
+                        "max_current_ma_peak": {"type": "number"},
+                        "required_bus": {"type": "string", "enum": ["i2c", "spi", "uart", "1wire", "i2s"]},
+                        "excluded_categories": {"type": "array", "items": {"type": "string"}},
+                    },
+                },
+            },
+            "required": ["query"],
+            "additionalProperties": False,
+        },
+    },
+    {
         "name": "solve_pins",
         "description": (
             "Auto-assign every unbound connection: gpio with empty pin -> "
@@ -349,6 +384,38 @@ def _run_render(design: dict, library: Library) -> dict:
         return {"ok": False, "error": str(e)}
 
 
+def _run_recommend(
+    design: dict, library: Library, *,
+    query: str,
+    limit: int = 10,
+    constraints: dict | None = None,
+) -> dict:
+    cobj = Constraints(**(constraints or {}))
+    results = recommend_components(library, query, constraints=cobj, limit=limit)
+    return {
+        "ok": True,
+        "query": query,
+        "matches": [
+            {
+                "library_id": r.library_id,
+                "name": r.name,
+                "category": r.category,
+                "use_cases": r.use_cases,
+                "required_components": r.required_components,
+                "current_ma_typical": r.current_ma_typical,
+                "current_ma_peak": r.current_ma_peak,
+                "vcc_min": r.vcc_min,
+                "vcc_max": r.vcc_max,
+                "score": r.score,
+                "in_examples": r.in_examples,
+                "rationale": r.rationale,
+                "notes": r.notes,
+            }
+            for r in results
+        ],
+    }
+
+
 def _run_solve_pins(design: dict, library: Library) -> dict:
     result = _solve_pins(design, library)
     # Mutate the caller's dict in place to mirror the result design.
@@ -411,6 +478,7 @@ TOOL_HANDLERS: dict[str, Callable[..., Any]] = {
     "add_bus": _run_add_bus,
     "render": _run_render,
     "validate": _run_validate,
+    "recommend": _run_recommend,
     "solve_pins": _run_solve_pins,
 }
 
