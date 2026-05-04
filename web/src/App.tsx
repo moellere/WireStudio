@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api, ApiError } from "./api/client";
 import type { BoardSummary, ComponentSummary, Design, ExampleSummary, RenderResponse } from "./types/api";
 import { LeftSidebar } from "./components/LeftSidebar";
 import { DesignPane } from "./components/DesignPane";
 import { Inspector, type Selection } from "./components/Inspector";
+import { useDebouncedValue } from "./lib/debounce";
+import { isDirty, updateComponentParam } from "./lib/design";
 
 export default function App() {
   const [examples, setExamples] = useState<ExampleSummary[] | null>(null);
@@ -13,12 +15,19 @@ export default function App() {
   const [version, setVersion] = useState<string | null>(null);
 
   const [selectedExample, setSelectedExample] = useState<string | null>(null);
+  const [originalDesign, setOriginalDesign] = useState<Design | null>(null);
   const [design, setDesign] = useState<Design | null>(null);
+
   const [render, setRender] = useState<RenderResponse | null>(null);
   const [renderError, setRenderError] = useState<string | null>(null);
+  const [rendering, setRendering] = useState(false);
 
   const [selection, setSelection] = useState<Selection>({ kind: "design" });
 
+  const dirty = useMemo(() => isDirty(originalDesign, design), [originalDesign, design]);
+  const debouncedDesign = useDebouncedValue(design, 250);
+
+  // Bootstrap.
   useEffect(() => {
     (async () => {
       try {
@@ -42,6 +51,7 @@ export default function App() {
     })();
   }, []);
 
+  // Load the selected example fresh.
   useEffect(() => {
     if (!selectedExample) return;
     let cancelled = false;
@@ -50,11 +60,9 @@ export default function App() {
       try {
         const d = await api.getExample(selectedExample);
         if (cancelled) return;
+        setOriginalDesign(d);
         setDesign(d);
         setSelection({ kind: "design" });
-        const r = await api.render(d);
-        if (cancelled) return;
-        setRender(r);
       } catch (e) {
         if (cancelled) return;
         const msg = e instanceof ApiError
@@ -65,6 +73,54 @@ export default function App() {
     })();
     return () => { cancelled = true; };
   }, [selectedExample]);
+
+  // Debounced render whenever the design changes.
+  useEffect(() => {
+    if (!debouncedDesign) return;
+    let cancelled = false;
+    setRendering(true);
+    (async () => {
+      try {
+        const r = await api.render(debouncedDesign);
+        if (cancelled) return;
+        setRender(r);
+        setRenderError(null);
+      } catch (e) {
+        if (cancelled) return;
+        const msg = e instanceof ApiError
+          ? `${e.status}: ${e.message}`
+          : e instanceof Error ? e.message : String(e);
+        setRenderError(msg);
+      } finally {
+        if (!cancelled) setRendering(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [debouncedDesign]);
+
+  function handleReset() {
+    if (!originalDesign) return;
+    setDesign(originalDesign);
+    setSelection({ kind: "design" });
+  }
+
+  function handleDownload() {
+    if (!design) return;
+    const id = String(design.id ?? "design");
+    const blob = new Blob([JSON.stringify(design, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${id}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function handleParamChange(componentInstanceId: string, paramKey: string, value: unknown) {
+    setDesign((d) => (d ? updateComponentParam(d, componentInstanceId, paramKey, value) : d));
+  }
 
   if (bootError) {
     return (
@@ -86,15 +142,37 @@ export default function App() {
         <div className="flex items-baseline gap-3">
           <h1 className="text-base font-semibold tracking-tight">esphome-studio</h1>
           <span className="text-xs text-zinc-500">{version ? `API v${version}` : "connecting..."}</span>
+          {rendering && <span className="text-xs text-blue-300">rendering...</span>}
+          {dirty && !rendering && (
+            <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-xs text-amber-200 ring-1 ring-amber-500/40">
+              modified
+            </span>
+          )}
         </div>
-        <a
-          href="/api/docs" target="_blank" rel="noreferrer"
-          className="text-xs text-zinc-400 hover:text-zinc-200"
-        >
-          OpenAPI docs ↗
-        </a>
+        <div className="flex items-center gap-2">
+          <button
+            disabled={!dirty}
+            onClick={handleReset}
+            className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 enabled:hover:bg-zinc-900 disabled:opacity-40"
+          >
+            Reset
+          </button>
+          <button
+            disabled={!design}
+            onClick={handleDownload}
+            className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 enabled:hover:bg-zinc-900 disabled:opacity-40"
+          >
+            Download JSON
+          </button>
+          <a
+            href="/api/docs" target="_blank" rel="noreferrer"
+            className="text-xs text-zinc-400 hover:text-zinc-200"
+          >
+            OpenAPI ↗
+          </a>
+        </div>
       </header>
-      <main className="grid min-h-0 grid-cols-[18rem_1fr_22rem]">
+      <main className="grid min-h-0 grid-cols-[18rem_1fr_24rem]">
         <LeftSidebar
           examples={examples}
           boards={boards}
@@ -105,7 +183,12 @@ export default function App() {
           onSelectComponent={(id) => setSelection({ kind: "component", id })}
         />
         <DesignPane design={design} render={render} renderError={renderError} />
-        <Inspector selection={selection} design={design} />
+        <Inspector
+          selection={selection}
+          design={design}
+          onSelect={setSelection}
+          onParamChange={handleParamChange}
+        />
       </main>
     </div>
   );

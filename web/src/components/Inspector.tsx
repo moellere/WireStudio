@@ -1,40 +1,100 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { Design } from "../types/api";
+import { readComponents, type ComponentInstance } from "../lib/design";
+import { ParamForm } from "./ParamForm";
 
 export type Selection =
   | { kind: "design" }
   | { kind: "board"; id: string }
-  | { kind: "component"; id: string };
+  | { kind: "component"; id: string }
+  | { kind: "component_instance"; id: string };
 
-export function Inspector({ selection, design }: { selection: Selection; design: Design | null }) {
+interface Props {
+  selection: Selection;
+  design: Design | null;
+  onSelect: (s: Selection) => void;
+  onParamChange: (componentInstanceId: string, paramKey: string, value: unknown) => void;
+}
+
+export function Inspector({ selection, design, onSelect, onParamChange }: Props) {
   return (
     <aside className="flex min-h-0 flex-col border-l border-zinc-800">
-      <div className="border-b border-zinc-800 px-4 py-3">
-        <div className="text-xs uppercase tracking-wide text-zinc-500">Inspector</div>
-        <div className="mt-1 text-sm text-zinc-300">
-          {selection.kind === "design" && "Design"}
-          {selection.kind === "board" && <>Board · <code className="text-zinc-100">{selection.id}</code></>}
-          {selection.kind === "component" && <>Component · <code className="text-zinc-100">{selection.id}</code></>}
+      <div className="flex items-center gap-2 border-b border-zinc-800 px-4 py-3">
+        {selection.kind !== "design" && (
+          <button
+            onClick={() => onSelect({ kind: "design" })}
+            className="rounded border border-zinc-800 px-1.5 py-0.5 text-xs text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
+            title="Back to design"
+          >
+            ←
+          </button>
+        )}
+        <div className="flex-1">
+          <div className="text-xs uppercase tracking-wide text-zinc-500">Inspector</div>
+          <div className="mt-0.5 truncate text-sm text-zinc-300">
+            {selection.kind === "design" && "Design"}
+            {selection.kind === "board" && <>Board · <code className="text-zinc-100">{selection.id}</code></>}
+            {selection.kind === "component" && <>Library component · <code className="text-zinc-100">{selection.id}</code></>}
+            {selection.kind === "component_instance" && <>Instance · <code className="text-zinc-100">{selection.id}</code></>}
+          </div>
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-auto p-4 text-sm">
-        {selection.kind === "design" && <DesignInspector design={design} />}
+        {selection.kind === "design" && (
+          <DesignInspector design={design} onSelect={onSelect} />
+        )}
         {selection.kind === "board" && <BoardInspector id={selection.id} />}
-        {selection.kind === "component" && <ComponentInspector id={selection.id} />}
+        {selection.kind === "component" && <LibraryComponentInspector id={selection.id} />}
+        {selection.kind === "component_instance" && (
+          <ComponentInstanceInspector
+            instanceId={selection.id}
+            design={design}
+            onParamChange={onParamChange}
+          />
+        )}
       </div>
     </aside>
   );
 }
 
-function DesignInspector({ design }: { design: Design | null }) {
+function DesignInspector({
+  design, onSelect,
+}: {
+  design: Design | null;
+  onSelect: (s: Selection) => void;
+}) {
   if (!design) return <div className="text-xs text-zinc-500">No design loaded.</div>;
+  const components = readComponents(design);
   const requirements = Array.isArray(design.requirements) ? design.requirements as Array<Record<string, unknown>> : [];
   const warnings = Array.isArray(design.warnings) ? design.warnings as Array<Record<string, unknown>> : [];
   const fleet = (design.fleet ?? null) as Record<string, unknown> | null;
 
   return (
     <div className="space-y-5 text-sm text-zinc-300">
+      <Section title={`Components (${components.length})`}>
+        {components.length === 0 ? (
+          <div className="text-xs text-zinc-500">no components</div>
+        ) : (
+          <ul className="space-y-1">
+            {components.map((c) => (
+              <li key={c.id}>
+                <button
+                  onClick={() => onSelect({ kind: "component_instance", id: c.id })}
+                  className="w-full rounded border border-zinc-800 bg-zinc-900/40 px-2 py-1.5 text-left transition-colors hover:bg-zinc-900"
+                >
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="font-mono text-xs text-zinc-100">{c.id}</span>
+                    <span className="text-[11px] text-zinc-500">{c.library_id}</span>
+                  </div>
+                  <div className="mt-0.5 truncate text-xs text-zinc-400">{c.label}</div>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Section>
+
       {requirements.length > 0 && (
         <Section title="Requirements">
           <ul className="space-y-1.5">
@@ -47,6 +107,7 @@ function DesignInspector({ design }: { design: Design | null }) {
           </ul>
         </Section>
       )}
+
       {warnings.length > 0 && (
         <Section title="Warnings">
           <ul className="space-y-1.5">
@@ -68,6 +129,7 @@ function DesignInspector({ design }: { design: Design | null }) {
           </ul>
         </Section>
       )}
+
       {fleet && (
         <Section title="Fleet">
           <KV k="device_name" v={String(fleet.device_name ?? "")} />
@@ -76,9 +138,6 @@ function DesignInspector({ design }: { design: Design | null }) {
           )}
         </Section>
       )}
-      <div className="text-xs text-zinc-500">
-        Editing forms (params, connections, board picker) come next — for v1 the inspector is read-only.
-      </div>
     </div>
   );
 }
@@ -128,30 +187,83 @@ function BoardInspector({ id }: { id: string }) {
   );
 }
 
-function ComponentInspector({ id }: { id: string }) {
+function LibraryComponentInspector({ id }: { id: string }) {
   const comp = useFetched(() => api.getComponent(id), [id]);
   if (!comp) return <Loading />;
+  return <FullComponentView comp={comp} />;
+}
+
+function ComponentInstanceInspector({
+  instanceId, design, onParamChange,
+}: {
+  instanceId: string;
+  design: Design | null;
+  onParamChange: (componentInstanceId: string, paramKey: string, value: unknown) => void;
+}) {
+  const components = readComponents(design);
+  const inst = components.find((c) => c.id === instanceId) as ComponentInstance | undefined;
+  const comp = useFetched(() => (inst ? api.getComponent(inst.library_id) : Promise.resolve(null)), [inst?.library_id]);
+
+  if (!inst) return <div className="text-xs text-zinc-500">Component not found in design.</div>;
+  if (!comp) return <Loading />;
+
+  const c = comp as Record<string, unknown>;
+  const schema = (c.params_schema ?? {}) as Record<string, never>;
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="font-mono text-sm text-zinc-100">{inst.id}</span>
+          <span className="rounded border border-zinc-800 px-1.5 py-0.5 text-[11px] text-zinc-400">
+            {inst.library_id}
+          </span>
+        </div>
+        <div className="mt-0.5 text-sm text-zinc-300">{inst.label}</div>
+        {inst.role && <div className="text-xs text-zinc-500">role: {inst.role}</div>}
+      </div>
+
+      <Section title="Parameters">
+        <ParamForm
+          schema={schema}
+          values={inst.params ?? {}}
+          onChange={(key, value) => onParamChange(inst.id, key, value)}
+        />
+      </Section>
+
+      <Section title={`From the library (${inst.library_id})`}>
+        <FullComponentView comp={comp} compact />
+      </Section>
+    </div>
+  );
+}
+
+function FullComponentView({ comp, compact = false }: { comp: unknown; compact?: boolean }) {
   const c = comp as Record<string, unknown>;
   const electrical = (c.electrical ?? {}) as Record<string, unknown>;
   const pins = Array.isArray(electrical.pins) ? electrical.pins as Array<Record<string, unknown>> : [];
   const esphome = (c.esphome ?? {}) as Record<string, unknown>;
   const required = Array.isArray(esphome.required_components) ? esphome.required_components as string[] : [];
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
+      {!compact && (
+        <div>
+          <div className="text-base font-semibold text-zinc-100">{String(c.name)}</div>
+          <div className="text-xs text-zinc-500">{String(c.category)}</div>
+        </div>
+      )}
       <div>
-        <div className="text-base font-semibold text-zinc-100">{String(c.name)}</div>
-        <div className="text-xs text-zinc-500">{String(c.category)}</div>
-      </div>
-      <Section title="Electrical">
         {electrical.vcc_min != null && (
           <KV k="VCC" v={`${electrical.vcc_min} – ${electrical.vcc_max}V`} />
         )}
         {electrical.current_ma_typical != null && (
           <KV k="current" v={`${electrical.current_ma_typical} typ / ${electrical.current_ma_peak} peak mA`} />
         )}
-      </Section>
+      </div>
       {pins.length > 0 && (
-        <Section title="Pins">
+        <div>
+          <div className="mb-1 text-[11px] uppercase tracking-wide text-zinc-500">pins</div>
           <ul className="space-y-1 text-xs">
             {pins.map((p, i) => (
               <li key={i} className="font-mono">
@@ -162,17 +274,13 @@ function ComponentInspector({ id }: { id: string }) {
               </li>
             ))}
           </ul>
-        </Section>
+        </div>
       )}
       {required.length > 0 && (
-        <Section title="Required ESPHome components">
-          <div className="font-mono text-xs">{required.join(", ")}</div>
-        </Section>
+        <KV k="required" v={required.join(", ")} />
       )}
       {Boolean(c.notes) && (
-        <Section title="Notes">
-          <p className="text-xs text-zinc-400">{String(c.notes)}</p>
-        </Section>
+        <p className="text-[11px] text-zinc-400">{String(c.notes)}</p>
       )}
     </div>
   );
