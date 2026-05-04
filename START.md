@@ -27,17 +27,62 @@ stays as a back-compat wrapper. Pytest +21 (179 total), vitest 49, ruff
 + build clean.
 
 **Next up candidates:**
-- 0.8 v2 — Thingiverse / Printables search relay. Pulls
-  community-uploaded models that already fit the chosen board, ranks
-  them, and surfaces the top hits in the same dialog as the
-  generator. Thingiverse has a documented API (key + rate limits);
-  Printables needs scraping or unofficial endpoints. `httpx.MockTransport`
-  for tests, same pattern as the fleet client.
 - 0.9 — KiCad schematic export. Full scope in the Roadmap section
   below; key points: SKiDL-driven, `kicad:` reference block per
   component/board (we stay canonical for ESPHome semantics, KiCad
   for schematic rendering), `studio/kicad/scaffold.py` helper for
   cheap library expansion, PCB deferred to 1.0+.
+- Printables search source. Currently deferred -- Printables
+  doesn't expose a public REST/GraphQL API and scraping their
+  internals is fragile (the page-level GraphQL endpoint changes
+  without notice + their CDN aggressively rate-limits unauthenticated
+  reads). Revisit when they ship a documented API or a community
+  proxy stabilises. The studio surfaces the gap honestly via the
+  search-status endpoint (`available: false, reason: "Printables
+  search deferred -- no public API yet"`) so users see why it's
+  empty rather than wondering if something broke.
+- 0.9 — KiCad schematic export. Full scope in the Roadmap section
+  below; key points: SKiDL-driven, `kicad:` reference block per
+  component/board (we stay canonical for ESPHome semantics, KiCad
+  for schematic rendering), `studio/kicad/scaffold.py` helper for
+  cheap library expansion, PCB deferred to 1.0+.
+
+**0.8 v2 -- enclosure search relay shipped (Thingiverse).**
+`studio/enclosure/search.py` adds a pluggable per-source search client.
+v2 ships the Thingiverse implementation (documented API, free
+`THINGIVERSE_API_KEY` token from https://www.thingiverse.com/developers,
+~300 req/hour rate limit). The Printables source is included in the
+catalogue but always reports `available: false, reason: "Printables
+search deferred -- no public API yet"`; deferred deliberately because
+their public API is undocumented, their internal GraphQL endpoint
+changes without notice, and their CDN rate-limits unauthenticated
+reads. Revisit when a documented API or stable community proxy
+appears.
+
+`GET /enclosure/search?library_id=<board>&query=<refinement>` runs the
+constructed query (`<board.name> enclosure [<refinement>]`) against
+every configured source and returns the merged ranked results
+alongside per-source statuses so the UI can render configuration
+hints when a source is unconfigured. `GET /enclosure/search/status`
+surfaces the same status list ahead of any actual search.
+
+The header **Generate enclosure** button is replaced by a single
+**Enclosure** button that opens a tabbed dialog: Generate (the
+original parametric `.scad` download path) and Search (the new
+relay). The Search tab fires an initial query on first open with
+no refinement, renders per-source status banners (emerald for
+available, amber for unavailable + the configure hint), and shows
+results as cards with thumbnail + creator + likes that link out to
+the source. A free-text refinement field re-fires the search; a
+cancellation guard via a ticket ref prevents stale responses from
+overwriting newer ones.
+
+20 new pytest cases (17 search-client unit tests + 3 endpoint
+contract tests using the existing `httpx.MockTransport` pattern from
+the fleet client). 5 new vitest cases for the dialog (Generate
+success + 422 banner; Search initial fetch + result rendering;
+refinement round-trip; configuration-hint surface when no source
+is available).
 
 **0.8 v1 -- parametric OpenSCAD enclosure generator shipped.** Each
 of the 5 dev-board YAMLs (`wemos-d1-mini`, `esp32-devkitc-v4`,
@@ -572,10 +617,17 @@ immediate way in and the agent (when it arrives) lands in a working surface.
     so the user dials in fit without re-rendering. Endpoint
     `POST /design/enclosure/openscad`; header **Generate enclosure**
     button triggers a browser download.
-  - **v2 — Thingiverse / Printables search relay.** Pull
-    community-uploaded models that fit the chosen board + components,
-    rank them, and surface the top hits alongside the generator.
-    Same `enclosure:` metadata feeds the search query.
+  - **v2 ✅ Shipped (Thingiverse search relay).** Pluggable
+    per-source search at `studio/enclosure/search.py`. Thingiverse
+    implementation gated on `THINGIVERSE_API_KEY`. Printables
+    deliberately deferred (no public API yet; their internal GraphQL
+    endpoint changes without notice and the CDN rate-limits
+    unauthenticated reads -- the source stays in the catalogue but
+    always reports `available: false` with a "deferred" reason so
+    the UI surfaces the gap honestly). `GET /enclosure/search`
+    + `GET /enclosure/search/status` endpoints. The header
+    **Generate enclosure** button is now a single **Enclosure**
+    button opening a tabbed dialog (Generate / Search).
   - **Stretch — component dimensions on breakouts** (BME280 module,
     OLED module, etc.) so the generator can place display windows
     and stack-mount cutouts, not just the headline USB port.

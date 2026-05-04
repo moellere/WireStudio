@@ -45,7 +45,13 @@ from studio.api.schemas import (
 from studio.fleet.client import FleetClient, FleetUnavailable
 from studio.csp.compatibility import check_pin_compatibility
 from studio.csp.pin_solver import solve_pins as run_solve_pins
-from studio.enclosure import EnclosureUnavailable, generate_scad
+from studio.enclosure import (
+    EnclosureUnavailable,
+    default_sources,
+    generate_scad,
+    query_for_board,
+    search_enclosures,
+)
 from studio.recommend.recommender import Constraints, recommend_components
 from studio.generate.ascii_gen import render_ascii
 from studio.generate.yaml_gen import render_yaml
@@ -310,6 +316,67 @@ def create_app(
                 "Content-Disposition": f'attachment; filename="{filename}"',
             },
         )
+
+    @app.get("/enclosure/search/status", tags=["enclosure"])
+    def enclosure_search_status() -> dict:
+        """Per-source availability for the enclosure-search relay.
+        Used by the UI to gate the Search tab and surface configuration
+        hints when a source is unconfigured."""
+        return {
+            "sources": [
+                {
+                    "source": s.source,
+                    "available": s.available,
+                    "reason": s.reason,
+                    "configure_hint": s.configure_hint,
+                }
+                for s in (src.status() for src in default_sources())
+            ],
+        }
+
+    @app.get("/enclosure/search", tags=["enclosure"])
+    def enclosure_search(
+        library_id: str,
+        query: Optional[str] = None,
+        limit: int = 20,
+    ) -> dict:
+        """Search community-uploaded 3D enclosure models for the named
+        board. Query construction: `<board_name> enclosure [<query>]`.
+        Results merge across every configured source (Thingiverse only
+        in v2; Printables stays deferred). 404 when library_id is
+        unknown."""
+        try:
+            board = lib.board(library_id)
+        except FileNotFoundError as e:
+            raise HTTPException(status_code=404, detail=str(e)) from e
+        full_query = query_for_board(board.name, query)
+        capped = max(1, min(limit, 50))
+        out = search_enclosures(full_query, limit=capped)
+        return {
+            "query": out.query,
+            "sources": [
+                {
+                    "source": s.source,
+                    "available": s.available,
+                    "reason": s.reason,
+                    "configure_hint": s.configure_hint,
+                }
+                for s in out.sources
+            ],
+            "results": [
+                {
+                    "source": h.source,
+                    "id": h.id,
+                    "title": h.title,
+                    "creator": h.creator,
+                    "thumbnail_url": h.thumbnail_url,
+                    "model_url": h.model_url,
+                    "likes": h.likes,
+                    "summary": h.summary,
+                }
+                for h in out.results
+            ],
+        }
 
     @app.get("/examples", response_model=list[ExampleSummary], tags=["examples"])
     def list_examples() -> list[ExampleSummary]:
