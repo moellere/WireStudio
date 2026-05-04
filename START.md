@@ -4,6 +4,26 @@ Living planning doc. Captures vision, decisions, schemas, and phase plan.
 For day-to-day work tracking we'll spin off GitHub issues once a phase is
 in flight; this doc stays as the strategic reference and decision log.
 
+## Resuming a session
+
+The repo on `main` is the source of truth — every shipped phase is
+committed and pushed. To pick up where we left off:
+
+1. Read this `Status` block + `Phasing` below to confirm what's done.
+2. Check the **Next up** subsection for the agreed-upon next iteration.
+3. Glance at recent commits (`git log --oneline -20`) for the texture of
+   what shipped most recently. Each phase has a multi-line commit message
+   that's effectively a per-phase changelog.
+4. `pip install -e .[dev] && cd web && npm install` to get a working
+   tree; `python -m pytest -q` and `cd web && npm test` should be green.
+
+**Last shipped commit:** `eab0bb5` — Port compatibility validation +
+boot-strap-aware pin solver.
+
+**Next up:** streaming agent responses (SSE on `/agent/turn`) +
+`recommend(query)` agent tool. Both small. See *Phasing → 0.5+ follow-ons*
+below for the proposed shape.
+
 ## Status (as of 2026-05-04)
 
 - **0.1 MVP shipped.** `python -m studio.generate examples/<name>.json`
@@ -60,7 +80,7 @@ in flight; this doc stays as the strategic reference and decision log.
   working design on each turn so the live YAML/ASCII updates as the
   agent edits. Pytest +24 (114 total) covers every tool implementation,
   session JSONL round-trip, and the API contract (status / 503 / 404).
-- **0.6 CSP solver + port compatibility validation in flight.** Pin
+- **0.6 CSP solver + port compatibility validation shipped.** Pin
   solver at `studio/csp/pin_solver.py`. Port compatibility validator at
   `studio/csp/compatibility.py` walks every gpio + bus pin assignment
   and emits codes (`input_only_as_output`, `boot_strap_output`,
@@ -203,6 +223,58 @@ The UI-first ordering means 0.5's agent and 0.6's solver each have a
 visible place to land. If the agent lands first (alternative ordering),
 it ships as a CLI/tool-only surface and we re-skin it later — strictly
 worse for the headline feature.
+
+### Next up (queued, not started)
+
+Two small follow-ons to 0.5's agent layer, agreed in the last session:
+
+1. **Streaming agent responses.** Swap `POST /agent/turn` for an SSE
+   variant that emits events as they happen:
+   `tool_use_start { tool, input }`, `tool_result { tool, is_error }`,
+   `text_delta { text }`, then a final `turn_complete { design, usage }`
+   carrying the updated design state. Frontend reads the stream and
+   updates the chat + tool-call UI live; the design swap happens once
+   on the final event so the live YAML/ASCII doesn't churn mid-turn.
+   Improves perceived latency a lot — currently a 4-tool turn looks
+   like a 5-second blank stare.
+
+   Implementation sketch: keep `/agent/turn` for backward-compat,
+   add `POST /agent/stream` (or upgrade `/agent/turn` to also accept
+   `Accept: text/event-stream`). Reuse the manual agentic loop in
+   `studio/agent/agent.py`; just yield events instead of accumulating.
+   Anthropic SDK supports `client.messages.stream(...)` with
+   `get_final_message()` — the per-tool-call dispatch stays the same.
+
+2. **Recommendation mode.** New `recommend(query)` agent tool that
+   takes a capability query (*"motion detection on a battery-powered
+   ESP32"*, *"weather station outdoors"*) and returns ranked component
+   candidates with electrical trade-offs. Pairs naturally with the
+   solver: pick a candidate, add it, solve. Shape:
+
+   ```python
+   {
+       "name": "recommend",
+       "description": "...",
+       "input_schema": {
+           "type": "object",
+           "properties": {
+               "capability": {"type": "string"},
+               "constraints": {"type": "object"},  # power, indoor/outdoor, etc.
+           },
+       },
+   }
+   ```
+
+   The tool implementation is a small ranking function over
+   `library.list_components()`: filter by `use_cases` + `aliases`
+   matching the query; rank by current draw, voltage compatibility,
+   and presence in existing examples (a proxy for "battle-tested").
+
+   v1 should NOT call out to an LLM internally — keep the recommender
+   deterministic and fast. The agent then narrates the options.
+
+Both fit comfortably in one PR. Streaming first (it's the bigger UX
+win); recommend second.
 
 ## Studio web UI (0.3)
 
