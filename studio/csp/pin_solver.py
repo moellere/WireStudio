@@ -122,6 +122,8 @@ def _is_unbound(target: dict) -> bool:
         return not target.get("bus_id")
     if kind == "expander_pin":
         return not target.get("expander_id")
+    if kind == "component":
+        return not target.get("component_id")
     return False
 
 
@@ -302,6 +304,31 @@ def solve_pins(design_in: dict, library: Library) -> SolveResult:
             new = {**target, "expander_id": ex_id, "number": number}
             conn["target"] = new
             used_expander_pins.add(chosen)
+            assigned.append(PinAssignment(comp["id"], conn["pin_role"], old, new))
+
+        elif kind == "component":
+            # Pick the first component instance whose library_id matches
+            # the role's `parent_library_id` hint. The hint lives on the
+            # library Pin so a hub-relative role (ads1115_channel.HUB)
+            # binds to the correct hub kind, not a random other component.
+            wanted = getattr(lib_pin, "parent_library_id", None)
+            options = [
+                cid for cid, c in components_by_id.items()
+                if c.get("library_id") == wanted and cid != comp["id"]
+            ] if wanted else []
+            if not options:
+                unresolved.append(SolverWarning(
+                    level="warn", code="no_parent_component",
+                    text=(
+                        f"{comp['id']}.{conn['pin_role']} needs a "
+                        f"{wanted or 'parent'} component but the design has none"
+                    ),
+                ))
+                continue
+            choice = options[0]
+            old = dict(target)
+            new = {"kind": "component", "component_id": choice}
+            conn["target"] = new
             assigned.append(PinAssignment(comp["id"], conn["pin_role"], old, new))
 
     warnings = list(_static_warnings(design, board, library_components))

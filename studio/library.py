@@ -22,6 +22,12 @@ class Pin(_Strict):
     kind: str
     voltage: Optional[float] = None
     pull_up: Optional[PullUp] = None
+    # When kind == "hub_ref", names the library_id of the parent component
+    # this pin must connect to (e.g., ads1115_channel.HUB has
+    # parent_library_id: ads1115). The pin solver uses this to filter
+    # candidates and the bus editor / inspector use it to render a
+    # parent-instance dropdown.
+    parent_library_id: Optional[str] = None
 
 
 class PassiveSpec(_Strict):

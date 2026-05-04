@@ -81,8 +81,20 @@ class ExpanderPinTarget(_Strict):
     inverted: bool = False
 
 
+class ComponentTarget(_Strict):
+    """Connection target referencing another component instance.
+
+    Used when a component is logically a child of a hub it shares no
+    physical pins with -- e.g., an `ads1115_channel` references its
+    `ads1115` hub by component id, and the generated YAML pulls the
+    hub's id into the channel's sensor entry.
+    """
+    kind: Literal["component"]
+    component_id: str
+
+
 ConnectionTarget = Annotated[
-    Union[RailTarget, GpioTarget, BusTarget, ExpanderPinTarget],
+    Union[RailTarget, GpioTarget, BusTarget, ExpanderPinTarget, ComponentTarget],
     Field(discriminator="kind"),
 ]
 

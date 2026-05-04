@@ -1,5 +1,5 @@
 id: ads1115
-name: ADS1115 4-channel 16-bit ADC (I2C)
+name: ADS1115 4-channel 16-bit ADC hub (I2C)
 category: sensor
 use_cases: [adc, analog_in, voltage, current_sense]
 aliases: ["ads1015", "ti adc", "external adc"]
@@ -31,17 +31,6 @@ esphome:
     {%- if params.continuous_mode is defined %}
         continuous_mode: {{ params.continuous_mode | tojson }}
     {%- endif %}
-    {% if params.channels is defined %}
-    sensor:
-    {%- for ch in params.channels %}
-      - platform: ads1115
-        ads1115_id: {{ id }}_hub
-        multiplexer: {{ ch.multiplexer }}
-        gain: {{ ch.gain | default('6.144') }}
-        name: "{{ ch.name }}"
-        update_interval: {{ ch.update_interval | default('60s') }}
-    {%- endfor %}
-    {%- endif %}
 
 params_schema:
   address:
@@ -52,20 +41,13 @@ params_schema:
   continuous_mode:
     type: boolean
     description: "Continuous conversion vs single-shot. Continuous wakes the chip on every sample."
-  channels:
-    type: array
-    description: |
-      One sensor entry per ADC reading. Each item:
-        - multiplexer: A0_GND|A1_GND|A2_GND|A3_GND|A0_A1|A0_A3|A1_A3|A2_A3
-        - name: <ESPHome sensor name>
-        - gain: 6.144|4.096|2.048|1.024|0.512|0.256 (default 6.144)
-        - update_interval: optional (default 60s)
 
 notes: |
-  4-channel 16-bit ADC over I2C. Rescues ESP32 designs from the
-  ADC2/WiFi conflict and gives ESP8266 a wider dynamic range than its
-  10-bit ADC. The ADDR pin selects between four bus addresses; pull it
-  to GND/VDD/SDA/SCL for 0x48/0x49/0x4A/0x4B respectively.
-  Single-ended (Ax_GND) and differential (Ax_Ay) modes are both
-  supported via the per-channel `multiplexer` setting. Default gain
-  6.144 covers 0-VDD (set ADC_FSR ≥ Vmax to avoid clipping).
+  Hub-only component. Each logical analog reading is a separate
+  `ads1115_channel` instance pointing at this hub via a HUB connection
+  -- that lets each channel have its own gain, update_interval, and
+  inspector row instead of being buried inside a `channels` array
+  param. ADDR pin selects between four bus addresses; pull it to
+  GND/VDD/SDA/SCL for 0x48/0x49/0x4A/0x4B respectively. 4-channel
+  16-bit ADC over I2C; rescues ESP32 designs from the ADC2/WiFi
+  conflict and gives ESP8266 a wider dynamic range than its 10-bit ADC.

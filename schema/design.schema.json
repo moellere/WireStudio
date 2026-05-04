@@ -143,6 +143,15 @@
                   "mode": { "type": "string", "enum": ["INPUT", "INPUT_PULLUP", "INPUT_PULLDOWN", "OUTPUT", "OUTPUT_OPEN_DRAIN"] },
                   "inverted": { "type": "boolean" }
                 }
+              },
+              {
+                "type": "object",
+                "required": ["kind", "component_id"],
+                "additionalProperties": false,
+                "properties": {
+                  "kind": { "const": "component" },
+                  "component_id": { "type": "string" }
+                }
               }
             ]
           }

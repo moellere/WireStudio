@@ -16,7 +16,7 @@ import {
 import type { Design } from "../types/api";
 
 type Kind = ConnectionTarget["kind"];
-const KINDS: Kind[] = ["rail", "gpio", "bus", "expander_pin"];
+const KINDS: Kind[] = ["rail", "gpio", "bus", "expander_pin", "component"];
 
 interface Props {
   rows: ConnectionRow[];
@@ -40,6 +40,9 @@ export function ConnectionForm({
   const gpioPins = Object.keys((board.gpio_capabilities ?? {}) as Record<string, unknown>);
   const buses = readBuses(design);
   const expanders = expandersFromDesign(design, libraryComponents);
+  const componentInstances = readComponents(design).map((c) => ({
+    id: c.id, library_id: c.library_id,
+  }));
 
   return (
     <div className="space-y-2">
@@ -51,6 +54,7 @@ export function ConnectionForm({
           gpioPins={gpioPins}
           buses={buses}
           expanders={expanders}
+          componentInstances={componentInstances}
           onChange={(t) => onChange(row.index, t)}
           onLockedPinChange={(pin) => onLockedPinChange(row.component_id, row.pin_role, pin)}
         />
@@ -60,13 +64,15 @@ export function ConnectionForm({
 }
 
 function Row({
-  row, railNames, gpioPins, buses, expanders, onChange, onLockedPinChange,
+  row, railNames, gpioPins, buses, expanders, componentInstances,
+  onChange, onLockedPinChange,
 }: {
   row: ConnectionRow;
   railNames: string[];
   gpioPins: string[];
   buses: { id: string; type: string }[];
   expanders: { id: string; library_id: string }[];
+  componentInstances: { id: string; library_id: string }[];
   onChange: (t: ConnectionTarget) => void;
   onLockedPinChange: (pin: string | null) => void;
 }) {
@@ -74,7 +80,7 @@ function Row({
 
   const onKindChange = (k: Kind) => {
     if (k === t.kind) return;
-    onChange(defaultTargetForKind(k, { railNames, gpioPins, buses, expanders }));
+    onChange(defaultTargetForKind(k, { railNames, gpioPins, buses, expanders, componentInstances }));
   };
 
   return (
@@ -145,6 +151,21 @@ function Row({
           target={t}
           expanders={expanders}
           onChange={onChange}
+        />
+      )}
+
+      {t.kind === "component" && (
+        <SelectInput
+          label="hub"
+          value={t.component_id}
+          options={componentInstances
+            .filter((c) => c.id !== row.component_id)
+            .map((c) => c.id)}
+          renderLabel={(id) => {
+            const c = componentInstances.find((x) => x.id === id);
+            return c ? `${c.id} (${c.library_id})` : id;
+          }}
+          onChange={(v) => onChange({ kind: "component", component_id: v })}
         />
       )}
     </div>
@@ -324,6 +345,7 @@ function defaultTargetForKind(
     gpioPins: string[];
     buses: { id: string; type: string }[];
     expanders: { id: string; library_id: string }[];
+    componentInstances: { id: string; library_id: string }[];
   },
 ): ConnectionTarget {
   switch (k) {
@@ -341,5 +363,7 @@ function defaultTargetForKind(
         mode: "INPUT_PULLUP",
         inverted: false,
       };
+    case "component":
+      return { kind: "component", component_id: ctx.componentInstances[0]?.id ?? "" };
   }
 }

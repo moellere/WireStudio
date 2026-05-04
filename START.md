@@ -29,11 +29,29 @@ stays as a back-compat wrapper. Pytest +21 (179 total), vitest 49, ruff
 **Next up candidates:**
 - Drag-and-drop pinout (long-running: 0.3 already pre-flagged this as
   a follow-on iteration)
-- ADS1115 hub-only split: needs schema design first. The clean shape
-  is a new `kind: "component"` connection target that points an
-  `ads1115_channel` instance at its hub `ads1115` instance. Touches
-  schema/model/generator/pin solver/UI -- a 2-3 commit refactor that
-  wants its own focused session.
+- 0.8 enclosure suggestions
+- 0.9 KiCad schematic export (SKiDL recommended; map studio
+  components to `kicad-symbols` symbols via a new `kicad:` block per
+  library entry)
+
+**ADS1115 hub-only split shipped.** New `kind: "component"` connection
+target lets one component instance reference another by id. The
+generator surfaces the referenced instance as `parent` in the
+template's Jinja context (sibling to `bus`); the pin solver fills
+unbound `kind: component` targets by picking the first design
+component whose library_id matches the role's `parent_library_id`
+hint on the library Pin. ConnectionForm gains a `component` option
+in the kind dropdown with a sibling-instance picker.
+
+`ads1115` is now hub-only -- it registers the `ads1115:` block but
+emits no sensors. Each logical reading is a separate
+`ads1115_channel` instance with its own multiplexer/gain/update_interval
+params and a HUB connection (kind=component) pointing at the hub.
+Channels show up as first-class components in the inspector instead
+of being buried inside a `channels` array param. The schema /
+model / generator / solver / web type extension is generic; future
+hub patterns (RGB controllers, multiplexed mux chips) can reuse it
+without further surgery.
 
 **SSE log relay shipped.** New `GET /fleet/jobs/{run_id}/log/stream`
 endpoint server-side-polls the addon's `/ui/api/jobs/{id}/log` at

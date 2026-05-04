@@ -371,18 +371,13 @@ def _esp32_with_i2c(components: list[dict], extra_connections: list[dict]) -> di
     return base
 
 
-def test_ads1115_renders_hub_and_per_channel_sensors(library):
+def test_ads1115_hub_alone_emits_no_sensors(library):
+    """The hub component is hub-only after the split: it registers the
+    `ads1115:` block but emits no `sensor:` entries. Channels live in
+    separate ads1115_channel components."""
     design_dict = _esp32_with_i2c(
-        components=[{
-            "id": "adc1", "library_id": "ads1115", "label": "Power monitor",
-            "params": {
-                "address": "0x49",
-                "channels": [
-                    {"multiplexer": "A0_GND", "name": "Bus A", "gain": 4.096},
-                    {"multiplexer": "A1_GND", "name": "Bus B"},
-                ],
-            },
-        }],
+        components=[{"id": "adc1", "library_id": "ads1115", "label": "Hub",
+                     "params": {"address": "0x49"}}],
         extra_connections=[
             {"component_id": "adc1", "pin_role": "VCC", "target": {"kind": "rail", "rail": "3V3"}},
             {"component_id": "adc1", "pin_role": "GND", "target": {"kind": "rail", "rail": "GND"}},
@@ -395,33 +390,71 @@ def test_ads1115_renders_hub_and_per_channel_sensors(library):
     assert hub["id"] == "adc1_hub"
     assert hub["address"] == "0x49"
     assert hub["i2c_id"] == "i2c0"
-    channels = [s for s in parsed["sensor"] if s.get("platform") == "ads1115"]
-    assert len(channels) == 2
-    assert channels[0]["multiplexer"] == "A0_GND"
-    assert channels[0]["gain"] == 4.096
-    assert channels[0]["name"] == "Bus A"
-    # The second channel inherits the default 6.144 gain.
-    assert channels[1]["multiplexer"] == "A1_GND"
-    assert channels[1]["gain"] == 6.144
+    assert "sensor" not in parsed or all(
+        s.get("platform") != "ads1115" for s in parsed["sensor"]
+    )
 
 
-def test_ads1115_with_no_channels_still_emits_hub(library):
-    """An ADS1115 added with no channels should still register the hub
-    block -- a future channel addition just fills in sensor entries."""
+def test_ads1115_channel_renders_sensor_pointing_at_hub(library):
+    """An ads1115_channel with HUB target = component:adc1 emits a
+    `sensor:` entry whose ads1115_id matches the hub's `<id>_hub`
+    handle. Each channel's params (multiplexer/gain/update_interval)
+    flow through independently."""
     design_dict = _esp32_with_i2c(
-        components=[{"id": "adc1", "library_id": "ads1115", "label": "Power", "params": {}}],
+        components=[
+            {"id": "adc1", "library_id": "ads1115", "label": "Hub", "params": {}},
+            {"id": "bat",  "library_id": "ads1115_channel", "label": "Battery V",
+             "params": {"multiplexer": "A0_GND", "gain": "4.096", "update_interval": "10s"}},
+            {"id": "load", "library_id": "ads1115_channel", "label": "Load V",
+             "params": {"multiplexer": "A1_GND", "gain": "2.048"}},
+        ],
         extra_connections=[
             {"component_id": "adc1", "pin_role": "VCC", "target": {"kind": "rail", "rail": "3V3"}},
             {"component_id": "adc1", "pin_role": "GND", "target": {"kind": "rail", "rail": "GND"}},
             {"component_id": "adc1", "pin_role": "SDA", "target": {"kind": "bus", "bus_id": "i2c0"}},
             {"component_id": "adc1", "pin_role": "SCL", "target": {"kind": "bus", "bus_id": "i2c0"}},
+            {"component_id": "bat",  "pin_role": "HUB", "target": {"kind": "component", "component_id": "adc1"}},
+            {"component_id": "load", "pin_role": "HUB", "target": {"kind": "component", "component_id": "adc1"}},
         ],
     )
     parsed = yaml.unsafe_load(render_yaml(Design.model_validate(design_dict), library))
-    assert parsed["ads1115"][0]["id"] == "adc1_hub"
-    assert "sensor" not in parsed or all(
-        s.get("platform") != "ads1115" for s in parsed["sensor"]
+    sensors = [s for s in parsed["sensor"] if s.get("platform") == "ads1115"]
+    by_name = {s["name"]: s for s in sensors}
+    assert set(by_name) == {"Battery V", "Load V"}
+    assert by_name["Battery V"]["ads1115_id"] == "adc1_hub"
+    assert by_name["Battery V"]["multiplexer"] == "A0_GND"
+    # YAML un-quoting parses "4.096" as a float; assert via string equality
+    # on the original render.
+    assert by_name["Battery V"]["gain"] == 4.096
+    assert by_name["Battery V"]["update_interval"] == "10s"
+    assert by_name["Load V"]["ads1115_id"] == "adc1_hub"
+    assert by_name["Load V"]["update_interval"] == "60s"  # default
+
+
+def test_ads1115_channel_solver_auto_binds_to_hub(library):
+    """An unbound HUB target on an ads1115_channel resolves to the only
+    ads1115 hub in the design via the new `kind: component` solve path."""
+    from studio.csp.pin_solver import solve_pins
+    from studio.library import default_library
+    lib = default_library()
+    design_dict = _esp32_with_i2c(
+        components=[
+            {"id": "adc1", "library_id": "ads1115", "label": "Hub", "params": {}},
+            {"id": "bat",  "library_id": "ads1115_channel", "label": "Battery V",
+             "params": {"multiplexer": "A0_GND"}},
+        ],
+        extra_connections=[
+            {"component_id": "adc1", "pin_role": "VCC", "target": {"kind": "rail", "rail": "3V3"}},
+            {"component_id": "adc1", "pin_role": "GND", "target": {"kind": "rail", "rail": "GND"}},
+            {"component_id": "adc1", "pin_role": "SDA", "target": {"kind": "bus", "bus_id": "i2c0"}},
+            {"component_id": "adc1", "pin_role": "SCL", "target": {"kind": "bus", "bus_id": "i2c0"}},
+            # Unbound: solver must fill in component_id.
+            {"component_id": "bat",  "pin_role": "HUB", "target": {"kind": "component", "component_id": ""}},
+        ],
     )
+    result = solve_pins(design_dict, lib)
+    bat_conn = next(c for c in result.design["connections"] if c["component_id"] == "bat")
+    assert bat_conn["target"] == {"kind": "component", "component_id": "adc1"}
 
 
 def test_mpu6050_renders_six_axes_plus_die_temp(library):
@@ -445,12 +478,14 @@ def test_mpu6050_renders_six_axes_plus_die_temp(library):
 
 
 def test_ads1115_and_mpu6050_share_one_i2c_bus(library):
-    """Both new I2C parts on the same bus emit a single i2c block + the
-    ads1115 hub + the mpu6050 sensor -- no duplication."""
+    """ADS1115 hub + an ADS1115 channel + MPU6050 on the same bus emit
+    a single i2c block, single ads1115 hub block, plus channel and
+    mpu6050 sensors -- no duplication."""
     design_dict = _esp32_with_i2c(
         components=[
-            {"id": "adc1", "library_id": "ads1115", "label": "ADC",
-             "params": {"channels": [{"multiplexer": "A0_GND", "name": "Bat"}]}},
+            {"id": "adc1", "library_id": "ads1115", "label": "ADC", "params": {}},
+            {"id": "bat",  "library_id": "ads1115_channel", "label": "Bat",
+             "params": {"multiplexer": "A0_GND"}},
             {"id": "imu1", "library_id": "mpu6050", "label": "IMU", "params": {}},
         ],
         extra_connections=[
@@ -458,6 +493,7 @@ def test_ads1115_and_mpu6050_share_one_i2c_bus(library):
             {"component_id": "adc1", "pin_role": "GND", "target": {"kind": "rail", "rail": "GND"}},
             {"component_id": "adc1", "pin_role": "SDA", "target": {"kind": "bus", "bus_id": "i2c0"}},
             {"component_id": "adc1", "pin_role": "SCL", "target": {"kind": "bus", "bus_id": "i2c0"}},
+            {"component_id": "bat",  "pin_role": "HUB", "target": {"kind": "component", "component_id": "adc1"}},
             {"component_id": "imu1", "pin_role": "VCC", "target": {"kind": "rail", "rail": "3V3"}},
             {"component_id": "imu1", "pin_role": "GND", "target": {"kind": "rail", "rail": "GND"}},
             {"component_id": "imu1", "pin_role": "SDA", "target": {"kind": "bus", "bus_id": "i2c0"}},
