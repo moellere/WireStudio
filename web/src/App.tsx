@@ -6,10 +6,15 @@ import { DesignPane } from "./components/DesignPane";
 import { Inspector, type Selection } from "./components/Inspector";
 import { useDebouncedValue } from "./lib/debounce";
 import {
+  addComponent,
   isDirty,
+  prepareBusesForLib,
+  readBuses,
+  removeComponent,
   updateComponentParam,
   updateConnectionTarget,
   type ConnectionTarget,
+  type LibraryComponentDetail,
 } from "./lib/design";
 
 export default function App() {
@@ -149,6 +154,39 @@ export default function App() {
     setDesign((d) => (d ? updater(d) : d));
   }
 
+  async function handleAddComponent(libraryId: string) {
+    let lib: LibraryComponentDetail;
+    try {
+      lib = (await api.getComponent(libraryId)) as LibraryComponentDetail;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setRenderError(`Could not fetch library component '${libraryId}': ${msg}`);
+      return;
+    }
+    setDesign((d) => {
+      if (!d) return d;
+      const board = boardData as {
+        rails?: Array<{ name: string; voltage: number }>;
+        default_buses?: Record<string, Record<string, string>>;
+      } | null;
+      const ctx = {
+        rails: board?.rails ?? [],
+        default_buses: board?.default_buses ?? {},
+      };
+      // 1. Auto-add any bus types this component needs but the design lacks.
+      // 2. Then add the component (its connections will pick up the buses).
+      const withBuses = prepareBusesForLib(d, lib, ctx);
+      return addComponent(withBuses, lib, { board: ctx, buses: readBuses(withBuses) });
+    });
+  }
+
+  function handleRemoveComponent(instanceId: string) {
+    setDesign((d) => (d ? removeComponent(d, instanceId) : d));
+    if (selection.kind === "component_instance" && selection.id === instanceId) {
+      setSelection({ kind: "design" });
+    }
+  }
+
   if (bootError) {
     return (
       <div className="flex h-full items-center justify-center p-6 text-sm">
@@ -220,6 +258,8 @@ export default function App() {
           onParamChange={handleParamChange}
           onConnectionChange={handleConnectionChange}
           onDesignChange={handleDesignChange}
+          onAddComponent={handleAddComponent}
+          onRemoveComponent={handleRemoveComponent}
         />
       </main>
     </div>

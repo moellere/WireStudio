@@ -132,6 +132,28 @@ def test_render_unknown_library_id_returns_422(client):
     assert r.status_code == 422
 
 
+def test_render_missing_bus_returns_422_with_message(client):
+    """A design that validates but references a non-existent bus
+    (e.g. a freshly-added I2C component before the user adds an i2c bus)
+    should 422 with a useful message, not 500."""
+    design = json.loads((EXAMPLES_DIR / "wasserpir.json").read_text())
+    # Append an I2C-needing component with empty bus_id.
+    design["components"].append({
+        "id": "bme1", "library_id": "bme280", "label": "Stray BME", "params": {},
+    })
+    design["connections"].extend([
+        {"component_id": "bme1", "pin_role": "VCC", "target": {"kind": "rail", "rail": "3V3"}},
+        {"component_id": "bme1", "pin_role": "GND", "target": {"kind": "rail", "rail": "GND"}},
+        {"component_id": "bme1", "pin_role": "SDA", "target": {"kind": "bus", "bus_id": ""}},
+        {"component_id": "bme1", "pin_role": "SCL", "target": {"kind": "bus", "bus_id": ""}},
+    ])
+    r = client.post("/design/render", json=design)
+    assert r.status_code == 422
+    detail = r.json()["detail"]
+    assert "bme1" in detail
+    assert "bus" in detail.lower()
+
+
 def test_list_examples(client):
     r = client.get("/examples")
     assert r.status_code == 200

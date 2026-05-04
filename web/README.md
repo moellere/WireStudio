@@ -6,15 +6,26 @@ Pick an example from the left sidebar; the API renders it into YAML +
 ASCII in the center pane. The right inspector lets you edit:
 
 - **From the design view:** the board (dropdown of all library boards),
-  fleet metadata (device_name + tags), requirements, warnings.
+  fleet metadata (device_name + tags), requirements, warnings, plus
+  the components list with **+ Add component** at the bottom and a ✕
+  per instance.
 - **From a component-instance view:** params (form generated from the
   library's `params_schema`) and connections (target kind + kind-specific
   controls — rail, gpio, design bus, expander pin).
 
 Every edit pushes through a debounced (250ms) `POST /design/render` so
-the YAML and ASCII update in real time. Adding/removing components and
-buses, drag-and-drop wiring, and the agent sidebar come in later
-iterations.
+the YAML and ASCII update in real time.
+
+**Adding a component** auto-wires the connections from the library
+component's pin list: rails picked by voltage match (BME280 → 3V3,
+PIR → 5V), I2C/SPI/UART/I2S pins linked to the first bus of the
+matching type. If the design lacks a needed bus, the bus is
+auto-prepended using the board's `default_buses` (so dropping a BME280
+into an empty WeMos D1 Mini design also lays down `i2c0` on `D2/D1`).
+Digital GPIO pins land as empty placeholders that the connection editor
+shows as `(invalid: <unset>)` until you wire them.
+
+Drag-and-drop wiring and the agent sidebar are later iterations.
 
 Header buttons:
 - **Reset** reverts the current design to the loaded example.

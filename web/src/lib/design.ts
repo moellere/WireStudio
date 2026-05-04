@@ -184,3 +184,215 @@ export function setFleetField(d: Design, key: string, value: unknown): Design {
   const fleet = (d.fleet as Record<string, unknown> | undefined) ?? {};
   return { ...d, fleet: { ...fleet, [key]: value } };
 }
+
+// ---------------------------------------------------------------------------
+// add / remove component
+// ---------------------------------------------------------------------------
+
+/** Library shape we read from /library/components/{id}. Just the bits used here. */
+export interface LibraryComponentDetail {
+  id: string;
+  name: string;
+  category?: string;
+  electrical?: {
+    vcc_min?: number | null;
+    vcc_max?: number | null;
+    pins?: Array<{
+      role: string;
+      kind: string;
+      voltage?: number | null;
+    }>;
+  };
+}
+
+/** Optional context the add helper consults to wire up sensible defaults. */
+export interface BoardContext {
+  rails?: Array<{ name: string; voltage: number }>;
+  default_buses?: Record<string, Record<string, string>>;
+}
+
+export interface AddComponentOptions {
+  label?: string;
+  /** Existing buses in the design (so SDA/SCL/SCK/etc. can default to one). */
+  buses?: BusSummary[];
+  /** Board rails so VCC/GND can pick a matching rail. */
+  board?: BoardContext;
+  /** Override the auto-generated instance id. */
+  instanceIdHint?: string;
+}
+
+/** Generate a unique component id derived from the library id. */
+export function nextInstanceId(d: Design, libraryId: string, hint?: string): string {
+  const used = new Set(readComponents(d).map((c) => c.id));
+  const safeHint = hint?.replace(/[^a-zA-Z0-9_]/g, "_");
+  if (safeHint && !used.has(safeHint)) return safeHint;
+  const base = libraryId.replace(/[^a-z0-9]/gi, "_");
+  for (let n = 1; n < 1000; n++) {
+    const candidate = `${base}_${n}`;
+    if (!used.has(candidate)) return candidate;
+  }
+  return `${base}_${Date.now()}`;
+}
+
+/**
+ * For a given library pin, build the target most likely to be useful as a
+ * starting point. Buses without a matching candidate fall through as
+ * `kind: bus, bus_id: ""` so the form shows them as `(invalid)` rather than
+ * silently disappearing.
+ */
+function defaultTargetForPin(
+  pin: { role: string; kind: string; voltage?: number | null },
+  ctx: { rails: Array<{ name: string; voltage: number }>; buses: BusSummary[]; vccMin?: number | null; vccMax?: number | null },
+): ConnectionTarget {
+  const k = pin.kind;
+
+  if (k === "power") {
+    // Pick the lowest-voltage rail that satisfies the part's [vcc_min, vcc_max].
+    const candidates = ctx.rails.filter((r) =>
+      (ctx.vccMin == null || r.voltage >= ctx.vccMin) && (ctx.vccMax == null || r.voltage <= ctx.vccMax),
+    );
+    const chosen = candidates.sort((a, b) => a.voltage - b.voltage)[0]
+      ?? ctx.rails.find((r) => r.name === "3V3")
+      ?? ctx.rails.find((r) => r.voltage > 0)
+      ?? ctx.rails[0];
+    return { kind: "rail", rail: chosen?.name ?? "3V3" };
+  }
+  if (k === "ground") {
+    const gnd = ctx.rails.find((r) => r.voltage === 0)?.name
+      ?? ctx.rails.find((r) => /gnd/i.test(r.name))?.name
+      ?? "GND";
+    return { kind: "rail", rail: gnd };
+  }
+
+  const busKindToType: Record<string, string> = {
+    i2c_sda: "i2c", i2c_scl: "i2c",
+    spi_clk: "spi", spi_miso: "spi", spi_mosi: "spi",
+    i2s_lrclk: "i2s", i2s_bclk: "i2s",
+    uart_rx: "uart", uart_tx: "uart",
+  };
+  const wantBus = busKindToType[k];
+  if (wantBus) {
+    const bus = ctx.buses.find((b) => b.type === wantBus);
+    return { kind: "bus", bus_id: bus?.id ?? "" };
+  }
+
+  // spi_cs and i2s_dout are per-component native GPIO, not part of the bus.
+  // digital_in / digital_out / analog_in fall through to gpio placeholders.
+  return { kind: "gpio", pin: "" };
+}
+
+/**
+ * Bus types a library component requires, derived from its pin kinds.
+ * Returns a set of types like `"i2c"`, `"spi"`, etc.
+ */
+export function neededBusTypes(lib: LibraryComponentDetail): Set<string> {
+  const need = new Set<string>();
+  for (const p of lib.electrical?.pins ?? []) {
+    if (p.kind === "i2c_sda" || p.kind === "i2c_scl") need.add("i2c");
+    else if (p.kind === "spi_clk" || p.kind === "spi_miso" || p.kind === "spi_mosi") need.add("spi");
+    else if (p.kind === "i2s_lrclk" || p.kind === "i2s_bclk") need.add("i2s");
+    else if (p.kind === "uart_rx" || p.kind === "uart_tx") need.add("uart");
+  }
+  return need;
+}
+
+/**
+ * Ensure the design has a bus of every type the library component needs.
+ * Missing buses are appended with the board's default pinout if available;
+ * otherwise an empty bus skeleton is appended (the user will need to fill
+ * in pins via the bus editor when that lands). Returns a new design.
+ */
+export function prepareBusesForLib(
+  d: Design,
+  lib: LibraryComponentDetail,
+  board: BoardContext,
+): Design {
+  const need = neededBusTypes(lib);
+  if (need.size === 0) return d;
+
+  const existing = readBuses(d);
+  const buses = (d.buses as Array<Record<string, unknown>> | undefined) ?? [];
+  const additions: Array<Record<string, unknown>> = [];
+  const defaults = board.default_buses ?? {};
+
+  for (const t of need) {
+    if (existing.some((b) => b.type === t)) continue;
+    const id = nextBusId(d, additions, t);
+    const def = defaults[t] ?? {};
+    additions.push({ id, type: t, ...def });
+  }
+
+  if (additions.length === 0) return d;
+  return { ...d, buses: [...buses, ...additions] };
+}
+
+function nextBusId(
+  d: Design,
+  pending: Array<Record<string, unknown>>,
+  type: string,
+): string {
+  const used = new Set([
+    ...readBuses(d).map((b) => b.id),
+    ...pending.map((b) => String(b.id)),
+  ]);
+  for (let n = 0; n < 100; n++) {
+    const id = `${type}${n}`;
+    if (!used.has(id)) return id;
+  }
+  return `${type}_${Date.now()}`;
+}
+
+/**
+ * Append a fresh component instance plus auto-generated connections, one
+ * per pin in the library entry. Pure: returns a new design.
+ */
+export function addComponent(
+  d: Design,
+  lib: LibraryComponentDetail,
+  opts: AddComponentOptions = {},
+): Design {
+  const id = nextInstanceId(d, lib.id, opts.instanceIdHint);
+  const components = (d.components as Array<Record<string, unknown>> | undefined) ?? [];
+  const existingConnections = (d.connections as Array<Record<string, unknown>> | undefined) ?? [];
+
+  const inst = {
+    id,
+    library_id: lib.id,
+    label: opts.label ?? lib.name,
+    params: {},
+  };
+
+  const pins = lib.electrical?.pins ?? [];
+  const newConnections = pins.map((p) => ({
+    component_id: id,
+    pin_role: p.role,
+    target: defaultTargetForPin(p, {
+      rails: opts.board?.rails ?? [],
+      buses: opts.buses ?? [],
+      vccMin: lib.electrical?.vcc_min,
+      vccMax: lib.electrical?.vcc_max,
+    }),
+  }));
+
+  return {
+    ...d,
+    components: [...components, inst],
+    connections: [...existingConnections, ...newConnections],
+  };
+}
+
+/**
+ * Remove the named component instance plus every connection that originates
+ * from it. Connections that *target* it (via `expander_id`) are intentionally
+ * left in place and become "(invalid)" in the form so the user can fix or
+ * delete them deliberately.
+ */
+export function removeComponent(d: Design, instanceId: string): Design {
+  const components = (d.components as Array<Record<string, unknown>> | undefined) ?? [];
+  const connections = (d.connections as Array<Record<string, unknown>> | undefined) ?? [];
+  return {
+    ...d,
+    components: components.filter((c) => c.id !== instanceId),
+    connections: connections.filter((c) => c.component_id !== instanceId),
+  };
+}

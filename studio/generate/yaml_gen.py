@@ -4,7 +4,7 @@ import re
 from typing import Any
 
 import yaml
-from jinja2 import Environment, StrictUndefined
+from jinja2 import Environment, StrictUndefined, UndefinedError
 
 from studio.library import Library
 from studio.model import Bus, Component, Design
@@ -99,7 +99,16 @@ def _render_component(comp: Component, design: Design, library: Library) -> dict
         "pins": _pins_for(comp.id, design),
         "bus": bus.model_dump() if bus else None,
     }
-    rendered = _jinja.from_string(template_str).render(**ctx)
+    try:
+        rendered = _jinja.from_string(template_str).render(**ctx)
+    except UndefinedError as e:
+        # Almost always: template references {{ bus.id }} but the component
+        # has no `kind: bus` connection (or the bus_id doesn't match any
+        # design.buses entry). Surface a cleaner error so the API can 422.
+        raise ValueError(
+            f"component '{comp.id}' (library_id={comp.library_id}) cannot be rendered: {e.message}. "
+            f"Likely a missing bus connection; add a matching bus to the design or fix the connection target."
+        ) from e
     parsed = yaml.safe_load(rendered)
     return parsed or {}
 
