@@ -105,6 +105,8 @@ Useful endpoints:
 | `POST` | `/design/validate` | parse a `design.json`, return summary or 422 |
 | `POST` | `/design/render` | parse + render a `design.json` to `{yaml, ascii}` |
 | `POST` | `/design/enclosure/openscad` | generate a parametric `.scad` shell for the design's board |
+| `GET`  | `/enclosure/search?library_id=...&query=...` | search community-uploaded enclosure models (Thingiverse) |
+| `GET`  | `/enclosure/search/status` | per-source availability + configure hints |
 | `GET`  | `/examples` | list bundled examples |
 | `GET`  | `/examples/{id}` | fetch an example as raw `design.json` |
 | `GET`  | `/fleet/status` | check whether `FLEET_URL` + `FLEET_TOKEN` reach a distributed-esphome ha-addon |

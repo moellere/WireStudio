@@ -210,6 +210,40 @@ def test_enclosure_openscad_unknown_board_returns_422(client):
     assert "no enclosure metadata" in detail
 
 
+def test_enclosure_search_status_lists_sources(client, monkeypatch):
+    """The status endpoint surfaces every source even when unconfigured,
+    so the UI can render configuration hints."""
+    monkeypatch.delenv("THINGIVERSE_API_KEY", raising=False)
+    r = client.get("/enclosure/search/status")
+    assert r.status_code == 200
+    sources = r.json()["sources"]
+    by_name = {s["source"]: s for s in sources}
+    assert by_name["thingiverse"]["available"] is False
+    assert "THINGIVERSE_API_KEY" in by_name["thingiverse"]["reason"]
+    assert "thingiverse.com/developers" in by_name["thingiverse"]["configure_hint"]
+    # Printables is always deferred.
+    assert by_name["printables"]["available"] is False
+    assert "deferred" in by_name["printables"]["reason"].lower()
+
+
+def test_enclosure_search_unknown_board_returns_404(client):
+    r = client.get("/enclosure/search?library_id=not-a-board")
+    assert r.status_code == 404
+
+
+def test_enclosure_search_returns_empty_when_no_source_configured(client, monkeypatch):
+    """Without THINGIVERSE_API_KEY the search produces an empty result
+    list but still surfaces both source statuses + the constructed
+    query so the UI can guide the user."""
+    monkeypatch.delenv("THINGIVERSE_API_KEY", raising=False)
+    r = client.get("/enclosure/search?library_id=esp32-devkitc-v4")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["query"] == "ESP32-DevKitC-V4 enclosure"
+    assert body["results"] == []
+    assert {s["source"] for s in body["sources"]} == {"thingiverse", "printables"}
+
+
 def test_render_missing_bus_returns_422_with_message(client):
     """A design that validates but references a non-existent bus
     (e.g. a freshly-added I2C component before the user adds an i2c bus)

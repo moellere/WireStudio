@@ -5,6 +5,8 @@ import type {
   AgentTurnResponse,
   BoardSummary,
   ComponentSummary,
+  EnclosureSearchResponse,
+  EnclosureSearchStatus,
   ExampleSummary,
   FleetJobLogResponse,
   FleetPushResponse,
@@ -94,6 +96,14 @@ export const api = {
     request<SolvePinsResponse>("/design/solve_pins", { method: "POST", body: JSON.stringify(design) }),
   enclosureScad: (design: Design) =>
     requestText("/design/enclosure/openscad", { method: "POST", body: JSON.stringify(design) }),
+  enclosureSearchStatus: () =>
+    request<EnclosureSearchStatus>("/enclosure/search/status"),
+  enclosureSearch: (params: { library_id: string; query?: string; limit?: number }) => {
+    const qs = new URLSearchParams({ library_id: params.library_id });
+    if (params.query) qs.set("query", params.query);
+    if (params.limit != null) qs.set("limit", String(params.limit));
+    return request<EnclosureSearchResponse>(`/enclosure/search?${qs.toString()}`);
+  },
 
   agentStatus: () => request<AgentStatus>("/agent/status"),
   agentTurn: (body: { session_id?: string | null; design: Design; message: string }) =>

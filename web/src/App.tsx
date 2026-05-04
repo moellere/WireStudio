@@ -19,6 +19,7 @@ import { SolveResultBanner } from "./components/SolveResultBanner";
 import { NewDesignDialog } from "./components/NewDesignDialog";
 import { PushToFleetDialog } from "./components/PushToFleetDialog";
 import { CapabilityPickerDialog } from "./components/CapabilityPickerDialog";
+import { EnclosureDialog } from "./components/EnclosureDialog";
 import { useDebouncedValue } from "./lib/debounce";
 import {
   addComponent,
@@ -70,6 +71,7 @@ export default function App() {
   const [selectedSaved, setSelectedSaved] = useState<string | null>(null);
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [showFleetDialog, setShowFleetDialog] = useState(false);
+  const [showEnclosureDialog, setShowEnclosureDialog] = useState(false);
   const [showCapabilityDialog, setShowCapabilityDialog] = useState(false);
   const [savingState, setSavingState] = useState<"idle" | "saving" | "saved">("idle");
 
@@ -341,36 +343,6 @@ export default function App() {
     }
   }
 
-  async function handleGenerateEnclosure() {
-    if (!design) return;
-    setRenderError(null);
-    try {
-      const scad = await api.enclosureScad(design);
-      // Trigger a browser download. We synthesize an <a download> click
-      // rather than navigating to the endpoint URL so the request body
-      // (the live design) carries the un-saved edits.
-      const blob = new Blob([scad], { type: "text/plain" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${design.id ?? "design"}.scad`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (e) {
-      let msg: string;
-      if (e instanceof ApiError) {
-        const body = e.body as { detail?: unknown } | undefined;
-        const detail = body?.detail;
-        msg = `${e.status}: ${typeof detail === "string" ? detail : e.message}`;
-      } else {
-        msg = e instanceof Error ? e.message : String(e);
-      }
-      setRenderError(msg);
-    }
-  }
-
   if (bootError) {
     return (
       <div className="flex h-full items-center justify-center p-6 text-sm">
@@ -466,11 +438,11 @@ export default function App() {
           </button>
           <button
             disabled={!design}
-            onClick={handleGenerateEnclosure}
+            onClick={() => setShowEnclosureDialog(true)}
             className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 enabled:hover:bg-zinc-900 disabled:opacity-40"
-            title="Download a parametric OpenSCAD shell for the current board"
+            title="Generate a parametric .scad shell or search community-uploaded models"
           >
-            Generate enclosure
+            Enclosure
           </button>
           <button
             disabled={!design}
@@ -560,6 +532,18 @@ export default function App() {
           design={design}
           strict={strictMode}
           onClose={() => setShowFleetDialog(false)}
+        />
+      )}
+      {showEnclosureDialog && design && (
+        <EnclosureDialog
+          design={design}
+          boardLibraryId={String((design.board as Record<string, unknown> | undefined)?.library_id ?? "")}
+          boardName={String(
+            (boards ?? []).find(
+              (b) => b.id === String((design.board as Record<string, unknown> | undefined)?.library_id ?? ""),
+            )?.name ?? (design.board as Record<string, unknown> | undefined)?.library_id ?? "Board",
+          )}
+          onClose={() => setShowEnclosureDialog(false)}
         />
       )}
       {showCapabilityDialog && (
