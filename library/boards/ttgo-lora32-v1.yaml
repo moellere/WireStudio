@@ -53,3 +53,32 @@ gpio_capabilities:
   GPIO35: [gpio, adc, adc1, input_only, battery_sense, no_pull_internal]
   GPIO36: [gpio, adc, adc1, input_only, no_pull_internal]
   GPIO39: [gpio, adc, adc1, input_only, no_pull_internal]
+
+# Enclosure geometry (mm). TTGO LoRa32 V1 (T3 v1.6). The board carries
+# an onboard SSD1306 OLED on top and an SMA antenna on short_b (x=length).
+# A v1 enclosure should leave the OLED visible; we model the SMA cutout
+# but defer the OLED window to a future iteration of the generator.
+enclosure:
+  pcb:
+    length_mm: 50.5
+    width_mm: 25.5
+    thickness_mm: 1.6
+  mount_holes:
+    - {x_mm:  2.5,  y_mm:  2.5,  hole_diameter_mm: 3.2}
+    - {x_mm:  2.5,  y_mm: 23.0,  hole_diameter_mm: 3.2}
+    - {x_mm: 48.0,  y_mm:  2.5,  hole_diameter_mm: 3.2}
+    - {x_mm: 48.0,  y_mm: 23.0,  hole_diameter_mm: 3.2}
+  ports:
+    - kind: usb_micro
+      edge: short_a
+      offset_mm: 8.75
+      width_mm: 8.0
+      height_mm: 3.0
+      height_above_pcb_mm: 1.5
+    - kind: sma
+      edge: short_b
+      offset_mm: 12.75          # SMA centred on short_b
+      width_mm: 7.0             # SMA jack body
+      height_mm: 7.0
+      height_above_pcb_mm: 0.0  # rooted at PCB level
+  component_height_max_mm: 9.0

@@ -8,7 +8,7 @@ from typing import Optional
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_swagger_ui_html
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, StreamingResponse
 from pydantic import ValidationError
 
 from studio import __version__
@@ -45,6 +45,7 @@ from studio.api.schemas import (
 from studio.fleet.client import FleetClient, FleetUnavailable
 from studio.csp.compatibility import check_pin_compatibility
 from studio.csp.pin_solver import solve_pins as run_solve_pins
+from studio.enclosure import EnclosureUnavailable, generate_scad
 from studio.recommend.recommender import Constraints, recommend_components
 from studio.generate.ascii_gen import render_ascii
 from studio.generate.yaml_gen import render_yaml
@@ -281,6 +282,33 @@ def create_app(
             yaml=yaml_text,
             ascii=ascii_text,
             compatibility_warnings=_wire_compat(compat),
+        )
+
+    @app.post("/design/enclosure/openscad", tags=["design"])
+    def design_enclosure_openscad(design: dict) -> PlainTextResponse:
+        """Render a parametric OpenSCAD shell for the design's board.
+
+        Returns the `.scad` text with a Content-Disposition header so a
+        browser fetch saves it as `<design_id>.scad`. 422 when the
+        board lacks `enclosure:` metadata (modules without a clear PCB
+        outline -- ESP-01S etc. -- are intentional skips).
+        """
+        try:
+            d = Design.model_validate(design)
+        except ValidationError as e:
+            raise HTTPException(status_code=422, detail=e.errors()) from e
+        try:
+            scad = generate_scad(d, lib)
+        except FileNotFoundError as e:
+            raise HTTPException(status_code=422, detail=str(e)) from e
+        except EnclosureUnavailable as e:
+            raise HTTPException(status_code=422, detail=str(e)) from e
+        filename = f"{d.id}.scad"
+        return PlainTextResponse(
+            content=scad,
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+            },
         )
 
     @app.get("/examples", response_model=list[ExampleSummary], tags=["examples"])
