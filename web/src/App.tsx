@@ -4,6 +4,7 @@ import type { BoardSummary, ComponentSummary, Design, ExampleSummary, RenderResp
 import { LeftSidebar } from "./components/LeftSidebar";
 import { DesignPane } from "./components/DesignPane";
 import { Inspector, type Selection } from "./components/Inspector";
+import { UsbDetectDialog } from "./components/UsbDetectDialog";
 import { useDebouncedValue } from "./lib/debounce";
 import {
   addComponent,
@@ -35,6 +36,7 @@ export default function App() {
   const [boardData, setBoardData] = useState<unknown | null>(null);
 
   const [selection, setSelection] = useState<Selection>({ kind: "design" });
+  const [showUsbDialog, setShowUsbDialog] = useState(false);
 
   const dirty = useMemo(() => isDirty(originalDesign, design), [originalDesign, design]);
   const debouncedDesign = useDebouncedValue(design, 250);
@@ -187,6 +189,14 @@ export default function App() {
     }
   }
 
+  function handleAdoptDetectedDesign(d: Design) {
+    setOriginalDesign(d);
+    setDesign(d);
+    setSelectedExample(null);  // detached from the examples sidebar
+    setSelection({ kind: "design" });
+    setShowUsbDialog(false);
+  }
+
   if (bootError) {
     return (
       <div className="flex h-full items-center justify-center p-6 text-sm">
@@ -215,6 +225,13 @@ export default function App() {
           )}
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowUsbDialog(true)}
+            className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
+            title="Detect a connected ESP via WebSerial"
+          >
+            Connect device
+          </button>
           <button
             disabled={!dirty}
             onClick={handleReset}
@@ -262,6 +279,13 @@ export default function App() {
           onRemoveComponent={handleRemoveComponent}
         />
       </main>
+      {showUsbDialog && (
+        <UsbDetectDialog
+          boards={boards}
+          onCancel={() => setShowUsbDialog(false)}
+          onAdopt={handleAdoptDetectedDesign}
+        />
+      )}
     </div>
   );
 }

@@ -28,6 +28,11 @@ shows as `(invalid: <unset>)` until you wire them.
 Drag-and-drop wiring and the agent sidebar are later iterations.
 
 Header buttons:
+- **Connect device** opens a WebSerial dialog that runs esptool-js
+  against a plugged-in ESP, reports the chip family + MAC, and lets
+  you pick a matching board to bootstrap a fresh `design.json` from
+  scratch. Chrome / Edge / Brave / Arc only — Firefox and Safari don't
+  ship the WebSerial API.
 - **Reset** reverts the current design to the loaded example.
 - **Download JSON** saves the (possibly modified) `design.json` to disk.
 
@@ -64,14 +69,18 @@ src/
 ├── lib/
 │   ├── debounce.ts          # useDebouncedValue
 │   ├── design.ts            # immutable design helpers (params, connections,
-│   │                        # board, fleet, requirements, warnings)
-│   └── design.test.ts       # vitest unit tests covering the helpers
+│   │                        # board, fleet, requirements, warnings, add/remove)
+│   ├── design.test.ts       # vitest unit tests covering the helpers
+│   ├── bootstrap.ts         # normalizeChipFamily + candidateBoardsFor + bootstrapDesign
+│   ├── bootstrap.test.ts    # vitest tests for the bootstrap helpers
+│   └── usb-detect.ts        # esptool-js wrapper (dynamic-imported)
 ├── components/
 │   ├── LeftSidebar.tsx      # tabs: Examples / Boards / Components, with search
 │   ├── DesignPane.tsx       # tabs: ASCII / YAML / JSON; design metadata header
 │   ├── Inspector.tsx        # routes between design / board / component / instance views
 │   ├── ParamForm.tsx        # form generated from params_schema
-│   └── ConnectionForm.tsx   # per-connection editor (rail/gpio/bus/expander_pin)
+│   ├── ConnectionForm.tsx   # per-connection editor (rail/gpio/bus/expander_pin)
+│   └── UsbDetectDialog.tsx  # WebSerial chip-detect modal + bootstrap picker
 ├── App.tsx                  # state + data flow; three-pane grid
 ├── main.tsx
 └── index.css                # Tailwind v4 + dark-mode base
@@ -84,9 +93,12 @@ npm test            # vitest, runs once
 npm run test:watch  # watch mode
 ```
 
-Currently focused on `lib/design.ts` (20 tests covering the immutable
-patch helpers, isDirty, and the array readers). Component-level RTL
-tests are a future iteration once we set up jsdom.
+Currently 49 tests across `lib/design.ts` (immutable patch helpers,
+isDirty, readers, add/remove with auto-wiring + auto-bus) and
+`lib/bootstrap.ts` (chip-family normalization, board candidate
+matching, bootstrap-design shape). Component-level RTL tests are a
+future iteration once we set up jsdom; the WebSerial flow gets
+manual test only because there's no headless ESP.
 
 ## Editing model
 

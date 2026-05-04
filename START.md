@@ -12,7 +12,7 @@ in flight; this doc stays as the strategic reference and decision log.
   endpoints under `/library/*`, `/design/*`, `/examples/*`. Auto-generated
   OpenAPI docs at `/docs`. Pure layer over the generators, no server-side
   state. Permissive CORS for the 0.3 web UI.
-- **0.3 web UI v1 in flight.** React 19 + Vite + Tailwind v4 under `web/`.
+- **0.3 web UI v1 shipped.** React 19 + Vite + Tailwind v4 under `web/`.
   Three-pane layout (examples/library sidebar / design preview /
   inspector). Editable surfaces:
   - **design view**: board picker (dropdown of all library boards),
@@ -27,8 +27,21 @@ in flight; this doc stays as the strategic reference and decision log.
   `default_buses`). Edits land in local design state and re-render via
   debounced (250ms) `POST /design/render`. Reset reverts to the loaded
   example; Download JSON saves the modified design.json. Vitest covers
-  `lib/design.ts` (41 tests). Drag-and-drop pinout, bus editor, and
-  the agent sidebar are follow-on iterations.
+  `lib/design.ts` (41 tests). Drag-and-drop pinout and bus editor
+  are follow-on iterations.
+- **0.4 USB device bootstrap in flight.** "Connect device" header
+  button opens a modal that runs `esptool-js` over WebSerial. Reads
+  chip family + MAC, normalizes the chip name (ESP32-S3 -> esp32s3),
+  filters the board library to candidates with the matching
+  `chip_variant`, and on adopt seeds a fresh `design.json` with the
+  picked board pre-filled and an `info` warning carrying the
+  detected chip + MAC. esptool-js is dynamic-imported so vitest
+  (no `navigator.serial`) doesn't choke; Vite code-splits the
+  per-chip stub flashers into separate chunks loaded only on demand.
+  WebSerial is Chromium-only so a fallback notice steers
+  Firefox/Safari users to the manual flow. Vitest +8 tests
+  (49 total) cover chip-name normalization, board candidate
+  matching, and bootstrap-design shape.
 - **12 example designs** spanning ESP8266 + ESP32 + ESP-IDF + Sonoff:
   garage-motion, awning-control, wasserpir, oled, bluemotion,
   distance-sensor, securitypanel, rc522, esp32-audio, bluesonoff,
@@ -98,12 +111,15 @@ immediate way in and the agent (when it arrives) lands in a working surface.
   flow back to local design state and re-render via debounced
   `/design/render`. Connection / bus / board edits, drag-and-drop, and
   the agent sidebar (0.5) are follow-on iterations.
-- **0.4 — USB device bootstrap.** "Connect device" button →
-  [`esptool-js`](https://github.com/espressif/esptool-js) over WebSerial in
-  the browser. Detects chip variant, flash size, MAC. Cross-references
-  against the board library, suggests likely board matches. Selecting one
-  bootstraps a fresh `design.json` with `board:` filled. Pure browser, no
-  backend. Same approach web.esphome.io uses.
+- **0.4 — USB device bootstrap.** ✅ Shipped (initial). "Connect device"
+  toolbar button opens a modal that uses
+  [`esptool-js`](https://github.com/espressif/esptool-js) over WebSerial
+  in the browser to detect chip family + MAC, then offers the matching
+  boards from the library. Picking one seeds a fresh `design.json` with
+  the board pre-filled. Pure browser, no backend involved. Same approach
+  web.esphome.io uses. Future: also detect flash size + PSRAM presence
+  for richer board disambiguation, and support specifying a custom
+  baud rate / reset strategy for stubborn boards.
 - **0.5 — Agent layer.** Claude tool-using agent with the constrained tool
   surface in *Agent tool surface* below. Lands as a sidebar in the UI;
   also exposed via `POST /agent/turn`. Conversation history in

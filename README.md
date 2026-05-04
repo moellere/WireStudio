@@ -9,11 +9,14 @@ which handles compile + OTA deploy.
 
 ## Status
 
-`0.3` (in flight) — Studio web UI v1: read-only three-pane layout (examples
-sidebar, design preview, inspector) wired to the 0.2 HTTP API. Editing
-forms, drag-and-drop, and the agent sidebar come in later iterations.
-See [`web/README.md`](web/README.md) for UI details and
-[`START.md`](START.md) for the full roadmap.
+`0.4` (in flight) — Studio web UI with USB device bootstrap. Three-pane
+layout (examples sidebar, design preview, inspector). Edit board, fleet,
+requirements, warnings, params, and connections; add/remove components
+with auto-wiring and auto-bus from the board's defaults. Header
+**Connect device** runs esptool-js over WebSerial against a plugged-in
+ESP, detects the chip family, and bootstraps a fresh `design.json` with
+a matching board pre-filled. See [`web/README.md`](web/README.md) for
+UI details and [`START.md`](START.md) for the full roadmap.
 
 ## Quickstart
 
@@ -181,7 +184,8 @@ same diff as the code change.
 
 - **0.1** ✅ pipeline + library scaffolding
 - **0.2** ✅ HTTP API (FastAPI) — same generators, exposed over JSON
-- **0.3** 🚧 Studio web UI v1 — read-only three-pane shell shipped; editing forms next
+- **0.3** ✅ Studio web UI v1 — three-pane shell + form-based editing
+- **0.4** 🚧 USB device bootstrap (WebSerial + esptool-js)
 - **0.4** USB device bootstrap via WebSerial / esptool-js
 - **0.5** Agent layer (Claude tool-using, in the UI sidebar)
 - **0.6** CSP solver — pin/bus/budget assignment + ranked recommendations
