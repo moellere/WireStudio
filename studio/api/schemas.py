@@ -121,6 +121,13 @@ class AgentSession(_S):
     messages: list[AgentSessionMessage]
 
 
+class UseCaseEntry(_S):
+    """One row of GET /library/use_cases."""
+    use_case: str
+    count: int  # how many library components advertise this use_case
+    example_components: list[str]  # up to 3 library_ids for hover preview
+
+
 class RecommendRequest(_S):
     query: str
     limit: int = 10
@@ -167,3 +174,28 @@ class SavedDesignSummary(_S):
     chip_family: str
     saved_at: str
     component_count: int
+
+
+class FleetStatus(_S):
+    available: bool
+    reason: Optional[str] = None
+    url: Optional[str] = None  # base URL when configured (no token)
+
+
+class FleetPushRequest(_S):
+    design: dict
+    compile: bool = False
+    device_name: Optional[str] = None  # override; defaults to fleet.device_name or design.id
+
+
+class FleetPushResponse(_S):
+    filename: str
+    created: bool
+    run_id: Optional[str] = None
+    enqueued: int = 0
+
+
+class FleetJobLogResponse(_S):
+    log: str
+    offset: int
+    finished: bool

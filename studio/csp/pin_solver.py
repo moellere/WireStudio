@@ -82,7 +82,9 @@ def _gpio_candidates_for_pin(
     sorted from most preferred to least."""
     required = _PIN_KIND_TO_REQUIRED_CAPS.get(lib_pin.kind, {"gpio"})
     is_output = lib_pin.kind in ("digital_out", "i2s_dout")
-    candidates: list[tuple[int, str]] = []
+    is_analog_in = lib_pin.kind == "analog_in"
+    is_classic_esp32 = getattr(board, "chip_variant", None) == "esp32"
+    candidates: list[tuple[int, int, str]] = []
     for name, caps in board.gpio_capabilities.items():
         cap_set = set(caps)
         if not required.issubset(cap_set):
@@ -97,9 +99,15 @@ def _gpio_candidates_for_pin(
             "boot_high", "boot_low",
             "serial_tx", "serial_rx",
         })
-        candidates.append((1 if special else 0, name))
+        # Secondary preference: for analog_in on a classic ESP32, prefer ADC1
+        # pins (GPIO32-39) over ADC2 pins. ADC2 conflicts with WiFi -- see
+        # the adc2_wifi_conflict check in compatibility.py.
+        adc2_penalty = 0
+        if is_analog_in and is_classic_esp32 and "adc2" in cap_set:
+            adc2_penalty = 1
+        candidates.append((1 if special else 0, adc2_penalty, name))
     candidates.sort()
-    return [name for _, name in candidates]
+    return [name for *_, name in candidates]
 
 
 # ---------------------------------------------------------------------------

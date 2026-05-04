@@ -213,3 +213,70 @@ def test_ttgo_lora32_warning_is_about_gpio5(lib):
     # SCK connection -- the bus is what assigns GPIO5 to the line.
     assert boot[0].pin_role == "CLK"
     assert boot[0].component_id == "spi0"
+
+
+# ---------------------------------------------------------------------------
+# ADC2 / WiFi conflict
+# ---------------------------------------------------------------------------
+
+def _esp32_design_with_analog(pin: str) -> dict:
+    """Synthesize a tiny ESP32 design that pins MAX98357A's GAIN (analog_in)
+    to a board GPIO. We're targeting the analog_in path in the validator;
+    real ADC sensors are a 0.7+ library addition."""
+    return {
+        "schema_version": "0.1",
+        "id": "adc-test",
+        "name": "ADC test",
+        "board": {"library_id": "esp32-devkitc-v4", "mcu": "esp32"},
+        "components": [
+            {
+                "id": "amp",
+                "library_id": "max98357a",
+                "params": {"mode": "stereo"},
+            },
+        ],
+        "buses": [
+            {"id": "i2s0", "type": "i2s", "lrclk": "GPIO33", "bclk": "GPIO27", "dout": "GPIO32"},
+        ],
+        "connections": [
+            {"component_id": "amp", "pin_role": "VCC", "target": {"kind": "rail", "rail": "5V"}},
+            {"component_id": "amp", "pin_role": "GND", "target": {"kind": "rail", "rail": "GND"}},
+            {"component_id": "amp", "pin_role": "DIN",   "target": {"kind": "bus", "bus_id": "i2s0"}},
+            {"component_id": "amp", "pin_role": "BCLK",  "target": {"kind": "bus", "bus_id": "i2s0"}},
+            {"component_id": "amp", "pin_role": "LRCLK", "target": {"kind": "bus", "bus_id": "i2s0"}},
+            {"component_id": "amp", "pin_role": "GAIN", "target": {"kind": "gpio", "pin": pin}},
+        ],
+    }
+
+
+def test_adc2_pin_for_analog_in_warns(lib):
+    """Pinning an analog_in to an ADC2 pin on classic ESP32 should warn."""
+    d = _esp32_design_with_analog("GPIO4")  # ADC2 channel 0
+    warnings = check_pin_compatibility(d, lib)
+    adc2 = _by_code(warnings, "adc2_wifi_conflict")
+    assert len(adc2) == 1
+    assert adc2[0].pin == "GPIO4"
+    assert adc2[0].component_id == "amp"
+    assert adc2[0].pin_role == "GAIN"
+    assert adc2[0].severity == "warn"
+    assert "WiFi" in adc2[0].message
+
+
+def test_adc1_pin_for_analog_in_silent(lib):
+    """ADC1 pins (GPIO32-39) are safe under WiFi -- no warning."""
+    d = _esp32_design_with_analog("GPIO34")  # ADC1, input-only
+    warnings = check_pin_compatibility(d, lib)
+    assert _by_code(warnings, "adc2_wifi_conflict") == []
+
+
+def test_adc2_warning_does_not_fire_on_digital_in(lib):
+    """A digital_in pin on an adc2-tagged GPIO is fine; ADC2 only matters
+    when the library pin's kind is analog_in."""
+    d = _load("garage-motion")
+    # The PIR is digital_in; if it lands on GPIO4 (adc2-tagged), no ADC2
+    # warning should fire.
+    for c in d["connections"]:
+        if c["component_id"] == "pir1" and c["pin_role"] == "OUT":
+            c["target"] = {"kind": "gpio", "pin": "GPIO4"}
+    warnings = check_pin_compatibility(d, lib)
+    assert _by_code(warnings, "adc2_wifi_conflict") == []
