@@ -4,17 +4,23 @@ Living planning doc. Captures vision, decisions, schemas, and phase plan.
 For day-to-day work tracking we'll spin off GitHub issues once a phase is
 in flight; this doc stays as the strategic reference and decision log.
 
-## Status (as of 2026-05-03)
+## Status (as of 2026-05-04)
 
-- **0.1 MVP is in main.** `python -m studio.generate examples/<name>.json`
+- **0.1 MVP shipped.** `python -m studio.generate examples/<name>.json`
   produces ESPHome YAML + ASCII diagrams pinned by goldens.
-- **5 example designs:** `garage-motion`, `awning-control`, `wasserpir`,
-  `oled`, `bluemotion`.
-- **Library:** 2 boards (`esp32-devkitc-v4`, `wemos-d1-mini`), 5 components
-  (`bme280`, `hc-sr501`, `ssd1306`, `mcp23008`, `ws2812b`).
-- **Tests:** 34 passing, ruff clean.
-- **Decided:** option 1 (`kind: expander_pin`) for expander wiring; will
-  land in PR2 of the moellere/esphome conversion sequence.
+- **0.2 HTTP API shipped.** FastAPI server at `python -m studio.api`,
+  endpoints under `/library/*`, `/design/*`, `/examples/*`. Auto-generated
+  OpenAPI docs at `/docs`. Pure layer over the generators, no server-side
+  state. Permissive CORS for the 0.3 web UI.
+- **12 example designs** spanning ESP8266 + ESP32 + ESP-IDF + Sonoff:
+  garage-motion, awning-control, wasserpir, oled, bluemotion,
+  distance-sensor, securitypanel, rc522, esp32-audio, bluesonoff,
+  wemosgps, ttgo-lora32.
+- **Library:** 6 boards, 14 components, 5 bus types (i2c/spi/uart/1wire/i2s),
+  4 connection target kinds (rail/gpio/bus/expander_pin).
+- **Tests:** 89 passing (CLI generators + API), ruff clean.
+- **Decided:** option 1 (`kind: expander_pin`) for expander wiring;
+  shipped. UI-first phasing: API → Web UI → USB bootstrap → Agent → CSP.
 
 ## Vision
 
@@ -57,16 +63,14 @@ UI-first ordering: a manual web UI ships before the agent so users have an
 immediate way in and the agent (when it arrives) lands in a working surface.
 
 - **0.1 — MVP pipeline.** ✅ Shipped. `design.json` → ESPHome YAML + ASCII.
-  No agent, no API, no UI. Goldens pinned. Library has 2 boards + 5 components.
-- **0.2 — HTTP API.** FastAPI server (matches distributed-esphome stack).
-  Endpoints:
-  - `GET  /library/boards`, `GET /library/boards/{id}`
-  - `GET  /library/components` (with category/use_case/bus filters),
-    `GET /library/components/{id}`
-  - `POST /design/validate` (returns design + warnings)
-  - `POST /design/render` (returns YAML + ASCII + BOM + power summary)
-  - `GET  /examples` (lists bundled examples; useful for the UI's seed picker)
-  Pure layer over the existing generators. No state on the server in 0.2.
+  Library scaffolding, generators, golden tests.
+- **0.2 — HTTP API.** ✅ Shipped. FastAPI server (`python -m studio.api`),
+  endpoints under `/library/*`, `/design/*`, `/examples/*`. Auto-generated
+  OpenAPI at `/docs`. CORS open for `localhost:5173`/`localhost:3000` so
+  0.3's UI can hit it directly. Pure layer over `studio.generate`, no
+  server-side state. /design/render currently returns `{yaml, ascii}`;
+  structured BOM + power-budget responses will be added when 0.3 needs
+  them rather than guessed at now.
 - **0.3 — Studio Web UI v1.** React 19 + Vite + Tailwind + shadcn. Three
   panels (see *Studio web UI* section below). No agent yet — manual edits
   only. Live ASCII + BOM + warnings re-render as the design changes.
