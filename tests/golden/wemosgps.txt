@@ -1,0 +1,25 @@
++-----------------------------------------------------------------------------------------------------------------------+
+|  WeMos D1 Mini  ---  wemosgps                                                                                         |
++-----------------------------------------------------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                                                                  |
+|                                                                                                                       |
+|  gps  [Generic UART GPS module (NEO-6M / NEO-8M)]  -- GPS                                                             |
+|    VCC   -> rail 5V                                                                                                   |
+|    GND   -> rail GND                                                                                                  |
+|    TX    -> my_uart (D2)                                                                                              |
+|    RX    -> my_uart (D1)                                                                                              |
+|                                                                                                                       |
+|  Passives:                                                                                                            |
+|    c1: 10uF capacitor, gps.VCC  <->  GND   (bulk decoupling for cold-start current)                                   |
+|                                                                                                                       |
+|  BOM:                                                                                                                 |
+|    - WeMos D1 Mini                                                                                                    |
+|    - Generic UART GPS module (NEO-6M / NEO-8M)  (gps)                                                                 |
+|    - 1x 10uF capacitor                                                                                                |
+|                                                                                                                       |
+|  Power: ~30mA typical, ~80mA peak (budget 500mA)  OK                                                                  |
+|                                                                                                                       |
+|  Warnings:                                                                                                            |
+|    [info] baud_rate_select_in_extras: Runtime baud-rate selector (template select with a lambda set_action) lives in  |
+|                                       esphome_extras.                                                                 |
++-----------------------------------------------------------------------------------------------------------------------+

@@ -42,12 +42,15 @@ class Bus(_Strict):
     id: str
     type: Literal["i2c", "spi", "uart", "1wire", "i2s"]
     frequency_hz: Optional[int] = None
+    baud_rate: Optional[int] = None
     sda: Optional[str] = None
     scl: Optional[str] = None
     miso: Optional[str] = None
     mosi: Optional[str] = None
     clk: Optional[str] = None
     cs: Optional[str] = None
+    rx: Optional[str] = None
+    tx: Optional[str] = None
     lrclk: Optional[str] = None
     bclk: Optional[str] = None
 

@@ -1,38 +1,39 @@
-+-------------------------------------------------------------------------------------------------------------------------------------------------+
-|  WeMos D1 Mini  ---  rc522                                                                                                                      |
-+-------------------------------------------------------------------------------------------------------------------------------------------------+
-|  Rails: 5V, 3V3, GND                                                                                                                            |
-|                                                                                                                                                 |
-|  reader  [NXP MFRC522 RFID reader (SPI)]  -- RFID Reader                                                                                        |
-|    VCC   -> rail 3V3                                                                                                                            |
-|    GND   -> rail GND                                                                                                                            |
-|    SCK   -> spi0 (D5)                                                                                                                           |
-|    MISO  -> spi0 (D6)                                                                                                                           |
-|    MOSI  -> spi0 (D7)                                                                                                                           |
-|    CS    -> D8                                                                                                                                  |
-|    RESET -> D4                                                                                                                                  |
-|                                                                                                                                                 |
-|  activity_led  [WS2812B addressable LED (NeoPixel)]  -- RC522 Reader LED                                                                        |
-|    VCC   -> rail 5V                                                                                                                             |
-|    GND   -> rail GND                                                                                                                            |
-|    DIN   -> D3                                                                                                                                  |
-|                                                                                                                                                 |
-|  rfid_button  [Generic GPIO binary sensor]  -- RC522 Reader Button                                                                              |
-|    IN    -> D1                                                                                                                                  |
-|                                                                                                                                                 |
-|  Passives:                                                                                                                                      |
-|    c1: 100nF capacitor, reader.VCC  <->  GND   (decoupling reader)                                                                              |
-|    c2: 100nF capacitor, activity_led.VCC  <->  GND   (decoupling neopixel)                                                                      |
-|                                                                                                                                                 |
-|  BOM:                                                                                                                                           |
-|    - WeMos D1 Mini                                                                                                                              |
-|    - NXP MFRC522 RFID reader (SPI)  (reader)                                                                                                    |
-|    - WS2812B addressable LED (NeoPixel)  (activity_led)                                                                                         |
-|    - Generic GPIO binary sensor  (rfid_button)                                                                                                  |
-|    - 2x 100nF capacitor                                                                                                                         |
-|                                                                                                                                                 |
-|  Power: ~33mA typical, ~86mA peak (budget 500mA)  OK                                                                                            |
-|                                                                                                                                                 |
-|  Warnings:                                                                                                                                      |
-|    [info] buzzer_in_extras: Piezo buzzer (esp8266_pwm output) and RTTTL block live in esphome_extras until a buzzer/rtttl library entry lands.  |
-+-------------------------------------------------------------------------------------------------------------------------------------------------+
++---------------------------------------------------------------------------------------------------------------+
+|  WeMos D1 Mini  ---  rc522                                                                                    |
++---------------------------------------------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                                                          |
+|                                                                                                               |
+|  reader  [NXP MFRC522 RFID reader (SPI)]  -- RFID Reader                                                      |
+|    VCC   -> rail 3V3                                                                                          |
+|    GND   -> rail GND                                                                                          |
+|    SCK   -> spi0 (D5)                                                                                         |
+|    MISO  -> spi0 (D6)                                                                                         |
+|    MOSI  -> spi0 (D7)                                                                                         |
+|    CS    -> D8                                                                                                |
+|    RESET -> D4                                                                                                |
+|                                                                                                               |
+|  activity_led  [WS2812B addressable LED (NeoPixel)]  -- RC522 Reader LED                                      |
+|    VCC   -> rail 5V                                                                                           |
+|    GND   -> rail GND                                                                                          |
+|    DIN   -> D3                                                                                                |
+|                                                                                                               |
+|  rfid_button  [Generic GPIO binary sensor]  -- RC522 Reader Button                                            |
+|    IN    -> D1                                                                                                |
+|                                                                                                               |
+|  Passives:                                                                                                    |
+|    c1: 100nF capacitor, reader.VCC  <->  GND   (decoupling reader)                                            |
+|    c2: 100nF capacitor, activity_led.VCC  <->  GND   (decoupling neopixel)                                    |
+|                                                                                                               |
+|  BOM:                                                                                                         |
+|    - WeMos D1 Mini                                                                                            |
+|    - NXP MFRC522 RFID reader (SPI)  (reader)                                                                  |
+|    - WS2812B addressable LED (NeoPixel)  (activity_led)                                                       |
+|    - Generic GPIO binary sensor  (rfid_button)                                                                |
+|    - 2x 100nF capacitor                                                                                       |
+|                                                                                                               |
+|  Power: ~33mA typical, ~86mA peak (budget 500mA)  OK                                                          |
+|                                                                                                               |
+|  Warnings:                                                                                                    |
+|    [info] buzzer_in_extras: Piezo buzzer (esp8266_pwm output) and RTTTL block live in esphome_extras until a  |
+|                             buzzer/rtttl library entry lands.                                                 |
++---------------------------------------------------------------------------------------------------------------+

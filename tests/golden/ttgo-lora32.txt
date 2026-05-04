@@ -1,0 +1,40 @@
++----------------------------------------------------------------------------------------------------------------+
+|  TTGO LoRa32 V1 (T3)  ---  ttgo-lora32                                                                         |
++----------------------------------------------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                                                           |
+|                                                                                                                |
+|  lora  [Semtech SX1276/SX1278 LoRa radio (SPI)]  -- LoRa Radio                                                 |
+|    VCC   -> rail 3V3                                                                                           |
+|    GND   -> rail GND                                                                                           |
+|    SCK   -> spi0 (GPIO5)                                                                                       |
+|    MISO  -> spi0 (GPIO19)                                                                                      |
+|    MOSI  -> spi0 (GPIO27)                                                                                      |
+|    CS    -> GPIO18                                                                                             |
+|    RST   -> GPIO23                                                                                             |
+|    DIO0  -> GPIO26                                                                                             |
+|                                                                                                                |
+|  screen  [SSD1306 OLED display (I2C)]  -- TTGO OLED                                                            |
+|    VCC   -> rail 3V3                                                                                           |
+|    GND   -> rail GND                                                                                           |
+|    SDA   -> i2c0 (GPIO21)                                                                                      |
+|    SCL   -> i2c0 (GPIO22)                                                                                      |
+|                                                                                                                |
+|  Passives:                                                                                                     |
+|    c1: 10uF capacitor, lora.VCC  <->  GND   (bulk decoupling LoRa TX bursts)                                   |
+|    c2: 100nF capacitor, screen.VCC  <->  GND   (decoupling oled)                                               |
+|                                                                                                                |
+|  BOM:                                                                                                          |
+|    - TTGO LoRa32 V1 (T3)                                                                                       |
+|    - Semtech SX1276/SX1278 LoRa radio (SPI)  (lora)                                                            |
+|    - SSD1306 OLED display (I2C)  (screen)                                                                      |
+|    - 1x 10uF capacitor                                                                                         |
+|    - 1x 100nF capacitor                                                                                        |
+|                                                                                                                |
+|  Power: ~20mA typical, ~150mA peak (budget 500mA)  OK                                                          |
+|                                                                                                                |
+|  Warnings:                                                                                                     |
+|    [info] battery_adc_in_extras: Battery ADC sensor + wifi_signal sensor + font + send-packet template button  |
+|                                  live in esphome_extras.                                                       |
+|    [warn] regional_frequency: Frequency 915MHz is legal in US/AU/SG; EU should use 868MHz, JP 923MHz. Verify   |
+|                               before deploying.                                                                |
++----------------------------------------------------------------------------------------------------------------+

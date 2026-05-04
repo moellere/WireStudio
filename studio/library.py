@@ -73,6 +73,7 @@ class LibraryBoard(_Strict):
     flash_size_mb: Optional[int] = None
     rails: list[Rail] = Field(default_factory=list)
     default_buses: dict = Field(default_factory=dict)
+    onboard_peripherals: dict = Field(default_factory=dict)
     gpio_capabilities: dict[str, list[str]] = Field(default_factory=dict)
 
 

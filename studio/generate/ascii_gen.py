@@ -1,7 +1,21 @@
 from __future__ import annotations
 
+import textwrap
+
 from studio.library import Library
-from studio.model import Design
+from studio.model import Bus, Design
+
+
+def _bus_signal(bus: Bus, role: str) -> str | None:
+    # UART is crossed: peripheral TX pin physically wires to the MCU's RX pin
+    # (bus.rx), and the peripheral RX wires to the MCU's TX (bus.tx).
+    table: dict[str, dict[str, str | None]] = {
+        "i2c":  {"SDA": bus.sda, "SCL": bus.scl},
+        "spi":  {"CLK": bus.clk, "SCK": bus.clk, "MISO": bus.miso, "MOSI": bus.mosi},
+        "i2s":  {"LRCLK": bus.lrclk, "BCLK": bus.bclk},
+        "uart": {"RX": bus.tx, "TX": bus.rx},
+    }
+    return table.get(bus.type, {}).get(role)
 
 
 def _box(title: str, lines: list[str]) -> str:
@@ -34,19 +48,14 @@ def render_ascii(design: Design, library: Library) -> str:
                 lines.append(f"  {conn.pin_role:<5} -> rail {t.rail}")
             elif t.kind == "bus":
                 bus = next((b for b in design.buses if b.id == t.bus_id), None)
-                if bus and bus.type == "i2c":
-                    pin = bus.sda if conn.pin_role == "SDA" else bus.scl if conn.pin_role == "SCL" else "?"
-                    lines.append(f"  {conn.pin_role:<5} -> {bus.id} ({pin})")
-                elif bus and bus.type == "spi":
-                    pin_map = {"CLK": bus.clk, "MISO": bus.miso, "MOSI": bus.mosi, "SCK": bus.clk}
-                    pin = pin_map.get(conn.pin_role, "?")
-                    lines.append(f"  {conn.pin_role:<5} -> {bus.id} ({pin})")
-                elif bus and bus.type == "i2s":
-                    pin_map = {"LRCLK": bus.lrclk, "BCLK": bus.bclk}
-                    pin = pin_map.get(conn.pin_role, "?")
-                    lines.append(f"  {conn.pin_role:<5} -> {bus.id} ({pin})")
-                else:
+                if bus is None:
                     lines.append(f"  {conn.pin_role:<5} -> bus {t.bus_id}")
+                else:
+                    signal = _bus_signal(bus, conn.pin_role)
+                    if signal:
+                        lines.append(f"  {conn.pin_role:<5} -> {bus.id} ({signal})")
+                    else:
+                        lines.append(f"  {conn.pin_role:<5} -> {bus.id} ({bus.type})")
             elif t.kind == "expander_pin":
                 mode = f" {t.mode}" if t.mode else ""
                 inv = " inverted" if t.inverted else ""
@@ -92,7 +101,12 @@ def render_ascii(design: Design, library: Library) -> str:
         lines.append("")
         lines.append("Warnings:")
         for w in design.warnings:
-            lines.append(f"  [{w.level}] {w.code}: {w.text}")
+            head = f"  [{w.level}] {w.code}: "
+            wrapped = textwrap.wrap(w.text, width=80) or [""]
+            lines.append(head + wrapped[0])
+            indent = " " * len(head)
+            for cont in wrapped[1:]:
+                lines.append(indent + cont)
     else:
         lines.append("")
         lines.append("Warnings: none")

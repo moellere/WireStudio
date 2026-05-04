@@ -169,6 +169,15 @@ def build_yaml_dict(design: Design, library: Library) -> dict[str, Any]:
             # ESPHome's i2s_audio block is a singleton, no id; keep the bus.id
             # in design.json for reference but don't emit it.
             out["i2s_audio"] = i2s_entry
+        elif bus.type == "uart":
+            uart_entry: dict[str, Any] = {"id": bus.id}
+            if bus.rx:
+                uart_entry["rx_pin"] = bus.rx
+            if bus.tx:
+                uart_entry["tx_pin"] = bus.tx
+            if bus.baud_rate:
+                uart_entry["baud_rate"] = bus.baud_rate
+            out.setdefault("uart", []).append(uart_entry)
 
     for comp in design.components:
         _deep_merge(out, _render_component(comp, design, library))
@@ -183,8 +192,33 @@ def build_yaml_dict(design: Design, library: Library) -> dict[str, Any]:
 #  1. tag-then-quote: `!secret 'api_key'` -- emitted by the Secret class.
 #  2. quote-then-tag: `'!lambda return x;'` -- emitted by PyYAML when an ordinary
 #     string starts with `!`, since it would otherwise be parsed as a tag.
+# We only strip quotes when the inner content is safe as a plain YAML scalar;
+# otherwise the unquoted form would parse as malformed mapping/comment syntax.
 _TAGGED_THEN_QUOTED = re.compile(r"!(secret|lambda) '([^']*)'")
 _QUOTED_TAG = re.compile(r"'(!(?:secret|lambda) [^']*)'")
+
+
+def _plain_scalar_safe(content: str) -> bool:
+    if ": " in content or " #" in content or "\t" in content:
+        return False
+    if content.startswith(("[", "{", "&", "*", "?", ",", "-")):
+        return False
+    return True
+
+
+def _unquote_tagged(match: re.Match[str]) -> str:
+    tag, content = match.group(1), match.group(2)
+    if _plain_scalar_safe(content):
+        return f"!{tag} {content}"
+    return match.group(0)
+
+
+def _unquote_quoted_tag(match: re.Match[str]) -> str:
+    inner = match.group(1)  # e.g. "!lambda return x;"
+    _tag, _, content = inner.partition(" ")
+    if _plain_scalar_safe(content):
+        return inner
+    return match.group(0)
 
 
 def render_yaml(design: Design, library: Library) -> str:
@@ -196,6 +230,6 @@ def render_yaml(design: Design, library: Library) -> str:
         allow_unicode=True,
         width=120,
     )
-    text = _TAGGED_THEN_QUOTED.sub(r"!\1 \2", text)
-    text = _QUOTED_TAG.sub(r"\1", text)
+    text = _TAGGED_THEN_QUOTED.sub(_unquote_tagged, text)
+    text = _QUOTED_TAG.sub(_unquote_quoted_tag, text)
     return text

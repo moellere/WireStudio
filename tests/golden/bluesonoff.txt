@@ -1,0 +1,25 @@
++---------------------------------------------------------------------------------------------------------------------+
+|  ESP-01S 1MB module / Sonoff Basic  ---  bluesonoff                                                                 |
++---------------------------------------------------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                                                                |
+|                                                                                                                     |
+|  front_button  [Generic GPIO binary sensor]  -- Soffit Outlet Switch                                                |
+|    IN    -> GPIO0                                                                                                   |
+|                                                                                                                     |
+|  soffitoutlets  [Generic GPIO switch / relay output]  -- Soffit Outlets                                             |
+|    OUT   -> GPIO12                                                                                                  |
+|                                                                                                                     |
+|  BOM:                                                                                                               |
+|    - ESP-01S 1MB module / Sonoff Basic                                                                              |
+|    - Generic GPIO binary sensor  (front_button)                                                                     |
+|    - Generic GPIO switch / relay output  (soffitoutlets)                                                            |
+|                                                                                                                     |
+|  Power: ~0mA typical, ~0mA peak (budget 250mA)  OK                                                                  |
+|                                                                                                                     |
+|  Warnings:                                                                                                          |
+|    [warn] strap_pin_used_as_button: GPIO0 is a strap pin (must be HIGH at boot to enter normal mode). Sonoff Basic  |
+|                                     ties it through the front button to 3V3 with a pull-up; pressing the button at  |
+|                                     boot WILL force flash mode. Acceptable on a deployed device, but not flexible.  |
+|    [info] status_led_in_extras: ESPHome's status_led is a singleton platform with no library entry yet -- lives     |
+|                                 in esphome_extras.                                                                  |
++---------------------------------------------------------------------------------------------------------------------+
