@@ -1,0 +1,20 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", monospace;
+}
+
+@layer base {
+  html, body, #root {
+    height: 100%;
+  }
+  body {
+    margin: 0;
+    color-scheme: dark;
+    background: #0c0d10;
+    color: #e6e7ea;
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+}

@@ -9,10 +9,11 @@ which handles compile + OTA deploy.
 
 ## Status
 
-`0.2` — HTTP API in addition to the CLI. `design.json` (the source of truth)
-→ ESPHome YAML + ASCII diagram + BOM, exposed both via `python -m
-studio.generate` and via a FastAPI server. No web UI, no agent yet — those
-are 0.3 and 0.5. See [`START.md`](START.md) for the roadmap.
+`0.3` (in flight) — Studio web UI v1: read-only three-pane layout (examples
+sidebar, design preview, inspector) wired to the 0.2 HTTP API. Editing
+forms, drag-and-drop, and the agent sidebar come in later iterations.
+See [`web/README.md`](web/README.md) for UI details and
+[`START.md`](START.md) for the full roadmap.
 
 ## Quickstart
 
@@ -39,6 +40,20 @@ python -m studio.api --reload           # dev mode (auto-reload on edits)
 ```
 
 Browse the auto-generated OpenAPI docs at <http://127.0.0.1:8765/docs>.
+
+### Web UI
+
+```sh
+# In one terminal:
+python -m studio.api
+
+# In another:
+cd web && npm install && npm run dev
+```
+
+Open <http://localhost:5173>. Vite proxies `/api/*` to the studio API,
+so no CORS plumbing in dev. Read-only for now: pick an example from the
+left sidebar to see its rendered YAML, ASCII diagram, and design metadata.
 
 Useful endpoints:
 
@@ -163,7 +178,7 @@ same diff as the code change.
 
 - **0.1** ✅ pipeline + library scaffolding
 - **0.2** ✅ HTTP API (FastAPI) — same generators, exposed over JSON
-- **0.3** Studio web UI v1 — board picker, component browser, live diagram
+- **0.3** 🚧 Studio web UI v1 — read-only three-pane shell shipped; editing forms next
 - **0.4** USB device bootstrap via WebSerial / esptool-js
 - **0.5** Agent layer (Claude tool-using, in the UI sidebar)
 - **0.6** CSP solver — pin/bus/budget assignment + ranked recommendations

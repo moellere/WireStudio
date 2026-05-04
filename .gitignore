@@ -16,3 +16,8 @@ sessions/
 .env.local
 *.swp
 .DS_Store
+
+# Web frontend
+web/node_modules/
+web/dist/
+web/.vite/

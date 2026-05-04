@@ -12,6 +12,12 @@ in flight; this doc stays as the strategic reference and decision log.
   endpoints under `/library/*`, `/design/*`, `/examples/*`. Auto-generated
   OpenAPI docs at `/docs`. Pure layer over the generators, no server-side
   state. Permissive CORS for the 0.3 web UI.
+- **0.3 web UI v1 in flight.** React 19 + Vite + Tailwind v4 under `web/`.
+  Three-pane layout (examples/library sidebar / design preview /
+  inspector). Read-only this iteration: pick an example, see its rendered
+  YAML + ASCII + design metadata, browse boards and components from the
+  library. Vite dev server proxies `/api/*` to the studio API on :8765
+  so there's no CORS plumbing during development.
 - **12 example designs** spanning ESP8266 + ESP32 + ESP-IDF + Sonoff:
   garage-motion, awning-control, wasserpir, oled, bluemotion,
   distance-sensor, securitypanel, rc522, esp32-audio, bluesonoff,
@@ -71,9 +77,14 @@ immediate way in and the agent (when it arrives) lands in a working surface.
   server-side state. /design/render currently returns `{yaml, ascii}`;
   structured BOM + power-budget responses will be added when 0.3 needs
   them rather than guessed at now.
-- **0.3 — Studio Web UI v1.** React 19 + Vite + Tailwind + shadcn. Three
-  panels (see *Studio web UI* section below). No agent yet — manual edits
-  only. Live ASCII + BOM + warnings re-render as the design changes.
+- **0.3 — Studio Web UI v1.** React 19 + Vite + Tailwind v4 under `web/`.
+  Three-pane layout: left sidebar (examples / boards / components with
+  search), center design pane (ASCII / YAML / JSON tabs + design header),
+  right inspector (read-only details for design/board/component). First
+  iteration shipped read-only: pick an example, see its rendered output
+  via `POST /design/render`. Editing forms, drag-and-drop, and the agent
+  sidebar are follow-on iterations within 0.3 / spilling into 0.5. Live
+  re-render on every state change once edits land.
 - **0.4 — USB device bootstrap.** "Connect device" button →
   [`esptool-js`](https://github.com/espressif/esptool-js) over WebSerial in
   the browser. Detects chip variant, flash size, MAC. Cross-references
