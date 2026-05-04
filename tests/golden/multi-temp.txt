@@ -1,0 +1,34 @@
++-----------------------------------------------------------------------------------------+
+|  WeMos D1 Mini  ---  multi-temp                                                         |
++-----------------------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                                    |
+|                                                                                         |
+|  supply_temp  [DS18B20 1-wire temperature sensor]  -- Boiler supply                     |
+|    VCC   -> rail 3V3                                                                    |
+|    GND   -> rail GND                                                                    |
+|    DATA  -> wire0 (1wire)                                                               |
+|                                                                                         |
+|  return_temp  [DS18B20 1-wire temperature sensor]  -- Boiler return                     |
+|    VCC   -> rail 3V3                                                                    |
+|    GND   -> rail GND                                                                    |
+|    DATA  -> wire0 (1wire)                                                               |
+|                                                                                         |
+|  radar1  [RCWL-0516 microwave motion sensor]  -- Boiler room presence                   |
+|    VCC   -> rail 5V                                                                     |
+|    GND   -> rail GND                                                                    |
+|    OUT   -> D5                                                                          |
+|                                                                                         |
+|  Passives:                                                                              |
+|    r1: 4.7k resistor, wire0  <->  3V3   (1-wire bus pull-up (shared by both DS18B20s))  |
+|                                                                                         |
+|  BOM:                                                                                   |
+|    - WeMos D1 Mini                                                                      |
+|    - DS18B20 1-wire temperature sensor  (supply_temp)                                   |
+|    - DS18B20 1-wire temperature sensor  (return_temp)                                   |
+|    - RCWL-0516 microwave motion sensor  (radar1)                                        |
+|    - 1x 4.7k resistor                                                                   |
+|                                                                                         |
+|  Power: ~5mA typical, ~8mA peak (budget 500mA)  OK                                      |
+|                                                                                         |
+|  Warnings: none                                                                         |
++-----------------------------------------------------------------------------------------+

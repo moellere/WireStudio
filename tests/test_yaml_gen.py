@@ -276,46 +276,61 @@ def _wemos_d1_mini_skeleton(components: list[dict], connections: list[dict]) -> 
     return base
 
 
-def test_ds18b20_renders_one_wire_and_dallas_blocks(library):
+def test_multi_temp_matches_golden(multi_temp_design, library, golden_dir):
+    expected = (golden_dir / "multi-temp.yaml").read_text()
+    actual = render_yaml(multi_temp_design, library)
+    assert actual == expected
+
+
+def test_ds18b20_renders_dallas_temp_pointing_at_bus(library):
+    """A DS18B20 wired to a 1-wire bus emits dallas_temp with one_wire_id
+    matching the bus id; the bus block itself comes from yaml_gen's
+    bus-rendering loop (the component template no longer contains it)."""
     design_dict = _wemos_d1_mini_skeleton(
         components=[{"id": "temp1", "library_id": "ds18b20", "label": "Temp 1", "params": {}}],
         connections=[
             {"component_id": "temp1", "pin_role": "VCC",  "target": {"kind": "rail", "rail": "3V3"}},
             {"component_id": "temp1", "pin_role": "GND",  "target": {"kind": "rail", "rail": "GND"}},
-            {"component_id": "temp1", "pin_role": "DATA", "target": {"kind": "gpio", "pin": "D6"}},
+            {"component_id": "temp1", "pin_role": "DATA", "target": {"kind": "bus", "bus_id": "wire0"}},
         ],
     )
+    design_dict["buses"] = [{"id": "wire0", "type": "1wire", "pin": "D6"}]
     parsed = yaml.unsafe_load(render_yaml(Design.model_validate(design_dict), library))
-    assert parsed["one_wire"] == [{"platform": "gpio", "pin": "D6", "id": "temp1_bus"}]
+    assert parsed["one_wire"] == [{"platform": "gpio", "pin": "D6", "id": "wire0"}]
     sensors = [s for s in parsed.get("sensor") or [] if s.get("platform") == "dallas_temp"]
     assert len(sensors) == 1
-    assert sensors[0]["one_wire_id"] == "temp1_bus"
+    assert sensors[0]["one_wire_id"] == "wire0"
     assert sensors[0]["update_interval"] == "60s"
 
 
-def test_two_ds18b20_instances_merge_one_wire_lists(library):
-    """Two DS18B20s on different pins each contribute their own one_wire
-    and dallas_temp entries; _deep_merge concatenates the lists rather
-    than dropping one."""
+def test_two_ds18b20_instances_share_a_single_one_wire_bus(library):
+    """Two DS18B20s wired to the same 1-wire bus emit a SINGLE one_wire
+    block and two dallas_temp sensors pointing at it. This is the
+    primary motivation for promoting 1-wire to a real bus type."""
     design_dict = _wemos_d1_mini_skeleton(
         components=[
-            {"id": "temp1", "library_id": "ds18b20", "label": "Temp 1", "params": {}},
-            {"id": "temp2", "library_id": "ds18b20", "label": "Temp 2", "params": {}},
+            {"id": "temp1", "library_id": "ds18b20", "label": "Temp 1",
+             "params": {"address": "0x1c0000031edd2a28"}},
+            {"id": "temp2", "library_id": "ds18b20", "label": "Temp 2",
+             "params": {"address": "0xa20000031e1c2828"}},
         ],
         connections=[
             {"component_id": "temp1", "pin_role": "VCC",  "target": {"kind": "rail", "rail": "3V3"}},
             {"component_id": "temp1", "pin_role": "GND",  "target": {"kind": "rail", "rail": "GND"}},
-            {"component_id": "temp1", "pin_role": "DATA", "target": {"kind": "gpio", "pin": "D5"}},
+            {"component_id": "temp1", "pin_role": "DATA", "target": {"kind": "bus", "bus_id": "wire0"}},
             {"component_id": "temp2", "pin_role": "VCC",  "target": {"kind": "rail", "rail": "3V3"}},
             {"component_id": "temp2", "pin_role": "GND",  "target": {"kind": "rail", "rail": "GND"}},
-            {"component_id": "temp2", "pin_role": "DATA", "target": {"kind": "gpio", "pin": "D6"}},
+            {"component_id": "temp2", "pin_role": "DATA", "target": {"kind": "bus", "bus_id": "wire0"}},
         ],
     )
+    design_dict["buses"] = [{"id": "wire0", "type": "1wire", "pin": "D6"}]
     parsed = yaml.unsafe_load(render_yaml(Design.model_validate(design_dict), library))
-    bus_ids = {b["id"] for b in parsed["one_wire"]}
-    assert bus_ids == {"temp1_bus", "temp2_bus"}
+    assert parsed["one_wire"] == [{"platform": "gpio", "pin": "D6", "id": "wire0"}]
     sensors = [s for s in parsed["sensor"] if s.get("platform") == "dallas_temp"]
-    assert {s["one_wire_id"] for s in sensors} == {"temp1_bus", "temp2_bus"}
+    assert len(sensors) == 2
+    assert {s["one_wire_id"] for s in sensors} == {"wire0"}
+    # Each sensor renders its own address.
+    assert {s["address"] for s in sensors} == {"0x1c0000031edd2a28", "0xa20000031e1c2828"}
 
 
 def test_rcwl_0516_renders_motion_binary_sensor(library):

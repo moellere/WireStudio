@@ -53,6 +53,9 @@ class Bus(_Strict):
     tx: Optional[str] = None
     lrclk: Optional[str] = None
     bclk: Optional[str] = None
+    # 1-wire data pin. Single-wire bus, so the bus carries one pin field
+    # rather than the multi-pin sets the synchronous buses use.
+    pin: Optional[str] = None
 
 
 class RailTarget(_Strict):

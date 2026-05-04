@@ -1,0 +1,35 @@
+esphome:
+  name: multi-temp
+esp8266:
+  board: d1_mini
+logger: {}
+api:
+  encryption:
+    key: !secret api_key
+ota:
+- platform: esphome
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+one_wire:
+- platform: gpio
+  pin: D6
+  id: wire0
+sensor:
+- platform: dallas_temp
+  one_wire_id: wire0
+  name: Boiler supply
+  address: '0x1c0000031edd2a28'
+  update_interval: 30s
+  resolution: 12
+- platform: dallas_temp
+  one_wire_id: wire0
+  name: Boiler return
+  address: '0xa20000031e1c2828'
+  update_interval: 30s
+  resolution: 12
+binary_sensor:
+- platform: gpio
+  pin: D5
+  name: Boiler room presence
+  device_class: motion

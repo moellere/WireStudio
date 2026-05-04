@@ -94,5 +94,10 @@ def ttgo_lora32_design() -> Design:
 
 
 @pytest.fixture
+def multi_temp_design() -> Design:
+    return Design.model_validate(json.loads((REPO_ROOT / "examples" / "multi-temp.json").read_text()))
+
+
+@pytest.fixture
 def golden_dir() -> Path:
     return Path(__file__).parent / "golden"

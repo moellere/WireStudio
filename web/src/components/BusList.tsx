@@ -23,7 +23,8 @@ const PIN_SLOTS_BY_TYPE: Record<BusType, string[]> = {
   spi:   ["clk", "miso", "mosi"],
   uart:  ["tx", "rx"],
   i2s:   ["lrclk", "bclk"],
-  "1wire": [],
+  // Single-pin 1-wire bus. Multiple slaves (DS18B20s, etc.) share it.
+  "1wire": ["pin"],
 };
 
 export function BusList({
@@ -184,11 +185,7 @@ function BusCard({
       </div>
 
       {slots.length === 0 ? (
-        <div className="text-[11px] text-zinc-500">
-          {type === "1wire"
-            ? "1-wire pin lives on each component's connection target, not on the bus."
-            : "no bus-level pins"}
-        </div>
+        <div className="text-[11px] text-zinc-500">no bus-level pins</div>
       ) : (
         <div className="grid grid-cols-[auto_1fr] items-center gap-x-2 gap-y-1">
           {slots.map((slot) => (

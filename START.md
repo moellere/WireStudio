@@ -32,12 +32,23 @@ stays as a back-compat wrapper. Pytest +21 (179 total), vitest 49, ruff
 - Drag-and-drop pinout (long-running: 0.3 already pre-flagged this as
   a follow-on iteration)
 - Library expansion: ADS1115 4-channel I2C ADC + MPU6050 6-axis IMU
-- 1-wire bus type promotion: a proper `Bus` field for the DATA pin
-  so multiple DS18B20s can share a single physical bus (today each
-  instance creates its own `<id>_bus`; works but wasteful with many
-  sensors on one wire)
-- Goldens for the new components (a one-DS18B20 + one-RCWL design
-  pinned to `tests/golden/`)
+
+**1-wire bus type promotion shipped.** The `Bus` model gains a `pin`
+field (single-pin bus, parallel to the multi-pin sets on i2c/spi).
+yaml_gen renders a top-level `one_wire:` block per 1-wire bus
+(`{platform: gpio, pin, id}`) so multiple sensors on a shared physical
+bus emit a single bus block, not one per sensor. The DS18B20 template
+no longer carries a `one_wire:` block of its own -- it reads `bus.id`
+and emits `dallas_temp` with the matching `one_wire_id`. Pin-solver
+and bus-pin compatibility checks gain a `1wire` entry; the BusList
+editor surfaces a `pin` field on 1wire cards instead of the previous
+"lives on each component" placeholder. design.ts's `neededBusTypes`
+and `defaultTargetForPin` recognise the new `onewire_data` pin kind.
+
+New `examples/multi-temp.json` + golden artifacts pin the round-trip:
+two DS18B20s with distinct ROM addresses sharing `wire0` on D6 plus
+an RCWL-0516 microwave motion sensor on D5. 4 new pytest cases (2
+yaml-gen, 1 ascii-gen golden, 1 yaml-gen single-instance smoke).
 
 **Strict-only push gate shipped.** `POST /fleet/push` now accepts
 `strict: bool` and refuses the push with the same `strict_mode_blocked`
