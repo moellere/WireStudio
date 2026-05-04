@@ -147,3 +147,23 @@ class Recommendation(_S):
 class RecommendResponse(_S):
     query: str
     matches: list[Recommendation]
+
+
+class SaveDesignRequest(_S):
+    design: dict
+    design_id: Optional[str] = None  # if absent, derived from design.id
+
+
+class SaveDesignResponse(_S):
+    id: str
+    saved_at: str
+
+
+class SavedDesignSummary(_S):
+    id: str
+    name: str
+    description: str
+    board_library_id: str
+    chip_family: str
+    saved_at: str
+    component_count: int

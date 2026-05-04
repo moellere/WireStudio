@@ -1,14 +1,18 @@
 import { useMemo, useState } from "react";
-import type { BoardSummary, ComponentSummary, ExampleSummary } from "../types/api";
+import type { BoardSummary, ComponentSummary, ExampleSummary, SavedDesignSummary } from "../types/api";
 
-type Tab = "examples" | "boards" | "components";
+type Tab = "examples" | "saved" | "boards" | "components";
 
 interface Props {
   examples: ExampleSummary[] | null;
+  saved: SavedDesignSummary[] | null;
   boards: BoardSummary[] | null;
   components: ComponentSummary[] | null;
   selectedExample: string | null;
+  selectedSaved: string | null;
   onSelectExample: (id: string) => void;
+  onSelectSaved: (id: string) => void;
+  onDeleteSaved: (id: string) => void;
   onSelectBoard: (id: string) => void;
   onSelectComponent: (id: string) => void;
 }
@@ -20,7 +24,7 @@ export function LeftSidebar(props: Props) {
   return (
     <aside className="flex min-h-0 flex-col border-r border-zinc-800">
       <div className="flex border-b border-zinc-800 text-xs">
-        {(["examples", "boards", "components"] as const).map((t) => (
+        {(["examples", "saved", "boards", "components"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -31,6 +35,9 @@ export function LeftSidebar(props: Props) {
             }`}
           >
             {t}
+            {t === "saved" && props.saved && props.saved.length > 0 && (
+              <span className="ml-1 text-[10px] text-zinc-500">({props.saved.length})</span>
+            )}
           </button>
         ))}
       </div>
@@ -50,6 +57,15 @@ export function LeftSidebar(props: Props) {
             onSelect={props.onSelectExample}
           />
         )}
+        {tab === "saved" && (
+          <SavedList
+            items={props.saved}
+            search={search}
+            selected={props.selectedSaved}
+            onSelect={props.onSelectSaved}
+            onDelete={props.onDeleteSaved}
+          />
+        )}
         {tab === "boards" && (
           <BoardsList items={props.boards} search={search} onSelect={props.onSelectBoard} />
         )}
@@ -59,6 +75,79 @@ export function LeftSidebar(props: Props) {
       </div>
     </aside>
   );
+}
+
+function SavedList({
+  items, search, selected, onSelect, onDelete,
+}: {
+  items: SavedDesignSummary[] | null;
+  search: string;
+  selected: string | null;
+  onSelect: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const filtered = useMemo(() => {
+    if (!items) return null;
+    const q = search.trim().toLowerCase();
+    return q ? items.filter((s) => s.id.toLowerCase().includes(q) || s.name.toLowerCase().includes(q)) : items;
+  }, [items, search]);
+
+  if (filtered === null) return <Loading />;
+  if (filtered.length === 0) {
+    return (
+      <div className="px-2 py-3 text-xs text-zinc-500">
+        No saved designs yet. Click <span className="font-mono text-zinc-400">Save</span> in the
+        header to persist the current design here.
+      </div>
+    );
+  }
+
+  return (
+    <ul className="space-y-1 text-sm">
+      {filtered.map((s) => {
+        const active = selected === s.id;
+        return (
+          <li key={s.id} className="flex items-stretch gap-1">
+            <button
+              onClick={() => onSelect(s.id)}
+              className={`flex-1 rounded px-2 py-1.5 text-left transition-colors ${
+                active
+                  ? "bg-blue-500/15 text-blue-100 ring-1 ring-blue-400/40"
+                  : "hover:bg-zinc-900"
+              }`}
+            >
+              <div className="truncate font-medium">{s.name || s.id}</div>
+              <div className="mt-0.5 truncate text-xs text-zinc-500">
+                {s.chip_family} · {s.board_library_id} · {s.component_count} comp
+              </div>
+              <div className="mt-0.5 truncate text-[10px] text-zinc-600">
+                saved {relativeTime(s.saved_at)}
+              </div>
+            </button>
+            <button
+              onClick={() => {
+                if (confirm(`Delete saved design "${s.name || s.id}"?`)) onDelete(s.id);
+              }}
+              title={`Delete ${s.id}`}
+              className="rounded border border-zinc-800 px-2 text-xs text-zinc-500 transition-colors hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-300"
+            >
+              ✕
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function relativeTime(iso: string): string {
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return iso;
+  const dSec = (Date.now() - t) / 1000;
+  if (dSec < 60) return "just now";
+  if (dSec < 3600) return `${Math.round(dSec / 60)}m ago`;
+  if (dSec < 86400) return `${Math.round(dSec / 3600)}h ago`;
+  return `${Math.round(dSec / 86400)}d ago`;
 }
 
 function ExamplesList({

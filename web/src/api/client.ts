@@ -7,6 +7,8 @@ import type {
   ComponentSummary,
   ExampleSummary,
   RenderResponse,
+  SaveDesignResponse,
+  SavedDesignSummary,
   SolvePinsResponse,
   ValidateResponse,
   Design,
@@ -74,6 +76,18 @@ export const api = {
     }),
   agentSession: (id: string) =>
     request<AgentSession>(`/agent/sessions/${encodeURIComponent(id)}`),
+
+  listSavedDesigns: () => request<SavedDesignSummary[]>("/designs"),
+  getSavedDesign: (id: string) => request<Design>(`/designs/${encodeURIComponent(id)}`),
+  saveDesign: (design: Design, designId?: string) =>
+    request<SaveDesignResponse>("/designs", {
+      method: "POST",
+      body: JSON.stringify({ design, design_id: designId }),
+    }),
+  deleteSavedDesign: (id: string) =>
+    request<{ deleted: boolean; id: string }>(`/designs/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    }),
 };
 
 /**
