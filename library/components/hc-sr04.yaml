@@ -47,3 +47,9 @@ params_schema:
   timeout: { type: string, default: "2m" }
 
 notes: "ECHO pin is 5V on bare HC-SR04. ESP boards are not 5V-tolerant; add a voltage divider or use HC-SR04P (3.3V) variant. ESPHome's ultrasonic platform internally limits range to ~4m."
+# KiCad symbol mapping (0.9 schematic export). Generic 4-pin header
+# (VCC, TRIG, ECHO, GND).
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x04
+  value: HC-SR04

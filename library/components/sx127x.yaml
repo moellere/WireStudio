@@ -81,3 +81,10 @@ params_schema:
   rx_start:         { type: boolean, default: true }
 
 notes: "ESPHome's `sx127x` is a singleton. The module typically needs a 10uF bulk cap close to VCC because TX bursts pull >100mA momentarily. Frequency must match a band legal in your region."
+# KiCad symbol mapping (0.9 schematic export). Generic SX1276 covers
+# the SX1272/SX1278 variants with the same pinout.
+kicad:
+  symbol_lib: RF
+  symbol: SX1276
+  pin_map:
+    VCC: VDD

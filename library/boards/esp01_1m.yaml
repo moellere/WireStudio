@@ -24,3 +24,7 @@ gpio_capabilities:
   GPIO14: [gpio]
   GPIO15: [gpio, strap, boot_low, pull_down_external]
   GPIO16: [gpio, no_pwm, no_i2c, no_interrupt]
+# KiCad symbol mapping (0.9 schematic export).
+kicad:
+  symbol_lib: RF_Module
+  symbol: ESP-01

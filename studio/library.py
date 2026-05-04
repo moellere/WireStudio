@@ -61,6 +61,7 @@ class LibraryComponent(_Strict):
     esphome: EsphomeSpec = Field(default_factory=EsphomeSpec)
     params_schema: dict = Field(default_factory=dict)
     notes: Optional[str] = None
+    kicad: Optional[KicadSymbolRef] = None
 
 
 class Rail(_Strict):
@@ -116,6 +117,28 @@ class BoardEnclosure(_Strict):
     component_height_max_mm: float = 12.0
 
 
+class KicadSymbolRef(_Strict):
+    """Reference to a KiCad symbol library entry. Lets the schematic
+    exporter (0.9) emit a SKiDL Part that points at the right symbol +
+    footprint without copying KiCad's data into our library.
+
+    `pin_map` translates our library role names (VCC, SDA, etc.) to
+    the symbol's pin names where they differ -- e.g., the BME280
+    module's VCC pin is named `VDD` in the KiCad symbol. Roles missing
+    from the map are passed through unchanged.
+
+    `value` overrides what's printed on the schematic (KiCad defaults
+    to the symbol name); useful for parts whose useful identity differs
+    from their canonical symbol (the HC-SR501 PIR uses a generic 3-pin
+    header symbol but should print as "HC-SR501" on the sheet).
+    """
+    symbol_lib: str
+    symbol: str
+    footprint: Optional[str] = None
+    value: Optional[str] = None
+    pin_map: dict[str, str] = Field(default_factory=dict)
+
+
 class LibraryBoard(_Strict):
     id: str
     name: str
@@ -129,6 +152,7 @@ class LibraryBoard(_Strict):
     onboard_peripherals: dict = Field(default_factory=dict)
     gpio_capabilities: dict[str, list[str]] = Field(default_factory=dict)
     enclosure: Optional[BoardEnclosure] = None
+    kicad: Optional[KicadSymbolRef] = None
 
 
 class Library:

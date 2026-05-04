@@ -43,3 +43,10 @@ params_schema:
     default: 2500
 
 notes: "Requires 5V supply. OUT signal is 3.3V, safe for ESP32 GPIO."
+# KiCad symbol mapping (0.9 schematic export). Generic 3-pin header --
+# the HC-SR501 PIR ships as a breakout module without a dedicated
+# kicad-symbols entry.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x03
+  value: HC-SR501

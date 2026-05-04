@@ -45,3 +45,9 @@ params_schema:
   num_leds: { type: integer, default: 1, minimum: 1 }
 
 notes: "Current rises ~60mA per LED at full white. Budget accordingly. Add a 300-500ohm series resistor on DIN and a 1000uF cap across VCC/GND for strips >8 LEDs."
+# KiCad symbol mapping (0.9 schematic export).
+kicad:
+  symbol_lib: LED
+  symbol: WS2812B
+  pin_map:
+    VCC: VDD

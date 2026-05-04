@@ -44,3 +44,10 @@ notes: |
   BMP085 and BMP180 (hardware-compatible). Worth keeping for legacy
   modules people already have on hand; pick the BMP280 / BME280 for new
   builds.
+# KiCad symbol mapping (0.9 schematic export). BMP085 / BMP180 share
+# pinout + symbol in kicad-symbols.
+kicad:
+  symbol_lib: Sensor
+  symbol: BMP180
+  pin_map:
+    VCC: VDD

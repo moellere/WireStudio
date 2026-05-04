@@ -59,3 +59,9 @@ enclosure:
       height_mm: 3.0
       height_above_pcb_mm: 1.5
   component_height_max_mm: 7.0
+# KiCad symbol mapping (0.9 schematic export). The studio's library role
+# names (VCC, GND) match this module symbol's pin names so pin_map is empty.
+kicad:
+  symbol_lib: MCU_Module
+  symbol: WeMos_D1_mini
+  footprint: Module:WEMOS_D1_mini_light

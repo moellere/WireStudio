@@ -210,6 +210,24 @@ def test_enclosure_openscad_unknown_board_returns_422(client):
     assert "no enclosure metadata" in detail
 
 
+def test_kicad_schematic_returns_skidl_python(client):
+    design = json.loads((EXAMPLES_DIR / "garage-motion.json").read_text())
+    r = client.post("/design/kicad/schematic", json=design)
+    assert r.status_code == 200
+    assert "filename=\"garage-motion-v1.skidl.py\"" in r.headers.get("content-disposition", "")
+    body = r.text
+    assert "from skidl import" in body
+    assert "generate_schematic()" in body
+    # Verify the response body is valid Python -- a syntax error in the
+    # generator would fail this where substring assertions wouldn't.
+    compile(body, "<api response>", "exec")
+
+
+def test_kicad_schematic_invalid_design_returns_422(client):
+    r = client.post("/design/kicad/schematic", json={"id": "broken"})
+    assert r.status_code == 422
+
+
 def test_enclosure_search_status_lists_sources(client, monkeypatch):
     """The status endpoint surfaces every source even when unconfigured,
     so the UI can render configuration hints."""

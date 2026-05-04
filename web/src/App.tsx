@@ -20,6 +20,7 @@ import { NewDesignDialog } from "./components/NewDesignDialog";
 import { PushToFleetDialog } from "./components/PushToFleetDialog";
 import { CapabilityPickerDialog } from "./components/CapabilityPickerDialog";
 import { EnclosureDialog } from "./components/EnclosureDialog";
+import { SchematicDialog } from "./components/SchematicDialog";
 import { useDebouncedValue } from "./lib/debounce";
 import {
   addComponent,
@@ -72,6 +73,7 @@ export default function App() {
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [showFleetDialog, setShowFleetDialog] = useState(false);
   const [showEnclosureDialog, setShowEnclosureDialog] = useState(false);
+  const [showSchematicDialog, setShowSchematicDialog] = useState(false);
   const [showCapabilityDialog, setShowCapabilityDialog] = useState(false);
   const [savingState, setSavingState] = useState<"idle" | "saving" | "saved">("idle");
 
@@ -438,6 +440,14 @@ export default function App() {
           </button>
           <button
             disabled={!design}
+            onClick={() => setShowSchematicDialog(true)}
+            className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 enabled:hover:bg-zinc-900 disabled:opacity-40"
+            title="Download a SKiDL Python script that produces a .kicad_sch when run locally"
+          >
+            Schematic
+          </button>
+          <button
+            disabled={!design}
             onClick={() => setShowEnclosureDialog(true)}
             className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 enabled:hover:bg-zinc-900 disabled:opacity-40"
             title="Generate a parametric .scad shell or search community-uploaded models"
@@ -532,6 +542,12 @@ export default function App() {
           design={design}
           strict={strictMode}
           onClose={() => setShowFleetDialog(false)}
+        />
+      )}
+      {showSchematicDialog && design && (
+        <SchematicDialog
+          design={design}
+          onClose={() => setShowSchematicDialog(false)}
         />
       )}
       {showEnclosureDialog && design && (

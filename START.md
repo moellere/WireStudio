@@ -27,11 +27,18 @@ stays as a back-compat wrapper. Pytest +21 (179 total), vitest 49, ruff
 + build clean.
 
 **Next up candidates:**
-- 0.9 — KiCad schematic export. Full scope in the Roadmap section
-  below; key points: SKiDL-driven, `kicad:` reference block per
-  component/board (we stay canonical for ESPHome semantics, KiCad
-  for schematic rendering), `studio/kicad/scaffold.py` helper for
-  cheap library expansion, PCB deferred to 1.0+.
+- Library mapping expansion — 21 of 41 components and 6 of 13 boards
+  carry a `kicad:` block today; the rest fall back to a generic 4-pin
+  connector with a TODO. The pattern is well-pinned, so filling in
+  the rest is mechanical (look up the right `kicad-symbols` entry,
+  add ~6 lines of YAML). High-value next batch: bmp280, dht, apa102,
+  st7789, ssd1306 confirmation, the new ESP32-S3 / C3 / WROVER-CAM
+  boards.
+- `studio/kicad/scaffold.py` — read a `.kicad_sym` file and print
+  a starter `library/components/<id>.yaml` skeleton so adding new
+  parts becomes ~30 seconds of curation rather than ~5 minutes.
+- 1.0 — KiCad PCB layout. Reuse the schematic's netlist; Freerouting
+  for autorouting; Gerber + JLCPCB CPL/BOM export.
 - Printables search source. Currently deferred -- Printables
   doesn't expose a public REST/GraphQL API and scraping their
   internals is fragile (the page-level GraphQL endpoint changes
@@ -46,6 +53,43 @@ stays as a back-compat wrapper. Pytest +21 (179 total), vitest 49, ruff
   component/board (we stay canonical for ESPHome semantics, KiCad
   for schematic rendering), `studio/kicad/scaffold.py` helper for
   cheap library expansion, PCB deferred to 1.0+.
+
+**0.9 v1 -- KiCad schematic export shipped.** New `kicad:` reference
+block on `LibraryComponent` + `LibraryBoard` (KicadSymbolRef:
+symbol_lib + symbol + footprint + pin_map + value override).
+Mappings landed for 21 components (BME280, DS18B20, MPU6050,
+ADS1115, MCP23008/17, SSD1306, WS2812B, MAX31855, HX711, TSL2561,
+SX1276, MAX98357A, plus generic-connector fallbacks for HC-SR501,
+HC-SR04, RCWL-0516, RC522, ST7789, UART GPS) and 6 boards (D1 Mini,
+ESP32 DevKitC V4, NodeMCU-32S, NodeMCU v2, ESP-01S, TTGO LoRa32 V1).
+Components without a mapping fall back to a generic 4-pin
+Connector_Generic with a TODO comment so the script always runs.
+
+`studio/kicad/generator.py` walks the design and emits a SKiDL Python
+script. The studio doesn't import or run SKiDL itself -- a hard
+runtime dep would pull in numpy + EDA-toolchain weight that's wrong
+for a server. The user installs SKiDL locally and runs the script
+to produce `<design_id>.kicad_sch`. Pin-name remaps from each
+component's `kicad.pin_map` bake into the connection lines (the
+BME280's VCC role becomes `c_bme1["VDD"]` to match the Bosch
+symbol's pin name); rails / buses / GPIO / expander_pin / component
+targets each render as the right SKiDL net expression.
+
+`POST /design/kicad/schematic` returns the script text with a
+Content-Disposition: attachment header. Header gains a **Schematic**
+button (between Solve pins and Push to fleet) opening
+`SchematicDialog` with usage instructions and a one-click
+`.skidl.py` download.
+
+15 new tests: 13 pytest (each bundled example compiles, mappings
+flow through, fallback emits TODO, every net kind renders right,
+component-target round-trip with the ADS1115 hub split, identifier
+sanitisation parametric); 2 API contract; 5 vitest (download
+round-trip, success affirmation, 422 banner, design-id in the
+usage snippet, SKiDL doc link).
+
+PCB layout (Freerouting + Gerber export) deferred to 1.0+ as
+planned.
 
 **0.8 v2 -- enclosure search relay shipped (Thingiverse).**
 `studio/enclosure/search.py` adds a pluggable per-source search client.
@@ -631,10 +675,13 @@ immediate way in and the agent (when it arrives) lands in a working surface.
   - **Stretch — component dimensions on breakouts** (BME280 module,
     OLED module, etc.) so the generator can place display windows
     and stack-mount cutouts, not just the headline USB port.
-- **0.9 — KiCad schematic export.** Walk `design.json` and emit a
-  `.kicad_sch` (KiCad 6+ s-expression format) the user opens in
-  KiCad. SKiDL is the recommended path: a mature Python DSL that
-  takes parts + nets and writes the schematic for us. Concretely:
+- **0.9 — KiCad schematic export.** ✅ Shipped (v1). Walks
+  `design.json` and emits a SKiDL Python script the user runs
+  locally to produce `<design_id>.kicad_sch`. The studio doesn't
+  import or run SKiDL itself -- this keeps the artefact transparent
+  (the user can `cat` it, edit it, regenerate) and avoids adding
+  numpy + EDA-toolchain weight to the server. PCB layout deferred
+  to 1.0+ as planned. Concretely:
 
   - **Library mapping, not duplication.** Our `library/components/<id>.yaml`
     stays the canonical source for ESPHome semantics; it gains a small

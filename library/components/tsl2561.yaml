@@ -58,3 +58,9 @@ notes: |
   Three I2C addresses are selectable via the ADDR pin; default 0x39
   works for the bare chip floating ADDR. 3.3V only -- 5V MCUs need a
   level shifter on SDA/SCL.
+# KiCad symbol mapping (0.9 schematic export).
+kicad:
+  symbol_lib: Sensor
+  symbol: TSL2561FN
+  pin_map:
+    VCC: VDD

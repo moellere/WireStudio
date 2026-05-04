@@ -52,3 +52,12 @@ notes: |
   about ambiguous read order when the addresses are missing. Output
   is 3.3V-compatible. Parasite power is supported by ESPHome but not
   modeled here -- wire VCC.
+# KiCad symbol mapping (0.9 schematic export). The standard TO-92
+# package; map our DATA role to the symbol's DQ pin.
+kicad:
+  symbol_lib: Sensor_Temperature
+  symbol: DS18B20
+  footprint: Package_TO_SOT_THT:TO-92_Inline
+  pin_map:
+    VCC: VDD
+    DATA: DQ
