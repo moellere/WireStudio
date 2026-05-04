@@ -28,13 +28,34 @@ stays as a back-compat wrapper. Pytest +21 (179 total), vitest 49, ruff
 
 **Next up candidates:**
 - Bus editor in the UI
-- Strict-mode pin locks (`locked_pins` already in schema)
 - Frontend RTL/jsdom component tests
 - Full SSE/WS log relay (current 0.7+ uses HTTP polling at 1.5s intervals)
-- Capability picker: bus-aware constraint pre-fill (auto-set required_bus
-  from the design's existing buses so I2C designs don't surface SPI parts)
 - Capability picker: per-result "alternatives" tooltip surfacing the
   recommender's full ranking when the user wants to compare
+- Pin-lock UI: per-component "lock to pin X" toggle in the inspector that
+  writes `locked_pins[role]` rather than asking users to hand-edit JSON
+
+**Pin locks shipped (permissive).** `Component.locked_pins` is no
+longer dead code:
+- Solver applies locks before solving. Empty gpio targets get filled
+  from the lock; bound targets that disagree surface a
+  `locked_pin_mismatch` warning (the bound pin stays put — divergence
+  might be intentional). Lock keys that aren't real roles on the
+  library component surface a `locked_pin_unknown_role` warning.
+  Locks against non-gpio targets surface `locked_pin_wrong_kind`.
+- compatibility.py validates the lock's target pin against the role's
+  required capability; a `locked_pin_invalid` (severity: error) fires
+  when, say, an `analog_in` lock lands on a pin without `adc`.
+- 6 new tests pin all paths.
+
+**Capability picker bus filter shipped.** Dialog now receives the
+design's bus types (i2c/spi/uart/i2s/1wire) and offers a "match my
+buses" checkbox (default on). When on, ranked matches whose
+`required_components` include a bus the design lacks are dropped
+from the visible list with a "N hidden by the bus filter" note.
+Uncheck to see everything (e.g., when the user is happy to add a
+new bus). The agent's recommend tool is unchanged — this is a
+UI-side filter only.
 
 **Capability-driven "Add by function" picker shipped.** New backend
 endpoint `GET /library/use_cases` aggregates the library's canonical
