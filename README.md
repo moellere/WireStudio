@@ -109,6 +109,7 @@ Useful endpoints:
 | `GET`  | `/fleet/status` | check whether `FLEET_URL` + `FLEET_TOKEN` reach a distributed-esphome ha-addon |
 | `POST` | `/fleet/push` | render `design.json` and push it as `<device_name>.yaml` (optionally `compile: true`) |
 | `GET`  | `/fleet/jobs/{run_id}/log?offset=N` | poll the addon's build log for a compile run; returns `{log, offset, finished}` |
+| `GET`  | `/fleet/jobs/{run_id}/log/stream` | Server-Sent Events relay over the same log endpoint; ~300ms cadence, exits with `event: done` when the build finishes |
 
 The server is a thin layer over `studio.generate` — same code path the CLI
 uses, no server-side state. Permissive CORS for `localhost:5173` /
@@ -130,6 +131,7 @@ uses, no server-side state. Permissive CORS for `localhost:5173` /
 | [`bluesonoff.json`](examples/bluesonoff.json) | ESP-01S 1MB | Sonoff Basic relay; front button (boot strap pin) toggles a single GPIO relay |
 | [`wemosgps.json`](examples/wemosgps.json) | WeMos D1 Mini | UART GPS module — lat/lon/altitude/speed/satellites + runtime baud-rate selector |
 | [`ttgo-lora32.json`](examples/ttgo-lora32.json) | TTGO LoRa32 V1 | ESP32 + onboard SX1276 LoRa radio + onboard SSD1306 OLED + battery ADC, ESP-IDF |
+| [`multi-temp.json`](examples/multi-temp.json) | WeMos D1 Mini | Two DS18B20 temp sensors sharing a single 1-wire bus + an RCWL-0516 microwave motion sensor |
 
 Generated artifacts for each are pinned as goldens in
 [`tests/golden/`](tests/golden/).
@@ -180,6 +182,16 @@ Currently shipped:
 - `ws2812b` — addressable RGB LED (NeoPixel/neopixelbus)
 - `gpio_input` — generic binary_sensor on a GPIO or expander pin (buttons, limit switches, door/window/motion sensors)
 - `gpio_output` — generic switch on a GPIO or expander pin (relays, indicators)
+- `ds18b20` — Dallas 1-wire temperature sensor (single-pin bus + 4.7kΩ pull-up)
+- `rcwl-0516` — microwave doppler motion sensor (low-power PIR alternative)
+- `ads1115` — TI 4-channel 16-bit ADC (I2C) hub; rescues ESP32 designs from the ADC2/WiFi conflict
+- `ads1115_channel` — one logical reading on an ADS1115 hub (multiplexer + gain + update_interval per channel)
+- `mpu6050` — InvenSense 6-axis IMU (3-axis accel + 3-axis gyro + die temp, I2C)
+- `bmp180` — Bosch BMP180/BMP085 barometric pressure + temperature (I2C)
+- `htu21d` — TE Connectivity HTU21D temperature + humidity (I2C; covers Si7021 / SHT2x)
+- `max31855` — Maxim K-type thermocouple amplifier (SPI; -270..+1372°C)
+- `hx711` — AVIA 24-bit load-cell ADC (custom 2-wire serial)
+- `tsl2561` — AMS ambient light sensor (lux, I2C)
 
 The `gpio_input` / `gpio_output` components and the `kind: expander_pin`
 connection target together let downstream platforms hang off any expander

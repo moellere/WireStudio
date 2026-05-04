@@ -1,0 +1,65 @@
+id: mpu6050
+name: MPU6050 6-axis IMU (accel + gyro, I2C)
+category: sensor
+use_cases: [imu, accelerometer, gyroscope, motion, orientation, vibration]
+aliases: ["mpu-6050", "gy-521", "invensense imu"]
+
+electrical:
+  vcc_min: 2.375
+  vcc_max: 3.46
+  current_ma_typical: 4
+  current_ma_peak: 6
+  pins:
+    - {role: VCC, kind: power}
+    - {role: GND, kind: ground}
+    - role: SDA
+      kind: i2c_sda
+      pull_up: {required: true, value: "4.7k", to: VCC}
+    - role: SCL
+      kind: i2c_scl
+      pull_up: {required: true, value: "4.7k", to: VCC}
+  passives:
+    - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+
+esphome:
+  required_components: [i2c]
+  yaml_template: |
+    sensor:
+      - platform: mpu6050
+        address: "{{ params.address | default('0x68') }}"
+        i2c_id: {{ bus.id }}
+        update_interval: {{ params.update_interval | default('60s') }}
+        accel_x:
+          name: "{{ label }} Accel X"
+        accel_y:
+          name: "{{ label }} Accel Y"
+        accel_z:
+          name: "{{ label }} Accel Z"
+        gyro_x:
+          name: "{{ label }} Gyro X"
+        gyro_y:
+          name: "{{ label }} Gyro Y"
+        gyro_z:
+          name: "{{ label }} Gyro Z"
+        temperature:
+          name: "{{ label }} Die Temp"
+
+params_schema:
+  address:
+    type: string
+    enum: ["0x68", "0x69"]
+    default: "0x68"
+    description: "AD0 pin: GND=0x68, VCC=0x69"
+  update_interval:
+    type: string
+    default: "60s"
+    description: "How often to publish a fresh reading. The chip itself samples at its configured ODR regardless."
+
+notes: |
+  6-axis IMU (3-axis accelerometer + 3-axis gyroscope) plus an on-die
+  temperature sensor. 3.3V part -- common breakout boards (GY-521) ship
+  with an onboard regulator and accept 5V on the VCC pin, but the bare
+  chip needs 3.3V. AD0 selects 0x68 (default, AD0 to GND) or 0x69
+  (AD0 to VCC). The INT pin is supported by ESPHome but not modeled
+  here -- wire it to a free GPIO and attach a binary_sensor in
+  esphome_extras if you need motion-wake.
