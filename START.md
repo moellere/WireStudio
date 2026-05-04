@@ -14,13 +14,18 @@ in flight; this doc stays as the strategic reference and decision log.
   state. Permissive CORS for the 0.3 web UI.
 - **0.3 web UI v1 in flight.** React 19 + Vite + Tailwind v4 under `web/`.
   Three-pane layout (examples/library sidebar / design preview /
-  inspector). Component instances are listed in the inspector; clicking
-  one drills into a params editor whose form is generated from the
-  library's `params_schema`. Edits land in local design state and
-  re-render via debounced (250ms) `POST /design/render`. Header has
-  Reset (revert to loaded example) + Download JSON (save modified
-  design.json). Connection / bus / board edits and drag-and-drop are
-  next.
+  inspector). Editable surfaces:
+  - **design view**: board picker (dropdown of all library boards),
+    fleet metadata (device_name + tags), requirements list (add /
+    edit / remove), warnings list (add / edit / remove);
+  - **component-instance view**: params (form generated from the
+    library's `params_schema`), connections (per-row editor with
+    target-kind selector and rail/gpio/bus/expander_pin sub-controls).
+  Edits land in local design state and re-render via debounced
+  (250ms) `POST /design/render`. Reset reverts to the loaded example;
+  Download JSON saves the modified design.json. Vitest covers
+  `lib/design.ts` (20 tests). Adding/removing components, drag-and-drop
+  wiring, and the agent sidebar are follow-on iterations.
 - **12 example designs** spanning ESP8266 + ESP32 + ESP-IDF + Sonoff:
   garage-motion, awning-control, wasserpir, oled, bluemotion,
   distance-sensor, securitypanel, rc522, esp32-audio, bluesonoff,

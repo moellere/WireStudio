@@ -52,11 +52,11 @@ cd web && npm install && npm run dev
 ```
 
 Open <http://localhost:5173>. Vite proxies `/api/*` to the studio API,
-so no CORS plumbing in dev. Pick an example from the left sidebar; click
-any component instance in the inspector to edit its params and watch
-the YAML + ASCII update in real time. Header buttons: **Reset** reverts
-to the loaded example; **Download JSON** saves the modified design to
-disk.
+so no CORS plumbing in dev. From the inspector you can edit the board,
+fleet metadata, requirements, warnings, per-component params, and
+per-connection targets (rail / gpio / bus / expander_pin); the YAML
+and ASCII update in real time. Header buttons: **Reset** reverts to
+the loaded example; **Download JSON** saves the modified design to disk.
 
 Useful endpoints:
 

@@ -1,8 +1,26 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
-import type { Design } from "../types/api";
-import { readComponents, type ComponentInstance } from "../lib/design";
+import type { BoardSummary, ComponentSummary, Design } from "../types/api";
+import {
+  readComponents,
+  readConnections,
+  readRequirements,
+  readWarnings,
+  type ComponentInstance,
+  type ConnectionTarget,
+  type DesignWarning,
+  type Requirement,
+  addRequirement,
+  addWarning,
+  removeRequirement,
+  removeWarning,
+  setBoardLibraryId,
+  setFleetField,
+  updateRequirement,
+  updateWarning,
+} from "../lib/design";
 import { ParamForm } from "./ParamForm";
+import { ConnectionForm } from "./ConnectionForm";
 
 export type Selection =
   | { kind: "design" }
@@ -13,11 +31,19 @@ export type Selection =
 interface Props {
   selection: Selection;
   design: Design | null;
+  boardData: unknown;
+  libraryBoards: BoardSummary[] | null;
+  libraryComponents: ComponentSummary[] | null;
   onSelect: (s: Selection) => void;
   onParamChange: (componentInstanceId: string, paramKey: string, value: unknown) => void;
+  onConnectionChange: (connectionIndex: number, target: ConnectionTarget) => void;
+  onDesignChange: (updater: (d: Design) => Design) => void;
 }
 
-export function Inspector({ selection, design, onSelect, onParamChange }: Props) {
+export function Inspector({
+  selection, design, boardData, libraryBoards, libraryComponents,
+  onSelect, onParamChange, onConnectionChange, onDesignChange,
+}: Props) {
   return (
     <aside className="flex min-h-0 flex-col border-l border-zinc-800">
       <div className="flex items-center gap-2 border-b border-zinc-800 px-4 py-3">
@@ -42,7 +68,12 @@ export function Inspector({ selection, design, onSelect, onParamChange }: Props)
       </div>
       <div className="min-h-0 flex-1 overflow-auto p-4 text-sm">
         {selection.kind === "design" && (
-          <DesignInspector design={design} onSelect={onSelect} />
+          <DesignInspector
+            design={design}
+            libraryBoards={libraryBoards}
+            onSelect={onSelect}
+            onDesignChange={onDesignChange}
+          />
         )}
         {selection.kind === "board" && <BoardInspector id={selection.id} />}
         {selection.kind === "component" && <LibraryComponentInspector id={selection.id} />}
@@ -50,7 +81,10 @@ export function Inspector({ selection, design, onSelect, onParamChange }: Props)
           <ComponentInstanceInspector
             instanceId={selection.id}
             design={design}
+            boardData={boardData}
+            libraryComponents={libraryComponents}
             onParamChange={onParamChange}
+            onConnectionChange={onConnectionChange}
           />
         )}
       </div>
@@ -59,19 +93,30 @@ export function Inspector({ selection, design, onSelect, onParamChange }: Props)
 }
 
 function DesignInspector({
-  design, onSelect,
+  design, libraryBoards, onSelect, onDesignChange,
 }: {
   design: Design | null;
+  libraryBoards: BoardSummary[] | null;
   onSelect: (s: Selection) => void;
+  onDesignChange: (updater: (d: Design) => Design) => void;
 }) {
   if (!design) return <div className="text-xs text-zinc-500">No design loaded.</div>;
   const components = readComponents(design);
-  const requirements = Array.isArray(design.requirements) ? design.requirements as Array<Record<string, unknown>> : [];
-  const warnings = Array.isArray(design.warnings) ? design.warnings as Array<Record<string, unknown>> : [];
+  const requirements = readRequirements(design);
+  const warnings = readWarnings(design);
+  const board = (design.board as Record<string, unknown> | undefined) ?? {};
   const fleet = (design.fleet ?? null) as Record<string, unknown> | null;
 
   return (
     <div className="space-y-5 text-sm text-zinc-300">
+      <Section title="Board">
+        <BoardPicker
+          currentLibraryId={String(board.library_id ?? "")}
+          options={libraryBoards}
+          onChange={(libId, mcu) => onDesignChange((d) => setBoardLibraryId(d, libId, mcu))}
+        />
+      </Section>
+
       <Section title={`Components (${components.length})`}>
         {components.length === 0 ? (
           <div className="text-xs text-zinc-500">no components</div>
@@ -95,49 +140,217 @@ function DesignInspector({
         )}
       </Section>
 
-      {requirements.length > 0 && (
-        <Section title="Requirements">
-          <ul className="space-y-1.5">
-            {requirements.map((r, i) => (
-              <li key={i} className="rounded border border-zinc-800 bg-zinc-900/40 px-2 py-1.5 text-xs">
-                <div className="font-mono text-zinc-500">{String(r.kind ?? "")}</div>
-                <div>{String(r.text ?? "")}</div>
-              </li>
-            ))}
-          </ul>
-        </Section>
-      )}
+      <Section title={`Requirements (${requirements.length})`}>
+        <RequirementList
+          items={requirements}
+          onUpdate={(i, patch) => onDesignChange((d) => updateRequirement(d, i, patch))}
+          onAdd={() => onDesignChange((d) => addRequirement(d))}
+          onRemove={(i) => onDesignChange((d) => removeRequirement(d, i))}
+        />
+      </Section>
 
-      {warnings.length > 0 && (
-        <Section title="Warnings">
-          <ul className="space-y-1.5">
-            {warnings.map((w, i) => (
-              <li
-                key={i}
-                className={`rounded border px-2 py-1.5 text-xs ${
-                  w.level === "warn"
-                    ? "border-amber-500/40 bg-amber-500/5 text-amber-200"
-                    : w.level === "error"
-                      ? "border-red-500/40 bg-red-500/10 text-red-200"
-                      : "border-zinc-700 bg-zinc-900/40 text-zinc-300"
-                }`}
-              >
-                <div className="font-mono">[{String(w.level)}] {String(w.code ?? "")}</div>
-                <div className="mt-0.5">{String(w.text ?? "")}</div>
-              </li>
-            ))}
-          </ul>
-        </Section>
-      )}
+      <Section title={`Warnings (${warnings.length})`}>
+        <WarningList
+          items={warnings}
+          onUpdate={(i, patch) => onDesignChange((d) => updateWarning(d, i, patch))}
+          onAdd={() => onDesignChange((d) => addWarning(d))}
+          onRemove={(i) => onDesignChange((d) => removeWarning(d, i))}
+        />
+      </Section>
 
       {fleet && (
         <Section title="Fleet">
-          <KV k="device_name" v={String(fleet.device_name ?? "")} />
-          {Array.isArray(fleet.tags) && fleet.tags.length > 0 && (
-            <KV k="tags" v={(fleet.tags as string[]).join(", ")} />
-          )}
+          <FleetEditor
+            fleet={fleet}
+            onChange={(key, value) => onDesignChange((d) => setFleetField(d, key, value))}
+          />
         </Section>
       )}
+    </div>
+  );
+}
+
+function BoardPicker({
+  currentLibraryId, options, onChange,
+}: {
+  currentLibraryId: string;
+  options: BoardSummary[] | null;
+  onChange: (libraryId: string, mcu: string) => void;
+}) {
+  if (!options) return <Loading />;
+  return (
+    <select
+      value={currentLibraryId}
+      onChange={(e) => {
+        const next = options.find((b) => b.id === e.target.value);
+        if (next) onChange(next.id, next.mcu);
+      }}
+      className="w-full rounded border border-zinc-800 bg-zinc-950 px-2 py-1 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+    >
+      {options.map((b) => (
+        <option key={b.id} value={b.id}>{b.name} ({b.chip_variant})</option>
+      ))}
+    </select>
+  );
+}
+
+function RequirementList({
+  items, onUpdate, onAdd, onRemove,
+}: {
+  items: Requirement[];
+  onUpdate: (i: number, patch: Partial<Requirement>) => void;
+  onAdd: () => void;
+  onRemove: (i: number) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      {items.map((r, i) => (
+        <div key={i} className="rounded border border-zinc-800 bg-zinc-900/40 p-2">
+          <div className="mb-1 flex items-center gap-2">
+            <select
+              value={r.kind}
+              onChange={(e) => onUpdate(i, { kind: e.target.value as Requirement["kind"] })}
+              className="rounded border border-zinc-800 bg-zinc-950 px-1.5 py-0.5 text-[11px] text-zinc-200"
+            >
+              {(["capability", "environment", "constraint"] as const).map((k) => (
+                <option key={k} value={k}>{k}</option>
+              ))}
+            </select>
+            <span className="font-mono text-[11px] text-zinc-500">{r.id}</span>
+            <button
+              onClick={() => onRemove(i)}
+              className="ml-auto rounded border border-zinc-800 px-1.5 py-0.5 text-[11px] text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+              title="Remove requirement"
+            >
+              ✕
+            </button>
+          </div>
+          <input
+            type="text"
+            value={r.text}
+            onChange={(e) => onUpdate(i, { text: e.target.value })}
+            className="w-full rounded border border-zinc-800 bg-zinc-950 px-2 py-1 text-xs text-zinc-100 focus:border-zinc-600 focus:outline-none"
+          />
+        </div>
+      ))}
+      <button
+        onClick={onAdd}
+        className="w-full rounded border border-dashed border-zinc-800 px-2 py-1 text-xs text-zinc-500 hover:border-zinc-700 hover:text-zinc-300"
+      >
+        + Add requirement
+      </button>
+    </div>
+  );
+}
+
+function WarningList({
+  items, onUpdate, onAdd, onRemove,
+}: {
+  items: DesignWarning[];
+  onUpdate: (i: number, patch: Partial<DesignWarning>) => void;
+  onAdd: () => void;
+  onRemove: (i: number) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      {items.map((w, i) => (
+        <div
+          key={i}
+          className={`rounded border p-2 ${
+            w.level === "warn"
+              ? "border-amber-500/40 bg-amber-500/5"
+              : w.level === "error"
+                ? "border-red-500/40 bg-red-500/10"
+                : "border-zinc-800 bg-zinc-900/40"
+          }`}
+        >
+          <div className="mb-1 flex items-center gap-2">
+            <select
+              value={w.level}
+              onChange={(e) => onUpdate(i, { level: e.target.value as DesignWarning["level"] })}
+              className="rounded border border-zinc-800 bg-zinc-950 px-1.5 py-0.5 text-[11px] text-zinc-200"
+            >
+              {(["info", "warn", "error"] as const).map((k) => (
+                <option key={k} value={k}>{k}</option>
+              ))}
+            </select>
+            <input
+              type="text"
+              value={w.code}
+              onChange={(e) => onUpdate(i, { code: e.target.value })}
+              placeholder="code"
+              className="flex-1 rounded border border-zinc-800 bg-zinc-950 px-1.5 py-0.5 font-mono text-[11px] text-zinc-100"
+            />
+            <button
+              onClick={() => onRemove(i)}
+              className="rounded border border-zinc-800 px-1.5 py-0.5 text-[11px] text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+              title="Remove warning"
+            >
+              ✕
+            </button>
+          </div>
+          <textarea
+            value={w.text}
+            onChange={(e) => onUpdate(i, { text: e.target.value })}
+            rows={2}
+            className="w-full resize-none rounded border border-zinc-800 bg-zinc-950 px-2 py-1 text-xs text-zinc-100 focus:border-zinc-600 focus:outline-none"
+          />
+        </div>
+      ))}
+      <button
+        onClick={onAdd}
+        className="w-full rounded border border-dashed border-zinc-800 px-2 py-1 text-xs text-zinc-500 hover:border-zinc-700 hover:text-zinc-300"
+      >
+        + Add warning
+      </button>
+    </div>
+  );
+}
+
+function FleetEditor({
+  fleet, onChange,
+}: {
+  fleet: Record<string, unknown>;
+  onChange: (key: string, value: unknown) => void;
+}) {
+  const tags = Array.isArray(fleet.tags) ? (fleet.tags as string[]).join(", ") : "";
+  return (
+    <div className="space-y-2 text-xs">
+      <Field
+        label="device_name"
+        value={String(fleet.device_name ?? "")}
+        onChange={(v) => onChange("device_name", v)}
+      />
+      <Field
+        label="tags"
+        placeholder="comma-separated"
+        value={tags}
+        onChange={(v) =>
+          onChange("tags", v.split(",").map((s) => s.trim()).filter(Boolean))
+        }
+      />
+    </div>
+  );
+}
+
+function Field({
+  label, value, onChange, placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <div>
+      <label className="block text-[11px] text-zinc-500">{label}</label>
+      <input
+        type="text"
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        className="mt-0.5 w-full rounded border border-zinc-800 bg-zinc-950 px-2 py-1 text-xs text-zinc-100 focus:border-zinc-600 focus:outline-none"
+      />
     </div>
   );
 }
@@ -194,11 +407,14 @@ function LibraryComponentInspector({ id }: { id: string }) {
 }
 
 function ComponentInstanceInspector({
-  instanceId, design, onParamChange,
+  instanceId, design, boardData, libraryComponents, onParamChange, onConnectionChange,
 }: {
   instanceId: string;
   design: Design | null;
+  boardData: unknown;
+  libraryComponents: ComponentSummary[] | null;
   onParamChange: (componentInstanceId: string, paramKey: string, value: unknown) => void;
+  onConnectionChange: (connectionIndex: number, target: ConnectionTarget) => void;
 }) {
   const components = readComponents(design);
   const inst = components.find((c) => c.id === instanceId) as ComponentInstance | undefined;
@@ -209,6 +425,7 @@ function ComponentInstanceInspector({
 
   const c = comp as Record<string, unknown>;
   const schema = (c.params_schema ?? {}) as Record<string, never>;
+  const connectionRows = readConnections(design, inst.id);
 
   return (
     <div className="space-y-5">
@@ -229,6 +446,18 @@ function ComponentInstanceInspector({
           values={inst.params ?? {}}
           onChange={(key, value) => onParamChange(inst.id, key, value)}
         />
+      </Section>
+
+      <Section title="Connections">
+        {design ? (
+          <ConnectionForm
+            rows={connectionRows}
+            design={design}
+            boardData={boardData}
+            libraryComponents={libraryComponents}
+            onChange={onConnectionChange}
+          />
+        ) : null}
       </Section>
 
       <Section title={`From the library (${inst.library_id})`}>
