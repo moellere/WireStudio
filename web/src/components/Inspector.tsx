@@ -21,6 +21,7 @@ import {
 } from "../lib/design";
 import { ParamForm } from "./ParamForm";
 import { ConnectionForm } from "./ConnectionForm";
+import { BusList } from "./BusList";
 
 export type Selection =
   | { kind: "design" }
@@ -38,6 +39,7 @@ interface Props {
   onSelect: (s: Selection) => void;
   onParamChange: (componentInstanceId: string, paramKey: string, value: unknown) => void;
   onConnectionChange: (connectionIndex: number, target: ConnectionTarget) => void;
+  onLockedPinChange: (componentId: string, pinRole: string, pin: string | null) => void;
   onDesignChange: (updater: (d: Design) => Design) => void;
   onAddComponent: (libraryId: string) => void;
   onRemoveComponent: (instanceId: string) => void;
@@ -46,7 +48,7 @@ interface Props {
 export function Inspector({
   selection, design, boardData, libraryBoards, libraryComponents,
   compatibilityWarnings,
-  onSelect, onParamChange, onConnectionChange, onDesignChange,
+  onSelect, onParamChange, onConnectionChange, onLockedPinChange, onDesignChange,
   onAddComponent, onRemoveComponent,
 }: Props) {
   return (
@@ -75,6 +77,7 @@ export function Inspector({
         {selection.kind === "design" && (
           <DesignInspector
             design={design}
+            boardData={boardData}
             libraryBoards={libraryBoards}
             libraryComponents={libraryComponents}
             compatibilityWarnings={compatibilityWarnings}
@@ -95,6 +98,7 @@ export function Inspector({
             compatibilityWarnings={compatibilityWarnings}
             onParamChange={onParamChange}
             onConnectionChange={onConnectionChange}
+            onLockedPinChange={onLockedPinChange}
           />
         )}
       </div>
@@ -103,10 +107,11 @@ export function Inspector({
 }
 
 function DesignInspector({
-  design, libraryBoards, libraryComponents, compatibilityWarnings,
+  design, boardData, libraryBoards, libraryComponents, compatibilityWarnings,
   onSelect, onDesignChange, onAddComponent, onRemoveComponent,
 }: {
   design: Design | null;
+  boardData: unknown;
   libraryBoards: BoardSummary[] | null;
   libraryComponents: ComponentSummary[] | null;
   compatibilityWarnings: CompatibilityWarning[];
@@ -121,6 +126,10 @@ function DesignInspector({
   const warnings = readWarnings(design);
   const board = (design.board as Record<string, unknown> | undefined) ?? {};
   const fleet = (design.fleet ?? null) as Record<string, unknown> | null;
+  const boardRecord = (boardData ?? {}) as Record<string, unknown>;
+  const gpioPins = Object.keys((boardRecord.gpio_capabilities ?? {}) as Record<string, unknown>);
+  const defaultBuses = (boardRecord.default_buses ?? {}) as Record<string, Record<string, string>>;
+  const buses = (design.buses as unknown[] | undefined) ?? [];
 
   return (
     <div className="space-y-5 text-sm text-zinc-300">
@@ -163,6 +172,15 @@ function DesignInspector({
         <AddComponentControl
           libraryComponents={libraryComponents}
           onAdd={onAddComponent}
+        />
+      </Section>
+
+      <Section title={`Buses (${buses.length})`}>
+        <BusList
+          design={design}
+          gpioPins={gpioPins}
+          defaultBuses={defaultBuses}
+          onChange={onDesignChange}
         />
       </Section>
 
@@ -486,7 +504,7 @@ function LibraryComponentInspector({ id }: { id: string }) {
 
 function ComponentInstanceInspector({
   instanceId, design, boardData, libraryComponents, compatibilityWarnings,
-  onParamChange, onConnectionChange,
+  onParamChange, onConnectionChange, onLockedPinChange,
 }: {
   instanceId: string;
   design: Design | null;
@@ -495,6 +513,7 @@ function ComponentInstanceInspector({
   compatibilityWarnings: CompatibilityWarning[];
   onParamChange: (componentInstanceId: string, paramKey: string, value: unknown) => void;
   onConnectionChange: (connectionIndex: number, target: ConnectionTarget) => void;
+  onLockedPinChange: (componentId: string, pinRole: string, pin: string | null) => void;
 }) {
   const components = readComponents(design);
   const inst = components.find((c) => c.id === instanceId) as ComponentInstance | undefined;
@@ -536,6 +555,7 @@ function ComponentInstanceInspector({
             boardData={boardData}
             libraryComponents={libraryComponents}
             onChange={onConnectionChange}
+            onLockedPinChange={onLockedPinChange}
           />
         ) : null}
       </Section>

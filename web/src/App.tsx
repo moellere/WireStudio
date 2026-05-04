@@ -25,6 +25,7 @@ import {
   isDirty,
   prepareBusesForLib,
   readBuses,
+  setLockedPin,
   removeComponent,
   updateComponentParam,
   updateConnectionTarget,
@@ -188,6 +189,10 @@ export default function App() {
 
   function handleConnectionChange(connectionIndex: number, target: ConnectionTarget) {
     setDesign((d) => (d ? updateConnectionTarget(d, connectionIndex, target) : d));
+  }
+
+  function handleLockedPinChange(componentId: string, pinRole: string, pin: string | null) {
+    setDesign((d) => (d ? setLockedPin(d, componentId, pinRole, pin) : d));
   }
 
   function handleDesignChange(updater: (d: Design) => Design) {
@@ -457,6 +462,7 @@ export default function App() {
           onSelect={setSelection}
           onParamChange={handleParamChange}
           onConnectionChange={handleConnectionChange}
+          onLockedPinChange={handleLockedPinChange}
           onDesignChange={handleDesignChange}
           onAddComponent={handleAddComponent}
           onRemoveComponent={handleRemoveComponent}

@@ -25,6 +25,10 @@ export interface ConnectionRow {
   component_id: string;
   pin_role: string;
   target: ConnectionTarget;
+  /** The pin name from `components[i].locked_pins[role]` if the user has
+   *  locked this role; null otherwise. Read-only -- the inspector mutates
+   *  the lock via setLockedPin, not by editing this field. */
+  locked_pin: string | null;
 }
 
 export function readComponents(d: Design | null): ComponentInstance[] {
@@ -70,14 +74,60 @@ export function isDirty(original: Design | null, current: Design | null): boolea
 
 export function readConnections(d: Design | null, componentId?: string): ConnectionRow[] {
   if (!d || !Array.isArray(d.connections)) return [];
+  const components = (d.components as Array<Record<string, unknown>> | undefined) ?? [];
+  const locksByCid = new Map<string, Record<string, string>>();
+  for (const c of components) {
+    const lp = c.locked_pins as Record<string, string> | undefined;
+    if (lp && typeof lp === "object") {
+      locksByCid.set(String(c.id), lp);
+    }
+  }
   return (d.connections as Array<Record<string, unknown>>)
-    .map((c, index) => ({
-      index,
-      component_id: String(c.component_id),
-      pin_role: String(c.pin_role),
-      target: c.target as ConnectionTarget,
-    }))
+    .map((c, index) => {
+      const cid = String(c.component_id);
+      const role = String(c.pin_role);
+      const locks = locksByCid.get(cid);
+      return {
+        index,
+        component_id: cid,
+        pin_role: role,
+        target: c.target as ConnectionTarget,
+        locked_pin: locks && typeof locks[role] === "string" ? locks[role] : null,
+      };
+    })
     .filter((c) => !componentId || c.component_id === componentId);
+}
+
+/**
+ * Set or clear a single (componentId, pinRole) entry in a component's
+ * `locked_pins` map. Passing `null` removes the entry; if the resulting
+ * map is empty the field itself is dropped to keep the JSON tidy.
+ * Pure: never mutates `d`.
+ */
+export function setLockedPin(
+  d: Design,
+  componentId: string,
+  pinRole: string,
+  pin: string | null,
+): Design {
+  const components = (d.components as Array<Record<string, unknown>> | undefined) ?? [];
+  return {
+    ...d,
+    components: components.map((c) => {
+      if (c.id !== componentId) return c;
+      const existing = (c.locked_pins as Record<string, string> | undefined) ?? {};
+      const next: Record<string, string> = { ...existing };
+      if (pin === null || pin === "") {
+        delete next[pinRole];
+      } else {
+        next[pinRole] = pin;
+      }
+      const { locked_pins: _drop, ...rest } = c;
+      return Object.keys(next).length > 0
+        ? { ...rest, locked_pins: next }
+        : rest;
+    }),
+  };
 }
 
 /**
@@ -340,6 +390,42 @@ function nextBusId(
     if (!used.has(id)) return id;
   }
   return `${type}_${Date.now()}`;
+}
+
+export type BusType = "i2c" | "spi" | "uart" | "i2s" | "1wire";
+
+/** Add a bus of the given type; the new bus inherits the board's default
+ * pinout when one is present, otherwise lands with empty pin slots and
+ * relies on the user (or the pin solver) to fill them in. Pure. */
+export function addBus(
+  d: Design,
+  type: BusType,
+  defaults?: Record<string, string>,
+): Design {
+  const buses = (d.buses as Array<Record<string, unknown>> | undefined) ?? [];
+  const id = nextBusId(d, [], type);
+  const newBus: Record<string, unknown> = { id, type, ...(defaults ?? {}) };
+  return { ...d, buses: [...buses, newBus] };
+}
+
+/** Patch a single bus by id. Pure: returns a new design. */
+export function updateBus(
+  d: Design,
+  busId: string,
+  patch: Partial<Record<string, unknown>>,
+): Design {
+  const buses = (d.buses as Array<Record<string, unknown>> | undefined) ?? [];
+  return {
+    ...d,
+    buses: buses.map((b) => (b.id === busId ? { ...b, ...patch } : b)),
+  };
+}
+
+/** Remove a bus. Connections that target it are left in place; the
+ *  inspector's bus-mismatch warning handles the dangling references. */
+export function removeBus(d: Design, busId: string): Design {
+  const buses = (d.buses as Array<Record<string, unknown>> | undefined) ?? [];
+  return { ...d, buses: buses.filter((b) => b.id !== busId) };
 }
 
 /**

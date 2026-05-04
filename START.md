@@ -27,13 +27,35 @@ stays as a back-compat wrapper. Pytest +21 (179 total), vitest 49, ruff
 + build clean.
 
 **Next up candidates:**
-- Bus editor in the UI
 - Frontend RTL/jsdom component tests
 - Full SSE/WS log relay (current 0.7+ uses HTTP polling at 1.5s intervals)
 - Capability picker: per-result "alternatives" tooltip surfacing the
   recommender's full ranking when the user wants to compare
-- Pin-lock UI: per-component "lock to pin X" toggle in the inspector that
-  writes `locked_pins[role]` rather than asking users to hand-edit JSON
+- Bus rename propagation: when the user renames `i2c0 -> shared_i2c`,
+  rewrite every `connection.target.bus_id == "i2c0"` automatically
+  (today the connection's stale reference becomes "(invalid)" until
+  the user re-points it)
+- Bus editor: surface bus-pin compatibility warnings (boot strap, no_i2c)
+  inline on the bus card
+
+**Pin-lock inspector toggle shipped.** Connection rows in the inspector
+gain a 🔓/🔒 button next to the gpio pin selector. Click 🔓 lock to
+write `locked_pins[role]` for the currently bound pin; click 🔒 to
+clear it. The lock badge turns amber when the bound pin diverges from
+the lock and an inline "solver will flag a mismatch" hint surfaces
+the discrepancy without leaving the row. Reads/writes go through new
+`readConnections.locked_pin` and `setLockedPin` helpers in
+`web/src/lib/design.ts`.
+
+**Bus editor shipped.** Design Inspector now has a Buses section with
+one card per bus. Each card lets the user rename the id, edit the
+type's pin slots (`sda`/`scl` for i2c, `clk`/`miso`/`mosi` for spi,
+`tx`/`rx` for uart, `lrclk`/`bclk` for i2s) plus the type's tunable
+(frequency_hz / baud_rate). Pin selectors are populated from the
+board's `gpio_capabilities`; an "+ add bus" picker creates a fresh bus
+seeded from `board.default_buses` when present. Removing a bus
+intentionally leaves connections that target it dangling so the
+render-time error makes the inconsistency loud.
 
 **Pin locks shipped (permissive).** `Component.locked_pins` is no
 longer dead code:
