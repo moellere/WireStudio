@@ -185,6 +185,11 @@ Currently shipped:
 - `rcwl-0516` — microwave doppler motion sensor (low-power PIR alternative)
 - `ads1115` — TI 4-channel 16-bit ADC (I2C); rescues ESP32 designs from the ADC2/WiFi conflict
 - `mpu6050` — InvenSense 6-axis IMU (3-axis accel + 3-axis gyro + die temp, I2C)
+- `bmp180` — Bosch BMP180/BMP085 barometric pressure + temperature (I2C)
+- `htu21d` — TE Connectivity HTU21D temperature + humidity (I2C; covers Si7021 / SHT2x)
+- `max31855` — Maxim K-type thermocouple amplifier (SPI; -270..+1372°C)
+- `hx711` — AVIA 24-bit load-cell ADC (custom 2-wire serial)
+- `tsl2561` — AMS ambient light sensor (lux, I2C)
 
 The `gpio_input` / `gpio_output` components and the `kind: expander_pin`
 connection target together let downstream platforms hang off any expander

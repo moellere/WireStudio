@@ -30,10 +30,28 @@ stays as a back-compat wrapper. Pytest +21 (179 total), vitest 49, ruff
 - Full SSE/WS log relay (current 0.7+ uses HTTP polling at 1.5s intervals)
 - Drag-and-drop pinout (long-running: 0.3 already pre-flagged this as
   a follow-on iteration)
-- Library expansion: BMP180 (older I2C T/P), HTU21D (T/H), MAX31855
-  (thermocouple), HX711 (load-cell ADC), TSL2561 (lux)
 - ADS1115 hub-only mode (channels-as-separate-components) once a
   user wants to mix gain/update_interval per logical sensor
+
+**Library expansion v3 shipped (5 components).**
+- `bmp180` — older Bosch barometric T/P (I2C, fixed 0x77, no humidity).
+  Renders the deprecated-but-supported `bmp085` ESPHome platform; covers
+  legacy modules people still have on hand.
+- `htu21d` — T/H (I2C, fixed 0x40). Drop-in for designs that don't need
+  pressure; covers the Si7021 / SHT2x families on the same protocol.
+- `max31855` — K-type thermocouple amp (SPI, MISO-only). Range -270 to
+  +1372°C. Optional `reference_temperature: true` publishes the cold-
+  junction reading. CS is per-component native (`spi_cs`).
+- `hx711` — 24-bit load-cell ADC, custom 2-wire serial (DOUT + SCK on
+  free GPIOs, no bus). Channel A 128/64x or channel B 32x via the
+  `gain` param.
+- `tsl2561` — ambient light / lux (I2C). Address selectable across
+  0x29/0x39/0x49 via the ADDR pin; gain + integration_time tunables.
+
+10 new tests: 5 yaml-gen smoke (each component renders the expected
+ESPHome platform with the right pin / address / param wiring) + 5
+recommender pin tests (thermocouple, weight, lux, pressure, humidity
+all land on the right top pick).
 
 **Library expansion: ADS1115 + MPU6050 shipped.**
 - `library/components/ads1115.yaml`: 4-channel 16-bit ADC over I2C.
