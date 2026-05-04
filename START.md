@@ -21,11 +21,14 @@ in flight; this doc stays as the strategic reference and decision log.
   - **component-instance view**: params (form generated from the
     library's `params_schema`), connections (per-row editor with
     target-kind selector and rail/gpio/bus/expander_pin sub-controls).
-  Edits land in local design state and re-render via debounced
-  (250ms) `POST /design/render`. Reset reverts to the loaded example;
-  Download JSON saves the modified design.json. Vitest covers
-  `lib/design.ts` (20 tests). Adding/removing components, drag-and-drop
-  wiring, and the agent sidebar are follow-on iterations.
+  Add/remove component instances from the components list (with
+  auto-wiring: rails picked by voltage match, bus pins linked to a
+  matching bus, missing buses auto-prepended from the board's
+  `default_buses`). Edits land in local design state and re-render via
+  debounced (250ms) `POST /design/render`. Reset reverts to the loaded
+  example; Download JSON saves the modified design.json. Vitest covers
+  `lib/design.ts` (41 tests). Drag-and-drop pinout, bus editor, and
+  the agent sidebar are follow-on iterations.
 - **12 example designs** spanning ESP8266 + ESP32 + ESP-IDF + Sonoff:
   garage-motion, awning-control, wasserpir, oled, bluemotion,
   distance-sensor, securitypanel, rc522, esp32-audio, bluesonoff,

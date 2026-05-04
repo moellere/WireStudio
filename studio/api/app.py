@@ -149,6 +149,10 @@ def create_app(library: Optional[Library] = None) -> FastAPI:
         except FileNotFoundError as e:
             # Unknown component / board referenced.
             raise HTTPException(status_code=422, detail=str(e)) from e
+        except ValueError as e:
+            # Surfaced from the generator for incomplete-but-validating designs:
+            # missing bus matching a `kind: bus` connection, etc.
+            raise HTTPException(status_code=422, detail=str(e)) from e
 
     @app.get("/examples", response_model=list[ExampleSummary], tags=["examples"])
     def list_examples() -> list[ExampleSummary]:

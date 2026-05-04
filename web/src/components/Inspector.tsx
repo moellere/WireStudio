@@ -38,11 +38,14 @@ interface Props {
   onParamChange: (componentInstanceId: string, paramKey: string, value: unknown) => void;
   onConnectionChange: (connectionIndex: number, target: ConnectionTarget) => void;
   onDesignChange: (updater: (d: Design) => Design) => void;
+  onAddComponent: (libraryId: string) => void;
+  onRemoveComponent: (instanceId: string) => void;
 }
 
 export function Inspector({
   selection, design, boardData, libraryBoards, libraryComponents,
   onSelect, onParamChange, onConnectionChange, onDesignChange,
+  onAddComponent, onRemoveComponent,
 }: Props) {
   return (
     <aside className="flex min-h-0 flex-col border-l border-zinc-800">
@@ -71,8 +74,11 @@ export function Inspector({
           <DesignInspector
             design={design}
             libraryBoards={libraryBoards}
+            libraryComponents={libraryComponents}
             onSelect={onSelect}
             onDesignChange={onDesignChange}
+            onAddComponent={onAddComponent}
+            onRemoveComponent={onRemoveComponent}
           />
         )}
         {selection.kind === "board" && <BoardInspector id={selection.id} />}
@@ -93,12 +99,16 @@ export function Inspector({
 }
 
 function DesignInspector({
-  design, libraryBoards, onSelect, onDesignChange,
+  design, libraryBoards, libraryComponents, onSelect, onDesignChange,
+  onAddComponent, onRemoveComponent,
 }: {
   design: Design | null;
   libraryBoards: BoardSummary[] | null;
+  libraryComponents: ComponentSummary[] | null;
   onSelect: (s: Selection) => void;
   onDesignChange: (updater: (d: Design) => Design) => void;
+  onAddComponent: (libraryId: string) => void;
+  onRemoveComponent: (instanceId: string) => void;
 }) {
   if (!design) return <div className="text-xs text-zinc-500">No design loaded.</div>;
   const components = readComponents(design);
@@ -119,14 +129,14 @@ function DesignInspector({
 
       <Section title={`Components (${components.length})`}>
         {components.length === 0 ? (
-          <div className="text-xs text-zinc-500">no components</div>
+          <div className="mb-2 text-xs text-zinc-500">no components</div>
         ) : (
-          <ul className="space-y-1">
+          <ul className="mb-2 space-y-1">
             {components.map((c) => (
-              <li key={c.id}>
+              <li key={c.id} className="flex items-stretch gap-1">
                 <button
                   onClick={() => onSelect({ kind: "component_instance", id: c.id })}
-                  className="w-full rounded border border-zinc-800 bg-zinc-900/40 px-2 py-1.5 text-left transition-colors hover:bg-zinc-900"
+                  className="flex-1 rounded border border-zinc-800 bg-zinc-900/40 px-2 py-1.5 text-left transition-colors hover:bg-zinc-900"
                 >
                   <div className="flex items-baseline justify-between gap-2">
                     <span className="font-mono text-xs text-zinc-100">{c.id}</span>
@@ -134,10 +144,21 @@ function DesignInspector({
                   </div>
                   <div className="mt-0.5 truncate text-xs text-zinc-400">{c.label}</div>
                 </button>
+                <button
+                  onClick={() => onRemoveComponent(c.id)}
+                  title={`Remove ${c.id}`}
+                  className="rounded border border-zinc-800 px-2 text-xs text-zinc-500 transition-colors hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-300"
+                >
+                  ✕
+                </button>
               </li>
             ))}
           </ul>
         )}
+        <AddComponentControl
+          libraryComponents={libraryComponents}
+          onAdd={onAddComponent}
+        />
       </Section>
 
       <Section title={`Requirements (${requirements.length})`}>
@@ -166,6 +187,52 @@ function DesignInspector({
           />
         </Section>
       )}
+    </div>
+  );
+}
+
+function AddComponentControl({
+  libraryComponents, onAdd,
+}: {
+  libraryComponents: ComponentSummary[] | null;
+  onAdd: (libraryId: string) => void;
+}) {
+  const [picked, setPicked] = useState<string>("");
+  const options = libraryComponents ?? [];
+  // Group by category for the optgroups.
+  const byCategory: Record<string, ComponentSummary[]> = {};
+  for (const c of options) {
+    (byCategory[c.category] ||= []).push(c);
+  }
+  const categories = Object.keys(byCategory).sort();
+
+  return (
+    <div className="flex items-center gap-1">
+      <select
+        value={picked}
+        onChange={(e) => setPicked(e.target.value)}
+        className="flex-1 rounded border border-dashed border-zinc-800 bg-zinc-950 px-2 py-1 text-xs text-zinc-300 focus:border-zinc-600 focus:outline-none"
+      >
+        <option value="">+ Add component...</option>
+        {categories.map((cat) => (
+          <optgroup key={cat} label={cat}>
+            {byCategory[cat].map((c) => (
+              <option key={c.id} value={c.id}>{c.name} ({c.id})</option>
+            ))}
+          </optgroup>
+        ))}
+      </select>
+      <button
+        disabled={!picked}
+        onClick={() => {
+          if (!picked) return;
+          onAdd(picked);
+          setPicked("");
+        }}
+        className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 enabled:hover:bg-zinc-900 disabled:opacity-40"
+      >
+        Add
+      </button>
     </div>
   );
 }

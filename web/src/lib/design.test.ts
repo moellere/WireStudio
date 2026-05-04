@@ -1,13 +1,18 @@
 import { describe, expect, it } from "vitest";
 import {
+  addComponent,
   addRequirement,
   addWarning,
   isDirty,
+  neededBusTypes,
+  nextInstanceId,
+  prepareBusesForLib,
   readBuses,
   readComponents,
   readConnections,
   readRequirements,
   readWarnings,
+  removeComponent,
   removeRequirement,
   removeWarning,
   setBoardLibraryId,
@@ -16,6 +21,7 @@ import {
   updateConnectionTarget,
   updateRequirement,
   updateWarning,
+  type LibraryComponentDetail,
 } from "./design";
 import type { Design } from "../types/api";
 
@@ -165,6 +171,214 @@ describe("board + fleet", () => {
     delete (designNoFleet as Record<string, unknown>).fleet;
     const next = setFleetField(designNoFleet, "device_name", "fresh");
     expect(next.fleet).toEqual({ device_name: "fresh" });
+  });
+});
+
+describe("nextInstanceId", () => {
+  it("falls back to library id + counter", () => {
+    expect(nextInstanceId(baseDesign, "ssd1306")).toBe("ssd1306_1");
+  });
+
+  it("skips ids already used", () => {
+    const d: Design = clone(baseDesign);
+    (d.components as Array<{ id: string }>).push({ id: "ssd1306_1" } as never);
+    expect(nextInstanceId(d, "ssd1306")).toBe("ssd1306_2");
+  });
+
+  it("respects a hint when free", () => {
+    expect(nextInstanceId(baseDesign, "ssd1306", "front_oled")).toBe("front_oled");
+  });
+});
+
+describe("addComponent", () => {
+  const bme: LibraryComponentDetail = {
+    id: "bme280",
+    name: "Bosch BME280 (T/H/P)",
+    category: "sensor",
+    electrical: {
+      vcc_min: 1.8,
+      vcc_max: 3.6,
+      pins: [
+        { role: "VCC", kind: "power" },
+        { role: "GND", kind: "ground" },
+        { role: "SDA", kind: "i2c_sda" },
+        { role: "SCL", kind: "i2c_scl" },
+      ],
+    },
+  };
+
+  const board = {
+    rails: [
+      { name: "5V", voltage: 5.0 },
+      { name: "3V3", voltage: 3.3 },
+      { name: "GND", voltage: 0.0 },
+    ],
+  };
+
+  it("appends a new component with auto-id", () => {
+    const next = addComponent(baseDesign, bme, { board, buses: readBuses(baseDesign) });
+    const cs = next.components as Array<{ id: string; library_id: string }>;
+    expect(cs.length).toBe(3);
+    expect(cs[2].id).toBe("bme280_1");
+    expect(cs[2].library_id).toBe("bme280");
+  });
+
+  it("auto-creates one connection per library pin", () => {
+    const next = addComponent(baseDesign, bme, { board, buses: readBuses(baseDesign) });
+    const newConns = (next.connections as Array<{ component_id: string }>).filter((c) => c.component_id === "bme280_1");
+    expect(newConns.length).toBe(4);
+  });
+
+  it("VCC picks the lowest rail satisfying the part's range", () => {
+    const next = addComponent(baseDesign, bme, { board, buses: [] });
+    const conns = (next.connections as Array<{ component_id: string; pin_role: string; target: { kind: string; rail?: string } }>);
+    const vcc = conns.find((c) => c.component_id === "bme280_1" && c.pin_role === "VCC");
+    expect(vcc?.target).toEqual({ kind: "rail", rail: "3V3" });
+  });
+
+  it("GND picks the rail at 0V", () => {
+    const next = addComponent(baseDesign, bme, { board, buses: [] });
+    const conns = (next.connections as Array<{ component_id: string; pin_role: string; target: { kind: string; rail?: string } }>);
+    const gnd = conns.find((c) => c.component_id === "bme280_1" && c.pin_role === "GND");
+    expect(gnd?.target).toEqual({ kind: "rail", rail: "GND" });
+  });
+
+  it("i2c pins link to a matching bus when present", () => {
+    const next = addComponent(baseDesign, bme, { board, buses: readBuses(baseDesign) });
+    const conns = (next.connections as Array<{ component_id: string; pin_role: string; target: { kind: string; bus_id?: string } }>);
+    const sda = conns.find((c) => c.component_id === "bme280_1" && c.pin_role === "SDA");
+    expect(sda?.target).toEqual({ kind: "bus", bus_id: "i2c0" });
+  });
+
+  it("i2c pins emit empty-bus targets when no matching bus exists", () => {
+    const designNoBus: Design = clone(baseDesign);
+    designNoBus.buses = [];
+    const next = addComponent(designNoBus, bme, { board, buses: [] });
+    const conns = (next.connections as Array<{ component_id: string; pin_role: string; target: { kind: string; bus_id?: string } }>);
+    const sda = conns.find((c) => c.component_id === "bme280_1" && c.pin_role === "SDA");
+    expect(sda?.target).toEqual({ kind: "bus", bus_id: "" });
+  });
+
+  it("digital_in / digital_out get gpio placeholders", () => {
+    const button: LibraryComponentDetail = {
+      id: "gpio_input",
+      name: "Generic GPIO binary sensor",
+      electrical: { pins: [{ role: "IN", kind: "digital_in" }] },
+    };
+    const next = addComponent(baseDesign, button, { board, buses: [] });
+    const conns = (next.connections as Array<{ component_id: string; pin_role: string; target: { kind: string; pin?: string } }>);
+    const inConn = conns.find((c) => c.pin_role === "IN" && c.component_id === "gpio_input_1");
+    expect(inConn?.target).toEqual({ kind: "gpio", pin: "" });
+  });
+
+  it("does not mutate the input", () => {
+    const before = clone(baseDesign);
+    addComponent(baseDesign, bme, { board, buses: readBuses(baseDesign) });
+    expect(baseDesign).toEqual(before);
+  });
+});
+
+describe("neededBusTypes + prepareBusesForLib", () => {
+  const bme: LibraryComponentDetail = {
+    id: "bme280", name: "BME280",
+    electrical: {
+      pins: [
+        { role: "VCC", kind: "power" }, { role: "GND", kind: "ground" },
+        { role: "SDA", kind: "i2c_sda" }, { role: "SCL", kind: "i2c_scl" },
+      ],
+    },
+  };
+  const sx127x: LibraryComponentDetail = {
+    id: "sx127x", name: "SX127x",
+    electrical: {
+      pins: [
+        { role: "VCC", kind: "power" }, { role: "GND", kind: "ground" },
+        { role: "SCK", kind: "spi_clk" }, { role: "MOSI", kind: "spi_mosi" }, { role: "MISO", kind: "spi_miso" },
+        { role: "CS", kind: "spi_cs" },
+      ],
+    },
+  };
+  const board = {
+    rails: [{ name: "3V3", voltage: 3.3 }, { name: "GND", voltage: 0 }],
+    default_buses: { i2c: { sda: "D2", scl: "D1" }, spi: { clk: "GPIO5", miso: "GPIO19", mosi: "GPIO27" } },
+  };
+
+  it("neededBusTypes pulls types from pin kinds", () => {
+    expect([...neededBusTypes(bme)]).toEqual(["i2c"]);
+    expect([...neededBusTypes(sx127x)]).toEqual(["spi"]);
+  });
+
+  it("does nothing when the design already has the needed bus", () => {
+    const next = prepareBusesForLib(baseDesign, bme, board);
+    expect(next.buses).toEqual(baseDesign.buses); // i2c0 already present
+  });
+
+  it("appends a bus seeded from the board's default_buses", () => {
+    const designNoSpi: Design = clone(baseDesign);
+    const next = prepareBusesForLib(designNoSpi, sx127x, board);
+    const buses = next.buses as Array<{ id: string; type: string; clk?: string; miso?: string; mosi?: string }>;
+    expect(buses.length).toBe(2);
+    const spi = buses.find((b) => b.type === "spi");
+    expect(spi).toMatchObject({ id: "spi0", type: "spi", clk: "GPIO5", miso: "GPIO19", mosi: "GPIO27" });
+  });
+
+  it("falls back to a bare bus skeleton when the board has no default", () => {
+    const designNoSpi: Design = clone(baseDesign);
+    const next = prepareBusesForLib(designNoSpi, sx127x, { rails: board.rails });
+    const buses = next.buses as Array<{ id: string; type: string }>;
+    const spi = buses.find((b) => b.type === "spi");
+    expect(spi).toEqual({ id: "spi0", type: "spi" });
+  });
+
+  it("auto-id avoids existing bus ids", () => {
+    const d: Design = clone(baseDesign);
+    (d.buses as Array<Record<string, unknown>>).push({ id: "spi0", type: "spi", clk: "X" });
+    const next = prepareBusesForLib(d, sx127x, board);
+    // spi already present (id spi0) -> nothing appended.
+    expect((next.buses as unknown[]).length).toBe(2);
+  });
+
+  it("addComponent on a design lacking buses now yields renderable connections", () => {
+    const designNoI2c: Design = { ...clone(baseDesign), buses: [] };
+    const withBuses = prepareBusesForLib(designNoI2c, bme, board);
+    const next = addComponent(withBuses, bme, {
+      board, buses: readBuses(withBuses),
+    });
+    const conns = next.connections as Array<{ component_id: string; pin_role: string; target: { kind: string; bus_id?: string } }>;
+    const sda = conns.find((c) => c.component_id === "bme280_1" && c.pin_role === "SDA");
+    expect(sda?.target).toEqual({ kind: "bus", bus_id: "i2c0" });
+  });
+});
+
+describe("removeComponent", () => {
+  it("drops the named instance from components", () => {
+    const next = removeComponent(baseDesign, "bme1");
+    const ids = (next.components as Array<{ id: string }>).map((c) => c.id);
+    expect(ids).toEqual(["pir1"]);
+  });
+
+  it("drops connections originating from the instance", () => {
+    const next = removeComponent(baseDesign, "bme1");
+    const conns = next.connections as Array<{ component_id: string }>;
+    expect(conns.every((c) => c.component_id !== "bme1")).toBe(true);
+    expect(conns.length).toBe(1); // only pir1.OUT remains
+  });
+
+  it("leaves connections that target the removed id (orphans surface in UI)", () => {
+    const designWithExpander: Design = clone(baseDesign);
+    (designWithExpander.connections as Array<Record<string, unknown>>).push({
+      component_id: "pir1",
+      pin_role: "OUT",
+      target: { kind: "expander_pin", expander_id: "bme1", number: 0 },
+    });
+    const next = removeComponent(designWithExpander, "bme1");
+    const conns = next.connections as Array<{ target: { kind: string; expander_id?: string } }>;
+    expect(conns.some((c) => c.target.expander_id === "bme1")).toBe(true);
+  });
+
+  it("is a no-op for unknown ids", () => {
+    const next = removeComponent(baseDesign, "ghost");
+    expect(next.components).toEqual(baseDesign.components);
   });
 });
 
