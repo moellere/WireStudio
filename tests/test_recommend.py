@@ -32,6 +32,64 @@ def test_motion_query_ranks_pir_first(lib):
     assert "motion" in out[0].rationale
 
 
+def test_motion_query_surfaces_rcwl_alongside_pir(lib):
+    """RCWL-0516 advertises the same use_cases as the PIR but is the
+    microwave alternative, so it should appear in the top 3 motion picks."""
+    out = recommend_components(lib, "motion")
+    ids = [r.library_id for r in out[:3]]
+    assert "rcwl-0516" in ids
+
+
+def test_temperature_query_surfaces_ds18b20(lib):
+    """DS18B20 is the canonical 1-wire temp sensor; recommending
+    'temperature' must include it (BME280 still wins on 'temperature
+    humidity' because it covers both, but DS18B20 should be visible)."""
+    out = recommend_components(lib, "temperature")
+    ids = [r.library_id for r in out]
+    assert "ds18b20" in ids
+
+
+def test_adc_query_surfaces_ads1115(lib):
+    """ADC queries should land on the ADS1115 -- it's the only library
+    component carrying the `adc` use_case today."""
+    out = recommend_components(lib, "adc")
+    ids = [r.library_id for r in out]
+    assert ids and ids[0] == "ads1115"
+
+
+def test_imu_query_surfaces_mpu6050(lib):
+    """IMU/accelerometer/gyroscope queries should land on the MPU6050."""
+    for q in ("imu", "accelerometer", "gyroscope"):
+        out = recommend_components(lib, q)
+        ids = [r.library_id for r in out]
+        assert "mpu6050" in ids, f"{q!r} did not surface mpu6050; got {ids}"
+
+
+def test_thermocouple_query_lands_on_max31855(lib):
+    out = recommend_components(lib, "thermocouple")
+    assert out and out[0].library_id == "max31855"
+
+
+def test_weight_query_lands_on_hx711(lib):
+    out = recommend_components(lib, "weight scale")
+    assert out and out[0].library_id == "hx711"
+
+
+def test_lux_query_lands_on_tsl2561(lib):
+    out = recommend_components(lib, "lux ambient light")
+    assert out and out[0].library_id == "tsl2561"
+
+
+def test_pressure_query_includes_bmp180(lib):
+    out = recommend_components(lib, "pressure")
+    assert "bmp180" in [r.library_id for r in out]
+
+
+def test_humidity_query_includes_htu21d(lib):
+    out = recommend_components(lib, "humidity")
+    assert "htu21d" in [r.library_id for r in out]
+
+
 def test_temperature_humidity_query_returns_bme280(lib):
     out = recommend_components(lib, "temperature humidity")
     ids = [r.library_id for r in out]

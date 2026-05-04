@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  addBus,
   addComponent,
   addRequirement,
   addWarning,
@@ -12,11 +13,15 @@ import {
   readConnections,
   readRequirements,
   readWarnings,
+  removeBus,
+  renameBus,
   removeComponent,
   removeRequirement,
   removeWarning,
   setBoardLibraryId,
   setFleetField,
+  setLockedPin,
+  updateBus,
   updateComponentParam,
   updateConnectionTarget,
   updateRequirement,
@@ -395,5 +400,136 @@ describe("isDirty", () => {
   it("returns true after a mutating helper runs", () => {
     const next = updateComponentParam(baseDesign, "bme1", "address", "0x77");
     expect(isDirty(baseDesign, next)).toBe(true);
+  });
+});
+
+
+describe("locked_pins", () => {
+  it("readConnections lifts locked_pin from the matching component", () => {
+    const d = clone(baseDesign);
+    (d.components as Array<Record<string, unknown>>)[0].locked_pins = { OUT: "D5" };
+    const rows = readConnections(d, "pir1");
+    expect(rows[0].locked_pin).toBe("D5");
+  });
+
+  it("readConnections leaves locked_pin null when no lock exists", () => {
+    const rows = readConnections(baseDesign, "pir1");
+    expect(rows[0].locked_pin).toBeNull();
+  });
+
+  it("setLockedPin writes a new entry", () => {
+    const next = setLockedPin(baseDesign, "pir1", "OUT", "D6");
+    const c = (next.components as Array<Record<string, unknown>>)[0];
+    expect(c.locked_pins).toEqual({ OUT: "D6" });
+    // input unchanged
+    expect((baseDesign.components as Array<Record<string, unknown>>)[0].locked_pins).toBeUndefined();
+  });
+
+  it("setLockedPin removes the field entirely when the map empties", () => {
+    const seeded = setLockedPin(baseDesign, "pir1", "OUT", "D6");
+    const cleared = setLockedPin(seeded, "pir1", "OUT", null);
+    const c = (cleared.components as Array<Record<string, unknown>>)[0];
+    expect(c.locked_pins).toBeUndefined();
+  });
+
+  it("setLockedPin treats empty string the same as null", () => {
+    const seeded = setLockedPin(baseDesign, "pir1", "OUT", "D6");
+    const cleared = setLockedPin(seeded, "pir1", "OUT", "");
+    const c = (cleared.components as Array<Record<string, unknown>>)[0];
+    expect(c.locked_pins).toBeUndefined();
+  });
+
+  it("setLockedPin preserves locks for sibling roles", () => {
+    const seeded = setLockedPin(baseDesign, "pir1", "OUT", "D6");
+    const next = setLockedPin(seeded, "pir1", "VCC", "5V");
+    const c = (next.components as Array<Record<string, unknown>>)[0];
+    expect(c.locked_pins).toEqual({ OUT: "D6", VCC: "5V" });
+  });
+
+  it("setLockedPin is a no-op for unknown component ids", () => {
+    const next = setLockedPin(baseDesign, "ghost", "OUT", "D6");
+    expect(next.components).toEqual(baseDesign.components);
+  });
+});
+
+describe("buses", () => {
+  it("addBus appends a fresh bus with auto-id", () => {
+    const next = addBus(baseDesign, "spi");
+    const buses = next.buses as Array<Record<string, unknown>>;
+    expect(buses.length).toBe(2);
+    expect(buses[1]).toMatchObject({ id: "spi0", type: "spi" });
+  });
+
+  it("addBus skips ids already used", () => {
+    const seeded = addBus(baseDesign, "i2c");
+    const buses = seeded.buses as Array<Record<string, unknown>>;
+    // baseDesign has i2c0; addBus must pick i2c1.
+    expect(buses[1]).toMatchObject({ id: "i2c1", type: "i2c" });
+  });
+
+  it("addBus seeds from defaults when provided", () => {
+    const next = addBus(baseDesign, "uart", { tx: "D1", rx: "D2", baud_rate: "9600" });
+    const buses = next.buses as Array<Record<string, unknown>>;
+    expect(buses[1]).toMatchObject({ id: "uart0", type: "uart", tx: "D1", rx: "D2" });
+  });
+
+  it("updateBus patches a single bus immutably", () => {
+    const next = updateBus(baseDesign, "i2c0", { sda: "D6", frequency_hz: 400000 });
+    const b = (next.buses as Array<Record<string, unknown>>)[0];
+    expect(b).toMatchObject({ id: "i2c0", sda: "D6", scl: "D1", frequency_hz: 400000 });
+    // input untouched
+    expect((baseDesign.buses as Array<Record<string, unknown>>)[0]).not.toMatchObject({ sda: "D6" });
+  });
+
+  it("removeBus drops the matching bus and leaves others alone", () => {
+    const seeded = addBus(baseDesign, "spi");
+    const next = removeBus(seeded, "i2c0");
+    const buses = next.buses as Array<Record<string, unknown>>;
+    expect(buses.map((b) => b.id)).toEqual(["spi0"]);
+  });
+
+  it("removeBus on unknown id is a no-op", () => {
+    const next = removeBus(baseDesign, "ghost");
+    expect(next.buses).toEqual(baseDesign.buses);
+  });
+
+  it("updateBus silently strips an `id` patch (use renameBus instead)", () => {
+    const next = updateBus(baseDesign, "i2c0", { id: "evil", sda: "D7" });
+    const buses = next.buses as Array<Record<string, unknown>>;
+    expect(buses[0]).toMatchObject({ id: "i2c0", sda: "D7" });
+  });
+
+  it("renameBus rewrites every connection that targeted the old id", () => {
+    const next = renameBus(baseDesign, "i2c0", "shared_i2c");
+    const buses = next.buses as Array<Record<string, unknown>>;
+    expect(buses[0].id).toBe("shared_i2c");
+    const conns = next.connections as Array<{ target: { kind: string; bus_id?: string } }>;
+    expect(conns[1].target).toEqual({ kind: "bus", bus_id: "shared_i2c" });
+    // Non-bus connections are untouched.
+    expect(conns[0].target).toEqual({ kind: "gpio", pin: "D2" });
+  });
+
+  it("renameBus is a no-op when oldId === newId", () => {
+    const next = renameBus(baseDesign, "i2c0", "i2c0");
+    expect(next).toBe(baseDesign);
+  });
+
+  it("renameBus is a no-op when the new id collides with another bus", () => {
+    const seeded = addBus(baseDesign, "spi");
+    const next = renameBus(seeded, "i2c0", "spi0");
+    const buses = next.buses as Array<Record<string, unknown>>;
+    // No rename happened; the SPI bus is still present and the I2C still i2c0.
+    expect(buses.map((b) => b.id)).toEqual(["i2c0", "spi0"]);
+  });
+
+  it("renameBus is a no-op when the source id doesn't exist", () => {
+    const next = renameBus(baseDesign, "ghost", "renamed");
+    expect(next).toBe(baseDesign);
+  });
+
+  it("renameBus does not mutate the input", () => {
+    const before = clone(baseDesign);
+    renameBus(baseDesign, "i2c0", "shared_i2c");
+    expect(baseDesign).toEqual(before);
   });
 });

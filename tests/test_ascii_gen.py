@@ -134,3 +134,8 @@ def test_long_warning_text_wrapped(bluesonoff_design, library):
     assert len(widths) == 1
     # Pre-wrap, the box ballooned to ~260 chars; wrapping caps it.
     assert max(widths) < 130
+
+
+def test_multi_temp_matches_golden(multi_temp_design, library, golden_dir):
+    expected = (golden_dir / "multi-temp.txt").read_text().rstrip("\n")
+    assert render_ascii(multi_temp_design, library) == expected

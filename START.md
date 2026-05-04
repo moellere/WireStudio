@@ -27,14 +27,275 @@ stays as a back-compat wrapper. Pytest +21 (179 total), vitest 49, ruff
 + build clean.
 
 **Next up candidates:**
-- Bus editor in the UI
-- Strict-mode pin locks (`locked_pins` already in schema)
-- Frontend RTL/jsdom component tests
-- Full SSE/WS log relay (current 0.7+ uses HTTP polling at 1.5s intervals)
-- Capability picker: bus-aware constraint pre-fill (auto-set required_bus
-  from the design's existing buses so I2C designs don't surface SPI parts)
-- Capability picker: per-result "alternatives" tooltip surfacing the
-  recommender's full ranking when the user wants to compare
+- 0.8 — Enclosure suggestions (Thingiverse/Printables search;
+  parametric OpenSCAD stretch).
+- 0.9 — KiCad schematic export. Full scope in the Roadmap section
+  below; key points: SKiDL-driven, `kicad:` reference block per
+  component/board (we stay canonical for ESPHome semantics, KiCad
+  for schematic rendering), `studio/kicad/scaffold.py` helper for
+  cheap library expansion, PCB deferred to 1.0+.
+
+**Drag-and-drop pinout shipped.** New `PinoutView` component renders
+a two-column view in the component-instance inspector: left lists
+every board GPIO with capability badges (boot strap, ADC1/ADC2,
+input-only, serial console, I2C SDA/SCL); right lists this instance's
+gpio-target connections as draggable chips. Dropping a chip onto a
+board pin rewrites the connection's target. Conflict detection paints
+the rose tone on pins another component already uses; the row that's
+currently bound (on this instance) glows emerald with a "← <role>"
+breadcrumb.
+
+The Connections section gains a Form/Pinout toggle: Form (default)
+covers every target kind including the new component target; Pinout
+is the visual shortcut for board-pin-heavy designs. Native HTML5
+drag/drop -- no library dependency, ~200 lines of TSX, ~150 lines of
+test coverage. 7 new vitest cases (empty states, capability badge
+rendering, pin-currently-here annotation, conflict detection, the
+drag-start-then-drop round trip, and the empty-payload no-op).
+
+**ADS1115 hub-only split shipped.** New `kind: "component"` connection
+target lets one component instance reference another by id. The
+generator surfaces the referenced instance as `parent` in the
+template's Jinja context (sibling to `bus`); the pin solver fills
+unbound `kind: component` targets by picking the first design
+component whose library_id matches the role's `parent_library_id`
+hint on the library Pin. ConnectionForm gains a `component` option
+in the kind dropdown with a sibling-instance picker.
+
+`ads1115` is now hub-only -- it registers the `ads1115:` block but
+emits no sensors. Each logical reading is a separate
+`ads1115_channel` instance with its own multiplexer/gain/update_interval
+params and a HUB connection (kind=component) pointing at the hub.
+Channels show up as first-class components in the inspector instead
+of being buried inside a `channels` array param. The schema /
+model / generator / solver / web type extension is generic; future
+hub patterns (RGB controllers, multiplexed mux chips) can reuse it
+without further surgery.
+
+**SSE log relay shipped.** New `GET /fleet/jobs/{run_id}/log/stream`
+endpoint server-side-polls the addon's `/ui/api/jobs/{id}/log` at
+~300ms (vs the browser-driven 1.5s) and emits Server-Sent Events:
+`data:` frames carry `{log, offset, finished}` chunks; an
+`event: done` frame caps a successful run; an `event: error` frame
+surfaces logical failures (unknown run_id) so the client knows not
+to retry. `interval_ms` query param tunes the cadence with a 100ms
+floor.
+
+PushToFleetDialog tries `EventSource` first; on transport error it
+closes and falls back to the existing 1.5s `setTimeout` polling
+loop, picking up at the offset of the last accepted chunk so no log
+bytes are lost. The status pill shows `(stream)` or `(poll)` so
+testers can see which path is in use. EventSource isn't on jsdom by
+default, so the existing polling tests stay green; the SSE path got
+3 new tests using a FakeEventSource stub (chunk -> done flow,
+transport-error fallback to polling, server-emitted error event).
+
+241 pytest (+3), 108 vitest (+3), ruff + tsc + vite build clean.
+
+**Library expansion v3 shipped (5 components).**
+- `bmp180` — older Bosch barometric T/P (I2C, fixed 0x77, no humidity).
+  Renders the deprecated-but-supported `bmp085` ESPHome platform; covers
+  legacy modules people still have on hand.
+- `htu21d` — T/H (I2C, fixed 0x40). Drop-in for designs that don't need
+  pressure; covers the Si7021 / SHT2x families on the same protocol.
+- `max31855` — K-type thermocouple amp (SPI, MISO-only). Range -270 to
+  +1372°C. Optional `reference_temperature: true` publishes the cold-
+  junction reading. CS is per-component native (`spi_cs`).
+- `hx711` — 24-bit load-cell ADC, custom 2-wire serial (DOUT + SCK on
+  free GPIOs, no bus). Channel A 128/64x or channel B 32x via the
+  `gain` param.
+- `tsl2561` — ambient light / lux (I2C). Address selectable across
+  0x29/0x39/0x49 via the ADDR pin; gain + integration_time tunables.
+
+10 new tests: 5 yaml-gen smoke (each component renders the expected
+ESPHome platform with the right pin / address / param wiring) + 5
+recommender pin tests (thermocouple, weight, lux, pressure, humidity
+all land on the right top pick).
+
+**Library expansion: ADS1115 + MPU6050 shipped.**
+- `library/components/ads1115.yaml`: 4-channel 16-bit ADC over I2C.
+  Renders an `ads1115:` hub block + per-channel `sensor:` entries
+  driven by a `channels` param (multiplexer, name, gain, update_
+  interval). Address selectable via the ADDR pin maps to 0x48-0x4B.
+  Solves the ADC2/WiFi conflict on classic ESP32 by giving the
+  chip a known-good external ADC.
+- `library/components/mpu6050.yaml`: 6-axis IMU (3-axis accel +
+  3-axis gyro + die temp). All seven channels emitted in one
+  `sensor:` entry; AD0 selects 0x68/0x69. The INT pin isn't modeled
+  yet -- a binary_sensor in esphome_extras handles motion-wake until
+  someone needs richer support.
+- 4 new yaml-gen tests (per-channel rendering, hub-with-no-channels
+  smoke, full IMU axis emission, both parts sharing a single I2C
+  bus) + 2 new recommender tests (adc query lands on ads1115, IMU
+  queries land on mpu6050).
+
+**Inspector composition tests shipped.** New `Inspector.test.tsx`
+(9 tests) covers the DesignInspector composition: null-design
+fallback, component row rendering with id+label+library_id, section
+counts (Components/Buses/Requirements/Warnings) reflecting the design,
+selection callback firing with `kind: "component_instance"` when a
+row is clicked, the per-row ✕ wiring through to onRemoveComponent,
+the Compatibility section's hide/show on warning presence, the Fleet
+section's gate on the design's fleet block, and the empty-components
+affordance. api.getComponent is mocked at the boundary; no real
+network calls.
+
+228 pytest (+6), 105 vitest (+9), ruff + tsc + vite build clean.
+
+**1-wire bus type promotion shipped.** The `Bus` model gains a `pin`
+field (single-pin bus, parallel to the multi-pin sets on i2c/spi).
+yaml_gen renders a top-level `one_wire:` block per 1-wire bus
+(`{platform: gpio, pin, id}`) so multiple sensors on a shared physical
+bus emit a single bus block, not one per sensor. The DS18B20 template
+no longer carries a `one_wire:` block of its own -- it reads `bus.id`
+and emits `dallas_temp` with the matching `one_wire_id`. Pin-solver
+and bus-pin compatibility checks gain a `1wire` entry; the BusList
+editor surfaces a `pin` field on 1wire cards instead of the previous
+"lives on each component" placeholder. design.ts's `neededBusTypes`
+and `defaultTargetForPin` recognise the new `onewire_data` pin kind.
+
+New `examples/multi-temp.json` + golden artifacts pin the round-trip:
+two DS18B20s with distinct ROM addresses sharing `wire0` on D6 plus
+an RCWL-0516 microwave motion sensor on D5. 4 new pytest cases (2
+yaml-gen, 1 ascii-gen golden, 1 yaml-gen single-instance smoke).
+
+**Strict-only push gate shipped.** `POST /fleet/push` now accepts
+`strict: bool` and refuses the push with the same `strict_mode_blocked`
+envelope that `/design/render?strict=true` uses when any warn/error
+compat entry remains. The studio app threads its global strict-mode
+toggle into `PushToFleetDialog` as a prop; the dialog renders an
+amber notice when strict is on and the result-banner formatter
+recognises the envelope so the user sees the friendly message
+instead of the raw JSON. 2 new pytest cases pin the gate.
+
+**Library expansion: RCWL-0516 + DS18B20 shipped.**
+- `library/components/rcwl-0516.yaml`: microwave doppler motion sensor.
+  Same VCC/GND/OUT pin set as the HC-SR501 PIR but draws ~3 mA peak
+  vs ~50 mA, so it complements the PIR for battery builds. No params
+  (sensitivity/on-time live on the SMD resistors). Recommender ranks
+  it alongside the PIR for `motion`/`occupancy`/`presence` queries.
+- `library/components/ds18b20.yaml`: first 1-wire library citizen.
+  VCC/GND/DATA + the canonical 4.7kΩ pull-up between DATA and VCC
+  encoded in `passives`. Each instance renders its own
+  `one_wire: [{ id: <comp>_bus }]` block plus a `dallas_temp` sensor
+  pointing at it; the existing `_deep_merge` of list-typed top-level
+  blocks means N independent DS18B20s on N different pins coexist
+  cleanly. Sharing a single physical bus among multiple sensors is
+  noted in the component's `notes` field but not yet wired -- that's
+  a 1-wire-bus promotion candidate above. Params expose `address`
+  (ROM), `update_interval`, `resolution` (9-12 bits).
+
+7 new pytest cases (yaml gen for both + recommender ranks both +
+strict push). 220 pytest, 96 vitest, ruff + tsc + build clean.
+
+**ConnectionForm + PushToFleetDialog component tests shipped.** New
+`ConnectionForm.test.tsx` (7 tests) covers the LockToggle's three
+states (unlocked / locked-in-sync / locked-diverged), the disabled
+state when no pin is bound, the onLockedPinChange round-trip, the
+inline mismatch hint, and the non-render guard for non-gpio targets.
+New `PushToFleetDialog.test.tsx` (6 tests) covers the status fetch
+gating Push, the device-name round-trip in the fleetPush payload,
+no-run_id-no-log-viewer, single-shot finished-on-first-poll, and
+`vi.useFakeTimers` driven multi-chunk polling that confirms the
+1.5s gap is honoured and the second poll fetches at the offset
+returned by the first. Plus an error-path test that surfaces
+"log error: addon disconnected" and stops the loop.
+
+**Strict-mode toggle shipped.** `POST /design/render?strict=true`
+now refuses to produce YAML/ASCII when any compatibility entry of
+severity warn or error remains; the response is a 422 with detail
+shape `{error: "strict_mode_blocked", message, warnings[]}`. Header
+gains a "strict" checkbox (amber-tinted when on, plain when off);
+flipping it re-fires the debounced render with the new flag in the
+deps array. The existing renderError banner gets a small upgrade to
+recognise the `strict_mode_blocked` envelope and surface the count
+instead of dumping the JSON envelope. info-severity entries are
+deliberately left as a permissive signal -- they're educational
+(voltage_limit on D1 Mini A0, current-budget guidance) and don't
+block. 3 new pytest cases pin the gate.
+
+**Capability picker alternatives disclosure shipped.** Each match in
+the picker now carries a small "▸ N alternatives" toggle below its
+metadata row. Clicking expands an inline list of the OTHER currently-
+visible matches (filtered through the same bus filter) with their
+score and the delta against the row -- emerald-tinted when an
+alternative beats the row's score, muted-zinc when it's worse.
+Single-expanded-at-a-time policy: opening one closes the previous so
+the result list never grows multiple stacked alternatives panels.
+
+**RTL/jsdom component tests scaffolded.** New `vitest.config.ts`
+extends the existing vite config with `environment: "jsdom"` and a
+setup file that imports `@testing-library/jest-dom` matchers. First
+two suites cover the surfaces with the most state machinery:
+- `BusList.test.tsx`: rename draft commits on Enter, reverts on
+  Escape (caught and fixed a real bug -- the previous Escape handler
+  blurred the input, racing the queued state reset and leaking the
+  stale draft through commitRename), rejects collision with another
+  bus's id, inline compat warnings filter to the matching card.
+- `CapabilityPickerDialog.test.tsx`: alternatives disclosure shows
+  "N alternatives" toggle on every multi-match list, expansion is
+  single-row-at-a-time with aria-expanded synchronised, score delta
+  carries the sign and the right tint, bus filter hides + counter
+  surface and the unhide path. Plus an Add round-trip that confirms
+  onAdd receives the library_id and the row flips to the affirmation.
+
+15 new vitest cases (53 -> 68 -> 83); the network surface is mocked
+at the api/client boundary so the suite stays fast (2.4s for all 83).
+
+**Bus rename propagation + inline bus card warnings shipped.** New
+`renameBus(d, oldId, newId)` helper rewrites the bus's id and every
+`connection.target.bus_id == oldId` atomically. The bus card's id
+input now keeps a local draft and commits on blur or Enter (Esc
+reverts) so a mid-typing intermediate like "" or "i" doesn't briefly
+orphan connections; the field tints amber while dirty and red on a
+collision with another bus's id. `updateBus` silently strips an `id`
+key from its patch so nothing else sneaks past renameBus. Each bus
+card now also filters whole-design compatibility warnings down to
+its own (matched on `component_id`) and renders them inline below
+the pin grid in severity-tinted rows -- so a boot-strap warning on
+`spi0.CLK` shows up on the spi0 card, not just under the design's
+Compatibility section.
+
+**Pin-lock inspector toggle shipped.** Connection rows in the inspector
+gain a 🔓/🔒 button next to the gpio pin selector. Click 🔓 lock to
+write `locked_pins[role]` for the currently bound pin; click 🔒 to
+clear it. The lock badge turns amber when the bound pin diverges from
+the lock and an inline "solver will flag a mismatch" hint surfaces
+the discrepancy without leaving the row. Reads/writes go through new
+`readConnections.locked_pin` and `setLockedPin` helpers in
+`web/src/lib/design.ts`.
+
+**Bus editor shipped.** Design Inspector now has a Buses section with
+one card per bus. Each card lets the user rename the id, edit the
+type's pin slots (`sda`/`scl` for i2c, `clk`/`miso`/`mosi` for spi,
+`tx`/`rx` for uart, `lrclk`/`bclk` for i2s) plus the type's tunable
+(frequency_hz / baud_rate). Pin selectors are populated from the
+board's `gpio_capabilities`; an "+ add bus" picker creates a fresh bus
+seeded from `board.default_buses` when present. Removing a bus
+intentionally leaves connections that target it dangling so the
+render-time error makes the inconsistency loud.
+
+**Pin locks shipped (permissive).** `Component.locked_pins` is no
+longer dead code:
+- Solver applies locks before solving. Empty gpio targets get filled
+  from the lock; bound targets that disagree surface a
+  `locked_pin_mismatch` warning (the bound pin stays put — divergence
+  might be intentional). Lock keys that aren't real roles on the
+  library component surface a `locked_pin_unknown_role` warning.
+  Locks against non-gpio targets surface `locked_pin_wrong_kind`.
+- compatibility.py validates the lock's target pin against the role's
+  required capability; a `locked_pin_invalid` (severity: error) fires
+  when, say, an `analog_in` lock lands on a pin without `adc`.
+- 6 new tests pin all paths.
+
+**Capability picker bus filter shipped.** Dialog now receives the
+design's bus types (i2c/spi/uart/i2s/1wire) and offers a "match my
+buses" checkbox (default on). When on, ranked matches whose
+`required_components` include a bus the design lacks are dropped
+from the visible list with a "N hidden by the bus filter" note.
+Uncheck to see everything (e.g., when the user is happy to add a
+new bus). The agent's recommend tool is unchanged — this is a
+UI-side filter only.
 
 **Capability-driven "Add by function" picker shipped.** New backend
 endpoint `GET /library/use_cases` aggregates the library's canonical
@@ -271,8 +532,74 @@ immediate way in and the agent (when it arrives) lands in a working surface.
   device list to pick a target name from.
 - **0.8 — Enclosure suggestions.** Thingiverse/Printables lookup against
   the chosen board + components; parametric OpenSCAD stretch.
-- **Future — KiCad schematic + PCB layout.** Reuse the netlist; Freerouting
-  for autorouting; Gerber + JLCPCB CPL/BOM export.
+- **0.9 — KiCad schematic export.** Walk `design.json` and emit a
+  `.kicad_sch` (KiCad 6+ s-expression format) the user opens in
+  KiCad. SKiDL is the recommended path: a mature Python DSL that
+  takes parts + nets and writes the schematic for us. Concretely:
+
+  - **Library mapping, not duplication.** Our `library/components/<id>.yaml`
+    stays the canonical source for ESPHome semantics; it gains a small
+    `kicad:` block that *references* the matching `kicad-symbols`
+    entry rather than copying its pin geometry. The two libraries
+    sit at orthogonal layers -- KiCad's covers schematic rendering
+    (pin numbers, electrical types, footprint, datasheet); ours
+    covers the rest (Jinja YAML template, use_cases, required buses,
+    `params_schema`, electrical bounds, capability tags). Replacing
+    one with the other moves the data, doesn't eliminate it.
+
+    Block shape:
+    ```yaml
+    kicad:
+      symbol_lib: Sensor
+      symbol: BME280
+      footprint: Package_LGA:LGA-8_2.5x2.5mm_P0.65mm_LayoutBorder3x3y
+      pin_map:                # studio role -> KiCad pin name
+        VCC: VDD
+        GND: GND
+        SDA: SDA
+        SCL: SCL
+    ```
+
+    Pin map handles the cases where our role names differ from a
+    symbol's (e.g., our `VCC` vs Bosch's `VDD`); most parts are 1:1.
+
+  - **Boards likewise.** `library/boards/<id>.yaml` gains the same
+    `kicad:` block (e.g., WeMos D1 Mini -> `MCU_Module:WeMos_D1_mini`),
+    so the schematic gets the right module symbol, not just a sea of
+    nets.
+
+  - **Generator.** New `studio/kicad/` module: walks `design.json`,
+    converts each component instance into a SKiDL `Part(...)`, each
+    connection into a Net assignment, and either emits a SKiDL Python
+    script (the user runs it themselves) or invokes SKiDL in-process
+    to write `<design_id>.kicad_sch` directly. New endpoint
+    `POST /design/kicad` returns the artifact; CLI gets a
+    `--out-kicad` flag.
+
+  - **Scaffold helper.** Cheap tooling win: `studio/kicad/scaffold.py`
+    reads a `.kicad_sym` file and prints a starter
+    `library/components/<id>.yaml` skeleton (pin roles + voltage
+    hints prefilled from the symbol's pin electrical_types). Cuts
+    ~80% of the boilerplate when adding a new library entry. Author
+    fills in the ESPHome template + use_cases + params_schema after.
+
+  - **Coverage.** `kicad-symbols` (the libraries shipped with KiCad,
+    CC-BY-SA + GPL exception) covers nearly every component we
+    already have: BME280, BMP180, HTU21D, DS18B20, MPU6050, ADS1115,
+    TSL2561, MAX31855, HX711, SSD1306, MCP23008/17, SX127x, WS2812B,
+    plus the board modules. The PIRs (HC-SR501) and microwave radar
+    (RCWL-0516) are typically wired as 3-pin `Connector_Generic`
+    instances since they're breakouts; same for HC-SR04. SnapEDA /
+    Component Search Engine cover the remaining manufacturer parts
+    (RC522 etc.) for free.
+
+  - **PCB layout deferred to 1.0+.** SKiDL can also emit netlists
+    that feed Freerouting + KiCad's PCB editor, but auto-routed
+    boards are a per-design quality concern that wants its own
+    iteration. 0.9 ships only the schematic.
+
+- **Future — KiCad PCB layout.** Reuse the schematic's netlist;
+  Freerouting for autorouting; Gerber + JLCPCB CPL/BOM export.
 
 The UI-first ordering means 0.5's agent and 0.6's solver each have a
 visible place to land. If the agent lands first (alternative ordering),
