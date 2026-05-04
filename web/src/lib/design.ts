@@ -408,16 +408,52 @@ export function addBus(
   return { ...d, buses: [...buses, newBus] };
 }
 
-/** Patch a single bus by id. Pure: returns a new design. */
+/** Patch a single bus by id. Pure: returns a new design.
+ *
+ *  NOTE: do NOT pass `id` in the patch -- a bus rename is more than a
+ *  field write because every `connection.target.bus_id` referencing the
+ *  old id has to follow. Use `renameBus` for that path; this helper
+ *  silently strips an `id` key to keep the connection table from
+ *  drifting out of sync. */
 export function updateBus(
   d: Design,
   busId: string,
   patch: Partial<Record<string, unknown>>,
 ): Design {
   const buses = (d.buses as Array<Record<string, unknown>> | undefined) ?? [];
+  const { id: _ignoredId, ...safePatch } = patch;
   return {
     ...d,
-    buses: buses.map((b) => (b.id === busId ? { ...b, ...patch } : b)),
+    buses: buses.map((b) => (b.id === busId ? { ...b, ...safePatch } : b)),
+  };
+}
+
+/**
+ * Rename a bus and rewrite every connection that targets it. Atomic:
+ * the bus list and the connection table never diverge. No-op when
+ * `oldId === newId`. If a bus with `newId` already exists we do
+ * nothing -- the caller (a UI input on blur) is expected to validate
+ * before calling, but the guard here keeps us out of the merge case
+ * where two buses claim the same id.
+ *
+ * Pure: returns a new design.
+ */
+export function renameBus(d: Design, oldId: string, newId: string): Design {
+  if (oldId === newId) return d;
+  const buses = (d.buses as Array<Record<string, unknown>> | undefined) ?? [];
+  if (!buses.some((b) => b.id === oldId)) return d;
+  if (buses.some((b) => b.id === newId)) return d;
+  const connections = (d.connections as Array<Record<string, unknown>> | undefined) ?? [];
+  return {
+    ...d,
+    buses: buses.map((b) => (b.id === oldId ? { ...b, id: newId } : b)),
+    connections: connections.map((c) => {
+      const t = c.target as Record<string, unknown> | undefined;
+      if (t && t.kind === "bus" && t.bus_id === oldId) {
+        return { ...c, target: { ...t, bus_id: newId } };
+      }
+      return c;
+    }),
   };
 }
 
