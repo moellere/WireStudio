@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../api/client";
 import type { Design, FleetPushResponse, FleetStatus } from "../types/api";
+
+const LOG_POLL_INTERVAL_MS = 1500;
 
 interface Props {
   design: Design;
@@ -28,6 +30,12 @@ export function PushToFleetDialog({ design, onClose }: Props) {
   const [result, setResult] = useState<FleetPushResponse | null>(null);
   const [pushError, setPushError] = useState<string | null>(null);
 
+  const [logText, setLogText] = useState<string>("");
+  const [logFinished, setLogFinished] = useState<boolean>(false);
+  const [logError, setLogError] = useState<string | null>(null);
+  const logScrollRef = useRef<HTMLPreElement | null>(null);
+  const pollAbortRef = useRef<{ stop: boolean }>({ stop: false });
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -41,8 +49,45 @@ export function PushToFleetDialog({ design, onClose }: Props) {
         setStatusError(msg);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      pollAbortRef.current.stop = true;
+    };
   }, []);
+
+  // Auto-scroll the log viewer when new content lands.
+  useEffect(() => {
+    if (logScrollRef.current) {
+      logScrollRef.current.scrollTop = logScrollRef.current.scrollHeight;
+    }
+  }, [logText]);
+
+  async function pollJobLog(runId: string) {
+    const abort = pollAbortRef.current;
+    abort.stop = false;
+    let offset = 0;
+    setLogText("");
+    setLogFinished(false);
+    setLogError(null);
+    while (!abort.stop) {
+      try {
+        const chunk = await api.fleetJobLog(runId, offset);
+        if (abort.stop) return;
+        if (chunk.log) setLogText((prev) => prev + chunk.log);
+        offset = chunk.offset;
+        if (chunk.finished) {
+          setLogFinished(true);
+          return;
+        }
+      } catch (e) {
+        const msg = e instanceof ApiError ? `${e.status}: ${e.message}` :
+          e instanceof Error ? e.message : String(e);
+        setLogError(msg);
+        return;
+      }
+      await new Promise((res) => setTimeout(res, LOG_POLL_INTERVAL_MS));
+    }
+  }
 
   async function handlePush() {
     setPushing(true);
@@ -55,6 +100,10 @@ export function PushToFleetDialog({ design, onClose }: Props) {
         device_name: deviceName.trim() || undefined,
       });
       setResult(r);
+      if (r.run_id) {
+        // Fire-and-forget: the polling loop respects pollAbortRef.
+        void pollJobLog(r.run_id);
+      }
     } catch (e) {
       const msg = e instanceof ApiError
         ? `${e.status}: ${typeof e.body === "object" && e.body && "detail" in e.body
@@ -167,6 +216,28 @@ export function PushToFleetDialog({ design, onClose }: Props) {
                   Compile enqueued: <code>{result.run_id}</code>
                   {result.enqueued ? ` (${result.enqueued} job)` : ""}.
                 </div>
+              )}
+            </div>
+          )}
+
+          {result?.run_id && (
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <label className="block text-[11px] uppercase tracking-wide text-zinc-500">
+                  build log
+                </label>
+                <span className="text-[11px] text-zinc-500">
+                  {logFinished ? "finished" : logError ? "stopped" : "tailing…"}
+                </span>
+              </div>
+              <pre
+                ref={logScrollRef}
+                className="max-h-64 overflow-auto rounded border border-zinc-800 bg-black/60 p-2 font-mono text-[11px] leading-relaxed text-zinc-300"
+              >
+                {logText || (logError ? "" : "waiting for first chunk…")}
+              </pre>
+              {logError && (
+                <div className="text-[11px] text-rose-400">log error: {logError}</div>
               )}
             </div>
           )}

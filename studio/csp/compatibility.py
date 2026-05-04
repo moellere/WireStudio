@@ -10,6 +10,9 @@ restrictions that conflict with the use:
 - `voltage_limit`      -- pin has a voltage cap (e.g., D1 Mini A0 max 1.0V)
 - `function_unsupported` -- pin tagged no_pwm/no_i2c/no_interrupt assigned to
                             a peripheral that depends on that capability
+- `adc2_wifi_conflict`  -- analog_in landed on an `adc2`-tagged pin on a
+                            classic ESP32 board; the WiFi driver claims ADC2
+                            so reads return errors / stale values
 
 Pure: doesn't mutate the design, doesn't render, doesn't hit the network.
 Cheap enough to run on every render call.
@@ -176,6 +179,31 @@ def check_pin_compatibility(design: dict, library: Library) -> list[Compatibilit
                     f"{pin_name} has a 1.0V max input ceiling (after the board's "
                     f"onboard divider mapping 3.3V -> 1.0V). Verify your sensor's "
                     f"output stays within range or readings will saturate."
+                ),
+            ))
+
+        # 4b. ADC2/WiFi conflict (classic ESP32 only). The WiFi driver claims
+        # ADC2 at runtime; reads on these pins return ESP_ERR_TIMEOUT under
+        # IDF or undefined values under Arduino while WiFi is up. ESPHome
+        # always brings WiFi up, so this is effectively a hard restriction.
+        if (
+            direction == "in"
+            and lib_pin.kind == "analog_in"
+            and "adc2" in caps
+            and getattr(board, "chip_variant", None) == "esp32"
+        ):
+            out.append(CompatibilityWarning(
+                severity="warn",
+                code="adc2_wifi_conflict",
+                pin=pin_name,
+                component_id=component_id,
+                pin_role=pin_role,
+                message=(
+                    f"{pin_name} is on ADC2, which the ESP32's WiFi driver "
+                    f"claims at runtime. Analog reads on this pin will fail "
+                    f"or return stale values while WiFi is up. Move "
+                    f"{component_id}.{pin_role} to an ADC1 pin "
+                    f"(GPIO32-39 on classic ESP32)."
                 ),
             ))
 

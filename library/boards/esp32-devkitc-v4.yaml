@@ -22,17 +22,24 @@ default_buses:
 #   GPIO12 = flash voltage select (LOW for 3.3V flash; HIGH = 1.8V can damage)
 #   GPIO15 = boot message print (HIGH = print, LOW = silent)
 # GPIO34/35/36/39 are input-only and have no internal pull-up/down.
+#
+# ADC unit tags: classic ESP32 splits its ADCs into ADC1 (GPIO32-39) and
+# ADC2 (GPIO0,2,4,12-15,25-27). When WiFi is active the ADC2 unit is
+# claimed by the WiFi driver and analog reads on ADC2 pins return errors
+# or stale values. Since ESPHome devices run WiFi unconditionally, the
+# compatibility checker warns whenever an analog_in connection lands on
+# an `adc2`-tagged pin and the pin solver prefers `adc1`.
 gpio_capabilities:
-  GPIO0:  [boot, strap, boot_high]
+  GPIO0:  [boot, strap, boot_high, adc, adc2]
   GPIO1:  [gpio, uart_tx, serial_tx]
-  GPIO2:  [strap, gpio, boot_low]
+  GPIO2:  [strap, gpio, boot_low, adc, adc2]
   GPIO3:  [gpio, uart_rx, serial_rx]
-  GPIO4:  [gpio, adc, pwm]
+  GPIO4:  [gpio, adc, adc2, pwm]
   GPIO5:  [gpio, strap, spi_cs, boot_high]
-  GPIO12: [gpio, adc, strap, boot_low]
-  GPIO13: [gpio, adc, pwm]
-  GPIO14: [gpio, adc, pwm]
-  GPIO15: [gpio, adc, strap, boot_high]
+  GPIO12: [gpio, adc, adc2, strap, boot_low]
+  GPIO13: [gpio, adc, adc2, pwm]
+  GPIO14: [gpio, adc, adc2, pwm]
+  GPIO15: [gpio, adc, adc2, strap, boot_high]
   GPIO16: [gpio]
   GPIO17: [gpio]
   GPIO18: [gpio, spi_clk]
@@ -40,12 +47,12 @@ gpio_capabilities:
   GPIO21: [gpio, i2c_sda]
   GPIO22: [gpio, i2c_scl]
   GPIO23: [gpio, spi_mosi]
-  GPIO25: [gpio, dac, adc]
-  GPIO26: [gpio, dac, adc]
-  GPIO27: [gpio, adc, pwm]
-  GPIO32: [gpio, adc, pwm]
-  GPIO33: [gpio, adc, pwm]
-  GPIO34: [gpio, adc, input_only, no_pull_internal]
-  GPIO35: [gpio, adc, input_only, no_pull_internal]
-  GPIO36: [gpio, adc, input_only, no_pull_internal]
-  GPIO39: [gpio, adc, input_only, no_pull_internal]
+  GPIO25: [gpio, dac, adc, adc2]
+  GPIO26: [gpio, dac, adc, adc2]
+  GPIO27: [gpio, adc, adc2, pwm]
+  GPIO32: [gpio, adc, adc1, pwm]
+  GPIO33: [gpio, adc, adc1, pwm]
+  GPIO34: [gpio, adc, adc1, input_only, no_pull_internal]
+  GPIO35: [gpio, adc, adc1, input_only, no_pull_internal]
+  GPIO36: [gpio, adc, adc1, input_only, no_pull_internal]
+  GPIO39: [gpio, adc, adc1, input_only, no_pull_internal]

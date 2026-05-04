@@ -35,6 +35,14 @@ class PushResult:
     enqueued: int = 0
 
 
+@dataclass
+class JobLogChunk:
+    """Slice of a build log returned by the addon's HTTP poll endpoint."""
+    log: str          # the new bytes since the requested offset
+    offset: int       # the next offset to ask for
+    finished: bool    # True once the job is in a terminal state
+
+
 class FleetUnavailable(RuntimeError):
     """Raised when the fleet endpoint is missing config or unreachable."""
 
@@ -171,6 +179,34 @@ class FleetClient:
             created=created,
             run_id=run_id,
             enqueued=enqueued,
+        )
+
+    # ------------------------------------------------------------------
+    # Build log polling
+    # ------------------------------------------------------------------
+
+    def get_job_log(self, run_id: str, offset: int = 0) -> JobLogChunk:
+        """Fetch new bytes of a build log since ``offset``.
+
+        Mirrors the addon's HTTP fallback at ``GET /ui/api/jobs/{id}/log``.
+        Callers poll this until ``finished`` is True. 404s on the addon
+        are surfaced as ``FleetUnavailable`` so the UI can stop polling.
+        """
+        if not self.is_configured():
+            raise FleetUnavailable("FLEET_URL or FLEET_TOKEN missing")
+        with self._client() as c:
+            resp = c.get(f"/ui/api/jobs/{run_id}/log", params={"offset": offset})
+        if resp.status_code == 404:
+            raise FleetUnavailable(f"unknown run_id {run_id!r}")
+        if resp.status_code >= 400:
+            raise FleetUnavailable(
+                f"job log fetch failed: http {resp.status_code} {resp.text}"
+            )
+        body = resp.json()
+        return JobLogChunk(
+            log=str(body.get("log", "")),
+            offset=int(body.get("offset", offset)),
+            finished=bool(body.get("finished", False)),
         )
 
     # ------------------------------------------------------------------

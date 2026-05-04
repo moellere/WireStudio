@@ -34,6 +34,9 @@ class FakeFleetAddon:
         self.files: dict[str, str] = {}  # final_filename -> content
         self.compile_runs: list[dict] = []
         self._next_run = 1
+        # run_id -> {log, finished}; tests mutate this directly to drive the
+        # log-tail polling tests through compiling -> finished.
+        self.job_logs: dict[str, dict] = {}
 
     def transport(self) -> httpx.MockTransport:
         def handler(req: httpx.Request) -> httpx.Response:
@@ -83,7 +86,20 @@ class FakeFleetAddon:
                 run_id = f"run-{self._next_run}"
                 self._next_run += 1
                 self.compile_runs.append({"run_id": run_id, "targets": body.get("targets")})
+                self.job_logs.setdefault(run_id, {"log": "", "finished": False})
                 return httpx.Response(200, json={"run_id": run_id, "enqueued": 1})
+
+            if method == "GET" and path.startswith("/ui/api/jobs/") and path.endswith("/log"):
+                run_id = path[len("/ui/api/jobs/"):-len("/log")]
+                if run_id not in self.job_logs:
+                    return httpx.Response(404, json={"error": "Job not found"})
+                offset = int(req.url.params.get("offset", "0"))
+                full = self.job_logs[run_id]["log"]
+                return httpx.Response(200, json={
+                    "log": full[offset:],
+                    "offset": len(full),
+                    "finished": bool(self.job_logs[run_id]["finished"]),
+                })
 
             return httpx.Response(404, json={"error": "not found"})
 
@@ -288,3 +304,67 @@ def test_fleet_push_invalid_device_name_returns_422(monkeypatch, tmp_path, garag
         json={"design": garage_motion_design, "device_name": "Has Spaces"},
     )
     assert r.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# Build log polling
+# ---------------------------------------------------------------------------
+
+def test_get_job_log_unconfigured_raises():
+    fc = FleetClient(base_url="", token="")
+    with pytest.raises(FleetUnavailable):
+        fc.get_job_log("run-1")
+
+
+def test_get_job_log_unknown_run_id_raises():
+    addon = FakeFleetAddon()
+    fc = addon.make_client()
+    with pytest.raises(FleetUnavailable):
+        fc.get_job_log("nope")
+
+
+def test_get_job_log_returns_chunks_and_finished_flag():
+    addon = FakeFleetAddon()
+    addon.job_logs["run-1"] = {"log": "compiling...\n", "finished": False}
+    fc = addon.make_client()
+    chunk1 = fc.get_job_log("run-1", offset=0)
+    assert chunk1.log == "compiling...\n"
+    assert chunk1.offset == len("compiling...\n")
+    assert chunk1.finished is False
+    # Append more output, poll from where we left off.
+    addon.job_logs["run-1"]["log"] += "linking...\n"
+    addon.job_logs["run-1"]["finished"] = True
+    chunk2 = fc.get_job_log("run-1", offset=chunk1.offset)
+    assert chunk2.log == "linking...\n"
+    assert chunk2.finished is True
+
+
+def test_fleet_job_log_endpoint_unconfigured_returns_503(monkeypatch, tmp_path):
+    client = _make_client(monkeypatch, tmp_path, addon=None)
+    r = client.get("/fleet/jobs/run-1/log")
+    assert r.status_code == 503
+
+
+def test_fleet_job_log_endpoint_round_trip(monkeypatch, tmp_path):
+    addon = FakeFleetAddon()
+    addon.job_logs["run-42"] = {"log": "hello world\n", "finished": False}
+    client = _make_client(monkeypatch, tmp_path, addon=addon)
+    r = client.get("/fleet/jobs/run-42/log")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["log"] == "hello world\n"
+    assert body["finished"] is False
+    # Continue from the returned offset.
+    addon.job_logs["run-42"] = {"log": "hello world\nbuild ok\n", "finished": True}
+    r2 = client.get(f"/fleet/jobs/run-42/log?offset={body['offset']}")
+    assert r2.status_code == 200
+    body2 = r2.json()
+    assert body2["log"] == "build ok\n"
+    assert body2["finished"] is True
+
+
+def test_fleet_job_log_unknown_run_id_returns_502(monkeypatch, tmp_path):
+    addon = FakeFleetAddon()
+    client = _make_client(monkeypatch, tmp_path, addon=addon)
+    r = client.get("/fleet/jobs/nope/log")
+    assert r.status_code == 502

@@ -147,6 +147,12 @@ export interface FleetPushResponse {
   enqueued: number;
 }
 
+export interface FleetJobLogResponse {
+  log: string;
+  offset: number;
+  finished: boolean;
+}
+
 // Streaming agent events (one-of):
 export type AgentStreamEvent =
   | { type: "session_start"; session_id: string }

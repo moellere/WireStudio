@@ -27,11 +27,27 @@ stays as a back-compat wrapper. Pytest +21 (179 total), vitest 49, ruff
 + build clean.
 
 **Next up candidates:**
-- 0.7+ build status streaming from the fleet (SSE over `/api/v1/jobs/{run_id}/log`?)
-- ADC2/WiFi conflict detection (small, follow-on to port compat)
+- Capability-driven component picker (user selects a function, agent/recommender
+  ranks library components, user picks one — uses inventory)
 - Bus editor in the UI
 - Strict-mode pin locks (`locked_pins` already in schema)
 - Frontend RTL/jsdom component tests
+- Full SSE/WS log relay (current 0.7+ uses HTTP polling at 1.5s intervals)
+
+**0.7+ build-log polling shipped.** Studio relays the addon's HTTP
+fallback `GET /ui/api/jobs/{id}/log?offset=N` as `GET /fleet/jobs/{run_id}/log`
+and the Push-to-fleet dialog tails it (1.5s poll) into a scrolling
+viewer below the result banner once a compile is enqueued. 6 new fleet
+tests cover unconfigured 503, unknown run_id 502, and the offset-based
+chunking contract.
+
+**ADC2/WiFi conflict detection shipped.** All three ESP32 boards
+(esp32-devkitc-v4, nodemcu-32s, ttgo-lora32-v1) carry `adc1` / `adc2`
+pin tags. compatibility.py emits `adc2_wifi_conflict` warnings when an
+analog_in lands on an ADC2 pin on a classic ESP32 (chip_variant ==
+"esp32"); the pin solver uses a secondary preference key so unbound
+analog_in connections land on ADC1 pins (GPIO32-39) by default. 4
+new tests pin both paths.
 
 **0.7 distributed-esphome handoff shipped.** `studio/fleet/client.py`
 talks to the ha-addon's `/ui/api/*` surface using a Bearer token.

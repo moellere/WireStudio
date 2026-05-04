@@ -24,6 +24,7 @@ from studio.api.schemas import (
     CompatibilityWarning as CompatWire,
     ComponentSummary,
     ExampleSummary,
+    FleetJobLogResponse,
     FleetPushRequest,
     FleetPushResponse,
     FleetStatus,
@@ -380,6 +381,22 @@ def create_app(
             created=result.created,
             run_id=result.run_id,
             enqueued=result.enqueued,
+        )
+
+    @app.get("/fleet/jobs/{run_id}/log", response_model=FleetJobLogResponse, tags=["fleet"])
+    def fleet_job_log(run_id: str, offset: int = 0) -> FleetJobLogResponse:
+        fc = make_fleet()
+        if not fc.is_configured():
+            raise HTTPException(
+                status_code=503,
+                detail="fleet not configured (set FLEET_URL and FLEET_TOKEN)",
+            )
+        try:
+            chunk = fc.get_job_log(run_id, offset=offset)
+        except FleetUnavailable as e:
+            raise HTTPException(status_code=502, detail=str(e)) from e
+        return FleetJobLogResponse(
+            log=chunk.log, offset=chunk.offset, finished=chunk.finished,
         )
 
     @app.get("/agent/status", tags=["agent"])
