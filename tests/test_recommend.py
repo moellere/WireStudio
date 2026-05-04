@@ -65,6 +65,31 @@ def test_imu_query_surfaces_mpu6050(lib):
         assert "mpu6050" in ids, f"{q!r} did not surface mpu6050; got {ids}"
 
 
+def test_thermocouple_query_lands_on_max31855(lib):
+    out = recommend_components(lib, "thermocouple")
+    assert out and out[0].library_id == "max31855"
+
+
+def test_weight_query_lands_on_hx711(lib):
+    out = recommend_components(lib, "weight scale")
+    assert out and out[0].library_id == "hx711"
+
+
+def test_lux_query_lands_on_tsl2561(lib):
+    out = recommend_components(lib, "lux ambient light")
+    assert out and out[0].library_id == "tsl2561"
+
+
+def test_pressure_query_includes_bmp180(lib):
+    out = recommend_components(lib, "pressure")
+    assert "bmp180" in [r.library_id for r in out]
+
+
+def test_humidity_query_includes_htu21d(lib):
+    out = recommend_components(lib, "humidity")
+    assert "htu21d" in [r.library_id for r in out]
+
+
 def test_temperature_humidity_query_returns_bme280(lib):
     out = recommend_components(lib, "temperature humidity")
     ids = [r.library_id for r in out]

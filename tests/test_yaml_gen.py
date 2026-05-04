@@ -471,3 +471,115 @@ def test_ads1115_and_mpu6050_share_one_i2c_bus(library):
     sensor_platforms = {s["platform"] for s in parsed["sensor"]}
     assert "ads1115" in sensor_platforms
     assert "mpu6050" in sensor_platforms
+
+
+# ---------------------------------------------------------------------------
+# Library expansion v3: BMP180, HTU21D, MAX31855, HX711, TSL2561
+# ---------------------------------------------------------------------------
+
+def _esp32_with_spi(components: list[dict], extra_connections: list[dict]) -> dict:
+    return {
+        "schema_version": "0.1",
+        "id": "spi-fixture",
+        "name": "SPI fixture",
+        "board": {"library_id": "esp32-devkitc-v4", "mcu": "esp32"},
+        "fleet": {"device_name": "spi-fixture", "tags": []},
+        "power": {"supply": "usb-5v", "rail_voltage_v": 5.0, "budget_ma": 500},
+        "components": components,
+        "buses": [{"id": "spi0", "type": "spi",
+                    "clk": "GPIO18", "miso": "GPIO19", "mosi": "GPIO23"}],
+        "connections": extra_connections,
+        "requirements": [],
+        "warnings": [],
+    }
+
+
+def test_bmp180_renders_temperature_and_pressure(library):
+    design_dict = _esp32_with_i2c(
+        components=[{"id": "weather", "library_id": "bmp180", "label": "Weather", "params": {}}],
+        extra_connections=[
+            {"component_id": "weather", "pin_role": "VCC", "target": {"kind": "rail", "rail": "3V3"}},
+            {"component_id": "weather", "pin_role": "GND", "target": {"kind": "rail", "rail": "GND"}},
+            {"component_id": "weather", "pin_role": "SDA", "target": {"kind": "bus", "bus_id": "i2c0"}},
+            {"component_id": "weather", "pin_role": "SCL", "target": {"kind": "bus", "bus_id": "i2c0"}},
+        ],
+    )
+    parsed = yaml.unsafe_load(render_yaml(Design.model_validate(design_dict), library))
+    bmp = next(s for s in parsed["sensor"] if s.get("platform") == "bmp085")
+    assert bmp["i2c_id"] == "i2c0"
+    assert bmp["temperature"]["name"] == "Weather Temperature"
+    assert bmp["pressure"]["name"] == "Weather Pressure"
+
+
+def test_htu21d_renders_temperature_and_humidity(library):
+    design_dict = _esp32_with_i2c(
+        components=[{"id": "th1", "library_id": "htu21d", "label": "Indoor", "params": {}}],
+        extra_connections=[
+            {"component_id": "th1", "pin_role": "VCC", "target": {"kind": "rail", "rail": "3V3"}},
+            {"component_id": "th1", "pin_role": "GND", "target": {"kind": "rail", "rail": "GND"}},
+            {"component_id": "th1", "pin_role": "SDA", "target": {"kind": "bus", "bus_id": "i2c0"}},
+            {"component_id": "th1", "pin_role": "SCL", "target": {"kind": "bus", "bus_id": "i2c0"}},
+        ],
+    )
+    parsed = yaml.unsafe_load(render_yaml(Design.model_validate(design_dict), library))
+    htu = next(s for s in parsed["sensor"] if s.get("platform") == "htu21d")
+    assert htu["temperature"]["name"] == "Indoor Temperature"
+    assert htu["humidity"]["name"] == "Indoor Humidity"
+
+
+def test_max31855_renders_with_spi_bus_and_cs(library):
+    design_dict = _esp32_with_spi(
+        components=[{"id": "tc1", "library_id": "max31855", "label": "Smoker probe",
+                     "params": {"reference_temperature": True}}],
+        extra_connections=[
+            {"component_id": "tc1", "pin_role": "VCC",  "target": {"kind": "rail", "rail": "3V3"}},
+            {"component_id": "tc1", "pin_role": "GND",  "target": {"kind": "rail", "rail": "GND"}},
+            {"component_id": "tc1", "pin_role": "CLK",  "target": {"kind": "bus",  "bus_id": "spi0"}},
+            {"component_id": "tc1", "pin_role": "MISO", "target": {"kind": "bus",  "bus_id": "spi0"}},
+            {"component_id": "tc1", "pin_role": "CS",   "target": {"kind": "gpio", "pin": "GPIO5"}},
+        ],
+    )
+    parsed = yaml.unsafe_load(render_yaml(Design.model_validate(design_dict), library))
+    tc = next(s for s in parsed["sensor"] if s.get("platform") == "max31855")
+    assert tc["spi_id"] == "spi0"
+    assert tc["cs_pin"] == "GPIO5"
+    assert tc["name"] == "Smoker probe Thermocouple"
+    assert tc["reference_temperature"]["name"] == "Smoker probe Cold Junction"
+
+
+def test_hx711_renders_with_dout_and_clk_pins(library):
+    design_dict = _esp32_with_i2c(
+        components=[{"id": "scale", "library_id": "hx711", "label": "Coffee scale",
+                     "params": {"gain": 64}}],
+        extra_connections=[
+            {"component_id": "scale", "pin_role": "VCC",  "target": {"kind": "rail", "rail": "3V3"}},
+            {"component_id": "scale", "pin_role": "GND",  "target": {"kind": "rail", "rail": "GND"}},
+            {"component_id": "scale", "pin_role": "DOUT", "target": {"kind": "gpio", "pin": "GPIO16"}},
+            {"component_id": "scale", "pin_role": "SCK",  "target": {"kind": "gpio", "pin": "GPIO17"}},
+        ],
+    )
+    parsed = yaml.unsafe_load(render_yaml(Design.model_validate(design_dict), library))
+    hx = next(s for s in parsed["sensor"] if s.get("platform") == "hx711")
+    assert hx["dout_pin"] == "GPIO16"
+    assert hx["clk_pin"] == "GPIO17"
+    assert hx["gain"] == 64
+    assert hx["name"] == "Coffee scale"
+
+
+def test_tsl2561_renders_with_address_override(library):
+    design_dict = _esp32_with_i2c(
+        components=[{"id": "lux1", "library_id": "tsl2561", "label": "Window",
+                     "params": {"address": "0x49", "gain": "16x", "integration_time": "402ms"}}],
+        extra_connections=[
+            {"component_id": "lux1", "pin_role": "VCC", "target": {"kind": "rail", "rail": "3V3"}},
+            {"component_id": "lux1", "pin_role": "GND", "target": {"kind": "rail", "rail": "GND"}},
+            {"component_id": "lux1", "pin_role": "SDA", "target": {"kind": "bus", "bus_id": "i2c0"}},
+            {"component_id": "lux1", "pin_role": "SCL", "target": {"kind": "bus", "bus_id": "i2c0"}},
+        ],
+    )
+    parsed = yaml.unsafe_load(render_yaml(Design.model_validate(design_dict), library))
+    tsl = next(s for s in parsed["sensor"] if s.get("platform") == "tsl2561")
+    assert tsl["address"] == "0x49"
+    assert tsl["gain"] == "16x"
+    assert tsl["integration_time"] == "402ms"
+    assert tsl["name"] == "Window Illuminance"
