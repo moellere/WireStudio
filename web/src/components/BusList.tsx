@@ -4,14 +4,15 @@
  * for the type; removing leaves any connection targeting the bus
  * dangling (the inspector's render warnings surface that).
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   type BusType,
   addBus,
   removeBus,
+  renameBus,
   updateBus,
 } from "../lib/design";
-import type { Design } from "../types/api";
+import type { CompatibilityWarning, Design } from "../types/api";
 
 const ALL_BUS_TYPES: BusType[] = ["i2c", "spi", "uart", "i2s", "1wire"];
 
@@ -26,7 +27,7 @@ const PIN_SLOTS_BY_TYPE: Record<BusType, string[]> = {
 };
 
 export function BusList({
-  design, gpioPins, defaultBuses, onChange,
+  design, gpioPins, defaultBuses, compatibilityWarnings, onChange,
 }: {
   design: Design;
   /** Pin names from the current board's gpio_capabilities, used to populate
@@ -36,6 +37,9 @@ export function BusList({
   /** board.default_buses if any -- used when adding a fresh bus so I2C
    *  lands on the board's canonical SDA/SCL out of the box. */
   defaultBuses: Record<string, Record<string, string>>;
+  /** Whole-design compat warnings; bus warnings carry the bus id in
+   *  `component_id`, so the card filters down to its own. */
+  compatibilityWarnings: CompatibilityWarning[];
   onChange: (updater: (d: Design) => Design) => void;
 }) {
   const buses = ((design.buses as Array<Record<string, unknown>> | undefined) ?? []).map((b) => ({
@@ -43,6 +47,7 @@ export function BusList({
     type: String(b.type) as BusType,
     raw: b,
   }));
+  const allBusIds = new Set(buses.map((b) => b.id));
 
   const [pickedType, setPickedType] = useState<BusType>("i2c");
 
@@ -58,6 +63,9 @@ export function BusList({
                 bus={b.raw}
                 type={b.type}
                 gpioPins={gpioPins}
+                warnings={compatibilityWarnings.filter((w) => w.component_id === b.id)}
+                otherBusIds={new Set([...allBusIds].filter((x) => x !== b.id))}
+                onRename={(newId) => onChange((d) => renameBus(d, b.id, newId))}
                 onChange={(patch) => onChange((d) => updateBus(d, b.id, patch))}
                 onRemove={() => onChange((d) => removeBus(d, b.id))}
               />
@@ -89,11 +97,16 @@ export function BusList({
 }
 
 function BusCard({
-  bus, type, gpioPins, onChange, onRemove,
+  bus, type, gpioPins, warnings, otherBusIds, onRename, onChange, onRemove,
 }: {
   bus: Record<string, unknown>;
   type: BusType;
   gpioPins: string[];
+  warnings: CompatibilityWarning[];
+  /** Ids of every other bus in the design; used to refuse a rename that
+   *  would collide. */
+  otherBusIds: Set<string>;
+  onRename: (newId: string) => void;
   onChange: (patch: Partial<Record<string, unknown>>) => void;
   onRemove: () => void;
 }) {
@@ -102,15 +115,56 @@ function BusCard({
   const freq = bus.frequency_hz as number | undefined;
   const baud = bus.baud_rate as number | undefined;
 
+  // Local draft id while the user is typing. We commit on blur or Enter
+  // so an intermediate value like "i" or "" doesn't tear the connections
+  // table apart. The effect below resyncs the draft when the canonical
+  // id changes from outside (e.g., a render-driven design refresh).
+  const [draftId, setDraftId] = useState(id);
+  useEffect(() => { setDraftId(id); }, [id]);
+
+  function commitRename() {
+    const next = draftId.trim();
+    if (next === "" || next === id || otherBusIds.has(next)) {
+      // Reject and revert -- the caller's onRename guards against the
+      // collision case anyway, but we want to clear the visual drift.
+      setDraftId(id);
+      return;
+    }
+    onRename(next);
+  }
+
+  const draftDirty = draftId.trim() !== id;
+  const draftCollides = otherBusIds.has(draftId.trim());
+
   return (
     <div className="rounded border border-zinc-800 bg-zinc-900/30 p-2">
       <div className="mb-1.5 flex items-center justify-between gap-2">
         <div className="flex items-baseline gap-2">
           <input
             type="text"
-            value={id}
-            onChange={(e) => onChange({ id: e.target.value })}
-            className="w-28 rounded border border-zinc-800 bg-zinc-950 px-1.5 py-0.5 font-mono text-xs text-zinc-100 focus:border-zinc-600 focus:outline-none"
+            value={draftId}
+            onChange={(e) => setDraftId(e.target.value)}
+            onBlur={commitRename}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.currentTarget.blur();
+              } else if (e.key === "Escape") {
+                setDraftId(id);
+                e.currentTarget.blur();
+              }
+            }}
+            title={
+              draftCollides
+                ? `Another bus already uses '${draftId.trim()}'.`
+                : "Press Enter or click away to apply. Esc to revert."
+            }
+            className={`w-28 rounded border bg-zinc-950 px-1.5 py-0.5 font-mono text-xs focus:outline-none ${
+              draftCollides
+                ? "border-red-500/50 text-red-200 focus:border-red-500"
+                : draftDirty
+                  ? "border-amber-500/50 text-amber-100 focus:border-amber-400"
+                  : "border-zinc-800 text-zinc-100 focus:border-zinc-600"
+            }`}
           />
           <span className="rounded border border-zinc-800 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-zinc-400">
             {type}
@@ -163,6 +217,26 @@ function BusCard({
             className="w-32 rounded border border-zinc-800 bg-zinc-950 px-1.5 py-0.5 text-xs text-zinc-100 focus:border-zinc-600 focus:outline-none"
           />
         </div>
+      )}
+
+      {warnings.length > 0 && (
+        <ul className="mt-1.5 space-y-0.5">
+          {warnings.map((w, i) => (
+            <li
+              key={`${w.code}:${w.pin_role}:${i}`}
+              className={`rounded px-1.5 py-1 text-[10px] leading-snug ${
+                w.severity === "error"
+                  ? "border border-red-700/50 bg-red-900/20 text-red-200"
+                  : w.severity === "warn"
+                    ? "border border-amber-700/40 bg-amber-900/15 text-amber-200"
+                    : "border border-zinc-700/50 bg-zinc-900/40 text-zinc-300"
+              }`}
+              title={w.code}
+            >
+              <span className="font-mono">{w.pin_role}@{w.pin}</span> · {w.message}
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );

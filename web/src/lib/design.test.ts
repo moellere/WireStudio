@@ -14,6 +14,7 @@ import {
   readRequirements,
   readWarnings,
   removeBus,
+  renameBus,
   removeComponent,
   removeRequirement,
   removeWarning,
@@ -490,5 +491,45 @@ describe("buses", () => {
   it("removeBus on unknown id is a no-op", () => {
     const next = removeBus(baseDesign, "ghost");
     expect(next.buses).toEqual(baseDesign.buses);
+  });
+
+  it("updateBus silently strips an `id` patch (use renameBus instead)", () => {
+    const next = updateBus(baseDesign, "i2c0", { id: "evil", sda: "D7" });
+    const buses = next.buses as Array<Record<string, unknown>>;
+    expect(buses[0]).toMatchObject({ id: "i2c0", sda: "D7" });
+  });
+
+  it("renameBus rewrites every connection that targeted the old id", () => {
+    const next = renameBus(baseDesign, "i2c0", "shared_i2c");
+    const buses = next.buses as Array<Record<string, unknown>>;
+    expect(buses[0].id).toBe("shared_i2c");
+    const conns = next.connections as Array<{ target: { kind: string; bus_id?: string } }>;
+    expect(conns[1].target).toEqual({ kind: "bus", bus_id: "shared_i2c" });
+    // Non-bus connections are untouched.
+    expect(conns[0].target).toEqual({ kind: "gpio", pin: "D2" });
+  });
+
+  it("renameBus is a no-op when oldId === newId", () => {
+    const next = renameBus(baseDesign, "i2c0", "i2c0");
+    expect(next).toBe(baseDesign);
+  });
+
+  it("renameBus is a no-op when the new id collides with another bus", () => {
+    const seeded = addBus(baseDesign, "spi");
+    const next = renameBus(seeded, "i2c0", "spi0");
+    const buses = next.buses as Array<Record<string, unknown>>;
+    // No rename happened; the SPI bus is still present and the I2C still i2c0.
+    expect(buses.map((b) => b.id)).toEqual(["i2c0", "spi0"]);
+  });
+
+  it("renameBus is a no-op when the source id doesn't exist", () => {
+    const next = renameBus(baseDesign, "ghost", "renamed");
+    expect(next).toBe(baseDesign);
+  });
+
+  it("renameBus does not mutate the input", () => {
+    const before = clone(baseDesign);
+    renameBus(baseDesign, "i2c0", "shared_i2c");
+    expect(baseDesign).toEqual(before);
   });
 });

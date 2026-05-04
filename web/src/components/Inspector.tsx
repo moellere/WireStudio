@@ -180,6 +180,7 @@ function DesignInspector({
           design={design}
           gpioPins={gpioPins}
           defaultBuses={defaultBuses}
+          compatibilityWarnings={compatibilityWarnings}
           onChange={onDesignChange}
         />
       </Section>

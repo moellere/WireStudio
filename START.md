@@ -31,12 +31,20 @@ stays as a back-compat wrapper. Pytest +21 (179 total), vitest 49, ruff
 - Full SSE/WS log relay (current 0.7+ uses HTTP polling at 1.5s intervals)
 - Capability picker: per-result "alternatives" tooltip surfacing the
   recommender's full ranking when the user wants to compare
-- Bus rename propagation: when the user renames `i2c0 -> shared_i2c`,
-  rewrite every `connection.target.bus_id == "i2c0"` automatically
-  (today the connection's stale reference becomes "(invalid)" until
-  the user re-points it)
-- Bus editor: surface bus-pin compatibility warnings (boot strap, no_i2c)
-  inline on the bus card
+
+**Bus rename propagation + inline bus card warnings shipped.** New
+`renameBus(d, oldId, newId)` helper rewrites the bus's id and every
+`connection.target.bus_id == oldId` atomically. The bus card's id
+input now keeps a local draft and commits on blur or Enter (Esc
+reverts) so a mid-typing intermediate like "" or "i" doesn't briefly
+orphan connections; the field tints amber while dirty and red on a
+collision with another bus's id. `updateBus` silently strips an `id`
+key from its patch so nothing else sneaks past renameBus. Each bus
+card now also filters whole-design compatibility warnings down to
+its own (matched on `component_id`) and renders them inline below
+the pin grid in severity-tinted rows -- so a boot-strap warning on
+`spi0.CLK` shows up on the spi0 card, not just under the design's
+Compatibility section.
 
 **Pin-lock inspector toggle shipped.** Connection rows in the inspector
 gain a 🔓/🔒 button next to the gpio pin selector. Click 🔓 lock to
