@@ -186,3 +186,9 @@ class FleetPushResponse(_S):
     created: bool
     run_id: Optional[str] = None
     enqueued: int = 0
+
+
+class FleetJobLogResponse(_S):
+    log: str
+    offset: int
+    finished: bool

@@ -195,3 +195,36 @@ def test_solver_prefers_non_strap_pins(library):
     result = solve_pins(d, library)
     chosen = result.assigned[0].new_target["pin"]
     assert chosen not in ("D3", "D4", "D8")  # strap-tagged pins on wemos-d1-mini
+
+
+def test_solver_prefers_adc1_over_adc2_for_analog_in(library):
+    """On classic ESP32, analog_in should land on an ADC1 pin (GPIO32-39)
+    rather than an ADC2 pin (which conflicts with WiFi at runtime)."""
+    d = {
+        "schema_version": "0.1",
+        "id": "adc-pref",
+        "name": "ADC pref",
+        "board": {"library_id": "esp32-devkitc-v4", "mcu": "esp32"},
+        "components": [
+            {"id": "amp", "library_id": "max98357a", "params": {"mode": "stereo"}},
+        ],
+        "buses": [
+            {"id": "i2s0", "type": "i2s", "lrclk": "GPIO33", "bclk": "GPIO27", "dout": "GPIO32"},
+        ],
+        "connections": [
+            {"component_id": "amp", "pin_role": "VCC",   "target": {"kind": "rail", "rail": "5V"}},
+            {"component_id": "amp", "pin_role": "GND",   "target": {"kind": "rail", "rail": "GND"}},
+            {"component_id": "amp", "pin_role": "DIN",   "target": {"kind": "bus", "bus_id": "i2s0"}},
+            {"component_id": "amp", "pin_role": "BCLK",  "target": {"kind": "bus", "bus_id": "i2s0"}},
+            {"component_id": "amp", "pin_role": "LRCLK", "target": {"kind": "bus", "bus_id": "i2s0"}},
+            # Unbound analog_in -- the solver must choose for us.
+            {"component_id": "amp", "pin_role": "GAIN", "target": {"kind": "gpio", "pin": ""}},
+        ],
+    }
+    result = solve_pins(d, library)
+    gain = next(a for a in result.assigned if a.pin_role == "GAIN")
+    chosen = gain.new_target["pin"]
+    # Must be an ADC1 pin (GPIO32-39 on classic ESP32). The exact pin can
+    # shift as the board YAML evolves; the invariant is "not on ADC2".
+    adc1_pins = {"GPIO32", "GPIO33", "GPIO34", "GPIO35", "GPIO36", "GPIO39"}
+    assert chosen in adc1_pins, f"expected ADC1 pin, got {chosen}"

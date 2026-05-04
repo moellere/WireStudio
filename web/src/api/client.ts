@@ -6,6 +6,7 @@ import type {
   BoardSummary,
   ComponentSummary,
   ExampleSummary,
+  FleetJobLogResponse,
   FleetPushResponse,
   FleetStatus,
   RenderResponse,
@@ -97,6 +98,10 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+  fleetJobLog: (runId: string, offset: number) =>
+    request<FleetJobLogResponse>(
+      `/fleet/jobs/${encodeURIComponent(runId)}/log?offset=${offset}`,
+    ),
 };
 
 /**
