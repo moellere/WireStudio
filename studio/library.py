@@ -105,6 +105,12 @@ class Library:
             self._boards[library_id] = LibraryBoard.model_validate(data)
         return self._boards[library_id]
 
+    def list_components(self) -> list[LibraryComponent]:
+        return [self.component(p.stem) for p in sorted((self.root / "components").glob("*.yaml"))]
+
+    def list_boards(self) -> list[LibraryBoard]:
+        return [self.board(p.stem) for p in sorted((self.root / "boards").glob("*.yaml"))]
+
 
 def default_library() -> Library:
     return Library(Path(__file__).resolve().parent.parent / "library")

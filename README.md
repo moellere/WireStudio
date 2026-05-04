@@ -9,12 +9,14 @@ which handles compile + OTA deploy.
 
 ## Status
 
-`0.1` — MVP pipeline. `design.json` (the source of truth) → ESPHome YAML +
-ASCII diagram + BOM. No web UI, no agent, no API server yet — those are the
-0.2-0.5 phases. See [`START.md`](START.md) for the roadmap and the rationale
-behind each decision.
+`0.2` — HTTP API in addition to the CLI. `design.json` (the source of truth)
+→ ESPHome YAML + ASCII diagram + BOM, exposed both via `python -m
+studio.generate` and via a FastAPI server. No web UI, no agent yet — those
+are 0.3 and 0.5. See [`START.md`](START.md) for the roadmap.
 
 ## Quickstart
+
+### CLI
 
 ```sh
 pip install -e .[dev]
@@ -29,8 +31,31 @@ python -m studio.generate examples/garage-motion.json \
     --out-ascii build/garage-motion.txt
 ```
 
-The YAML is what you'd hand to `esphome compile <file>`; the ASCII is a
-diff-friendly summary of the wiring, BOM, and power budget.
+### HTTP API
+
+```sh
+python -m studio.api                    # localhost:8765
+python -m studio.api --reload           # dev mode (auto-reload on edits)
+```
+
+Browse the auto-generated OpenAPI docs at <http://127.0.0.1:8765/docs>.
+
+Useful endpoints:
+
+| Method | Path | What it does |
+|---|---|---|
+| `GET`  | `/library/boards` | summaries of every board in the library |
+| `GET`  | `/library/boards/{id}` | full board, including pinout |
+| `GET`  | `/library/components?category=&use_case=&bus=` | filtered component summaries |
+| `GET`  | `/library/components/{id}` | full component, including ESPHome template |
+| `POST` | `/design/validate` | parse a `design.json`, return summary or 422 |
+| `POST` | `/design/render` | parse + render a `design.json` to `{yaml, ascii}` |
+| `GET`  | `/examples` | list bundled examples |
+| `GET`  | `/examples/{id}` | fetch an example as raw `design.json` |
+
+The server is a thin layer over `studio.generate` — same code path the CLI
+uses, no server-side state. Permissive CORS for `localhost:5173` /
+`localhost:3000` so the 0.3 web UI can hit it during development.
 
 ## Examples
 
@@ -136,8 +161,8 @@ same diff as the code change.
 
 ## Roadmap (compressed)
 
-- **0.1** ✅ pipeline + 5 examples + library scaffolding
-- **0.2** HTTP API (FastAPI) — same generators, exposed over JSON
+- **0.1** ✅ pipeline + library scaffolding
+- **0.2** ✅ HTTP API (FastAPI) — same generators, exposed over JSON
 - **0.3** Studio web UI v1 — board picker, component browser, live diagram
 - **0.4** USB device bootstrap via WebSerial / esptool-js
 - **0.5** Agent layer (Claude tool-using, in the UI sidebar)
