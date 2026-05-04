@@ -154,12 +154,21 @@ def build_yaml_dict(design: Design, library: Library) -> dict[str, Any]:
                 entry["frequency"] = _hz_to_freq(bus.frequency_hz)
             out.setdefault("i2c", []).append(entry)
         elif bus.type == "spi":
-            out.setdefault("spi", []).append({
-                "id": bus.id,
-                "clk_pin": bus.clk,
-                "miso_pin": bus.miso,
-                "mosi_pin": bus.mosi,
-            })
+            spi_entry: dict[str, Any] = {"id": bus.id, "clk_pin": bus.clk}
+            if bus.miso:
+                spi_entry["miso_pin"] = bus.miso
+            if bus.mosi:
+                spi_entry["mosi_pin"] = bus.mosi
+            out.setdefault("spi", []).append(spi_entry)
+        elif bus.type == "i2s":
+            i2s_entry: dict[str, Any] = {}
+            if bus.lrclk:
+                i2s_entry["i2s_lrclk_pin"] = bus.lrclk
+            if bus.bclk:
+                i2s_entry["i2s_bclk_pin"] = bus.bclk
+            # ESPHome's i2s_audio block is a singleton, no id; keep the bus.id
+            # in design.json for reference but don't emit it.
+            out["i2s_audio"] = i2s_entry
 
     for comp in design.components:
         _deep_merge(out, _render_component(comp, design, library))

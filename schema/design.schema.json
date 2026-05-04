@@ -76,14 +76,16 @@
         "additionalProperties": false,
         "properties": {
           "id": { "type": "string" },
-          "type": { "type": "string", "enum": ["i2c", "spi", "uart", "1wire"] },
+          "type": { "type": "string", "enum": ["i2c", "spi", "uart", "1wire", "i2s"] },
           "frequency_hz": { "type": "integer" },
           "sda": { "type": "string" },
           "scl": { "type": "string" },
           "miso": { "type": "string" },
           "mosi": { "type": "string" },
           "clk": { "type": "string" },
-          "cs": { "type": "string" }
+          "cs": { "type": "string" },
+          "lrclk": { "type": "string" },
+          "bclk": { "type": "string" }
         }
       }
     },

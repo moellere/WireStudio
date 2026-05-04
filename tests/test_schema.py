@@ -23,7 +23,7 @@ def test_awning_control_validates_against_schema():
 
 @pytest.mark.parametrize(
     "name",
-    ["wasserpir", "oled", "bluemotion", "distance-sensor", "securitypanel"],
+    ["wasserpir", "oled", "bluemotion", "distance-sensor", "securitypanel", "rc522", "esp32-audio"],
 )
 def test_examples_validate_against_schema(name):
     schema = json.loads((REPO_ROOT / "schema" / "design.schema.json").read_text())

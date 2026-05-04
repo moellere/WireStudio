@@ -40,7 +40,7 @@ class Component(_Strict):
 
 class Bus(_Strict):
     id: str
-    type: Literal["i2c", "spi", "uart", "1wire"]
+    type: Literal["i2c", "spi", "uart", "1wire", "i2s"]
     frequency_hz: Optional[int] = None
     sda: Optional[str] = None
     scl: Optional[str] = None
@@ -48,6 +48,8 @@ class Bus(_Strict):
     mosi: Optional[str] = None
     clk: Optional[str] = None
     cs: Optional[str] = None
+    lrclk: Optional[str] = None
+    bclk: Optional[str] = None
 
 
 class RailTarget(_Strict):

@@ -88,3 +88,19 @@ def test_securitypanel_renders_expander_pin_lines(securitypanel_design, library)
 def test_awning_no_longer_shows_expander_pins_in_extras_warning(awning_control_design, library):
     text = render_ascii(awning_control_design, library)
     assert "expander_pins_in_extras" not in text
+
+
+def test_rc522_matches_golden(rc522_design, library, golden_dir):
+    expected = (golden_dir / "rc522.txt").read_text().rstrip("\n")
+    assert render_ascii(rc522_design, library) == expected
+
+
+def test_esp32_audio_matches_golden(esp32_audio_design, library, golden_dir):
+    expected = (golden_dir / "esp32-audio.txt").read_text().rstrip("\n")
+    assert render_ascii(esp32_audio_design, library) == expected
+
+
+def test_esp32_audio_renders_i2s_bus_lines(esp32_audio_design, library):
+    text = render_ascii(esp32_audio_design, library)
+    assert "LRCLK -> i2s0 (GPIO33)" in text
+    assert "BCLK  -> i2s0 (GPIO25)" in text
