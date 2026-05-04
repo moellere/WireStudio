@@ -1,0 +1,56 @@
+id: dallas
+name: Dallas DS18B20 1-Wire temperature sensor
+category: sensor
+use_cases: [temperature, water_temperature, multi_drop]
+aliases: [ds18b20, ds18s20, ds1822]
+
+electrical:
+  vcc_min: 3.0
+  vcc_max: 5.5
+  current_ma_typical: 1
+  current_ma_peak: 1.5
+  pins:
+    - {role: VCC, kind: power}
+    - {role: GND, kind: ground}
+    - role: DQ
+      kind: digital_in
+      voltage: 3.3
+      pull_up: {required: true, value: "4.7k", to: VCC}
+  passives:
+    - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+
+esphome:
+  required_components: [one_wire]
+  yaml_template: |
+    one_wire:
+      - platform: gpio
+        pin: {{ pins.DQ | tojson }}
+        id: {{ id }}_bus
+    sensor:
+      - platform: dallas_temp
+        one_wire_id: {{ id }}_bus
+    {%- if params.address is defined %}
+        address: {{ params.address }}
+    {%- endif %}
+        name: "{{ label }} Temperature"
+        id: {{ id }}
+    {%- if params.update_interval is defined %}
+        update_interval: {{ params.update_interval }}
+    {%- endif %}
+    {%- if params.resolution is defined %}
+        resolution: {{ params.resolution }}
+    {%- endif %}
+
+params_schema:
+  address:
+    type: string
+    description: "1-Wire ROM address (e.g. 0x1c0000031edd2a28). Required when more than one sensor lives on the same bus."
+  update_interval:
+    type: string
+    default: "60s"
+  resolution:
+    type: integer
+    enum: [9, 10, 11, 12]
+    default: 12
+
+notes: "Up to ~50 sensors can share a single GPIO via the 1-Wire bus. Use parasitic-power mode (DQ + GND only) only for short runs; for long cables wire VCC and add the 4.7K pull-up at the MCU end. ESPHome's `dallas` platform was renamed to `dallas_temp` in 2024.6."
