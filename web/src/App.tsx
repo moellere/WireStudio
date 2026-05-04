@@ -18,6 +18,7 @@ import { AgentSidebar } from "./components/AgentSidebar";
 import { SolveResultBanner } from "./components/SolveResultBanner";
 import { NewDesignDialog } from "./components/NewDesignDialog";
 import { PushToFleetDialog } from "./components/PushToFleetDialog";
+import { CapabilityPickerDialog } from "./components/CapabilityPickerDialog";
 import { useDebouncedValue } from "./lib/debounce";
 import {
   addComponent,
@@ -62,6 +63,7 @@ export default function App() {
   const [selectedSaved, setSelectedSaved] = useState<string | null>(null);
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [showFleetDialog, setShowFleetDialog] = useState(false);
+  const [showCapabilityDialog, setShowCapabilityDialog] = useState(false);
   const [savingState, setSavingState] = useState<"idle" | "saving" | "saved">("idle");
 
   const dirty = useMemo(() => isDirty(originalDesign, design), [originalDesign, design]);
@@ -386,6 +388,14 @@ export default function App() {
           </button>
           <button
             disabled={!design}
+            onClick={() => setShowCapabilityDialog(true)}
+            className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 enabled:hover:bg-zinc-900 disabled:opacity-40"
+            title="Pick a capability and add a matching component"
+          >
+            Add by function
+          </button>
+          <button
+            disabled={!design}
             onClick={() => setShowFleetDialog(true)}
             className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 enabled:hover:bg-zinc-900 disabled:opacity-40"
             title="Push the rendered YAML to distributed-esphome"
@@ -470,6 +480,15 @@ export default function App() {
         <PushToFleetDialog
           design={design}
           onClose={() => setShowFleetDialog(false)}
+        />
+      )}
+      {showCapabilityDialog && (
+        <CapabilityPickerDialog
+          designReady={!!design}
+          onAdd={async (libraryId) => {
+            await handleAddComponent(libraryId);
+          }}
+          onClose={() => setShowCapabilityDialog(false)}
         />
       )}
       <AgentSidebar

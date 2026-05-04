@@ -100,6 +100,8 @@ Useful endpoints:
 | `GET`  | `/library/boards/{id}` | full board, including pinout |
 | `GET`  | `/library/components?category=&use_case=&bus=` | filtered component summaries |
 | `GET`  | `/library/components/{id}` | full component, including ESPHome template |
+| `GET`  | `/library/use_cases` | distinct capabilities across the library, with counts; powers the **Add by function** picker |
+| `POST` | `/library/recommend` | rank library components against a free-text or capability query |
 | `POST` | `/design/validate` | parse a `design.json`, return summary or 422 |
 | `POST` | `/design/render` | parse + render a `design.json` to `{yaml, ascii}` |
 | `GET`  | `/examples` | list bundled examples |

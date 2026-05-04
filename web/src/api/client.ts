@@ -9,6 +9,9 @@ import type {
   FleetJobLogResponse,
   FleetPushResponse,
   FleetStatus,
+  RecommendConstraints,
+  RecommendResponse,
+  UseCaseEntry,
   RenderResponse,
   SaveDesignResponse,
   SavedDesignSummary,
@@ -102,6 +105,13 @@ export const api = {
     request<FleetJobLogResponse>(
       `/fleet/jobs/${encodeURIComponent(runId)}/log?offset=${offset}`,
     ),
+
+  listUseCases: () => request<UseCaseEntry[]>("/library/use_cases"),
+  recommend: (body: { query: string; limit?: number; constraints?: RecommendConstraints }) =>
+    request<RecommendResponse>("/library/recommend", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 };
 
 /**

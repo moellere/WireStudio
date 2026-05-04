@@ -153,6 +153,41 @@ export interface FleetJobLogResponse {
   finished: boolean;
 }
 
+export interface UseCaseEntry {
+  use_case: string;
+  count: number;
+  example_components: string[];
+}
+
+export interface Recommendation {
+  library_id: string;
+  name: string;
+  category: string;
+  use_cases: string[];
+  aliases: string[];
+  required_components: string[];
+  current_ma_typical: number | null;
+  current_ma_peak: number | null;
+  vcc_min: number | null;
+  vcc_max: number | null;
+  score: number;
+  in_examples: number;
+  rationale: string;
+  notes: string | null;
+}
+
+export interface RecommendResponse {
+  query: string;
+  matches: Recommendation[];
+}
+
+export interface RecommendConstraints {
+  voltage?: number;
+  max_current_ma_peak?: number;
+  required_bus?: string;
+  excluded_categories?: string[];
+}
+
 // Streaming agent events (one-of):
 export type AgentStreamEvent =
   | { type: "session_start"; session_id: string }

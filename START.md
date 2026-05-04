@@ -27,12 +27,25 @@ stays as a back-compat wrapper. Pytest +21 (179 total), vitest 49, ruff
 + build clean.
 
 **Next up candidates:**
-- Capability-driven component picker (user selects a function, agent/recommender
-  ranks library components, user picks one — uses inventory)
 - Bus editor in the UI
 - Strict-mode pin locks (`locked_pins` already in schema)
 - Frontend RTL/jsdom component tests
 - Full SSE/WS log relay (current 0.7+ uses HTTP polling at 1.5s intervals)
+- Capability picker: bus-aware constraint pre-fill (auto-set required_bus
+  from the design's existing buses so I2C designs don't surface SPI parts)
+- Capability picker: per-result "alternatives" tooltip surfacing the
+  recommender's full ranking when the user wants to compare
+
+**Capability-driven "Add by function" picker shipped.** New backend
+endpoint `GET /library/use_cases` aggregates the library's canonical
+capability vocabulary (sorted by component count, with a 3-id sample
+per row). Header button **Add by function** opens a two-pane dialog:
+left shows the use_case rows + a free-text override; right runs the
+existing `/library/recommend` and renders ranked matches with rationale,
+current draw, voltage range, and a one-click Add button that reuses the
+same `handleAddComponent` path as the inspector. The first result is
+badged "top pick" but the user can grab any of the eight returned —
+the case where you already have a specific part on hand.
 
 **0.7+ build-log polling shipped.** Studio relays the addon's HTTP
 fallback `GET /ui/api/jobs/{id}/log?offset=N` as `GET /fleet/jobs/{run_id}/log`
