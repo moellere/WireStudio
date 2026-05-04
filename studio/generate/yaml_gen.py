@@ -45,6 +45,23 @@ def _bus_for(component_id: str, design: Design) -> Bus | None:
     return None
 
 
+def _parent_for(component_id: str, design: Design) -> dict[str, Any] | None:
+    """Return the component-instance dict referenced by a kind:component
+    connection on this component, or None if there is no such target.
+
+    Used by hub-relative templates (e.g., ads1115_channel pointing at
+    its ads1115 hub). The returned dict carries id + library_id +
+    label + params so templates can read `{{ parent.id }}_hub` or
+    `{{ parent.params.address }}` without re-walking the design.
+    """
+    for c in design.connections:
+        if c.component_id == component_id and c.target.kind == "component":
+            for inst in design.components:
+                if inst.id == c.target.component_id:
+                    return inst.model_dump()
+    return None
+
+
 def _pins_for(component_id: str, design: Design) -> dict[str, Any]:
     """Return a dict of pin_role -> pin spec.
 
@@ -92,12 +109,14 @@ def _render_component(comp: Component, design: Design, library: Library) -> dict
     if not template_str.strip():
         return {}
     bus = _bus_for(comp.id, design)
+    parent = _parent_for(comp.id, design)
     ctx = {
         "id": comp.id,
         "label": comp.label,
         "params": dict(comp.params),
         "pins": _pins_for(comp.id, design),
         "bus": bus.model_dump() if bus else None,
+        "parent": parent,
     }
     try:
         rendered = _jinja.from_string(template_str).render(**ctx)

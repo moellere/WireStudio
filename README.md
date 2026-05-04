@@ -184,7 +184,8 @@ Currently shipped:
 - `gpio_output` — generic switch on a GPIO or expander pin (relays, indicators)
 - `ds18b20` — Dallas 1-wire temperature sensor (single-pin bus + 4.7kΩ pull-up)
 - `rcwl-0516` — microwave doppler motion sensor (low-power PIR alternative)
-- `ads1115` — TI 4-channel 16-bit ADC (I2C); rescues ESP32 designs from the ADC2/WiFi conflict
+- `ads1115` — TI 4-channel 16-bit ADC (I2C) hub; rescues ESP32 designs from the ADC2/WiFi conflict
+- `ads1115_channel` — one logical reading on an ADS1115 hub (multiplexer + gain + update_interval per channel)
 - `mpu6050` — InvenSense 6-axis IMU (3-axis accel + 3-axis gyro + die temp, I2C)
 - `bmp180` — Bosch BMP180/BMP085 barometric pressure + temperature (I2C)
 - `htu21d` — TE Connectivity HTU21D temperature + humidity (I2C; covers Si7021 / SHT2x)
