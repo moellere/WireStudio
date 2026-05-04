@@ -38,6 +38,7 @@ from studio.api.schemas import (
     SavedDesignSummary,
     SolvePinsResponse,
     SolverWarning,
+    UseCaseEntry,
     ValidateResponse,
 )
 from studio.fleet.client import FleetClient, FleetUnavailable
@@ -310,6 +311,31 @@ def create_app(
         if not removed:
             raise HTTPException(status_code=404, detail=f"no saved design with id {design_id!r}")
         return {"deleted": True, "id": design_id}
+
+    @app.get("/library/use_cases", response_model=list[UseCaseEntry], tags=["library"])
+    def list_use_cases() -> list[UseCaseEntry]:
+        """Distinct use_cases across the library, with the count of components
+        that advertise each plus a small sample of library_ids for hover.
+
+        Used by the **Add by function** picker so the user can browse the
+        canonical capability vocabulary instead of typing free text into
+        the recommender.
+        """
+        agg: dict[str, list[str]] = {}
+        for c in lib.list_components():
+            for uc in c.use_cases:
+                agg.setdefault(uc, []).append(c.id)
+        rows = [
+            UseCaseEntry(
+                use_case=uc,
+                count=len(ids),
+                example_components=sorted(ids)[:3],
+            )
+            for uc, ids in agg.items()
+        ]
+        # Most-supported capabilities first, ties broken alphabetically.
+        rows.sort(key=lambda r: (-r.count, r.use_case))
+        return rows
 
     @app.post("/library/recommend", response_model=RecommendResponse, tags=["library"])
     def recommend(req: RecommendRequest) -> RecommendResponse:

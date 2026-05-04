@@ -186,3 +186,41 @@ def test_openapi_schema_advertises_endpoints(client):
     assert "/library/boards" in paths
     assert "/design/render" in paths
     assert "/examples/{example_id}" in paths
+    assert "/library/use_cases" in paths
+
+
+def test_list_use_cases_returns_sorted_aggregate(client):
+    r = client.get("/library/use_cases")
+    assert r.status_code == 200
+    rows = r.json()
+    assert isinstance(rows, list) and len(rows) > 0
+
+    # Each row has the wire shape we promised.
+    for row in rows:
+        assert set(row.keys()) == {"use_case", "count", "example_components"}
+        assert row["count"] >= 1
+        assert len(row["example_components"]) <= 3
+
+    # Sorted by descending count, ties broken alphabetically.
+    counts = [r["count"] for r in rows]
+    assert counts == sorted(counts, reverse=True)
+    by_count: dict[int, list[str]] = {}
+    for r0 in rows:
+        by_count.setdefault(r0["count"], []).append(r0["use_case"])
+    for group in by_count.values():
+        assert group == sorted(group)
+
+
+def test_list_use_cases_includes_known_capabilities(client):
+    r = client.get("/library/use_cases").json()
+    seen = {row["use_case"] for row in r}
+    # Sanity-check a few well-known capabilities from the bundled library.
+    # If any of these disappear we want a loud failure here, not a silent
+    # gap in the picker.
+    assert "motion" in seen
+    assert "temperature" in seen
+    # The PIR is canonical for "motion" and the BME280 for "temperature";
+    # confirm they show up in the example_components for at least one row.
+    flat = {(row["use_case"], lib_id) for row in r for lib_id in row["example_components"]}
+    assert ("motion", "hc-sr501") in flat
+    assert any(uc == "temperature" and lib == "bme280" for uc, lib in flat)

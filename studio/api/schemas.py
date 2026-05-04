@@ -121,6 +121,13 @@ class AgentSession(_S):
     messages: list[AgentSessionMessage]
 
 
+class UseCaseEntry(_S):
+    """One row of GET /library/use_cases."""
+    use_case: str
+    count: int  # how many library components advertise this use_case
+    example_components: list[str]  # up to 3 library_ids for hover preview
+
+
 class RecommendRequest(_S):
     query: str
     limit: int = 10
