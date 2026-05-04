@@ -305,10 +305,17 @@ def _bus_pin_warnings(design: dict, board) -> list[CompatibilityWarning]:
     # role -> ("out" | "in") direction for each bus type. The MCU drives the
     # output side; serial console and no_i2c apply to any pin assigned.
     bus_roles: dict[str, dict[str, str]] = {
-        "i2c":  {"sda": "io",  "scl": "out"},
-        "spi":  {"clk": "out", "mosi": "out", "miso": "in", "cs": "out"},
-        "uart": {"tx": "out",  "rx": "in"},
-        "i2s":  {"lrclk": "out", "bclk": "out"},
+        "i2c":   {"sda": "io",  "scl": "out"},
+        "spi":   {"clk": "out", "mosi": "out", "miso": "in", "cs": "out"},
+        "uart":  {"tx": "out",  "rx": "in"},
+        "i2s":   {"lrclk": "out", "bclk": "out"},
+        # 1-wire is bidirectional on a single line; the master holds the
+        # pull-up high and either side drops it. We tag direction "io"
+        # because the boot-strap warnings on the master side still apply
+        # (the host configures the pin) but input-only pins are usable
+        # in slave-only configurations -- we leave that nuance for a
+        # later pass and treat the pin like the i2c sda case.
+        "1wire": {"pin": "io"},
     }
 
     for bus in design.get("buses") or []:

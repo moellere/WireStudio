@@ -419,6 +419,8 @@ def _bus_type_for_pin(kind: str) -> Optional[str]:
         return "i2s"
     if kind in ("uart_rx", "uart_tx"):
         return "uart"
+    if kind == "onewire_data":
+        return "1wire"
     return None
 
 

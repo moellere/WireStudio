@@ -187,6 +187,17 @@ def build_yaml_dict(design: Design, library: Library) -> dict[str, Any]:
             if bus.baud_rate:
                 uart_entry["baud_rate"] = bus.baud_rate
             out.setdefault("uart", []).append(uart_entry)
+        elif bus.type == "1wire":
+            # Single-pin bus. ESPHome's `one_wire:` block lists each
+            # physical wire by id; multiple DS18B20s on the same wire
+            # share an id, so we emit the bus block here and the
+            # component templates only refer to it via one_wire_id.
+            wire_entry: dict[str, Any] = {
+                "platform": "gpio",
+                "pin": bus.pin,
+                "id": bus.id,
+            }
+            out.setdefault("one_wire", []).append(wire_entry)
 
     for comp in design.components:
         _deep_merge(out, _render_component(comp, design, library))

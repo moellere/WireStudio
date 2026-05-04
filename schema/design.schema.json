@@ -88,7 +88,8 @@
           "rx": { "type": "string" },
           "tx": { "type": "string" },
           "lrclk": { "type": "string" },
-          "bclk": { "type": "string" }
+          "bclk": { "type": "string" },
+          "pin": { "type": "string" }
         }
       }
     },

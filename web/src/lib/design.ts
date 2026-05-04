@@ -319,6 +319,7 @@ function defaultTargetForPin(
     spi_clk: "spi", spi_miso: "spi", spi_mosi: "spi",
     i2s_lrclk: "i2s", i2s_bclk: "i2s",
     uart_rx: "uart", uart_tx: "uart",
+    onewire_data: "1wire",
   };
   const wantBus = busKindToType[k];
   if (wantBus) {
@@ -342,6 +343,7 @@ export function neededBusTypes(lib: LibraryComponentDetail): Set<string> {
     else if (p.kind === "spi_clk" || p.kind === "spi_miso" || p.kind === "spi_mosi") need.add("spi");
     else if (p.kind === "i2s_lrclk" || p.kind === "i2s_bclk") need.add("i2s");
     else if (p.kind === "uart_rx" || p.kind === "uart_tx") need.add("uart");
+    else if (p.kind === "onewire_data") need.add("1wire");
   }
   return need;
 }
