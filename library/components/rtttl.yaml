@@ -1,0 +1,41 @@
+id: rtttl
+name: Piezo buzzer + RTTTL melody player
+category: audio
+use_cases: [buzzer, alert_chime, doorbell, status_audio]
+aliases: [piezo_buzzer, ringtone_player]
+
+electrical:
+  vcc_min: 0.0
+  vcc_max: 0.0
+  current_ma_typical: 8
+  current_ma_peak: 30
+  pins:
+    - role: OUT
+      kind: digital_out
+      voltage: 3.3
+  passives: []
+
+esphome:
+  required_components: []
+  yaml_template: |
+    output:
+      - platform: {{ params.output_platform | default('esp8266_pwm') }}
+        pin: {{ pins.OUT | tojson }}
+        id: {{ id }}_out
+    rtttl:
+      output: {{ id }}_out
+      id: {{ id }}
+    {%- if params.on_finished_playback is defined %}
+      on_finished_playback: {{ params.on_finished_playback | tojson }}
+    {%- endif %}
+
+params_schema:
+  output_platform:
+    type: string
+    enum: [esp8266_pwm, ledc]
+    default: esp8266_pwm
+    description: "Use `ledc` on ESP32; `esp8266_pwm` on ESP8266."
+  on_finished_playback:
+    type: array
+
+notes: "RTTTL needs a PWM-capable output, not a plain GPIO. ESP8266 can only PWM on a subset of pins (see board capabilities); ESP32 LEDC works on any GPIO. The piezo itself is passive -- a typical 5V active buzzer should NOT be wired here, since RTTTL drives a frequency, not a level. Calls look like `rtttl.play: 'success:d=24,o=5,b=100:c,g,b'`."

@@ -1,0 +1,64 @@
+id: pulse_counter
+name: Pulse counter / tachometer (RPM, flow, energy)
+category: sensor
+use_cases: [tachometer, rpm, flow_meter, kwh_meter, frequency]
+aliases: [tach, frequency_counter]
+
+electrical:
+  vcc_min: 0.0
+  vcc_max: 0.0
+  current_ma_typical: 0
+  current_ma_peak: 0
+  # The component itself is just a pin reader; the upstream sensor
+  # (4-pin PWM fan tach, hall flow meter, etc.) supplies its own
+  # electrical metadata if you model it separately.
+  pins:
+    - role: PULSE
+      kind: digital_in
+      voltage: 3.3
+      pull_up: {required: false, value: "10k", to: VCC}
+  passives: []
+
+esphome:
+  required_components: []
+  yaml_template: |
+    sensor:
+      - platform: pulse_counter
+        pin:
+          number: {{ pins.PULSE | tojson }}
+    {%- if params.input_mode is defined %}
+          mode: {{ params.input_mode }}
+    {%- endif %}
+        name: "{{ label }}"
+        id: {{ id }}
+    {%- if params.unit_of_measurement is defined %}
+        unit_of_measurement: "{{ params.unit_of_measurement }}"
+    {%- endif %}
+    {%- if params.update_interval is defined %}
+        update_interval: {{ params.update_interval }}
+    {%- endif %}
+    {%- if params.count_mode is defined %}
+        count_mode: {{ params.count_mode | tojson }}
+    {%- endif %}
+    {%- if params.filters is defined %}
+        filters: {{ params.filters | tojson }}
+    {%- endif %}
+
+params_schema:
+  input_mode:
+    type: string
+    enum: [INPUT, INPUT_PULLUP, INPUT_PULLDOWN]
+    default: INPUT_PULLUP
+  unit_of_measurement:
+    type: string
+  update_interval:
+    type: string
+    default: "60s"
+  count_mode:
+    type: object
+    description: "{ rising_edge: INCREMENT|DECREMENT|DISABLE, falling_edge: ... }"
+  filters:
+    type: array
+    description: "Standard ESPHome sensor filters; commonly `multiply: 0.5` for 2-pulse-per-rev fan tachs."
+
+notes: "On ESP8266 the pulse counter is software-driven and tops out around ~10kHz. ESP32 uses the dedicated PCNT peripheral and is good for several hundred kHz. For 4-pin PWM fan tachs, two pulses are produced per revolution -- divide by 2 with a `multiply: 0.5` filter to read RPM."

@@ -1,0 +1,61 @@
+id: m5stack-atoms3
+name: M5Stack AtomS3
+mcu: esp32
+chip_variant: esp32s3
+framework: arduino
+platformio_board: m5stack-atoms3
+flash_size_mb: 8
+
+rails:
+  - {name: "5V",  voltage: 5.0, source: usb}
+  - {name: "3V3", voltage: 3.3, source: onboard_regulator}
+  - {name: "GND", voltage: 0.0}
+
+# AtomS3 is an ESP32-S3FN8 in the same 24mm cube form factor with a
+# 0.85" 128x128 ST7789 LCD on the front face, a programmable button
+# under the LCD (active low), and an MPU6886 6-axis IMU. Native USB
+# is on GPIO19/20.
+#
+# Onboard ST7789 wiring (verified from in-tree dork-monitor.yaml):
+#   SPI clk = GPIO17, mosi = GPIO21
+#   cs  = GPIO15
+#   dc  = GPIO33
+#   rst = GPIO34
+#   bl  = GPIO16
+# Button = GPIO41 (active low, pull-up).
+#
+# Grove port (front, 4-pin): GPIO1 (SDA), GPIO2 (SCL).
+# General GPIO breakout: GPIO5, GPIO6, GPIO7, GPIO8, GPIO38, GPIO39.
+# Strap pins follow the standard ESP32-S3 rules (GPIO0 = BOOT;
+# GPIO45/46 = VDD_SPI / silent ROM).
+default_buses:
+  i2c: {sda: GPIO1, scl: GPIO2}
+  spi: {clk: GPIO17, mosi: GPIO21, miso: GPIO13}
+
+onboard_peripherals:
+  display_st7789: {cs: GPIO15, dc: GPIO33, reset: GPIO34, backlight: GPIO16, width: 128, height: 128}
+  button:         {pin: GPIO41, inverted: true}
+  imu_mpu6886:    {address: "0x68"}
+
+gpio_capabilities:
+  GPIO0:  [gpio, strap, boot_high]
+  GPIO1:  [gpio, adc, adc1, i2c_sda, grove_sda, pwm]
+  GPIO2:  [gpio, adc, adc1, i2c_scl, grove_scl, pwm]
+  GPIO5:  [gpio, adc, adc1, pwm]
+  GPIO6:  [gpio, adc, adc1, pwm]
+  GPIO7:  [gpio, adc, adc1, pwm]
+  GPIO8:  [gpio, adc, adc1, pwm]
+  GPIO13: [gpio, spi_miso, adc, adc2, pwm]
+  GPIO15: [gpio, display_cs, adc, adc2]
+  GPIO16: [gpio, display_backlight, adc, adc2, pwm]
+  GPIO17: [gpio, spi_clk, adc, adc2]
+  GPIO19: [gpio, usb]
+  GPIO20: [gpio, usb]
+  GPIO21: [gpio, spi_mosi]
+  GPIO33: [gpio, display_dc]
+  GPIO34: [gpio, display_reset]
+  GPIO38: [gpio, pwm]
+  GPIO39: [gpio, pwm]
+  GPIO41: [gpio, button]
+  GPIO43: [gpio, uart_tx, serial_tx]
+  GPIO44: [gpio, uart_rx, serial_rx]
