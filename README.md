@@ -105,6 +105,7 @@ Useful endpoints:
 | `POST` | `/design/validate` | parse a `design.json`, return summary or 422 |
 | `POST` | `/design/render` | parse + render a `design.json` to `{yaml, ascii}` |
 | `POST` | `/design/enclosure/openscad` | generate a parametric `.scad` shell for the design's board |
+| `POST` | `/design/kicad/schematic` | generate a SKiDL Python script the user runs locally to produce a `.kicad_sch` |
 | `GET`  | `/enclosure/search?library_id=...&query=...` | search community-uploaded enclosure models (Thingiverse) |
 | `GET`  | `/enclosure/search/status` | per-source availability + configure hints |
 | `GET`  | `/examples` | list bundled examples |

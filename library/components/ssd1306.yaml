@@ -46,3 +46,10 @@ params_schema:
     default: "0x3C"
 
 notes: "Many breakouts ship with 10kohm pull-ups already. Verify before adding more."
+# KiCad symbol mapping (0.9 schematic export). Module symbol for the
+# common 0.96" I2C breakout.
+kicad:
+  symbol_lib: Display_Character
+  symbol: SSD1306
+  pin_map:
+    VCC: VDD

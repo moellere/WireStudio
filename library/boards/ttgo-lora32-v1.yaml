@@ -82,3 +82,10 @@ enclosure:
       height_mm: 7.0
       height_above_pcb_mm: 0.0  # rooted at PCB level
   component_height_max_mm: 9.0
+# KiCad symbol mapping (0.9 schematic export). No dedicated TTGO LoRa32
+# symbol in kicad-symbols today; the user will likely want to replace
+# the generic header with a manufacturer footprint after import.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_02x18_Odd_Even
+  value: TTGO_LoRa32_V1

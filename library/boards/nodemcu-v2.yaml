@@ -52,3 +52,9 @@ enclosure:
       height_mm: 3.0
       height_above_pcb_mm: 1.5
   component_height_max_mm: 13.0
+# KiCad symbol mapping (0.9 schematic export). KiCad doesn't ship a
+# dedicated NodeMCU v2 module symbol; the closest stand-in is the
+# generic ESP-12 module footprint at the right pinout.
+kicad:
+  symbol_lib: MCU_Module
+  symbol: NodeMCU-1.0

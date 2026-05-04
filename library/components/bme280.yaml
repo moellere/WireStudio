@@ -42,3 +42,10 @@ params_schema:
     default: "0x76"
 
 notes: "3V3 only. On 5V boards, place behind level shifter or use 3V3 rail."
+# KiCad symbol mapping (0.9 schematic export).
+kicad:
+  symbol_lib: Sensor
+  symbol: BME280
+  footprint: Package_LGA:Bosch_LGA-8_2.5x2.5mm_P0.65mm_ClockwisePinNumbering
+  pin_map:
+    VCC: VDD

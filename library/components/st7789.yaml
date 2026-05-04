@@ -64,3 +64,9 @@ params_schema:
   update_interval: { type: string, default: "5s" }
 
 notes: "Bare ST7789 panels often need precise model dimensions and offsets; if you don't know them, start with model: Custom and tune width/height/offset_*."
+# KiCad symbol mapping (0.9 schematic export). Generic display header
+# fallback -- ST7789V breakouts vary in pin count.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x08
+  value: ST7789V

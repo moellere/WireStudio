@@ -43,3 +43,11 @@ notes: |
   pressure doesn't -- cheaper, lower current draw, fixed 0x40 address.
   3.3V only. The Si7021 / SHT2x families speak the same protocol so
   this template covers them too.
+# KiCad symbol mapping (0.9 schematic export). The HTU21D / Si7021 /
+# SHT2x family share the SHT21 KiCad symbol.
+kicad:
+  symbol_lib: Sensor
+  symbol: SHT21
+  value: HTU21D
+  pin_map:
+    VCC: VDD

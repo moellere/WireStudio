@@ -52,6 +52,7 @@ from studio.enclosure import (
     query_for_board,
     search_enclosures,
 )
+from studio.kicad import generate_skidl
 from studio.recommend.recommender import Constraints, recommend_components
 from studio.generate.ascii_gen import render_ascii
 from studio.generate.yaml_gen import render_yaml
@@ -315,6 +316,38 @@ def create_app(
             headers={
                 "Content-Disposition": f'attachment; filename="{filename}"',
             },
+        )
+
+    @app.post("/design/kicad/schematic", tags=["design"])
+    def design_kicad_schematic(design: dict) -> PlainTextResponse:
+        """Render a SKiDL Python script the user runs locally to produce
+        `<design_id>.kicad_sch`.
+
+        We don't import or run SKiDL ourselves -- a hard runtime dep
+        would pull in numpy + EDA-toolchain weight that's wrong for
+        a server. The user pipes the response through:
+
+            curl -X POST .../design/kicad/schematic ... > design.skidl.py
+            pip install skidl
+            python design.skidl.py
+
+        Components without a `kicad:` mapping render as a generic
+        4-pin connector with a TODO comment; the script always runs
+        and the user can patch the .py before re-running, or fill in
+        the library YAML and re-export.
+        """
+        try:
+            d = Design.model_validate(design)
+        except ValidationError as e:
+            raise HTTPException(status_code=422, detail=e.errors()) from e
+        try:
+            script = generate_skidl(d, lib)
+        except FileNotFoundError as e:
+            raise HTTPException(status_code=422, detail=str(e)) from e
+        filename = f"{d.id}.skidl.py"
+        return PlainTextResponse(
+            content=script,
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
 
     @app.get("/enclosure/search/status", tags=["enclosure"])

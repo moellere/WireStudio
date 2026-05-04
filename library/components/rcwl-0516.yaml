@@ -42,3 +42,8 @@ notes: |
   safe for any ESP GPIO. Sensitivity and on-time are set by SMD resistors
   (R-CDS, R-GN) rather than ESPHome params. Treat the 5V VIN as a hard
   minimum -- 3.3V supply works in practice but spec'd at 4V+.
+# KiCad symbol mapping (0.9 schematic export). Generic 3-pin header.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x03
+  value: RCWL-0516

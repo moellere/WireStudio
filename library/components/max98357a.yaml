@@ -36,3 +36,11 @@ params_schema:
   mode: { type: string, enum: [mono, stereo, left, right], default: "mono" }
 
 notes: "MAX98357A is mono Class-D. For stereo use two boards with one wired left, one right -- ESPHome doesn't support that yet (one media_player per device). DIN, BCLK, LRCLK come from the i2s_audio bus and i2s_dout_pin connection. SD pin (shutdown) is optional; tie high or omit for always-on."
+# KiCad symbol mapping (0.9 schematic export). KiCad bundles MAX98357A
+# in the Amplifier_Audio library for newer releases; older installs
+# may need an alias or an external addon library.
+kicad:
+  symbol_lib: Amplifier_Audio
+  symbol: MAX98357A
+  pin_map:
+    VCC: VDD

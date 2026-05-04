@@ -37,3 +37,9 @@ params_schema:
     default: "0x20"
 
 notes: "16 GPIOs (A0-A7, B0-B7) addressable as numbers 0-15. Per-pin direction is configured by downstream gpio platforms via expander_pin connections."
+# KiCad symbol mapping (0.9 schematic export).
+kicad:
+  symbol_lib: Interface_Expansion
+  symbol: MCP23017_SP
+  pin_map:
+    VCC: VDD

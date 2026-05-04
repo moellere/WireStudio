@@ -50,3 +50,11 @@ notes: |
   channel A (128 or 64x) or channel B (32x); most load cells live on
   channel A. 3.3V or 5V supply -- DOUT swings to whatever VCC is, so
   keep a 5V HX711 off a 3.3V GPIO without a level shifter.
+# KiCad symbol mapping (0.9 schematic export). HX711 lives under
+# Analog_ADC in modern KiCad releases; SCK is the symbol's pin name
+# for our SCK role so no map entry needed there.
+kicad:
+  symbol_lib: Analog_ADC
+  symbol: HX711
+  pin_map:
+    VCC: AVDD

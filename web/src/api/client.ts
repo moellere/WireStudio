@@ -96,6 +96,8 @@ export const api = {
     request<SolvePinsResponse>("/design/solve_pins", { method: "POST", body: JSON.stringify(design) }),
   enclosureScad: (design: Design) =>
     requestText("/design/enclosure/openscad", { method: "POST", body: JSON.stringify(design) }),
+  kicadSchematic: (design: Design) =>
+    requestText("/design/kicad/schematic", { method: "POST", body: JSON.stringify(design) }),
   enclosureSearchStatus: () =>
     request<EnclosureSearchStatus>("/enclosure/search/status"),
   enclosureSearch: (params: { library_id: string; query?: string; limit?: number }) => {

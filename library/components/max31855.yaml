@@ -49,3 +49,10 @@ notes: |
   via `reference_temperature: true`. 3.3V only -- a 5V MCU needs a
   level shifter on the SPI lines. Keep the thermocouple wires twisted
   and the optional 10nF noise cap close to the screw terminals.
+# KiCad symbol mapping (0.9 schematic export).
+kicad:
+  symbol_lib: Sensor_Temperature
+  symbol: MAX31855xASA
+  pin_map:
+    VCC: VDD
+    CLK: SCK

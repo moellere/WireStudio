@@ -37,3 +37,9 @@ params_schema:
     default: "0x20"
 
 notes: "Per-pin direction/mode is configured by the downstream gpio platforms (binary_sensor, switch, output) that reference this hub via `mcp23008: <id>` in their pin block."
+# KiCad symbol mapping (0.9 schematic export).
+kicad:
+  symbol_lib: Interface_Expansion
+  symbol: MCP23008-SP
+  pin_map:
+    VCC: VDD

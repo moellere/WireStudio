@@ -63,3 +63,10 @@ notes: |
   (AD0 to VCC). The INT pin is supported by ESPHome but not modeled
   here -- wire it to a free GPIO and attach a binary_sensor in
   esphome_extras if you need motion-wake.
+# KiCad symbol mapping (0.9 schematic export). The bare-chip pinout;
+# breakout boards (GY-521) wire the 8 pins directly to a 0.1" header.
+kicad:
+  symbol_lib: Sensor_Motion
+  symbol: MPU-6050
+  pin_map:
+    VCC: VDD

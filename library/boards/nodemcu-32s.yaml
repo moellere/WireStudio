@@ -66,3 +66,7 @@ enclosure:
       height_mm: 3.0
       height_above_pcb_mm: 1.5
   component_height_max_mm: 13.0
+# KiCad symbol mapping (0.9 schematic export).
+kicad:
+  symbol_lib: MCU_Module
+  symbol: NodeMCU-32S

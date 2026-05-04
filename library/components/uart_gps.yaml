@@ -33,3 +33,9 @@ params_schema:
     description: "Sub-sensors to expose. Keys are GPS sensor names (latitude, longitude, altitude, speed, course, satellites, hdop), values are the sensor config (typically `{ name: ... }`)."
 
 notes: "ESPHome's `gps:` is a singleton. Wire the GPS module's TX to the MCU's RX (i.e. uart bus rx pin) and vice versa -- the module sends NMEA, the MCU only listens. Some clones output 9600 baud out of the box; others 115200."
+# KiCad symbol mapping (0.9 schematic export). Generic 4-pin header --
+# matches the typical NEO-6M / NEO-8M breakout.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x04
+  value: UART_GPS

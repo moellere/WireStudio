@@ -42,3 +42,10 @@ params_schema:
   update_interval: { type: string, default: "1s" }
 
 notes: "ESPHome's `rc522_spi` is a singleton -- one reader per device. 3.3V only; do not power from 5V even if your board has a 5V rail."
+# KiCad symbol mapping (0.9 schematic export). RC522 breakouts use an
+# 8-pin SPI header; the dedicated symbol isn't in kicad-symbols, so
+# fall back to a generic 8-pin connector with the part name as value.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x08
+  value: MFRC522
