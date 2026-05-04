@@ -27,12 +27,32 @@ stays as a back-compat wrapper. Pytest +21 (179 total), vitest 49, ruff
 + build clean.
 
 **Next up candidates:**
-- Drag-and-drop pinout (long-running: 0.3 already pre-flagged this as
-  a follow-on iteration)
-- 0.8 enclosure suggestions
-- 0.9 KiCad schematic export (SKiDL recommended; map studio
-  components to `kicad-symbols` symbols via a new `kicad:` block per
-  library entry)
+- 0.8 — Enclosure suggestions (Thingiverse/Printables search;
+  parametric OpenSCAD stretch)
+- 0.9 — KiCad schematic export. SKiDL recommended (Python DSL that
+  takes parts + nets and emits `.kicad_sch` directly). Each
+  `library/components/<id>.yaml` gains a `kicad:` block mapping to
+  the matching kicad-symbols entry (BME280 -> `Sensor:BME280`,
+  ADS1115 -> `Analog_ADC:ADS1115xDGS`, etc.). Boards likewise gain
+  a kicad: block. PCB layout deferred to 1.0+.
+
+**Drag-and-drop pinout shipped.** New `PinoutView` component renders
+a two-column view in the component-instance inspector: left lists
+every board GPIO with capability badges (boot strap, ADC1/ADC2,
+input-only, serial console, I2C SDA/SCL); right lists this instance's
+gpio-target connections as draggable chips. Dropping a chip onto a
+board pin rewrites the connection's target. Conflict detection paints
+the rose tone on pins another component already uses; the row that's
+currently bound (on this instance) glows emerald with a "← <role>"
+breadcrumb.
+
+The Connections section gains a Form/Pinout toggle: Form (default)
+covers every target kind including the new component target; Pinout
+is the visual shortcut for board-pin-heavy designs. Native HTML5
+drag/drop -- no library dependency, ~200 lines of TSX, ~150 lines of
+test coverage. 7 new vitest cases (empty states, capability badge
+rendering, pin-currently-here annotation, conflict detection, the
+drag-start-then-drop round trip, and the empty-payload no-op).
 
 **ADS1115 hub-only split shipped.** New `kind: "component"` connection
 target lets one component instance reference another by id. The

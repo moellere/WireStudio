@@ -7,6 +7,7 @@ import {
   readRequirements,
   readWarnings,
   type ComponentInstance,
+  type ConnectionRow,
   type ConnectionTarget,
   type DesignWarning,
   type Requirement,
@@ -21,6 +22,7 @@ import {
 } from "../lib/design";
 import { ParamForm } from "./ParamForm";
 import { ConnectionForm } from "./ConnectionForm";
+import { PinoutView } from "./PinoutView";
 import { BusList } from "./BusList";
 
 export type Selection =
@@ -550,12 +552,13 @@ function ComponentInstanceInspector({
 
       <Section title="Connections">
         {design ? (
-          <ConnectionForm
+          <ConnectionsPane
             rows={connectionRows}
             design={design}
             boardData={boardData}
+            instance={inst}
             libraryComponents={libraryComponents}
-            onChange={onConnectionChange}
+            onConnectionChange={onConnectionChange}
             onLockedPinChange={onLockedPinChange}
           />
         ) : null}
@@ -576,6 +579,70 @@ function ComponentInstanceInspector({
     </div>
   );
 }
+
+/**
+ * View toggle wrapping the Form-based ConnectionForm and the drag-and-
+ * drop PinoutView. Form is the default since it covers every target
+ * kind (rail/gpio/bus/expander_pin/component); Pinout is a faster
+ * gpio-only surface for board-pin-heavy designs.
+ */
+function ConnectionsPane({
+  rows, design, boardData, instance, libraryComponents,
+  onConnectionChange, onLockedPinChange,
+}: {
+  rows: ConnectionRow[];
+  design: Design;
+  boardData: unknown;
+  instance: ComponentInstance;
+  libraryComponents: ComponentSummary[] | null;
+  onConnectionChange: (connectionIndex: number, target: ConnectionTarget) => void;
+  onLockedPinChange: (componentId: string, pinRole: string, pin: string | null) => void;
+}) {
+  const [view, setView] = useState<"form" | "pinout">("form");
+  const board = (boardData ?? {}) as Record<string, unknown>;
+  const gpioCapabilities = (board.gpio_capabilities ?? {}) as Record<string, string[]>;
+  const allConnections = readConnections(design);
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-1 text-[11px]">
+        {(["form", "pinout"] as const).map((v) => (
+          <button
+            key={v}
+            type="button"
+            onClick={() => setView(v)}
+            className={`rounded px-1.5 py-0.5 transition-colors ${
+              view === v
+                ? "bg-zinc-800 text-zinc-100"
+                : "text-zinc-500 hover:text-zinc-200"
+            }`}
+          >
+            {v === "form" ? "Form" : "Pinout"}
+          </button>
+        ))}
+      </div>
+      {view === "form" ? (
+        <ConnectionForm
+          rows={rows}
+          design={design}
+          boardData={boardData}
+          libraryComponents={libraryComponents}
+          onChange={onConnectionChange}
+          onLockedPinChange={onLockedPinChange}
+        />
+      ) : (
+        <PinoutView
+          rows={rows}
+          allConnections={allConnections}
+          instance={instance}
+          gpioCapabilities={gpioCapabilities}
+          onChange={onConnectionChange}
+        />
+      )}
+    </div>
+  );
+}
+
 
 function FullComponentView({ comp, compact = false }: { comp: unknown; compact?: boolean }) {
   const c = comp as Record<string, unknown>;
