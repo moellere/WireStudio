@@ -1,0 +1,55 @@
+id: max7219
+name: MAX7219 7-segment / 8x8 LED matrix driver (SPI)
+category: display
+use_cases: [seven_segment, led_matrix, status]
+aliases: [max7221]
+
+electrical:
+  vcc_min: 4.0
+  vcc_max: 5.5
+  current_ma_typical: 80
+  current_ma_peak: 320
+  pins:
+    - {role: VCC, kind: power}
+    - {role: GND, kind: ground}
+    - {role: CLK,  kind: spi_clk}
+    - {role: MOSI, kind: spi_mosi}
+    - {role: CS,   kind: spi_cs, voltage: 3.3}
+  passives:
+    - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+    - {kind: capacitor, value: "10uF",  between: [VCC, GND], purpose: bulk decoupling}
+
+esphome:
+  required_components: [spi]
+  yaml_template: |
+    display:
+      - platform: max7219digit
+        cs_pin: {{ pins.CS | tojson }}
+        spi_id: {{ bus.id }}
+        id: {{ id }}
+        num_chips: {{ params.num_chips | default(1) }}
+    {%- if params.intensity is defined %}
+        intensity: {{ params.intensity }}
+    {%- endif %}
+    {%- if params.update_interval is defined %}
+        update_interval: {{ params.update_interval }}
+    {%- endif %}
+    {%- if params.lambda_ is defined %}
+        lambda: {{ params.lambda_ | tojson }}
+    {%- endif %}
+
+params_schema:
+  num_chips:
+    type: integer
+    minimum: 1
+    default: 1
+  intensity:
+    type: integer
+    minimum: 0
+    maximum: 15
+    default: 8
+  update_interval:
+    type: string
+    default: "1s"
+
+notes: "ESPHome ships two flavors: `max7219` for stock 7-segment + decimal modules and `max7219digit` for daisy-chained 8x8 matrices and graphics-style 7-segments. This template uses `max7219digit` since most boards in the wild are matrix or scrolling-text style. Each chip pulls up to ~320mA at full brightness on a single digit; budget accordingly for chains."

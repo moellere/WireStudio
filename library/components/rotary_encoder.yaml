@@ -1,0 +1,70 @@
+id: rotary_encoder
+name: Quadrature rotary encoder (KY-040 style)
+category: sensor
+use_cases: [encoder, volume, scroll, menu_navigation]
+aliases: [ky-040, ec11, quadrature_encoder]
+
+electrical:
+  vcc_min: 0.0
+  vcc_max: 0.0
+  current_ma_typical: 0
+  current_ma_peak: 0
+  # The bare encoder is passive (mechanical contacts to GND); KY-040
+  # breakouts add 10K pull-ups to VCC on A/B and 5V tolerance. The
+  # built-in pushbutton is wired separately as a binary_sensor on
+  # gpio_input -- model that as its own component if you need it.
+  pins:
+    - role: A
+      kind: digital_in
+      voltage: 3.3
+      pull_up: {required: true, value: "10k", to: VCC}
+    - role: B
+      kind: digital_in
+      voltage: 3.3
+      pull_up: {required: true, value: "10k", to: VCC}
+  passives: []
+
+esphome:
+  required_components: []
+  yaml_template: |
+    sensor:
+      - platform: rotary_encoder
+        pin_a:
+          number: {{ pins.A | tojson }}
+          mode: INPUT
+        pin_b:
+          number: {{ pins.B | tojson }}
+          mode: INPUT
+        name: "{{ label }}"
+        id: {{ id }}
+    {%- if params.min_value is defined %}
+        min_value: {{ params.min_value }}
+    {%- endif %}
+    {%- if params.max_value is defined %}
+        max_value: {{ params.max_value }}
+    {%- endif %}
+    {%- if params.resolution is defined %}
+        resolution: {{ params.resolution }}
+    {%- endif %}
+    {%- if params.on_clockwise is defined %}
+        on_clockwise: {{ params.on_clockwise | tojson }}
+    {%- endif %}
+    {%- if params.on_anticlockwise is defined %}
+        on_anticlockwise: {{ params.on_anticlockwise | tojson }}
+    {%- endif %}
+
+params_schema:
+  min_value:
+    type: integer
+  max_value:
+    type: integer
+  resolution:
+    type: string
+    enum: [1, 2, 4]
+    default: 1
+  on_clockwise:
+    type: array
+  on_anticlockwise:
+    type: array
+
+notes: "Both pins must support edge interrupts -- on the ESP8266 D0/GPIO16 does not. KY-040 modules ship with the pull-ups populated; bare EC11 encoders need external 10K pull-ups on both A and B. The integrated pushbutton on KY-040s should be modeled as a separate `gpio_input` component with `device_class: button`."
