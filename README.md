@@ -109,6 +109,7 @@ Useful endpoints:
 | `GET`  | `/fleet/status` | check whether `FLEET_URL` + `FLEET_TOKEN` reach a distributed-esphome ha-addon |
 | `POST` | `/fleet/push` | render `design.json` and push it as `<device_name>.yaml` (optionally `compile: true`) |
 | `GET`  | `/fleet/jobs/{run_id}/log?offset=N` | poll the addon's build log for a compile run; returns `{log, offset, finished}` |
+| `GET`  | `/fleet/jobs/{run_id}/log/stream` | Server-Sent Events relay over the same log endpoint; ~300ms cadence, exits with `event: done` when the build finishes |
 
 The server is a thin layer over `studio.generate` — same code path the CLI
 uses, no server-side state. Permissive CORS for `localhost:5173` /
@@ -130,6 +131,7 @@ uses, no server-side state. Permissive CORS for `localhost:5173` /
 | [`bluesonoff.json`](examples/bluesonoff.json) | ESP-01S 1MB | Sonoff Basic relay; front button (boot strap pin) toggles a single GPIO relay |
 | [`wemosgps.json`](examples/wemosgps.json) | WeMos D1 Mini | UART GPS module — lat/lon/altitude/speed/satellites + runtime baud-rate selector |
 | [`ttgo-lora32.json`](examples/ttgo-lora32.json) | TTGO LoRa32 V1 | ESP32 + onboard SX1276 LoRa radio + onboard SSD1306 OLED + battery ADC, ESP-IDF |
+| [`multi-temp.json`](examples/multi-temp.json) | WeMos D1 Mini | Two DS18B20 temp sensors sharing a single 1-wire bus + an RCWL-0516 microwave motion sensor |
 
 Generated artifacts for each are pinned as goldens in
 [`tests/golden/`](tests/golden/).
@@ -161,68 +163,35 @@ Currently shipped:
 - `esp32-devkitc-v4` — ESP32 DevKitC V4 (ESP32-WROOM-32, 4MB flash)
 - `nodemcu-32s` — NodeMCU-32S (ESP32-WROOM-32, marks I2S-capable pins)
 - `ttgo-lora32-v1` — LilyGO TTGO LoRa32 V1 (ESP32 + onboard SX1276 + onboard SSD1306)
-- `ttgo-t-beam` — LilyGO TTGO T-Beam v1.x (ESP32 + onboard SX1276 + NEO-6M GPS + AXP192 PMIC + 18650)
-- `esp32-c3-devkitm-1` — ESP32-C3-DevKitM-1 (single-core RISC-V, USB-Serial-JTAG, onboard WS2812)
-- `esp32-s3-devkitc-1` — ESP32-S3-DevKitC-1 (dual-core Xtensa, native USB, onboard WS2812)
-- `esp32cam-ai-thinker` — AI-Thinker ESP32-CAM (ESP32-WROVER-B + OV2640 + microSD)
-- `esp32-wrover-cam` — ESP32-WROVER-CAM (Freenove-style, OV2640 with the WROVER pinout)
-- `m5stack-atom` — M5Stack Atom Lite / Echo (ESP32-PICO-D4, 24mm cube, onboard SK6812)
-- `m5stack-atoms3` — M5Stack AtomS3 (ESP32-S3 + onboard 0.85" 128×128 ST7789 + IMU)
 - `wemos-d1-mini` — WeMos D1 Mini (ESP-12F module, ESP8266)
 - `nodemcu-v2` — NodeMCU v2 (ESP-12E/F module, ESP8266, breaks out RX/TX/MISO/MOSI as D9-D12)
 - `esp01_1m` — ESP-01S 1MB module / Sonoff Basic-class devices
 
 **Components** (`library/components/`)
-
-_Environmental sensors:_
 - `bme280` — Bosch temperature/humidity/pressure sensor (I2C)
-- `bmp280` — Bosch temperature/pressure sensor (I2C, no humidity)
-- `dht` — DHT11 / DHT22 / AM2302 temperature + humidity (single-wire)
-- `dallas` — DS18B20 1-Wire temperature sensor (multi-drop)
-
-_Presence / distance:_
 - `hc-sr04` — ultrasonic distance sensor (4-pin: VCC, GND, TRIGGER, ECHO)
 - `hc-sr501` — PIR motion sensor (used as a generic PIR)
-- `ld2420` — Hi-Link LD2420 24GHz mmWave presence sensor (UART)
-
-_RFID / radios:_
-- `rc522` — MFRC522 RFID reader (SPI, singleton)
-- `rdm6300` — RDM6300 125kHz EM4100 RFID reader (UART, singleton)
-- `sx127x` — Semtech SX1276/SX1278 LoRa radio (SPI, singleton)
-- `cc1101` — TI CC1101 sub-GHz transceiver (SPI, singleton)
-- `rf_bridge` — Sonoff RF Bridge 433MHz EFM8 module (UART, singleton)
-
-_Displays:_
 - `ssd1306` — 128×64 OLED (I2C)
 - `st7789` — Sitronix ST7789V color TFT (SPI write-only)
-- `ili9xxx` — ILI9341 / ILI9486 / ILI9488 SPI TFT
-- `lcd_pcf8574` — HD44780 16x2 / 20x4 LCD via PCF8574 I2C backpack
-- `tm1638` — TM1638 8-digit 7-segment + 8 LEDs + 8 buttons combo
-- `max7219` — MAX7219 7-segment / 8x8 LED matrix driver (SPI)
-
-_Touch / input:_
-- `xpt2046` — XPT2046 resistive touchscreen controller (SPI)
-- `rotary_encoder` — Quadrature rotary encoder (KY-040 style)
-
-_IO expanders:_
 - `mcp23008` — 8-bit I2C GPIO expander
 - `mcp23017` — 16-bit I2C GPIO expander
-
-_Generic IO:_
+- `rc522` — MFRC522 RFID reader (SPI, singleton)
+- `sx127x` — Semtech SX1276/SX1278 LoRa radio (SPI, singleton)
+- `uart_gps` — generic UART GPS module (NEO-6M / NEO-8M)
+- `max98357a` — Maxim Class-D mono I2S amp + DAC
+- `ws2812b` — addressable RGB LED (NeoPixel/neopixelbus)
 - `gpio_input` — generic binary_sensor on a GPIO or expander pin (buttons, limit switches, door/window/motion sensors)
 - `gpio_output` — generic switch on a GPIO or expander pin (relays, indicators)
-- `adc` — generic analog input (battery monitoring, potentiometers, LDRs)
-- `pulse_counter` — pulse counter / tachometer (RPM, flow, energy meters)
-
-_Light / audio / camera:_
-- `ws2812b` — WS2812B / SK6812 addressable RGB LED (1-wire NeoPixel)
-- `apa102` — APA102 / SK9822 addressable RGB strip (DotStar, SPI-style)
-- `max98357a` — Maxim Class-D mono I2S amp + DAC
-- `rtttl` — piezo buzzer + RTTTL melody player (PWM output)
-- `esp32_camera` — ESP32 OV2640 / OV7670 / OV5640 camera
-
-_Location:_
-- `uart_gps` — generic UART GPS module (NEO-6M / NEO-8M)
+- `ds18b20` — Dallas 1-wire temperature sensor (single-pin bus + 4.7kΩ pull-up)
+- `rcwl-0516` — microwave doppler motion sensor (low-power PIR alternative)
+- `ads1115` — TI 4-channel 16-bit ADC (I2C) hub; rescues ESP32 designs from the ADC2/WiFi conflict
+- `ads1115_channel` — one logical reading on an ADS1115 hub (multiplexer + gain + update_interval per channel)
+- `mpu6050` — InvenSense 6-axis IMU (3-axis accel + 3-axis gyro + die temp, I2C)
+- `bmp180` — Bosch BMP180/BMP085 barometric pressure + temperature (I2C)
+- `htu21d` — TE Connectivity HTU21D temperature + humidity (I2C; covers Si7021 / SHT2x)
+- `max31855` — Maxim K-type thermocouple amplifier (SPI; -270..+1372°C)
+- `hx711` — AVIA 24-bit load-cell ADC (custom 2-wire serial)
+- `tsl2561` — AMS ambient light sensor (lux, I2C)
 
 The `gpio_input` / `gpio_output` components and the `kind: expander_pin`
 connection target together let downstream platforms hang off any expander
@@ -230,13 +199,8 @@ without bloating `esphome_extras`. See `examples/securitypanel.json` for a
 12-sensor MCP23017 wiring or `examples/awning-control.json` for a mix of
 expander inputs and outputs.
 
-The library is intentionally small but the in-tree extension above
-covers the full corpus of device classes from the
-[`moellere/esphome`](https://github.com/moellere/esphome) device
-configurations (camera boards, mmWave presence, sub-GHz radios,
-character LCDs, touchscreens, generic ADC and pulse counters,
-addressable LEDs, RTTTL piezo, RFID variants, and the M5Stack /
-ESP32-C3 / ESP32-S3 board family). See
+The library is intentionally small. It will grow as we convert more
+device configs from the corpus in `moellere/esphome`. See
 [`START.md` § Library sourcing strategy](START.md#library-sourcing-strategy)
 for the hybrid plan.
 
