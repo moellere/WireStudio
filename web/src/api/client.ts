@@ -6,6 +6,7 @@ import type {
   ComponentSummary,
   ExampleSummary,
   RenderResponse,
+  SolvePinsResponse,
   ValidateResponse,
   Design,
 } from "../types/api";
@@ -61,6 +62,8 @@ export const api = {
     request<ValidateResponse>("/design/validate", { method: "POST", body: JSON.stringify(design) }),
   render: (design: Design) =>
     request<RenderResponse>("/design/render", { method: "POST", body: JSON.stringify(design) }),
+  solvePins: (design: Design) =>
+    request<SolvePinsResponse>("/design/solve_pins", { method: "POST", body: JSON.stringify(design) }),
 
   agentStatus: () => request<AgentStatus>("/agent/status"),
   agentTurn: (body: { session_id?: string | null; design: Design; message: string }) =>

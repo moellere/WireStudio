@@ -53,6 +53,26 @@ export interface ValidateResponse {
   warnings: DesignWarning[];
 }
 
+export interface SolverWarning {
+  level: string;
+  code: string;
+  text: string;
+}
+
+export interface PinAssignment {
+  component_id: string;
+  pin_role: string;
+  old_target: Record<string, unknown>;
+  new_target: Record<string, unknown>;
+}
+
+export interface SolvePinsResponse {
+  design: Design;
+  assigned: PinAssignment[];
+  unresolved: SolverWarning[];
+  warnings: SolverWarning[];
+}
+
 // design.json is opaque on the wire; the UI reads/writes specific fields it
 // cares about (id, name, board) but otherwise treats it as a plain JSON value.
 export type Design = Record<string, unknown>;

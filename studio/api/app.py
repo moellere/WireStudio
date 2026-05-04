@@ -20,9 +20,13 @@ from studio.api.schemas import (
     BoardSummary,
     ComponentSummary,
     ExampleSummary,
+    PinAssignment,
     RenderResponse,
+    SolvePinsResponse,
+    SolverWarning,
     ValidateResponse,
 )
+from studio.csp.pin_solver import solve_pins as run_solve_pins
 from studio.generate.ascii_gen import render_ascii
 from studio.generate.yaml_gen import render_yaml
 from studio.library import Library, LibraryBoard, LibraryComponent, default_library
@@ -141,6 +145,29 @@ def create_app(library: Optional[Library] = None, sessions: Optional[SessionStor
             bus_count=len(d.buses),
             connection_count=len(d.connections),
             warnings=[w.model_dump() for w in d.warnings],
+        )
+
+    @app.post("/design/solve_pins", response_model=SolvePinsResponse, tags=["design"])
+    def solve_pins(design: dict) -> SolvePinsResponse:
+        # Validate the design first so we don't try to solve over a malformed body.
+        try:
+            Design.model_validate(design)
+        except ValidationError as e:
+            raise HTTPException(status_code=422, detail=e.errors()) from e
+        result = run_solve_pins(design, lib)
+        return SolvePinsResponse(
+            design=result.design,
+            assigned=[
+                PinAssignment(
+                    component_id=a.component_id,
+                    pin_role=a.pin_role,
+                    old_target=a.old_target,
+                    new_target=a.new_target,
+                )
+                for a in result.assigned
+            ],
+            unresolved=[SolverWarning(level=w.level, code=w.code, text=w.text) for w in result.unresolved],
+            warnings=[SolverWarning(level=w.level, code=w.code, text=w.text) for w in result.warnings],
         )
 
     @app.post("/design/render", response_model=RenderResponse, tags=["design"])

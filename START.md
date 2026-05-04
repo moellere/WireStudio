@@ -42,7 +42,7 @@ in flight; this doc stays as the strategic reference and decision log.
   Firefox/Safari users to the manual flow. Vitest +8 tests
   (49 total) cover chip-name normalization, board candidate
   matching, and bootstrap-design shape.
-- **0.5 agent layer in flight.** Claude tool-using agent at
+- **0.5 agent layer shipped.** Claude tool-using agent at
   `studio/agent/` (`tools.py`, `session.py`, `agent.py`). 10-tool
   surface: `search_components`, `list_boards`, `set_board`,
   `add_component`, `remove_component`, `set_param`, `set_connection`,
@@ -60,6 +60,26 @@ in flight; this doc stays as the strategic reference and decision log.
   working design on each turn so the live YAML/ASCII updates as the
   agent edits. Pytest +24 (114 total) covers every tool implementation,
   session JSONL round-trip, and the API contract (status / 503 / 404).
+- **0.6 CSP solver in flight.** `studio/csp/pin_solver.py` -- pure
+  Python, no external solver lib (problem size is tiny). Fills every
+  unbound connection: `kind: gpio` with empty pin -> a board GPIO
+  matching the library pin's capability (digital in/out -> any gpio,
+  analog_in -> needs `adc`, with strap/boot/builtin_led pins
+  deprioritized for outputs); `kind: bus` with empty bus_id -> first
+  matching design bus, with a "no_matching_bus" warning when the type
+  is missing; `kind: expander_pin` with empty expander_id -> next free
+  slot on the first io_expander. Already-bound pins are left alone
+  (the user's call) but conflicts surface as warnings. Current budget
+  is checked: peak draw > `power.budget_ma` emits a `current_budget`
+  warning. Pure: returns a new design dict alongside the diff and any
+  warnings. Wired in three places: a `solve_pins` agent tool (the
+  agent uses it after a non-trivial wiring change), a standalone
+  `POST /design/solve_pins` HTTP endpoint, and a `Solve pins` header
+  button in the web UI that shows a transient banner with the
+  assignments + warnings. Pytest +12 (126 total) covers the
+  no-mutation invariant, gpio/bus/expander assignment, no-candidate
+  paths, conflict + budget warnings, and the "no board"/"unknown
+  board" error paths.
 - **12 example designs** spanning ESP8266 + ESP32 + ESP-IDF + Sonoff:
   garage-motion, awning-control, wasserpir, oled, bluemotion,
   distance-sensor, securitypanel, rc522, esp32-audio, bluesonoff,
@@ -146,10 +166,16 @@ immediate way in and the agent (when it arrives) lands in a working surface.
   end_turn before returning), agent-side handoff to 0.6's CSP solver
   via a `solve_pins` tool, recommendation mode ("I want motion
   detection" → ranked options).
-- **0.6 — CSP solver.** Pin assignment, bus allocation, current budget.
-  Surface as a `solve_pins()` agent tool and a "Auto-assign pins" UI
-  button. Recommendation mode ("I want motion detection" → ranked
-  options) sits on top of the same solver.
+- **0.6 — CSP solver.** ✅ Shipped (initial). Pin assignment lives in
+  `studio/csp/pin_solver.py`; surfaced as the `solve_pins` agent tool,
+  the standalone `POST /design/solve_pins` endpoint, and a "Solve pins"
+  header button. Greedy + capability-aware: respects board GPIO
+  capabilities, prefers non-strap pins for outputs, picks first
+  matching bus by type, fills expander pins on the first io_expander.
+  Future: recommendation mode ("I want motion detection" → ranked
+  options), strict-mode pin locks, multi-objective optimization
+  (minimize used pins, minimize current draw, maximize headroom),
+  proper backtracking on hard constraints.
 - **0.7 — distributed-esphome handoff.** POST device + YAML to the
   ha-addon, trigger compile + OTA.
 - **0.8 — Enclosure suggestions.** Thingiverse/Printables lookup against

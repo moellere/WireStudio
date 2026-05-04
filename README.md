@@ -9,16 +9,18 @@ which handles compile + OTA deploy.
 
 ## Status
 
-`0.5` (in flight) — Studio with a Claude tool-using agent. Three-pane web
-UI for manual editing (board, fleet, requirements, warnings, params,
-connections; add/remove components with auto-wiring and auto-bus). USB
-device bootstrap (esptool-js over WebSerial) seeds a fresh design from
-a plugged-in ESP. **Agent** sidebar drives the design via natural
-language — the agent calls a constrained tool surface (search the
-library, add/remove/configure components, edit connections, change the
-board, validate, render) and the live YAML/ASCII updates as it works.
-Set `ANTHROPIC_API_KEY` in the API server's environment to enable.
-See [`web/README.md`](web/README.md) for UI details and
+`0.6` (in flight) — Studio with a Claude tool-using agent and a CSP-style
+pin-assignment solver. Three-pane web UI for manual editing (board,
+fleet, requirements, warnings, params, connections; add/remove
+components with auto-wiring and auto-bus). USB device bootstrap
+(esptool-js over WebSerial) seeds a fresh design from a plugged-in ESP.
+**Agent** sidebar drives the design via natural language. **Solve pins**
+auto-assigns every unbound connection: gpio with empty pin → a board
+GPIO matching the library pin's capability; bus pins → a matching
+design bus; expander pins → next free slot on the first io_expander.
+Conflicts and current-budget overruns surface as banners.
+Set `ANTHROPIC_API_KEY` in the API server's environment to enable the
+agent. See [`web/README.md`](web/README.md) for UI details and
 [`START.md`](START.md) for the full roadmap.
 
 ## Quickstart
@@ -200,7 +202,8 @@ same diff as the code change.
 - **0.2** ✅ HTTP API (FastAPI) — same generators, exposed over JSON
 - **0.3** ✅ Studio web UI v1 — three-pane shell + form-based editing
 - **0.4** ✅ USB device bootstrap (WebSerial + esptool-js)
-- **0.5** 🚧 Agent layer (Claude tool-using; sessions in `sessions/<id>.jsonl`)
+- **0.5** ✅ Agent layer (Claude tool-using; sessions in `sessions/<id>.jsonl`)
+- **0.6** 🚧 CSP solver — auto-assign unbound pins, detect conflicts and budget overruns
 - **0.4** USB device bootstrap via WebSerial / esptool-js
 - **0.5** Agent layer (Claude tool-using, in the UI sidebar)
 - **0.6** CSP solver — pin/bus/budget assignment + ranked recommendations

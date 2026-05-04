@@ -28,6 +28,14 @@ shows as `(invalid: <unset>)` until you wire them.
 Drag-and-drop wiring and the agent sidebar are later iterations.
 
 Header buttons:
+- **Solve pins** runs the pin-assignment solver against the current
+  design: every unbound connection (gpio with empty pin, bus with empty
+  bus_id, expander_pin with empty expander_id) gets filled in using the
+  board's GPIO capability map, the design's existing buses, and any
+  io_expander components. A banner shows the assignments made plus any
+  conflicts (two connections targeting the same GPIO) and current-budget
+  warnings. Doesn't reassign already-bound pins -- those are the user's
+  call.
 - **Agent** opens the Claude tool-using sidebar. Type natural-language
   edits ("add a BME280 over I2C", "swap the PIR to GPIO5", "validate")
   and the agent calls a constrained tool surface; design changes flow
@@ -89,7 +97,8 @@ src/
 │   ├── ParamForm.tsx        # form generated from params_schema
 │   ├── ConnectionForm.tsx   # per-connection editor (rail/gpio/bus/expander_pin)
 │   ├── UsbDetectDialog.tsx  # WebSerial chip-detect modal + bootstrap picker
-│   └── AgentSidebar.tsx     # Claude agent chat drawer; replaces the working design on each turn
+│   ├── AgentSidebar.tsx     # Claude agent chat drawer; replaces the working design on each turn
+│   └── SolveResultBanner.tsx  # transient banner surfacing assignments + warnings from /design/solve_pins
 ├── App.tsx                  # state + data flow; three-pane grid
 ├── main.tsx
 └── index.css                # Tailwind v4 + dark-mode base

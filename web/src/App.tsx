@@ -1,11 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, ApiError } from "./api/client";
-import type { BoardSummary, ComponentSummary, Design, ExampleSummary, RenderResponse } from "./types/api";
+import type {
+  BoardSummary,
+  ComponentSummary,
+  Design,
+  ExampleSummary,
+  PinAssignment,
+  RenderResponse,
+  SolverWarning,
+} from "./types/api";
 import { LeftSidebar } from "./components/LeftSidebar";
 import { DesignPane } from "./components/DesignPane";
 import { Inspector, type Selection } from "./components/Inspector";
 import { UsbDetectDialog } from "./components/UsbDetectDialog";
 import { AgentSidebar } from "./components/AgentSidebar";
+import { SolveResultBanner } from "./components/SolveResultBanner";
 import { useDebouncedValue } from "./lib/debounce";
 import {
   addComponent,
@@ -39,6 +48,12 @@ export default function App() {
   const [selection, setSelection] = useState<Selection>({ kind: "design" });
   const [showUsbDialog, setShowUsbDialog] = useState(false);
   const [showAgent, setShowAgent] = useState(false);
+  const [solveBanner, setSolveBanner] = useState<{
+    assigned: PinAssignment[];
+    unresolved: SolverWarning[];
+    warnings: SolverWarning[];
+  } | null>(null);
+  const [solving, setSolving] = useState(false);
 
   const dirty = useMemo(() => isDirty(originalDesign, design), [originalDesign, design]);
   const debouncedDesign = useDebouncedValue(design, 250);
@@ -206,6 +221,27 @@ export default function App() {
     setDesign(next);
   }
 
+  async function handleSolvePins() {
+    if (!design || solving) return;
+    setSolving(true);
+    try {
+      const r = await api.solvePins(design);
+      setDesign(r.design);
+      setSolveBanner({
+        assigned: r.assigned,
+        unresolved: r.unresolved,
+        warnings: r.warnings,
+      });
+    } catch (e) {
+      const msg = e instanceof ApiError
+        ? `${e.status}: ${e.message}`
+        : e instanceof Error ? e.message : String(e);
+      setRenderError(msg);
+    } finally {
+      setSolving(false);
+    }
+  }
+
   if (bootError) {
     return (
       <div className="flex h-full items-center justify-center p-6 text-sm">
@@ -221,7 +257,7 @@ export default function App() {
   }
 
   return (
-    <div className="grid h-full grid-rows-[auto_1fr] bg-zinc-950 text-zinc-200">
+    <div className="grid h-full grid-rows-[auto_auto_1fr] bg-zinc-950 text-zinc-200">
       <header className="flex items-center justify-between border-b border-zinc-800 px-4 py-2">
         <div className="flex items-baseline gap-3">
           <h1 className="text-base font-semibold tracking-tight">esphome-studio</h1>
@@ -240,6 +276,14 @@ export default function App() {
             title="Open the design agent"
           >
             Agent
+          </button>
+          <button
+            disabled={!design || solving}
+            onClick={handleSolvePins}
+            className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 enabled:hover:bg-zinc-900 disabled:opacity-40"
+            title="Auto-assign every unbound connection"
+          >
+            {solving ? "Solving..." : "Solve pins"}
           </button>
           <button
             onClick={() => setShowUsbDialog(true)}
@@ -270,6 +314,14 @@ export default function App() {
           </a>
         </div>
       </header>
+      {solveBanner && (
+        <SolveResultBanner
+          assigned={solveBanner.assigned}
+          unresolved={solveBanner.unresolved}
+          warnings={solveBanner.warnings}
+          onDismiss={() => setSolveBanner(null)}
+        />
+      )}
       <main className="grid min-h-0 grid-cols-[18rem_1fr_24rem]">
         <LeftSidebar
           examples={examples}

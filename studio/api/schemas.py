@@ -47,6 +47,26 @@ class RenderResponse(_S):
     ascii: str
 
 
+class SolverWarning(_S):
+    level: str
+    code: str
+    text: str
+
+
+class PinAssignment(_S):
+    component_id: str
+    pin_role: str
+    old_target: dict
+    new_target: dict
+
+
+class SolvePinsResponse(_S):
+    design: dict
+    assigned: list[PinAssignment]
+    unresolved: list[SolverWarning]
+    warnings: list[SolverWarning]
+
+
 class ValidateResponse(_S):
     ok: bool
     design_id: str

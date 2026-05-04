@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 from typing import Any, Callable
 
+from studio.csp.pin_solver import solve_pins as _solve_pins
 from studio.generate.ascii_gen import render_ascii
 from studio.generate.yaml_gen import render_yaml
 from studio.library import Library
@@ -186,6 +187,20 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
         ),
         "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
     },
+    {
+        "name": "solve_pins",
+        "description": (
+            "Auto-assign every unbound connection: gpio with empty pin -> "
+            "a board GPIO matching the library pin's capability; bus with "
+            "empty bus_id -> first matching design bus; expander_pin with "
+            "empty expander_id -> next free pin on the first io_expander. "
+            "Doesn't reassign already-bound pins. Returns the count of "
+            "assignments made, any unresolved connections, and any "
+            "conflict / current-budget warnings the solver detected. "
+            "Mutates the design."
+        ),
+        "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
 ]
 
 
@@ -333,6 +348,27 @@ def _run_render(design: dict, library: Library) -> dict:
         return {"ok": False, "error": str(e)}
 
 
+def _run_solve_pins(design: dict, library: Library) -> dict:
+    result = _solve_pins(design, library)
+    # Mutate the caller's dict in place to mirror the result design.
+    design.clear()
+    design.update(result.design)
+    return {
+        "ok": True,
+        "assigned": [
+            {
+                "component_id": a.component_id,
+                "pin_role": a.pin_role,
+                "old_target": a.old_target,
+                "new_target": a.new_target,
+            }
+            for a in result.assigned
+        ],
+        "unresolved": [{"code": w.code, "text": w.text} for w in result.unresolved],
+        "warnings": [{"level": w.level, "code": w.code, "text": w.text} for w in result.warnings],
+    }
+
+
 def _run_validate(design: dict, library: Library) -> dict:
     try:
         d = Design.model_validate(design)
@@ -365,6 +401,7 @@ TOOL_HANDLERS: dict[str, Callable[..., Any]] = {
     "add_bus": _run_add_bus,
     "render": _run_render,
     "validate": _run_validate,
+    "solve_pins": _run_solve_pins,
 }
 
 
