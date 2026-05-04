@@ -47,6 +47,12 @@ export default function App() {
   const [render, setRender] = useState<RenderResponse | null>(null);
   const [renderError, setRenderError] = useState<string | null>(null);
   const [rendering, setRendering] = useState(false);
+  /** Strict mode: when true, the render endpoint refuses to produce
+   *  YAML/ASCII while compatibility warnings of severity warn or error
+   *  remain. Useful as a pre-deploy gate -- the design has to be clean
+   *  before push-to-fleet. Default permissive so the user isn't blocked
+   *  while editing. */
+  const [strictMode, setStrictMode] = useState<boolean>(false);
 
   const [boardData, setBoardData] = useState<unknown | null>(null);
 
@@ -146,22 +152,35 @@ export default function App() {
     setRendering(true);
     (async () => {
       try {
-        const r = await api.render(debouncedDesign);
+        const r = await api.render(debouncedDesign, { strict: strictMode });
         if (cancelled) return;
         setRender(r);
         setRenderError(null);
       } catch (e) {
         if (cancelled) return;
-        const msg = e instanceof ApiError
-          ? `${e.status}: ${e.message}`
-          : e instanceof Error ? e.message : String(e);
+        let msg: string;
+        if (e instanceof ApiError) {
+          // Strict-mode rejection: detail = { error, message, warnings: [...] }.
+          // Surface the message + count instead of the raw JSON blob.
+          const body = e.body as
+            | { detail?: { error?: string; message?: string; warnings?: unknown[] } }
+            | undefined;
+          const detail = body?.detail;
+          if (detail?.error === "strict_mode_blocked" && detail.message) {
+            msg = `${e.status}: ${detail.message}`;
+          } else {
+            msg = `${e.status}: ${e.message}`;
+          }
+        } else {
+          msg = e instanceof Error ? e.message : String(e);
+        }
         setRenderError(msg);
       } finally {
         if (!cancelled) setRendering(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [debouncedDesign]);
+  }, [debouncedDesign, strictMode]);
 
   function handleReset() {
     if (!originalDesign) return;
@@ -384,6 +403,22 @@ export default function App() {
           >
             {solving ? "Solving..." : "Solve pins"}
           </button>
+          <label
+            className={`flex cursor-pointer items-center gap-1 rounded border px-2 py-1 text-xs transition-colors ${
+              strictMode
+                ? "border-amber-600/50 bg-amber-900/20 text-amber-100"
+                : "border-zinc-800 text-zinc-300 hover:bg-zinc-900"
+            }`}
+            title="Strict mode: render fails when compatibility warnings of severity warn or error remain. Use as a pre-deploy gate."
+          >
+            <input
+              type="checkbox"
+              checked={strictMode}
+              onChange={(e) => setStrictMode(e.target.checked)}
+              className="h-3 w-3"
+            />
+            strict
+          </label>
           <button
             onClick={() => setShowUsbDialog(true)}
             className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"

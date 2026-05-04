@@ -233,7 +233,16 @@ def create_app(
         )
 
     @app.post("/design/render", response_model=RenderResponse, tags=["design"])
-    def render(design: dict) -> RenderResponse:
+    def render(design: dict, strict: bool = False) -> RenderResponse:
+        """Render a design to YAML + ASCII.
+
+        Permissive by default: compatibility warnings travel back in the
+        `compatibility_warnings` field for the UI to surface non-blocking
+        guidance. With `?strict=true`, any compatibility entry of severity
+        `warn` or `error` instead 422s -- the same gate the
+        distributed-esphome push path can use to refuse to ship a design
+        with unresolved hardware risks.
+        """
         try:
             d = Design.model_validate(design)
         except ValidationError as e:
@@ -248,10 +257,29 @@ def create_app(
             # Surfaced from the generator for incomplete-but-validating designs:
             # missing bus matching a `kind: bus` connection, etc.
             raise HTTPException(status_code=422, detail=str(e)) from e
+        compat = check_pin_compatibility(design, lib)
+        if strict:
+            blocking = [w for w in compat if w.severity in ("warn", "error")]
+            if blocking:
+                raise HTTPException(
+                    status_code=422,
+                    detail={
+                        "error": "strict_mode_blocked",
+                        "message": (
+                            f"strict mode rejected the render: "
+                            f"{len(blocking)} compatibility issue"
+                            f"{'s' if len(blocking) != 1 else ''} need attention"
+                        ),
+                        # HTTPException JSON-encodes its detail with the
+                        # standard json module, which doesn't know about
+                        # Pydantic models -- pre-dump.
+                        "warnings": [w.model_dump() for w in _wire_compat(blocking)],
+                    },
+                )
         return RenderResponse(
             yaml=yaml_text,
             ascii=ascii_text,
-            compatibility_warnings=_wire_compat(check_pin_compatibility(design, lib)),
+            compatibility_warnings=_wire_compat(compat),
         )
 
     @app.get("/examples", response_model=list[ExampleSummary], tags=["examples"])

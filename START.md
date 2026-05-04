@@ -28,12 +28,39 @@ stays as a back-compat wrapper. Pytest +21 (179 total), vitest 49, ruff
 
 **Next up candidates:**
 - Full SSE/WS log relay (current 0.7+ uses HTTP polling at 1.5s intervals)
-- More component tests: ConnectionForm (lock toggle), Inspector
-  (DesignInspector composition), PushToFleetDialog (log polling)
+- Inspector composition tests (DesignInspector wiring)
 - Drag-and-drop pinout (long-running: 0.3 already pre-flagged this as
   a follow-on iteration)
-- Strict-mode toggle that promotes pin-conflict warnings to render
-  errors (today everything is permissive)
+- Push-to-fleet "strict-only" mode: refuse the push when strict-mode
+  is on AND the design has pending warn/error compat hits
+- Library expansion: more sensor categories (DS18B20 1-wire temp,
+  RCWL-0516 microwave motion, ADS1115 ADC, MPU6050 IMU)
+
+**ConnectionForm + PushToFleetDialog component tests shipped.** New
+`ConnectionForm.test.tsx` (7 tests) covers the LockToggle's three
+states (unlocked / locked-in-sync / locked-diverged), the disabled
+state when no pin is bound, the onLockedPinChange round-trip, the
+inline mismatch hint, and the non-render guard for non-gpio targets.
+New `PushToFleetDialog.test.tsx` (6 tests) covers the status fetch
+gating Push, the device-name round-trip in the fleetPush payload,
+no-run_id-no-log-viewer, single-shot finished-on-first-poll, and
+`vi.useFakeTimers` driven multi-chunk polling that confirms the
+1.5s gap is honoured and the second poll fetches at the offset
+returned by the first. Plus an error-path test that surfaces
+"log error: addon disconnected" and stops the loop.
+
+**Strict-mode toggle shipped.** `POST /design/render?strict=true`
+now refuses to produce YAML/ASCII when any compatibility entry of
+severity warn or error remains; the response is a 422 with detail
+shape `{error: "strict_mode_blocked", message, warnings[]}`. Header
+gains a "strict" checkbox (amber-tinted when on, plain when off);
+flipping it re-fires the debounced render with the new flag in the
+deps array. The existing renderError banner gets a small upgrade to
+recognise the `strict_mode_blocked` envelope and surface the count
+instead of dumping the JSON envelope. info-severity entries are
+deliberately left as a permissive signal -- they're educational
+(voltage_limit on D1 Mini A0, current-budget guidance) and don't
+block. 3 new pytest cases pin the gate.
 
 **Capability picker alternatives disclosure shipped.** Each match in
 the picker now carries a small "▸ N alternatives" toggle below its

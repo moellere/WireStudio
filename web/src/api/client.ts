@@ -69,8 +69,11 @@ export const api = {
 
   validate: (design: Design) =>
     request<ValidateResponse>("/design/validate", { method: "POST", body: JSON.stringify(design) }),
-  render: (design: Design) =>
-    request<RenderResponse>("/design/render", { method: "POST", body: JSON.stringify(design) }),
+  render: (design: Design, opts: { strict?: boolean } = {}) =>
+    request<RenderResponse>(
+      `/design/render${opts.strict ? "?strict=true" : ""}`,
+      { method: "POST", body: JSON.stringify(design) },
+    ),
   solvePins: (design: Design) =>
     request<SolvePinsResponse>("/design/solve_pins", { method: "POST", body: JSON.stringify(design) }),
 
