@@ -160,6 +160,39 @@ def test_securitypanel_expander_uses_library_id_as_pin_key(securitypanel_design,
     assert "mcp23xxx" not in text
 
 
+def test_rc522_matches_golden(rc522_design, library, golden_dir):
+    expected = (golden_dir / "rc522.yaml").read_text()
+    assert render_yaml(rc522_design, library) == expected
+
+
+def test_rc522_spi_block_emitted(rc522_design, library):
+    parsed = yaml.unsafe_load(render_yaml(rc522_design, library))
+    assert parsed["spi"][0]["clk_pin"] == "D5"
+    assert parsed["spi"][0]["miso_pin"] == "D6"
+    assert parsed["rc522_spi"]["cs_pin"] == "D8"
+    assert parsed["rc522_spi"]["spi_id"] == "spi0"
+
+
+def test_esp32_audio_matches_golden(esp32_audio_design, library, golden_dir):
+    expected = (golden_dir / "esp32-audio.yaml").read_text()
+    assert render_yaml(esp32_audio_design, library) == expected
+
+
+def test_esp32_audio_i2s_bus_emits_singleton(esp32_audio_design, library):
+    parsed = yaml.unsafe_load(render_yaml(esp32_audio_design, library))
+    # i2s_audio is a singleton (dict, not list of dicts)
+    assert isinstance(parsed["i2s_audio"], dict)
+    assert parsed["i2s_audio"]["i2s_lrclk_pin"] == "GPIO33"
+    assert parsed["i2s_audio"]["i2s_bclk_pin"] == "GPIO25"
+    assert parsed["media_player"][0]["dac_type"] == "external"
+    assert parsed["media_player"][0]["i2s_dout_pin"] == "GPIO32"
+
+
+def test_esp32_audio_uses_idf_framework(esp32_audio_design, library):
+    parsed = yaml.unsafe_load(render_yaml(esp32_audio_design, library))
+    assert parsed["esp32"]["framework"]["type"] == "esp-idf"
+
+
 def test_awning_uses_expander_pins_not_extras(awning_control_design, library):
     parsed = yaml.unsafe_load(render_yaml(awning_control_design, library))
     sensors = parsed["binary_sensor"]

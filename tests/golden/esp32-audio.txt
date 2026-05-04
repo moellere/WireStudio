@@ -1,0 +1,47 @@
++---------------------------------------------------------------------------------------------------------------------------------------------------+
+|  NodeMCU-32S  ---  esp32-audio                                                                                                                    |
++---------------------------------------------------------------------------------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                                                                                              |
+|                                                                                                                                                   |
+|  amp  [Maxim MAX98357A I2S Class-D mono amp + DAC]  -- Esp32 Audio Media Player                                                                   |
+|    VCC   -> rail 5V                                                                                                                               |
+|    GND   -> rail GND                                                                                                                              |
+|    LRCLK -> i2s0 (GPIO33)                                                                                                                         |
+|    BCLK  -> i2s0 (GPIO25)                                                                                                                         |
+|    DIN   -> GPIO32                                                                                                                                |
+|                                                                                                                                                   |
+|  screen  [Sitronix ST7789V color TFT (SPI)]  -- Esp32 Audio Display                                                                               |
+|    VCC   -> rail 3V3                                                                                                                              |
+|    GND   -> rail GND                                                                                                                              |
+|    SCK   -> spi0 (GPIO18)                                                                                                                         |
+|    MOSI  -> spi0 (GPIO23)                                                                                                                         |
+|    CS    -> GPIO5                                                                                                                                 |
+|    DC    -> GPIO17                                                                                                                                |
+|    RESET -> GPIO22                                                                                                                                |
+|    BACKLIGHT -> GPIO16                                                                                                                            |
+|                                                                                                                                                   |
+|  mute  [Generic GPIO switch / relay output]  -- Esp32 Audio Mute                                                                                  |
+|    OUT   -> GPIO26                                                                                                                                |
+|                                                                                                                                                   |
+|  backlight  [Generic GPIO switch / relay output]  -- Backlight                                                                                    |
+|    OUT   -> GPIO4                                                                                                                                 |
+|                                                                                                                                                   |
+|  Passives:                                                                                                                                        |
+|    c1: 100nF capacitor, amp.VCC  <->  GND   (decoupling amp)                                                                                      |
+|    c2: 10uF capacitor, amp.VCC  <->  GND   (bulk decoupling amp)                                                                                  |
+|    c3: 100nF capacitor, screen.VCC  <->  GND   (decoupling display)                                                                               |
+|                                                                                                                                                   |
+|  BOM:                                                                                                                                             |
+|    - NodeMCU-32S                                                                                                                                  |
+|    - Maxim MAX98357A I2S Class-D mono amp + DAC  (amp)                                                                                            |
+|    - Sitronix ST7789V color TFT (SPI)  (screen)                                                                                                   |
+|    - Generic GPIO switch / relay output  (mute)                                                                                                   |
+|    - Generic GPIO switch / relay output  (backlight)                                                                                              |
+|    - 2x 100nF capacitor                                                                                                                           |
+|    - 1x 10uF capacitor                                                                                                                            |
+|                                                                                                                                                   |
+|  Power: ~75mA typical, ~1490mA peak (budget 2000mA)  OK                                                                                           |
+|                                                                                                                                                   |
+|  Warnings:                                                                                                                                        |
+|    [info] fonts_colors_in_extras: font definitions, color palette, status_led, time, and the system status binary_sensor live in esphome_extras.  |
++---------------------------------------------------------------------------------------------------------------------------------------------------+

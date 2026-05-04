@@ -37,6 +37,14 @@ def render_ascii(design: Design, library: Library) -> str:
                 if bus and bus.type == "i2c":
                     pin = bus.sda if conn.pin_role == "SDA" else bus.scl if conn.pin_role == "SCL" else "?"
                     lines.append(f"  {conn.pin_role:<5} -> {bus.id} ({pin})")
+                elif bus and bus.type == "spi":
+                    pin_map = {"CLK": bus.clk, "MISO": bus.miso, "MOSI": bus.mosi, "SCK": bus.clk}
+                    pin = pin_map.get(conn.pin_role, "?")
+                    lines.append(f"  {conn.pin_role:<5} -> {bus.id} ({pin})")
+                elif bus and bus.type == "i2s":
+                    pin_map = {"LRCLK": bus.lrclk, "BCLK": bus.bclk}
+                    pin = pin_map.get(conn.pin_role, "?")
+                    lines.append(f"  {conn.pin_role:<5} -> {bus.id} ({pin})")
                 else:
                     lines.append(f"  {conn.pin_role:<5} -> bus {t.bus_id}")
             elif t.kind == "expander_pin":

@@ -69,5 +69,15 @@ def securitypanel_design() -> Design:
 
 
 @pytest.fixture
+def rc522_design() -> Design:
+    return Design.model_validate(json.loads((REPO_ROOT / "examples" / "rc522.json").read_text()))
+
+
+@pytest.fixture
+def esp32_audio_design() -> Design:
+    return Design.model_validate(json.loads((REPO_ROOT / "examples" / "esp32-audio.json").read_text()))
+
+
+@pytest.fixture
 def golden_dir() -> Path:
     return Path(__file__).parent / "golden"

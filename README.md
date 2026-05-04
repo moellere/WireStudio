@@ -43,6 +43,8 @@ diff-friendly summary of the wiring, BOM, and power budget.
 | [`bluemotion.json`](examples/bluemotion.json) | WeMos D1 Mini | PIR + WS2812B NeoPixel; motion lights the LED |
 | [`distance-sensor.json`](examples/distance-sensor.json) | NodeMCU v2 | HC-SR04 ultrasonic + WS2812B NeoPixel; LED color tracks distance |
 | [`securitypanel.json`](examples/securitypanel.json) | WeMos D1 Mini | 12 door/window/motion sensors via MCP23017 expander, RTTTL piezo, GPIO siren |
+| [`rc522.json`](examples/rc522.json) | WeMos D1 Mini | MFRC522 RFID reader (SPI), NeoPixel status LED, RTTTL piezo, manual button |
+| [`esp32-audio.json`](examples/esp32-audio.json) | NodeMCU-32S | I2S audio (MAX98357A DAC) + ST7789V SPI dashboard display, ESP-IDF framework |
 
 Generated artifacts for each are pinned as goldens in
 [`tests/golden/`](tests/golden/).
@@ -72,6 +74,7 @@ Currently shipped:
 
 **Boards** (`library/boards/`)
 - `esp32-devkitc-v4` — ESP32 DevKitC V4 (ESP32-WROOM-32, 4MB flash)
+- `nodemcu-32s` — NodeMCU-32S (ESP32-WROOM-32, marks I2S-capable pins)
 - `wemos-d1-mini` — WeMos D1 Mini (ESP-12F module, ESP8266)
 - `nodemcu-v2` — NodeMCU v2 (ESP-12E/F module, ESP8266, breaks out RX/TX/MISO/MOSI as D9-D12)
 
@@ -80,8 +83,11 @@ Currently shipped:
 - `hc-sr04` — ultrasonic distance sensor (4-pin: VCC, GND, TRIGGER, ECHO)
 - `hc-sr501` — PIR motion sensor (used as a generic PIR)
 - `ssd1306` — 128×64 OLED (I2C)
+- `st7789` — Sitronix ST7789V color TFT (SPI write-only)
 - `mcp23008` — 8-bit I2C GPIO expander
 - `mcp23017` — 16-bit I2C GPIO expander
+- `rc522` — MFRC522 RFID reader (SPI, singleton)
+- `max98357a` — Maxim Class-D mono I2S amp + DAC
 - `ws2812b` — addressable RGB LED (NeoPixel/neopixelbus)
 - `gpio_input` — generic binary_sensor on a GPIO or expander pin (buttons, limit switches, door/window/motion sensors)
 - `gpio_output` — generic switch on a GPIO or expander pin (relays, indicators)

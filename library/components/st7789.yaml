@@ -1,0 +1,66 @@
+id: st7789
+name: Sitronix ST7789V color TFT (SPI)
+category: display
+use_cases: [tft, color_display, dashboard]
+aliases: [st7789v, st7789vw]
+
+electrical:
+  vcc_min: 3.0
+  vcc_max: 3.6
+  current_ma_typical: 25
+  current_ma_peak: 90
+  pins:
+    - {role: VCC,       kind: power}
+    - {role: GND,       kind: ground}
+    - {role: SCK,       kind: spi_clk}
+    - {role: MOSI,      kind: spi_mosi}
+    - {role: CS,        kind: spi_cs,     voltage: 3.3}
+    - {role: DC,        kind: digital_in, voltage: 3.3}
+    - {role: RESET,     kind: digital_in, voltage: 3.3}
+    - {role: BACKLIGHT, kind: digital_in, voltage: 3.3}
+    # MISO is unused: ST7789 SPI is write-only.
+  passives:
+    - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+    - {kind: capacitor, value: "10uF",  between: [VCC, GND], purpose: bulk decoupling}
+
+esphome:
+  required_components: [spi]
+  yaml_template: |
+    display:
+      - platform: st7789v
+        spi_id: {{ bus.id }}
+        cs_pin: {{ pins.CS | tojson }}
+        dc_pin: {{ pins.DC | tojson }}
+        reset_pin: {{ pins.RESET | tojson }}
+        backlight_pin: {{ pins.BACKLIGHT | tojson }}
+        id: {{ id }}
+        model: "{{ params.model | default('Custom') }}"
+        width: {{ params.width | default(240) }}
+        height: {{ params.height | default(320) }}
+    {%- if params.offset_width is defined %}
+        offset_width: {{ params.offset_width }}
+    {%- endif %}
+    {%- if params.offset_height is defined %}
+        offset_height: {{ params.offset_height }}
+    {%- endif %}
+    {%- if params.rotation is defined %}
+        rotation: {{ params.rotation }}
+    {%- endif %}
+    {%- if params.update_interval is defined %}
+        update_interval: {{ params.update_interval }}
+    {%- endif %}
+    {%- if params.lambda_ is defined %}
+        lambda: {{ params.lambda_ | tojson }}
+    {%- endif %}
+
+params_schema:
+  model:
+    type: string
+    enum: ["TTGO_TDISPLAY_135X240", "ADAFRUIT_FUNHOUSE_240X240", "ADAFRUIT_RR_280X240", "ADAFRUIT_S2_TFT_FEATHER_135X240", "Custom"]
+    default: "Custom"
+  width:    { type: integer, default: 240 }
+  height:   { type: integer, default: 320 }
+  rotation: { type: integer, enum: [0, 90, 180, 270], default: 0 }
+  update_interval: { type: string, default: "5s" }
+
+notes: "Bare ST7789 panels often need precise model dimensions and offsets; if you don't know them, start with model: Custom and tune width/height/offset_*."
