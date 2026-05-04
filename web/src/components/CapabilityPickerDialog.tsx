@@ -6,9 +6,17 @@ interface Props {
   /** True when the design has a board picked. We disable Add when there's
    *  no design yet because handleAddComponent needs board context. */
   designReady: boolean;
+  /** Bus types already present on the design (e.g., ["i2c"], ["i2c", "spi"]).
+   *  Drives the "match my buses" filter so an I2C-only design doesn't
+   *  surface an SPI-only sensor in the top-pick slot. */
+  designBusTypes: string[];
   onAdd: (libraryId: string) => Promise<void> | void;
   onClose: () => void;
 }
+
+const BUS_REQUIREMENT_KEYS: ReadonlySet<string> = new Set([
+  "i2c", "spi", "uart", "i2s", "1wire",
+]);
 
 /**
  * "Add by function" picker. Two columns:
@@ -22,7 +30,7 @@ interface Props {
  * /library/recommend for the ranking. The latter is the same endpoint
  * the agent uses; this dialog just exposes it to the human.
  */
-export function CapabilityPickerDialog({ designReady, onAdd, onClose }: Props) {
+export function CapabilityPickerDialog({ designReady, designBusTypes, onAdd, onClose }: Props) {
   const [useCases, setUseCases] = useState<UseCaseEntry[] | null>(null);
   const [pickedCapability, setPickedCapability] = useState<string>("");
   const [freeText, setFreeText] = useState<string>("");
@@ -31,6 +39,24 @@ export function CapabilityPickerDialog({ designReady, onAdd, onClose }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState<string | null>(null); // library_id mid-add
   const [added, setAdded] = useState<Set<string>>(new Set());
+  const [filterByBuses, setFilterByBuses] = useState<boolean>(true);
+
+  const designBusSet = useMemo(() => new Set(designBusTypes), [designBusTypes]);
+
+  /**
+   * Drop matches that require a bus the design doesn't already have. Library
+   * components advertise these via `required_components` (e.g., "i2c", "spi");
+   * non-bus tokens like "decoupling_caps" are passed through untouched.
+   */
+  function passesBusFilter(rec: Recommendation): boolean {
+    if (!filterByBuses) return true;
+    for (const req of rec.required_components) {
+      if (BUS_REQUIREMENT_KEYS.has(req) && !designBusSet.has(req)) {
+        return false;
+      }
+    }
+    return true;
+  }
 
   // Bootstrap the use-case list.
   useEffect(() => {
@@ -179,14 +205,30 @@ export function CapabilityPickerDialog({ designReady, onAdd, onClose }: Props) {
 
           {/* Right: ranked results */}
           <div className="flex min-h-0 flex-col">
-            <div className="border-b border-zinc-800 px-4 py-2 text-xs text-zinc-400">
-              {activeQuery ? (
-                <span>
-                  matches for{" "}
-                  <code className="rounded bg-zinc-800 px-1 text-zinc-100">{activeQuery}</code>
-                </span>
-              ) : (
-                <span>pick a capability or enter free text on the left</span>
+            <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-2 text-xs text-zinc-400">
+              <span>
+                {activeQuery ? (
+                  <>
+                    matches for{" "}
+                    <code className="rounded bg-zinc-800 px-1 text-zinc-100">{activeQuery}</code>
+                  </>
+                ) : (
+                  <>pick a capability or enter free text on the left</>
+                )}
+              </span>
+              {designBusTypes.length > 0 && (
+                <label
+                  className="flex shrink-0 cursor-pointer items-center gap-1 text-[11px] text-zinc-400 hover:text-zinc-200"
+                  title={`Hide matches that need a bus your design lacks (current: ${designBusTypes.join(", ")})`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={filterByBuses}
+                    onChange={(e) => setFilterByBuses(e.target.checked)}
+                    className="h-3 w-3"
+                  />
+                  match my buses ({designBusTypes.join("/")})
+                </label>
               )}
             </div>
             <div className="flex-1 overflow-y-auto p-3">
@@ -200,16 +242,38 @@ export function CapabilityPickerDialog({ designReady, onAdd, onClose }: Props) {
                   {error}
                 </div>
               )}
-              {loadingMatches ? (
-                <div className="text-xs text-zinc-500">searching…</div>
-              ) : !activeQuery ? null : matches === null || matches.length === 0 ? (
-                <div className="text-xs text-zinc-500">
-                  no library components match{" "}
-                  <code className="rounded bg-zinc-800 px-1">{activeQuery}</code>.
-                </div>
-              ) : (
-                <ul className="space-y-2">
-                  {matches.map((m, idx) => {
+              {(() => {
+                if (loadingMatches) {
+                  return <div className="text-xs text-zinc-500">searching…</div>;
+                }
+                if (!activeQuery) return null;
+                if (!matches || matches.length === 0) {
+                  return (
+                    <div className="text-xs text-zinc-500">
+                      no library components match{" "}
+                      <code className="rounded bg-zinc-800 px-1">{activeQuery}</code>.
+                    </div>
+                  );
+                }
+                const visible = matches.filter(passesBusFilter);
+                const hiddenByFilter = matches.length - visible.length;
+                if (visible.length === 0) {
+                  return (
+                    <div className="text-xs text-zinc-500">
+                      {hiddenByFilter} match{hiddenByFilter === 1 ? "" : "es"} hidden
+                      by the bus filter. Uncheck "match my buses" to see them.
+                    </div>
+                  );
+                }
+                return (
+                  <>
+                    {hiddenByFilter > 0 && (
+                      <div className="mb-2 text-[11px] text-zinc-500">
+                        {hiddenByFilter} hidden by the bus filter.
+                      </div>
+                    )}
+                    <ul className="space-y-2">
+                      {visible.map((m, idx) => {
                     const isAdded = added.has(m.library_id);
                     const isAdding = adding === m.library_id;
                     return (
@@ -267,8 +331,10 @@ export function CapabilityPickerDialog({ designReady, onAdd, onClose }: Props) {
                       </li>
                     );
                   })}
-                </ul>
-              )}
+                    </ul>
+                  </>
+                );
+              })()}
             </div>
           </div>
         </div>

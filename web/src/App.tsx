@@ -485,6 +485,7 @@ export default function App() {
       {showCapabilityDialog && (
         <CapabilityPickerDialog
           designReady={!!design}
+          designBusTypes={Array.from(new Set(readBuses(design).map((b) => b.type)))}
           onAdd={async (libraryId) => {
             await handleAddComponent(libraryId);
           }}

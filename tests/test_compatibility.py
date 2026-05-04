@@ -269,6 +269,31 @@ def test_adc1_pin_for_analog_in_silent(lib):
     assert _by_code(warnings, "adc2_wifi_conflict") == []
 
 
+def test_locked_pin_invalid_when_lock_lacks_required_cap(lib):
+    """An analog_in lock on a non-ADC pin should be flagged as an error."""
+    d = _esp32_design_with_analog("GPIO34")  # GPIO34 is ADC1 -- valid baseline
+    # Lock GAIN to a non-ADC pin (GPIO16 has only 'gpio' cap).
+    amp = next(c for c in d["components"] if c["id"] == "amp")
+    amp["locked_pins"] = {"GAIN": "GPIO16"}
+    warnings = check_pin_compatibility(d, lib)
+    invalid = _by_code(warnings, "locked_pin_invalid")
+    assert len(invalid) == 1
+    assert invalid[0].pin == "GPIO16"
+    assert invalid[0].component_id == "amp"
+    assert invalid[0].pin_role == "GAIN"
+    assert invalid[0].severity == "error"
+    assert "adc" in invalid[0].message.lower()
+
+
+def test_locked_pin_invalid_silent_when_lock_matches_cap(lib):
+    """A lock that does satisfy the role's required capability is silent."""
+    d = _esp32_design_with_analog("GPIO34")
+    amp = next(c for c in d["components"] if c["id"] == "amp")
+    amp["locked_pins"] = {"GAIN": "GPIO34"}  # ADC1, satisfies analog_in
+    warnings = check_pin_compatibility(d, lib)
+    assert _by_code(warnings, "locked_pin_invalid") == []
+
+
 def test_adc2_warning_does_not_fire_on_digital_in(lib):
     """A digital_in pin on an adc2-tagged GPIO is fine; ADC2 only matters
     when the library pin's kind is analog_in."""

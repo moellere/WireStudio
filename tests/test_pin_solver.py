@@ -197,6 +197,59 @@ def test_solver_prefers_non_strap_pins(library):
     assert chosen not in ("D3", "D4", "D8")  # strap-tagged pins on wemos-d1-mini
 
 
+def test_locked_pin_fills_unbound_connection(library):
+    """A component's `locked_pins` entry should populate an unbound gpio
+    target with the locked pin even if the solver would have picked
+    something else."""
+    d = _load("wasserpir")
+    pir = next(c for c in d["components"] if c["id"] == "pir1")
+    pir["locked_pins"] = {"OUT": "D6"}
+    _connection(d, "pir1", "OUT")["target"] = {"kind": "gpio", "pin": ""}
+    result = solve_pins(d, library)
+    assigned = next(a for a in result.assigned if a.pin_role == "OUT")
+    assert assigned.new_target == {"kind": "gpio", "pin": "D6"}
+    assert _connection(result.design, "pir1", "OUT")["target"]["pin"] == "D6"
+
+
+def test_locked_pin_mismatch_emits_warning(library):
+    """A bound connection whose pin disagrees with the lock must surface
+    so the user can decide which side to update."""
+    d = _load("wasserpir")
+    pir = next(c for c in d["components"] if c["id"] == "pir1")
+    pir["locked_pins"] = {"OUT": "D6"}
+    _connection(d, "pir1", "OUT")["target"] = {"kind": "gpio", "pin": "D5"}
+    result = solve_pins(d, library)
+    mismatches = [u for u in result.unresolved if u.code == "locked_pin_mismatch"]
+    assert len(mismatches) == 1
+    assert "D5" in mismatches[0].text and "D6" in mismatches[0].text
+    # The bound pin is left in place; the lock doesn't silently rewrite it.
+    assert _connection(result.design, "pir1", "OUT")["target"]["pin"] == "D5"
+
+
+def test_locked_pin_unknown_role_warns(library):
+    """A lock whose key is not a real role on the library component is a
+    typo or a stale lock; surface it rather than silently doing nothing."""
+    d = _load("wasserpir")
+    pir = next(c for c in d["components"] if c["id"] == "pir1")
+    pir["locked_pins"] = {"NOT_A_REAL_ROLE": "D6"}
+    result = solve_pins(d, library)
+    unknown = [u for u in result.unresolved if u.code == "locked_pin_unknown_role"]
+    assert len(unknown) == 1
+    assert "NOT_A_REAL_ROLE" in unknown[0].text
+
+
+def test_locked_pin_already_aligned_is_silent(library):
+    """When the bound target already matches the lock, the solver should
+    not produce a warning OR a redundant assignment."""
+    d = _load("wasserpir")
+    pir = next(c for c in d["components"] if c["id"] == "pir1")
+    bound = _connection(d, "pir1", "OUT")["target"]["pin"]
+    pir["locked_pins"] = {"OUT": bound}
+    result = solve_pins(d, library)
+    assert [u for u in result.unresolved if u.code.startswith("locked_pin_")] == []
+    assert [a for a in result.assigned if a.pin_role == "OUT"] == []
+
+
 def test_solver_prefers_adc1_over_adc2_for_analog_in(library):
     """On classic ESP32, analog_in should land on an ADC1 pin (GPIO32-39)
     rather than an ADC2 pin (which conflicts with WiFi at runtime)."""
