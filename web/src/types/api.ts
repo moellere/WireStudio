@@ -204,3 +204,35 @@ export type AgentStreamEvent =
       usage: Record<string, number>;
     }
   | { type: "error"; message: string };
+
+// ---------------------------------------------------------------------------
+// Enclosure search (0.8 v2)
+// ---------------------------------------------------------------------------
+
+export interface EnclosureSourceStatus {
+  source: string;
+  available: boolean;
+  reason: string | null;
+  configure_hint: string | null;
+}
+
+export interface EnclosureSearchStatus {
+  sources: EnclosureSourceStatus[];
+}
+
+export interface EnclosureHit {
+  source: string;
+  id: string;
+  title: string;
+  creator: string | null;
+  thumbnail_url: string | null;
+  model_url: string;
+  likes: number | null;
+  summary: string | null;
+}
+
+export interface EnclosureSearchResponse {
+  query: string;
+  sources: EnclosureSourceStatus[];
+  results: EnclosureHit[];
+}
