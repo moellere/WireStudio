@@ -7,6 +7,7 @@ import type {
   ExampleSummary,
   PinAssignment,
   RenderResponse,
+  SavedDesignSummary,
   SolverWarning,
 } from "./types/api";
 import { LeftSidebar } from "./components/LeftSidebar";
@@ -15,6 +16,7 @@ import { Inspector, type Selection } from "./components/Inspector";
 import { UsbDetectDialog } from "./components/UsbDetectDialog";
 import { AgentSidebar } from "./components/AgentSidebar";
 import { SolveResultBanner } from "./components/SolveResultBanner";
+import { NewDesignDialog } from "./components/NewDesignDialog";
 import { useDebouncedValue } from "./lib/debounce";
 import {
   addComponent,
@@ -55,6 +57,11 @@ export default function App() {
   } | null>(null);
   const [solving, setSolving] = useState(false);
 
+  const [savedDesigns, setSavedDesigns] = useState<SavedDesignSummary[] | null>(null);
+  const [selectedSaved, setSelectedSaved] = useState<string | null>(null);
+  const [showNewDialog, setShowNewDialog] = useState(false);
+  const [savingState, setSavingState] = useState<"idle" | "saving" | "saved">("idle");
+
   const dirty = useMemo(() => isDirty(originalDesign, design), [originalDesign, design]);
   const debouncedDesign = useDebouncedValue(design, 250);
 
@@ -62,16 +69,18 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
-        const [h, ex, bd, co] = await Promise.all([
+        const [h, ex, bd, co, sv] = await Promise.all([
           api.health(),
           api.listExamples(),
           api.listBoards(),
           api.listComponents(),
+          api.listSavedDesigns(),
         ]);
         setVersion(h.version);
         setExamples(ex);
         setBoards(bd);
         setComponents(co);
+        setSavedDesigns(sv);
         if (ex.length > 0) setSelectedExample(ex[0].id);
       } catch (e) {
         const msg = e instanceof ApiError
@@ -81,6 +90,14 @@ export default function App() {
       }
     })();
   }, []);
+
+  async function refreshSavedDesigns() {
+    try {
+      setSavedDesigns(await api.listSavedDesigns());
+    } catch {
+      // non-fatal -- the sidebar will just show what it had before
+    }
+  }
 
   // Load the selected example fresh.
   useEffect(() => {
@@ -210,8 +227,62 @@ export default function App() {
     setOriginalDesign(d);
     setDesign(d);
     setSelectedExample(null);  // detached from the examples sidebar
+    setSelectedSaved(null);
     setSelection({ kind: "design" });
     setShowUsbDialog(false);
+  }
+
+  function handleAdoptNewDesign(d: Design) {
+    setOriginalDesign(d);
+    setDesign(d);
+    setSelectedExample(null);
+    setSelectedSaved(null);
+    setSelection({ kind: "design" });
+    setShowNewDialog(false);
+  }
+
+  async function handleSelectSaved(id: string) {
+    try {
+      const d = await api.getSavedDesign(id);
+      setOriginalDesign(d);
+      setDesign(d);
+      setSelectedExample(null);
+      setSelectedSaved(id);
+      setSelection({ kind: "design" });
+    } catch (e) {
+      const msg = e instanceof ApiError ? `${e.status}: ${e.message}` : String(e);
+      setRenderError(msg);
+    }
+  }
+
+  async function handleDeleteSaved(id: string) {
+    try {
+      await api.deleteSavedDesign(id);
+      if (selectedSaved === id) setSelectedSaved(null);
+      await refreshSavedDesigns();
+    } catch (e) {
+      const msg = e instanceof ApiError ? `${e.status}: ${e.message}` : String(e);
+      setRenderError(msg);
+    }
+  }
+
+  async function handleSave() {
+    if (!design || savingState === "saving") return;
+    setSavingState("saving");
+    try {
+      const r = await api.saveDesign(design);
+      setSelectedSaved(r.id);
+      setOriginalDesign(design);  // saved state is the new "reset target"
+      await refreshSavedDesigns();
+      setSavingState("saved");
+      window.setTimeout(() => setSavingState("idle"), 1500);
+    } catch (e) {
+      const msg = e instanceof ApiError
+        ? `${e.status}: ${e.message}`
+        : e instanceof Error ? e.message : String(e);
+      setRenderError(msg);
+      setSavingState("idle");
+    }
   }
 
   function handleAgentDesignReplaced(next: Design) {
@@ -278,6 +349,25 @@ export default function App() {
             Agent
           </button>
           <button
+            onClick={() => setShowNewDialog(true)}
+            className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
+            title="Create a fresh design from a board"
+          >
+            New design
+          </button>
+          <button
+            disabled={!design || savingState === "saving"}
+            onClick={handleSave}
+            className={`rounded px-2 py-1 text-xs transition-colors disabled:opacity-40 ${
+              savingState === "saved"
+                ? "bg-emerald-500/15 text-emerald-100 ring-1 ring-emerald-400/40"
+                : "border border-zinc-800 text-zinc-300 enabled:hover:bg-zinc-900"
+            }`}
+            title="Persist the current design to designs/<id>.json on the server"
+          >
+            {savingState === "saving" ? "Saving..." : savingState === "saved" ? "Saved ✓" : "Save"}
+          </button>
+          <button
             disabled={!design || solving}
             onClick={handleSolvePins}
             className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 enabled:hover:bg-zinc-900 disabled:opacity-40"
@@ -325,10 +415,14 @@ export default function App() {
       <main className="grid min-h-0 grid-cols-[18rem_1fr_24rem]">
         <LeftSidebar
           examples={examples}
+          saved={savedDesigns}
           boards={boards}
           components={components}
           selectedExample={selectedExample}
-          onSelectExample={setSelectedExample}
+          selectedSaved={selectedSaved}
+          onSelectExample={(id) => { setSelectedSaved(null); setSelectedExample(id); }}
+          onSelectSaved={handleSelectSaved}
+          onDeleteSaved={handleDeleteSaved}
           onSelectBoard={(id) => setSelection({ kind: "board", id })}
           onSelectComponent={(id) => setSelection({ kind: "component", id })}
         />
@@ -353,6 +447,13 @@ export default function App() {
           boards={boards}
           onCancel={() => setShowUsbDialog(false)}
           onAdopt={handleAdoptDetectedDesign}
+        />
+      )}
+      {showNewDialog && (
+        <NewDesignDialog
+          boards={boards}
+          onCancel={() => setShowNewDialog(false)}
+          onAdopt={handleAdoptNewDesign}
         />
       )}
       <AgentSidebar

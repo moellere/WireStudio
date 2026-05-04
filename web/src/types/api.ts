@@ -119,6 +119,21 @@ export interface AgentSession {
   messages: AgentSessionMessage[];
 }
 
+export interface SavedDesignSummary {
+  id: string;
+  name: string;
+  description: string;
+  board_library_id: string;
+  chip_family: string;
+  saved_at: string;
+  component_count: number;
+}
+
+export interface SaveDesignResponse {
+  id: string;
+  saved_at: string;
+}
+
 // Streaming agent events (one-of):
 export type AgentStreamEvent =
   | { type: "session_start"; session_id: string }

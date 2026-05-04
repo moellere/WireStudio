@@ -6,12 +6,14 @@ from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.openapi.docs import get_swagger_ui_html
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from pydantic import ValidationError
 
 from studio import __version__
 from studio.agent.agent import is_available as agent_available, run_turn, stream_turn_events
 from studio.agent.session import SessionStore
+from studio.designs.store import DesignStore
 from studio.api.schemas import (
     AgentSession,
     AgentSessionMessage,
@@ -27,6 +29,9 @@ from studio.api.schemas import (
     RecommendRequest,
     RecommendResponse,
     RenderResponse,
+    SaveDesignRequest,
+    SaveDesignResponse,
+    SavedDesignSummary,
     SolvePinsResponse,
     SolverWarning,
     ValidateResponse,
@@ -91,10 +96,21 @@ def _example_summary(path: Path) -> ExampleSummary:
     )
 
 
-def create_app(library: Optional[Library] = None, sessions: Optional[SessionStore] = None) -> FastAPI:
+def create_app(
+    library: Optional[Library] = None,
+    sessions: Optional[SessionStore] = None,
+    designs: Optional[DesignStore] = None,
+) -> FastAPI:
     lib = library or default_library()
     sessions_store = sessions or SessionStore()
+    designs_store = designs or DesignStore()
 
+    # `docs_url=None` disables FastAPI's built-in /docs so we can serve our
+    # own that points Swagger UI at /api/openapi.json -- which works whether
+    # the page is reached directly (browser at :8765/docs) or via the
+    # Vite dev proxy (browser at :5173/api/docs, proxied to /docs on the
+    # API and stripped of the /api prefix). The default /docs uses an
+    # absolute URL that breaks under the proxy.
     app = FastAPI(
         title="esphome-studio API",
         version=__version__,
@@ -102,13 +118,29 @@ def create_app(library: Optional[Library] = None, sessions: Optional[SessionStor
             "Read-only library + stateless render/validate over `design.json`. "
             "Pure layer over `studio.generate`; no server-side state."
         ),
+        docs_url=None,
     )
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"],
-        allow_methods=["GET", "POST"],
+        allow_methods=["GET", "POST", "PUT", "DELETE"],
         allow_headers=["*"],
     )
+
+    @app.get("/docs", include_in_schema=False)
+    def custom_docs() -> HTMLResponse:
+        # Swagger fetches the spec from `/api/openapi.json`. Direct API
+        # access works because we register that path below; proxied access
+        # works because `/api/openapi.json` -> proxy strips /api ->
+        # `/openapi.json` on the API (also registered, FastAPI default).
+        return get_swagger_ui_html(
+            openapi_url="/api/openapi.json",
+            title=f"{app.title} - Swagger UI",
+        )
+
+    @app.get("/api/openapi.json", include_in_schema=False)
+    def openapi_alias() -> JSONResponse:
+        return JSONResponse(app.openapi())
 
     @app.get("/health", tags=["meta"])
     def health() -> dict:
@@ -222,6 +254,53 @@ def create_app(library: Optional[Library] = None, sessions: Optional[SessionStor
         if not path.exists():
             raise HTTPException(status_code=404, detail=f"Unknown example '{example_id}'")
         return json.loads(path.read_text())
+
+    # ---------------------------------------------------------------------
+    # Saved designs (file-backed at designs/<id>.json)
+    # ---------------------------------------------------------------------
+
+    @app.get("/designs", response_model=list[SavedDesignSummary], tags=["designs"])
+    def list_saved_designs() -> list[SavedDesignSummary]:
+        return [
+            SavedDesignSummary(
+                id=s.id, name=s.name, description=s.description,
+                board_library_id=s.board_library_id, chip_family=s.chip_family,
+                saved_at=s.saved_at, component_count=s.component_count,
+            )
+            for s in designs_store.list()
+        ]
+
+    @app.post("/designs", response_model=SaveDesignResponse, tags=["designs"])
+    def save_design(req: SaveDesignRequest) -> SaveDesignResponse:
+        # Validate the body shape first so we don't write garbage to disk.
+        try:
+            Design.model_validate(req.design)
+        except ValidationError as e:
+            raise HTTPException(status_code=422, detail=e.errors()) from e
+        try:
+            design_id, saved_at = designs_store.save(req.design, design_id=req.design_id)
+        except ValueError as e:
+            raise HTTPException(status_code=422, detail=str(e)) from e
+        return SaveDesignResponse(id=design_id, saved_at=saved_at)
+
+    @app.get("/designs/{design_id}", tags=["designs"])
+    def get_saved_design(design_id: str) -> dict:
+        try:
+            return designs_store.load(design_id)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
+        except FileNotFoundError as e:
+            raise HTTPException(status_code=404, detail=str(e)) from e
+
+    @app.delete("/designs/{design_id}", tags=["designs"])
+    def delete_saved_design(design_id: str) -> dict:
+        try:
+            removed = designs_store.delete(design_id)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
+        if not removed:
+            raise HTTPException(status_code=404, detail=f"no saved design with id {design_id!r}")
+        return {"deleted": True, "id": design_id}
 
     @app.post("/library/recommend", response_model=RecommendResponse, tags=["library"])
     def recommend(req: RecommendRequest) -> RecommendResponse:

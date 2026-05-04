@@ -12,6 +12,7 @@ dist/
 .coverage
 htmlcov/
 sessions/
+designs/
 .env
 .env.local
 *.swp
