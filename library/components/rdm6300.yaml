@@ -1,0 +1,37 @@
+id: rdm6300
+name: RDM6300 125kHz EM4100 RFID reader
+category: rfid_reader
+use_cases: [rfid, access_control, tag_scanner, low_frequency]
+aliases: [em4100_reader, rdm630]
+
+electrical:
+  vcc_min: 4.5
+  vcc_max: 5.5
+  current_ma_typical: 50
+  current_ma_peak: 70
+  pins:
+    - {role: VCC, kind: power}
+    - {role: GND, kind: ground}
+    - {role: TX,  kind: uart_tx, voltage: 5.0}
+    # Only the module's TX is wired to the MCU's UART RX -- the reader
+    # is one-way (it streams tag IDs, takes no commands). VCC must be
+    # 5V; the TX line is 5V logic but is open-drain enough on most
+    # clones that 3V3 ESP boards read it reliably.
+  passives:
+    - {kind: capacitor, value: "10uF", between: [VCC, GND], purpose: bulk decoupling}
+
+esphome:
+  required_components: [uart]
+  yaml_template: |
+    rdm6300:
+      uart_id: {{ bus.id }}
+    {%- if params.on_tag is defined %}
+      on_tag: {{ params.on_tag | tojson }}
+    {%- endif %}
+
+params_schema:
+  on_tag:
+    type: array
+    description: "ESPHome action list to run when a tag is read; receives `x` as the decimal tag ID."
+
+notes: "UART at 9600 baud, 8N1. ESPHome's `rdm6300:` is a singleton and emits an event per scan; wire the module's TX to the bus RX and leave the bus TX unbound. Antenna sensitivity is a few cm -- tags need to be within ~3cm of the coil. For longer range or HF tags use the rc522 (MFRC522) component instead."
