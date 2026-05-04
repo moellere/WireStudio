@@ -28,10 +28,42 @@ stays as a back-compat wrapper. Pytest +21 (179 total), vitest 49, ruff
 
 **Next up candidates:**
 - Full SSE/WS log relay (current 0.7+ uses HTTP polling at 1.5s intervals)
-- Inspector composition tests (DesignInspector wiring)
 - Drag-and-drop pinout (long-running: 0.3 already pre-flagged this as
   a follow-on iteration)
-- Library expansion: ADS1115 4-channel I2C ADC + MPU6050 6-axis IMU
+- Library expansion: BMP180 (older I2C T/P), HTU21D (T/H), MAX31855
+  (thermocouple), HX711 (load-cell ADC), TSL2561 (lux)
+- ADS1115 hub-only mode (channels-as-separate-components) once a
+  user wants to mix gain/update_interval per logical sensor
+
+**Library expansion: ADS1115 + MPU6050 shipped.**
+- `library/components/ads1115.yaml`: 4-channel 16-bit ADC over I2C.
+  Renders an `ads1115:` hub block + per-channel `sensor:` entries
+  driven by a `channels` param (multiplexer, name, gain, update_
+  interval). Address selectable via the ADDR pin maps to 0x48-0x4B.
+  Solves the ADC2/WiFi conflict on classic ESP32 by giving the
+  chip a known-good external ADC.
+- `library/components/mpu6050.yaml`: 6-axis IMU (3-axis accel +
+  3-axis gyro + die temp). All seven channels emitted in one
+  `sensor:` entry; AD0 selects 0x68/0x69. The INT pin isn't modeled
+  yet -- a binary_sensor in esphome_extras handles motion-wake until
+  someone needs richer support.
+- 4 new yaml-gen tests (per-channel rendering, hub-with-no-channels
+  smoke, full IMU axis emission, both parts sharing a single I2C
+  bus) + 2 new recommender tests (adc query lands on ads1115, IMU
+  queries land on mpu6050).
+
+**Inspector composition tests shipped.** New `Inspector.test.tsx`
+(9 tests) covers the DesignInspector composition: null-design
+fallback, component row rendering with id+label+library_id, section
+counts (Components/Buses/Requirements/Warnings) reflecting the design,
+selection callback firing with `kind: "component_instance"` when a
+row is clicked, the per-row ✕ wiring through to onRemoveComponent,
+the Compatibility section's hide/show on warning presence, the Fleet
+section's gate on the design's fleet block, and the empty-components
+affordance. api.getComponent is mocked at the boundary; no real
+network calls.
+
+228 pytest (+6), 105 vitest (+9), ruff + tsc + vite build clean.
 
 **1-wire bus type promotion shipped.** The `Bus` model gains a `pin`
 field (single-pin bus, parallel to the multi-pin sets on i2c/spi).

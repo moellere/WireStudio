@@ -183,6 +183,8 @@ Currently shipped:
 - `gpio_output` — generic switch on a GPIO or expander pin (relays, indicators)
 - `ds18b20` — Dallas 1-wire temperature sensor (single-pin bus + 4.7kΩ pull-up)
 - `rcwl-0516` — microwave doppler motion sensor (low-power PIR alternative)
+- `ads1115` — TI 4-channel 16-bit ADC (I2C); rescues ESP32 designs from the ADC2/WiFi conflict
+- `mpu6050` — InvenSense 6-axis IMU (3-axis accel + 3-axis gyro + die temp, I2C)
 
 The `gpio_input` / `gpio_output` components and the `kind: expander_pin`
 connection target together let downstream platforms hang off any expander

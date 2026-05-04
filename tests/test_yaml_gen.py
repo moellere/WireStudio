@@ -348,3 +348,126 @@ def test_rcwl_0516_renders_motion_binary_sensor(library):
     assert bs["pin"] == "D7"
     assert bs["name"] == "Hall radar"
     assert bs["device_class"] == "motion"
+
+
+# ---------------------------------------------------------------------------
+# ADS1115 + MPU6050 (library expansion v2)
+# ---------------------------------------------------------------------------
+
+def _esp32_with_i2c(components: list[dict], extra_connections: list[dict]) -> dict:
+    base = {
+        "schema_version": "0.1",
+        "id": "i2c-fixture",
+        "name": "I2C fixture",
+        "board": {"library_id": "esp32-devkitc-v4", "mcu": "esp32"},
+        "fleet": {"device_name": "i2c-fixture", "tags": []},
+        "power": {"supply": "usb-5v", "rail_voltage_v": 5.0, "budget_ma": 500},
+        "components": components,
+        "buses": [{"id": "i2c0", "type": "i2c", "sda": "GPIO21", "scl": "GPIO22"}],
+        "connections": extra_connections,
+        "requirements": [],
+        "warnings": [],
+    }
+    return base
+
+
+def test_ads1115_renders_hub_and_per_channel_sensors(library):
+    design_dict = _esp32_with_i2c(
+        components=[{
+            "id": "adc1", "library_id": "ads1115", "label": "Power monitor",
+            "params": {
+                "address": "0x49",
+                "channels": [
+                    {"multiplexer": "A0_GND", "name": "Bus A", "gain": 4.096},
+                    {"multiplexer": "A1_GND", "name": "Bus B"},
+                ],
+            },
+        }],
+        extra_connections=[
+            {"component_id": "adc1", "pin_role": "VCC", "target": {"kind": "rail", "rail": "3V3"}},
+            {"component_id": "adc1", "pin_role": "GND", "target": {"kind": "rail", "rail": "GND"}},
+            {"component_id": "adc1", "pin_role": "SDA", "target": {"kind": "bus", "bus_id": "i2c0"}},
+            {"component_id": "adc1", "pin_role": "SCL", "target": {"kind": "bus", "bus_id": "i2c0"}},
+        ],
+    )
+    parsed = yaml.unsafe_load(render_yaml(Design.model_validate(design_dict), library))
+    hub = parsed["ads1115"][0]
+    assert hub["id"] == "adc1_hub"
+    assert hub["address"] == "0x49"
+    assert hub["i2c_id"] == "i2c0"
+    channels = [s for s in parsed["sensor"] if s.get("platform") == "ads1115"]
+    assert len(channels) == 2
+    assert channels[0]["multiplexer"] == "A0_GND"
+    assert channels[0]["gain"] == 4.096
+    assert channels[0]["name"] == "Bus A"
+    # The second channel inherits the default 6.144 gain.
+    assert channels[1]["multiplexer"] == "A1_GND"
+    assert channels[1]["gain"] == 6.144
+
+
+def test_ads1115_with_no_channels_still_emits_hub(library):
+    """An ADS1115 added with no channels should still register the hub
+    block -- a future channel addition just fills in sensor entries."""
+    design_dict = _esp32_with_i2c(
+        components=[{"id": "adc1", "library_id": "ads1115", "label": "Power", "params": {}}],
+        extra_connections=[
+            {"component_id": "adc1", "pin_role": "VCC", "target": {"kind": "rail", "rail": "3V3"}},
+            {"component_id": "adc1", "pin_role": "GND", "target": {"kind": "rail", "rail": "GND"}},
+            {"component_id": "adc1", "pin_role": "SDA", "target": {"kind": "bus", "bus_id": "i2c0"}},
+            {"component_id": "adc1", "pin_role": "SCL", "target": {"kind": "bus", "bus_id": "i2c0"}},
+        ],
+    )
+    parsed = yaml.unsafe_load(render_yaml(Design.model_validate(design_dict), library))
+    assert parsed["ads1115"][0]["id"] == "adc1_hub"
+    assert "sensor" not in parsed or all(
+        s.get("platform") != "ads1115" for s in parsed["sensor"]
+    )
+
+
+def test_mpu6050_renders_six_axes_plus_die_temp(library):
+    design_dict = _esp32_with_i2c(
+        components=[{"id": "imu1", "library_id": "mpu6050", "label": "Door tilt", "params": {}}],
+        extra_connections=[
+            {"component_id": "imu1", "pin_role": "VCC", "target": {"kind": "rail", "rail": "3V3"}},
+            {"component_id": "imu1", "pin_role": "GND", "target": {"kind": "rail", "rail": "GND"}},
+            {"component_id": "imu1", "pin_role": "SDA", "target": {"kind": "bus", "bus_id": "i2c0"}},
+            {"component_id": "imu1", "pin_role": "SCL", "target": {"kind": "bus", "bus_id": "i2c0"}},
+        ],
+    )
+    parsed = yaml.unsafe_load(render_yaml(Design.model_validate(design_dict), library))
+    imu = next(s for s in parsed["sensor"] if s.get("platform") == "mpu6050")
+    assert imu["address"] == "0x68"
+    assert imu["i2c_id"] == "i2c0"
+    # Six axes + die temp.
+    for ax in ("accel_x", "accel_y", "accel_z", "gyro_x", "gyro_y", "gyro_z"):
+        assert ax in imu and imu[ax]["name"].startswith("Door tilt")
+    assert imu["temperature"]["name"] == "Door tilt Die Temp"
+
+
+def test_ads1115_and_mpu6050_share_one_i2c_bus(library):
+    """Both new I2C parts on the same bus emit a single i2c block + the
+    ads1115 hub + the mpu6050 sensor -- no duplication."""
+    design_dict = _esp32_with_i2c(
+        components=[
+            {"id": "adc1", "library_id": "ads1115", "label": "ADC",
+             "params": {"channels": [{"multiplexer": "A0_GND", "name": "Bat"}]}},
+            {"id": "imu1", "library_id": "mpu6050", "label": "IMU", "params": {}},
+        ],
+        extra_connections=[
+            {"component_id": "adc1", "pin_role": "VCC", "target": {"kind": "rail", "rail": "3V3"}},
+            {"component_id": "adc1", "pin_role": "GND", "target": {"kind": "rail", "rail": "GND"}},
+            {"component_id": "adc1", "pin_role": "SDA", "target": {"kind": "bus", "bus_id": "i2c0"}},
+            {"component_id": "adc1", "pin_role": "SCL", "target": {"kind": "bus", "bus_id": "i2c0"}},
+            {"component_id": "imu1", "pin_role": "VCC", "target": {"kind": "rail", "rail": "3V3"}},
+            {"component_id": "imu1", "pin_role": "GND", "target": {"kind": "rail", "rail": "GND"}},
+            {"component_id": "imu1", "pin_role": "SDA", "target": {"kind": "bus", "bus_id": "i2c0"}},
+            {"component_id": "imu1", "pin_role": "SCL", "target": {"kind": "bus", "bus_id": "i2c0"}},
+        ],
+    )
+    parsed = yaml.unsafe_load(render_yaml(Design.model_validate(design_dict), library))
+    assert len(parsed["i2c"]) == 1
+    assert parsed["i2c"][0]["id"] == "i2c0"
+    assert len(parsed["ads1115"]) == 1
+    sensor_platforms = {s["platform"] for s in parsed["sensor"]}
+    assert "ads1115" in sensor_platforms
+    assert "mpu6050" in sensor_platforms

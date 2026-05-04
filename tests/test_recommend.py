@@ -49,6 +49,22 @@ def test_temperature_query_surfaces_ds18b20(lib):
     assert "ds18b20" in ids
 
 
+def test_adc_query_surfaces_ads1115(lib):
+    """ADC queries should land on the ADS1115 -- it's the only library
+    component carrying the `adc` use_case today."""
+    out = recommend_components(lib, "adc")
+    ids = [r.library_id for r in out]
+    assert ids and ids[0] == "ads1115"
+
+
+def test_imu_query_surfaces_mpu6050(lib):
+    """IMU/accelerometer/gyroscope queries should land on the MPU6050."""
+    for q in ("imu", "accelerometer", "gyroscope"):
+        out = recommend_components(lib, q)
+        ids = [r.library_id for r in out]
+        assert "mpu6050" in ids, f"{q!r} did not surface mpu6050; got {ids}"
+
+
 def test_temperature_humidity_query_returns_bme280(lib):
     out = recommend_components(lib, "temperature humidity")
     ids = [r.library_id for r in out]
