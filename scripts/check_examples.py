@@ -58,7 +58,7 @@ def _write_secrets(yaml_text: str, dest: Path) -> None:
     dest.write_text("\n".join(lines) + ("\n" if lines else ""))
 
 
-def _check_one(example: Path, workdir: Path) -> tuple[bool, str]:
+def _check_one(example: Path, workdir: Path, subcommand: str) -> tuple[bool, str]:
     library = default_library()
     design_dict = json.loads(example.read_text())
     design = Design.model_validate(design_dict)
@@ -72,7 +72,7 @@ def _check_one(example: Path, workdir: Path) -> tuple[bool, str]:
 
     try:
         result = subprocess.run(
-            ["esphome", "config", str(yaml_path)],
+            ["esphome", subcommand, str(yaml_path)],
             capture_output=True,
             text=True,
             cwd=out_dir,
@@ -101,7 +101,17 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="leave the generated YAML + secrets.yaml on disk for inspection",
     )
+    parser.add_argument(
+        "--compile",
+        action="store_true",
+        help=(
+            "run `esphome compile` instead of `esphome config` (slow -- "
+            "first-time toolchain download is several minutes; intended "
+            "for the nightly compile-smoke job, not per-PR)."
+        ),
+    )
     args = parser.parse_args(argv)
+    subcommand = "compile" if args.compile else "config"
 
     if args.names:
         examples = [EXAMPLES_DIR / f"{n}.json" for n in args.names]
@@ -127,7 +137,7 @@ def main(argv: list[str] | None = None) -> int:
 
     failures: list[tuple[str, str]] = []
     for example in examples:
-        ok, detail = _check_one(example, workdir)
+        ok, detail = _check_one(example, workdir, subcommand)
         marker = "PASS" if ok else "FAIL"
         print(f"  {marker}  {example.stem}")
         if not ok:
@@ -144,7 +154,8 @@ def main(argv: list[str] | None = None) -> int:
             print(detail)
         return 1
 
-    print(f"all {len(examples)} examples validate under upstream ESPHome.")
+    verb = "compile" if args.compile else "validate"
+    print(f"all {len(examples)} examples {verb} under upstream ESPHome.")
     return 0
 
 

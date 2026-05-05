@@ -85,13 +85,59 @@ Read the tail output the script prints. Common causes:
   zero-base64 stub; if a new component introduces a new `!secret`
   reference, extend `_stub_value` in `scripts/check_examples.py`.
 
+### Pre-push hook (recommended)
+
+Run the same gate before any push leaves your machine. One-time
+setup:
+
+```sh
+pip install pre-commit
+pre-commit install --hook-type pre-push
+```
+
+After that, `git push` will run
+`python scripts/check_examples.py` automatically and abort the push
+if the gate fails. The hook also runs `ruff` at commit time. Skip a
+single push with `git push --no-verify` when iterating on a WIP
+feature branch.
+
+The pre-commit config lives at `.pre-commit-config.yaml`. Same
+`esphome==2025.12.7` install applies; same Debian-host venv
+caveat above applies if the install trips on `paho-mqtt`.
+
 ### Bumping the pinned ESPHome
 
-The pin is in two places: `.github/workflows/esphome-config.yml`
-(the version we test against) and `README.md` (the version we
-advertise). Bump both in the same diff. The bump PR's burden of
-proof is "the gate passes against the new version" — not "the new
-version is fashionable."
+The pin is in **three** places: `.github/workflows/esphome-config.yml`,
+`.github/workflows/esphome-compile.yml` (nightly compile smoke; see
+below), and `README.md` (the version we advertise). Bump all three
+in the same diff. The bump PR's burden of proof is "the gate passes
+against the new version" — not "the new version is fashionable."
+
+### Nightly compile smoke
+
+`.github/workflows/esphome-compile.yml` runs `esphome compile`
+(not just `config`) against one representative example
+(`garage-motion` by default) every night at 11:00 UTC, plus on
+manual dispatch. It catches things `esphome config` can't:
+
+- a new PlatformIO toolchain release breaks the build
+- a new ESPHome release accepts our YAML but its codegen breaks
+- a `python:3.11-slim` security update knocks out a build dep
+
+Compile is slow (cold-cache: ~10min; warm: ~3min) and the failures
+are upstream churn rather than contributor churn, so it's
+intentionally gated to nightly + manual rather than running on
+every PR. To trigger an ad-hoc compile against a specific example,
+use the **Run workflow** button on the workflow's Actions tab and
+pass the example stem as input.
+
+To run the same compile-smoke locally:
+
+```sh
+python scripts/check_examples.py --compile garage-motion
+```
+
+(First-time toolchain pull will take several minutes.)
 
 ## The schematic gate (lighter)
 
@@ -127,8 +173,8 @@ done
 - [ ] `python -m pytest` passes.
 - [ ] `python -m ruff check .` passes.
 - [ ] `python scripts/check_examples.py` passes against the pinned
-      ESPHome.
+      ESPHome (or the pre-push hook ran on `git push`).
 - [ ] If you added or changed a library entry, an example uses it.
 - [ ] If a golden changed, the regenerated golden is in the same diff.
-- [ ] If you bumped the ESPHome pin, README's "tested against" line
-      moved with it.
+- [ ] If you bumped the ESPHome pin, all three pin sites (config
+      workflow, compile workflow, README) moved together.
