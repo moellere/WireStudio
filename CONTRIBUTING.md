@@ -1,4 +1,4 @@
-# Contributing to esphome-studio
+# Contributing to wirestudio
 
 This file is the working bar for changes that touch the studio's
 output. Conventions for prose, comments, and architecture live in
@@ -29,7 +29,7 @@ Every PR runs `.github/workflows/esphome-config.yml`, which:
 
 1. Installs the pinned ESPHome (currently `==2025.12.7`).
 2. For every `examples/*.json`, renders YAML through
-   `studio.generate.yaml_gen` and runs `esphome config <file>` against
+   `wirestudio.generate.yaml_gen` and runs `esphome config <file>` against
    it.
 3. Fails the merge if any example doesn't validate.
 
@@ -78,7 +78,7 @@ Read the tail output the script prints. Common causes:
   component's `params_schema` so the design-time form catches it.
 - **Wrong pin format.** ESPHome accepts `GPIO13` or `13` for ESP32
   but the expander-pin block has different requirements. The
-  `_pins_for` helper in `studio/generate/yaml_gen.py` is the right
+  `_pins_for` helper in `wirestudio/generate/yaml_gen.py` is the right
   place to extend.
 - **Stub secrets rejected.** `esphome config` validates the api
   encryption key as base64. The script already writes a 32-byte
@@ -162,7 +162,7 @@ change:
 ```sh
 for f in examples/*.json; do
     name=$(basename "$f" .json)
-    python -m studio.generate "$f" \
+    python -m wirestudio.generate "$f" \
         --out-yaml "tests/golden/${name}.yaml" \
         --out-ascii "tests/golden/${name}.txt"
 done

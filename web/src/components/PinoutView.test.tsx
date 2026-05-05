@@ -149,7 +149,7 @@ describe("PinoutView drag-and-drop", () => {
     const dt = makeDataTransfer();
     const drag = screen.getByTestId("drag-OUT");
     fireEvent.dragStart(drag, { dataTransfer: dt });
-    expect(dt.getData("application/x-esphome-studio-connection-index")).toBe(String(row.index));
+    expect(dt.getData("application/x-wirestudio-connection-index")).toBe(String(row.index));
 
     const target = screen.getByTestId("pin-GPIO13");
     fireEvent.dragOver(target, { dataTransfer: dt });

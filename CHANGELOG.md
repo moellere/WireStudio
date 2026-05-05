@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to esphome-studio.
+All notable changes to wirestudio.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -19,8 +19,8 @@ entries record only what changed since the prior tag.
 
 - **0.1 — Generator pipeline.** `design.json` (JSON-Schema-validated)
   → ESPHome YAML + ASCII wiring diagram + BOM via pure functions over
-  the static library. CLI: `python -m studio.generate <design.json>`.
-- **0.2 — HTTP API.** FastAPI server at `python -m studio.api` exposing
+  the static library. CLI: `python -m wirestudio.generate <design.json>`.
+- **0.2 — HTTP API.** FastAPI server at `python -m wirestudio.api` exposing
   the same generators over `/library/*`, `/design/*`, `/examples/*`.
   Auto-generated OpenAPI docs at `/docs`.
 - **0.3 — Web UI v1.** React 19 + Vite + Tailwind v4 three-pane shell.
@@ -34,7 +34,7 @@ entries record only what changed since the prior tag.
   `esptool-js` over WebSerial. Reads chip family + MAC, normalises
   the chip name, filters board library to candidates with the matching
   `chip_variant`, seeds a fresh `design.json` on adopt.
-- **0.5 — Agent layer.** Claude tool-using agent (`studio/agent/`)
+- **0.5 — Agent layer.** Claude tool-using agent (`wirestudio/agent/`)
   with a constrained tool surface: `search_components`, `add_component`,
   `set_param`, `set_connection`, `solve_pins`, `recommend`, etc. Session
   history at `sessions/<id>.jsonl`. SSE streaming variant via
@@ -45,7 +45,7 @@ entries record only what changed since the prior tag.
   first `io_expander`. Conflicts + current-budget overruns surface as
   warnings. Boot-strap-aware preference (avoids `boot_high`/`boot_low`
   pins for outputs unless forced).
-- **Compat checker.** `studio/csp/compatibility.py` validates pin
+- **Compat checker.** `wirestudio/csp/compatibility.py` validates pin
   capabilities across the design: input-only-as-output, boot-strap
   conflicts, serial-console reuse, voltage limits, ADC2/WiFi conflict
   on classic ESP32, locked-pin-vs-bound divergence, locked-pin-cap
@@ -139,11 +139,11 @@ the dropdown with a sibling-instance picker.
 
 - **v1 — Parametric OpenSCAD generator.** Each dev-board YAML carries
   an `enclosure:` block (PCB outline, mount holes, port cutouts).
-  `studio/enclosure/openscad.py` emits a self-contained `.scad` shell
+  `wirestudio/enclosure/openscad.py` emits a self-contained `.scad` shell
   with tunables (wall, floor, clearance, standoff geometry) at the
   top so the user dials in fit without re-rendering.
 - **v2 — Thingiverse search relay.** Pluggable per-source search at
-  `studio/enclosure/search.py`. Thingiverse implementation gated on
+  `wirestudio/enclosure/search.py`. Thingiverse implementation gated on
   `THINGIVERSE_API_KEY`. Printables deferred (no public API yet);
   source stays in the catalogue with `available: false, reason:
   "Printables search deferred -- no public API yet"`. `GET /enclosure/
@@ -157,7 +157,7 @@ the dropdown with a sibling-instance picker.
   `symbol_lib`, `symbol`, `footprint`, `pin_map` (role → KiCad pin
   name), optional `value` override. 100 % library coverage (41
   components + 13 boards).
-- **`studio/kicad/generator.py`** walks `design.json` and emits a
+- **`wirestudio/kicad/generator.py`** walks `design.json` and emits a
   SKiDL Python script. The studio doesn't import or run SKiDL itself
   — this keeps the artefact transparent (the user can `cat`/edit it)
   and avoids adding numpy + EDA-toolchain weight to the server.
@@ -172,13 +172,13 @@ the dropdown with a sibling-instance picker.
   `python:3.11-slim` ships the bundle. tini for signal handling.
   ~180 MB; `linux/amd64` + `linux/arm64`. `EXPOSE 8765`,
   `VOLUME /data`.
-- **`studio/api/serve.py`** mounts the studio app at `/api` and the
+- **`wirestudio/api/serve.py`** mounts the studio app at `/api` and the
   built bundle at `/`. Bare-API mode preserved (Vite dev keeps
   working).
 - **`SESSIONS_DIR` + `DESIGNS_DIR`** env vars route the stores at
   `/data/sessions` + `/data/designs`.
 - **GitHub Actions** (`.github/workflows/docker.yml`) publishes to
-  `ghcr.io/moellere/esphome-studio` on push-to-main and `v*` tag
+  `ghcr.io/moellere/wirestudio` on push-to-main and `v*` tag
   push. Multi-arch via `docker/build-push-action` + GHA cache.
 - **Two-service compose recipe** in `deploy/` for users who want
   nginx in front (HTTP/2, brotli, scaling api workers
@@ -192,5 +192,5 @@ ConnectionForm, EnclosureDialog, Inspector, CapabilityPickerDialog,
 PinoutView, PushToFleetDialog, SchematicDialog. ruff + tsc + vite
 build clean across the whole arc.
 
-[Unreleased]: https://github.com/moellere/esphome-studio/compare/v0.9.0...HEAD
-[0.9.0]: https://github.com/moellere/esphome-studio/releases/tag/v0.9.0
+[Unreleased]: https://github.com/moellere/wirestudio/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/moellere/wirestudio/releases/tag/v0.9.0

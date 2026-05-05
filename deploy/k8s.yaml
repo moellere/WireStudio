@@ -1,4 +1,4 @@
-# Kubernetes deployment manifest for esphome-studio.
+# Kubernetes deployment manifest for wirestudio.
 #
 #   kubectl apply -f deploy/k8s.yaml
 #
@@ -21,9 +21,9 @@
 #     escalation, so the manifest is PSS-Restricted-friendly.
 
 ---
-# Optional: studio-secrets. Apply this with real values out-of-band:
+# Optional: wirestudio-secrets. Apply this with real values out-of-band:
 #
-#   kubectl create secret generic studio-secrets \
+#   kubectl create secret generic wirestudio-secrets \
 #     --from-literal=anthropic-api-key=sk-ant-... \
 #     --from-literal=fleet-url=http://homeassistant.local:8765 \
 #     --from-literal=fleet-token=xxx \
@@ -35,7 +35,7 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: studio-data
+  name: wirestudio-data
 spec:
   accessModes: [ReadWriteOnce]
   resources:
@@ -47,9 +47,9 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: esphome-studio
+  name: wirestudio
   labels:
-    app: esphome-studio
+    app: wirestudio
 spec:
   replicas: 1
   strategy:
@@ -57,10 +57,10 @@ spec:
     # before the new one tries to mount it.
     type: Recreate
   selector:
-    matchLabels: { app: esphome-studio }
+    matchLabels: { app: wirestudio }
   template:
     metadata:
-      labels: { app: esphome-studio }
+      labels: { app: wirestudio }
     spec:
       securityContext:
         runAsNonRoot: true
@@ -68,8 +68,8 @@ spec:
         runAsUser: 1000
         runAsGroup: 1000
       containers:
-        - name: studio
-          image: ghcr.io/moellere/esphome-studio:v0.9.0
+        - name: wirestudio
+          image: ghcr.io/moellere/wirestudio:v0.9.0
           imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: false
@@ -82,25 +82,25 @@ spec:
             - name: ANTHROPIC_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: studio-secrets
+                  name: wirestudio-secrets
                   key: anthropic-api-key
                   optional: true
             - name: FLEET_URL
               valueFrom:
                 secretKeyRef:
-                  name: studio-secrets
+                  name: wirestudio-secrets
                   key: fleet-url
                   optional: true
             - name: FLEET_TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: studio-secrets
+                  name: wirestudio-secrets
                   key: fleet-token
                   optional: true
             - name: THINGIVERSE_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: studio-secrets
+                  name: wirestudio-secrets
                   key: thingiverse-api-key
                   optional: true
           volumeMounts:
@@ -123,17 +123,17 @@ spec:
       volumes:
         - name: data
           persistentVolumeClaim:
-            claimName: studio-data
+            claimName: wirestudio-data
 
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: esphome-studio
-  labels: { app: esphome-studio }
+  name: wirestudio
+  labels: { app: wirestudio }
 spec:
   type: ClusterIP
-  selector: { app: esphome-studio }
+  selector: { app: wirestudio }
   ports:
     - { name: http, port: 80, targetPort: http }
 
@@ -144,7 +144,7 @@ spec:
 # apiVersion: networking.k8s.io/v1
 # kind: Ingress
 # metadata:
-#   name: esphome-studio
+#   name: wirestudio
 #   annotations:
 #     # SSE log streaming wants no buffering on the proxy:
 #     nginx.ingress.kubernetes.io/proxy-buffering: "off"
@@ -162,5 +162,5 @@ spec:
 #             pathType: Prefix
 #             backend:
 #               service:
-#                 name: esphome-studio
+#                 name: wirestudio
 #                 port: { number: 80 }
