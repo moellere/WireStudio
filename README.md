@@ -27,6 +27,27 @@ agent. See [`web/README.md`](web/README.md) for UI details and
 
 ## Quickstart
 
+### Docker (single-image deployment)
+
+```sh
+docker run --rm -p 8765:8765 \
+  -e ANTHROPIC_API_KEY=sk-ant-... \
+  -v studio-data:/data \
+  ghcr.io/moellere/esphome-studio:latest
+```
+
+Open <http://localhost:8765>. The image bundles the FastAPI server +
+the built web UI in one process; `/api/*` is the JSON API,
+`/` is the SPA. `/data` holds the agent's session log + saved
+designs across upgrades. `ANTHROPIC_API_KEY` enables the agent;
+`FLEET_URL`/`FLEET_TOKEN` enable the distributed-esphome handoff;
+`THINGIVERSE_API_KEY` enables enclosure search. All optional --
+the studio runs without any of them, just with those features
+gated off.
+
+For an nginx-front production recipe, see
+[`deploy/README.md`](deploy/README.md).
+
 ### CLI
 
 ```sh

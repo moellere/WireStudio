@@ -1,0 +1,82 @@
+name: docker
+
+# Build + publish the runtime image to GitHub Container Registry.
+#
+# Triggers:
+#   - push to main      -> ghcr.io/<owner>/esphome-studio:main + :sha-<short>
+#   - tag push v*       -> ghcr.io/<owner>/esphome-studio:v1.2.3 + :1.2.3 + :1.2 + :latest
+#   - PR target         -> build only (no push), as a sanity gate
+#
+# Auth: GITHUB_TOKEN with packages:write. No external secrets needed.
+#
+# Multi-arch: linux/amd64 + linux/arm64 so a Pi 4 / 5 can pull the same
+# tag the homelab box uses.
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/esphome-studio
+          # Tag strategy:
+          #   main push      -> :main, :sha-<short>
+          #   v1.2.3 tag     -> :v1.2.3, :1.2.3, :1.2, :latest
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix=sha-
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+          labels: |
+            org.opencontainers.image.title=esphome-studio
+            org.opencontainers.image.description=Agent-driven ESPHome device design tool
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.licenses=MIT
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
