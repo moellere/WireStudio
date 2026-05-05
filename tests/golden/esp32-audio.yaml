@@ -3,7 +3,7 @@ esphome:
 esp32:
   board: nodemcu-32s
   framework:
-    type: esp-idf
+    type: arduino
 logger: {}
 api:
   encryption:
@@ -93,12 +93,12 @@ color:
   green: 50%
   blue: 50%
 font:
-- file: common/fonts/arial.ttf
+- file: gfonts://Roboto
   id: arial_48
   size: 48
-- file: common/fonts/arial.ttf
+- file: gfonts://Roboto
   id: arial_24
   size: 24
-- file: common/fonts/arial.ttf
+- file: gfonts://Roboto
   id: arial_12
   size: 12

@@ -67,7 +67,7 @@
       { "platform": "homeassistant", "id": "time1" }
     ],
     "font": [
-      { "file": "common/fonts/arial.ttf", "id": "font1", "size": 10 }
+      { "file": "gfonts://Roboto", "id": "font1", "size": 10 }
     ],
     "sensor": [
       { "platform": "uptime",      "name": "oled System Uptime" },
