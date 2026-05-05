@@ -1,9 +1,10 @@
 esphome:
   name: desk-climate
-esp32c3:
+esp32:
   board: esp32-c3-devkitm-1
   framework:
     type: arduino
+  variant: ESP32C3
 logger: {}
 api:
   encryption:

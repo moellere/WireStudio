@@ -160,8 +160,16 @@ def build_yaml_dict(design: Design, library: Library) -> dict[str, Any]:
 
     chip_block: dict[str, Any] = {"board": board.platformio_board}
     if board.chip_variant.startswith("esp32"):
+        # ESPHome unifies all ESP32 family variants (-C3, -S2, -S3, -C6,
+        # -H2, ...) under a single top-level `esp32:` key. The variant is
+        # specified inline via the `variant:` field; classic dual-core
+        # Xtensa ESP32 is the default and omits it.
         chip_block["framework"] = {"type": design.board.framework}
-    out[board.chip_variant] = chip_block
+        if board.chip_variant != "esp32":
+            chip_block["variant"] = board.chip_variant.upper()
+        out["esp32"] = chip_block
+    else:
+        out[board.chip_variant] = chip_block
 
     extras = dict(design.esphome_extras or {})
     out["logger"] = extras.pop("logger", {})
