@@ -62,10 +62,17 @@ spec:
     metadata:
       labels: { app: esphome-studio }
     spec:
+      securityContext:
+        runAsNonRoot: true
+        # Default UID assigned to 'appuser' when it is created
+        runAsUser: 1000
+        runAsGroup: 1000
       containers:
         - name: studio
           image: ghcr.io/moellere/esphome-studio:v0.9.0
           imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
           ports:
             - { name: http, containerPort: 8765 }
           env:
