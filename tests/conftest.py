@@ -99,5 +99,10 @@ def multi_temp_design() -> Design:
 
 
 @pytest.fixture
+def desk_climate_design() -> Design:
+    return Design.model_validate(json.loads((REPO_ROOT / "examples" / "desk-climate.json").read_text()))
+
+
+@pytest.fixture
 def golden_dir() -> Path:
     return Path(__file__).parent / "golden"

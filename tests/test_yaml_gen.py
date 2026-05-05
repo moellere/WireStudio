@@ -214,6 +214,28 @@ def test_bluesonoff_targets_esp01_1m(bluesonoff_design, library):
     assert "framework" not in parsed["esp8266"]
 
 
+def test_esp32_c3_emits_unified_esp32_block_with_variant(desk_climate_design, library):
+    # ESPHome unifies all ESP32 family variants under a single `esp32:`
+    # top-level key; the variant goes inline. The pre-fix studio used the
+    # board's `chip_variant` (e.g. `esp32c3`) as the top-level key, which
+    # `esphome config` rejects with "Platform missing." The fix in
+    # build_yaml_dict normalises everything starting with `esp32` to the
+    # unified key.
+    parsed = yaml.unsafe_load(render_yaml(desk_climate_design, library))
+    assert "esp32" in parsed
+    assert "esp32c3" not in parsed
+    assert parsed["esp32"]["variant"] == "ESP32C3"
+    assert parsed["esp32"]["board"] == "esp32-c3-devkitm-1"
+    assert parsed["esp32"]["framework"]["type"] == "arduino"
+
+
+def test_classic_esp32_omits_variant_field(garage_motion_design, library):
+    # Default dual-core Xtensa ESP32 doesn't get an explicit `variant:`.
+    # Only the C3/S2/S3/C6/H2 variants do.
+    parsed = yaml.unsafe_load(render_yaml(garage_motion_design, library))
+    assert "variant" not in parsed["esp32"]
+
+
 def test_wemosgps_matches_golden(wemosgps_design, library, golden_dir):
     expected = (golden_dir / "wemosgps.yaml").read_text()
     assert render_yaml(wemosgps_design, library) == expected
