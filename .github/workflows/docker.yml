@@ -3,8 +3,8 @@ name: docker
 # Build + publish the runtime image to GitHub Container Registry.
 #
 # Triggers:
-#   - push to main      -> ghcr.io/<owner>/esphome-studio:main + :sha-<short>
-#   - tag push v*       -> ghcr.io/<owner>/esphome-studio:v1.2.3 + :1.2.3 + :1.2 + :latest
+#   - push to main      -> ghcr.io/<owner>/wirestudio:main + :sha-<short>
+#   - tag push v*       -> ghcr.io/<owner>/wirestudio:v1.2.3 + :1.2.3 + :1.2 + :latest
 #   - PR target         -> build only (no push), as a sanity gate
 #
 # Auth: GITHUB_TOKEN with packages:write. No external secrets needed.
@@ -52,7 +52,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/esphome-studio
+          images: ghcr.io/${{ github.repository_owner }}/wirestudio
           # Tag strategy:
           #   main push      -> :main, :sha-<short>
           #   v1.2.3 tag     -> :v1.2.3, :1.2.3, :1.2, :latest
@@ -64,7 +64,7 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
           labels: |
-            org.opencontainers.image.title=esphome-studio
+            org.opencontainers.image.title=wirestudio
             org.opencontainers.image.description=Agent-driven ESPHome device design tool
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.licenses=MIT

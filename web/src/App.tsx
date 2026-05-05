@@ -352,7 +352,7 @@ export default function App() {
           <div className="mb-2 font-semibold text-red-300">Could not reach the studio API.</div>
           <div className="text-zinc-300">{bootError}</div>
           <div className="mt-3 text-xs text-zinc-400">
-            Start it with <code className="rounded bg-zinc-800 px-1.5 py-0.5">python -m studio.api</code> and refresh.
+            Start it with <code className="rounded bg-zinc-800 px-1.5 py-0.5">python -m wirestudio.api</code> and refresh.
           </div>
         </div>
       </div>
@@ -363,7 +363,7 @@ export default function App() {
     <div className="grid h-full grid-rows-[auto_auto_1fr] bg-zinc-950 text-zinc-200">
       <header className="flex items-center justify-between border-b border-zinc-800 px-4 py-2">
         <div className="flex items-baseline gap-3">
-          <h1 className="text-base font-semibold tracking-tight">esphome-studio</h1>
+          <h1 className="text-base font-semibold tracking-tight">wirestudio</h1>
           <span className="text-xs text-zinc-500">{version ? `API v${version}` : "connecting..."}</span>
           {rendering && <span className="text-xs text-blue-300">rendering...</span>}
           {dirty && !rendering && (

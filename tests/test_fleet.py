@@ -13,10 +13,10 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from studio.agent.session import SessionStore
-from studio.api.app import create_app
-from studio.designs.store import DesignStore
-from studio.fleet.client import FleetClient, FleetUnavailable, _validate_filename
+from wirestudio.agent.session import SessionStore
+from wirestudio.api.app import create_app
+from wirestudio.designs.store import DesignStore
+from wirestudio.fleet.client import FleetClient, FleetUnavailable, _validate_filename
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 EXAMPLES_DIR = REPO_ROOT / "examples"

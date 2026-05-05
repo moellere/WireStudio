@@ -1,4 +1,4 @@
-# Two-service "production recipe" for esphome-studio.
+# Two-service "production recipe" for wirestudio.
 #
 # The default single-image deployment (run the published image
 # directly) is what most self-hosters want; this compose file is for
@@ -16,24 +16,24 @@
 #   THINGIVERSE_API_KEY   enable enclosure search
 
 services:
-  studio:
+  wirestudio:
     # The studio image has a built-in static-file server -- we override
     # it here to run API-only, since nginx will handle the SPA.
-    image: ghcr.io/moellere/esphome-studio:latest
+    image: ghcr.io/moellere/wirestudio:latest
     restart: unless-stopped
     environment:
       - ANTHROPIC_API_KEY
       - FLEET_URL
       - FLEET_TOKEN
       - THINGIVERSE_API_KEY
-      # Empty STUDIO_STATIC_DIR -> serve.py falls back to bare-API mode
+      # Empty WIRESTUDIO_STATIC_DIR -> serve.py falls back to bare-API mode
       # (routes at root). nginx proxies /api/* here after stripping the
       # prefix, matching the dev Vite config.
-      - STUDIO_STATIC_DIR=
+      - WIRESTUDIO_STATIC_DIR=
       - SESSIONS_DIR=/data/sessions
       - DESIGNS_DIR=/data/designs
     volumes:
-      - studio-data:/data
+      - wirestudio-data:/data
     expose:
       - "8765"
     # No ports: clause -- only nginx is publicly reachable.
@@ -42,7 +42,7 @@ services:
     image: nginx:1.27-alpine
     restart: unless-stopped
     depends_on:
-      - studio
+      - wirestudio
     ports:
       - "8080:80"
     volumes:
@@ -52,18 +52,18 @@ services:
       # option is to publish a separate web-only image; for now we
       # mount the same image at a no-op path and copy-on-start. The
       # shared-volume pattern below works with any Docker installation.
-      - studio-static:/usr/share/nginx/html:ro
+      - wirestudio-static:/usr/share/nginx/html:ro
 
   # One-shot helper: copies the web bundle out of the studio image into
   # a named volume that nginx mounts read-only. Runs at every `up`;
   # cheap (~5 MB).
   static-prep:
-    image: ghcr.io/moellere/esphome-studio:latest
+    image: ghcr.io/moellere/wirestudio:latest
     command: ["sh", "-c", "cp -r /app/web-dist/. /shared/"]
     volumes:
-      - studio-static:/shared
+      - wirestudio-static:/shared
     restart: "no"
 
 volumes:
-  studio-data:
-  studio-static:
+  wirestudio-data:
+  wirestudio-static:

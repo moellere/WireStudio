@@ -1,18 +1,18 @@
 # syntax=docker/dockerfile:1.7
 #
-# Single-image deployment for esphome-studio.
+# Single-image deployment for wirestudio.
 #
 # Two stages:
 #   1. web-builder: Node + Vite, produces /web/dist with the SPA bundle.
 #   2. runtime:     Python slim, installs the studio package + ships the
 #                   built bundle. uvicorn serves the API under /api/* and
-#                   the bundle at / via studio.api.serve.
+#                   the bundle at / via wirestudio.api.serve.
 #
 # Run:
 #   docker run --rm -p 8765:8765 \
 #     -e ANTHROPIC_API_KEY=sk-ant-... \
-#     -v studio-data:/data \
-#     ghcr.io/moellere/esphome-studio:latest
+#     -v wirestudio-data:/data \
+#     ghcr.io/moellere/wirestudio:latest
 #
 # Persistence: /data holds sessions/ + designs/. The container creates
 # both subdirs on first launch; mount a named volume or host path here.
@@ -52,7 +52,7 @@ WORKDIR /app
 # dependency manifest first so the install layer caches across most
 # code edits.
 COPY pyproject.toml ./
-COPY studio/ ./studio/
+COPY wirestudio/ ./wirestudio/
 COPY library/ ./library/
 COPY schema/ ./schema/
 COPY examples/ ./examples/
@@ -60,8 +60,8 @@ COPY README.md ./
 
 RUN pip install --no-cache-dir .
 
-# Drop the built SPA into a stable path. STUDIO_STATIC_DIR points
-# uvicorn at it through studio.api.serve.
+# Drop the built SPA into a stable path. WIRESTUDIO_STATIC_DIR points
+# uvicorn at it through wirestudio.api.serve.
 COPY --from=web-builder /web/dist /app/web-dist
 
 # Persistence root. sessions/ + designs/ live under here so a single
@@ -71,7 +71,7 @@ RUN mkdir -p /data/sessions /data/designs && \
     chown -R appuser:appuser /app /data
 
 ENV PYTHONUNBUFFERED=1 \
-    STUDIO_STATIC_DIR=/app/web-dist \
+    WIRESTUDIO_STATIC_DIR=/app/web-dist \
     SESSIONS_DIR=/data/sessions \
     DESIGNS_DIR=/data/designs
 
@@ -82,4 +82,4 @@ USER appuser
 
 # tini reaps zombies + forwards SIGTERM cleanly so docker stop is fast.
 ENTRYPOINT ["/usr/bin/tini", "--"]
-CMD ["python", "-m", "studio.api", "--host", "0.0.0.0", "--port", "8765", "--static-dir", "/app/web-dist"]
+CMD ["python", "-m", "wirestudio.api", "--host", "0.0.0.0", "--port", "8765", "--static-dir", "/app/web-dist"]

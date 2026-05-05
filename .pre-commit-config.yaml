@@ -1,4 +1,4 @@
-# pre-commit hooks for esphome-studio.
+# pre-commit hooks for wirestudio.
 #
 # Opt-in dev-side hooks that run the same gates CI runs, before code
 # leaves your machine. Install with:

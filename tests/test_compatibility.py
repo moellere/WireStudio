@@ -19,8 +19,8 @@ from pathlib import Path
 
 import pytest
 
-from studio.csp.compatibility import check_pin_compatibility
-from studio.library import default_library
+from wirestudio.csp.compatibility import check_pin_compatibility
+from wirestudio.library import default_library
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 EXAMPLES_DIR = REPO_ROOT / "examples"

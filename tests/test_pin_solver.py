@@ -17,8 +17,8 @@ from pathlib import Path
 
 import pytest
 
-from studio.csp.pin_solver import solve_pins
-from studio.library import default_library
+from wirestudio.csp.pin_solver import solve_pins
+from wirestudio.library import default_library
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 EXAMPLES_DIR = REPO_ROOT / "examples"

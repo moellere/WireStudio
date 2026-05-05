@@ -38,7 +38,7 @@ const SPECIAL_BADGES: { tag: string; label: string; tone: string }[] = [
   { tag: "i2c_scl",   label: "SCL",       tone: "border-blue-700/40 bg-blue-900/15 text-blue-200" },
 ];
 
-const DRAG_MIME = "application/x-esphome-studio-connection-index";
+const DRAG_MIME = "application/x-wirestudio-connection-index";
 
 export function PinoutView({
   rows, allConnections, instance, gpioCapabilities, onChange,

@@ -16,7 +16,7 @@ import json
 import httpx
 import pytest
 
-from studio.enclosure.search import (
+from wirestudio.enclosure.search import (
     PrintablesSource,
     SearchResponse,
     ThingiverseSource,
@@ -155,7 +155,7 @@ class _StubSource:
         self._raises = raises
 
     def status(self):
-        from studio.enclosure.search import SourceStatus
+        from wirestudio.enclosure.search import SourceStatus
         return SourceStatus(source=self.name, **self._status_kwargs)
 
     def search(self, query, *, limit):
@@ -165,7 +165,7 @@ class _StubSource:
 
 
 def test_aggregator_merges_hits_from_multiple_sources():
-    from studio.enclosure.search import EnclosureHit
+    from wirestudio.enclosure.search import EnclosureHit
     a = _StubSource("a", hits=[EnclosureHit("a", "1", "A1", None, None, "u1")])
     b = _StubSource("b", hits=[EnclosureHit("b", "2", "B1", None, None, "u2")])
     out = search_enclosures("q", sources=[a, b], limit=10)
@@ -176,14 +176,14 @@ def test_aggregator_merges_hits_from_multiple_sources():
 
 
 def test_aggregator_caps_at_limit():
-    from studio.enclosure.search import EnclosureHit
+    from wirestudio.enclosure.search import EnclosureHit
     a = _StubSource("a", hits=[EnclosureHit("a", str(i), f"A{i}", None, None, "u") for i in range(5)])
     out = search_enclosures("q", sources=[a], limit=3)
     assert len(out.results) == 3
 
 
 def test_aggregator_swallows_per_source_failures():
-    from studio.enclosure.search import EnclosureHit
+    from wirestudio.enclosure.search import EnclosureHit
     bad = _StubSource("bad", raises=httpx.ConnectError("boom"))
     good = _StubSource("good", hits=[EnclosureHit("good", "1", "G1", None, None, "u")])
     out = search_enclosures("q", sources=[bad, good], limit=10)
