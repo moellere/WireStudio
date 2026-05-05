@@ -59,3 +59,9 @@ gpio_capabilities:
   GPIO41: [gpio, button]
   GPIO43: [gpio, uart_tx, serial_tx]
   GPIO44: [gpio, uart_rx, serial_rx]
+# KiCad symbol mapping (0.9). Same 9-pin bottom header as the Atom
+# but ESP32-S3 internals.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x09
+  value: M5Stack AtomS3

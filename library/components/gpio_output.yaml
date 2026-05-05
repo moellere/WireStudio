@@ -42,3 +42,10 @@ params_schema:
     enum: [RESTORE_DEFAULT_OFF, RESTORE_DEFAULT_ON, ALWAYS_OFF, ALWAYS_ON, RESTORE_INVERTED_DEFAULT_OFF, RESTORE_INVERTED_DEFAULT_ON, DISABLED]
 
 notes: "Pin mode (OUTPUT, OUTPUT_OPEN_DRAIN) and inverted are properties of the connection target. For a hardware relay driver, model the relay as a separate downstream component if you need its electrical metadata."
+# KiCad symbol mapping (0.9). 2-pin header captures the wired load
+# (relay coil, indicator LED, motor leg, etc.). Replace with the
+# actual driven part after import.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x02
+  value: Output

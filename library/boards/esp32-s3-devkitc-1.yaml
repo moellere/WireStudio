@@ -69,3 +69,9 @@ gpio_capabilities:
   GPIO46: [gpio, strap, boot_low, pwm]
   GPIO47: [gpio, pwm]
   GPIO48: [gpio, builtin_led, pwm]
+# KiCad symbol mapping (0.9). 44-pin board, modelled as a 2x22
+# header until KiCad ships a dedicated S3-DevKitC module symbol.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_02x22_Odd_Even
+  value: ESP32-S3-DevKitC-1

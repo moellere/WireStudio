@@ -52,3 +52,10 @@ params_schema:
     default: false
 
 notes: "Pin mode (INPUT, INPUT_PULLUP, etc.) and inverted are properties of the connection target, not the sensor. Set them on the connection's expander_pin entry; native GPIO connections inherit ESPHome defaults."
+# KiCad symbol mapping (0.9). 2-pin header captures the wired input
+# (switch contact, door sensor, etc.). Replace with Switch:SW_Push
+# or the right manufacturer symbol after import.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x02
+  value: Input

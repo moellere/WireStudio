@@ -48,3 +48,9 @@ params_schema:
     default: "1s"
 
 notes: "All-in-one module: 8 7-segment digits, 8 red LEDs, 8 momentary buttons. Buttons surface as a `binary_sensor: tm1638` (`key: 0..7`) and the LEDs as `switch: tm1638` (`led: 0..7`); the library template only emits the display block. The bus is bit-banged and not 5V-tolerant, so always run the module from 3V3 if your MCU is 3V3 -- many clones tolerate it."
+# KiCad symbol mapping (0.9). Generic 5-pin header captures the
+# TM1638 LED + key-scan module (VCC, GND, STB, CLK, DIO).
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x05
+  value: TM1638

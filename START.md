@@ -27,18 +27,43 @@ stays as a back-compat wrapper. Pytest +21 (179 total), vitest 49, ruff
 + build clean.
 
 **Next up candidates:**
-- Library mapping expansion — 21 of 41 components and 6 of 13 boards
-  carry a `kicad:` block today; the rest fall back to a generic 4-pin
-  connector with a TODO. The pattern is well-pinned, so filling in
-  the rest is mechanical (look up the right `kicad-symbols` entry,
-  add ~6 lines of YAML). High-value next batch: bmp280, dht, apa102,
-  st7789, ssd1306 confirmation, the new ESP32-S3 / C3 / WROVER-CAM
-  boards.
 - `studio/kicad/scaffold.py` — read a `.kicad_sym` file and print
   a starter `library/components/<id>.yaml` skeleton so adding new
   parts becomes ~30 seconds of curation rather than ~5 minutes.
+  Less urgent now that the existing library is fully mapped, but
+  pays off the next time someone adds a part.
+- Refining the generic-header fallbacks. Several breakouts (CC1101,
+  ILI9xxx, RDM6300, the M5Stack and TTGO boards) currently use a
+  `Connector_Generic` header with the part name as `value:`. When
+  KiCad ships proper module symbols (or a community footprint
+  drops on Component Search Engine), swap the mapping in.
 - 1.0 — KiCad PCB layout. Reuse the schematic's netlist; Freerouting
   for autorouting; Gerber + JLCPCB CPL/BOM export.
+
+**0.9 v2 -- library mapping expansion shipped.** The remaining 20
+components + 7 boards now carry a `kicad:` block, taking coverage
+from 21/41 + 6/13 to 41/41 + 13/13. Real-symbol mappings: BMP280,
+DHT11/22, Rotary_Encoder_Switch, Buzzer (for RTTTL piezo). Generic-
+header fallbacks (with the part name as `value:`) for breakouts
+that lack a first-party `kicad-symbols` entry: CC1101, ILI9xxx,
+LCD-PCF8574, LD2420, MAX7219, RDM6300, RF-Bridge, TM1638, XPT2046,
+APA102, the four ESP32-S3/C3/CAM boards, M5Stack Atom + AtomS3,
+TTGO T-Beam. Virtual ESPHome platforms (`adc`, `ads1115_channel`,
+`gpio_input`, `gpio_output`, `pulse_counter`, `esp32_camera`) map
+to small (1-2 pin) labelled headers so the schematic shows where
+the real-world part connects -- the user replaces with the actual
+switch / relay / camera-FPC after import.
+
+New regression test (`test_every_library_entry_has_a_kicad_block`)
+asserts 100% coverage going forward; the next library addition
+without a `kicad:` block fails it loudly with a "add one referencing
+the matching kicad-symbols entry, or a generic Connector_Generic
+header with the part name as `value:`" hint. Existing fallback
+test rewritten to inject a synthetic unmapped entry rather than
+depending on a real-but-unmapped library_id (which drifts as
+mappings land).
+
+291 pytest (+1 guardrail), 125 vitest, ruff + tsc + vite build clean.
 - Printables search source. Currently deferred -- Printables
   doesn't expose a public REST/GraphQL API and scraping their
   internals is fragile (the page-level GraphQL endpoint changes
@@ -57,13 +82,22 @@ stays as a back-compat wrapper. Pytest +21 (179 total), vitest 49, ruff
 **0.9 v1 -- KiCad schematic export shipped.** New `kicad:` reference
 block on `LibraryComponent` + `LibraryBoard` (KicadSymbolRef:
 symbol_lib + symbol + footprint + pin_map + value override).
-Mappings landed for 21 components (BME280, DS18B20, MPU6050,
-ADS1115, MCP23008/17, SSD1306, WS2812B, MAX31855, HX711, TSL2561,
-SX1276, MAX98357A, plus generic-connector fallbacks for HC-SR501,
-HC-SR04, RCWL-0516, RC522, ST7789, UART GPS) and 6 boards (D1 Mini,
-ESP32 DevKitC V4, NodeMCU-32S, NodeMCU v2, ESP-01S, TTGO LoRa32 V1).
-Components without a mapping fall back to a generic 4-pin
-Connector_Generic with a TODO comment so the script always runs.
+Mappings landed for the entire library: every one of the 41
+library components and 13 boards carries a `kicad:` block (v1
+shipped 21+6, v2 closed the rest). Real-symbol mappings cover the
+parts with first-party `kicad-symbols` entries (BME280, BMP280,
+DS18B20, MPU6050, ADS1115, MCP23008/17, SSD1306, WS2812B,
+MAX31855, HX711, TSL2561, SX1276, MAX98357A, DHT11/22,
+Rotary_Encoder_Switch, Buzzer for RTTTL piezo). Generic
+`Connector_Generic` headers with the part name as `value:` cover
+breakouts without a first-party entry (HC-SR501, HC-SR04,
+RCWL-0516, RC522, ST7789, UART GPS, CC1101, ILI9xxx, LCD-PCF8574,
+LD2420, MAX7219, RDM6300, RF-Bridge, TM1638, XPT2046, APA102,
+ESP32-S3/C3 DevKits, ESP32-CAM AI-Thinker, ESP32-WROVER-CAM,
+M5Stack Atom + AtomS3, TTGO T-Beam). Virtual ESPHome platforms
+(`adc`, `ads1115_channel`, `gpio_input`, `gpio_output`,
+`pulse_counter`, `esp32_camera`) map to 1-2 pin labelled headers
+so the schematic shows where the real-world part connects.
 
 `studio/kicad/generator.py` walks the design and emits a SKiDL Python
 script. The studio doesn't import or run SKiDL itself -- a hard

@@ -49,3 +49,9 @@ params_schema:
     maximum: 16
 
 notes: "UART runs at 256000 baud (LD2420) or 256000/115200 (LD2410). Wire the module's TX to the MCU RX and vice versa. ESPHome's `ld2420` integration is a singleton -- one mmWave per device. The sister `ld2410` integration mirrors this template if you swap the platform name."
+# KiCad symbol mapping (0.9). 24GHz radar presence sensor; standard
+# 4-pin breakout (5V, GND, RX, TX).
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x04
+  value: LD2420

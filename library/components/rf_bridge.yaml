@@ -33,3 +33,9 @@ params_schema:
     description: "Action list run when an RF code is received; receives `data` with `sync`, `low`, `high`, `code` fields."
 
 notes: "Inside the Sonoff RF Bridge, an EFM8BB1 microcontroller decodes 433MHz signals and ships them to the host ESP8266 over a 19200-baud UART (TX = GPIO1, RX = GPIO3 -- the same pins used by the USB serial console, so set `logger: baud_rate: 0` on stock hardware). ESPHome's `rf_bridge:` block is a singleton. Send codes via `rf_bridge.send_code`; learn new codes via `rf_bridge.learn`."
+# KiCad symbol mapping (0.9). 433 MHz RF bridge module (Sonoff RF
+# Bridge etc.); 4-pin header.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x04
+  value: RF bridge

@@ -53,3 +53,10 @@ params_schema:
     default: "1s"
 
 notes: "ESPHome ships two flavors: `max7219` for stock 7-segment + decimal modules and `max7219digit` for daisy-chained 8x8 matrices and graphics-style 7-segments. This template uses `max7219digit` since most boards in the wild are matrix or scrolling-text style. Each chip pulls up to ~320mA at full brightness on a single digit; budget accordingly for chains."
+# KiCad symbol mapping (0.9). Generic 5-pin header captures the
+# MAX7219 LED matrix breakout (VCC, GND, DIN, CS, CLK). The bare
+# DIP-24 chip is also in `Display_Driver:MAX7219` if you swap by hand.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x05
+  value: MAX7219

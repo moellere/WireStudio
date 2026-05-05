@@ -58,3 +58,12 @@ notes: |
   modes Ax_Ay use the two pins as a differential pair. Gain is the
   full-scale range in volts -- pick the lowest one ≥ your expected
   signal range to maximise resolution.
+# KiCad symbol mapping (0.9). Each ADS1115 channel is a logical
+# reading on the hub -- there's no separate physical part. We render
+# a 1-pin header on the schematic so the channel's HUB connection
+# has somewhere to land; KiCad users typically delete these and let
+# the hub's input pin label the net by itself.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x01
+  value: ADS1115 channel

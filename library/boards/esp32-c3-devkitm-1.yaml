@@ -44,3 +44,10 @@ gpio_capabilities:
   GPIO19: [gpio, usb_jtag]
   GPIO20: [gpio, uart_rx, serial_rx]
   GPIO21: [gpio, uart_tx, serial_tx]
+# KiCad symbol mapping (0.9). No dedicated DevKitM-1 module symbol in
+# kicad-symbols today; the closest is the standard 2x9 dual-row
+# header that matches the board's pin pitch.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_02x09_Odd_Even
+  value: ESP32-C3-DevKitM-1

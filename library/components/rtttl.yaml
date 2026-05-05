@@ -39,3 +39,9 @@ params_schema:
     type: array
 
 notes: "RTTTL needs a PWM-capable output, not a plain GPIO. ESP8266 can only PWM on a subset of pins (see board capabilities); ESP32 LEDC works on any GPIO. The piezo itself is passive -- a typical 5V active buzzer should NOT be wired here, since RTTTL drives a frequency, not a level. Calls look like `rtttl.play: 'success:d=24,o=5,b=100:c,g,b'`."
+# KiCad symbol mapping (0.9). RTTTL plays melodies through a piezo
+# buzzer; the schematic part is just the buzzer itself.
+kicad:
+  symbol_lib: Device
+  symbol: Buzzer
+  value: Piezo

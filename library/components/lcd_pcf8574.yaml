@@ -51,3 +51,9 @@ params_schema:
     default: "1s"
 
 notes: "5V LCD running over a 3.3V I2C bus through a level-shifting PCF8574 backpack. Common backpack addresses are 0x27 (most clones) and 0x3F (some Adafruit-style boards); the in-tree corpus also has 0x26 for a custom variant. Backlight control is exposed as `display.{id}.backlight()` / `no_backlight()`."
+# KiCad symbol mapping (0.9). Generic 4-pin header (VCC/GND/SDA/SCL)
+# matching the I2C backpack on a 16x2 / 20x4 character LCD.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x04
+  value: LCD I2C backpack

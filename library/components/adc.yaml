@@ -61,3 +61,11 @@ params_schema:
     type: integer
 
 notes: "ESP8266 only has one ADC pin (A0) and reads 0-1.0V via the onboard divider on most dev boards (3.2V max at the screw terminal on a D1 Mini / NodeMCU). ESP32 ADC2 conflicts with WiFi; the pin solver prefers ADC1 and surfaces a warning if you pin to ADC2. For battery monitoring, multiply by your divider ratio in `filters: - multiply: ...`."
+# KiCad symbol mapping (0.9). The `adc` ESPHome platform reads an
+# analog GPIO -- it isn't a physical part of its own. Single-pin
+# header marks the sense net so the schematic shows where the
+# analog source enters the board.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x01
+  value: ADC sense

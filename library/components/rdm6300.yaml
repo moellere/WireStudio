@@ -35,3 +35,9 @@ params_schema:
     description: "ESPHome action list to run when a tag is read; receives `x` as the decimal tag ID."
 
 notes: "UART at 9600 baud, 8N1. ESPHome's `rdm6300:` is a singleton and emits an event per scan; wire the module's TX to the bus RX and leave the bus TX unbound. Antenna sensitivity is a few cm -- tags need to be within ~3cm of the coil. For longer range or HF tags use the rc522 (MFRC522) component instead."
+# KiCad symbol mapping (0.9). 125 kHz RFID reader; 6-pin breakout
+# (VCC, GND, TX, RX, ANT1, ANT2).
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x06
+  value: RDM6300
