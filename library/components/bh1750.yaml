@@ -1,0 +1,54 @@
+id: bh1750
+name: BH1750 ambient light sensor (lux, I2C)
+category: sensor
+use_cases: [light, illuminance, lux, ambient_light, brightness]
+aliases: ["bh1750fvi", "gy-30", "gy-302"]
+
+electrical:
+  vcc_min: 2.4
+  vcc_max: 3.6
+  current_ma_typical: 0.12
+  current_ma_peak: 0.19
+  pins:
+    - {role: VCC, kind: power}
+    - {role: GND, kind: ground}
+    - role: SDA
+      kind: i2c_sda
+      pull_up: {required: true, value: "4.7k", to: VCC}
+    - role: SCL
+      kind: i2c_scl
+      pull_up: {required: true, value: "4.7k", to: VCC}
+    - {role: ADDR, kind: digital_in, voltage: 3.3}
+  passives:
+    - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+
+esphome:
+  required_components: [i2c]
+  yaml_template: |
+    sensor:
+      - platform: bh1750
+        i2c_id: {{ bus.id }}
+        address: "{{ params.address | default('0x23') }}"
+        name: "{{ label }} Illuminance"
+        update_interval: {{ params.update_interval | default('60s') }}
+
+params_schema:
+  address:
+    type: string
+    enum: ["0x23", "0x5C"]
+    default: "0x23"
+    description: "ADDR pin: GND/floating=0x23, VDD=0x5C"
+  update_interval:
+    type: string
+    default: "60s"
+
+notes: |
+  Cheapest decent ambient-light sensor on the market -- used on the
+  ubiquitous GY-30/GY-302 modules. Reports illuminance directly in
+  lux (16-bit), no spectrum math required. 3.3V only.
+# KiCad symbol mapping (0.9 schematic export).
+kicad:
+  symbol_lib: Sensor_Optical
+  symbol: BH1750FVI
+  pin_map:
+    VCC: VCC

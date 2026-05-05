@@ -1,0 +1,34 @@
++-----------------------------------------------------------------------------+
+|  WeMos D1 Mini  ---  room-climate                                           |
++-----------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                        |
+|                                                                             |
+|  lux1  [BH1750 ambient light sensor (lux, I2C)]  -- Room light              |
+|    VCC   -> rail 3V3                                                        |
+|    GND   -> rail GND                                                        |
+|    SDA   -> i2c0 (D2)                                                       |
+|    SCL   -> i2c0 (D1)                                                       |
+|                                                                             |
+|  th1  [Aosong AHT10 / AHT20 temperature + humidity (I2C)]  -- Room climate  |
+|    VCC   -> rail 3V3                                                        |
+|    GND   -> rail GND                                                        |
+|    SDA   -> i2c0 (D2)                                                       |
+|    SCL   -> i2c0 (D1)                                                       |
+|                                                                             |
+|  Passives:                                                                  |
+|    c1: 100nF capacitor, lux1.VCC  <->  GND   (decoupling lux1)              |
+|    c2: 100nF capacitor, th1.VCC  <->  GND   (decoupling th1)                |
+|    r1: 4.7k resistor, i2c0.SDA  <->  3V3   (I2C pull-up)                    |
+|    r2: 4.7k resistor, i2c0.SCL  <->  3V3   (I2C pull-up)                    |
+|                                                                             |
+|  BOM:                                                                       |
+|    - WeMos D1 Mini                                                          |
+|    - BH1750 ambient light sensor (lux, I2C)  (lux1)                         |
+|    - Aosong AHT10 / AHT20 temperature + humidity (I2C)  (th1)               |
+|    - 2x 100nF capacitor                                                     |
+|    - 2x 4.7k resistor                                                       |
+|                                                                             |
+|  Power: ~0mA typical, ~1mA peak (budget 500mA)  OK                          |
+|                                                                             |
+|  Warnings: none                                                             |
++-----------------------------------------------------------------------------+

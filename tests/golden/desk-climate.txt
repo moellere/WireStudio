@@ -1,0 +1,26 @@
++--------------------------------------------------------------------------------+
+|  ESP32-C3-DevKitM-1  ---  desk-climate                                         |
++--------------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                           |
+|                                                                                |
+|  th1  [Sensirion SHT3x / SHT4x temperature + humidity (I2C)]  -- Desk climate  |
+|    VCC   -> rail 3V3                                                           |
+|    GND   -> rail GND                                                           |
+|    SDA   -> i2c0 (GPIO8)                                                       |
+|    SCL   -> i2c0 (GPIO9)                                                       |
+|                                                                                |
+|  Passives:                                                                     |
+|    c1: 100nF capacitor, th1.VCC  <->  GND   (decoupling th1)                   |
+|    r1: 4.7k resistor, i2c0.SDA  <->  3V3   (I2C pull-up)                       |
+|    r2: 4.7k resistor, i2c0.SCL  <->  3V3   (I2C pull-up)                       |
+|                                                                                |
+|  BOM:                                                                          |
+|    - ESP32-C3-DevKitM-1                                                        |
+|    - Sensirion SHT3x / SHT4x temperature + humidity (I2C)  (th1)               |
+|    - 1x 100nF capacitor                                                        |
+|    - 2x 4.7k resistor                                                          |
+|                                                                                |
+|  Power: ~0mA typical, ~1mA peak (budget 500mA)  OK                             |
+|                                                                                |
+|  Warnings: none                                                                |
++--------------------------------------------------------------------------------+

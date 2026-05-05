@@ -1,0 +1,58 @@
++--------------------------------------------------------------------------+
+|  WeMos D1 Mini  ---  keypad                                              |
++--------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                     |
+|                                                                          |
+|  kpd_hub  [NXP PCF8574 / PCF8575 I2C GPIO expander]  -- Keypad expander  |
+|    VCC   -> rail 3V3                                                     |
+|    GND   -> rail GND                                                     |
+|    SDA   -> i2c0 (D2)                                                    |
+|    SCL   -> i2c0 (D1)                                                    |
+|                                                                          |
+|  btn_1  [Generic GPIO binary sensor]  -- Keypad btn_1                    |
+|    IN    -> kpd_hub.0 INPUT inverted                                     |
+|                                                                          |
+|  btn_2  [Generic GPIO binary sensor]  -- Keypad btn_2                    |
+|    IN    -> kpd_hub.1 INPUT inverted                                     |
+|                                                                          |
+|  btn_3  [Generic GPIO binary sensor]  -- Keypad btn_3                    |
+|    IN    -> kpd_hub.2 INPUT inverted                                     |
+|                                                                          |
+|  btn_4  [Generic GPIO binary sensor]  -- Keypad btn_4                    |
+|    IN    -> kpd_hub.3 INPUT inverted                                     |
+|                                                                          |
+|  btn_5  [Generic GPIO binary sensor]  -- Keypad btn_5                    |
+|    IN    -> kpd_hub.4 INPUT inverted                                     |
+|                                                                          |
+|  btn_6  [Generic GPIO binary sensor]  -- Keypad btn_6                    |
+|    IN    -> kpd_hub.5 INPUT inverted                                     |
+|                                                                          |
+|  btn_7  [Generic GPIO binary sensor]  -- Keypad btn_7                    |
+|    IN    -> kpd_hub.6 INPUT inverted                                     |
+|                                                                          |
+|  btn_8  [Generic GPIO binary sensor]  -- Keypad btn_8                    |
+|    IN    -> kpd_hub.7 INPUT inverted                                     |
+|                                                                          |
+|  Passives:                                                               |
+|    c1: 100nF capacitor, kpd_hub.VCC  <->  GND   (decoupling pcf8574)     |
+|    r1: 4.7k resistor, i2c0.SDA  <->  3V3   (I2C pull-up)                 |
+|    r2: 4.7k resistor, i2c0.SCL  <->  3V3   (I2C pull-up)                 |
+|                                                                          |
+|  BOM:                                                                    |
+|    - WeMos D1 Mini                                                       |
+|    - NXP PCF8574 / PCF8575 I2C GPIO expander  (kpd_hub)                  |
+|    - Generic GPIO binary sensor  (btn_1)                                 |
+|    - Generic GPIO binary sensor  (btn_2)                                 |
+|    - Generic GPIO binary sensor  (btn_3)                                 |
+|    - Generic GPIO binary sensor  (btn_4)                                 |
+|    - Generic GPIO binary sensor  (btn_5)                                 |
+|    - Generic GPIO binary sensor  (btn_6)                                 |
+|    - Generic GPIO binary sensor  (btn_7)                                 |
+|    - Generic GPIO binary sensor  (btn_8)                                 |
+|    - 1x 100nF capacitor                                                  |
+|    - 2x 4.7k resistor                                                    |
+|                                                                          |
+|  Power: ~0mA typical, ~25mA peak (budget 500mA)  OK                      |
+|                                                                          |
+|  Warnings: none                                                          |
++--------------------------------------------------------------------------+

@@ -1,0 +1,81 @@
+{
+  "schema_version": "0.1",
+  "id": "room-climate",
+  "name": "Room climate (light + AHT20)",
+  "description": "WeMos D1 Mini with a BH1750 ambient-light sensor and an AHT20 temperature/humidity sensor sharing one I2C bus. Demonstrates the cheap multi-sensor pattern that ships on most AliExpress weather modules.",
+  "created_at": "2026-05-05T00:00:00Z",
+  "updated_at": "2026-05-05T00:00:00Z",
+
+  "board": {
+    "library_id": "wemos-d1-mini",
+    "mcu": "esp8266",
+    "framework": "arduino"
+  },
+
+  "power": {
+    "supply": "usb-5v",
+    "rail_voltage_v": 5.0,
+    "regulator": "onboard-rt9013",
+    "budget_ma": 500
+  },
+
+  "requirements": [
+    { "id": "r1", "kind": "capability",  "text": "report room illuminance in lux" },
+    { "id": "r2", "kind": "capability",  "text": "report room temperature + humidity" },
+    { "id": "r3", "kind": "constraint",  "text": "single shared I2C bus -- no extra GPIOs" }
+  ],
+
+  "components": [
+    {
+      "id": "lux1",
+      "library_id": "bh1750",
+      "label": "Room light",
+      "params": { "address": "0x23", "update_interval": "60s" }
+    },
+    {
+      "id": "th1",
+      "library_id": "aht10",
+      "label": "Room climate",
+      "params": { "variant": "AHT20", "update_interval": "60s" }
+    }
+  ],
+
+  "buses": [
+    { "id": "i2c0", "type": "i2c", "frequency_hz": 100000, "sda": "D2", "scl": "D1" }
+  ],
+
+  "connections": [
+    { "component_id": "lux1", "pin_role": "VCC", "target": { "kind": "rail", "rail": "3V3" } },
+    { "component_id": "lux1", "pin_role": "GND", "target": { "kind": "rail", "rail": "GND" } },
+    { "component_id": "lux1", "pin_role": "SDA", "target": { "kind": "bus",  "bus_id": "i2c0" } },
+    { "component_id": "lux1", "pin_role": "SCL", "target": { "kind": "bus",  "bus_id": "i2c0" } },
+    { "component_id": "th1",  "pin_role": "VCC", "target": { "kind": "rail", "rail": "3V3" } },
+    { "component_id": "th1",  "pin_role": "GND", "target": { "kind": "rail", "rail": "GND" } },
+    { "component_id": "th1",  "pin_role": "SDA", "target": { "kind": "bus",  "bus_id": "i2c0" } },
+    { "component_id": "th1",  "pin_role": "SCL", "target": { "kind": "bus",  "bus_id": "i2c0" } }
+  ],
+
+  "passives": [
+    { "id": "c1", "kind": "capacitor", "value": "100nF", "between": ["lux1.VCC", "GND"], "purpose": "decoupling lux1" },
+    { "id": "c2", "kind": "capacitor", "value": "100nF", "between": ["th1.VCC", "GND"],  "purpose": "decoupling th1" },
+    { "id": "r1", "kind": "resistor",  "value": "4.7k",  "between": ["i2c0.SDA", "3V3"], "purpose": "I2C pull-up" },
+    { "id": "r2", "kind": "resistor",  "value": "4.7k",  "between": ["i2c0.SCL", "3V3"], "purpose": "I2C pull-up" }
+  ],
+
+  "warnings": [],
+
+  "esphome_extras": {
+    "captive_portal": {},
+    "logger": {}
+  },
+
+  "fleet": {
+    "device_name": "room-climate",
+    "tags": ["indoor", "climate", "light"],
+    "secrets_ref": {
+      "wifi_ssid": "!secret wifi_ssid",
+      "wifi_password": "!secret wifi_password",
+      "api_key": "!secret api_key"
+    }
+  }
+}

@@ -1,0 +1,86 @@
+{
+  "schema_version": "0.1",
+  "id": "keypad",
+  "name": "8-button keypad via PCF8574",
+  "description": "WeMos D1 Mini reads eight buttons through a PCF8574 I2C GPIO expander. Validates the studio's expander_pin_key fallback path (no override; key matches library_id).",
+  "created_at": "2026-05-05T00:00:00Z",
+  "updated_at": "2026-05-05T00:00:00Z",
+
+  "board": {
+    "library_id": "wemos-d1-mini",
+    "mcu": "esp8266",
+    "framework": "arduino"
+  },
+
+  "power": {
+    "supply": "usb-5v",
+    "rail_voltage_v": 5.0,
+    "regulator": "onboard-rt9013",
+    "budget_ma": 500
+  },
+
+  "requirements": [
+    { "id": "r1", "kind": "capability",  "text": "report eight independent button states as binary_sensors" },
+    { "id": "r2", "kind": "constraint",  "text": "single I2C bus -- no extra GPIOs consumed per button" }
+  ],
+
+  "components": [
+    {
+      "id": "kpd_hub",
+      "library_id": "pcf8574",
+      "label": "Keypad expander",
+      "params": { "address": "0x20", "variant": "pcf8574" }
+    },
+    { "id": "btn_1", "library_id": "gpio_input", "label": "Keypad btn_1", "params": {} },
+    { "id": "btn_2", "library_id": "gpio_input", "label": "Keypad btn_2", "params": {} },
+    { "id": "btn_3", "library_id": "gpio_input", "label": "Keypad btn_3", "params": {} },
+    { "id": "btn_4", "library_id": "gpio_input", "label": "Keypad btn_4", "params": {} },
+    { "id": "btn_5", "library_id": "gpio_input", "label": "Keypad btn_5", "params": {} },
+    { "id": "btn_6", "library_id": "gpio_input", "label": "Keypad btn_6", "params": {} },
+    { "id": "btn_7", "library_id": "gpio_input", "label": "Keypad btn_7", "params": {} },
+    { "id": "btn_8", "library_id": "gpio_input", "label": "Keypad btn_8", "params": {} }
+  ],
+
+  "buses": [
+    { "id": "i2c0", "type": "i2c", "frequency_hz": 100000, "sda": "D2", "scl": "D1" }
+  ],
+
+  "connections": [
+    { "component_id": "kpd_hub", "pin_role": "VCC", "target": { "kind": "rail", "rail": "3V3" } },
+    { "component_id": "kpd_hub", "pin_role": "GND", "target": { "kind": "rail", "rail": "GND" } },
+    { "component_id": "kpd_hub", "pin_role": "SDA", "target": { "kind": "bus",  "bus_id": "i2c0" } },
+    { "component_id": "kpd_hub", "pin_role": "SCL", "target": { "kind": "bus",  "bus_id": "i2c0" } },
+
+    { "component_id": "btn_1", "pin_role": "IN", "target": { "kind": "expander_pin", "expander_id": "kpd_hub", "number": 0, "mode": "INPUT", "inverted": true } },
+    { "component_id": "btn_2", "pin_role": "IN", "target": { "kind": "expander_pin", "expander_id": "kpd_hub", "number": 1, "mode": "INPUT", "inverted": true } },
+    { "component_id": "btn_3", "pin_role": "IN", "target": { "kind": "expander_pin", "expander_id": "kpd_hub", "number": 2, "mode": "INPUT", "inverted": true } },
+    { "component_id": "btn_4", "pin_role": "IN", "target": { "kind": "expander_pin", "expander_id": "kpd_hub", "number": 3, "mode": "INPUT", "inverted": true } },
+    { "component_id": "btn_5", "pin_role": "IN", "target": { "kind": "expander_pin", "expander_id": "kpd_hub", "number": 4, "mode": "INPUT", "inverted": true } },
+    { "component_id": "btn_6", "pin_role": "IN", "target": { "kind": "expander_pin", "expander_id": "kpd_hub", "number": 5, "mode": "INPUT", "inverted": true } },
+    { "component_id": "btn_7", "pin_role": "IN", "target": { "kind": "expander_pin", "expander_id": "kpd_hub", "number": 6, "mode": "INPUT", "inverted": true } },
+    { "component_id": "btn_8", "pin_role": "IN", "target": { "kind": "expander_pin", "expander_id": "kpd_hub", "number": 7, "mode": "INPUT", "inverted": true } }
+  ],
+
+  "passives": [
+    { "id": "c1", "kind": "capacitor", "value": "100nF", "between": ["kpd_hub.VCC", "GND"], "purpose": "decoupling pcf8574" },
+    { "id": "r1", "kind": "resistor",  "value": "4.7k",  "between": ["i2c0.SDA", "3V3"],   "purpose": "I2C pull-up" },
+    { "id": "r2", "kind": "resistor",  "value": "4.7k",  "between": ["i2c0.SCL", "3V3"],   "purpose": "I2C pull-up" }
+  ],
+
+  "warnings": [],
+
+  "esphome_extras": {
+    "captive_portal": {},
+    "logger": {}
+  },
+
+  "fleet": {
+    "device_name": "keypad",
+    "tags": ["indoor", "input"],
+    "secrets_ref": {
+      "wifi_ssid": "!secret wifi_ssid",
+      "wifi_password": "!secret wifi_password",
+      "api_key": "!secret api_key"
+    }
+  }
+}

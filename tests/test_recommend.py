@@ -75,9 +75,13 @@ def test_weight_query_lands_on_hx711(lib):
     assert out and out[0].library_id == "hx711"
 
 
-def test_lux_query_lands_on_tsl2561(lib):
+def test_lux_query_lands_on_bh1750(lib):
+    # BH1750 outranks TSL2561 because it lists `lux` and `ambient_light` as
+    # direct use_cases and is the cheaper / more common pick. TSL2561 still
+    # appears in the recommendations -- it's just not the top hit anymore.
     out = recommend_components(lib, "lux ambient light")
-    assert out and out[0].library_id == "tsl2561"
+    assert out and out[0].library_id == "bh1750"
+    assert "tsl2561" in [r.library_id for r in out]
 
 
 def test_pressure_query_includes_bmp180(lib):
