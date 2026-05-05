@@ -1,0 +1,30 @@
+esphome:
+  name: desk-climate
+esp32c3:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: arduino
+logger: {}
+api:
+  encryption:
+    key: !secret api_key
+ota:
+- platform: esphome
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+captive_portal: {}
+i2c:
+- id: i2c0
+  sda: GPIO8
+  scl: GPIO9
+  frequency: 100kHz
+sensor:
+- platform: sht3xd
+  i2c_id: i2c0
+  address: '0x44'
+  update_interval: 30s
+  temperature:
+    name: Desk climate Temperature
+  humidity:
+    name: Desk climate Humidity

@@ -1,0 +1,33 @@
+esphome:
+  name: room-climate
+esp8266:
+  board: d1_mini
+logger: {}
+api:
+  encryption:
+    key: !secret api_key
+ota:
+- platform: esphome
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+captive_portal: {}
+i2c:
+- id: i2c0
+  sda: D2
+  scl: D1
+  frequency: 100kHz
+sensor:
+- platform: bh1750
+  i2c_id: i2c0
+  address: '0x23'
+  name: Room light Illuminance
+  update_interval: 60s
+- platform: aht10
+  i2c_id: i2c0
+  variant: AHT20
+  update_interval: 60s
+  temperature:
+    name: Room climate Temperature
+  humidity:
+    name: Room climate Humidity

@@ -1,0 +1,26 @@
++--------------------------------------------------------------------------------+
+|  NodeMCU v2 (ESP-12E/F)  ---  parking-distance                                 |
++--------------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                           |
+|                                                                                |
+|  tof1  [STMicro VL53L0X laser ToF distance sensor (I2C)]  -- Parking distance  |
+|    VCC   -> rail 3V3                                                           |
+|    GND   -> rail GND                                                           |
+|    SDA   -> i2c0 (D2)                                                          |
+|    SCL   -> i2c0 (D1)                                                          |
+|                                                                                |
+|  Passives:                                                                     |
+|    c1: 100nF capacitor, tof1.VCC  <->  GND   (decoupling tof1)                 |
+|    r1: 4.7k resistor, i2c0.SDA  <->  3V3   (I2C pull-up)                       |
+|    r2: 4.7k resistor, i2c0.SCL  <->  3V3   (I2C pull-up)                       |
+|                                                                                |
+|  BOM:                                                                          |
+|    - NodeMCU v2 (ESP-12E/F)                                                    |
+|    - STMicro VL53L0X laser ToF distance sensor (I2C)  (tof1)                   |
+|    - 1x 100nF capacitor                                                        |
+|    - 2x 4.7k resistor                                                          |
+|                                                                                |
+|  Power: ~19mA typical, ~40mA peak (budget 500mA)  OK                           |
+|                                                                                |
+|  Warnings: none                                                                |
++--------------------------------------------------------------------------------+

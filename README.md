@@ -241,6 +241,10 @@ it without a proxy.
 | [`wemosgps.json`](examples/wemosgps.json) | WeMos D1 Mini | UART GPS module — lat/lon/altitude/speed/satellites + runtime baud-rate selector |
 | [`ttgo-lora32.json`](examples/ttgo-lora32.json) | TTGO LoRa32 V1 | ESP32 + onboard SX1276 LoRa radio + onboard SSD1306 OLED + battery ADC, ESP-IDF |
 | [`multi-temp.json`](examples/multi-temp.json) | WeMos D1 Mini | Two DS18B20 temp sensors sharing a single 1-wire bus + an RCWL-0516 microwave motion sensor |
+| [`room-climate.json`](examples/room-climate.json) | WeMos D1 Mini | BH1750 ambient-light + AHT20 temp/humidity on one I2C bus |
+| [`desk-climate.json`](examples/desk-climate.json) | ESP32-C3-DevKitM-1 | Sensirion SHT3x precision temp/humidity over I2C |
+| [`parking-distance.json`](examples/parking-distance.json) | NodeMCU v2 | VL53L0X laser ToF distance (indoor parking-spot indicator) |
+| [`keypad.json`](examples/keypad.json) | WeMos D1 Mini | 8 buttons read through a PCF8574 GPIO expander over I2C |
 
 Generated artifacts for each are pinned as goldens in
 [`tests/golden/`](tests/golden/).
@@ -301,7 +305,10 @@ _Environmental sensors:_
 - `bmp280` — Bosch temperature/pressure sensor (I2C, no humidity)
 - `dht` — DHT11 / DHT22 / AM2302 temperature + humidity (single-wire)
 - `htu21d` — TE Connectivity HTU21D temperature + humidity (I2C; covers Si7021 / SHT2x)
+- `sht3xd` — Sensirion SHT3x / SHT4x precision temp + humidity (I2C; modern default)
+- `aht10` — Aosong AHT10 / AHT20 cheap temp + humidity (I2C; AliExpress weather modules)
 - `ds18b20` — Dallas DS18B20 1-Wire temperature sensor (single-pin bus + 4.7kΩ pull-up)
+- `bh1750` — BH1750FVI ambient light sensor in lux (I2C; GY-30 / GY-302 modules)
 
 _Specialty sensors:_
 - `max31855` — Maxim K-type thermocouple amplifier (SPI; -270..+1372°C)
@@ -314,6 +321,7 @@ _Presence / distance:_
 - `hc-sr501` — PIR motion sensor (used as a generic PIR)
 - `rcwl-0516` — microwave doppler motion sensor (low-power PIR alternative)
 - `ld2420` — Hi-Link LD2420 24GHz mmWave presence sensor (UART)
+- `vl53l0x` — STMicro VL53L0X laser time-of-flight distance (I2C; indoor up to ~1.2m)
 
 _RFID / radios:_
 - `rc522` — MFRC522 RFID reader (SPI, singleton)
@@ -335,8 +343,9 @@ _Touch / input:_
 - `rotary_encoder` — Quadrature rotary encoder (KY-040 style)
 
 _IO expanders + ADC hubs:_
-- `mcp23008` — 8-bit I2C GPIO expander
-- `mcp23017` — 16-bit I2C GPIO expander
+- `mcp23008` — 8-bit I2C GPIO expander (Microchip)
+- `mcp23017` — 16-bit I2C GPIO expander (Microchip)
+- `pcf8574` — NXP PCF8574 / PCF8575 8-/16-bit I2C GPIO expander (cheap, weak open-drain)
 - `ads1115` — TI 4-channel 16-bit ADC (I2C) hub; rescues ESP32 designs from the ADC2/WiFi conflict
 - `ads1115_channel` — one logical reading on an ADS1115 hub (multiplexer + gain + update_interval per channel)
 
