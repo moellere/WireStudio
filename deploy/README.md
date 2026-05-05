@@ -82,11 +82,12 @@ kubectl create secret generic studio-secrets \
   commented nginx-ingress example sits at the bottom of `k8s.yaml`
   with the two annotations that matter for the SSE build-log relay
   (`proxy-buffering: off` + a long `proxy-read-timeout`).
-- **PSS / non-root.** The image runs as the default uid (root in
-  `python:3.11-slim`). If your cluster enforces a Restricted Pod
-  Security Standard, you'll need to either rebuild the image with a
-  non-root user (queued as a follow-up) or relax the namespace's
-  `pod-security.kubernetes.io/enforce` label.
+- **PSS / non-root.** The image runs as a non-root `appuser` (uid 1000),
+  and the manifest's `securityContext` pins `runAsNonRoot: true` +
+  `allowPrivilegeEscalation: false`, so it satisfies the Restricted
+  Pod Security Standard out of the box. Existing /data volumes from
+  pre-non-root runs may need a one-time `chown -R 1000:1000` if you
+  upgrade across that boundary.
 
 ## Persistence + secrets
 

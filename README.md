@@ -406,7 +406,7 @@ build on every PR + merge to main.
 - **0.9** ✅ KiCad schematic export — SKiDL Python emitter; 100% library `kicad:` mapping
 - **Deployment** ✅ Docker single-image (multi-arch GHCR) + Kubernetes manifest + nginx compose recipe
 - **1.0** KiCad PCB layout — Freerouting + Gerber + JLCPCB CPL/BOM export
-- **Future** non-root container image (PSS Restricted), multi-writer state backend (HA replicas)
+- **Future** multi-writer state backend (HA replicas)
 
 Full plan with decisions, schemas, and per-phase scope lives in
 [`START.md`](START.md). Per-release feature deltas live in

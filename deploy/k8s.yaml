@@ -16,9 +16,9 @@
 #     (sessions JSONL + designs JSON files) is file-on-disk and not
 #     safe across multiple writers. RWX volumes don't help -- the
 #     file format itself isn't multi-writer.
-#   - The image runs as the default uid (root in python:3.11-slim).
-#     If your cluster enforces a Restricted PSS, set securityContext
-#     and rebuild the image with a non-root user; we haven't yet.
+#   - The image runs as a non-root `appuser` (uid 1000); the pod's
+#     securityContext below pins that explicitly + forbids privilege
+#     escalation, so the manifest is PSS-Restricted-friendly.
 
 ---
 # Optional: studio-secrets. Apply this with real values out-of-band:
