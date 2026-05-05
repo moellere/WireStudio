@@ -23,7 +23,7 @@ mcp23008:
 binary_sensor:
 - platform: gpio
   pin:
-    mcp23008: mcp23008_hub
+    mcp23xxx: mcp23008_hub
     number: 0
     mode: INPUT_PULLUP
     inverted: true
@@ -32,7 +32,7 @@ binary_sensor:
   device_class: opening
 - platform: gpio
   pin:
-    mcp23008: mcp23008_hub
+    mcp23xxx: mcp23008_hub
     number: 1
     mode: INPUT_PULLUP
     inverted: true
@@ -41,7 +41,7 @@ binary_sensor:
   device_class: opening
 - platform: gpio
   pin:
-    mcp23008: mcp23008_hub
+    mcp23xxx: mcp23008_hub
     number: 2
     mode: INPUT_PULLUP
     inverted: true
@@ -60,7 +60,7 @@ binary_sensor:
   - cover.stop: awning_cover
 - platform: gpio
   pin:
-    mcp23008: mcp23008_hub
+    mcp23xxx: mcp23008_hub
     number: 3
     mode: INPUT_PULLUP
     inverted: true
@@ -80,7 +80,7 @@ binary_sensor:
 switch:
 - platform: gpio
   pin:
-    mcp23008: mcp23008_hub
+    mcp23xxx: mcp23008_hub
     number: 7
     mode: OUTPUT
     inverted: true
@@ -89,7 +89,7 @@ switch:
   icon: mdi:power-plug
 - platform: gpio
   pin:
-    mcp23008: mcp23008_hub
+    mcp23xxx: mcp23008_hub
     number: 6
     mode: OUTPUT
   name: Motor Enable

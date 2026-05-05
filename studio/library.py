@@ -49,6 +49,7 @@ class Electrical(_Strict):
 class EsphomeSpec(_Strict):
     required_components: list[str] = Field(default_factory=list)
     yaml_template: str = ""
+    expander_pin_key: Optional[str] = None
 
 
 class LibraryComponent(_Strict):

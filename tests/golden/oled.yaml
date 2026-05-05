@@ -32,7 +32,7 @@ time:
 - platform: homeassistant
   id: time1
 font:
-- file: common/fonts/arial.ttf
+- file: gfonts://Roboto
   id: font1
   size: 10
 sensor:

@@ -2,14 +2,14 @@
   "schema_version": "0.1",
   "id": "esp32-audio",
   "name": "Garage I2S audio + ST7789 dashboard",
-  "description": "ESP32 NodeMCU-32S, ESP-IDF framework. MAX98357A I2S DAC drives a Class-D speaker; ST7789V SPI display shows a clock + status. Hardware mute and backlight switches.",
+  "description": "ESP32 NodeMCU-32S, Arduino framework. MAX98357A I2S DAC drives a Class-D speaker; ST7789V SPI display shows a clock + status. Hardware mute and backlight switches.",
   "created_at": "2022-09-01T00:00:00Z",
-  "updated_at": "2026-05-04T00:00:00Z",
+  "updated_at": "2026-05-05T00:00:00Z",
 
   "board": {
     "library_id": "nodemcu-32s",
     "mcu": "esp32",
-    "framework": "esp-idf"
+    "framework": "arduino"
   },
 
   "power": {
@@ -23,7 +23,7 @@
     { "id": "r1", "kind": "capability", "text": "act as a media_player streaming I2S audio to an external Class-D amp" },
     { "id": "r2", "kind": "capability", "text": "render a clock + status on a 240x320 ST7789 dashboard" },
     { "id": "r3", "kind": "capability", "text": "physical mute switch + backlight switch" },
-    { "id": "r4", "kind": "constraint",  "text": "ESP-IDF framework (some I2S features need it)" }
+    { "id": "r4", "kind": "constraint",  "text": "Arduino framework (max98357a media_player is arduino-only in upstream ESPHome; revisit when esp-idf adds the platform)" }
   ],
 
   "components": [
@@ -106,9 +106,9 @@
       { "id": "my_gray",   "red": "50%",  "green": "50%",  "blue": "50%"  }
     ],
     "font": [
-      { "file": "common/fonts/arial.ttf", "id": "arial_48", "size": 48 },
-      { "file": "common/fonts/arial.ttf", "id": "arial_24", "size": 24 },
-      { "file": "common/fonts/arial.ttf", "id": "arial_12", "size": 12 }
+      { "file": "gfonts://Roboto", "id": "arial_48", "size": 48 },
+      { "file": "gfonts://Roboto", "id": "arial_24", "size": 24 },
+      { "file": "gfonts://Roboto", "id": "arial_12", "size": 12 }
     ]
   },
 
