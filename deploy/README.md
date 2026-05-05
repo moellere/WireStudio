@@ -50,6 +50,44 @@ docker compose up -d
 | SPA URL | `:8765/` | `:8080/` |
 | Persistence | `-v studio-data:/data` | `studio-data` named volume |
 
+## Kubernetes
+
+`k8s.yaml` is a minimal manifest covering the single-image pattern:
+one Deployment, a 1 Gi PVC mounted at `/data`, a ClusterIP Service
+on `:80 -> :8765`. Optional `studio-secrets` for the four feature-
+gating env vars (none required to boot).
+
+```sh
+kubectl apply -f deploy/k8s.yaml
+# Out-of-band, with real values (all keys optional):
+kubectl create secret generic studio-secrets \
+  --from-literal=anthropic-api-key=sk-ant-... \
+  --from-literal=fleet-url=http://homeassistant.local:8765 \
+  --from-literal=fleet-token=xxx \
+  --from-literal=thingiverse-api-key=xxx
+```
+
+**Constraints to be aware of**:
+
+- **Single replica only.** The studio's persistence (sessions JSONL +
+  saved designs as JSON files) is file-on-disk and not safe across
+  multiple writers. The Deployment uses `strategy: Recreate` so the
+  old pod releases the PVC before the new one mounts it. Don't set
+  `replicas > 1` until that state moves to a multi-writer-safe
+  backend.
+- **Liveness / readiness** both probe `/api/health`, which is cheap
+  and unauthenticated.
+- **No Ingress in the manifest.** Ingress controllers (nginx,
+  traefik, cilium, gateway-api) vary too much for a default. A
+  commented nginx-ingress example sits at the bottom of `k8s.yaml`
+  with the two annotations that matter for the SSE build-log relay
+  (`proxy-buffering: off` + a long `proxy-read-timeout`).
+- **PSS / non-root.** The image runs as the default uid (root in
+  `python:3.11-slim`). If your cluster enforces a Restricted Pod
+  Security Standard, you'll need to either rebuild the image with a
+  non-root user (queued as a follow-up) or relax the namespace's
+  `pod-security.kubernetes.io/enforce` label.
+
 ## Persistence + secrets
 
 Both layouts mount `/data` into the studio container with two
