@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import yaml
 
-from studio.generate.yaml_gen import render_yaml
-from studio.model import Design
+from wirestudio.generate.yaml_gen import render_yaml
+from wirestudio.model import Design
 
 
 def test_garage_motion_matches_golden(garage_motion_design, library, golden_dir):
@@ -466,8 +466,8 @@ def test_ads1115_channel_renders_sensor_pointing_at_hub(library):
 def test_ads1115_channel_solver_auto_binds_to_hub(library):
     """An unbound HUB target on an ads1115_channel resolves to the only
     ads1115 hub in the design via the new `kind: component` solve path."""
-    from studio.csp.pin_solver import solve_pins
-    from studio.library import default_library
+    from wirestudio.csp.pin_solver import solve_pins
+    from wirestudio.library import default_library
     lib = default_library()
     design_dict = _esp32_with_i2c(
         components=[

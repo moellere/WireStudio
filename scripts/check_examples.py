@@ -1,6 +1,6 @@
 """Verify every bundled example renders YAML that upstream ESPHome accepts.
 
-Walks examples/*.json, renders each through studio.generate.yaml_gen, writes a
+Walks examples/*.json, renders each through wirestudio.generate.yaml_gen, writes a
 sibling secrets.yaml stub for any !secret references, then invokes
 `esphome config <yaml>` and reports the result.
 
@@ -25,9 +25,9 @@ import sys
 import tempfile
 from pathlib import Path
 
-from studio.generate.yaml_gen import render_yaml
-from studio.library import default_library
-from studio.model import Design
+from wirestudio.generate.yaml_gen import render_yaml
+from wirestudio.library import default_library
+from wirestudio.model import Design
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 EXAMPLES_DIR = REPO_ROOT / "examples"

@@ -1,7 +1,7 @@
-"""Tests for the production-deployment wrapper (studio.api.serve).
+"""Tests for the production-deployment wrapper (wirestudio.api.serve).
 
 Verify that:
-  - When STUDIO_STATIC_DIR is unset, the bare API still serves at root.
+  - When WIRESTUDIO_STATIC_DIR is unset, the bare API still serves at root.
   - With a static_dir, the studio API moves under /api/* and the
     static bundle's index.html is served at /.
   - Missing static_dir raises FileNotFoundError cleanly.
@@ -16,8 +16,8 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from studio.api.app import create_app
-from studio.api.serve import create_serve_app
+from wirestudio.api.app import create_app
+from wirestudio.api.serve import create_serve_app
 
 
 @pytest.fixture

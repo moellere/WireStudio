@@ -1,11 +1,13 @@
-# esphome-studio
+# wirestudio
 
-Agent-driven ESPHome device design tool. Describe a goal (or pick parts);
-get an ESPHome YAML, an ASCII wiring diagram, and a BOM that compile
+Agent-driven IoT device design tool. Describe a goal (or pick parts);
+get ESPHome YAML, an ASCII wiring diagram, and a BOM that compile
 under upstream ESPHome.
 
-Sister project to [`weirded/distributed-esphome`](https://github.com/weirded/distributed-esphome),
-which handles compile + OTA deploy.
+Produces ESPHome configs but is not affiliated with the ESPHome
+project — see [`weirded/distributed-esphome`](https://github.com/weirded/distributed-esphome)
+for the OTA-deploy companion this studio's **Push to fleet** flow
+talks to.
 
 ## Status
 
@@ -83,8 +85,8 @@ that pin moves, this line moves with it.
 ```sh
 docker run --rm -p 8765:8765 \
   -e ANTHROPIC_API_KEY=sk-ant-... \
-  -v studio-data:/data \
-  ghcr.io/moellere/esphome-studio:v0.9.0
+  -v wirestudio-data:/data \
+  ghcr.io/moellere/wirestudio:v0.9.0
 ```
 
 Open <http://localhost:8765>. The image bundles the FastAPI server +
@@ -116,13 +118,13 @@ nginx-front compose recipe, see [`deploy/README.md`](deploy/README.md).
 
 ```sh
 pip install -e .[dev]
-python -m studio.generate examples/garage-motion.json
+python -m wirestudio.generate examples/garage-motion.json
 ```
 
 Prints rendered YAML and the ASCII wiring block to stdout. To write to files:
 
 ```sh
-python -m studio.generate examples/garage-motion.json \
+python -m wirestudio.generate examples/garage-motion.json \
     --out-yaml build/garage-motion.yaml \
     --out-ascii build/garage-motion.txt
 ```
@@ -130,8 +132,8 @@ python -m studio.generate examples/garage-motion.json \
 ### HTTP API
 
 ```sh
-python -m studio.api                    # localhost:8765
-python -m studio.api --reload           # dev mode (auto-reload on edits)
+python -m wirestudio.api                    # localhost:8765
+python -m wirestudio.api --reload           # dev mode (auto-reload on edits)
 ```
 
 Browse the auto-generated OpenAPI docs at <http://127.0.0.1:8765/docs>.
@@ -141,7 +143,7 @@ export an Anthropic API key before starting the server:
 
 ```sh
 export ANTHROPIC_API_KEY=sk-ant-...
-python -m studio.api
+python -m wirestudio.api
 ```
 
 Without a key, `/agent/status` reports `available: false` and the agent
@@ -153,7 +155,7 @@ header button), point the API at a running distributed-esphome ha-addon:
 ```sh
 export FLEET_URL=http://homeassistant.local:8765
 export FLEET_TOKEN=$(grep -oP '(?<=token: )\S+' .../addon/secrets.yaml)
-python -m studio.api
+python -m wirestudio.api
 ```
 
 `GET /fleet/status` reports `available: true` when both env vars are set
@@ -164,7 +166,7 @@ reason (URL missing, unauthorized, unreachable).
 
 ```sh
 # In one terminal:
-python -m studio.api
+python -m wirestudio.api
 
 # In another:
 cd web && npm install && npm run dev
@@ -217,8 +219,8 @@ Useful endpoints:
 | `GET`  | `/fleet/jobs/{run_id}/log/stream` | Server-Sent Events relay over the same log endpoint; ~300ms cadence, exits with `event: done` when the build finishes |
 
 The HTTP API is a thin layer over the studio's pure-function modules
-(`studio.generate`, `studio.csp`, `studio.recommend`, `studio.fleet`,
-`studio.enclosure`, `studio.kicad`). Server state is limited to the
+(`wirestudio.generate`, `wirestudio.csp`, `wirestudio.recommend`, `wirestudio.fleet`,
+`wirestudio.enclosure`, `wirestudio.kicad`). Server state is limited to the
 agent session log + the saved-design store — both file-backed under
 `/data` (via `SESSIONS_DIR` / `DESIGNS_DIR`). Permissive CORS for
 `localhost:5173` / `localhost:3000` so the dev Vite server can hit
@@ -255,17 +257,17 @@ Generated artifacts for each are pinned as goldens in
    design.json  ── single source of truth (JSON-Schema-validated)
         │
         ▼
-  ┌─ studio.model         pydantic models mirroring the schema
-  ├─ studio.library       loads boards/ + components/ YAML
-  ├─ studio.generate      design + library → ESPHome YAML + ASCII
-  ├─ studio.csp           pin solver + port-compatibility checker
-  ├─ studio.recommend     deterministic capability ranking
-  ├─ studio.agent         Claude tool-using agent + session store
-  ├─ studio.designs       file-backed designs/<id>.json store
-  ├─ studio.fleet         distributed-esphome HTTP client
-  ├─ studio.enclosure     parametric OpenSCAD + Thingiverse search
-  ├─ studio.kicad         SKiDL Python script emitter
-  └─ studio.api           FastAPI HTTP layer (mounts everything above)
+  ┌─ wirestudio.model         pydantic models mirroring the schema
+  ├─ wirestudio.library       loads boards/ + components/ YAML
+  ├─ wirestudio.generate      design + library → ESPHome YAML + ASCII
+  ├─ wirestudio.csp           pin solver + port-compatibility checker
+  ├─ wirestudio.recommend     deterministic capability ranking
+  ├─ wirestudio.agent         Claude tool-using agent + session store
+  ├─ wirestudio.designs       file-backed designs/<id>.json store
+  ├─ wirestudio.fleet         distributed-esphome HTTP client
+  ├─ wirestudio.enclosure     parametric OpenSCAD + Thingiverse search
+  ├─ wirestudio.kicad         SKiDL Python script emitter
+  └─ wirestudio.api           FastAPI HTTP layer (mounts everything above)
                           serve.py adds the production wrapper:
                           API at /api/*, web bundle at /
 ```
@@ -387,13 +389,13 @@ for the hybrid plan.
 schema/                  JSON Schema for design.json (source of truth)
 library/boards/          board manifests (pinout, rails, framework, enclosure, kicad)
 library/components/      component manifests (electrical + ESPHome + enclosure + kicad)
-studio/                  python package — see Architecture above for the module map
+wirestudio/                  python package — see Architecture above for the module map
 web/                     React 19 + Vite + Tailwind v4 SPA
 examples/                bundled design.json files (every one pinned by goldens)
 tests/                   pytest + golden artifacts; vitest tests under web/src
 deploy/                  k8s.yaml, docker-compose.yml, nginx.conf for self-hosting
 Dockerfile               multi-stage build for the published GHCR image
-.github/workflows/       GHA workflow that publishes ghcr.io/.../esphome-studio
+.github/workflows/       GHA workflow that publishes ghcr.io/.../wirestudio
 scripts/                 dev helpers (currently: examples → `esphome config` gate)
 CHANGELOG.md             per-release feature deltas
 START.md                 vision, decisions, phase plan

@@ -1,4 +1,4 @@
-# esphome-studio — Working State
+# wirestudio — Working State
 
 Living planning doc. Captures vision, decisions, schemas, and phase plan.
 For day-to-day work tracking we'll spin off GitHub issues once a phase is
@@ -27,7 +27,7 @@ stays as a back-compat wrapper. Pytest +21 (179 total), vitest 49, ruff
 + build clean.
 
 **Next up candidates:**
-- `studio/kicad/scaffold.py` — read a `.kicad_sym` file and print
+- `wirestudio/kicad/scaffold.py` — read a `.kicad_sym` file and print
   a starter `library/components/<id>.yaml` skeleton so adding new
   parts becomes ~30 seconds of curation rather than ~5 minutes.
   Less urgent now that the existing library is fully mapped, but
@@ -76,7 +76,7 @@ mappings land).
 - 0.9 — KiCad schematic export. Full scope in the Roadmap section
   below; key points: SKiDL-driven, `kicad:` reference block per
   component/board (we stay canonical for ESPHome semantics, KiCad
-  for schematic rendering), `studio/kicad/scaffold.py` helper for
+  for schematic rendering), `wirestudio/kicad/scaffold.py` helper for
   cheap library expansion, PCB deferred to 1.0+.
 
 **0.9 v1 -- KiCad schematic export shipped.** New `kicad:` reference
@@ -99,7 +99,7 @@ M5Stack Atom + AtomS3, TTGO T-Beam). Virtual ESPHome platforms
 `pulse_counter`, `esp32_camera`) map to 1-2 pin labelled headers
 so the schematic shows where the real-world part connects.
 
-`studio/kicad/generator.py` walks the design and emits a SKiDL Python
+`wirestudio/kicad/generator.py` walks the design and emits a SKiDL Python
 script. The studio doesn't import or run SKiDL itself -- a hard
 runtime dep would pull in numpy + EDA-toolchain weight that's wrong
 for a server. The user installs SKiDL locally and runs the script
@@ -126,7 +126,7 @@ PCB layout (Freerouting + Gerber export) deferred to 1.0+ as
 planned.
 
 **0.8 v2 -- enclosure search relay shipped (Thingiverse).**
-`studio/enclosure/search.py` adds a pluggable per-source search client.
+`wirestudio/enclosure/search.py` adds a pluggable per-source search client.
 v2 ships the Thingiverse implementation (documented API, free
 `THINGIVERSE_API_KEY` token from https://www.thingiverse.com/developers,
 ~300 req/hour rate limit). The Printables source is included in the
@@ -171,7 +171,7 @@ board, plus the SMA jack on the TTGO LoRa32 V1). ESP-01S deliberately
 skips the block -- it's a header-mount module without a clear PCB
 outline.
 
-`studio/enclosure/openscad.py` walks a design's board metadata and
+`wirestudio/enclosure/openscad.py` walks a design's board metadata and
 emits a self-contained `.scad` file: tunables block at the top
 (wall, floor, clearance, standoff geometry, port_clearance) so the
 user can dial in fit without re-rendering, then a `module shell()`
@@ -478,7 +478,7 @@ analog_in lands on an ADC2 pin on a classic ESP32 (chip_variant ==
 analog_in connections land on ADC1 pins (GPIO32-39) by default. 4
 new tests pin both paths.
 
-**0.7 distributed-esphome handoff shipped.** `studio/fleet/client.py`
+**0.7 distributed-esphome handoff shipped.** `wirestudio/fleet/client.py`
 talks to the ha-addon's `/ui/api/*` surface using a Bearer token.
 `GET /fleet/status` + `POST /fleet/push` expose this to the UI;
 **Push to fleet** in the header opens a modal with the device-name
@@ -491,9 +491,9 @@ and the HTTP contract end-to-end.
 
 ## Status (as of 2026-05-04)
 
-- **0.1 MVP shipped.** `python -m studio.generate examples/<name>.json`
+- **0.1 MVP shipped.** `python -m wirestudio.generate examples/<name>.json`
   produces ESPHome YAML + ASCII diagrams pinned by goldens.
-- **0.2 HTTP API shipped.** FastAPI server at `python -m studio.api`,
+- **0.2 HTTP API shipped.** FastAPI server at `python -m wirestudio.api`,
   endpoints under `/library/*`, `/design/*`, `/examples/*`. Auto-generated
   OpenAPI docs at `/docs`. Pure layer over the generators, no server-side
   state. Permissive CORS for the 0.3 web UI.
@@ -528,7 +528,7 @@ and the HTTP contract end-to-end.
   (49 total) cover chip-name normalization, board candidate
   matching, and bootstrap-design shape.
 - **0.5 agent layer shipped.** Claude tool-using agent at
-  `studio/agent/` (`tools.py`, `session.py`, `agent.py`). 10-tool
+  `wirestudio/agent/` (`tools.py`, `session.py`, `agent.py`). 10-tool
   surface: `search_components`, `list_boards`, `set_board`,
   `add_component`, `remove_component`, `set_param`, `set_connection`,
   `add_bus`, `render`, `validate`. Manual agentic loop on
@@ -546,8 +546,8 @@ and the HTTP contract end-to-end.
   agent edits. Pytest +24 (114 total) covers every tool implementation,
   session JSONL round-trip, and the API contract (status / 503 / 404).
 - **0.6 CSP solver + port compatibility validation shipped.** Pin
-  solver at `studio/csp/pin_solver.py`. Port compatibility validator at
-  `studio/csp/compatibility.py` walks every gpio + bus pin assignment
+  solver at `wirestudio/csp/pin_solver.py`. Port compatibility validator at
+  `wirestudio/csp/compatibility.py` walks every gpio + bus pin assignment
   and emits codes (`input_only_as_output`, `boot_strap_output`,
   `serial_console`, `voltage_limit`, `function_unsupported`) based on
   the board YAML's semantic tags (`boot_high`, `boot_low`, `serial_tx`,
@@ -561,7 +561,7 @@ and the HTTP contract end-to-end.
   every code path including a known-examples snapshot test that
   catches regressions in the board YAML tags.
 
-- **legacy 0.6 entry below kept for context.** `studio/csp/pin_solver.py` -- pure
+- **legacy 0.6 entry below kept for context.** `wirestudio/csp/pin_solver.py` -- pure
   Python, no external solver lib (problem size is tiny). Fills every
   unbound connection: `kind: gpio` with empty pin -> a board GPIO
   matching the library pin's capability (digital in/out -> any gpio,
@@ -602,7 +602,7 @@ Sister project to `weirded/distributed-esphome`. Knowledge base seeded from
 
 ## Decisions locked
 
-- **Repo:** `moellere/esphome-studio` (new, just created).
+- **Repo:** `moellere/wirestudio` (new, just created).
 - **Mode:** **Permissive.** CSP/electrical violations surface as `warnings[]`,
   do not block generation. Revisit for "strict mode" toggle later.
 - **Wiring output for 0.1:** **ASCII art only.** KiCad deferred (still the
@@ -633,10 +633,10 @@ immediate way in and the agent (when it arrives) lands in a working surface.
 
 - **0.1 — MVP pipeline.** ✅ Shipped. `design.json` → ESPHome YAML + ASCII.
   Library scaffolding, generators, golden tests.
-- **0.2 — HTTP API.** ✅ Shipped. FastAPI server (`python -m studio.api`),
+- **0.2 — HTTP API.** ✅ Shipped. FastAPI server (`python -m wirestudio.api`),
   endpoints under `/library/*`, `/design/*`, `/examples/*`. Auto-generated
   OpenAPI at `/docs`. CORS open for `localhost:5173`/`localhost:3000` so
-  0.3's UI can hit it directly. Pure layer over `studio.generate`, no
+  0.3's UI can hit it directly. Pure layer over `wirestudio.generate`, no
   server-side state. /design/render currently returns `{yaml, ascii}`;
   structured BOM + power-budget responses will be added when 0.3 needs
   them rather than guessed at now.
@@ -668,7 +668,7 @@ immediate way in and the agent (when it arrives) lands in a working surface.
   via a `solve_pins` tool, recommendation mode ("I want motion
   detection" → ranked options).
 - **0.6 — CSP solver.** ✅ Shipped (initial). Pin assignment lives in
-  `studio/csp/pin_solver.py`; surfaced as the `solve_pins` agent tool,
+  `wirestudio/csp/pin_solver.py`; surfaced as the `solve_pins` agent tool,
   the standalone `POST /design/solve_pins` endpoint, and a "Solve pins"
   header button. Greedy + capability-aware: respects board GPIO
   capabilities, prefers non-strap pins for outputs, picks first
@@ -688,7 +688,7 @@ immediate way in and the agent (when it arrives) lands in a working surface.
 - **0.8 — Enclosure suggestions.** Two halves:
   - **v1 ✅ Shipped (parametric OpenSCAD generator).** Each dev-board
     YAML carries an `enclosure:` block with PCB outline + mount holes
-    + port cutouts. `studio/enclosure/openscad.py` emits a
+    + port cutouts. `wirestudio/enclosure/openscad.py` emits a
     self-contained `.scad` shell (bottom + 4 walls, mounting standoffs
     aligned with the mount holes, edge cutouts for every port) with
     tunables (wall, floor, clearance, standoff geometry) at the top
@@ -696,7 +696,7 @@ immediate way in and the agent (when it arrives) lands in a working surface.
     `POST /design/enclosure/openscad`; header **Generate enclosure**
     button triggers a browser download.
   - **v2 ✅ Shipped (Thingiverse search relay).** Pluggable
-    per-source search at `studio/enclosure/search.py`. Thingiverse
+    per-source search at `wirestudio/enclosure/search.py`. Thingiverse
     implementation gated on `THINGIVERSE_API_KEY`. Printables
     deliberately deferred (no public API yet; their internal GraphQL
     endpoint changes without notice and the CDN rate-limits
@@ -748,7 +748,7 @@ immediate way in and the agent (when it arrives) lands in a working surface.
     so the schematic gets the right module symbol, not just a sea of
     nets.
 
-  - **Generator.** New `studio/kicad/` module: walks `design.json`,
+  - **Generator.** New `wirestudio/kicad/` module: walks `design.json`,
     converts each component instance into a SKiDL `Part(...)`, each
     connection into a Net assignment, and either emits a SKiDL Python
     script (the user runs it themselves) or invokes SKiDL in-process
@@ -756,7 +756,7 @@ immediate way in and the agent (when it arrives) lands in a working surface.
     `POST /design/kicad` returns the artifact; CLI gets a
     `--out-kicad` flag.
 
-  - **Scaffold helper.** Cheap tooling win: `studio/kicad/scaffold.py`
+  - **Scaffold helper.** Cheap tooling win: `wirestudio/kicad/scaffold.py`
     reads a `.kicad_sym` file and prints a starter
     `library/components/<id>.yaml` skeleton (pin roles + voltage
     hints prefilled from the symbol's pin electrical_types). Cuts
@@ -803,7 +803,7 @@ Two small follow-ons to 0.5's agent layer, agreed in the last session:
    Implementation sketch: keep `/agent/turn` for backward-compat,
    add `POST /agent/stream` (or upgrade `/agent/turn` to also accept
    `Accept: text/event-stream`). Reuse the manual agentic loop in
-   `studio/agent/agent.py`; just yield events instead of accumulating.
+   `wirestudio/agent/agent.py`; just yield events instead of accumulating.
    Anthropic SDK supports `client.messages.stream(...)` with
    `get_final_message()` — the per-tool-call dispatch stays the same.
 
@@ -1070,7 +1070,7 @@ Warnings: none
 ## First PR scaffolding (proposed)
 
 ​```
-esphome-studio/
+wirestudio/
 ├── README.md
 ├── LICENSE                    # MIT (matches ESPHome python frontend)
 ├── pyproject.toml
@@ -1083,7 +1083,7 @@ esphome-studio/
 │       ├── bme280.yaml
 │       ├── hc-sr501.yaml
 │       └── ssd1306.yaml
-├── studio/
+├── wirestudio/
 │   ├── __init__.py
 │   ├── model.py               # pydantic models mirroring design.schema.json
 │   ├── library.py             # load+validate library files
@@ -1099,7 +1099,7 @@ esphome-studio/
     └── golden/                # YAML + ASCII goldens per example
 ​```
 
-No agent, no CSP, no API server in PR #1. Goal: `python -m studio.generate
+No agent, no CSP, no API server in PR #1. Goal: `python -m wirestudio.generate
 examples/garage-motion.json` produces YAML + ASCII; tests pin them to goldens.
 
 ## Agent tool surface (for 0.2)

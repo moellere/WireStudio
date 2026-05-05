@@ -3,7 +3,7 @@ name: esphome-config
 # The integrity gate the studio's surface area depends on:
 #
 # For every example in examples/*.json, render the YAML through
-# studio.generate.yaml_gen and run upstream `esphome config <file>`
+# wirestudio.generate.yaml_gen and run upstream `esphome config <file>`
 # against it. Anything the studio emits has to round-trip through
 # ESPHome's own validator -- otherwise the artifact is by definition
 # wrong, regardless of what our golden tests say.

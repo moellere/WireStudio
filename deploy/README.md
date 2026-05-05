@@ -7,8 +7,8 @@ self-hosters that's exactly what you want:
 ```sh
 docker run --rm -p 8765:8765 \
   -e ANTHROPIC_API_KEY=sk-ant-... \
-  -v studio-data:/data \
-  ghcr.io/moellere/esphome-studio:latest
+  -v wirestudio-data:/data \
+  ghcr.io/moellere/wirestudio:latest
 ```
 
 Open <http://localhost:8765>. Done.
@@ -29,7 +29,7 @@ true:
 The compose stack mirrors the dev-time Vite proxy: nginx serves the
 SPA bundle and proxies `/api/*` to the studio container after stripping
 the prefix. The studio container runs in **API-only mode** (we set
-`STUDIO_STATIC_DIR=` to disable the built-in static server) so we
+`WIRESTUDIO_STATIC_DIR=` to disable the built-in static server) so we
 don't double-serve the bundle.
 
 ```sh
@@ -48,19 +48,19 @@ docker compose up -d
 | Static-file server | uvicorn + FastAPI `StaticFiles` | nginx 1.27 |
 | API URL | `:8765/api/*` | `:8080/api/*` (proxied) |
 | SPA URL | `:8765/` | `:8080/` |
-| Persistence | `-v studio-data:/data` | `studio-data` named volume |
+| Persistence | `-v wirestudio-data:/data` | `wirestudio-data` named volume |
 
 ## Kubernetes
 
 `k8s.yaml` is a minimal manifest covering the single-image pattern:
 one Deployment, a 1 Gi PVC mounted at `/data`, a ClusterIP Service
-on `:80 -> :8765`. Optional `studio-secrets` for the four feature-
+on `:80 -> :8765`. Optional `wirestudio-secrets` for the four feature-
 gating env vars (none required to boot).
 
 ```sh
 kubectl apply -f deploy/k8s.yaml
 # Out-of-band, with real values (all keys optional):
-kubectl create secret generic studio-secrets \
+kubectl create secret generic wirestudio-secrets \
   --from-literal=anthropic-api-key=sk-ant-... \
   --from-literal=fleet-url=http://homeassistant.local:8765 \
   --from-literal=fleet-token=xxx \
@@ -109,7 +109,7 @@ Secrets are env vars and never baked into the image:
 
 ```sh
 # Single image:
-docker pull ghcr.io/moellere/esphome-studio:latest
+docker pull ghcr.io/moellere/wirestudio:latest
 docker stop studio && docker rm studio
 docker run ...
 

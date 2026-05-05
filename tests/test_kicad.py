@@ -18,10 +18,10 @@ from pathlib import Path
 
 import pytest
 
-from studio.kicad import generate_skidl
-from studio.kicad.generator import _py_var
-from studio.library import default_library
-from studio.model import Design
+from wirestudio.kicad import generate_skidl
+from wirestudio.kicad.generator import _py_var
+from wirestudio.library import default_library
+from wirestudio.model import Design
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 EXAMPLES_DIR = REPO_ROOT / "examples"
@@ -96,7 +96,7 @@ def test_unmapped_component_falls_back_to_placeholder(lib):
     rather than relying on a real-but-unmapped one (the latter
     drifts as new mappings land)."""
     from copy import deepcopy
-    from studio.library import LibraryComponent
+    from wirestudio.library import LibraryComponent
     fake = LibraryComponent(
         id="zz_fake_unmapped",
         name="Fake unmapped component",

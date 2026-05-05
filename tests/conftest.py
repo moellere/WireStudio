@@ -6,8 +6,8 @@ from pathlib import Path
 import pytest
 import yaml
 
-from studio.library import Library, default_library
-from studio.model import Design
+from wirestudio.library import Library, default_library
+from wirestudio.model import Design
 
 
 def _secret_ctor(loader: yaml.Loader, node: yaml.ScalarNode) -> str:

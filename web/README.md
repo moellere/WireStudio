@@ -1,4 +1,4 @@
-# esphome-studio web
+# wirestudio web
 
 Studio web UI. React 19 + Vite + TypeScript + Tailwind v4.
 
@@ -83,7 +83,7 @@ The UI talks to the studio API. Run both:
 
 ```sh
 # Terminal 1 -- the API
-cd .. && python -m studio.api
+cd .. && python -m wirestudio.api
 
 # Terminal 2 -- the UI
 cd web && npm install && npm run dev
@@ -106,7 +106,7 @@ src/
 ├── api/
 │   └── client.ts            # typed fetch wrapper for /library, /design, /examples
 ├── types/
-│   └── api.ts               # wire types matching studio/api/schemas.py
+│   └── api.ts               # wire types matching wirestudio/api/schemas.py
 ├── lib/
 │   ├── debounce.ts          # useDebouncedValue
 │   ├── design.ts            # immutable design helpers (params, connections,

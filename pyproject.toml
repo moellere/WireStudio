@@ -3,13 +3,13 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "esphome-studio"
+name = "wirestudio"
 version = "0.1.0"
-description = "Agent-driven ESPHome device design tool."
+description = "Agent-driven IoT device design tool that produces ESPHome YAML."
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.11"
-authors = [{ name = "esphome-studio contributors" }]
+authors = [{ name = "wirestudio contributors" }]
 dependencies = [
     "pydantic>=2.6",
     "pyyaml>=6.0",
@@ -28,12 +28,12 @@ dev = [
 ]
 
 [project.scripts]
-studio-generate = "studio.generate.__main__:main"
-studio-api = "studio.api.__main__:main"
+wirestudio-generate = "wirestudio.generate.__main__:main"
+wirestudio-api = "wirestudio.api.__main__:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["studio*"]
+include = ["wirestudio*"]
 
 [tool.ruff]
 line-length = 100

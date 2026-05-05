@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from studio.generate.ascii_gen import render_ascii
+from wirestudio.generate.ascii_gen import render_ascii
 
 
 def test_garage_motion_matches_golden(garage_motion_design, library, golden_dir):

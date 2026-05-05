@@ -18,9 +18,9 @@ from pathlib import Path
 
 import pytest
 
-from studio.enclosure import EnclosureUnavailable, generate_scad
-from studio.library import default_library
-from studio.model import Design
+from wirestudio.enclosure import EnclosureUnavailable, generate_scad
+from wirestudio.library import default_library
+from wirestudio.model import Design
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 EXAMPLES_DIR = REPO_ROOT / "examples"

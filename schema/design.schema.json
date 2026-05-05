@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/moellere/esphome-studio/schema/design.schema.json",
-  "title": "esphome-studio design.json (0.1)",
+  "$id": "https://github.com/moellere/wirestudio/schema/design.schema.json",
+  "title": "wirestudio design.json (0.1)",
   "type": "object",
   "required": ["schema_version", "id", "name", "board", "power"],
   "additionalProperties": false,

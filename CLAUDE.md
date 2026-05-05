@@ -44,5 +44,5 @@ Plain `# TODO:` is fine for unscoped notes.
 
 ## What not to do
 - No new top-level documentation files unless explicitly asked.
-- No splitting `studio/` into more packages until 0.2 needs them.
+- No splitting `wirestudio/` into more packages until 0.2 needs them.
 - No vendoring upstream ESPHome source. Schema-derived data only.

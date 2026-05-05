@@ -15,10 +15,10 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from studio.agent.session import SessionStore, new_session_id
-from studio.agent.tools import execute_tool
-from studio.api.app import create_app
-from studio.library import default_library
+from wirestudio.agent.session import SessionStore, new_session_id
+from wirestudio.agent.tools import execute_tool
+from wirestudio.api.app import create_app
+from wirestudio.library import default_library
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 EXAMPLES_DIR = REPO_ROOT / "examples"
