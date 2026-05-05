@@ -4,7 +4,7 @@ import re
 from typing import Any
 
 import yaml
-from jinja2 import Environment, StrictUndefined, UndefinedError
+from jinja2 import Environment, StrictUndefined, UndefinedError, select_autoescape
 
 from studio.library import Library
 from studio.model import Bus, Component, Design
@@ -32,7 +32,11 @@ yaml.add_representer(str, _str_representer)
 yaml.SafeDumper.add_representer(str, _str_representer)
 
 
-_jinja = Environment(undefined=StrictUndefined, keep_trailing_newline=False)
+_jinja = Environment(
+    undefined=StrictUndefined,
+    keep_trailing_newline=False,
+    autoescape=select_autoescape(default_for_string=False)
+)
 _jinja.policies["json.dumps_kwargs"] = {"sort_keys": False, "ensure_ascii": False}
 
 
