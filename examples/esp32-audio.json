@@ -106,9 +106,9 @@
       { "id": "my_gray",   "red": "50%",  "green": "50%",  "blue": "50%"  }
     ],
     "font": [
-      { "file": "common/fonts/arial.ttf", "id": "arial_48", "size": 48 },
-      { "file": "common/fonts/arial.ttf", "id": "arial_24", "size": 24 },
-      { "file": "common/fonts/arial.ttf", "id": "arial_12", "size": 12 }
+      { "file": "gfonts://Roboto", "id": "arial_48", "size": 48 },
+      { "file": "gfonts://Roboto", "id": "arial_24", "size": 24 },
+      { "file": "gfonts://Roboto", "id": "arial_12", "size": 12 }
     ]
   },
 
