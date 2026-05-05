@@ -117,9 +117,13 @@ def create_app(
     designs: Optional[DesignStore] = None,
     fleet_client_factory=None,
 ) -> FastAPI:
+    import os as _os
     lib = library or default_library()
-    sessions_store = sessions or SessionStore()
-    designs_store = designs or DesignStore()
+    # SESSIONS_DIR / DESIGNS_DIR env vars let the Docker image point
+    # the stores at a /data volume without the caller plumbing args
+    # through. Falls back to the package-local default in dev.
+    sessions_store = sessions or SessionStore(root=_os.environ.get("SESSIONS_DIR") or None)
+    designs_store = designs or DesignStore(root=_os.environ.get("DESIGNS_DIR") or None)
     # Tests substitute a factory that returns a FleetClient bound to an
     # httpx.MockTransport so we never hit the network in CI.
     make_fleet: callable = fleet_client_factory or (lambda: FleetClient())

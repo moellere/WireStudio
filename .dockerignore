@@ -1,0 +1,36 @@
+# Keep the build context small; copy in only what the Dockerfile needs.
+.git
+.gitignore
+.github
+.venv
+venv
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.ruff_cache
+.mypy_cache
+htmlcov
+.coverage
+node_modules
+
+# Build artefacts (web-builder stage rebuilds dist/ inside the image)
+web/dist
+web/.vite
+build
+dist
+*.egg-info
+
+# Local runtime state -- the deployed image gets a fresh /data.
+sessions
+designs
+
+# Editor/OS noise
+.DS_Store
+*.swp
+.idea
+.vscode
+
+# Test goldens are checked into git but the runtime image doesn't
+# need them. (Tests don't run inside the image.)
+tests
