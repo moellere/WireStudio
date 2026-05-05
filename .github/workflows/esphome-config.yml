@@ -49,12 +49,14 @@ jobs:
           cache: pip
 
       - name: Install studio + ESPHome
-        # Pinned ESPHome minor (~=2025.5). Bump deliberately when a
-        # schema change in a newer minor matters; the README's
-        # "tested against" line should track this pin.
+        # Pinned to a specific ESPHome version (NOT a minor or year
+        # range -- ~=2025.5 was misleading, PEP 440 expands it to
+        # >=2025.5,<2026 which is effectively a year-pin). Bump
+        # deliberately; the README's "tested against" line must
+        # match this pin.
         run: |
           pip install -e .
-          pip install 'esphome~=2025.5'
+          pip install 'esphome==2025.12.7'
 
       - name: Print resolved ESPHome version
         run: esphome version

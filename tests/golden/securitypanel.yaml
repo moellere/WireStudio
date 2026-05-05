@@ -37,7 +37,7 @@ mcp23017:
 binary_sensor:
 - platform: gpio
   pin:
-    mcp23017: mcp_hub
+    mcp23xxx: mcp_hub
     number: 4
     mode: INPUT
     inverted: true
@@ -48,7 +48,7 @@ binary_sensor:
   - rtttl.play: short:d=4,o=5,b=100:16e6,16e6
 - platform: gpio
   pin:
-    mcp23017: mcp_hub
+    mcp23xxx: mcp_hub
     number: 5
     mode: INPUT
     inverted: true
@@ -59,7 +59,7 @@ binary_sensor:
   - rtttl.play: short:d=4,o=5,b=100:16e6,16e6
 - platform: gpio
   pin:
-    mcp23017: mcp_hub
+    mcp23xxx: mcp_hub
     number: 6
     mode: INPUT
     inverted: true
@@ -70,7 +70,7 @@ binary_sensor:
   - rtttl.play: short:d=4,o=5,b=100:16e6,16e6
 - platform: gpio
   pin:
-    mcp23017: mcp_hub
+    mcp23xxx: mcp_hub
     number: 7
     mode: INPUT
     inverted: true
@@ -80,7 +80,7 @@ binary_sensor:
   - rtttl.play: short:d=4,o=5,b=100:16e6,16e6
 - platform: gpio
   pin:
-    mcp23017: mcp_hub
+    mcp23xxx: mcp_hub
     number: 8
     mode: INPUT
     inverted: true
@@ -91,7 +91,7 @@ binary_sensor:
   - rtttl.play: short:d=4,o=5,b=100:16e6,16e6
 - platform: gpio
   pin:
-    mcp23017: mcp_hub
+    mcp23xxx: mcp_hub
     number: 9
     mode: INPUT
     inverted: true
@@ -102,7 +102,7 @@ binary_sensor:
   - rtttl.play: short:d=4,o=5,b=100:16e6,16e6
 - platform: gpio
   pin:
-    mcp23017: mcp_hub
+    mcp23xxx: mcp_hub
     number: 10
     mode: INPUT
     inverted: true
@@ -111,7 +111,7 @@ binary_sensor:
   device_class: motion
 - platform: gpio
   pin:
-    mcp23017: mcp_hub
+    mcp23xxx: mcp_hub
     number: 11
     mode: INPUT
     inverted: true
@@ -122,7 +122,7 @@ binary_sensor:
   - rtttl.play: short:d=4,o=5,b=100:16e6,16e6
 - platform: gpio
   pin:
-    mcp23017: mcp_hub
+    mcp23xxx: mcp_hub
     number: 12
     mode: INPUT
     inverted: true
@@ -133,7 +133,7 @@ binary_sensor:
   - rtttl.play: short:d=4,o=5,b=100:16e6,16e6
 - platform: gpio
   pin:
-    mcp23017: mcp_hub
+    mcp23xxx: mcp_hub
     number: 13
     mode: INPUT
     inverted: true
@@ -144,7 +144,7 @@ binary_sensor:
   - rtttl.play: short:d=4,o=5,b=100:16e6,16e6
 - platform: gpio
   pin:
-    mcp23017: mcp_hub
+    mcp23xxx: mcp_hub
     number: 14
     mode: INPUT
     inverted: true
@@ -154,7 +154,7 @@ binary_sensor:
   - rtttl.play: short:d=4,o=5,b=100:16e6,16e6
 - platform: gpio
   pin:
-    mcp23017: mcp_hub
+    mcp23xxx: mcp_hub
     number: 15
     mode: INPUT
     inverted: true
@@ -165,7 +165,7 @@ binary_sensor:
 switch:
 - platform: gpio
   pin:
-    mcp23017: mcp_hub
+    mcp23xxx: mcp_hub
     number: 3
     mode: OUTPUT
     inverted: true

@@ -36,7 +36,7 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the bar a change has to
 clear before merging, [`CHANGELOG.md`](CHANGELOG.md) for per-release
 deltas, and [`START.md`](START.md) for the longer-form design notes.
 
-Tested against ESPHome **`~=2025.5`** (pinned in
+Tested against ESPHome **`==2025.12.7`** (pinned in
 `.github/workflows/esphome-config.yml` + bumped deliberately). When
 that pin moves, this line moves with it.
 
@@ -236,7 +236,7 @@ it without a proxy.
 | [`distance-sensor.json`](examples/distance-sensor.json) | NodeMCU v2 | HC-SR04 ultrasonic + WS2812B NeoPixel; LED color tracks distance |
 | [`securitypanel.json`](examples/securitypanel.json) | WeMos D1 Mini | 12 door/window/motion sensors via MCP23017 expander, RTTTL piezo, GPIO siren |
 | [`rc522.json`](examples/rc522.json) | WeMos D1 Mini | MFRC522 RFID reader (SPI), NeoPixel status LED, RTTTL piezo, manual button |
-| [`esp32-audio.json`](examples/esp32-audio.json) | NodeMCU-32S | I2S audio (MAX98357A DAC) + ST7789V SPI dashboard display, ESP-IDF framework |
+| [`esp32-audio.json`](examples/esp32-audio.json) | NodeMCU-32S | I2S audio (MAX98357A DAC) + ST7789V SPI dashboard display, Arduino framework |
 | [`bluesonoff.json`](examples/bluesonoff.json) | ESP-01S 1MB | Sonoff Basic relay; front button (boot strap pin) toggles a single GPIO relay |
 | [`wemosgps.json`](examples/wemosgps.json) | WeMos D1 Mini | UART GPS module — lat/lon/altitude/speed/satellites + runtime baud-rate selector |
 | [`ttgo-lora32.json`](examples/ttgo-lora32.json) | TTGO LoRa32 V1 | ESP32 + onboard SX1276 LoRa radio + onboard SSD1306 OLED + battery ADC, ESP-IDF |
@@ -398,7 +398,7 @@ CONTRIBUTING.md          substantive bar a change has to clear (the YAML gate, e
 python -m pytest                          # ~297 cases, ~10s
 python -m ruff check .                    # lint
 cd web && npx vitest run                  # ~125 cases, ~5s (vitest + jsdom)
-pip install 'esphome~=2025.5'
+pip install 'esphome==2025.12.7'
 python scripts/check_examples.py          # the YAML gate -- every example through `esphome config`
 ```
 

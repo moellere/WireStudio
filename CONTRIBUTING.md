@@ -27,7 +27,7 @@ at all:
 
 Every PR runs `.github/workflows/esphome-config.yml`, which:
 
-1. Installs the pinned ESPHome (currently `~=2025.5`).
+1. Installs the pinned ESPHome (currently `==2025.12.7`).
 2. For every `examples/*.json`, renders YAML through
    `studio.generate.yaml_gen` and runs `esphome config <file>` against
    it.
@@ -41,11 +41,17 @@ gate.** It's the gate the project can be judged by from the outside.
 
 ```sh
 pip install -e .[dev]
-pip install 'esphome~=2025.5'
+pip install 'esphome==2025.12.7'
 python scripts/check_examples.py            # all examples
 python scripts/check_examples.py garage-motion oled    # just these two
 python scripts/check_examples.py --keep     # leave generated YAML on disk
 ```
+
+On Debian/Ubuntu hosts the system `python3-setuptools` ships patched in a
+way that breaks ESPHome's pinned `paho-mqtt` source build. If `pip install
+esphome` fails on the `paho-mqtt` wheel, drop into a fresh venv first:
+`python -m venv .venv && source .venv/bin/activate`. The CI workflow uses
+`actions/setup-python@v5`, which sidesteps this.
 
 ### Adding a new component or board
 

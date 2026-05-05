@@ -79,7 +79,7 @@ def _check_one(example: Path, workdir: Path) -> tuple[bool, str]:
         )
     except FileNotFoundError:
         print(
-            "esphome CLI not found. Install with: pip install 'esphome~=2025.5'",
+            "esphome CLI not found. Install with: pip install 'esphome==2025.12.7'",
             file=sys.stderr,
         )
         sys.exit(2)
