@@ -9,21 +9,53 @@ which handles compile + OTA deploy.
 
 ## Status
 
-`0.7` (in flight) — Studio with a Claude tool-using agent, a CSP-style
-pin-assignment solver, and a one-click handoff to the
-[distributed-esphome](https://github.com/weirded/distributed-esphome)
-ha-addon (push rendered YAML; optionally enqueue an OTA build). Three-pane web UI for manual editing (board,
-fleet, requirements, warnings, params, connections; add/remove
-components with auto-wiring and auto-bus). USB device bootstrap
-(esptool-js over WebSerial) seeds a fresh design from a plugged-in ESP.
-**Agent** sidebar drives the design via natural language. **Solve pins**
-auto-assigns every unbound connection: gpio with empty pin → a board
-GPIO matching the library pin's capability; bus pins → a matching
-design bus; expander pins → next free slot on the first io_expander.
-Conflicts and current-budget overruns surface as banners.
-Set `ANTHROPIC_API_KEY` in the API server's environment to enable the
-agent. See [`web/README.md`](web/README.md) for UI details and
-[`START.md`](START.md) for the full roadmap.
+`v0.9.0` — first tagged release. End-to-end pipeline from
+`design.json` through ESPHome YAML + fleet push + parametric
+enclosure + KiCad schematic. Ships as a single Docker image you can
+self-host (`ghcr.io/moellere/esphome-studio`). Three-pane web UI
+covers manual editing; a Claude tool-using agent drives the design
+via natural language; a CSP solver auto-assigns pins; a port-
+compatibility checker catches boot-strap, ADC2/WiFi, voltage, and
+locked-pin issues before YAML render.
+
+See [`CHANGELOG.md`](CHANGELOG.md) for the long form per release and
+[`START.md`](START.md) for design notes / future scope.
+
+## What it does
+
+- **Design.** Web UI inspector (board, fleet metadata, components,
+  buses, connections, requirements, warnings). Add components by
+  picking a capability (**Add by function**) — the recommender ranks
+  library matches against use cases. Drag-and-drop pinout for
+  component-to-board pin assignment. Pin locks per role. Bus editor
+  with rename propagation + inline compatibility warnings. USB
+  bootstrap from a plugged-in ESP via WebSerial + esptool-js. Saved
+  designs at `designs/<id>.json` with a **Saved** tab + **New design**
+  dialog.
+- **Validate.** CSP pin solver assigns every unbound connection with
+  capability-aware fallback (boot strap pins de-prioritised; ADC1
+  preferred over ADC2 on classic ESP32). Port-compatibility checker
+  flags input-only-as-output errors, boot-strap risks, serial console
+  reuse, voltage limits, ADC2/WiFi conflicts, locked-pin mismatches.
+  Strict mode (header toggle) promotes warn/error compat to render
+  errors as a pre-deploy gate.
+- **Generate.** Pure functions over `design.json` + the static
+  library produce ESPHome YAML, ASCII wiring diagrams + BOM, a
+  parametric OpenSCAD enclosure (`.scad`), and a SKiDL Python script
+  the user runs locally to produce a `.kicad_sch`. Bundled examples
+  pinned as goldens.
+- **Deploy.** **Push to fleet** ships the YAML to a running
+  [`weirded/distributed-esphome`](https://github.com/weirded/distributed-esphome)
+  ha-addon over Bearer-token HTTP; optional `compile: true` enqueues
+  an OTA build with live log streaming (Server-Sent Events). **Strict
+  mode** refuses the push when warn/error compat issues remain.
+- **Discover enclosures.** Generate a parametric `.scad` shell from
+  the board's mount-hole + USB-port metadata, or search community
+  models on Thingiverse (`THINGIVERSE_API_KEY`).
+- **Self-host.** Single multi-arch Docker image
+  (`linux/amd64` + `linux/arm64`). FastAPI serves API + SPA from one
+  process. Kubernetes manifest, docker-compose recipe, and an nginx
+  production layout in [`deploy/`](deploy/).
 
 ## Quickstart
 
@@ -33,20 +65,33 @@ agent. See [`web/README.md`](web/README.md) for UI details and
 docker run --rm -p 8765:8765 \
   -e ANTHROPIC_API_KEY=sk-ant-... \
   -v studio-data:/data \
-  ghcr.io/moellere/esphome-studio:latest
+  ghcr.io/moellere/esphome-studio:v0.9.0
 ```
 
 Open <http://localhost:8765>. The image bundles the FastAPI server +
 the built web UI in one process; `/api/*` is the JSON API,
 `/` is the SPA. `/data` holds the agent's session log + saved
-designs across upgrades. `ANTHROPIC_API_KEY` enables the agent;
-`FLEET_URL`/`FLEET_TOKEN` enable the distributed-esphome handoff;
-`THINGIVERSE_API_KEY` enables enclosure search. All optional --
-the studio runs without any of them, just with those features
-gated off.
+designs across upgrades.
 
-For an nginx-front production recipe, see
-[`deploy/README.md`](deploy/README.md).
+Available tags:
+
+| Tag | What it tracks |
+|---|---|
+| `:v0.9.0` / `:0.9.0` / `:0.9` / `:latest` | the v0.9.0 release |
+| `:main` | latest commit on `main` (rolling) |
+| `:sha-<short>` | a specific commit |
+
+All four feature-gating env vars are optional — the studio runs
+without any of them, just with the corresponding feature turned off:
+
+| Env var | What it gates |
+|---|---|
+| `ANTHROPIC_API_KEY` | the agent (`/agent/*` endpoints + the chat sidebar) |
+| `FLEET_URL` + `FLEET_TOKEN` | distributed-esphome push (`/fleet/*`) |
+| `THINGIVERSE_API_KEY` | enclosure search (`/enclosure/search`) |
+
+For Kubernetes, see [`deploy/k8s.yaml`](deploy/k8s.yaml). For an
+nginx-front compose recipe, see [`deploy/README.md`](deploy/README.md).
 
 ### CLI
 
@@ -96,7 +141,7 @@ python -m studio.api
 and the addon answers a probe; otherwise the UI surfaces the specific
 reason (URL missing, unauthorized, unreachable).
 
-### Web UI
+### Web UI (dev)
 
 ```sh
 # In one terminal:
@@ -107,11 +152,27 @@ cd web && npm install && npm run dev
 ```
 
 Open <http://localhost:5173>. Vite proxies `/api/*` to the studio API,
-so no CORS plumbing in dev. From the inspector you can edit the board,
-fleet metadata, requirements, warnings, per-component params, and
-per-connection targets (rail / gpio / bus / expander_pin); the YAML
-and ASCII update in real time. Header buttons: **Reset** reverts to
-the loaded example; **Download JSON** saves the modified design to disk.
+so no CORS plumbing in dev. The same web UI is served at `/` from the
+production Docker image; the dev server is only useful when you're
+editing UI code yourself.
+
+Inspector surfaces:
+
+- **Design pane** — board picker, fleet metadata (device_name, tags,
+  secrets refs), requirements, warnings, components list (add /
+  remove with auto-wiring), buses (add / rename / edit pin slots /
+  remove), per-bus + design-level compatibility warnings.
+- **Component-instance pane** — params (form generated from each
+  library entry's `params_schema`), connections (per-row editor with
+  rail / gpio / bus / expander_pin / component target kinds),
+  Form ⇄ Pinout view toggle for drag-and-drop pin assignment, 🔓/🔒
+  per-row pin lock.
+
+Header buttons: **New design**, **Reset**, **Save**, **Download JSON**,
+**Solve pins**, **strict** (toggle), **Connect device** (USB
+bootstrap), **Add by function** (capability picker), **Schematic**
+(KiCad export), **Enclosure** (parametric `.scad` + Thingiverse
+search), **Push to fleet**.
 
 Useful endpoints:
 
@@ -136,9 +197,13 @@ Useful endpoints:
 | `GET`  | `/fleet/jobs/{run_id}/log?offset=N` | poll the addon's build log for a compile run; returns `{log, offset, finished}` |
 | `GET`  | `/fleet/jobs/{run_id}/log/stream` | Server-Sent Events relay over the same log endpoint; ~300ms cadence, exits with `event: done` when the build finishes |
 
-The server is a thin layer over `studio.generate` — same code path the CLI
-uses, no server-side state. Permissive CORS for `localhost:5173` /
-`localhost:3000` so the 0.3 web UI can hit it during development.
+The HTTP API is a thin layer over the studio's pure-function modules
+(`studio.generate`, `studio.csp`, `studio.recommend`, `studio.fleet`,
+`studio.enclosure`, `studio.kicad`). Server state is limited to the
+agent session log + the saved-design store — both file-backed under
+`/data` (via `SESSIONS_DIR` / `DESIGNS_DIR`). Permissive CORS for
+`localhost:5173` / `localhost:3000` so the dev Vite server can hit
+it without a proxy.
 
 ## Examples
 
@@ -167,18 +232,28 @@ Generated artifacts for each are pinned as goldens in
    design.json  ── single source of truth (JSON-Schema-validated)
         │
         ▼
-  ┌─ studio.model      pydantic models mirroring the schema
-  ├─ studio.library    loads boards/ + components/ YAML
-  └─ studio.generate   pure functions:
-       ├─ yaml_gen     design + library → ESPHome YAML
-       └─ ascii_gen    design + library → wiring diagram + BOM
+  ┌─ studio.model         pydantic models mirroring the schema
+  ├─ studio.library       loads boards/ + components/ YAML
+  ├─ studio.generate      design + library → ESPHome YAML + ASCII
+  ├─ studio.csp           pin solver + port-compatibility checker
+  ├─ studio.recommend     deterministic capability ranking
+  ├─ studio.agent         Claude tool-using agent + session store
+  ├─ studio.designs       file-backed designs/<id>.json store
+  ├─ studio.fleet         distributed-esphome HTTP client
+  ├─ studio.enclosure     parametric OpenSCAD + Thingiverse search
+  ├─ studio.kicad         SKiDL Python script emitter
+  └─ studio.api           FastAPI HTTP layer (mounts everything above)
+                          serve.py adds the production wrapper:
+                          API at /api/*, web bundle at /
 ```
 
 Generators are pure functions of `design.json` + the static library — no
 artifact-to-document round-trips. Library files in `library/components/`
 carry the electrical metadata ESPHome doesn't (pin roles, voltage ranges,
 current draw, decoupling caps, pull-up requirements) plus a Jinja2 template
-that renders the ESPHome YAML for that component.
+that renders the ESPHome YAML for that component, an `enclosure:` block
+the OpenSCAD generator reads, and a `kicad:` block the schematic exporter
+reads.
 
 ## Library
 
@@ -281,26 +356,40 @@ for the hybrid plan.
 ## Layout
 
 ```
-schema/                   JSON Schema for design.json (source of truth)
-library/boards/           board manifests (pinout, rails, framework)
-library/components/       component manifests (electrical + ESPHome template)
-studio/                   python: model, library loader, generators, CLI
-examples/                 sample design.json files
-tests/                    pytest suite + golden artifacts
-START.md                  vision, decisions, phase plan
-CLAUDE.md                 working conventions for both Claude and humans
+schema/                  JSON Schema for design.json (source of truth)
+library/boards/          board manifests (pinout, rails, framework, enclosure, kicad)
+library/components/      component manifests (electrical + ESPHome + enclosure + kicad)
+studio/                  python package — see Architecture above for the module map
+web/                     React 19 + Vite + Tailwind v4 SPA
+examples/                bundled design.json files (every one pinned by goldens)
+tests/                   pytest + golden artifacts; vitest tests under web/src
+deploy/                  k8s.yaml, docker-compose.yml, nginx.conf for self-hosting
+Dockerfile               multi-stage build for the published GHCR image
+.github/workflows/       GHA workflow that publishes ghcr.io/.../esphome-studio
+CHANGELOG.md             per-release feature deltas
+START.md                 vision, decisions, phase plan
+CLAUDE.md                working conventions for both Claude and humans
 ```
 
 ## Tests
 
 ```sh
-python -m pytest          # full suite
+python -m pytest          # ~297 cases, ~10s
 python -m ruff check .    # lint
+cd web && npx vitest run  # ~125 cases, ~5s (vitest + jsdom)
 ```
 
-Golden tests pin the generator output for every example. Regenerate goldens
-with the CLI when output legitimately changes; commit the new files in the
-same diff as the code change.
+Golden tests pin the generator output for every bundled example.
+Regenerate goldens with the CLI when output legitimately changes;
+commit the new files in the same diff as the code change. The web
+suite covers `lib/design.ts` plus React components (BusList,
+ConnectionForm, EnclosureDialog, Inspector, CapabilityPickerDialog,
+PinoutView, PushToFleetDialog, SchematicDialog) via React Testing
+Library + jsdom; network surfaces are mocked at the api/client
+boundary so the suite stays offline.
+
+The GitHub Actions workflow runs the full suite + multi-arch image
+build on every PR + merge to main.
 
 ## Roadmap (compressed)
 
@@ -309,15 +398,19 @@ same diff as the code change.
 - **0.3** ✅ Studio web UI v1 — three-pane shell + form-based editing
 - **0.4** ✅ USB device bootstrap (WebSerial + esptool-js)
 - **0.5** ✅ Agent layer (Claude tool-using; sessions in `sessions/<id>.jsonl`)
-- **0.6** ✅ CSP solver — auto-assign unbound pins, detect conflicts and budget overruns; port-compatibility validation (boot straps, serial pins, input-only, A0 voltage cap)
 - **0.5+** ✅ streaming agent responses + recommendation mode
-- **0.6+** ✅ server-side design persistence + **New design** button
-- **0.7** ✅ distributed-esphome handoff — push device + YAML to ha-addon, optional compile
-- **0.8** Enclosure suggestions
-- **Future** KiCad schematic + PCB layout
+- **0.6** ✅ CSP solver — auto-assign unbound pins, detect conflicts + budget overruns; port-compatibility validation (boot straps, serial pins, input-only, A0 voltage cap, ADC2/WiFi conflict, locked-pin invariants)
+- **0.6+** ✅ server-side design persistence + **New design** dialog, capability-driven **Add by function** picker, pin-lock UI, bus editor (rename propagation + inline compat), drag-and-drop pinout, strict-mode toggle
+- **0.7** ✅ distributed-esphome handoff — push device + YAML to ha-addon, optional compile, build-log polling + SSE streaming, strict-only push gate
+- **0.8** ✅ Enclosure suggestions — parametric OpenSCAD generator + Thingiverse search relay
+- **0.9** ✅ KiCad schematic export — SKiDL Python emitter; 100% library `kicad:` mapping
+- **Deployment** ✅ Docker single-image (multi-arch GHCR) + Kubernetes manifest + nginx compose recipe
+- **1.0** KiCad PCB layout — Freerouting + Gerber + JLCPCB CPL/BOM export
+- **Future** non-root container image (PSS Restricted), multi-writer state backend (HA replicas)
 
 Full plan with decisions, schemas, and per-phase scope lives in
-[`START.md`](START.md).
+[`START.md`](START.md). Per-release feature deltas live in
+[`CHANGELOG.md`](CHANGELOG.md).
 
 ## Contributing
 
