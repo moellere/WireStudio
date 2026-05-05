@@ -52,3 +52,10 @@ params_schema:
     default: "60s"
 
 notes: "Pressure-only Bosch sibling of the BME280; same I2C protocol, no humidity channel. 3V3 only. SDO pin selects the I2C address (0x76 GND, 0x77 VCC)."
+# KiCad symbol mapping (0.9). BMP280 in Sensor lib; same VDD/GND/SDA/SCL
+# pinout as BME280 minus humidity.
+kicad:
+  symbol_lib: Sensor
+  symbol: BMP280
+  pin_map:
+    VCC: VDD

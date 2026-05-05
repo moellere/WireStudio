@@ -44,3 +44,11 @@ params_schema:
     default: "60s"
 
 notes: "Single-wire bidirectional protocol. DHT22 / AM2302 modules ship with the 10K pull-up populated; bare DHT11s do not. Polling faster than 1Hz returns stale data and the ESPHome platform will warn."
+# KiCad symbol mapping (0.9). DHT11 + DHT22 share a symbol + 4-pin
+# breakout; the module form omits the unused NC pin.
+kicad:
+  symbol_lib: Sensor
+  symbol: DHT11
+  value: DHT11/DHT22
+  pin_map:
+    VCC: VDD

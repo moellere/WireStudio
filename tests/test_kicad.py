@@ -90,13 +90,21 @@ def test_known_part_emits_symbol_and_footprint(lib):
 
 
 def test_unmapped_component_falls_back_to_placeholder(lib):
-    """Construct a synthetic design referencing an unmapped library
-    entry and verify the placeholder + TODO comment land in the output."""
-    # `apa102` is in the library but doesn't have a kicad: block in
-    # this PR. If the assertion ever fails because someone added one,
-    # swap to another unmapped entry.
-    if lib.component("apa102").kicad is not None:
-        pytest.skip("apa102 is now mapped; pick another unmapped library_id")
+    """Construct a synthetic design referencing a fictional library
+    entry and verify the placeholder + TODO comment land in the
+    output. We monkeypatch the library to inject an unmapped entry
+    rather than relying on a real-but-unmapped one (the latter
+    drifts as new mappings land)."""
+    from copy import deepcopy
+    from studio.library import LibraryComponent
+    fake = LibraryComponent(
+        id="zz_fake_unmapped",
+        name="Fake unmapped component",
+        category="sensor",
+    )
+    # Mutate a deep-copied library so the global default isn't touched.
+    lib_local = deepcopy(lib)
+    lib_local._components["zz_fake_unmapped"] = fake
     design = {
         "schema_version": "0.1",
         "id": "fallback",
@@ -105,16 +113,38 @@ def test_unmapped_component_falls_back_to_placeholder(lib):
         "fleet": {"device_name": "fallback", "tags": []},
         "power": {"supply": "usb-5v", "rail_voltage_v": 5.0, "budget_ma": 500},
         "components": [
-            {"id": "rgb1", "library_id": "apa102", "label": "RGB", "params": {}},
+            {"id": "x1", "library_id": "zz_fake_unmapped", "label": "X", "params": {}},
         ],
         "buses": [],
         "connections": [],
         "requirements": [],
         "warnings": [],
     }
-    script = generate_skidl(Design.model_validate(design), lib)
-    assert "TODO: apa102" in script
+    script = generate_skidl(Design.model_validate(design), lib_local)
+    assert "TODO: zz_fake_unmapped" in script
     assert 'Part("Connector_Generic", "Conn_01x04"' in script
+
+
+def test_every_library_entry_has_a_kicad_block(lib):
+    """Going-forward guardrail: every component + board ships with a
+    `kicad:` mapping. New library entries that miss the block fall
+    through to the TODO placeholder, which still works but is sub-
+    optimal -- this test surfaces the gap loudly so the author either
+    adds a block or explicitly opts out by deleting this assertion."""
+    from pathlib import Path
+    unmapped_components = [c.id for c in lib.list_components() if c.kicad is None]
+    unmapped_boards = [
+        p.stem for p in Path(__file__).resolve().parent.parent.glob("library/boards/*.yaml")
+        if lib.board(p.stem).kicad is None
+    ]
+    assert unmapped_components == [], (
+        f"Components missing a `kicad:` block: {unmapped_components}. "
+        f"Add one referencing the matching kicad-symbols entry, or a "
+        f"generic Connector_Generic header with the part name as `value:`."
+    )
+    assert unmapped_boards == [], (
+        f"Boards missing a `kicad:` block: {unmapped_boards}."
+    )
 
 
 # ---------------------------------------------------------------------------

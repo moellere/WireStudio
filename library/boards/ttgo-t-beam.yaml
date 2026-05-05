@@ -67,3 +67,9 @@ gpio_capabilities:
   GPIO36: [gpio, adc, adc1, input_only, no_pull_internal]
   GPIO38: [gpio, button, input_only, no_pull_internal]
   GPIO39: [gpio, adc, adc1, input_only, no_pull_internal]
+# KiCad symbol mapping (0.9). 28-pin board (LoRa + GPS + battery
+# manager); modelled as a 2x14 dual-row header.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_02x14_Odd_Even
+  value: TTGO T-Beam

@@ -41,3 +41,9 @@ gpio_capabilities:
   GPIO32: [gpio, adc, adc1, pwm]
   GPIO33: [gpio, adc, adc1, pwm, i2s_lrclk]
   GPIO39: [gpio, button, adc, adc1, input_only, no_pull_internal]
+# KiCad symbol mapping (0.9). M5Stack Atom Lite/Matrix has a 9-pin
+# bottom header (HY2.0 + GPIO).
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x09
+  value: M5Stack Atom

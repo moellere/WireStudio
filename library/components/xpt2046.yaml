@@ -57,3 +57,9 @@ params_schema:
     description: "{ x_min: int, x_max: int, y_min: int, y_max: int } -- raw ADC values for the four corners of the touch panel."
 
 notes: "Lives on a typical 3.5\" Pi-style display alongside the ILI9486 panel and shares the same SPI bus with its own CS. Calibration values vary panel-to-panel: log raw values in a lambda for one device of each model, then bake them into the library entry's params_schema defaults. The interrupt pin should support edge interrupts (avoid ESP8266 GPIO16)."
+# KiCad symbol mapping (0.9). Resistive touch controller; 5-pin SPI
+# breakout (VCC, GND, CLK, MOSI, MISO with optional CS, IRQ, T_DO).
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x05
+  value: XPT2046

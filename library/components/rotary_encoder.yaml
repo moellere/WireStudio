@@ -68,3 +68,9 @@ params_schema:
     type: array
 
 notes: "Both pins must support edge interrupts -- on the ESP8266 D0/GPIO16 does not. KY-040 modules ship with the pull-ups populated; bare EC11 encoders need external 10K pull-ups on both A and B. The integrated pushbutton on KY-040s should be modeled as a separate `gpio_input` component with `device_class: button`."
+# KiCad symbol mapping (0.9). Standard 5-pin incremental encoder with
+# integrated push switch (KY-040 / EC11-style breakout).
+kicad:
+  symbol_lib: Switch
+  symbol: Rotary_Encoder_Switch
+  value: Rotary encoder

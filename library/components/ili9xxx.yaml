@@ -69,3 +69,10 @@ params_schema:
     default: "5s"
 
 notes: "MISO is required only if your code reads back from the panel (touch-on-the-same-bus boards do, the typical ESPHome lambda flow does not). The 3.5\" Pi-style ILI9486 panels need an `init_sequence` override -- copy from the in-tree 35display.yaml for the Waveshare/Adafruit-style boards. Backlight on most clones is a passive 5V LED; tie it to a GPIO via `backlight_pin` in a `light:` block if you need PWM dimming."
+# KiCad symbol mapping (0.9). Generic header for the ILI9341 / 9488 /
+# 9486 family of SPI displays. Pin count varies (8-14) by breakout;
+# 14 is the upper bound that covers most commodity boards.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x14
+  value: ILI9xxx

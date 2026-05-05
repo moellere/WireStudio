@@ -62,3 +62,9 @@ params_schema:
     description: "Standard ESPHome sensor filters; commonly `multiply: 0.5` for 2-pulse-per-rev fan tachs."
 
 notes: "On ESP8266 the pulse counter is software-driven and tops out around ~10kHz. ESP32 uses the dedicated PCNT peripheral and is good for several hundred kHz. For 4-pin PWM fan tachs, two pulses are produced per revolution -- divide by 2 with a `multiply: 0.5` filter to read RPM."
+# KiCad symbol mapping (0.9). 2-pin header captures the pulse source
+# (water meter reed switch, anemometer, encoder, etc.).
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x02
+  value: Pulse source

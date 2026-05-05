@@ -56,3 +56,11 @@ params_schema:
     type: array
 
 notes: "DotStar-class strips use a 2-wire (data + clock) SPI-style protocol, so they don't suffer from the 800kHz timing constraints of WS2812B. They share an SPI bus only awkwardly because they don't have a CS pin -- give them dedicated GPIOs rather than mixing on a bus with other SPI devices. Current rises ~60mA per LED at full white; a 1000uF bulk cap close to the strip is recommended above ~8 LEDs."
+# KiCad symbol mapping (0.9). APA102 strips ship as 4-wire pigtails
+# (VCC, GND, DATA, CLK); the chip itself is also in some KiCad libs as
+# `LED:APA102` but the pigtail header captures what the user actually
+# solders to.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x04
+  value: APA102

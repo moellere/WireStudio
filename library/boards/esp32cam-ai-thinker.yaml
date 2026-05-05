@@ -70,3 +70,9 @@ gpio_capabilities:
   GPIO35: [gpio, camera_data, adc, adc1, input_only, no_pull_internal]
   GPIO36: [gpio, camera_data, adc, adc1, input_only, no_pull_internal]
   GPIO39: [gpio, camera_data, adc, adc1, input_only, no_pull_internal]
+# KiCad symbol mapping (0.9). 16-pin AI-Thinker breakout; modelled
+# as a 2x8 dual-row header.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_02x08_Odd_Even
+  value: AI-Thinker ESP32-CAM
