@@ -9,17 +9,36 @@ which handles compile + OTA deploy.
 
 ## Status
 
-`v0.9.0` — first tagged release. End-to-end pipeline from
-`design.json` through ESPHome YAML + fleet push + parametric
-enclosure + KiCad schematic. Ships as a single Docker image you can
-self-host (`ghcr.io/moellere/esphome-studio`). Three-pane web UI
-covers manual editing; a Claude tool-using agent drives the design
-via natural language; a CSP solver auto-assigns pins; a port-
-compatibility checker catches boot-strap, ADC2/WiFi, voltage, and
-locked-pin issues before YAML render.
+`v0.9.0` — first tagged release. The studio has wide surface area
+(YAML, schematic, enclosure, agent, fleet handoff, web UI) and a
+narrow set of things actually verified against upstream tools. This
+section is honest about which is which, ordered by how much it
+matters that it works.
 
-See [`CHANGELOG.md`](CHANGELOG.md) for the long form per release and
-[`START.md`](START.md) for design notes / future scope.
+Tiers, in priority order:
+
+| Tier | Area | What it does | Verified by |
+|---|---|---|---|
+| **Verified** | ESPHome YAML production | render `design.json` → ESPHome YAML | `esphome config` passes on every bundled example, every PR ([gate](.github/workflows/esphome-config.yml)) |
+| **Verified** | CSP pin solver + compat checker | assign legal pins, surface boot-strap / ADC2-WiFi / voltage / locked-pin issues | unit tests + property checks in `tests/test_pin_solver.py` + `tests/test_compatibility.py` |
+| **Verified** | Fleet handoff | push YAML to `distributed-esphome` ha-addon, optional compile + log relay | round-trip tests in `tests/test_fleet.py` |
+| **Works (lighter checks)** | KiCad schematic | emit a SKiDL Python script the user runs locally | unit tests assert the script is well-formed Python with expected nets; **not** verified by opening in KiCad |
+| **Works (lighter checks)** | Parametric enclosure | OpenSCAD `.scad` from board mount-hole metadata | unit tests + manual-print iteration; not verified by an OpenSCAD parser in CI |
+| **Experimental** | Thingiverse search relay | rank community models for a board | smoke-tested; depends on a third-party search API that ranks unevenly |
+| **Experimental** | Agent (Claude tool-using) | natural-language design driving | works in practice; tool surface is small; no auto-eval against task list yet |
+| **Deferred** | KiCad PCB layout | Freerouting + Gerber + JLCPCB CPL/BOM | 1.0+, not started |
+
+The **Verified** tier is the bar the project is asking to be judged
+on. Everything else is offered with the caveat that's spelled out in
+the table.
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the bar a change has to
+clear before merging, [`CHANGELOG.md`](CHANGELOG.md) for per-release
+deltas, and [`START.md`](START.md) for the longer-form design notes.
+
+Tested against ESPHome **`~=2025.5`** (pinned in
+`.github/workflows/esphome-config.yml` + bumped deliberately). When
+that pin moves, this line moves with it.
 
 ## What it does
 
@@ -366,18 +385,29 @@ tests/                   pytest + golden artifacts; vitest tests under web/src
 deploy/                  k8s.yaml, docker-compose.yml, nginx.conf for self-hosting
 Dockerfile               multi-stage build for the published GHCR image
 .github/workflows/       GHA workflow that publishes ghcr.io/.../esphome-studio
+scripts/                 dev helpers (currently: examples → `esphome config` gate)
 CHANGELOG.md             per-release feature deltas
 START.md                 vision, decisions, phase plan
 CLAUDE.md                working conventions for both Claude and humans
+CONTRIBUTING.md          substantive bar a change has to clear (the YAML gate, etc.)
 ```
 
 ## Tests
 
 ```sh
-python -m pytest          # ~297 cases, ~10s
-python -m ruff check .    # lint
-cd web && npx vitest run  # ~125 cases, ~5s (vitest + jsdom)
+python -m pytest                          # ~297 cases, ~10s
+python -m ruff check .                    # lint
+cd web && npx vitest run                  # ~125 cases, ~5s (vitest + jsdom)
+pip install 'esphome~=2025.5'
+python scripts/check_examples.py          # the YAML gate -- every example through `esphome config`
 ```
+
+The `esphome config` gate is the headline test: it renders every
+bundled example through the studio and runs upstream ESPHome's own
+validator against the output. Anything the studio emits has to
+round-trip through that gate, and the GitHub Actions workflow
+([`.github/workflows/esphome-config.yml`](.github/workflows/esphome-config.yml))
+runs it on every PR.
 
 Golden tests pin the generator output for every bundled example.
 Regenerate goldens with the CLI when output legitimately changes;
@@ -388,35 +418,62 @@ PinoutView, PushToFleetDialog, SchematicDialog) via React Testing
 Library + jsdom; network surfaces are mocked at the api/client
 boundary so the suite stays offline.
 
-The GitHub Actions workflow runs the full suite + multi-arch image
-build on every PR + merge to main.
+The GitHub Actions workflow runs the YAML gate + the full suite +
+multi-arch image build on every PR + merge to main.
 
-## Roadmap (compressed)
+## Roadmap
 
-- **0.1** ✅ pipeline + library scaffolding
-- **0.2** ✅ HTTP API (FastAPI) — same generators, exposed over JSON
-- **0.3** ✅ Studio web UI v1 — three-pane shell + form-based editing
-- **0.4** ✅ USB device bootstrap (WebSerial + esptool-js)
-- **0.5** ✅ Agent layer (Claude tool-using; sessions in `sessions/<id>.jsonl`)
-- **0.5+** ✅ streaming agent responses + recommendation mode
-- **0.6** ✅ CSP solver — auto-assign unbound pins, detect conflicts + budget overruns; port-compatibility validation (boot straps, serial pins, input-only, A0 voltage cap, ADC2/WiFi conflict, locked-pin invariants)
-- **0.6+** ✅ server-side design persistence + **New design** dialog, capability-driven **Add by function** picker, pin-lock UI, bus editor (rename propagation + inline compat), drag-and-drop pinout, strict-mode toggle
-- **0.7** ✅ distributed-esphome handoff — push device + YAML to ha-addon, optional compile, build-log polling + SSE streaming, strict-only push gate
-- **0.8** ✅ Enclosure suggestions — parametric OpenSCAD generator + Thingiverse search relay
-- **0.9** ✅ KiCad schematic export — SKiDL Python emitter; 100% library `kicad:` mapping
-- **Deployment** ✅ Docker single-image (multi-arch GHCR) + Kubernetes manifest + nginx compose recipe
-- **1.0** KiCad PCB layout — Freerouting + Gerber + JLCPCB CPL/BOM export
-- **Future** multi-writer state backend (HA replicas)
+Reorganised by priority — what's worth working on next, ordered by
+how much it raises the floor on whether the studio is actually
+useful. The previous "ship more surface area" roadmap is preserved
+in [`CHANGELOG.md`](CHANGELOG.md) (per-release deltas) and
+[`START.md`](START.md) (decisions + phase scope).
 
-Full plan with decisions, schemas, and per-phase scope lives in
-[`START.md`](START.md). Per-release feature deltas live in
-[`CHANGELOG.md`](CHANGELOG.md).
+**Priority 1 — YAML production correctness.** *Active.* The single
+non-negotiable bar: every artifact the studio emits round-trips
+through upstream `esphome config`. Done so far: `esphome config` CI
+gate over every bundled example; pinned ESPHome version called out
+in this README + workflow; CONTRIBUTING.md establishes the gate as
+the merge bar. Next: real `esphome compile` smoke for one example;
+component-coverage matrix (which components have an example that
+validates) so additions are forced through the gate.
+
+**Priority 2 — Wiring schema correctness.** *Verified-light.* SKiDL
+emitter + 100% library `kicad:` coverage shipped. Honest gap: the
+output is unit-tested as Python text, not opened in KiCad. Next:
+container-side KiCad CLI in CI to actually open + render the
+generated schematic; pin-solver property tests on randomized
+designs; compatibility-checker fuzzing.
+
+**Priority 3 — Enclosures.** *Lower priority.* Parametric OpenSCAD
+generator + Thingiverse search relay shipped. Open question: keep
+investing here, or outsource to e.g.
+[YAPP_Box](https://github.com/mrWheel/YAPP_Box) and integrate
+instead of reimplementing? Decision deferred until P1 + P2 are
+tighter.
+
+**Priority 4 — PCB layout.** *Deferred to 1.0+.* No work in flight;
+not adding surface here until P1 is rock solid.
+
+**Plumbing — already shipped.** API (`0.2`), web UI (`0.3` +
+`0.6+`), USB bootstrap (`0.4`), agent (`0.5` + streaming), CSP
+solver (`0.6`), fleet handoff (`0.7`), enclosure (`0.8`), KiCad
+schematic (`0.9`), Docker single-image deploy + K8s manifest. See
+[`CHANGELOG.md`](CHANGELOG.md) for the per-release feature deltas.
+
+**Future** — multi-writer state backend so the studio can run as a
+HA replica; agent eval harness against a task list; ESPHome version
+matrix in CI (last 2 stables) so we can call out which components
+work where.
 
 ## Contributing
 
-See [`CLAUDE.md`](CLAUDE.md) for working conventions (concise prose, no
-emojis in code/commits, no premature abstraction, default-to-no-comments,
-boundary-only validation).
+[`CONTRIBUTING.md`](CONTRIBUTING.md) is the substantive bar — what
+"working" means for the artifacts the studio produces, including
+the `esphome config` gate every PR has to clear. [`CLAUDE.md`](CLAUDE.md)
+covers the prose / commit / comment conventions (concise, no emojis,
+default-to-no-comments, boundary-only validation, no premature
+abstraction).
 
 ## License
 
