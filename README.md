@@ -19,7 +19,7 @@ Tiers, in priority order:
 
 | Tier | Area | What it does | Verified by |
 |---|---|---|---|
-| **Verified** | ESPHome YAML production | render `design.json` → ESPHome YAML | `esphome config` passes on every bundled example, every PR ([gate](.github/workflows/esphome-config.yml)) |
+| **Verified** | ESPHome YAML production | render `design.json` → ESPHome YAML | `esphome config` passes on every bundled example, every PR ([gate](.github/workflows/esphome-config.yml)); nightly `esphome compile` smoke against a representative example ([compile](.github/workflows/esphome-compile.yml)) |
 | **Verified** | CSP pin solver + compat checker | assign legal pins, surface boot-strap / ADC2-WiFi / voltage / locked-pin issues | unit tests + property checks in `tests/test_pin_solver.py` + `tests/test_compatibility.py` |
 | **Verified** | Fleet handoff | push YAML to `distributed-esphome` ha-addon, optional compile + log relay | round-trip tests in `tests/test_fleet.py` |
 | **Works (lighter checks)** | KiCad schematic | emit a SKiDL Python script the user runs locally | unit tests assert the script is well-formed Python with expected nets; **not** verified by opening in KiCad |
@@ -400,6 +400,7 @@ python -m ruff check .                    # lint
 cd web && npx vitest run                  # ~125 cases, ~5s (vitest + jsdom)
 pip install 'esphome==2025.12.7'
 python scripts/check_examples.py          # the YAML gate -- every example through `esphome config`
+python scripts/check_examples.py --compile garage-motion    # the compile-smoke; slow (~10min cold)
 ```
 
 The `esphome config` gate is the headline test: it renders every
@@ -407,7 +408,21 @@ bundled example through the studio and runs upstream ESPHome's own
 validator against the output. Anything the studio emits has to
 round-trip through that gate, and the GitHub Actions workflow
 ([`.github/workflows/esphome-config.yml`](.github/workflows/esphome-config.yml))
-runs it on every PR.
+runs it on every PR. A nightly compile-smoke
+([`.github/workflows/esphome-compile.yml`](.github/workflows/esphome-compile.yml))
+goes one level deeper -- it runs `esphome compile` against a
+representative example so we catch upstream toolchain / codegen
+regressions even when no code has changed.
+
+To run the same gate before every push, install the pre-commit
+hooks once:
+
+```sh
+pip install pre-commit
+pre-commit install --hook-type pre-push
+```
+
+After that, `git push` runs the gate locally and aborts on failure.
 
 Golden tests pin the generator output for every bundled example.
 Regenerate goldens with the CLI when output legitimately changes;

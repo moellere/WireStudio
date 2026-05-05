@@ -1,0 +1,87 @@
+name: esphome-compile
+
+# Nightly compile smoke. The `esphome-config` gate validates that the
+# studio's YAML matches ESPHome's schema; this workflow goes one level
+# deeper and runs `esphome compile` against a representative example,
+# which exercises the C++ codegen + PlatformIO toolchain.
+#
+# Catches what `esphome config` can't:
+#   - a new PlatformIO toolchain release breaks the build
+#   - a new ESPHome release accepts our YAML but its codegen breaks
+#   - a python:3.11-slim security update knocks out a build dep
+#
+# Why nightly only:
+#   - first-time toolchain download is ~250MB and the build itself
+#     adds several minutes. Per-PR is too heavy.
+#   - the failures it catches are upstream churn, not contributor
+#     churn -- "did the world move under us overnight" is the right
+#     question to ask once a day.
+#
+# Triggers:
+#   - schedule: 11:00 UTC daily (after the weekly esphome-config
+#     schedule run at 10:00 UTC Mondays).
+#   - workflow_dispatch: manual rerun, with an optional `example`
+#     input so you can compile-smoke a specific design ad-hoc.
+
+on:
+  schedule:
+    - cron: '0 11 * * *'   # 11:00 UTC daily
+  workflow_dispatch:
+    inputs:
+      example:
+        description: 'Example stem to compile (default: garage-motion -- the simplest representative)'
+        required: false
+        default: 'garage-motion'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: esphome-compile-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    # Cold cache (first run after a pin bump or cache eviction):
+    # toolchain pull + first compile is ~10-12min for ESP32 Arduino.
+    # Warm cache: ~2-3min. 25min is the safety margin.
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install studio + ESPHome
+        # Same pinned ESPHome the config gate uses. If you bump one,
+        # bump both in the same PR.
+        run: |
+          pip install -e .
+          pip install 'esphome==2025.12.7'
+
+      - name: Cache PlatformIO + ESPHome build artifacts
+        # The toolchain pull dominates wall-clock on a cold run.
+        # Keying on the ESPHome pin means a deliberate bump invalidates
+        # the cache, but day-to-day runs reuse it.
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            ~/.cache/pip
+          key: pio-${{ runner.os }}-esphome-2025.12.7
+          restore-keys: |
+            pio-${{ runner.os }}-esphome-
+
+      - name: Print resolved ESPHome version
+        run: esphome version
+
+      - name: Compile smoke
+        # `--compile` swaps the inner subcommand from `esphome config`
+        # to `esphome compile`. Same secrets-stub + render path as the
+        # config gate; just runs the heavier subcommand.
+        run: |
+          example="${{ inputs.example || 'garage-motion' }}"
+          python scripts/check_examples.py --compile "$example"
