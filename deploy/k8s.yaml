@@ -73,6 +73,13 @@ spec:
           imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: false
+            # Immutable rootfs: the studio writes only to /data (the PVC)
+            # and /tmp (Python stdlib tempfile defaults). Both are mounted
+            # below as separate volumes; the rest of the rootfs is read-only
+            # which trips Trivy's KSV-0014 if missing.
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
           ports:
             - { name: http, containerPort: 8765 }
           env:
@@ -105,6 +112,10 @@ spec:
                   optional: true
           volumeMounts:
             - { name: data, mountPath: /data }
+            # Python's tempfile defaults expect a writable /tmp; an
+            # emptyDir keeps it writable while the rest of the rootfs
+            # stays read-only.
+            - { name: tmp,  mountPath: /tmp }
           readinessProbe:
             httpGet: { path: /api/health, port: http }
             periodSeconds: 5
@@ -124,6 +135,10 @@ spec:
         - name: data
           persistentVolumeClaim:
             claimName: studio-data
+        - name: tmp
+          emptyDir:
+            medium: Memory
+            sizeLimit: 64Mi
 
 ---
 apiVersion: v1

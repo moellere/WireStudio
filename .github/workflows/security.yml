@@ -53,8 +53,9 @@ jobs:
 
       # Pin a minor version. A scanner update mid-PR shouldn't suddenly
       # fail unrelated changes; we'll bump deliberately. Pin to 1.9.x
-      # (the current stable line as of 2026-05).
-      - run: pip install 'bandit~=1.9.4'
+      # (the current stable line as of 2026-05). bandit-sarif-formatter
+      # is a separate package -- bandit doesn't ship SARIF natively.
+      - run: pip install 'bandit~=1.9.4' bandit-sarif-formatter
 
       # Full report -> SARIF for the Security tab. continue-on-error so
       # the upload step still runs even when findings exist.
