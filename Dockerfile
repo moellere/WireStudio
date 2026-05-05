@@ -66,7 +66,9 @@ COPY --from=web-builder /web/dist /app/web-dist
 
 # Persistence root. sessions/ + designs/ live under here so a single
 # `-v <volume>:/data` survives upgrades.
-RUN mkdir -p /data/sessions /data/designs
+RUN mkdir -p /data/sessions /data/designs && \
+    useradd -m -s /bin/bash appuser && \
+    chown -R appuser:appuser /app /data
 
 ENV PYTHONUNBUFFERED=1 \
     STUDIO_STATIC_DIR=/app/web-dist \
@@ -75,6 +77,8 @@ ENV PYTHONUNBUFFERED=1 \
 
 EXPOSE 8765
 VOLUME ["/data"]
+
+USER appuser
 
 # tini reaps zombies + forwards SIGTERM cleanly so docker stop is fast.
 ENTRYPOINT ["/usr/bin/tini", "--"]
