@@ -145,20 +145,24 @@ def test_securitypanel_matches_golden(securitypanel_design, library, golden_dir)
 def test_securitypanel_expander_pins_render(securitypanel_design, library):
     parsed = yaml.unsafe_load(render_yaml(securitypanel_design, library))
     sensors = parsed["binary_sensor"]
-    # All 12 sensors should be on the mcp23017 hub.
+    # All 12 sensors should be on the mcp_hub via the unified mcp23xxx key.
     assert len(sensors) == 12
     for s in sensors:
-        assert "mcp23017" in s["pin"]
-        assert s["pin"]["mcp23017"] == "mcp_hub"
+        assert "mcp23xxx" in s["pin"]
+        assert s["pin"]["mcp23xxx"] == "mcp_hub"
         assert s["pin"]["mode"] == "INPUT"
         assert s["pin"]["inverted"] is True
         assert isinstance(s["pin"]["number"], int)
 
 
-def test_securitypanel_expander_uses_library_id_as_pin_key(securitypanel_design, library):
+def test_securitypanel_expander_uses_unified_mcp23xxx_pin_key(securitypanel_design, library):
+    # ESPHome 2024+ accepts only `mcp23xxx:` as the pin discriminator on
+    # downstream platforms, regardless of whether the hub is a mcp23008
+    # (8-bit) or mcp23017 (16-bit). The pre-fix studio emitted
+    # `mcp23017:` here, which `esphome config` rejected.
     text = render_yaml(securitypanel_design, library)
-    assert "mcp23017: mcp_hub" in text
-    assert "mcp23xxx" not in text
+    assert "mcp23xxx: mcp_hub" in text
+    assert "mcp23017: mcp_hub" not in text
 
 
 def test_rc522_matches_golden(rc522_design, library, golden_dir):
@@ -189,9 +193,14 @@ def test_esp32_audio_i2s_bus_emits_singleton(esp32_audio_design, library):
     assert parsed["media_player"][0]["i2s_dout_pin"] == "GPIO32"
 
 
-def test_esp32_audio_uses_idf_framework(esp32_audio_design, library):
+def test_esp32_audio_uses_arduino_framework(esp32_audio_design, library):
+    # max98357a's media_player platform is arduino-only in upstream ESPHome
+    # (`cv.only_with_arduino`); the example used to set framework=esp-idf,
+    # which `esphome config` rejected. Revisit when esp-idf gains the
+    # platform or we route audio through speaker: + media_player: speaker
+    # chained.
     parsed = yaml.unsafe_load(render_yaml(esp32_audio_design, library))
-    assert parsed["esp32"]["framework"]["type"] == "esp-idf"
+    assert parsed["esp32"]["framework"]["type"] == "arduino"
 
 
 def test_bluesonoff_matches_golden(bluesonoff_design, library, golden_dir):
@@ -247,11 +256,12 @@ def test_awning_uses_expander_pins_not_extras(awning_control_design, library):
     sensors = parsed["binary_sensor"]
     assert len(sensors) == 4  # closed, open, out_button, in_button
     for s in sensors:
-        assert s["pin"]["mcp23008"] == "mcp23008_hub"
+        # mcp23xxx is the unified pin discriminator (ESPHome 2024+).
+        assert s["pin"]["mcp23xxx"] == "mcp23008_hub"
     switches = [s for s in parsed["switch"] if s["platform"] == "gpio"]
     assert len(switches) == 2  # awning_power, motor_enable
     for s in switches:
-        assert s["pin"]["mcp23008"] == "mcp23008_hub"
+        assert s["pin"]["mcp23xxx"] == "mcp23008_hub"
 
 
 # ---------------------------------------------------------------------------

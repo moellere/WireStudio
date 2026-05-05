@@ -24,6 +24,11 @@ electrical:
 
 esphome:
   required_components: [i2c]
+  # ESPHome 2024+ unifies the 8- and 16-bit MCP variants under a single
+  # `mcp23xxx:` discriminator key on downstream pin blocks. Without this,
+  # the generator would emit `pin: { mcp23017: <id>, ... }`, which
+  # `esphome config` rejects.
+  expander_pin_key: mcp23xxx
   yaml_template: |
     mcp23017:
       - id: {{ id }}

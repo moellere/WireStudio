@@ -66,12 +66,13 @@ def _parent_for(component_id: str, design: Design) -> dict[str, Any] | None:
     return None
 
 
-def _pins_for(component_id: str, design: Design) -> dict[str, Any]:
+def _pins_for(component_id: str, design: Design, library: Library) -> dict[str, Any]:
     """Return a dict of pin_role -> pin spec.
 
     For native GPIO connections, the value is the bare pin string (e.g. "GPIO13").
     For expander_pin connections, the value is the dict ESPHome expects under
-    `pin:` -- with the expander's library_id as the discriminator key.
+    `pin:` -- discriminated by the expander's `esphome.expander_pin_key` if set
+    (mcp23008/mcp23017 both use `mcp23xxx`), falling back to library_id otherwise.
     """
     pins: dict[str, Any] = {}
     by_id = {c.id: c for c in design.components}
@@ -87,7 +88,9 @@ def _pins_for(component_id: str, design: Design) -> dict[str, Any]:
                 raise ValueError(
                     f"connection {component_id}.{c.pin_role} references unknown expander '{t.expander_id}'"
                 )
-            block: dict[str, Any] = {expander.library_id: t.expander_id, "number": t.number}
+            lib_expander = library.component(expander.library_id)
+            key = lib_expander.esphome.expander_pin_key or expander.library_id
+            block: dict[str, Any] = {key: t.expander_id, "number": t.number}
             if t.mode:
                 block["mode"] = t.mode
             if t.inverted:
@@ -118,7 +121,7 @@ def _render_component(comp: Component, design: Design, library: Library) -> dict
         "id": comp.id,
         "label": comp.label,
         "params": dict(comp.params),
-        "pins": _pins_for(comp.id, design),
+        "pins": _pins_for(comp.id, design, library),
         "bus": bus.model_dump() if bus else None,
         "parent": parent,
     }
