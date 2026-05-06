@@ -1,0 +1,53 @@
+id: esp32-c3-devkitm-1
+name: ESP32-C3-DevKitM-1
+mcu: esp32
+chip_variant: esp32c3
+framework: arduino
+platformio_board: esp32-c3-devkitm-1
+flash_size_mb: 4
+
+rails:
+  - {name: "5V",  voltage: 5.0, source: usb}
+  - {name: "3V3", voltage: 3.3, source: onboard_regulator}
+  - {name: "GND", voltage: 0.0}
+
+# ESP32-C3 is single-core RISC-V. USB-Serial-JTAG lives on GPIO18/19
+# (no CP210x/CH340), so those pins are unavailable while the JTAG
+# console is in use. UART0 is broken out on GPIO20/21.
+# Strap pins:
+#   GPIO2  = boot mode (HIGH for normal, LOW with GPIO9 LOW for download)
+#   GPIO8  = onboard WS2812 LED. Must be HIGH at boot.
+#   GPIO9  = BOOT button (active low). Must be HIGH at boot.
+# ADC: GPIO0-GPIO4 are ADC1; GPIO5 is ADC2. WiFi shares ADC2 like on
+# classic ESP32, so prefer ADC1 pins for analog reads.
+default_buses:
+  i2c: {sda: GPIO8, scl: GPIO9}
+  spi: {clk: GPIO6, miso: GPIO5, mosi: GPIO7}
+
+onboard_peripherals:
+  led_ws2812: {pin: GPIO8}
+  boot_button: {pin: GPIO9, inverted: true}
+
+gpio_capabilities:
+  GPIO0:  [gpio, adc, adc1]
+  GPIO1:  [gpio, adc, adc1]
+  GPIO2:  [gpio, adc, adc1, strap, boot_high]
+  GPIO3:  [gpio, adc, adc1]
+  GPIO4:  [gpio, adc, adc1, pwm]
+  GPIO5:  [gpio, adc, adc2, spi_miso, pwm]
+  GPIO6:  [gpio, spi_clk, pwm]
+  GPIO7:  [gpio, spi_mosi, pwm]
+  GPIO8:  [gpio, strap, boot_high, builtin_led, i2c_sda]
+  GPIO9:  [gpio, strap, boot_high, button, i2c_scl]
+  GPIO10: [gpio, pwm]
+  GPIO18: [gpio, usb_jtag]
+  GPIO19: [gpio, usb_jtag]
+  GPIO20: [gpio, uart_rx, serial_rx]
+  GPIO21: [gpio, uart_tx, serial_tx]
+# KiCad symbol mapping (0.9). No dedicated DevKitM-1 module symbol in
+# kicad-symbols today; the closest is the standard 2x9 dual-row
+# header that matches the board's pin pitch.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_02x09_Odd_Even
+  value: ESP32-C3-DevKitM-1
