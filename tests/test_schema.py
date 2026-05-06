@@ -10,14 +10,14 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
 def test_garage_motion_validates_against_schema():
-    schema = json.loads((REPO_ROOT / "schema" / "design.schema.json").read_text())
-    design = json.loads((REPO_ROOT / "examples" / "garage-motion.json").read_text())
+    schema = json.loads((REPO_ROOT / "wirestudio" / "schema" / "design.schema.json").read_text())
+    design = json.loads((REPO_ROOT / "wirestudio" / "examples" / "garage-motion.json").read_text())
     jsonschema.validate(design, schema)
 
 
 def test_awning_control_validates_against_schema():
-    schema = json.loads((REPO_ROOT / "schema" / "design.schema.json").read_text())
-    design = json.loads((REPO_ROOT / "examples" / "awning-control.json").read_text())
+    schema = json.loads((REPO_ROOT / "wirestudio" / "schema" / "design.schema.json").read_text())
+    design = json.loads((REPO_ROOT / "wirestudio" / "examples" / "awning-control.json").read_text())
     jsonschema.validate(design, schema)
 
 
@@ -29,6 +29,6 @@ def test_awning_control_validates_against_schema():
     ],
 )
 def test_examples_validate_against_schema(name):
-    schema = json.loads((REPO_ROOT / "schema" / "design.schema.json").read_text())
-    design = json.loads((REPO_ROOT / "examples" / f"{name}.json").read_text())
+    schema = json.loads((REPO_ROOT / "wirestudio" / "schema" / "design.schema.json").read_text())
+    design = json.loads((REPO_ROOT / "wirestudio" / "examples" / f"{name}.json").read_text())
     jsonschema.validate(design, schema)
