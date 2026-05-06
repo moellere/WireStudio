@@ -1,0 +1,59 @@
+id: esp32_rmt_led_strip
+name: ESP32 RMT-driven addressable LED strip (WS2812 / SK6812)
+category: light
+use_cases: [indicator, status_led, ambient, matrix, pixel_strip]
+aliases: ["esp32_rmt", "ws2812_rmt", "sk6812_rmt", "neopixel_rmt"]
+
+electrical:
+  vcc_min: 3.5
+  vcc_max: 5.3
+  current_ma_typical: 20
+  current_ma_peak: 60
+  pins:
+    - {role: VCC, kind: power}
+    - {role: GND, kind: ground}
+    - {role: DIN, kind: digital_in, voltage: 5.0}
+  passives:
+    - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+
+esphome:
+  required_components: []
+  yaml_template: |
+    light:
+      - platform: esp32_rmt_led_strip
+        rgb_order: {{ params.rgb_order | default('GRB') }}
+        pin: {{ pins.DIN | tojson }}
+        num_leds: {{ params.num_leds | default(1) }}
+        chipset: {{ params.chipset | default('WS2812') }}
+        name: "{{ label }}"
+        id: {{ id }}
+
+params_schema:
+  rgb_order:
+    type: string
+    enum: ["RGB", "RBG", "GRB", "GBR", "BRG", "BGR"]
+    default: "GRB"
+  num_leds:
+    type: integer
+    default: 1
+    minimum: 1
+  chipset:
+    type: string
+    enum: ["WS2812", "SK6812", "WS2811", "SM16703", "SM16704"]
+    default: "WS2812"
+
+notes: |
+  ESP32-only LED-strip driver that uses the chip's RMT peripheral for
+  precise WS2812 / SK6812 timing without bit-banging. Strictly preferred
+  over the bit-banged `ws2812b` (neopixelbus) component on ESP32 / S2 / S3
+  / C3 hardware -- it doesn't disable interrupts, doesn't fight WiFi, and
+  hits frame rates the bit-banger can't. Same electrical envelope as
+  ws2812b: budget ~60mA per LED at full white, add a 300-500ohm series
+  resistor on DIN and a 1000uF bulk cap across VCC/GND for strips >8 LEDs.
+# KiCad symbol mapping. Matches ws2812b -- the silicon is identical;
+# only the host driver changes.
+kicad:
+  symbol_lib: LED
+  symbol: WS2812B
+  pin_map:
+    VCC: VDD

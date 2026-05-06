@@ -1,0 +1,32 @@
++----------------------------------------------------------------------------------------+
+|  Generic ESP8285 1MB module (Athom / Sonoff Basic R3 / Tuya plug)  ---  smart-plug-v1  |
++----------------------------------------------------------------------------------------+
+|  Rails: MAINS, 5V, 3V3, GND                                                            |
+|                                                                                        |
+|  meter  [HLW8012 / BL0937 AC power meter (3-pin pulse output)]  -- Plug                |
+|    VCC   -> rail 5V                                                                    |
+|    GND   -> rail GND                                                                   |
+|    SEL   -> GPIO5                                                                      |
+|    CF    -> GPIO4                                                                      |
+|    CF1   -> GPIO14                                                                     |
+|                                                                                        |
+|  relay  [Generic GPIO switch / relay output]  -- Plug relay                            |
+|    OUT   -> GPIO12                                                                     |
+|                                                                                        |
+|  btn  [Generic GPIO binary sensor]  -- Plug button                                     |
+|    IN    -> GPIO0                                                                      |
+|                                                                                        |
+|  Passives:                                                                             |
+|    c1: 100nF capacitor, meter.VCC  <->  GND   (decoupling hlw8012)                     |
+|                                                                                        |
+|  BOM:                                                                                  |
+|    - Generic ESP8285 1MB module (Athom / Sonoff Basic R3 / Tuya plug)                  |
+|    - HLW8012 / BL0937 AC power meter (3-pin pulse output)  (meter)                     |
+|    - Generic GPIO switch / relay output  (relay)                                       |
+|    - Generic GPIO binary sensor  (btn)                                                 |
+|    - 1x 100nF capacitor                                                                |
+|                                                                                        |
+|  Power: ~5mA typical, ~15mA peak (budget 200mA)  OK                                    |
+|                                                                                        |
+|  Warnings: none                                                                        |
++----------------------------------------------------------------------------------------+

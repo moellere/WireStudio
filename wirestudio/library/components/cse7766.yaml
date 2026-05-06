@@ -1,0 +1,58 @@
+id: cse7766
+name: Chipsea CSE7766 AC power meter (UART, 4800 baud, EVEN parity)
+category: sensor
+use_cases: [power_metering, ac_voltage, ac_current, energy, smart_plug]
+aliases: ["sonoff_pow", "athom_v2", "v9821", "bl0937_uart"]
+
+electrical:
+  vcc_min: 3.3
+  vcc_max: 5.0
+  current_ma_typical: 5
+  current_ma_peak: 15
+  pins:
+    - {role: VCC, kind: power}
+    - {role: GND, kind: ground}
+    # The CSE7766 sends AC measurements one-way at 4800 8E1; the MCU only
+    # listens. So the module's TX -> MCU RX. There is no MCU-to-module
+    # data path on this chip.
+    - {role: TX, kind: uart_tx, voltage: 3.3}
+  passives:
+    # The chip itself is on the high-voltage side via current shunt + voltage
+    # divider; the only LV decoupling our library cares about is on VCC.
+    - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+
+esphome:
+  required_components: [uart]
+  yaml_template: |
+    sensor:
+      - platform: cse7766
+        uart_id: {{ bus.id }}
+        current:
+          name: "{{ label }} Current"
+        voltage:
+          name: "{{ label }} Voltage"
+        power:
+          name: "{{ label }} Power"
+        energy:
+          name: "{{ label }} Energy"
+        apparent_power:
+          name: "{{ label }} Apparent Power"
+        power_factor:
+          name: "{{ label }} Power Factor"
+
+params_schema: {}
+
+notes: |
+  AC power-metering IC inside Athom / Sonoff smart plugs (v2 / c3 era) and
+  the V9821-clone modules. Streams measurements one-way over UART at
+  4800 8E1; bind the host UART to those pins + parity. The chip pushes
+  values on its own cadence -- there's no `update_interval`, the sub-
+  sensors update whenever a fresh frame lands. The chip is on the mains
+  side -- *do not poke at the high-voltage pads if the plug is plugged
+  in.*
+# KiCad symbol mapping. CSE7766 isn't in stock KiCad libs; use a generic
+# 4-pin header for the LV side breakout.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x04
+  value: CSE7766

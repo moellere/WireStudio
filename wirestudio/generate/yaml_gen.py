@@ -220,6 +220,8 @@ def build_yaml_dict(design: Design, library: Library) -> dict[str, Any]:
                 uart_entry["tx_pin"] = bus.tx
             if bus.baud_rate:
                 uart_entry["baud_rate"] = bus.baud_rate
+            if bus.parity:
+                uart_entry["parity"] = bus.parity
             out.setdefault("uart", []).append(uart_entry)
         elif bus.type == "1wire":
             # Single-pin bus. ESPHome's `one_wire:` block lists each

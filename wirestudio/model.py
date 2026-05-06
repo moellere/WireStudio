@@ -56,6 +56,9 @@ class Bus(_Strict):
     # 1-wire data pin. Single-wire bus, so the bus carries one pin field
     # rather than the multi-pin sets the synchronous buses use.
     pin: Optional[str] = None
+    # UART parity. ESPHome's cse7766 requires EVEN; most other UART
+    # peripherals are happy with NONE (the default if omitted).
+    parity: Optional[Literal["NONE", "EVEN", "ODD"]] = None
 
 
 class RailTarget(_Strict):

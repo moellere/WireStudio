@@ -1,0 +1,79 @@
+id: hlw8012
+name: HLW8012 / BL0937 AC power meter (3-pin pulse output)
+category: sensor
+use_cases: [power_metering, ac_voltage, ac_current, energy, smart_plug]
+aliases: ["bl0937", "athom_v1"]
+
+electrical:
+  vcc_min: 4.5
+  vcc_max: 5.5
+  current_ma_typical: 5
+  current_ma_peak: 15
+  pins:
+    - {role: VCC, kind: power}
+    - {role: GND, kind: ground}
+    # HLW8012 / BL0937 multiplex voltage + current measurements through
+    # two pulse-frequency outputs (CF, CF1) and one selector input (SEL).
+    # The MCU drives SEL to switch CF1 between voltage and current modes,
+    # and reads pulse rates on CF + CF1 -- no UART, no I2C.
+    - {role: SEL, kind: digital_in,  voltage: 3.3}
+    - {role: CF,  kind: digital_out, voltage: 3.3}
+    - {role: CF1, kind: digital_out, voltage: 3.3}
+  passives:
+    - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+
+esphome:
+  required_components: []
+  yaml_template: |
+    sensor:
+      - platform: hlw8012
+        sel_pin:
+          number: {{ pins.SEL | tojson }}
+          inverted: true
+        cf_pin: {{ pins.CF | tojson }}
+        cf1_pin: {{ pins.CF1 | tojson }}
+        update_interval: {{ params.update_interval | default('30s') }}
+        model: {{ params.model | default('HLW8012') }}
+        current_resistor: {{ params.current_resistor | default('0.001 ohm') | tojson }}
+        voltage_divider: {{ params.voltage_divider | default(2351) }}
+        current:
+          name: "{{ label }} Current"
+        voltage:
+          name: "{{ label }} Voltage"
+        power:
+          name: "{{ label }} Power"
+        energy:
+          name: "{{ label }} Energy"
+
+params_schema:
+  update_interval:
+    type: string
+    default: "30s"
+  model:
+    type: string
+    enum: ["HLW8012", "BL0937", "CSE7759"]
+    default: "HLW8012"
+    description: "BL0937 is the cost-down clone in older Athom plugs; CSE7759 is the same chip rebadged."
+  current_resistor:
+    type: string
+    default: "0.001 ohm"
+    description: "Shunt resistor on the current path. Most plug PCBs use 1 milliohm; check the silkscreen."
+  voltage_divider:
+    type: number
+    default: 2351
+    description: "Resistor-divider ratio on the voltage path. 2351 is the Athom/Sonoff stock value; tweak after measuring against a known reference."
+
+notes: |
+  AC power-metering IC in older Athom v1 / Sonoff POW R1 / Smartape
+  power-strip generations -- predates the cse7766 UART chip. Three GPIOs
+  (SEL, CF, CF1) instead of UART. Calibration is per-board: the
+  current_resistor + voltage_divider params reflect the Athom/Sonoff
+  stock values; cross-check against a known reference if absolute
+  accuracy matters. *Do not poke at the high-voltage pads while the plug
+  is plugged in.*
+# KiCad symbol mapping. HLW8012/BL0937 isn't in stock KiCad libs; use a
+# generic 5-pin header for the LV side breakout (VCC, GND, SEL, CF, CF1).
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x05
+  value: HLW8012

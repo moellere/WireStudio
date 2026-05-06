@@ -1,0 +1,45 @@
+id: esp8285-1m
+name: Generic ESP8285 1MB module (Athom / Sonoff Basic R3 / Tuya plug)
+mcu: esp8266
+chip_variant: esp8266
+framework: arduino
+platformio_board: esp8285
+flash_size_mb: 1
+
+rails:
+  - {name: "MAINS",  voltage: 230.0, source: external}
+  - {name: "5V",  voltage: 5.0, source: onboard_psu}
+  - {name: "3V3", voltage: 3.3, source: onboard_regulator}
+  - {name: "GND", voltage: 0.0}
+
+# The ESP8285 is an ESP8266 with 1 MB flash baked into the SoC, used in
+# basically every cheap smart plug / inline switch / relay module you'll
+# meet (Athom, Sonoff Basic R3+, Kogan, Smartape). Pinout is the bare
+# ESP8266 minus the external flash pins. Conventional wiring across the
+# Athom / Sonoff plug ecosystem:
+#   GPIO0  = button (boot strap, active-low, pulls high through a 10k)
+#   GPIO12 = relay coil drive
+#   GPIO13 = status LED (active-low; blue on Athom, green on Sonoff)
+#   GPIO1  = serial TX (free for cse7766/hlw8012 if you disable logger)
+#   GPIO3  = UART RX -- this is where cse7766 streams its 4800-baud frames
+# Designs override these with explicit pin connections in design.json;
+# the entries here are what gpio_capabilities should warn about.
+gpio_capabilities:
+  GPIO0:  [gpio, strap, button, boot_high, pull_up_external]
+  GPIO1:  [gpio, uart_tx, serial_tx]
+  GPIO2:  [gpio, strap, builtin_led, boot_high, pull_up_external]
+  GPIO3:  [gpio, uart_rx, serial_rx]
+  GPIO4:  [gpio, i2c_sda]
+  GPIO5:  [gpio, i2c_scl]
+  GPIO12: [gpio]
+  GPIO13: [gpio]
+  GPIO14: [gpio]
+  GPIO15: [gpio, strap, boot_low, pull_down_external]
+  GPIO16: [gpio, no_pwm, no_i2c, no_interrupt]
+
+# KiCad symbol mapping. ESP8285 shares the ESP-12 family footprint;
+# the SMD module form factor is what actually solders onto plug PCBs.
+kicad:
+  symbol_lib: RF_Module
+  symbol: ESP-12E
+  value: ESP8285
