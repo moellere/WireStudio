@@ -1,0 +1,84 @@
+name: release
+
+# Tag-triggered PyPI publish.
+#
+# Setup (one-time, on PyPI side):
+#   1. Manually claim the wirestudio name with twine + a project-scoped
+#      API token: `pip install build twine && python -m build &&
+#      twine upload dist/*`.
+#   2. After the project exists on PyPI, configure a Trusted Publisher
+#      at https://pypi.org/manage/project/wirestudio/settings/publishing/
+#      pointing at this repo / release.yml / environment `pypi`.
+#   3. Create the matching `pypi` GitHub environment in repo settings.
+#
+# Trigger: any pushed `v*` tag + manual workflow_dispatch. Tag must
+# match pyproject.toml's version.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write   # required for PyPI Trusted Publisher OIDC
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install build tooling
+        run: pip install --upgrade build twine
+      - name: Build sdist + wheel
+        run: python -m build
+      - name: Validate metadata
+        run: twine check dist/*
+      - name: Verify wheel bundles library + examples
+        # The wheel is broken if components/, boards/, or examples/
+        # don't ride inside it. Asserting here keeps the gate honest
+        # even if package-data config drifts.
+        run: |
+          python - <<'PY'
+          import zipfile, os, sys
+          whl = sorted([f for f in os.listdir('dist') if f.endswith('.whl')])[-1]
+          with zipfile.ZipFile(f"dist/{whl}") as z:
+              names = set(z.namelist())
+          required = (
+              "wirestudio/library/components/",
+              "wirestudio/library/boards/",
+              "wirestudio/examples/",
+              "wirestudio/schema/",
+          )
+          missing = [p for p in required if not any(n.startswith(p) for n in names)]
+          if missing:
+              print(f"wheel missing data: {missing}", file=sys.stderr)
+              sys.exit(1)
+          print(f"wheel data OK ({whl})")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
