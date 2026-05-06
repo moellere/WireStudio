@@ -23,7 +23,7 @@ from wirestudio.csp.compatibility import check_pin_compatibility
 from wirestudio.library import default_library
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-EXAMPLES_DIR = REPO_ROOT / "examples"
+EXAMPLES_DIR = REPO_ROOT / "wirestudio" / "examples"
 
 
 @pytest.fixture
