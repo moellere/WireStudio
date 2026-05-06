@@ -95,7 +95,7 @@
     "secrets_ref": {
       "wifi_ssid": "!secret wifi_ssid",
       "wifi_password": "!secret wifi_password",
-      "api_key": "!secret api_key"
+      "api_key": "!secret wemosgps_api_key"
     }
   }
 }
