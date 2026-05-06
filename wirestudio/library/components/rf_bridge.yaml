@@ -1,0 +1,41 @@
+id: rf_bridge
+name: Sonoff RF Bridge 433MHz EFM8 module
+category: radio
+use_cases: [rf_433, doorbell, motion_relay, garage_door]
+aliases: [efm8bb1, portisch]
+
+electrical:
+  vcc_min: 3.0
+  vcc_max: 3.6
+  current_ma_typical: 8
+  current_ma_peak: 30
+  pins:
+    - {role: VCC, kind: power}
+    - {role: GND, kind: ground}
+    - {role: TX,  kind: uart_tx, voltage: 3.3}
+    - {role: RX,  kind: uart_rx, voltage: 3.3}
+  passives:
+    - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+
+esphome:
+  required_components: [uart]
+  yaml_template: |
+    rf_bridge:
+      uart_id: {{ bus.id }}
+      id: {{ id }}
+    {%- if params.on_code_received is defined %}
+      on_code_received: {{ params.on_code_received | tojson }}
+    {%- endif %}
+
+params_schema:
+  on_code_received:
+    type: array
+    description: "Action list run when an RF code is received; receives `data` with `sync`, `low`, `high`, `code` fields."
+
+notes: "Inside the Sonoff RF Bridge, an EFM8BB1 microcontroller decodes 433MHz signals and ships them to the host ESP8266 over a 19200-baud UART (TX = GPIO1, RX = GPIO3 -- the same pins used by the USB serial console, so set `logger: baud_rate: 0` on stock hardware). ESPHome's `rf_bridge:` block is a singleton. Send codes via `rf_bridge.send_code`; learn new codes via `rf_bridge.learn`."
+# KiCad symbol mapping (0.9). 433 MHz RF bridge module (Sonoff RF
+# Bridge etc.); 4-pin header.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x04
+  value: RF bridge

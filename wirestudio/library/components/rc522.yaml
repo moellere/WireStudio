@@ -1,0 +1,51 @@
+id: rc522
+name: NXP MFRC522 RFID reader (SPI)
+category: rfid_reader
+use_cases: [rfid, nfc, access_control, tag_scanner]
+aliases: [mfrc522]
+
+electrical:
+  vcc_min: 2.5
+  vcc_max: 3.3
+  current_ma_typical: 13
+  current_ma_peak: 26
+  pins:
+    - {role: VCC,   kind: power}
+    - {role: GND,   kind: ground}
+    - {role: SCK,   kind: spi_clk}
+    - {role: MISO,  kind: spi_miso}
+    - {role: MOSI,  kind: spi_mosi}
+    - {role: CS,    kind: spi_cs,    voltage: 3.3}
+    - {role: RESET, kind: digital_in, voltage: 3.3}
+    # IRQ pin exists but is rarely connected; leave out for 0.1.
+  passives:
+    - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+
+esphome:
+  required_components: [spi]
+  yaml_template: |
+    rc522_spi:
+      cs_pin: {{ pins.CS | tojson }}
+      reset_pin: {{ pins.RESET | tojson }}
+      spi_id: {{ bus.id }}
+    {%- if params.update_interval is defined %}
+      update_interval: {{ params.update_interval }}
+    {%- endif %}
+    {%- if params.on_tag is defined %}
+      on_tag: {{ params.on_tag | tojson }}
+    {%- endif %}
+    {%- if params.on_tag_removed is defined %}
+      on_tag_removed: {{ params.on_tag_removed | tojson }}
+    {%- endif %}
+
+params_schema:
+  update_interval: { type: string, default: "1s" }
+
+notes: "ESPHome's `rc522_spi` is a singleton -- one reader per device. 3.3V only; do not power from 5V even if your board has a 5V rail."
+# KiCad symbol mapping (0.9 schematic export). RC522 breakouts use an
+# 8-pin SPI header; the dedicated symbol isn't in kicad-symbols, so
+# fall back to a generic 8-pin connector with the part name as value.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x08
+  value: MFRC522
