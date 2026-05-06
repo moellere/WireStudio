@@ -1,0 +1,91 @@
+id: ttgo-lora32-v1
+name: TTGO LoRa32 V1 (T3)
+mcu: esp32
+chip_variant: esp32
+framework: arduino
+platformio_board: ttgo-lora32-v1
+flash_size_mb: 4
+
+rails:
+  - {name: "5V",  voltage: 5.0, source: usb}
+  - {name: "3V3", voltage: 3.3, source: onboard_regulator}
+  - {name: "GND", voltage: 0.0}
+
+# Onboard SX1276 LoRa radio + SSD1306 OLED + LiPo charger. Pinout matches
+# the LilyGO T3 v1.6 schematic. v2/v2.1 boards differ on a few pins.
+default_buses:
+  spi: {clk: GPIO5, miso: GPIO19, mosi: GPIO27}
+  i2c: {sda: GPIO21, scl: GPIO22}
+
+onboard_peripherals:
+  lora_sx1276: {cs: GPIO18, rst: GPIO23, dio0: GPIO26}
+  oled_ssd1306: {address: "0x3C", reset: GPIO16}
+  battery_adc:  {pin: GPIO35, divider: 2.0}
+  led:          {pin: GPIO25}
+
+# Same ESP32 strap pin rules as the WROOM-32 boards. Note GPIO5 is also the
+# LoRa SCK on this board -- the boot_high requirement is satisfied at boot
+# before SPI takes over the line, so the design works in practice but
+# remains a fragile pattern worth surfacing.
+# ADC unit tags (`adc1` / `adc2`): see the legend in esp32-devkitc-v4.yaml.
+gpio_capabilities:
+  GPIO0:  [boot, strap, boot_high, adc, adc2]
+  GPIO1:  [gpio, uart_tx, serial_tx]
+  GPIO2:  [strap, gpio, boot_low, adc, adc2]
+  GPIO3:  [gpio, uart_rx, serial_rx]
+  GPIO4:  [gpio, adc, adc2, pwm]
+  GPIO5:  [gpio, spi_clk, boot_high]
+  GPIO12: [gpio, adc, adc2, strap, boot_low]
+  GPIO13: [gpio, adc, adc2, pwm]
+  GPIO14: [gpio, adc, adc2, pwm]
+  GPIO15: [gpio, adc, adc2, strap, boot_high]
+  GPIO16: [gpio, oled_reset]
+  GPIO17: [gpio]
+  GPIO18: [gpio, lora_cs]
+  GPIO19: [gpio, spi_miso]
+  GPIO21: [gpio, i2c_sda]
+  GPIO22: [gpio, i2c_scl]
+  GPIO23: [gpio, lora_rst]
+  GPIO25: [gpio, led, adc, adc2]
+  GPIO26: [gpio, lora_dio0, adc, adc2]
+  GPIO27: [gpio, spi_mosi, adc, adc2]
+  GPIO34: [gpio, adc, adc1, input_only, no_pull_internal]
+  GPIO35: [gpio, adc, adc1, input_only, battery_sense, no_pull_internal]
+  GPIO36: [gpio, adc, adc1, input_only, no_pull_internal]
+  GPIO39: [gpio, adc, adc1, input_only, no_pull_internal]
+
+# Enclosure geometry (mm). TTGO LoRa32 V1 (T3 v1.6). The board carries
+# an onboard SSD1306 OLED on top and an SMA antenna on short_b (x=length).
+# A v1 enclosure should leave the OLED visible; we model the SMA cutout
+# but defer the OLED window to a future iteration of the generator.
+enclosure:
+  pcb:
+    length_mm: 50.5
+    width_mm: 25.5
+    thickness_mm: 1.6
+  mount_holes:
+    - {x_mm:  2.5,  y_mm:  2.5,  hole_diameter_mm: 3.2}
+    - {x_mm:  2.5,  y_mm: 23.0,  hole_diameter_mm: 3.2}
+    - {x_mm: 48.0,  y_mm:  2.5,  hole_diameter_mm: 3.2}
+    - {x_mm: 48.0,  y_mm: 23.0,  hole_diameter_mm: 3.2}
+  ports:
+    - kind: usb_micro
+      edge: short_a
+      offset_mm: 8.75
+      width_mm: 8.0
+      height_mm: 3.0
+      height_above_pcb_mm: 1.5
+    - kind: sma
+      edge: short_b
+      offset_mm: 12.75          # SMA centred on short_b
+      width_mm: 7.0             # SMA jack body
+      height_mm: 7.0
+      height_above_pcb_mm: 0.0  # rooted at PCB level
+  component_height_max_mm: 9.0
+# KiCad symbol mapping (0.9 schematic export). No dedicated TTGO LoRa32
+# symbol in kicad-symbols today; the user will likely want to replace
+# the generic header with a manufacturer footprint after import.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_02x18_Odd_Even
+  value: TTGO_LoRa32_V1

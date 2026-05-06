@@ -1,0 +1,72 @@
+id: nodemcu-32s
+name: NodeMCU-32S
+mcu: esp32
+chip_variant: esp32
+framework: arduino
+platformio_board: nodemcu-32s
+flash_size_mb: 4
+
+rails:
+  - {name: "5V",  voltage: 5.0, source: usb}
+  - {name: "3V3", voltage: 3.3, source: onboard_regulator}
+  - {name: "GND", voltage: 0.0}
+
+default_buses:
+  i2c: {sda: GPIO21, scl: GPIO22}
+  spi: {clk: GPIO18, miso: GPIO19, mosi: GPIO23}
+
+# NodeMCU-32S exposes the same ESP32 pins as DevKitC-V4 plus an extra
+# couple. Pin capabilities mirror the ESP32-WROOM-32 module.
+# Same ESP32-WROOM-32 strap pin rules as ESP32-DevKitC-V4 -- see that file
+# for the boot-strap legend.
+# ADC unit tags (`adc1` / `adc2`): see the legend in esp32-devkitc-v4.yaml.
+gpio_capabilities:
+  GPIO0:  [boot, strap, boot_high, adc, adc2]
+  GPIO1:  [gpio, uart_tx, serial_tx]
+  GPIO2:  [strap, gpio, boot_low, adc, adc2]
+  GPIO3:  [gpio, uart_rx, serial_rx]
+  GPIO4:  [gpio, adc, adc2, pwm]
+  GPIO5:  [gpio, strap, spi_cs, boot_high]
+  GPIO12: [gpio, adc, adc2, strap, boot_low]
+  GPIO13: [gpio, adc, adc2, pwm]
+  GPIO14: [gpio, adc, adc2, pwm]
+  GPIO15: [gpio, adc, adc2, strap, boot_high]
+  GPIO16: [gpio]
+  GPIO17: [gpio]
+  GPIO18: [gpio, spi_clk]
+  GPIO19: [gpio, spi_miso]
+  GPIO21: [gpio, i2c_sda]
+  GPIO22: [gpio, i2c_scl]
+  GPIO23: [gpio, spi_mosi]
+  GPIO25: [gpio, dac, adc, adc2, i2s_bclk]
+  GPIO26: [gpio, dac, adc, adc2]
+  GPIO27: [gpio, adc, adc2, pwm]
+  GPIO32: [gpio, adc, adc1, pwm, i2s_dout]
+  GPIO33: [gpio, adc, adc1, pwm, i2s_lrclk]
+  GPIO34: [gpio, adc, adc1, input_only, no_pull_internal]
+  GPIO35: [gpio, adc, adc1, input_only, no_pull_internal]
+  GPIO36: [gpio, adc, adc1, input_only, no_pull_internal]
+  GPIO39: [gpio, adc, adc1, input_only, no_pull_internal]
+
+# Enclosure geometry (mm). NodeMCU-32S, similar to DevKitC V4 but a
+# bit shorter at 48.6mm. Micro-USB centred on short_a.
+enclosure:
+  pcb:
+    length_mm: 48.6
+    width_mm: 28.3
+    thickness_mm: 1.6
+  mount_holes:
+    - {x_mm:  3.0,  y_mm: 14.15, hole_diameter_mm: 3.2}
+    - {x_mm: 45.6,  y_mm: 14.15, hole_diameter_mm: 3.2}
+  ports:
+    - kind: usb_micro
+      edge: short_a
+      offset_mm: 10.15
+      width_mm: 8.0
+      height_mm: 3.0
+      height_above_pcb_mm: 1.5
+  component_height_max_mm: 13.0
+# KiCad symbol mapping (0.9 schematic export).
+kicad:
+  symbol_lib: MCU_Module
+  symbol: NodeMCU-32S

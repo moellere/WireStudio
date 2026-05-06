@@ -1,0 +1,75 @@
+id: ttgo-t-beam
+name: LilyGO TTGO T-Beam (v1.x)
+mcu: esp32
+chip_variant: esp32
+framework: arduino
+platformio_board: ttgo-t-beam
+flash_size_mb: 4
+
+rails:
+  - {name: "5V",  voltage: 5.0, source: usb}
+  - {name: "3V3", voltage: 3.3, source: axp192}
+  - {name: "GND", voltage: 0.0}
+
+# T-Beam = ESP32 + Semtech SX1276/SX1278 LoRa radio + u-blox NEO-6M
+# (or NEO-M8N) GPS + AXP192 PMIC + 18650 Li-ion holder. The AXP192
+# gates power to the LoRa, GPS, and 3V3 rail and exposes battery
+# telemetry over I2C 0x34. Pinout matches T-Beam v1.0/v1.1 schematic;
+# v0.7 boards differ on a couple of pins (notably no AXP192).
+#
+# Onboard SX1276 LoRa (SPI):
+#   sck = GPIO5, miso = GPIO19, mosi = GPIO27
+#   cs  = GPIO18, rst = GPIO23, dio0 = GPIO26
+# Onboard NEO-6M GPS (UART2):
+#   gps_tx -> mcu rx = GPIO34 (input-only)
+#   gps_rx <- mcu tx = GPIO12
+# Onboard AXP192 PMIC (I2C, shared with anything else on the bus):
+#   sda = GPIO21, scl = GPIO22, address = 0x34
+# PRG button: GPIO38 (active low, input-only).
+# 1-wire battery temperature: GPIO35 on some revisions.
+#
+# Same ESP32 strap rules as ESP32-DevKitC-V4 (see that file). GPIO5 is
+# also boot_high; the LoRa SCK takes over after boot, like on the
+# TTGO LoRa32 V1.
+default_buses:
+  i2c: {sda: GPIO21, scl: GPIO22}
+  spi: {clk: GPIO5, miso: GPIO19, mosi: GPIO27}
+
+onboard_peripherals:
+  lora_sx1276: {cs: GPIO18, rst: GPIO23, dio0: GPIO26}
+  gps_neo6m:   {tx: GPIO34, rx: GPIO12, baud: 9600}
+  axp192:      {address: "0x34"}
+  button:      {pin: GPIO38, inverted: true}
+
+gpio_capabilities:
+  GPIO0:  [boot, strap, boot_high, adc, adc2]
+  GPIO1:  [gpio, uart_tx, serial_tx]
+  GPIO2:  [strap, gpio, boot_low, adc, adc2]
+  GPIO3:  [gpio, uart_rx, serial_rx]
+  GPIO4:  [gpio, adc, adc2, pwm]
+  GPIO5:  [gpio, spi_clk, boot_high]
+  GPIO12: [gpio, gps_rx, strap, boot_low]
+  GPIO13: [gpio, adc, adc2, pwm]
+  GPIO14: [gpio, adc, adc2, pwm]
+  GPIO15: [gpio, adc, adc2, strap, boot_high]
+  GPIO18: [gpio, lora_cs]
+  GPIO19: [gpio, spi_miso]
+  GPIO21: [gpio, i2c_sda]
+  GPIO22: [gpio, i2c_scl]
+  GPIO23: [gpio, lora_rst]
+  GPIO25: [gpio, dac, adc, adc2]
+  GPIO26: [gpio, lora_dio0, adc, adc2]
+  GPIO27: [gpio, spi_mosi, adc, adc2]
+  GPIO32: [gpio, adc, adc1, pwm]
+  GPIO33: [gpio, adc, adc1, pwm]
+  GPIO34: [gpio, gps_tx, adc, adc1, input_only, no_pull_internal]
+  GPIO35: [gpio, adc, adc1, input_only, no_pull_internal, battery_sense]
+  GPIO36: [gpio, adc, adc1, input_only, no_pull_internal]
+  GPIO38: [gpio, button, input_only, no_pull_internal]
+  GPIO39: [gpio, adc, adc1, input_only, no_pull_internal]
+# KiCad symbol mapping (0.9). 28-pin board (LoRa + GPS + battery
+# manager); modelled as a 2x14 dual-row header.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_02x14_Odd_Even
+  value: TTGO T-Beam
