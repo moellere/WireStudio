@@ -247,6 +247,9 @@ it without a proxy.
 | [`desk-climate.json`](examples/desk-climate.json) | ESP32-C3-DevKitM-1 | Sensirion SHT3x precision temp/humidity over I2C |
 | [`parking-distance.json`](examples/parking-distance.json) | NodeMCU v2 | VL53L0X laser ToF distance (indoor parking-spot indicator) |
 | [`keypad.json`](examples/keypad.json) | WeMos D1 Mini | 8 buttons read through a PCF8574 GPIO expander over I2C |
+| [`smart-plug.json`](wirestudio/examples/smart-plug.json) | ESP8285 1MB | Athom-style smart plug — relay + button + CSE7766 AC power metering over UART 4800 8E1 |
+| [`smart-plug-v1.json`](wirestudio/examples/smart-plug-v1.json) | ESP8285 1MB | Older Athom v1 / Sonoff POW R1 plug — same topology with the HLW8012 / BL0937 3-pin pulse meter |
+| [`desk-matrix.json`](wirestudio/examples/desk-matrix.json) | ESP32-DevKitC | 8x8 WS2812 matrix driven by the ESP32 RMT peripheral (no bit-banging) |
 
 Generated artifacts for each are pinned as goldens in
 [`tests/golden/`](tests/golden/).
@@ -298,6 +301,7 @@ Currently shipped:
 - `wemos-d1-mini` — WeMos D1 Mini (ESP-12F module, ESP8266)
 - `nodemcu-v2` — NodeMCU v2 (ESP-12E/F module, ESP8266, breaks out RX/TX/MISO/MOSI as D9-D12)
 - `esp01_1m` — ESP-01S 1MB module / Sonoff Basic-class devices
+- `esp8285-1m` — Generic ESP8285 1MB SoC (Athom / Sonoff Basic R3+ / Tuya smart plugs)
 
 **Components** (`library/components/`)
 
@@ -358,11 +362,16 @@ _Generic IO:_
 - `pulse_counter` — pulse counter / tachometer (RPM, flow, energy meters)
 
 _Light / audio / camera:_
-- `ws2812b` — WS2812B / SK6812 addressable RGB LED (1-wire NeoPixel)
+- `ws2812b` — WS2812B / SK6812 addressable RGB LED (1-wire NeoPixel; bit-banged or ESP8266-DMA)
+- `esp32_rmt_led_strip` — same WS2812 / SK6812 silicon, ESP32 RMT-driven (preferred on ESP32 / S2 / S3 / C3)
 - `apa102` — APA102 / SK9822 addressable RGB strip (DotStar, SPI-style)
 - `max98357a` — Maxim Class-D mono I2S amp + DAC
 - `rtttl` — piezo buzzer + RTTTL melody player (PWM output)
 - `esp32_camera` — ESP32 OV2640 / OV7670 / OV5640 camera
+
+_Power metering:_
+- `cse7766` — Chipsea AC voltage / current / power / energy over UART 4800 8E1 (Athom v2/c3 + Sonoff plugs)
+- `hlw8012` — HLW8012 / BL0937 / CSE7759 AC power meter via 3-pin pulse interface (older Athom v1 + Sonoff POW R1)
 
 _Location:_
 - `uart_gps` — generic UART GPS module (NEO-6M / NEO-8M)
