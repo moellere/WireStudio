@@ -1,0 +1,52 @@
+id: hc-sr501
+name: HC-SR501 PIR motion sensor
+category: binary_sensor
+use_cases: [motion, occupancy, presence]
+
+electrical:
+  vcc_min: 4.5
+  vcc_max: 20.0
+  current_ma_typical: 50
+  current_ma_peak: 65
+  pins:
+    - {role: VCC, kind: power}
+    - {role: GND, kind: ground}
+    - {role: OUT, kind: digital_out, voltage: 3.3}
+  passives: []
+
+esphome:
+  required_components: []
+  yaml_template: |
+    binary_sensor:
+      - platform: gpio
+        pin: {{ pins.OUT | tojson }}
+        name: "{{ label }}"
+        device_class: motion
+    {%- if params.filters is defined %}
+        filters: {{ params.filters | tojson }}
+    {%- endif %}
+    {%- if params.on_press is defined %}
+        on_press: {{ params.on_press | tojson }}
+    {%- endif %}
+    {%- if params.on_release is defined %}
+        on_release: {{ params.on_release | tojson }}
+    {%- endif %}
+
+params_schema:
+  retrigger:
+    type: string
+    enum: [H, L]
+    default: H
+    description: "Retrigger jumper position (H=repeat, L=single)"
+  pulse_ms:
+    type: integer
+    default: 2500
+
+notes: "Requires 5V supply. OUT signal is 3.3V, safe for ESP32 GPIO."
+# KiCad symbol mapping (0.9 schematic export). Generic 3-pin header --
+# the HC-SR501 PIR ships as a breakout module without a dedicated
+# kicad-symbols entry.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x03
+  value: HC-SR501

@@ -1,0 +1,61 @@
+id: gpio_input
+name: Generic GPIO binary sensor
+category: binary_sensor
+use_cases: [button, limit_switch, door_sensor, window_sensor, generic_input]
+aliases: [gpio_button, gpio_binary_sensor]
+
+electrical:
+  vcc_min: 0.0
+  vcc_max: 0.0
+  current_ma_typical: 0
+  current_ma_peak: 0
+  # No power pins on the abstract component itself -- the wired-up sensor
+  # (door reed, button, limit switch) provides its own electrical metadata
+  # if someone wants to model the physical part separately.
+  pins:
+    - {role: IN, kind: digital_in, voltage: 3.3}
+  passives: []
+
+esphome:
+  required_components: []
+  yaml_template: |
+    binary_sensor:
+      - platform: gpio
+        pin: {{ pins.IN | tojson }}
+        name: "{{ label }}"
+        id: {{ id }}
+    {%- if params.device_class is defined %}
+        device_class: {{ params.device_class }}
+    {%- endif %}
+    {%- if params.filters is defined %}
+        filters: {{ params.filters | tojson }}
+    {%- endif %}
+    {%- if params.on_press is defined %}
+        on_press: {{ params.on_press | tojson }}
+    {%- endif %}
+    {%- if params.on_release is defined %}
+        on_release: {{ params.on_release | tojson }}
+    {%- endif %}
+    {%- if params.on_click is defined %}
+        on_click: {{ params.on_click | tojson }}
+    {%- endif %}
+    {%- if params.on_state is defined %}
+        on_state: {{ params.on_state | tojson }}
+    {%- endif %}
+
+params_schema:
+  device_class:
+    type: string
+    description: "ESPHome binary_sensor device_class -- door, window, motion, opening, smoke, gas, ..."
+  internal:
+    type: boolean
+    default: false
+
+notes: "Pin mode (INPUT, INPUT_PULLUP, etc.) and inverted are properties of the connection target, not the sensor. Set them on the connection's expander_pin entry; native GPIO connections inherit ESPHome defaults."
+# KiCad symbol mapping (0.9). 2-pin header captures the wired input
+# (switch contact, door sensor, etc.). Replace with Switch:SW_Push
+# or the right manufacturer symbol after import.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x02
+  value: Input
