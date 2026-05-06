@@ -1,0 +1,213 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/moellere/wirestudio/schema/design.schema.json",
+  "title": "wirestudio design.json (0.1)",
+  "type": "object",
+  "required": ["schema_version", "id", "name", "board", "power"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "string", "const": "0.1" },
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+    "name": { "type": "string" },
+    "description": { "type": "string" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" },
+
+    "board": {
+      "type": "object",
+      "required": ["library_id", "mcu"],
+      "additionalProperties": false,
+      "properties": {
+        "library_id": { "type": "string" },
+        "mcu": { "type": "string" },
+        "framework": { "type": "string", "default": "arduino" },
+        "pinned_esphome_version": { "type": "string" }
+      }
+    },
+
+    "power": {
+      "type": "object",
+      "required": ["supply", "rail_voltage_v"],
+      "additionalProperties": false,
+      "properties": {
+        "supply": { "type": "string" },
+        "rail_voltage_v": { "type": "number" },
+        "regulator": { "type": "string" },
+        "budget_ma": { "type": "integer", "minimum": 1 }
+      }
+    },
+
+    "requirements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "text"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "kind": { "type": "string", "enum": ["capability", "environment", "constraint"] },
+          "text": { "type": "string" }
+        }
+      }
+    },
+
+    "components": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "library_id", "label"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "library_id": { "type": "string" },
+          "label": { "type": "string" },
+          "role": { "type": "string" },
+          "params": { "type": "object" },
+          "locked_pins": { "type": "object", "additionalProperties": { "type": "string" } }
+        }
+      }
+    },
+
+    "buses": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string", "enum": ["i2c", "spi", "uart", "1wire", "i2s"] },
+          "frequency_hz": { "type": "integer" },
+          "baud_rate": { "type": "integer" },
+          "sda": { "type": "string" },
+          "scl": { "type": "string" },
+          "miso": { "type": "string" },
+          "mosi": { "type": "string" },
+          "clk": { "type": "string" },
+          "cs": { "type": "string" },
+          "rx": { "type": "string" },
+          "tx": { "type": "string" },
+          "lrclk": { "type": "string" },
+          "bclk": { "type": "string" },
+          "pin": { "type": "string" }
+        }
+      }
+    },
+
+    "connections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["component_id", "pin_role", "target"],
+        "additionalProperties": false,
+        "properties": {
+          "component_id": { "type": "string" },
+          "pin_role": { "type": "string" },
+          "target": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": ["kind", "rail"],
+                "additionalProperties": false,
+                "properties": {
+                  "kind": { "const": "rail" },
+                  "rail": { "type": "string" }
+                }
+              },
+              {
+                "type": "object",
+                "required": ["kind", "pin"],
+                "additionalProperties": false,
+                "properties": {
+                  "kind": { "const": "gpio" },
+                  "pin": { "type": "string" }
+                }
+              },
+              {
+                "type": "object",
+                "required": ["kind", "bus_id"],
+                "additionalProperties": false,
+                "properties": {
+                  "kind": { "const": "bus" },
+                  "bus_id": { "type": "string" }
+                }
+              },
+              {
+                "type": "object",
+                "required": ["kind", "expander_id", "number"],
+                "additionalProperties": false,
+                "properties": {
+                  "kind": { "const": "expander_pin" },
+                  "expander_id": { "type": "string" },
+                  "number": { "type": "integer", "minimum": 0 },
+                  "mode": { "type": "string", "enum": ["INPUT", "INPUT_PULLUP", "INPUT_PULLDOWN", "OUTPUT", "OUTPUT_OPEN_DRAIN"] },
+                  "inverted": { "type": "boolean" }
+                }
+              },
+              {
+                "type": "object",
+                "required": ["kind", "component_id"],
+                "additionalProperties": false,
+                "properties": {
+                  "kind": { "const": "component" },
+                  "component_id": { "type": "string" }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+
+    "passives": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "value", "between"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "kind": { "type": "string", "enum": ["resistor", "capacitor", "inductor", "diode", "transistor"] },
+          "value": { "type": "string" },
+          "between": { "type": "array", "items": { "type": "string" }, "minItems": 2, "maxItems": 2 },
+          "purpose": { "type": "string" }
+        }
+      }
+    },
+
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["level", "code", "text"],
+        "additionalProperties": false,
+        "properties": {
+          "level": { "type": "string", "enum": ["info", "warn", "error"] },
+          "code": { "type": "string" },
+          "text": { "type": "string" }
+        }
+      }
+    },
+
+    "esphome_extras": { "type": "object" },
+
+    "fleet": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "device_name": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "secrets_ref": { "type": "object", "additionalProperties": { "type": "string" } }
+      }
+    },
+
+    "agent": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "session_id": { "type": "string" },
+        "history_ref": { "type": "string" }
+      }
+    }
+  }
+}
