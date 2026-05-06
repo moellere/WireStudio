@@ -51,11 +51,11 @@ WORKDIR /app
 # Install the studio package and its runtime deps. We copy only the
 # dependency manifest first so the install layer caches across most
 # code edits.
+# The bundled library/, schema/, and examples/ live inside
+# wirestudio/ as package-data, so a single COPY of the package
+# picks them up.
 COPY pyproject.toml ./
 COPY wirestudio/ ./wirestudio/
-COPY library/ ./library/
-COPY schema/ ./schema/
-COPY examples/ ./examples/
 COPY README.md ./
 
 RUN pip install --no-cache-dir .
