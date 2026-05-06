@@ -1,0 +1,119 @@
+{
+  "schema_version": "0.1",
+  "id": "distance-sensor",
+  "name": "Ultrasonic distance sensor with NeoPixel feedback",
+  "description": "ESP8266 NodeMCU v2 with an HC-SR04 (D5/D6) and a single WS2812B (D1) whose color is driven by the measured distance.",
+  "created_at": "2021-03-01T00:00:00Z",
+  "updated_at": "2026-05-03T12:00:00Z",
+
+  "board": {
+    "library_id": "nodemcu-v2",
+    "mcu": "esp8266",
+    "framework": "arduino"
+  },
+
+  "power": {
+    "supply": "usb-5v",
+    "rail_voltage_v": 5.0,
+    "regulator": "onboard-ams1117",
+    "budget_ma": 500
+  },
+
+  "requirements": [
+    { "id": "r1", "kind": "capability", "text": "publish ultrasonic distance as a sensor" },
+    { "id": "r2", "kind": "capability", "text": "color a NeoPixel red→green based on measured distance" }
+  ],
+
+  "components": [
+    {
+      "id": "distance",
+      "library_id": "hc-sr04",
+      "label": "Ultrasonic Sensor",
+      "role": "distance_sensor",
+      "params": {
+        "update_interval": "500ms",
+        "unit_of_measurement": "cm",
+        "filters": [
+          { "calibrate_linear": ["0.0 -> 0.0", "2.0 -> 100"] }
+        ],
+        "on_value": {
+          "then": [
+            {
+              "light.turn_on": {
+                "id": "distancelight",
+                "red":   "!lambda return (100-x)/100.0;",
+                "green": "!lambda return x / 100.0;",
+                "blue":  0,
+                "transition_length": "0s"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "distancelight",
+      "library_id": "ws2812b",
+      "label": "Distance Sensor Light",
+      "role": "indicator",
+      "params": {
+        "variant": "400KBPS",
+        "method":  "BIT_BANG",
+        "type":    "RGB",
+        "num_leds": 1
+      }
+    }
+  ],
+
+  "buses": [],
+
+  "connections": [
+    { "component_id": "distance",      "pin_role": "VCC",     "target": { "kind": "rail", "rail": "5V" } },
+    { "component_id": "distance",      "pin_role": "GND",     "target": { "kind": "rail", "rail": "GND" } },
+    { "component_id": "distance",      "pin_role": "TRIGGER", "target": { "kind": "gpio", "pin": "D5" } },
+    { "component_id": "distance",      "pin_role": "ECHO",    "target": { "kind": "gpio", "pin": "D6" } },
+
+    { "component_id": "distancelight", "pin_role": "VCC",     "target": { "kind": "rail", "rail": "5V" } },
+    { "component_id": "distancelight", "pin_role": "GND",     "target": { "kind": "rail", "rail": "GND" } },
+    { "component_id": "distancelight", "pin_role": "DIN",     "target": { "kind": "gpio", "pin": "D1" } }
+  ],
+
+  "passives": [
+    { "id": "c1", "kind": "capacitor", "value": "100nF",
+      "between": ["distancelight.VCC", "GND"], "purpose": "decoupling neopixel" }
+  ],
+
+  "warnings": [
+    { "level": "warn", "code": "echo_pin_5v",
+      "text": "HC-SR04 ECHO is 5V; add a voltage divider to ESP8266 GPIO or use HC-SR04P." }
+  ],
+
+  "esphome_extras": {
+    "logger": {},
+    "esphome": {
+      "on_boot": {
+        "then": [
+          { "light.turn_on":  "distancelight" },
+          { "delay": "2s" },
+          { "light.turn_off": "distancelight" }
+        ]
+      }
+    },
+    "time": [
+      { "platform": "homeassistant", "id": "homeassistant_time" }
+    ],
+    "switch": [
+      { "platform": "restart", "name": "Distance Sensor Restart" }
+    ]
+  },
+
+  "fleet": {
+    "device_name": "distance_sensor",
+    "tags": ["indoor", "sensor"],
+    "secrets_ref": {
+      "wifi_ssid": "!secret wifi_ssid",
+      "wifi_password": "!secret wifi_password",
+      "api_key": "!secret api_key"
+    }
+  }
+}
