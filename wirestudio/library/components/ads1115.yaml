@@ -1,0 +1,61 @@
+id: ads1115
+name: ADS1115 4-channel 16-bit ADC hub (I2C)
+category: sensor
+use_cases: [adc, analog_in, voltage, current_sense]
+aliases: ["ads1015", "ti adc", "external adc"]
+
+electrical:
+  vcc_min: 2.0
+  vcc_max: 5.5
+  current_ma_typical: 1
+  current_ma_peak: 2
+  pins:
+    - {role: VCC, kind: power}
+    - {role: GND, kind: ground}
+    - role: SDA
+      kind: i2c_sda
+      pull_up: {required: true, value: "4.7k", to: VCC}
+    - role: SCL
+      kind: i2c_scl
+      pull_up: {required: true, value: "4.7k", to: VCC}
+  passives:
+    - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+
+esphome:
+  required_components: [i2c]
+  yaml_template: |
+    ads1115:
+      - id: {{ id }}_hub
+        address: "{{ params.address | default('0x48') }}"
+        i2c_id: {{ bus.id }}
+    {%- if params.continuous_mode is defined %}
+        continuous_mode: {{ params.continuous_mode | tojson }}
+    {%- endif %}
+
+params_schema:
+  address:
+    type: string
+    enum: ["0x48", "0x49", "0x4A", "0x4B"]
+    default: "0x48"
+    description: "ADDR pin: GND=0x48, VDD=0x49, SDA=0x4A, SCL=0x4B"
+  continuous_mode:
+    type: boolean
+    description: "Continuous conversion vs single-shot. Continuous wakes the chip on every sample."
+
+notes: |
+  Hub-only component. Each logical analog reading is a separate
+  `ads1115_channel` instance pointing at this hub via a HUB connection
+  -- that lets each channel have its own gain, update_interval, and
+  inspector row instead of being buried inside a `channels` array
+  param. ADDR pin selects between four bus addresses; pull it to
+  GND/VDD/SDA/SCL for 0x48/0x49/0x4A/0x4B respectively. 4-channel
+  16-bit ADC over I2C; rescues ESP32 designs from the ADC2/WiFi
+  conflict and gives ESP8266 a wider dynamic range than its 10-bit ADC.
+# KiCad symbol mapping (0.9 schematic export). Hub-only -- ads1115_channel
+# instances reference this hub via a kind:component target, no separate
+# symbol per channel.
+kicad:
+  symbol_lib: Analog_ADC
+  symbol: ADS1115xDGS
+  pin_map:
+    VCC: VDD

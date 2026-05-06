@@ -1,0 +1,54 @@
+id: dht
+name: DHT11 / DHT22 / AM2302 temperature + humidity
+category: sensor
+use_cases: [temperature, humidity, weather]
+aliases: [dht11, dht22, am2302, am2301, rht03]
+
+electrical:
+  vcc_min: 3.3
+  vcc_max: 5.5
+  current_ma_typical: 1
+  current_ma_peak: 2
+  pins:
+    - {role: VCC, kind: power}
+    - {role: GND, kind: ground}
+    - role: DATA
+      kind: digital_in
+      voltage: 3.3
+      pull_up: {required: true, value: "10k", to: VCC}
+  passives:
+    - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+
+esphome:
+  required_components: []
+  yaml_template: |
+    sensor:
+      - platform: dht
+        model: {{ params.model | default('DHT22') }}
+        pin: {{ pins.DATA | tojson }}
+        temperature:
+          name: "{{ label }} Temperature"
+        humidity:
+          name: "{{ label }} Humidity"
+    {%- if params.update_interval is defined %}
+        update_interval: {{ params.update_interval }}
+    {%- endif %}
+
+params_schema:
+  model:
+    type: string
+    enum: [DHT11, DHT22, AM2302, RHT03]
+    default: DHT22
+  update_interval:
+    type: string
+    default: "60s"
+
+notes: "Single-wire bidirectional protocol. DHT22 / AM2302 modules ship with the 10K pull-up populated; bare DHT11s do not. Polling faster than 1Hz returns stale data and the ESPHome platform will warn."
+# KiCad symbol mapping (0.9). DHT11 + DHT22 share a symbol + 4-pin
+# breakout; the module form omits the unused NC pin.
+kicad:
+  symbol_lib: Sensor
+  symbol: DHT11
+  value: DHT11/DHT22
+  pin_map:
+    VCC: VDD

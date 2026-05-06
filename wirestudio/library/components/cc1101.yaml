@@ -1,0 +1,77 @@
+id: cc1101
+name: Texas Instruments CC1101 sub-GHz transceiver (SPI)
+category: radio
+use_cases: [sub_ghz, rf_433, rf_868, rf_915, garage_door, rf_bridge]
+aliases: [cc1100, cc1120]
+
+electrical:
+  vcc_min: 1.8
+  vcc_max: 3.6
+  current_ma_typical: 17
+  current_ma_peak: 35
+  pins:
+    - {role: VCC,  kind: power}
+    - {role: GND,  kind: ground}
+    - {role: SCK,  kind: spi_clk}
+    - {role: MISO, kind: spi_miso}
+    - {role: MOSI, kind: spi_mosi}
+    - {role: CS,   kind: spi_cs,    voltage: 3.3}
+    - {role: GDO0, kind: digital_out, voltage: 3.3}
+    - {role: GDO2, kind: digital_out, voltage: 3.3}
+  passives:
+    - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+    - {kind: capacitor, value: "10uF",  between: [VCC, GND], purpose: bulk decoupling on TX}
+
+esphome:
+  required_components: [spi]
+  yaml_template: |
+    cc1101:
+      cs_pin: {{ pins.CS | tojson }}
+      gdo0_pin: {{ pins.GDO0 | tojson }}
+      spi_id: {{ bus.id }}
+    {%- if params.frequency is defined %}
+      frequency: {{ params.frequency }}
+    {%- endif %}
+    {%- if params.modulation_type is defined %}
+      modulation_type: {{ params.modulation_type }}
+    {%- endif %}
+    {%- if params.symbol_rate is defined %}
+      symbol_rate: {{ params.symbol_rate }}
+    {%- endif %}
+    {%- if params.packet_mode is defined %}
+      packet_mode: {{ params.packet_mode | tojson }}
+    {%- endif %}
+    {%- if params.packet_length is defined %}
+      packet_length: {{ params.packet_length }}
+    {%- endif %}
+    {%- if params.on_packet is defined %}
+      on_packet: {{ params.on_packet | tojson }}
+    {%- endif %}
+
+params_schema:
+  frequency:
+    type: string
+    description: "Carrier frequency, e.g. 433.92MHz, 868MHz, 915MHz. Must be legal in your region."
+  modulation_type:
+    type: string
+    enum: [OOK, ASK, FSK, GFSK, MSK, "2-FSK", "4-FSK"]
+    default: GFSK
+  symbol_rate:
+    type: integer
+    description: "Bits per second. Typical values: 4800, 38400, 250000."
+    default: 4800
+  packet_mode:
+    type: boolean
+    default: true
+  packet_length:
+    type: integer
+
+notes: "CC1101 needs an external_components dependency on the radiolib_cc1101 fork. GDO2 is optional but used by the receive-only `remote_receiver` flow when `packet_mode: false`. The module pulls >30mA on TX bursts, so add the 10uF bulk cap close to VCC. ESPHome's `cc1101` block is a singleton."
+# KiCad symbol mapping (0.9). CC1101 sub-GHz radio. The bare chip is
+# QFN-20 in `RF:CC1101` on some KiCad installs, but the typical
+# hobbyist module is an 8-pin breakout -- generic header captures
+# the soldering surface.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x08
+  value: CC1101

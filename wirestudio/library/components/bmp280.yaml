@@ -1,0 +1,61 @@
+id: bmp280
+name: Bosch BMP280 (T/P)
+category: sensor
+use_cases: [temperature, pressure, weather, altimeter]
+aliases: [bmp180, bmp388]
+
+electrical:
+  vcc_min: 1.8
+  vcc_max: 3.6
+  current_ma_typical: 0.4
+  current_ma_peak: 1.1
+  pins:
+    - {role: VCC, kind: power}
+    - {role: GND, kind: ground}
+    - role: SDA
+      kind: i2c_sda
+      pull_up: {required: true, value: "4.7k", to: VCC}
+    - role: SCL
+      kind: i2c_scl
+      pull_up: {required: true, value: "4.7k", to: VCC}
+  passives:
+    - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+
+esphome:
+  required_components: [i2c]
+  yaml_template: |
+    sensor:
+      - platform: bmp280_i2c
+        address: "{{ params.address | default('0x77') }}"
+        i2c_id: {{ bus.id }}
+        temperature:
+          name: "{{ label }} Temperature"
+    {%- if params.oversampling is defined %}
+          oversampling: {{ params.oversampling }}
+    {%- endif %}
+        pressure:
+          name: "{{ label }} Pressure"
+    {%- if params.update_interval is defined %}
+        update_interval: {{ params.update_interval }}
+    {%- endif %}
+
+params_schema:
+  address:
+    type: string
+    enum: ["0x76", "0x77"]
+    default: "0x77"
+  oversampling:
+    type: string
+    enum: ["1x", "2x", "4x", "8x", "16x"]
+  update_interval:
+    type: string
+    default: "60s"
+
+notes: "Pressure-only Bosch sibling of the BME280; same I2C protocol, no humidity channel. 3V3 only. SDO pin selects the I2C address (0x76 GND, 0x77 VCC)."
+# KiCad symbol mapping (0.9). BMP280 in Sensor lib; same VDD/GND/SDA/SCL
+# pinout as BME280 minus humidity.
+kicad:
+  symbol_lib: Sensor
+  symbol: BMP280
+  pin_map:
+    VCC: VDD
