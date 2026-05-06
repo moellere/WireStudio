@@ -20,8 +20,10 @@ from typing import Optional
 from wirestudio.library import Library, LibraryComponent
 
 
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-EXAMPLES_DIR = REPO_ROOT / "examples"
+# Bundled examples live inside the wirestudio/ package so they
+# ship in the wheel; resolves whether the studio runs from
+# source or is pip-installed.
+EXAMPLES_DIR = Path(__file__).resolve().parent.parent / "examples"
 
 
 @dataclass

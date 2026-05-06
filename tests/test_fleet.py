@@ -19,7 +19,7 @@ from wirestudio.designs.store import DesignStore
 from wirestudio.fleet.client import FleetClient, FleetUnavailable, _validate_filename
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-EXAMPLES_DIR = REPO_ROOT / "examples"
+EXAMPLES_DIR = REPO_ROOT / "wirestudio" / "examples"
 
 
 # ---------------------------------------------------------------------------

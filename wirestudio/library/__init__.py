@@ -192,4 +192,7 @@ class Library:
 
 
 def default_library() -> Library:
-    return Library(Path(__file__).resolve().parent.parent / "library")
+    # The bundled component + board YAMLs live alongside this module
+    # (wirestudio/library/components/, wirestudio/library/boards/) so
+    # they ship inside the wheel.
+    return Library(Path(__file__).resolve().parent)

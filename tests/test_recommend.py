@@ -13,7 +13,7 @@ from wirestudio.library import default_library
 from wirestudio.recommend.recommender import Constraints, recommend_components
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-EXAMPLES_DIR = REPO_ROOT / "examples"
+EXAMPLES_DIR = REPO_ROOT / "wirestudio" / "examples"
 
 
 @pytest.fixture

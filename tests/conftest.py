@@ -33,74 +33,74 @@ def library() -> Library:
 
 @pytest.fixture
 def garage_motion_design() -> Design:
-    path = REPO_ROOT / "examples" / "garage-motion.json"
+    path = REPO_ROOT / "wirestudio" / "examples" / "garage-motion.json"
     return Design.model_validate(json.loads(path.read_text()))
 
 
 @pytest.fixture
 def awning_control_design() -> Design:
-    path = REPO_ROOT / "examples" / "awning-control.json"
+    path = REPO_ROOT / "wirestudio" / "examples" / "awning-control.json"
     return Design.model_validate(json.loads(path.read_text()))
 
 
 @pytest.fixture
 def wasserpir_design() -> Design:
-    return Design.model_validate(json.loads((REPO_ROOT / "examples" / "wasserpir.json").read_text()))
+    return Design.model_validate(json.loads((REPO_ROOT / "wirestudio" / "examples" / "wasserpir.json").read_text()))
 
 
 @pytest.fixture
 def oled_design() -> Design:
-    return Design.model_validate(json.loads((REPO_ROOT / "examples" / "oled.json").read_text()))
+    return Design.model_validate(json.loads((REPO_ROOT / "wirestudio" / "examples" / "oled.json").read_text()))
 
 
 @pytest.fixture
 def bluemotion_design() -> Design:
-    return Design.model_validate(json.loads((REPO_ROOT / "examples" / "bluemotion.json").read_text()))
+    return Design.model_validate(json.loads((REPO_ROOT / "wirestudio" / "examples" / "bluemotion.json").read_text()))
 
 
 @pytest.fixture
 def distance_sensor_design() -> Design:
-    return Design.model_validate(json.loads((REPO_ROOT / "examples" / "distance-sensor.json").read_text()))
+    return Design.model_validate(json.loads((REPO_ROOT / "wirestudio" / "examples" / "distance-sensor.json").read_text()))
 
 
 @pytest.fixture
 def securitypanel_design() -> Design:
-    return Design.model_validate(json.loads((REPO_ROOT / "examples" / "securitypanel.json").read_text()))
+    return Design.model_validate(json.loads((REPO_ROOT / "wirestudio" / "examples" / "securitypanel.json").read_text()))
 
 
 @pytest.fixture
 def rc522_design() -> Design:
-    return Design.model_validate(json.loads((REPO_ROOT / "examples" / "rc522.json").read_text()))
+    return Design.model_validate(json.loads((REPO_ROOT / "wirestudio" / "examples" / "rc522.json").read_text()))
 
 
 @pytest.fixture
 def esp32_audio_design() -> Design:
-    return Design.model_validate(json.loads((REPO_ROOT / "examples" / "esp32-audio.json").read_text()))
+    return Design.model_validate(json.loads((REPO_ROOT / "wirestudio" / "examples" / "esp32-audio.json").read_text()))
 
 
 @pytest.fixture
 def bluesonoff_design() -> Design:
-    return Design.model_validate(json.loads((REPO_ROOT / "examples" / "bluesonoff.json").read_text()))
+    return Design.model_validate(json.loads((REPO_ROOT / "wirestudio" / "examples" / "bluesonoff.json").read_text()))
 
 
 @pytest.fixture
 def wemosgps_design() -> Design:
-    return Design.model_validate(json.loads((REPO_ROOT / "examples" / "wemosgps.json").read_text()))
+    return Design.model_validate(json.loads((REPO_ROOT / "wirestudio" / "examples" / "wemosgps.json").read_text()))
 
 
 @pytest.fixture
 def ttgo_lora32_design() -> Design:
-    return Design.model_validate(json.loads((REPO_ROOT / "examples" / "ttgo-lora32.json").read_text()))
+    return Design.model_validate(json.loads((REPO_ROOT / "wirestudio" / "examples" / "ttgo-lora32.json").read_text()))
 
 
 @pytest.fixture
 def multi_temp_design() -> Design:
-    return Design.model_validate(json.loads((REPO_ROOT / "examples" / "multi-temp.json").read_text()))
+    return Design.model_validate(json.loads((REPO_ROOT / "wirestudio" / "examples" / "multi-temp.json").read_text()))
 
 
 @pytest.fixture
 def desk_climate_design() -> Design:
-    return Design.model_validate(json.loads((REPO_ROOT / "examples" / "desk-climate.json").read_text()))
+    return Design.model_validate(json.loads((REPO_ROOT / "wirestudio" / "examples" / "desk-climate.json").read_text()))
 
 
 @pytest.fixture

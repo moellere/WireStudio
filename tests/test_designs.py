@@ -16,7 +16,7 @@ from wirestudio.api.app import create_app
 from wirestudio.designs.store import DesignStore, sanitize_id
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-EXAMPLES_DIR = REPO_ROOT / "examples"
+EXAMPLES_DIR = REPO_ROOT / "wirestudio" / "examples"
 
 
 @pytest.fixture
