@@ -1,0 +1,101 @@
+{
+  "schema_version": "0.1",
+  "id": "wemosgps",
+  "name": "WeMos D1 Mini GPS tracker",
+  "description": "ESP8266 D1 Mini reading a NEO-6M / NEO-8M GPS over hardware UART (D2 RX, D1 TX). Exposes 5 NMEA-derived sensors and an HA-side baud-rate selector.",
+  "created_at": "2023-02-01T00:00:00Z",
+  "updated_at": "2026-05-04T00:00:00Z",
+
+  "board": {
+    "library_id": "wemos-d1-mini",
+    "mcu": "esp8266",
+    "framework": "arduino"
+  },
+
+  "power": {
+    "supply": "usb-5v",
+    "rail_voltage_v": 5.0,
+    "regulator": "onboard-rt9013",
+    "budget_ma": 500
+  },
+
+  "requirements": [
+    { "id": "r1", "kind": "capability", "text": "publish lat/lon/altitude/speed/satellites as sensors" },
+    { "id": "r2", "kind": "capability", "text": "support changing GPS baud rate at runtime via HA select" },
+    { "id": "r3", "kind": "capability", "text": "use GPS time as a secondary time source" }
+  ],
+
+  "components": [
+    {
+      "id": "gps", "library_id": "uart_gps", "label": "GPS",
+      "params": {
+        "sensors": {
+          "latitude":   { "name": "Latitude" },
+          "longitude":  { "name": "Longitude" },
+          "altitude":   { "name": "Altitude" },
+          "satellites": { "name": "Visible Satellites" },
+          "speed":      { "name": "Speed" }
+        }
+      }
+    }
+  ],
+
+  "buses": [
+    { "id": "my_uart", "type": "uart", "rx": "D2", "tx": "D1", "baud_rate": 9600 }
+  ],
+
+  "connections": [
+    { "component_id": "gps", "pin_role": "VCC",  "target": { "kind": "rail", "rail": "5V" } },
+    { "component_id": "gps", "pin_role": "GND",  "target": { "kind": "rail", "rail": "GND" } },
+    { "component_id": "gps", "pin_role": "TX",   "target": { "kind": "bus",  "bus_id": "my_uart" } },
+    { "component_id": "gps", "pin_role": "RX",   "target": { "kind": "bus",  "bus_id": "my_uart" } }
+  ],
+
+  "passives": [
+    { "id": "c1", "kind": "capacitor", "value": "10uF",
+      "between": ["gps.VCC", "GND"], "purpose": "bulk decoupling for cold-start current" }
+  ],
+
+  "warnings": [
+    { "level": "info", "code": "baud_rate_select_in_extras",
+      "text": "Runtime baud-rate selector (template select with a lambda set_action) lives in esphome_extras." }
+  ],
+
+  "esphome_extras": {
+    "logger": {},
+    "time": [
+      { "platform": "homeassistant", "id": "homeassistant_time" },
+      { "platform": "gps", "id": "gps_time" }
+    ],
+    "switch": [
+      { "platform": "restart", "name": "wemosgps Restart" }
+    ],
+    "select": [
+      {
+        "id": "change_baud_rate",
+        "name": "Baud rate",
+        "platform": "template",
+        "options": ["2400","9600","38400","57600","115200","256000","512000","921600"],
+        "initial_option": "115200",
+        "optimistic": true,
+        "restore_value": true,
+        "internal": false,
+        "entity_category": "config",
+        "icon": "mdi:swap-horizontal",
+        "set_action": [
+          { "lambda": "!lambda id(my_uart).flush(); uint32_t new_baud_rate = stoi(x); ESP_LOGD(\"change_baud_rate\", \"Changing baud rate from %i to %i\",id(my_uart).get_baud_rate(), new_baud_rate); if (id(my_uart).get_baud_rate() != new_baud_rate) { id(my_uart).set_baud_rate(new_baud_rate); id(my_uart).load_settings(); }" }
+        ]
+      }
+    ]
+  },
+
+  "fleet": {
+    "device_name": "wemosgps",
+    "tags": ["mobile", "gps"],
+    "secrets_ref": {
+      "wifi_ssid": "!secret wifi_ssid",
+      "wifi_password": "!secret wifi_password",
+      "api_key": "!secret api_key"
+    }
+  }
+}
