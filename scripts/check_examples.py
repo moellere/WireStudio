@@ -30,7 +30,7 @@ from wirestudio.library import default_library
 from wirestudio.model import Design
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-EXAMPLES_DIR = REPO_ROOT / "examples"
+EXAMPLES_DIR = REPO_ROOT / "wirestudio" / "examples"
 
 # Valid 32-byte base64 string -- ESPHome's api.encryption.key validator rejects
 # anything else, even though the value is never used to encrypt traffic during
