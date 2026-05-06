@@ -1,0 +1,77 @@
+id: esp32-s3-devkitc-1
+name: ESP32-S3-DevKitC-1
+mcu: esp32
+chip_variant: esp32s3
+framework: arduino
+platformio_board: esp32-s3-devkitc-1
+flash_size_mb: 8
+
+rails:
+  - {name: "5V",  voltage: 5.0, source: usb}
+  - {name: "3V3", voltage: 3.3, source: onboard_regulator}
+  - {name: "GND", voltage: 0.0}
+
+# Dual-core Xtensa with native USB. UART0 is broken out on GPIO43 (TX)
+# and GPIO44 (RX); native USB lives on GPIO19 (D-) / GPIO20 (D+) and
+# also doubles as USB-Serial-JTAG. Strap pins:
+#   GPIO0  = boot mode (HIGH normal, LOW download). Tied to BOOT button.
+#   GPIO45 = VDD_SPI voltage select. Default LOW = 3.3V.
+#   GPIO46 = ROM print. LOW = silent at boot.
+# Octal-PSRAM variants reserve GPIO33-GPIO37 for the PSRAM bus; the
+# default WROOM-1 N16R8 in this board file does NOT have octal flash
+# but does ship 8MB QSPI PSRAM which keeps those pins free.
+# ADC1 covers GPIO1-GPIO10; ADC2 covers GPIO11-GPIO20 and is unusable
+# while WiFi is active. Prefer ADC1.
+default_buses:
+  i2c: {sda: GPIO8, scl: GPIO9}
+  spi: {clk: GPIO12, miso: GPIO13, mosi: GPIO11}
+
+onboard_peripherals:
+  led_ws2812: {pin: GPIO48}
+  boot_button: {pin: GPIO0, inverted: true}
+
+gpio_capabilities:
+  GPIO0:  [gpio, strap, boot_high, button]
+  GPIO1:  [gpio, adc, adc1, pwm]
+  GPIO2:  [gpio, adc, adc1, pwm]
+  GPIO3:  [gpio, adc, adc1, pwm]
+  GPIO4:  [gpio, adc, adc1, pwm]
+  GPIO5:  [gpio, adc, adc1, pwm]
+  GPIO6:  [gpio, adc, adc1, pwm]
+  GPIO7:  [gpio, adc, adc1, pwm]
+  GPIO8:  [gpio, adc, adc1, i2c_sda, pwm]
+  GPIO9:  [gpio, adc, adc1, i2c_scl, pwm]
+  GPIO10: [gpio, adc, adc1, pwm]
+  GPIO11: [gpio, adc, adc2, spi_mosi, pwm]
+  GPIO12: [gpio, adc, adc2, spi_clk, pwm]
+  GPIO13: [gpio, adc, adc2, spi_miso, pwm]
+  GPIO14: [gpio, adc, adc2, pwm]
+  GPIO15: [gpio, adc, adc2, pwm]
+  GPIO16: [gpio, adc, adc2, pwm]
+  GPIO17: [gpio, adc, adc2, pwm]
+  GPIO18: [gpio, adc, adc2, pwm]
+  GPIO19: [gpio, usb, pwm]
+  GPIO20: [gpio, usb, pwm]
+  GPIO21: [gpio, pwm]
+  GPIO33: [gpio, pwm]
+  GPIO34: [gpio, pwm]
+  GPIO35: [gpio, pwm]
+  GPIO36: [gpio, pwm]
+  GPIO37: [gpio, pwm]
+  GPIO38: [gpio, pwm]
+  GPIO39: [gpio, pwm]
+  GPIO40: [gpio, pwm]
+  GPIO41: [gpio, pwm]
+  GPIO42: [gpio, pwm]
+  GPIO43: [gpio, uart_tx, serial_tx]
+  GPIO44: [gpio, uart_rx, serial_rx]
+  GPIO45: [gpio, strap, boot_low, pwm]
+  GPIO46: [gpio, strap, boot_low, pwm]
+  GPIO47: [gpio, pwm]
+  GPIO48: [gpio, builtin_led, pwm]
+# KiCad symbol mapping (0.9). 44-pin board, modelled as a 2x22
+# header until KiCad ships a dedicated S3-DevKitC module symbol.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_02x22_Odd_Even
+  value: ESP32-S3-DevKitC-1
