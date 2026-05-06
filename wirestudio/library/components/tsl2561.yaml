@@ -1,0 +1,66 @@
+id: tsl2561
+name: TSL2561 ambient light sensor (lux, I2C)
+category: sensor
+use_cases: [light, illuminance, lux, ambient_light, brightness]
+aliases: ["tsl2591", "lux meter"]
+
+electrical:
+  vcc_min: 2.7
+  vcc_max: 3.6
+  current_ma_typical: 0.24
+  current_ma_peak: 0.6
+  pins:
+    - {role: VCC, kind: power}
+    - {role: GND, kind: ground}
+    - role: SDA
+      kind: i2c_sda
+      pull_up: {required: true, value: "4.7k", to: VCC}
+    - role: SCL
+      kind: i2c_scl
+      pull_up: {required: true, value: "4.7k", to: VCC}
+  passives:
+    - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+
+esphome:
+  required_components: [i2c]
+  yaml_template: |
+    sensor:
+      - platform: tsl2561
+        i2c_id: {{ bus.id }}
+        address: "{{ params.address | default('0x39') }}"
+        name: "{{ label }} Illuminance"
+        update_interval: {{ params.update_interval | default('60s') }}
+    {%- if params.gain is defined %}
+        gain: {{ params.gain }}
+    {%- endif %}
+    {%- if params.integration_time is defined %}
+        integration_time: {{ params.integration_time }}
+    {%- endif %}
+
+params_schema:
+  address:
+    type: string
+    enum: ["0x29", "0x39", "0x49"]
+    default: "0x39"
+    description: "ADDR pin: GND=0x29, FLOAT=0x39 (default), VDD=0x49"
+  gain:
+    type: string
+    enum: ["1x", "16x"]
+    description: "Photodiode gain. 16x for low-light scenes; 1x for sunlight."
+  integration_time:
+    type: string
+    enum: ["13ms", "101ms", "402ms"]
+    description: "Longer integration = lower noise + slower readings."
+
+notes: |
+  Two-channel ambient light sensor with built-in IR rejection. Reports
+  illuminance in lux directly (the chip handles the spectrum math).
+  Three I2C addresses are selectable via the ADDR pin; default 0x39
+  works for the bare chip floating ADDR. 3.3V only -- 5V MCUs need a
+  level shifter on SDA/SCL.
+# KiCad symbol mapping (0.9 schematic export).
+kicad:
+  symbol_lib: Sensor
+  symbol: TSL2561FN
+  pin_map:
+    VCC: VDD

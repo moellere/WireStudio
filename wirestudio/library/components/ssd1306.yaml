@@ -1,0 +1,55 @@
+id: ssd1306
+name: SSD1306 OLED display (I2C)
+category: display
+use_cases: [oled, display, status]
+
+electrical:
+  vcc_min: 3.0
+  vcc_max: 5.0
+  current_ma_typical: 8
+  current_ma_peak: 20
+  pins:
+    - {role: VCC, kind: power}
+    - {role: GND, kind: ground}
+    - role: SDA
+      kind: i2c_sda
+      pull_up: {required: true, value: "4.7k", to: VCC}
+    - role: SCL
+      kind: i2c_scl
+      pull_up: {required: true, value: "4.7k", to: VCC}
+  passives:
+    - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+
+esphome:
+  required_components: [i2c]
+  yaml_template: |
+    display:
+      - platform: ssd1306_i2c
+        model: "{{ params.model | default('SSD1306 128x64') }}"
+        address: "{{ params.address | default('0x3C') }}"
+        i2c_id: {{ bus.id }}
+        id: {{ id }}
+    {%- if pins.RESET is defined %}
+        reset_pin: {{ pins.RESET | tojson }}
+    {%- endif %}
+    {%- if params.update_interval is defined %}
+        update_interval: {{ params.update_interval }}
+    {%- endif %}
+    {%- if params.lambda_ is defined %}
+        lambda: {{ params.lambda_ | tojson }}
+    {%- endif %}
+
+params_schema:
+  address:
+    type: string
+    enum: ["0x3C", "0x3D"]
+    default: "0x3C"
+
+notes: "Many breakouts ship with 10kohm pull-ups already. Verify before adding more."
+# KiCad symbol mapping (0.9 schematic export). Module symbol for the
+# common 0.96" I2C breakout.
+kicad:
+  symbol_lib: Display_Character
+  symbol: SSD1306
+  pin_map:
+    VCC: VDD
