@@ -1,0 +1,32 @@
++-------------------------------------------------------------------------------------------------------------------+
+|  Generic ESP8285 1MB module (Athom / Sonoff Basic R3 / Tuya plug)  ---  smart-plug                                |
++-------------------------------------------------------------------------------------------------------------------+
+|  Rails: MAINS, 5V, 3V3, GND                                                                                       |
+|                                                                                                                   |
+|  meter  [Chipsea CSE7766 AC power meter (UART, 4800 baud, EVEN parity)]  -- Plug                                  |
+|    VCC   -> rail 3V3                                                                                              |
+|    GND   -> rail GND                                                                                              |
+|    TX    -> plug_uart (GPIO3)                                                                                     |
+|                                                                                                                   |
+|  relay  [Generic GPIO switch / relay output]  -- Plug relay                                                       |
+|    OUT   -> GPIO12                                                                                                |
+|                                                                                                                   |
+|  btn  [Generic GPIO binary sensor]  -- Plug button                                                                |
+|    IN    -> GPIO0                                                                                                 |
+|                                                                                                                   |
+|  Passives:                                                                                                        |
+|    c1: 100nF capacitor, meter.VCC  <->  GND   (decoupling cse7766)                                                |
+|                                                                                                                   |
+|  BOM:                                                                                                             |
+|    - Generic ESP8285 1MB module (Athom / Sonoff Basic R3 / Tuya plug)                                             |
+|    - Chipsea CSE7766 AC power meter (UART, 4800 baud, EVEN parity)  (meter)                                       |
+|    - Generic GPIO switch / relay output  (relay)                                                                  |
+|    - Generic GPIO binary sensor  (btn)                                                                            |
+|    - 1x 100nF capacitor                                                                                           |
+|                                                                                                                   |
+|  Power: ~5mA typical, ~15mA peak (budget 200mA)  OK                                                               |
+|                                                                                                                   |
+|  Warnings:                                                                                                        |
+|    [warn] logger_baud_collision: Disable the ESPHome serial logger or move it off UART0 -- GPIO3 is owned by the  |
+|                                  CSE7766 4800-baud stream.                                                        |
++-------------------------------------------------------------------------------------------------------------------+
