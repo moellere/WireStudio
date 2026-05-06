@@ -1,0 +1,58 @@
+id: max31855
+name: MAX31855 thermocouple amplifier (SPI, K-type)
+category: sensor
+use_cases: [temperature, thermocouple, high_temperature, hot]
+aliases: ["k-type", "max6675", "kiln"]
+
+electrical:
+  vcc_min: 3.0
+  vcc_max: 3.6
+  current_ma_typical: 1.5
+  current_ma_peak: 2
+  pins:
+    - {role: VCC, kind: power}
+    - {role: GND, kind: ground}
+    - {role: CLK, kind: spi_clk}
+    - {role: MISO, kind: spi_miso}
+    - {role: CS,   kind: spi_cs}
+  passives:
+    - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+    - {kind: capacitor, value: "10nF",  between: [T+, T-],   purpose: "thermocouple noise filter (optional)"}
+
+esphome:
+  required_components: [spi]
+  yaml_template: |
+    sensor:
+      - platform: max31855
+        spi_id: {{ bus.id }}
+        cs_pin: {{ pins.CS | tojson }}
+        name: "{{ label }} Thermocouple"
+        update_interval: {{ params.update_interval | default('60s') }}
+    {%- if params.reference_temperature is defined %}
+        reference_temperature:
+          name: "{{ label }} Cold Junction"
+    {%- endif %}
+
+params_schema:
+  update_interval:
+    type: string
+    default: "60s"
+  reference_temperature:
+    type: boolean
+    description: "Also publish the cold-junction (board) temperature reading"
+
+notes: |
+  K-type thermocouple amp on SPI. Read-only -- no MOSI line, just CLK,
+  CS, and MISO. Range -270 to +1372°C with 0.25°C resolution; great
+  for kilns, smokers, espresso boilers. The cold-junction temperature
+  (the chip's own die, used for compensation) can also be published
+  via `reference_temperature: true`. 3.3V only -- a 5V MCU needs a
+  level shifter on the SPI lines. Keep the thermocouple wires twisted
+  and the optional 10nF noise cap close to the screw terminals.
+# KiCad symbol mapping (0.9 schematic export).
+kicad:
+  symbol_lib: Sensor_Temperature
+  symbol: MAX31855xASA
+  pin_map:
+    VCC: VDD
+    CLK: SCK
