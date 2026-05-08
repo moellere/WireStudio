@@ -7,7 +7,7 @@ import os
 from dataclasses import dataclass
 from typing import Any, Iterator, Optional
 
-from wirestudio.agent.session import SessionStore, new_session_id
+from wirestudio.agent.session import SessionStore, FileSessionStore, new_session_id
 from wirestudio.agent.tools import TOOL_SCHEMAS, execute_tool
 from wirestudio.library import Library, default_library
 
@@ -82,6 +82,51 @@ def _build_user_message(design: dict, message: str) -> str:
     )
 
 
+
+def _initialize_turn(design: dict, user_message: str, session_id: Optional[str], sessions: Optional[SessionStore], library: Library):
+    sessions_store = sessions or FileSessionStore()
+    sid = session_id or new_session_id()
+    history = sessions_store.load(sid)
+    working_design = copy.deepcopy(design)
+    messages: list[dict[str, Any]] = [{"role": entry["role"], "content": entry["content"]} for entry in history]
+    messages.append({"role": "user", "content": _build_user_message(working_design, user_message)})
+    library_block = _build_library_context(library)
+    return sid, sessions_store, working_design, messages, library_block
+
+def _process_tool_calls(response, working_design: dict, library: Library, tool_calls_log: list[dict]):
+    tool_results: list[dict] = []
+    events = []
+    for block in response.content:
+        if getattr(block, "type", None) != "tool_use":
+            continue
+        tool_input = dict(block.input)
+        events.append({
+            "type": "tool_use_start",
+            "tool_use_id": block.id,
+            "tool": block.name,
+            "input": tool_input,
+        })
+        result_str, is_error = execute_tool(block.name, tool_input, working_design, library)
+        events.append({
+            "type": "tool_result",
+            "tool_use_id": block.id,
+            "tool": block.name,
+            "is_error": is_error,
+        })
+        tool_calls_log.append({
+            "tool": block.name,
+            "input": tool_input,
+            "is_error": is_error,
+        })
+        tool_results.append({
+            "type": "tool_result",
+            "tool_use_id": block.id,
+            "content": result_str,
+            "is_error": is_error,
+        })
+    return tool_results, events
+
+
 def stream_turn_events(
     *,
     design: dict,
@@ -92,40 +137,19 @@ def stream_turn_events(
     model: str = "claude-opus-4-7",
     max_iterations: int = 12,
 ) -> Iterator[dict]:
-    """Run a single user turn and yield events as they happen.
-
-    Event shapes (all dicts with a `type` key):
-      session_start    {session_id}
-      text_delta       {text}
-      tool_use_start   {tool_use_id, tool, input}
-      tool_result      {tool_use_id, tool, is_error}
-      turn_complete    {session_id, design, assistant_text, tool_calls,
-                        stop_reason, usage}
-      error            {message}    (yielded once before the iterator ends)
-
-    The non-streaming `run_turn()` consumes this and collapses events into
-    a TurnResult so existing callers don't need to change.
-    """
+    """Run a single user turn and yield events as they happen."""
     available, reason = is_available()
     if not available:
         yield {"type": "error", "message": reason or "agent unavailable"}
         return
 
-    library = library or default_library()
-    sessions = sessions or SessionStore()
-    session_id = session_id or new_session_id()
+    library_instance = library or default_library()
 
-    yield {"type": "session_start", "session_id": session_id}
+    sid, sessions_store, working_design, messages, library_block = _initialize_turn(
+        design, user_message, session_id, sessions, library_instance
+    )
 
-    history = sessions.load(session_id)
-    working_design = copy.deepcopy(design)
-
-    messages: list[dict[str, Any]] = []
-    for entry in history:
-        messages.append({"role": entry["role"], "content": entry["content"]})
-    messages.append({"role": "user", "content": _build_user_message(working_design, user_message)})
-
-    library_block = _build_library_context(library)
+    yield {"type": "session_start", "session_id": sid}
 
     import anthropic
     client = anthropic.Anthropic()
@@ -139,7 +163,6 @@ def stream_turn_events(
 
     try:
         for _ in range(max_iterations):
-            # Stream this round-trip's API call so text deltas land live.
             with client.messages.stream(
                 model=model,
                 max_tokens=4096,
@@ -172,38 +195,11 @@ def stream_turn_events(
                 break
 
             messages.append({"role": "assistant", "content": [b.model_dump() for b in response.content]})
-            tool_results: list[dict] = []
-            for block in response.content:
-                if getattr(block, "type", None) != "tool_use":
-                    continue
-                tool_input = dict(block.input)
-                yield {
-                    "type": "tool_use_start",
-                    "tool_use_id": block.id,
-                    "tool": block.name,
-                    "input": tool_input,
-                }
-                result_str, is_error = execute_tool(block.name, tool_input, working_design, library)
-                yield {
-                    "type": "tool_result",
-                    "tool_use_id": block.id,
-                    "tool": block.name,
-                    "is_error": is_error,
-                }
-                tool_calls_log.append({
-                    "tool": block.name,
-                    "input": tool_input,
-                    "is_error": is_error,
-                })
-                tool_results.append({
-                    "type": "tool_result",
-                    "tool_use_id": block.id,
-                    "content": result_str,
-                    "is_error": is_error,
-                })
+            tool_results, tool_events = _process_tool_calls(response, working_design, library_instance, tool_calls_log)
+            for event in tool_events:
+                yield event
             messages.append({"role": "user", "content": tool_results})
         else:
-            # Hit max_iterations without end_turn.
             if not final_text_pieces:
                 final_text_pieces = ["(agent exceeded max iterations without finishing the turn)"]
     except anthropic.APIError as e:
@@ -212,19 +208,19 @@ def stream_turn_events(
 
     final_text = "\n\n".join(final_text_pieces).strip() if final_text_pieces else ""
 
-    # Persist the durable conversation.
-    sessions.append(session_id, "user", user_message)
-    sessions.append(session_id, "assistant", final_text or "(no reply)")
+    sessions_store.append(sid, "user", user_message)
+    sessions_store.append(sid, "assistant", final_text or "(no reply)")
 
     yield {
         "type": "turn_complete",
-        "session_id": session_id,
+        "session_id": sid,
         "design": working_design,
         "assistant_text": final_text,
         "tool_calls": tool_calls_log,
         "stop_reason": stop_reason,
         "usage": accumulated_usage,
     }
+
 
 
 def run_turn(

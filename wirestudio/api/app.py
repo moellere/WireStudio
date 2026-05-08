@@ -2,19 +2,24 @@ from __future__ import annotations
 
 import json
 import time
+import asyncio
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, StreamingResponse
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+import os
 from pydantic import ValidationError
 
 from wirestudio import __version__
 from wirestudio.agent.agent import is_available as agent_available, run_turn, stream_turn_events
-from wirestudio.agent.session import SessionStore
-from wirestudio.designs.store import DesignStore
+from wirestudio.agent.session import SessionStore, FileSessionStore
+from wirestudio.designs.store import DesignStore, FileDesignStore
 from wirestudio.api.schemas import (
     AgentSession,
     AgentSessionMessage,
@@ -113,6 +118,13 @@ def _example_summary(path: Path) -> ExampleSummary:
     )
 
 
+
+def _validate_design(design: dict) -> Design:
+    try:
+        return Design.model_validate(design)
+    except ValidationError as e:
+        raise HTTPException(status_code=422, detail=e.errors()) from e
+
 def create_app(
     library: Optional[Library] = None,
     sessions: Optional[SessionStore] = None,
@@ -124,11 +136,14 @@ def create_app(
     # SESSIONS_DIR / DESIGNS_DIR env vars let the Docker image point
     # the stores at a /data volume without the caller plumbing args
     # through. Falls back to the package-local default in dev.
-    sessions_store = sessions or SessionStore(root=_os.environ.get("SESSIONS_DIR") or None)
-    designs_store = designs or DesignStore(root=_os.environ.get("DESIGNS_DIR") or None)
+    sessions_store = sessions or FileSessionStore(root=_os.environ.get("SESSIONS_DIR") or None)
+    designs_store = designs or FileDesignStore(root=_os.environ.get("DESIGNS_DIR") or None)
     # Tests substitute a factory that returns a FleetClient bound to an
     # httpx.MockTransport so we never hit the network in CI.
     make_fleet: callable = fleet_client_factory or (lambda: FleetClient())
+
+    limiter = Limiter(key_func=get_remote_address)
+
 
     # `docs_url=None` disables FastAPI's built-in /docs so we can serve our
     # own that points Swagger UI at /api/openapi.json -- which works whether
@@ -145,9 +160,20 @@ def create_app(
         ),
         docs_url=None,
     )
+
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+    # Parse ALLOWED_ORIGINS from environment, fallback to defaults
+    allowed_origins = os.environ.get("WIRESTUDIO_ALLOWED_ORIGINS")
+    if allowed_origins:
+        origins = [o.strip() for o in allowed_origins.split(",")]
+    else:
+        origins = ["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"]
+
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"],
+        allow_origins=origins,
         allow_methods=["GET", "POST", "PUT", "DELETE"],
         allow_headers=["*"],
     )
@@ -208,10 +234,7 @@ def create_app(
 
     @app.post("/design/validate", response_model=ValidateResponse, tags=["design"])
     def validate(design: dict) -> ValidateResponse:
-        try:
-            d = Design.model_validate(design)
-        except ValidationError as e:
-            raise HTTPException(status_code=422, detail=e.errors()) from e
+        d = _validate_design(design)
         return ValidateResponse(
             ok=True,
             design_id=d.id,
@@ -226,10 +249,7 @@ def create_app(
     @app.post("/design/solve_pins", response_model=SolvePinsResponse, tags=["design"])
     def solve_pins(design: dict) -> SolvePinsResponse:
         # Validate the design first so we don't try to solve over a malformed body.
-        try:
-            Design.model_validate(design)
-        except ValidationError as e:
-            raise HTTPException(status_code=422, detail=e.errors()) from e
+        _validate_design(design)
         result = run_solve_pins(design, lib)
         return SolvePinsResponse(
             design=result.design,
@@ -258,10 +278,7 @@ def create_app(
         distributed-esphome push path can use to refuse to ship a design
         with unresolved hardware risks.
         """
-        try:
-            d = Design.model_validate(design)
-        except ValidationError as e:
-            raise HTTPException(status_code=422, detail=e.errors()) from e
+        d = _validate_design(design)
         try:
             yaml_text = render_yaml(d, lib)
             ascii_text = render_ascii(d, lib)
@@ -306,10 +323,7 @@ def create_app(
         board lacks `enclosure:` metadata (modules without a clear PCB
         outline -- ESP-01S etc. -- are intentional skips).
         """
-        try:
-            d = Design.model_validate(design)
-        except ValidationError as e:
-            raise HTTPException(status_code=422, detail=e.errors()) from e
+        d = _validate_design(design)
         try:
             scad = generate_scad(d, lib)
         except FileNotFoundError as e:
@@ -342,10 +356,7 @@ def create_app(
         and the user can patch the .py before re-running, or fill in
         the library YAML and re-export.
         """
-        try:
-            d = Design.model_validate(design)
-        except ValidationError as e:
-            raise HTTPException(status_code=422, detail=e.errors()) from e
+        d = _validate_design(design)
         try:
             script = generate_skidl(d, lib)
         except FileNotFoundError as e:
@@ -446,10 +457,7 @@ def create_app(
     @app.post("/designs", response_model=SaveDesignResponse, tags=["designs"])
     def save_design(req: SaveDesignRequest) -> SaveDesignResponse:
         # Validate the body shape first so we don't write garbage to disk.
-        try:
-            Design.model_validate(req.design)
-        except ValidationError as e:
-            raise HTTPException(status_code=422, detail=e.errors()) from e
+        _validate_design(req.design)
         try:
             design_id, saved_at = designs_store.save(req.design, design_id=req.design_id)
         except ValueError as e:
@@ -526,16 +534,16 @@ def create_app(
     # ---------------------------------------------------------------------
 
     @app.get("/fleet/status", response_model=FleetStatus, tags=["fleet"])
-    def fleet_status() -> FleetStatus:
+    async def fleet_status() -> FleetStatus:
         fc = make_fleet()
         if not fc.is_configured():
             reason = "FLEET_URL not set" if not fc.base_url else "FLEET_TOKEN not set"
             return FleetStatus(available=False, reason=reason, url=fc.base_url or None)
-        ok, reason = fc.is_available()
+        ok, reason = await fc.is_available()
         return FleetStatus(available=ok, reason=reason, url=fc.base_url or None)
 
     @app.post("/fleet/push", response_model=FleetPushResponse, tags=["fleet"])
-    def fleet_push(req: FleetPushRequest) -> FleetPushResponse:
+    async def fleet_push(req: FleetPushRequest) -> FleetPushResponse:
         try:
             d = Design.model_validate(req.design)
         except ValidationError as e:
@@ -581,7 +589,7 @@ def create_app(
                 detail="fleet not configured (set FLEET_URL and FLEET_TOKEN)",
             )
         try:
-            result = fc.push_device(device_name, yaml_text, compile=req.compile)
+            result = await fc.push_device(device_name, yaml_text, compile=req.compile)
         except ValueError as e:
             # _validate_filename rejected the name.
             raise HTTPException(status_code=422, detail=str(e)) from e
@@ -595,7 +603,7 @@ def create_app(
         )
 
     @app.get("/fleet/jobs/{run_id}/log", response_model=FleetJobLogResponse, tags=["fleet"])
-    def fleet_job_log(run_id: str, offset: int = 0) -> FleetJobLogResponse:
+    async def fleet_job_log(run_id: str, offset: int = 0) -> FleetJobLogResponse:
         fc = make_fleet()
         if not fc.is_configured():
             raise HTTPException(
@@ -603,7 +611,7 @@ def create_app(
                 detail="fleet not configured (set FLEET_URL and FLEET_TOKEN)",
             )
         try:
-            chunk = fc.get_job_log(run_id, offset=offset)
+            chunk = await fc.get_job_log(run_id, offset=offset)
         except FleetUnavailable as e:
             raise HTTPException(status_code=502, detail=str(e)) from e
         return FleetJobLogResponse(
@@ -611,7 +619,7 @@ def create_app(
         )
 
     @app.get("/fleet/jobs/{run_id}/log/stream", tags=["fleet"])
-    def fleet_job_log_stream(run_id: str, offset: int = 0, interval_ms: int = 300):
+    async def fleet_job_log_stream(run_id: str, offset: int = 0, interval_ms: int = 300):
         """Server-Sent Events relay over the addon's HTTP log endpoint.
 
         Polls `fc.get_job_log(run_id)` server-side at ~300ms (vs the 1.5s
@@ -636,11 +644,11 @@ def create_app(
         # the studio + addon by polling at 1ms.
         sleep_seconds = max(0.1, interval_ms / 1000.0)
 
-        def _events():
+        async def _events():
             current = offset
             while True:
                 try:
-                    chunk = fc.get_job_log(run_id, offset=current)
+                    chunk = await fc.get_job_log(run_id, offset=current)
                 except FleetUnavailable as e:
                     yield (
                         "event: error\n"
@@ -657,7 +665,7 @@ def create_app(
                 if chunk.finished:
                     yield "event: done\ndata: {}\n\n"
                     return
-                time.sleep(sleep_seconds)
+                await asyncio.sleep(sleep_seconds)
 
         return StreamingResponse(
             _events(),
@@ -674,7 +682,8 @@ def create_app(
         return {"available": ok, "reason": reason}
 
     @app.post("/agent/turn", response_model=AgentTurnResponse, tags=["agent"])
-    def agent_turn(req: AgentTurnRequest) -> AgentTurnResponse:
+    @limiter.limit("10/minute")
+    def agent_turn(request: Request, req: AgentTurnRequest) -> AgentTurnResponse:
         ok, reason = agent_available()
         if not ok:
             raise HTTPException(status_code=503, detail=reason)
@@ -698,7 +707,8 @@ def create_app(
         )
 
     @app.post("/agent/stream", tags=["agent"])
-    def agent_stream(req: AgentTurnRequest):
+    @limiter.limit("10/minute")
+    def agent_stream(request: Request, req: AgentTurnRequest):
         """Server-Sent Events variant of /agent/turn. Emits text_delta,
         tool_use_start, tool_result, and turn_complete events as they
         happen so the UI can render progress live."""
