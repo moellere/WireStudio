@@ -29,6 +29,7 @@
 ### 1. Refactor Error Handling & Validation Boilerplate
 - **Goal:** Clean up `wirestudio/api/app.py`.
 - **Action:** Introduce local helper functions to catch validation errors instead of global exception handlers, which could be unsafe by catching arbitrary `ValueError`s globally.
+- **Action:** Introduce global exception handlers (e.g., `@app.exception_handler(FileNotFoundError)`) to remove repetitive `try/except` boilerplate from route handlers. Update routes to raise domain exceptions and let the handler map them to 404/422 HTTP responses.
 
 ### 2. Implement Async API & Fleet Client
 - **Goal:** Improve API throughput and scalability.

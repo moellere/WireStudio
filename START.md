@@ -17,28 +17,117 @@ committed and pushed. To pick up where we left off:
 4. `pip install -e .[dev] && cd web && npm install` to get a working
    tree; `python -m pytest -q` and `cd web && npm test` should be green.
 
-**Last shipped:** streaming agent responses + recommendation mode.
-Adds `POST /agent/stream` (SSE) emitting `text_delta`, `tool_use_start`,
-`tool_result`, `turn_complete` events; `POST /library/recommend` for
-deterministic component ranking; `recommend` agent tool. AgentSidebar
-consumes the SSE stream so text and tool calls land live with running/
-ok/failed status per tool. The non-streaming `POST /agent/turn` endpoint
-stays as a back-compat wrapper. Pytest +21 (179 total), vitest 49, ruff
-+ build clean.
+**Last shipped (2026-05-06 session).** Wide cluster of work; the
+through-line is "make the studio honest about what's verified" + a
+focused first library expansion. Recent merges to `main`:
+
+- **PR #11 — P1 YAML correctness gate.** `python scripts/check_examples.py`
+  + `.github/workflows/esphome-config.yml` run every bundled example
+  through upstream `esphome config` against pinned ESPHome
+  `==2025.12.7`. CONTRIBUTING.md establishes this as the merge bar.
+- **PR #12 — Library batch 1.** BH1750, SHT3xD, AHT10/AHT20,
+  VL53L0X, PCF8574 (+ regression test for the ESP32-C3 chip-block
+  emission bug the gate caught — `chip_variant` started with
+  `esp32` so we used to emit `esp32c3:` as the top-level key
+  instead of the unified `esp32: { variant: ESP32C3 }`).
+- **PR #13 — Dev-loop hooks.** `.pre-commit-config.yaml` runs the
+  gate at pre-push time; `.github/workflows/esphome-compile.yml`
+  runs `esphome compile garage-motion` nightly + on manual
+  dispatch (catches PlatformIO toolchain regressions and codegen
+  drift even when no code changed).
+- **PR #14 — Rebrand.** Project name `esphome-studio` → `wirestudio`
+  per a request from the ESPHome maintainers. Package directory
+  `studio/` → `wirestudio/`; env var `STUDIO_STATIC_DIR` →
+  `WIRESTUDIO_STATIC_DIR`; Docker image
+  `ghcr.io/moellere/esphome-studio` → `ghcr.io/moellere/wirestudio`;
+  K8s manifest + docker-compose + nginx upstream all updated. Repo
+  also renamed on GitHub side to `moellere/wirestudio` (GitHub
+  preserves redirects from the old path).
+- **PR #16 — Package-data move + 0.9.0 + release workflow.** A
+  pre-flight `python -m build` revealed the wheel only shipped the
+  Python code, not `library/*.yaml` / `schema/*.json` / `examples/*.json`
+  — `pip install wirestudio` would crash at runtime. Fixed by
+  moving the data dirs *inside* the package
+  (`wirestudio/library/components/`, `wirestudio/library/boards/`,
+  `wirestudio/schema/`, `wirestudio/examples/`) so setuptools
+  auto-bundles them via `[tool.setuptools.package-data]`. Bumped
+  version 0.1.0 → 0.9.0 to match the Docker tag. Added
+  `.github/workflows/release.yml` — tag-triggered PyPI publish via
+  OIDC Trusted Publisher with a wheel-data assertion that fails
+  loudly if the package-data config drifts.
+- **PR #17 — Library batch 2.** Survey-driven additions from
+  `jesserockz/esphome-configs`. cse7766 (UART power meter, modern
+  Athom/Sonoff plugs), hlw8012 (older 3-pin pulse meter),
+  esp32_rmt_led_strip (ESP32 RMT-driven WS2812 — preferred over
+  bit-banged `ws2812b` on ESP32 family), esp8285-1m board (the
+  actual SoC inside cheap smart plugs). New `Bus.parity` model
+  field (cse7766 enforces `EVEN`).
+
+**State of `main` after this session:**
+
+- 49 components × 14 boards × 20 examples
+- 299/299 pytest pass; ruff clean
+- 20/20 examples pass `esphome config` against ESPHome 2025.12.7
+  (the canonical "is the studio's output real" gate)
+- Docker image: `ghcr.io/moellere/wirestudio:main` (or `:v0.9.0`
+  once that tag pushes from a developer machine)
+- Package builds cleanly: `python -m build` produces a 116-file
+  wheel that round-trips `pip install dist/*.whl` →
+  `from wirestudio.library import default_library; default_library()`
+  → render works.
+
+**PyPI side trip — honest retrospective.** Mid-session, after the
+rename, we got pulled into "let's claim the wirestudio name on PyPI."
+That spawned: package-data move (real bug, justified), bump to
+0.9.0 (cheap), release workflow with OIDC Trusted Publisher (real
+work, deferred value), then a long battle with the sandbox git
+proxy 503-ing every push that forced a batched-MCP-push workaround
++ a per-file commit pattern. Net assessment: the package-data fix
+was load-bearing for ANY future `pip install` story; the release
+workflow + name-claim are deferred work that didn't ship a
+user-visible feature this week. **Not blocking.** Documented in the
+"Deferred follow-ups" section below; pick up when there's an actual
+reason to publish to PyPI.
+
+**Deferred follow-ups (not blocking; pick up when relevant):**
+
+- *PyPI name claim.* `python -m build && twine upload dist/*` from
+  any clean checkout claims `wirestudio` on PyPI. After that,
+  configure Trusted Publisher at
+  https://pypi.org/manage/project/wirestudio/settings/publishing/
+  pointing at `release.yml` + a `pypi` GitHub environment. Future
+  releases are then `git tag vX.Y.Z && git push --tags`. The
+  workflow's wheel-data assertion catches package-data drift before
+  publish.
+- *Library batch 3 candidates from the jesserockz survey.* Each
+  needs more setup than a one-shot example: tuya MCU bridge (whole
+  vendor class — switches/sensors/numbers/selects/climate/fan all
+  hang off it), modbus_controller + sdm_meter (RS485 + a MAX485
+  transceiver), bl0906 (6-channel energy meter), nextion HMI
+  display.
+- *Real `esphome compile` smoke.* The workflow exists
+  (`esphome-compile.yml`) and runs nightly, but its first run
+  hasn't been observed yet. Worth a manual `workflow_dispatch` to
+  confirm.
+- *Component-coverage matrix.* Make explicit which components have
+  a passing example (today implicit in goldens / the gate). One-off
+  script that walks the goldens + emits a checkbox table.
+- *WebUI streamline.* "Basic vs. advanced" mode toggle proposed
+  earlier in the session — show only the verified-tier surface
+  (board + components + buses + YAML preview) by default; advanced
+  reveals Schematic / Enclosure / Push-to-fleet / Agent. Reduces
+  "AI slop" front-door optics. Not started.
 
 **Next up candidates:**
-- `wirestudio/kicad/scaffold.py` — read a `.kicad_sym` file and print
-  a starter `library/components/<id>.yaml` skeleton so adding new
-  parts becomes ~30 seconds of curation rather than ~5 minutes.
-  Less urgent now that the existing library is fully mapped, but
-  pays off the next time someone adds a part.
-- Refining the generic-header fallbacks. Several breakouts (CC1101,
-  ILI9xxx, RDM6300, the M5Stack and TTGO boards) currently use a
-  `Connector_Generic` header with the part name as `value:`. When
-  KiCad ships proper module symbols (or a community footprint
-  drops on Component Search Engine), swap the mapping in.
-- 1.0 — KiCad PCB layout. Reuse the schematic's netlist; Freerouting
-  for autorouting; Gerber + JLCPCB CPL/BOM export.
+
+- Library batch 3 from the survey list above (probably the most
+  obvious continuation — same format as #12 / #17).
+- WebUI basic/advanced mode toggle.
+- A real `esphome compile` smoke run + fix anything that surfaces.
+- Component-coverage matrix script.
+- 1.0 — KiCad PCB layout (reuse the schematic's netlist;
+  Freerouting; Gerber + JLCPCB CPL/BOM).
+
 
 **0.9 v2 -- library mapping expansion shipped.** The remaining 20
 components + 7 boards now carry a `kicad:` block, taking coverage
@@ -688,7 +777,7 @@ immediate way in and the agent (when it arrives) lands in a working surface.
 - **0.8 — Enclosure suggestions.** Two halves:
   - **v1 ✅ Shipped (parametric OpenSCAD generator).** Each dev-board
     YAML carries an `enclosure:` block with PCB outline + mount holes
-    + port cutouts. `wirestudio/enclosure/openscad.py` emits a
+   + port cutouts. `wirestudio/enclosure/openscad.py` emits a
     self-contained `.scad` shell (bottom + 4 walls, mounting standoffs
     aligned with the mount holes, edge cutouts for every port) with
     tunables (wall, floor, clearance, standoff geometry) at the top
@@ -1191,3 +1280,4 @@ Plan:
 - PlatformIO ESP32 board JSON: https://github.com/platformio/platform-espressif32/tree/develop/boards
 - esptool-js (browser USB detect): https://github.com/espressif/esptool-js
 - Espressif HW reference: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/hw-reference/
+
