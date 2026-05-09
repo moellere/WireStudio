@@ -6,9 +6,6 @@ spinning up the addon.
 """
 from __future__ import annotations
 
-import pytest
-pytestmark = pytest.mark.anyio
-
 import json
 from pathlib import Path
 
@@ -16,10 +13,12 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from wirestudio.agent.session import SessionStore, FileSessionStore
+from wirestudio.agent.session import FileSessionStore
 from wirestudio.api.app import create_app
-from wirestudio.designs.store import DesignStore, FileDesignStore
+from wirestudio.designs.store import FileDesignStore
 from wirestudio.fleet.client import FleetClient, FleetUnavailable, _validate_filename
+
+pytestmark = pytest.mark.anyio
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 EXAMPLES_DIR = REPO_ROOT / "wirestudio" / "examples"

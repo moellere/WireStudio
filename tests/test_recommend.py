@@ -233,7 +233,7 @@ def test_recommend_tool_rejects_bad_args(lib):
 
 @pytest.fixture
 def client(tmp_path) -> TestClient:
-    from wirestudio.agent.session import SessionStore, FileSessionStore
+    from wirestudio.agent.session import FileSessionStore
     return TestClient(create_app(sessions=FileSessionStore(root=tmp_path)))
 
 
