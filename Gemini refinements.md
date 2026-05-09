@@ -8,7 +8,7 @@
 ## Code and Inefficiencies
 * **Refining Agent Streaming Logic:** `stream_turn_events` in `wirestudio/agent/agent.py` handles Claude API interactions, state management, SSE formatting, and tool execution all in one function. Refactoring into smaller, decoupled generators would improve readability and testability.
 * **Model Duplication/Overlap:** `wirestudio.api.schemas` explicitly mentions it's separate from `wirestudio.model` to allow independent evolution, but there's a lot of manual mapping overhead (e.g., `_board_summary`, `_component_summary` in `app.py`). Using `model_validate` or standardizing generic serializers could reduce boilerplate.
-* **Improve Error Handling:** In the FastAPI app, exceptions like `FileNotFoundError`, `ValueError`, and `ValidationError` are frequently caught and re-raised as `HTTPException` inside each route. A centralized exception handler (`@app.exception_handler`) for these domain-specific errors would clean up the route definitions considerably.
+* **Improve Error Handling:** In the FastAPI app, exceptions like `FileNotFoundError`, `ValueError`, and `ValidationError` are frequently caught and re-raised as `HTTPException` inside each route. A centralized exception handler (`@app.exception_handler`) for these domain-specific errors would clean up the route definitions considerably, however, they must be scoped carefully to avoid swallowing other internal exceptions.
 
 ## Documentation Improvements
 * **Setup/Developer Guide:** `README.md` and `START.md` are quite comprehensive, but extracting a dedicated developer onboarding guide (e.g., `docs/DEVELOPMENT.md`) could reduce the noise in `README.md`, making it more focused on users and features.
@@ -28,6 +28,7 @@
 
 ### 1. Refactor Error Handling & Validation Boilerplate
 - **Goal:** Clean up `wirestudio/api/app.py`.
+- **Action:** Introduce local helper functions to catch validation errors instead of global exception handlers, which could be unsafe by catching arbitrary `ValueError`s globally.
 - **Action:** Introduce global exception handlers (e.g., `@app.exception_handler(FileNotFoundError)`) to remove repetitive `try/except` boilerplate from route handlers. Update routes to raise domain exceptions and let the handler map them to 404/422 HTTP responses.
 
 ### 2. Implement Async API & Fleet Client

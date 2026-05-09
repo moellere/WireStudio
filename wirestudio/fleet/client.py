@@ -66,7 +66,7 @@ class FleetClient:
         base_url: Optional[str] = None,
         token: Optional[str] = None,
         timeout: float = 30.0,
-        transport: Optional[httpx.BaseTransport] = None,
+        transport: Optional[httpx.AsyncBaseTransport] = None,
     ) -> None:
         self.base_url = (base_url if base_url is not None else os.environ.get("FLEET_URL", "")).rstrip("/")
         self.token = token if token is not None else os.environ.get("FLEET_TOKEN", "")
@@ -80,7 +80,7 @@ class FleetClient:
     def is_configured(self) -> bool:
         return bool(self.base_url and self.token)
 
-    def is_available(self) -> tuple[bool, Optional[str]]:
+    async def is_available(self) -> tuple[bool, Optional[str]]:
         """Cheap readiness probe.
 
         Returns ``(True, None)`` if the addon answers ``GET /ui/api/targets``
@@ -92,8 +92,8 @@ class FleetClient:
         if not self.token:
             return False, "FLEET_TOKEN not set"
         try:
-            with self._client() as c:
-                r = c.get("/ui/api/targets")
+            async with self._client() as c:
+                r = await c.get("/ui/api/targets")
         except httpx.HTTPError as e:
             return False, f"unreachable: {e}"
         if r.status_code == 401:
@@ -106,7 +106,7 @@ class FleetClient:
     # Push
     # ------------------------------------------------------------------
 
-    def push_device(
+    async def push_device(
         self,
         device_name: str,
         yaml: str,
@@ -130,14 +130,14 @@ class FleetClient:
         name = _validate_filename(device_name)
         final_filename = f"{name}.yaml"
 
-        with self._client() as c:
-            existing = self._list_filenames(c)
+        async with self._client() as c:
+            existing = await self._list_filenames(c)
             created = final_filename not in existing
             target_path = final_filename
             if created:
                 # Stage a new file. The addon writes ".pending.<name>.yaml"
                 # and returns it as the path to POST content to.
-                resp = c.post("/ui/api/targets", json={"filename": name})
+                resp = await c.post("/ui/api/targets", json={"filename": name})
                 if resp.status_code >= 400:
                     raise FleetUnavailable(
                         f"create_target failed: http {resp.status_code} {resp.text}"
@@ -147,7 +147,7 @@ class FleetClient:
 
             # Write content. For the staged path, the addon renames to
             # final_filename atomically and returns {"renamed_to": ...}.
-            resp = c.post(
+            resp = await c.post(
                 f"/ui/api/targets/{target_path}/content",
                 json={
                     "content": yaml,
@@ -162,7 +162,7 @@ class FleetClient:
             run_id = None
             enqueued = 0
             if compile:
-                resp = c.post(
+                resp = await c.post(
                     "/ui/api/compile",
                     json={"targets": [final_filename]},
                 )
@@ -185,7 +185,7 @@ class FleetClient:
     # Build log polling
     # ------------------------------------------------------------------
 
-    def get_job_log(self, run_id: str, offset: int = 0) -> JobLogChunk:
+    async def get_job_log(self, run_id: str, offset: int = 0) -> JobLogChunk:
         """Fetch new bytes of a build log since ``offset``.
 
         Mirrors the addon's HTTP fallback at ``GET /ui/api/jobs/{id}/log``.
@@ -194,8 +194,8 @@ class FleetClient:
         """
         if not self.is_configured():
             raise FleetUnavailable("FLEET_URL or FLEET_TOKEN missing")
-        with self._client() as c:
-            resp = c.get(f"/ui/api/jobs/{run_id}/log", params={"offset": offset})
+        async with self._client() as c:
+            resp = await c.get(f"/ui/api/jobs/{run_id}/log", params={"offset": offset})
         if resp.status_code == 404:
             raise FleetUnavailable(f"unknown run_id {run_id!r}")
         if resp.status_code >= 400:
@@ -213,16 +213,16 @@ class FleetClient:
     # Internals
     # ------------------------------------------------------------------
 
-    def _client(self) -> httpx.Client:
-        return httpx.Client(
+    def _client(self) -> httpx.AsyncClient:
+        return httpx.AsyncClient(
             base_url=self.base_url,
             timeout=self.timeout,
             headers={"Authorization": f"Bearer {self.token}"},
             transport=self._transport,
         )
 
-    def _list_filenames(self, c: httpx.Client) -> set[str]:
-        resp = c.get("/ui/api/targets")
+    async def _list_filenames(self, c: httpx.AsyncClient) -> set[str]:
+        resp = await c.get("/ui/api/targets")
         if resp.status_code >= 400:
             raise FleetUnavailable(
                 f"list targets failed: http {resp.status_code} {resp.text}"

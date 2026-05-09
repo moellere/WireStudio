@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from wirestudio.agent.session import SessionStore, new_session_id
+from wirestudio.agent.session import SessionStore, FileSessionStore, new_session_id
 from wirestudio.agent.tools import execute_tool
 from wirestudio.api.app import create_app
 from wirestudio.library import default_library
@@ -216,7 +216,7 @@ def test_bad_argument_shape_is_error(lib):
 # ---------------------------------------------------------------------------
 
 def test_session_round_trip(tmp_path):
-    store = SessionStore(root=tmp_path)
+    store = FileSessionStore(root=tmp_path)
     sid = new_session_id()
     assert store.exists(sid) is False
     assert store.load(sid) == []
@@ -230,7 +230,7 @@ def test_session_round_trip(tmp_path):
 
 
 def test_session_id_traversal_rejected(tmp_path):
-    store = SessionStore(root=tmp_path)
+    store = FileSessionStore(root=tmp_path)
     with pytest.raises(ValueError):
         store.path("../etc/passwd")
     with pytest.raises(ValueError):
@@ -248,7 +248,7 @@ def client(monkeypatch, tmp_path) -> TestClient:
     # Make sure the agent is reported as unavailable for the contract test
     # below, regardless of whether the dev environment has a key set.
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    return TestClient(create_app(sessions=SessionStore(root=tmp_path)))
+    return TestClient(create_app(sessions=FileSessionStore(root=tmp_path)))
 
 
 def test_agent_status_no_key(client):
@@ -276,6 +276,6 @@ def test_agent_session_404_for_unknown(client):
 def test_session_store_rejects_traversal_directly(tmp_path):
     """The defensive belt: even if a traversal got past the URL router, the
     SessionStore would reject it before touching the filesystem."""
-    store = SessionStore(root=tmp_path)
+    store = FileSessionStore(root=tmp_path)
     with pytest.raises(ValueError):
         store.path("../passwd")

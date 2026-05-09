@@ -6,6 +6,9 @@ spinning up the addon.
 """
 from __future__ import annotations
 
+import pytest
+pytestmark = pytest.mark.anyio
+
 import json
 from pathlib import Path
 
@@ -13,9 +16,9 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from wirestudio.agent.session import SessionStore
+from wirestudio.agent.session import SessionStore, FileSessionStore
 from wirestudio.api.app import create_app
-from wirestudio.designs.store import DesignStore
+from wirestudio.designs.store import DesignStore, FileDesignStore
 from wirestudio.fleet.client import FleetClient, FleetUnavailable, _validate_filename
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -117,13 +120,13 @@ class FakeFleetAddon:
 # FleetClient unit tests
 # ---------------------------------------------------------------------------
 
-def test_filename_validation_accepts_slug():
+async def test_filename_validation_accepts_slug():
     assert _validate_filename("garage-motion") == "garage-motion"
     assert _validate_filename("dev1") == "dev1"
     assert _validate_filename("garage-motion.yaml") == "garage-motion"
 
 
-def test_filename_validation_rejects_garbage():
+async def test_filename_validation_rejects_garbage():
     with pytest.raises(ValueError):
         _validate_filename("")
     with pytest.raises(ValueError):
@@ -136,34 +139,34 @@ def test_filename_validation_rejects_garbage():
         _validate_filename("a" * 65)
 
 
-def test_is_available_unconfigured():
+async def test_is_available_unconfigured():
     fc = FleetClient(base_url="", token="")
-    ok, reason = fc.is_available()
+    ok, reason = await fc.is_available()
     assert not ok and "FLEET_URL" in reason
 
     fc = FleetClient(base_url="http://x", token="")
-    ok, reason = fc.is_available()
+    ok, reason = await fc.is_available()
     assert not ok and "FLEET_TOKEN" in reason
 
 
-def test_is_available_unauthorized():
+async def test_is_available_unauthorized():
     addon = FakeFleetAddon(expected_token="right")
     fc = addon.make_client(token="wrong")
-    ok, reason = fc.is_available()
+    ok, reason = await fc.is_available()
     assert not ok
     assert "unauthorized" in reason
 
 
-def test_is_available_ok():
+async def test_is_available_ok():
     addon = FakeFleetAddon()
-    ok, reason = addon.make_client().is_available()
+    ok, reason = await addon.make_client().is_available()
     assert ok and reason is None
 
 
-def test_push_creates_new_device():
+async def test_push_creates_new_device():
     addon = FakeFleetAddon()
     fc = addon.make_client()
-    result = fc.push_device("garage-motion", "esphome:\n  name: garage-motion\n")
+    result = await fc.push_device("garage-motion", "esphome:\n  name: garage-motion\n")
     assert result.created is True
     assert result.filename == "garage-motion.yaml"
     assert result.run_id is None
@@ -173,35 +176,35 @@ def test_push_creates_new_device():
     assert addon.compile_runs == []
 
 
-def test_push_overwrites_existing_device():
+async def test_push_overwrites_existing_device():
     addon = FakeFleetAddon()
     addon.files["dev1.yaml"] = "old: content\n"
     fc = addon.make_client()
-    result = fc.push_device("dev1", "new: content\n")
+    result = await fc.push_device("dev1", "new: content\n")
     assert result.created is False
     assert addon.files["dev1.yaml"] == "new: content\n"
 
 
-def test_push_with_compile_returns_run_id():
+async def test_push_with_compile_returns_run_id():
     addon = FakeFleetAddon()
     fc = addon.make_client()
-    result = fc.push_device("dev2", "yaml: text\n", compile=True)
+    result = await fc.push_device("dev2", "yaml: text\n", compile=True)
     assert result.run_id == "run-1"
     assert result.enqueued == 1
     assert addon.compile_runs == [{"run_id": "run-1", "targets": ["dev2.yaml"]}]
 
 
-def test_push_unconfigured_raises():
+async def test_push_unconfigured_raises():
     fc = FleetClient(base_url="", token="")
     with pytest.raises(FleetUnavailable):
-        fc.push_device("x", "yaml")
+        await fc.push_device("x", "yaml")
 
 
-def test_push_invalid_name_raises_value_error():
+async def test_push_invalid_name_raises_value_error():
     addon = FakeFleetAddon()
     fc = addon.make_client()
     with pytest.raises(ValueError):
-        fc.push_device("Has Spaces", "yaml")
+        await fc.push_device("Has Spaces", "yaml")
 
 
 # ---------------------------------------------------------------------------
@@ -219,13 +222,13 @@ def _make_client(monkeypatch, tmp_path, addon: FakeFleetAddon | None) -> TestCli
     monkeypatch.delenv("FLEET_TOKEN", raising=False)
     factory = (lambda: addon.make_client()) if addon else None
     return TestClient(create_app(
-        sessions=SessionStore(root=tmp_path / "sessions"),
-        designs=DesignStore(root=tmp_path / "designs"),
+        sessions=FileSessionStore(root=tmp_path / "sessions"),
+        designs=FileDesignStore(root=tmp_path / "designs"),
         fleet_client_factory=factory,
     ))
 
 
-def test_fleet_status_unconfigured(monkeypatch, tmp_path):
+async def test_fleet_status_unconfigured(monkeypatch, tmp_path):
     client = _make_client(monkeypatch, tmp_path, addon=None)
     r = client.get("/fleet/status")
     assert r.status_code == 200
@@ -234,7 +237,7 @@ def test_fleet_status_unconfigured(monkeypatch, tmp_path):
     assert "FLEET_URL" in body["reason"]
 
 
-def test_fleet_status_ok(monkeypatch, tmp_path):
+async def test_fleet_status_ok(monkeypatch, tmp_path):
     addon = FakeFleetAddon()
     client = _make_client(monkeypatch, tmp_path, addon=addon)
     r = client.get("/fleet/status")
@@ -244,21 +247,21 @@ def test_fleet_status_ok(monkeypatch, tmp_path):
     assert body["url"] == "http://fake-fleet.local"
 
 
-def test_fleet_push_unconfigured_returns_503(monkeypatch, tmp_path, garage_motion_design):
+async def test_fleet_push_unconfigured_returns_503(monkeypatch, tmp_path, garage_motion_design):
     client = _make_client(monkeypatch, tmp_path, addon=None)
     r = client.post("/fleet/push", json={"design": garage_motion_design})
     assert r.status_code == 503
     assert "FLEET_URL" in r.json()["detail"]
 
 
-def test_fleet_push_invalid_design_returns_422(monkeypatch, tmp_path):
+async def test_fleet_push_invalid_design_returns_422(monkeypatch, tmp_path):
     addon = FakeFleetAddon()
     client = _make_client(monkeypatch, tmp_path, addon=addon)
     r = client.post("/fleet/push", json={"design": {"id": "x"}})
     assert r.status_code == 422
 
 
-def test_fleet_push_round_trip_no_compile(monkeypatch, tmp_path, garage_motion_design):
+async def test_fleet_push_round_trip_no_compile(monkeypatch, tmp_path, garage_motion_design):
     addon = FakeFleetAddon()
     client = _make_client(monkeypatch, tmp_path, addon=addon)
     r = client.post("/fleet/push", json={"design": garage_motion_design})
@@ -273,7 +276,7 @@ def test_fleet_push_round_trip_no_compile(monkeypatch, tmp_path, garage_motion_d
     assert "esphome:" in addon.files["garage-motion.yaml"]
 
 
-def test_fleet_push_with_compile(monkeypatch, tmp_path, garage_motion_design):
+async def test_fleet_push_with_compile(monkeypatch, tmp_path, garage_motion_design):
     addon = FakeFleetAddon()
     client = _make_client(monkeypatch, tmp_path, addon=addon)
     r = client.post("/fleet/push", json={"design": garage_motion_design, "compile": True})
@@ -284,7 +287,7 @@ def test_fleet_push_with_compile(monkeypatch, tmp_path, garage_motion_design):
     assert addon.compile_runs[0]["targets"] == ["garage-motion.yaml"]
 
 
-def test_fleet_push_uses_device_name_override(monkeypatch, tmp_path, garage_motion_design):
+async def test_fleet_push_uses_device_name_override(monkeypatch, tmp_path, garage_motion_design):
     addon = FakeFleetAddon()
     client = _make_client(monkeypatch, tmp_path, addon=addon)
     r = client.post(
@@ -296,7 +299,7 @@ def test_fleet_push_uses_device_name_override(monkeypatch, tmp_path, garage_moti
     assert "kitchen-pir.yaml" in addon.files
 
 
-def test_fleet_push_invalid_device_name_returns_422(monkeypatch, tmp_path, garage_motion_design):
+async def test_fleet_push_invalid_device_name_returns_422(monkeypatch, tmp_path, garage_motion_design):
     addon = FakeFleetAddon()
     client = _make_client(monkeypatch, tmp_path, addon=addon)
     r = client.post(
@@ -306,7 +309,7 @@ def test_fleet_push_invalid_device_name_returns_422(monkeypatch, tmp_path, garag
     assert r.status_code == 422
 
 
-def test_fleet_push_strict_clean_design_passes(monkeypatch, tmp_path, garage_motion_design):
+async def test_fleet_push_strict_clean_design_passes(monkeypatch, tmp_path, garage_motion_design):
     """garage-motion is warning-clean; strict push goes through."""
     addon = FakeFleetAddon()
     client = _make_client(monkeypatch, tmp_path, addon=addon)
@@ -318,7 +321,7 @@ def test_fleet_push_strict_clean_design_passes(monkeypatch, tmp_path, garage_mot
     assert r.json()["created"] is True
 
 
-def test_fleet_push_strict_blocks_on_compat_warning(monkeypatch, tmp_path):
+async def test_fleet_push_strict_blocks_on_compat_warning(monkeypatch, tmp_path):
     """ttgo-lora32 has a known boot_strap_output warning; strict push 422s
     with the same envelope as /design/render?strict=true so the UI can
     surface it the same way. The non-strict path still ships the file."""
@@ -343,42 +346,42 @@ def test_fleet_push_strict_blocks_on_compat_warning(monkeypatch, tmp_path):
 # Build log polling
 # ---------------------------------------------------------------------------
 
-def test_get_job_log_unconfigured_raises():
+async def test_get_job_log_unconfigured_raises():
     fc = FleetClient(base_url="", token="")
     with pytest.raises(FleetUnavailable):
-        fc.get_job_log("run-1")
+        await fc.get_job_log("run-1")
 
 
-def test_get_job_log_unknown_run_id_raises():
+async def test_get_job_log_unknown_run_id_raises():
     addon = FakeFleetAddon()
     fc = addon.make_client()
     with pytest.raises(FleetUnavailable):
-        fc.get_job_log("nope")
+        await fc.get_job_log("nope")
 
 
-def test_get_job_log_returns_chunks_and_finished_flag():
+async def test_get_job_log_returns_chunks_and_finished_flag():
     addon = FakeFleetAddon()
     addon.job_logs["run-1"] = {"log": "compiling...\n", "finished": False}
     fc = addon.make_client()
-    chunk1 = fc.get_job_log("run-1", offset=0)
+    chunk1 = await fc.get_job_log("run-1", offset=0)
     assert chunk1.log == "compiling...\n"
     assert chunk1.offset == len("compiling...\n")
     assert chunk1.finished is False
     # Append more output, poll from where we left off.
     addon.job_logs["run-1"]["log"] += "linking...\n"
     addon.job_logs["run-1"]["finished"] = True
-    chunk2 = fc.get_job_log("run-1", offset=chunk1.offset)
+    chunk2 = await fc.get_job_log("run-1", offset=chunk1.offset)
     assert chunk2.log == "linking...\n"
     assert chunk2.finished is True
 
 
-def test_fleet_job_log_endpoint_unconfigured_returns_503(monkeypatch, tmp_path):
+async def test_fleet_job_log_endpoint_unconfigured_returns_503(monkeypatch, tmp_path):
     client = _make_client(monkeypatch, tmp_path, addon=None)
     r = client.get("/fleet/jobs/run-1/log")
     assert r.status_code == 503
 
 
-def test_fleet_job_log_endpoint_round_trip(monkeypatch, tmp_path):
+async def test_fleet_job_log_endpoint_round_trip(monkeypatch, tmp_path):
     addon = FakeFleetAddon()
     addon.job_logs["run-42"] = {"log": "hello world\n", "finished": False}
     client = _make_client(monkeypatch, tmp_path, addon=addon)
@@ -396,7 +399,7 @@ def test_fleet_job_log_endpoint_round_trip(monkeypatch, tmp_path):
     assert body2["finished"] is True
 
 
-def test_fleet_job_log_unknown_run_id_returns_502(monkeypatch, tmp_path):
+async def test_fleet_job_log_unknown_run_id_returns_502(monkeypatch, tmp_path):
     addon = FakeFleetAddon()
     client = _make_client(monkeypatch, tmp_path, addon=addon)
     r = client.get("/fleet/jobs/nope/log")
@@ -423,7 +426,7 @@ def _parse_sse(body: str) -> list[dict]:
     return events
 
 
-def test_fleet_job_log_stream_emits_chunks_then_done(monkeypatch, tmp_path):
+async def test_fleet_job_log_stream_emits_chunks_then_done(monkeypatch, tmp_path):
     addon = FakeFleetAddon()
     addon.job_logs["run-1"] = {"log": "compiling...\nlinking...\nbuild ok\n", "finished": True}
     client = _make_client(monkeypatch, tmp_path, addon=addon)
@@ -440,13 +443,13 @@ def test_fleet_job_log_stream_emits_chunks_then_done(monkeypatch, tmp_path):
     assert events[-1]["event"] == "done"
 
 
-def test_fleet_job_log_stream_unconfigured_returns_503(monkeypatch, tmp_path):
+async def test_fleet_job_log_stream_unconfigured_returns_503(monkeypatch, tmp_path):
     client = _make_client(monkeypatch, tmp_path, addon=None)
     r = client.get("/fleet/jobs/run-1/log/stream")
     assert r.status_code == 503
 
 
-def test_fleet_job_log_stream_unknown_run_id_emits_error_event(monkeypatch, tmp_path):
+async def test_fleet_job_log_stream_unknown_run_id_emits_error_event(monkeypatch, tmp_path):
     """The addon returns 404 for unknown run_ids; the SSE relay surfaces
     that as an `event: error` frame and exits, rather than 502'ing the
     whole stream (HTTP status is already committed by the time the
