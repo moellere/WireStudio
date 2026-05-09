@@ -16,6 +16,10 @@ interface ChatMessage {
   pendingToolCalls?: PendingToolCall[];  // populated mid-stream
   streaming?: boolean;
   isError?: boolean;
+  /** Populated on turn_complete -- shown as a small footer per assistant
+   *  message so cache-hit + model choice are visible at a glance. */
+  usage?: Record<string, number>;
+  model?: string;
 }
 
 interface Props {
@@ -93,6 +97,8 @@ export function AgentSidebar({ open, design, onClose, onDesignReplaced }: Props)
             toolCalls: event.tool_calls,
             pendingToolCalls: undefined,
             streaming: false,
+            usage: event.usage,
+            model: event.model,
           }));
         } else if (event.type === "error") {
           appendToLastAssistant((m) => ({
@@ -292,7 +298,39 @@ function Bubble({ message }: { message: ChatMessage }) {
             </ul>
           </details>
         )}
+
+        {message.usage && !message.streaming && (
+          <UsageFooter usage={message.usage} model={message.model} />
+        )}
       </div>
+    </div>
+  );
+}
+
+function UsageFooter({ usage, model }: { usage: Record<string, number>; model?: string }) {
+  const inTok = usage.input_tokens ?? 0;
+  const outTok = usage.output_tokens ?? 0;
+  const cacheRead = usage.cache_read_input_tokens ?? 0;
+  const cacheWrite = usage.cache_creation_input_tokens ?? 0;
+  // Cache hit ratio against the input total (read + write + uncached input).
+  // A high read share is the win: ephemeral cache returns a ~90% read discount.
+  const totalInput = inTok + cacheRead + cacheWrite;
+  const hitPct = totalInput > 0 ? Math.round((cacheRead / totalInput) * 100) : 0;
+  return (
+    <div className="mt-2 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-zinc-500">
+      {model && <span title="model that handled this turn">{model}</span>}
+      <span title="uncached input tokens">in {inTok}</span>
+      <span title="output tokens">out {outTok}</span>
+      {(cacheRead > 0 || cacheWrite > 0) && (
+        <span
+          className={cacheRead > 0 ? "text-emerald-400/80" : "text-amber-400/80"}
+          title={cacheRead > 0
+            ? `${cacheRead} cached input tokens read (${hitPct}% of input). ~90% cheaper than uncached input.`
+            : `${cacheWrite} input tokens written to cache. Subsequent turns within ~5min will read from this for cheap.`}
+        >
+          cache {cacheRead > 0 ? `${hitPct}% hit` : "warmed"}
+        </span>
+      )}
     </div>
   );
 }

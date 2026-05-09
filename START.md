@@ -170,18 +170,73 @@ reason to publish to PyPI.
 
 **Next up candidates (current ordering, 2026-05-09):**
 
-1. Library batch 3 from the jesserockz survey: tuya MCU bridge
-   (vendor class — switches/sensors/numbers/selects/climate/fan all
-   hang off it), modbus_controller + sdm_meter (RS485 + MAX485
-   transceiver), bl0906 (6-channel energy meter), nextion HMI
-   display. Same format as #12 / #17. This is now the obvious
-   continuation: the compile gate is proven, so library expansion
-   is end-to-end verified by default.
-2. WebUI basic/advanced mode toggle (verified-tier surface by default;
-   Schematic / Enclosure / Push-to-fleet / Agent behind Advanced).
-3. Component-coverage matrix script — walk goldens, emit a checkbox
-   table of which library entries have a passing example.
-4. **Gemini plan tail (open items from PR #19's review doc):**
+(Items 1–3 from the previous list shipped: library batch 3 in PR
+#20, WebUI basic/advanced toggle in PR #22, coverage matrix in PR
+#23. Ruff cleanup shipped in PR #21. PR #24 fixed a real
+multi-turn agent regression — `_serialize_assistant_block`
+sanitizes SDK parser metadata before history append. Live UI
+testing surfaced two strategic items below.)
+
+1. **Agent cost tuning.** Multi-turn agent sessions burn through
+   API credits faster than expected on `claude-opus-4-7`. Tackle
+   in priority of impact:
+   1. **Configurable model tier.** Default to `claude-sonnet-4-6`
+      (5× cheaper input/output than Opus) via env var
+      `WIRESTUDIO_AGENT_MODEL`. Opus stays as an opt-in. Agent
+      work here is tool-routing + dict editing, not frontier
+      reasoning — Sonnet is sufficient.
+   2. **Verify prompt caching is hitting.** The library JSON has
+      `cache_control: ephemeral` at `agent.py:172` but
+      `cache_read_input_tokens` hasn't been confirmed in usage.
+      Also add a cache breakpoint on `SYSTEM_INSTRUCTIONS` (it's
+      stable across turns, currently uncached).
+   3. **Slim the system payload.** Today every system prompt
+      carries the full library YAML for 56 components + 14
+      boards (~30–50 KB). Emit a compact index by default
+      (id + category + use_cases + aliases); add a
+      `library_detail(id)` tool the agent calls when it needs
+      the full sheet for a specific component.
+   4. **Lower `max_iterations`.** Currently 12. Most design
+      edits take 3–5 tool calls; cap at 8.
+   5. **Compact `tool_result` payloads.** `search_components`
+      returns full library cards; trim to id + category +
+      score. Saves repeat-trip tokens.
+
+   Combined estimate: 5–10× cheaper per turn with no real
+   capability loss. Items 1.1 + 1.2 are this session's PR.
+
+2. **MCP pivot (placeholder — bigger architectural call).**
+   Expose the agent tool surface (`wirestudio/agent/tools.py` —
+   11 tools) as an MCP server. Users with a Claude Code or
+   Claude Desktop subscription drive the studio from their host
+   client; wirestudio pays nothing for LLM tokens. Subscription
+   economics for the user, decoupling for us. The HTTP API
+   already provides design persistence + render — MCP is mostly
+   plumbing.
+
+   Open questions to settle before scoping the work:
+   - **Two surfaces or one?** Keep the embedded `/agent/turn`
+     endpoint for users with their own API key, plus add MCP?
+     Or drop the embedded path and lean on MCP only? More code
+     vs. simpler ownership.
+   - **Tool-call boundary.** Each MCP tool is stateless;
+     wirestudio's tools today mutate a design dict in memory.
+     Either tools take + return the design dict each call (fat
+     payload), or they reference a server-side design id and
+     mutate via the existing `/designs/{id}` endpoints
+     (stateful, racy under concurrent agents).
+   - **Render visibility.** The web UI's value-add is the live
+     YAML / ASCII / pinout pane. If the user is driving from
+     Claude Code, do they ever open the UI? If not, the
+     studio's UI surface shrinks. If yes, MCP needs a "design
+     id" the UI can subscribe to so edits show up live.
+   - **Auth model.** Today the agent endpoints rate-limit by
+     IP; an MCP server reachable on the host needs a different
+     story (loopback-only, token, both?).
+
+   Not blocked, just need to decide before pouring code in.
+
+3. **Gemini plan tail (open items from PR #19's review doc):**
    - SQLite-backed `DesignStore` + `SessionStore` implementations
      (Protocol abstractions are in; alternative backend isn't).
    - `Field(description="…")` on `wirestudio.api.schemas` so
@@ -193,13 +248,16 @@ reason to publish to PyPI.
      `wirestudio/agent`, `wirestudio/fleet`).
    - Agent failure-mode tests: Anthropic 429 / connection error /
      mid-stream disconnect coverage in `tests/test_agent.py`.
-   - Ruff cleanup: PR #19 left 21 lint errors (unused
-     `SessionStore` / `DesignStore` imports in tests, E402
-     import-order on `tests/test_fleet.py`'s `pytestmark` line).
-     CI doesn't run ruff; the opt-in pre-commit hook does. Cheap
-     `ruff --fix` + manual E402 reorder.
+     PR #24's `parsed_output` regression would have been caught
+     by a "real-API-rejects-extras" test in this group.
    - (Decided against:) global `@app.exception_handler` — see PR #19
      rationale; helper-function approach is the chosen pattern.
+
+4. **Library coverage gap follow-ups.** PR #23's matrix surfaced
+   25 components and 6 boards without a bundled example. Each is
+   a small example PR in the #12 / #17 mold. Useful steady-state
+   work between substantive items.
+
 5. 1.0 — KiCad PCB layout (reuse the schematic's netlist;
    Freerouting; Gerber + JLCPCB CPL/BOM).
 
