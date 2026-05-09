@@ -279,3 +279,77 @@ def test_session_store_rejects_traversal_directly(tmp_path):
     store = FileSessionStore(root=tmp_path)
     with pytest.raises(ValueError):
         store.path("../passwd")
+
+
+# ---------------------------------------------------------------------------
+# Assistant block sanitizer
+# ---------------------------------------------------------------------------
+# Real bug from a multi-turn agent session: after ~10 turns the next API call
+# 400'd with `messages.N.content.M.text.parsed_output: Extra inputs are not
+# permitted`. Cause: the SDK's message-stream parser attaches `parsed_output`
+# (and potentially other helpers) to TextBlock instances; feeding the raw
+# model_dump() back as history poisons the conversation. _serialize_assistant_block
+# whitelists only the API-accepted keys per block type.
+
+class _FakeTextBlock:
+    type = "text"
+    def __init__(self, text: str, **extras):
+        self.text = text
+        for k, v in extras.items():
+            setattr(self, k, v)
+    def model_dump(self):
+        return {"type": self.type, "text": self.text, **{
+            k: v for k, v in self.__dict__.items() if k != "text"
+        }}
+
+
+class _FakeToolUseBlock:
+    type = "tool_use"
+    def __init__(self, id_: str, name: str, input_: dict, **extras):
+        self.id = id_
+        self.name = name
+        self.input = input_
+        for k, v in extras.items():
+            setattr(self, k, v)
+
+
+def test_serialize_text_block_drops_parser_extras():
+    from wirestudio.agent.agent import _serialize_assistant_block
+    block = _FakeTextBlock("hello", parsed_output={"foo": "bar"}, citations=[])
+    out = _serialize_assistant_block(block)
+    assert out == {"type": "text", "text": "hello"}
+    assert "parsed_output" not in out
+    assert "citations" not in out
+
+
+def test_serialize_tool_use_block_keeps_only_input_fields():
+    from wirestudio.agent.agent import _serialize_assistant_block
+    block = _FakeToolUseBlock(
+        "tu_01", "search_components", {"query": "motion"},
+        cache_creation_input_tokens=42,  # SDK-attached usage hint
+    )
+    out = _serialize_assistant_block(block)
+    assert out == {
+        "type": "tool_use",
+        "id": "tu_01",
+        "name": "search_components",
+        "input": {"query": "motion"},
+    }
+    assert "cache_creation_input_tokens" not in out
+
+
+def test_serialize_unknown_block_falls_back_to_model_dump():
+    """Future SDK block types (thinking, server_tool_use, ...) round-trip
+    via model_dump until we add an explicit branch. Better than dropping
+    them silently."""
+    from wirestudio.agent.agent import _serialize_assistant_block
+
+    class _Future:
+        type = "thinking"
+        def __init__(self):
+            self.thought = "..."
+        def model_dump(self):
+            return {"type": self.type, "thought": self.thought}
+
+    out = _serialize_assistant_block(_Future())
+    assert out == {"type": "thinking", "thought": "..."}

@@ -127,6 +127,33 @@ def _process_tool_calls(response, working_design: dict, library: Library, tool_c
     return tool_results, events
 
 
+def _serialize_assistant_block(block: object) -> dict:
+    """Strip SDK-side parser metadata from a content block before feeding
+    it back as conversation history.
+
+    `Message.content[*].model_dump()` includes fields the SDK attaches
+    while parsing the streamed response (e.g. `parsed_output` on text
+    blocks under structured-output paths). The Anthropic API rejects
+    those extras on input -- a multi-turn agent loop fails on the next
+    request with `messages.N.content.M.text.parsed_output: Extra inputs
+    are not permitted`. So we hand-pick only the fields the API
+    documents as input-valid for each block type.
+    """
+    btype = getattr(block, "type", None)
+    if btype == "text":
+        return {"type": "text", "text": getattr(block, "text", "")}
+    if btype == "tool_use":
+        return {
+            "type": "tool_use",
+            "id": getattr(block, "id", None),
+            "name": getattr(block, "name", None),
+            "input": getattr(block, "input", {}),
+        }
+    # Defensive: future block kinds (e.g. thinking, server_tool_use) get
+    # dumped as-is. Add explicit branches when we start using them.
+    return block.model_dump() if hasattr(block, "model_dump") else dict(block)  # type: ignore[arg-type]
+
+
 def stream_turn_events(
     *,
     design: dict,
@@ -194,7 +221,7 @@ def stream_turn_events(
             if response.stop_reason != "tool_use":
                 break
 
-            messages.append({"role": "assistant", "content": [b.model_dump() for b in response.content]})
+            messages.append({"role": "assistant", "content": [_serialize_assistant_block(b) for b in response.content]})
             tool_results, tool_events = _process_tool_calls(response, working_design, library_instance, tool_calls_log)
             for event in tool_events:
                 yield event
