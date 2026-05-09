@@ -22,6 +22,7 @@ import { CapabilityPickerDialog } from "./components/CapabilityPickerDialog";
 import { EnclosureDialog } from "./components/EnclosureDialog";
 import { SchematicDialog } from "./components/SchematicDialog";
 import { useDebouncedValue } from "./lib/debounce";
+import { useAdvancedMode } from "./lib/uiMode";
 import {
   addComponent,
   isDirty,
@@ -55,6 +56,11 @@ export default function App() {
    *  before push-to-fleet. Default permissive so the user isn't blocked
    *  while editing. */
   const [strictMode, setStrictMode] = useState<boolean>(false);
+  /** Advanced mode reveals the schematic / enclosure / push-to-fleet /
+   *  agent surfaces. Default basic so the front door is the verified-tier
+   *  flow (board + components + buses + YAML preview). Persists to
+   *  localStorage. */
+  const [advancedMode, setAdvancedMode] = useAdvancedMode();
 
   const [boardData, setBoardData] = useState<unknown | null>(null);
 
@@ -373,13 +379,15 @@ export default function App() {
           )}
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowAgent(true)}
-            className="rounded bg-blue-500/15 px-2 py-1 text-xs text-blue-100 ring-1 ring-blue-400/40 hover:bg-blue-500/25"
-            title="Open the design agent"
-          >
-            Agent
-          </button>
+          {advancedMode && (
+            <button
+              onClick={() => setShowAgent(true)}
+              className="rounded bg-blue-500/15 px-2 py-1 text-xs text-blue-100 ring-1 ring-blue-400/40 hover:bg-blue-500/25"
+              title="Open the design agent"
+            >
+              Agent
+            </button>
+          )}
           <button
             onClick={() => setShowNewDialog(true)}
             className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
@@ -423,6 +431,22 @@ export default function App() {
             />
             strict
           </label>
+          <label
+            className={`flex cursor-pointer items-center gap-1 rounded border px-2 py-1 text-xs transition-colors ${
+              advancedMode
+                ? "border-violet-600/50 bg-violet-900/20 text-violet-100"
+                : "border-zinc-800 text-zinc-300 hover:bg-zinc-900"
+            }`}
+            title="Advanced mode reveals the Agent, Schematic (KiCad), Enclosure, and Push-to-fleet surfaces. Persists across sessions."
+          >
+            <input
+              type="checkbox"
+              checked={advancedMode}
+              onChange={(e) => setAdvancedMode(e.target.checked)}
+              className="h-3 w-3"
+            />
+            advanced
+          </label>
           <button
             onClick={() => setShowUsbDialog(true)}
             className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
@@ -438,30 +462,34 @@ export default function App() {
           >
             Add by function
           </button>
-          <button
-            disabled={!design}
-            onClick={() => setShowSchematicDialog(true)}
-            className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 enabled:hover:bg-zinc-900 disabled:opacity-40"
-            title="Download a SKiDL Python script that produces a .kicad_sch when run locally"
-          >
-            Schematic
-          </button>
-          <button
-            disabled={!design}
-            onClick={() => setShowEnclosureDialog(true)}
-            className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 enabled:hover:bg-zinc-900 disabled:opacity-40"
-            title="Generate a parametric .scad shell or search community-uploaded models"
-          >
-            Enclosure
-          </button>
-          <button
-            disabled={!design}
-            onClick={() => setShowFleetDialog(true)}
-            className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 enabled:hover:bg-zinc-900 disabled:opacity-40"
-            title="Push the rendered YAML to distributed-esphome"
-          >
-            Push to fleet
-          </button>
+          {advancedMode && (
+            <>
+              <button
+                disabled={!design}
+                onClick={() => setShowSchematicDialog(true)}
+                className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 enabled:hover:bg-zinc-900 disabled:opacity-40"
+                title="Download a SKiDL Python script that produces a .kicad_sch when run locally"
+              >
+                Schematic
+              </button>
+              <button
+                disabled={!design}
+                onClick={() => setShowEnclosureDialog(true)}
+                className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 enabled:hover:bg-zinc-900 disabled:opacity-40"
+                title="Generate a parametric .scad shell or search community-uploaded models"
+              >
+                Enclosure
+              </button>
+              <button
+                disabled={!design}
+                onClick={() => setShowFleetDialog(true)}
+                className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 enabled:hover:bg-zinc-900 disabled:opacity-40"
+                title="Push the rendered YAML to distributed-esphome"
+              >
+                Push to fleet
+              </button>
+            </>
+          )}
           <button
             disabled={!dirty}
             onClick={handleReset}
