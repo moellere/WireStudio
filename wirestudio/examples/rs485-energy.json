@@ -1,0 +1,72 @@
+{
+  "schema_version": "0.1",
+  "id": "rs485-energy",
+  "name": "Eastron SDM230 single-phase energy meter via RS485",
+  "description": "ESP32-DevKitC-V4 reading an Eastron SDM230 energy meter over Modbus RTU. UART2 (GPIO16/GPIO17) drives a MAX485 transceiver; GPIO5 toggles the transceiver's combined DE+RE direction pin. The studio's modbus component owns the protocol layer, sdm_meter rides on top.",
+  "created_at": "2026-05-09T00:00:00Z",
+  "updated_at": "2026-05-09T00:00:00Z",
+
+  "board": {
+    "library_id": "esp32-devkitc-v4",
+    "mcu": "esp32",
+    "framework": "arduino"
+  },
+
+  "power": {
+    "supply": "usb",
+    "rail_voltage_v": 5.0,
+    "regulator": "onboard-ams1117-3v3",
+    "budget_ma": 500
+  },
+
+  "requirements": [
+    { "id": "r1", "kind": "capability", "text": "publish per-phase voltage / current / power and total import/export energy from an SDM230" },
+    { "id": "r2", "kind": "constraint",  "text": "RS485 is half-duplex through a MAX485; flow_control_pin must drive DE+RE in lockstep" }
+  ],
+
+  "components": [
+    {
+      "id": "rs485_bus",
+      "library_id": "modbus",
+      "label": "RS485 modbus",
+      "params": { "send_wait_time": "200ms" }
+    },
+    {
+      "id": "meter",
+      "library_id": "sdm_meter",
+      "label": "Mains",
+      "params": { "address": 1, "update_interval": "30s" }
+    }
+  ],
+
+  "buses": [
+    { "id": "modbus_uart", "type": "uart", "rx": "GPIO16", "tx": "GPIO17", "baud_rate": 9600 }
+  ],
+
+  "connections": [
+    { "component_id": "rs485_bus", "pin_role": "UART", "target": { "kind": "bus",  "bus_id": "modbus_uart" } },
+    { "component_id": "rs485_bus", "pin_role": "FLOW", "target": { "kind": "gpio", "pin": "GPIO5" } },
+    { "component_id": "meter",     "pin_role": "HUB",  "target": { "kind": "component", "component_id": "rs485_bus" } }
+  ],
+
+  "passives": [],
+
+  "warnings": [
+    { "level": "info", "code": "rs485_transceiver_required",
+      "text": "Wire UART RX/TX through a MAX485 (or equivalent) transceiver: A/B to the SDM230 terminals 9/10, RO/DI to GPIO16/GPIO17, DE+RE tied together to GPIO5." }
+  ],
+
+  "esphome_extras": {
+    "captive_portal": {}
+  },
+
+  "fleet": {
+    "device_name": "rs485-energy",
+    "tags": ["energy", "rs485", "sdm230"],
+    "secrets_ref": {
+      "wifi_ssid": "!secret wifi_ssid",
+      "wifi_password": "!secret wifi_password",
+      "api_key": "!secret api_key"
+    }
+  }
+}

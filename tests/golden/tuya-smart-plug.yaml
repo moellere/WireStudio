@@ -1,0 +1,48 @@
+esphome:
+  name: tuya-smart-plug
+esp8266:
+  board: esp8285
+logger:
+  baud_rate: 0
+api:
+  encryption:
+    key: !secret api_key
+ota:
+- platform: esphome
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+captive_portal: {}
+uart:
+- id: tuya_uart
+  rx_pin: GPIO3
+  tx_pin: GPIO1
+  baud_rate: 9600
+tuya:
+  id: tuya_mcu
+  uart_id: tuya_uart
+switch:
+- platform: tuya
+  id: relay
+  name: Plug relay
+  tuya_id: tuya_mcu
+  switch_datapoint: 1
+  restore_mode: RESTORE_DEFAULT_OFF
+sensor:
+- platform: tuya
+  id: watts
+  name: Plug power
+  tuya_id: tuya_mcu
+  sensor_datapoint: 17
+  unit_of_measurement: W
+  filters:
+  - multiply: 0.1
+- platform: tuya
+  id: kwh
+  name: Plug energy
+  tuya_id: tuya_mcu
+  sensor_datapoint: 18
+  unit_of_measurement: kWh
+  accuracy_decimals: 2
+  filters:
+  - multiply: 0.01
