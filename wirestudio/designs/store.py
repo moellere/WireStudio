@@ -13,7 +13,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Protocol
 
 DESIGNS_DIR_DEFAULT = Path(__file__).resolve().parent.parent.parent / "designs"
 
@@ -50,8 +50,6 @@ class SavedDesignSummary:
     saved_at: str
     component_count: int
 
-
-from typing import Optional, Protocol
 
 class DesignStore(Protocol):
     def exists(self, design_id: str) -> bool: ...

@@ -11,7 +11,7 @@ import json
 import secrets
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Protocol
 
 SESSIONS_DIR_ENV_DEFAULT = Path(__file__).resolve().parent.parent.parent / "sessions"
 
@@ -19,8 +19,6 @@ SESSIONS_DIR_ENV_DEFAULT = Path(__file__).resolve().parent.parent.parent / "sess
 def new_session_id() -> str:
     return secrets.token_urlsafe(8)
 
-
-from typing import Optional, Protocol
 
 class SessionStore(Protocol):
     def exists(self, session_id: str) -> bool: ...

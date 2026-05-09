@@ -8,4 +8,4 @@ conversation history, never carries design state).
 
 from wirestudio.designs.store import DesignStore, FileDesignStore, SavedDesignSummary
 
-__all__ = ["DesignStore", "SavedDesignSummary"]
+__all__ = ["DesignStore", "FileDesignStore", "SavedDesignSummary"]
