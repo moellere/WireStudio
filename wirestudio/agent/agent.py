@@ -20,6 +20,17 @@ except ImportError:  # pragma: no cover - exercised in deployment, not tests
     _ANTHROPIC_INSTALLED = False
 
 
+# Default agent model. Sonnet handles tool-routing + design-dict editing
+# fine and is ~5x cheaper than Opus. Override via WIRESTUDIO_AGENT_MODEL
+# (e.g., set to claude-opus-4-7 for the long-tail ambiguous prompts where
+# Opus's reasoning shows up). Per-call override still wins over the env.
+DEFAULT_AGENT_MODEL = "claude-sonnet-4-6"
+
+
+def _resolve_model(explicit: Optional[str] = None) -> str:
+    return explicit or os.environ.get("WIRESTUDIO_AGENT_MODEL") or DEFAULT_AGENT_MODEL
+
+
 SYSTEM_INSTRUCTIONS = """\
 You are a helper inside wirestudio, a tool that turns a `design.json` \
 document into ESPHome YAML + an ASCII wiring diagram + a BOM.
@@ -58,6 +69,7 @@ class TurnResult:
     tool_calls: list[dict]
     stop_reason: str
     usage: dict
+    model: str = ""
 
 
 def _build_library_context(library: Library) -> str:
@@ -161,16 +173,21 @@ def stream_turn_events(
     session_id: Optional[str] = None,
     library: Optional[Library] = None,
     sessions: Optional[SessionStore] = None,
-    model: str = "claude-opus-4-7",
+    model: Optional[str] = None,
     max_iterations: int = 12,
 ) -> Iterator[dict]:
-    """Run a single user turn and yield events as they happen."""
+    """Run a single user turn and yield events as they happen.
+
+    `model` defaults to `WIRESTUDIO_AGENT_MODEL` env var, falling back to
+    `DEFAULT_AGENT_MODEL` (Sonnet). Pass an explicit string to override
+    per-call (e.g., the agent UI could expose a model picker)."""
     available, reason = is_available()
     if not available:
         yield {"type": "error", "message": reason or "agent unavailable"}
         return
 
     library_instance = library or default_library()
+    resolved_model = _resolve_model(model)
 
     sid, sessions_store, working_design, messages, library_block = _initialize_turn(
         design, user_message, session_id, sessions, library_instance
@@ -191,11 +208,15 @@ def stream_turn_events(
     try:
         for _ in range(max_iterations):
             with client.messages.stream(
-                model=model,
+                model=resolved_model,
                 max_tokens=4096,
                 thinking={"type": "adaptive"},
+                # Two cache breakpoints: SYSTEM_INSTRUCTIONS is small but stable
+                # across every turn -> always a hit after the first, ~90% read
+                # discount. library_block is ~30-50KB stable JSON -> the big
+                # win. Anthropic caches at each breakpoint that has cache_control.
                 system=[
-                    {"type": "text", "text": SYSTEM_INSTRUCTIONS},
+                    {"type": "text", "text": SYSTEM_INSTRUCTIONS, "cache_control": {"type": "ephemeral"}},
                     {"type": "text", "text": library_block, "cache_control": {"type": "ephemeral"}},
                 ],
                 tools=TOOL_SCHEMAS,
@@ -246,6 +267,7 @@ def stream_turn_events(
         "tool_calls": tool_calls_log,
         "stop_reason": stop_reason,
         "usage": accumulated_usage,
+        "model": resolved_model,
     }
 
 
@@ -257,7 +279,7 @@ def run_turn(
     session_id: Optional[str] = None,
     library: Optional[Library] = None,
     sessions: Optional[SessionStore] = None,
-    model: str = "claude-opus-4-7",
+    model: Optional[str] = None,
     max_iterations: int = 12,
 ) -> TurnResult:
     """Non-streaming wrapper. Consumes stream_turn_events and collapses
@@ -287,4 +309,5 @@ def run_turn(
         tool_calls=final["tool_calls"],
         stop_reason=final["stop_reason"],
         usage=final["usage"],
+        model=final.get("model", ""),
     )

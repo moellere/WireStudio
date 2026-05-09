@@ -202,6 +202,7 @@ export type AgentStreamEvent =
       tool_calls: AgentToolCall[];
       stop_reason: string;
       usage: Record<string, number>;
+      model?: string;
     }
   | { type: "error"; message: string };
 
