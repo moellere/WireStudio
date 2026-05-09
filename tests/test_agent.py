@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from wirestudio.agent.session import SessionStore, FileSessionStore, new_session_id
+from wirestudio.agent.session import FileSessionStore, new_session_id
 from wirestudio.agent.tools import execute_tool
 from wirestudio.api.app import create_app
 from wirestudio.library import default_library
