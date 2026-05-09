@@ -1,0 +1,66 @@
+id: tuya
+name: Tuya MCU bridge (UART, 9600 baud)
+category: bus
+use_cases: [tuya, tuya_mcu, smart_plug, smart_switch, climate_controller, fan_controller]
+aliases: ["tuya_mcu", "tuya_serial"]
+
+electrical:
+  vcc_min: 0.0
+  vcc_max: 0.0
+  current_ma_typical: 0
+  current_ma_peak: 0
+  # tuya is a serial protocol layer -- the physical wiring is the
+  # host UART (TX/RX) on the radio module side; the Tuya MCU is on
+  # the other side of the link with its own VCC/GND. The hub itself
+  # owns no pins; downstream tuya_switch / tuya_sensor entries hub-
+  # link via parent.id.
+  pins: []
+  passives: []
+
+esphome:
+  required_components: [uart]
+  yaml_template: |
+    tuya:
+      id: {{ id }}
+      uart_id: {{ bus.id }}
+    {%- if params.time_id is defined %}
+      time_id: {{ params.time_id }}
+    {%- endif %}
+    {%- if params.status_pin is defined %}
+      status_pin: {{ params.status_pin | tojson }}
+    {%- endif %}
+    {%- if params.ignore_mcu_update_on_datapoints is defined %}
+      ignore_mcu_update_on_datapoints: {{ params.ignore_mcu_update_on_datapoints | tojson }}
+    {%- endif %}
+
+params_schema:
+  time_id:
+    type: string
+    description: "ID of a time component (sntp / homeassistant). Tuya MCUs that show the time on their own panel pull it via this link."
+  status_pin:
+    type: string
+    description: "GPIO the Tuya MCU monitors for WiFi-connected status. Wired internally on most Tuya devices -- check the teardown / scopeprobe before guessing."
+  ignore_mcu_update_on_datapoints:
+    type: array
+    description: "List of integer DP ids the host should not echo back to the MCU. Used to break feedback loops on devices where the MCU pushes its own state changes spuriously."
+
+notes: |
+  Tuya / Smart Life devices ship as a radio module (ESP8266/ESP8285/BK7231
+  -- the BK chips are not flashable to ESPHome) glued to a Tuya MCU
+  that owns the relays / sensors / motor / display. The MCU and the
+  radio talk a documented serial protocol over a single UART (9600 8N1).
+  ESPHome's tuya hub speaks that protocol; downstream tuya_switch /
+  tuya_sensor / tuya_number / tuya_select entries each address one
+  datapoint (DP) on the MCU. Find DP ids by sniffing the MCU traffic
+  with the tuya-cloudcutter tools or by reading
+  https://github.com/ct-Open-Source/tuya-convert/wiki and the device's
+  community tuya-local entries. Common patterns: DP 1 = main switch,
+  DP 17 = current power, DP 18 = total energy, DP 24 = temperature.
+# KiCad symbol mapping. Tuya is a logical hub -- the user already has
+# a board entry for the radio module. Render a 1-pin header so the
+# schematic shows where downstream tuya_switch / tuya_sensor children
+# attach without inventing a duplicate part.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x01
+  value: Tuya MCU

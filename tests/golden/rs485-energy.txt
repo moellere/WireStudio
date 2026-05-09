@@ -1,0 +1,22 @@
++------------------------------------------------------------------------------------------------------------------------+
+|  ESP32-DevKitC-V4  ---  rs485-energy                                                                                   |
++------------------------------------------------------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                                                                   |
+|                                                                                                                        |
+|  rs485_bus  [Modbus RTU bus protocol (RS485-over-UART)]  -- RS485 modbus                                               |
+|    UART  -> modbus_uart (uart)                                                                                         |
+|    FLOW  -> GPIO5                                                                                                      |
+|                                                                                                                        |
+|  meter  [Eastron SDM single/three-phase energy meter (Modbus RTU over RS485)]  -- Mains                                |
+|                                                                                                                        |
+|  BOM:                                                                                                                  |
+|    - ESP32-DevKitC-V4                                                                                                  |
+|    - Modbus RTU bus protocol (RS485-over-UART)  (rs485_bus)                                                            |
+|    - Eastron SDM single/three-phase energy meter (Modbus RTU over RS485)  (meter)                                      |
+|                                                                                                                        |
+|  Power: ~0mA typical, ~0mA peak (budget 500mA)  OK                                                                     |
+|                                                                                                                        |
+|  Warnings:                                                                                                             |
+|    [info] rs485_transceiver_required: Wire UART RX/TX through a MAX485 (or equivalent) transceiver: A/B to the SDM230  |
+|                                       terminals 9/10, RO/DI to GPIO16/GPIO17, DE+RE tied together to GPIO5.            |
++------------------------------------------------------------------------------------------------------------------------+

@@ -1,0 +1,75 @@
+esphome:
+  name: bl0906-mainmeter
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+logger: {}
+api:
+  encryption:
+    key: !secret api_key
+ota:
+- platform: esphome
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+captive_portal: {}
+uart:
+- id: em6_uart
+  rx_pin: GPIO16
+  tx_pin: GPIO17
+  baud_rate: 19200
+sensor:
+- platform: bl0906
+  uart_id: em6_uart
+  update_interval: 30s
+  voltage:
+    name: Mains Voltage
+  frequency:
+    name: Mains Frequency
+  total_power:
+    name: Mains Total Power
+  total_energy:
+    name: Mains Total Energy
+  channel_1:
+    current:
+      name: Mains Ch1 Current
+    power:
+      name: Mains Ch1 Power
+    energy:
+      name: Mains Ch1 Energy
+  channel_2:
+    current:
+      name: Mains Ch2 Current
+    power:
+      name: Mains Ch2 Power
+    energy:
+      name: Mains Ch2 Energy
+  channel_3:
+    current:
+      name: Mains Ch3 Current
+    power:
+      name: Mains Ch3 Power
+    energy:
+      name: Mains Ch3 Energy
+  channel_4:
+    current:
+      name: Mains Ch4 Current
+    power:
+      name: Mains Ch4 Power
+    energy:
+      name: Mains Ch4 Energy
+  channel_5:
+    current:
+      name: Mains Ch5 Current
+    power:
+      name: Mains Ch5 Power
+    energy:
+      name: Mains Ch5 Energy
+  channel_6:
+    current:
+      name: Mains Ch6 Current
+    power:
+      name: Mains Ch6 Power
+    energy:
+      name: Mains Ch6 Energy

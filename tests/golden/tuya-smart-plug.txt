@@ -1,0 +1,27 @@
++-----------------------------------------------------------------------------------------------------------------+
+|  Generic ESP8285 1MB module (Athom / Sonoff Basic R3 / Tuya plug)  ---  tuya-smart-plug                         |
++-----------------------------------------------------------------------------------------------------------------+
+|  Rails: MAINS, 5V, 3V3, GND                                                                                     |
+|                                                                                                                 |
+|  tuya_mcu  [Tuya MCU bridge (UART, 9600 baud)]  -- Tuya bridge                                                  |
+|    UART  -> tuya_uart (uart)                                                                                    |
+|                                                                                                                 |
+|  relay  [Tuya datapoint switch]  -- Plug relay                                                                  |
+|                                                                                                                 |
+|  watts  [Tuya datapoint sensor]  -- Plug power                                                                  |
+|                                                                                                                 |
+|  kwh  [Tuya datapoint sensor]  -- Plug energy                                                                   |
+|                                                                                                                 |
+|  BOM:                                                                                                           |
+|    - Generic ESP8285 1MB module (Athom / Sonoff Basic R3 / Tuya plug)                                           |
+|    - Tuya MCU bridge (UART, 9600 baud)  (tuya_mcu)                                                              |
+|    - Tuya datapoint switch  (relay)                                                                             |
+|    - Tuya datapoint sensor  (watts)                                                                             |
+|    - Tuya datapoint sensor  (kwh)                                                                               |
+|                                                                                                                 |
+|  Power: ~0mA typical, ~0mA peak (budget 200mA)  OK                                                              |
+|                                                                                                                 |
+|  Warnings:                                                                                                      |
+|    [warn] logger_baud_collision: Disable the ESPHome serial logger (or move it off UART0) -- the Tuya MCU owns  |
+|                                  the 9600-baud UART0 bus.                                                       |
++-----------------------------------------------------------------------------------------------------------------+

@@ -1,0 +1,86 @@
+{
+  "schema_version": "0.1",
+  "id": "nextion-thermostat",
+  "name": "Nextion HMI thermostat panel",
+  "description": "ESP32-DevKitC-V4 with a Nextion HMI display on UART2 (GPIO16/GPIO17 @ 9600 baud) and an SHT3xD temp/humidity sensor on the board's default I2C. The Nextion's GUI is uploaded separately via the Nextion Editor; this design just feeds it sensor values.",
+  "created_at": "2026-05-09T00:00:00Z",
+  "updated_at": "2026-05-09T00:00:00Z",
+
+  "board": {
+    "library_id": "esp32-devkitc-v4",
+    "mcu": "esp32",
+    "framework": "arduino"
+  },
+
+  "power": {
+    "supply": "usb",
+    "rail_voltage_v": 5.0,
+    "regulator": "onboard-ams1117-3v3",
+    "budget_ma": 800
+  },
+
+  "requirements": [
+    { "id": "r1", "kind": "capability", "text": "drive a Nextion 2.4\"-3.5\" HMI display over UART for thermostat UI" },
+    { "id": "r2", "kind": "capability", "text": "publish room temperature + humidity from an SHT3xD" }
+  ],
+
+  "components": [
+    {
+      "id": "screen",
+      "library_id": "nextion",
+      "label": "Thermostat",
+      "params": { "brightness": "60%", "update_interval": "10s" }
+    },
+    {
+      "id": "th",
+      "library_id": "sht3xd",
+      "label": "Room",
+      "params": {}
+    }
+  ],
+
+  "buses": [
+    { "id": "i2c0",         "type": "i2c",  "sda": "GPIO21", "scl": "GPIO22", "frequency_hz": 100000 },
+    { "id": "nextion_uart", "type": "uart", "rx": "GPIO16", "tx": "GPIO17", "baud_rate": 9600 }
+  ],
+
+  "connections": [
+    { "component_id": "screen", "pin_role": "VCC", "target": { "kind": "rail", "rail": "5V" } },
+    { "component_id": "screen", "pin_role": "GND", "target": { "kind": "rail", "rail": "GND" } },
+    { "component_id": "screen", "pin_role": "TX",  "target": { "kind": "bus",  "bus_id": "nextion_uart" } },
+    { "component_id": "screen", "pin_role": "RX",  "target": { "kind": "bus",  "bus_id": "nextion_uart" } },
+
+    { "component_id": "th", "pin_role": "VCC", "target": { "kind": "rail", "rail": "3V3" } },
+    { "component_id": "th", "pin_role": "GND", "target": { "kind": "rail", "rail": "GND" } },
+    { "component_id": "th", "pin_role": "SDA", "target": { "kind": "bus",  "bus_id": "i2c0" } },
+    { "component_id": "th", "pin_role": "SCL", "target": { "kind": "bus",  "bus_id": "i2c0" } }
+  ],
+
+  "passives": [
+    { "id": "c1", "kind": "capacitor", "value": "100uF",
+      "between": ["screen.VCC", "GND"], "purpose": "bulk decoupling nextion backlight inrush" },
+    { "id": "c2", "kind": "capacitor", "value": "100nF",
+      "between": ["screen.VCC", "GND"], "purpose": "decoupling nextion logic" },
+    { "id": "c3", "kind": "capacitor", "value": "100nF",
+      "between": ["th.VCC", "GND"], "purpose": "decoupling sht3xd" }
+  ],
+
+  "warnings": [
+    { "level": "info", "code": "nextion_5v_supply",
+      "text": "The Nextion's VCC rides the board's 5V rail (USB) -- a Nextion at full backlight pulls 200-250mA. Check your USB supply margin or feed the display from a separate 5V brick if you're also driving WS2812 strips off the same regulator." }
+  ],
+
+  "esphome_extras": {
+    "captive_portal": {}
+  },
+
+  "fleet": {
+    "device_name": "nextion-thermostat",
+    "tags": ["display", "thermostat", "nextion"],
+    "secrets_ref": {
+      "wifi_ssid": "!secret wifi_ssid",
+      "wifi_password": "!secret wifi_password",
+      "api_key": "!secret api_key"
+    }
+  }
+}

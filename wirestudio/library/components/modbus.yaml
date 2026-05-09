@@ -1,0 +1,62 @@
+id: modbus
+name: Modbus RTU bus protocol (RS485-over-UART)
+category: bus
+use_cases: [rs485, modbus_rtu, energy_meter, hvac, inverter]
+aliases: ["modbus_rtu", "rs485_bus"]
+
+electrical:
+  vcc_min: 0.0
+  vcc_max: 0.0
+  current_ma_typical: 0
+  current_ma_peak: 0
+  pins:
+    # Optional GPIO that drives a MAX485 (or equivalent) RS485
+    # transceiver's combined DE+RE direction pin. Bind only when
+    # half-duplex RS485 is wired through such a transceiver; for
+    # full-duplex RS232/TTL modbus stacks, leave it unbound.
+    - {role: FLOW, kind: digital_out, voltage: 3.3}
+  passives: []
+
+esphome:
+  required_components: [uart]
+  yaml_template: |
+    modbus:
+      id: {{ id }}
+      uart_id: {{ bus.id }}
+    {%- if pins.FLOW is defined %}
+      flow_control_pin: {{ pins.FLOW | tojson }}
+    {%- endif %}
+    {%- if params.send_wait_time is defined %}
+      send_wait_time: {{ params.send_wait_time }}
+    {%- endif %}
+    {%- if params.role is defined %}
+      role: {{ params.role }}
+    {%- endif %}
+
+params_schema:
+  send_wait_time:
+    type: string
+    description: "Minimum gap between modbus requests, e.g. '200ms'. Some slaves need 100-500ms to settle between transactions."
+  role:
+    type: string
+    enum: [client, server]
+    default: client
+    description: "client = master (the studio reads), server = slave (the studio answers). Almost everyone wants client."
+
+notes: |
+  The bare modbus protocol layer that downstream platforms (sdm_meter,
+  modbus_controller, dl_bus, etc.) ride on. Pair with a UART configured
+  for the slave's baud rate (commonly 9600 for SDM230 / 2400 for SDM120
+  / 19200 for many inverters; check the device datasheet) and a MAX485
+  transceiver if the bus is electrically RS485. The transceiver's
+  DE+RE direction pin ties to the FLOW pin; ESPHome toggles it on each
+  TX. UART parity is per-slave -- most modbus stacks run NONE 8N1, but
+  a handful (SMA inverters, some HVAC gateways) need EVEN.
+# KiCad symbol mapping. Modbus is a logical layer with no part number;
+# the FLOW connection is to a real transceiver IC the user adds
+# separately. 1-pin header keeps the schematic honest about the wiring
+# point without inventing a part.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x01
+  value: Modbus hub

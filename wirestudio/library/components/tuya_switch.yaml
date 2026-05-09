@@ -1,0 +1,53 @@
+id: tuya_switch
+name: Tuya datapoint switch
+category: switch
+use_cases: [tuya_switch, smart_plug_relay, smart_switch_button, tuya_relay]
+aliases: ["tuya_relay", "tuya_dp_switch"]
+
+electrical:
+  current_ma_typical: 0
+  current_ma_peak: 0
+  pins:
+    - role: HUB
+      kind: hub_ref
+      parent_library_id: tuya
+  passives: []
+
+esphome:
+  required_components: []
+  yaml_template: |
+    switch:
+      - platform: tuya
+        id: {{ id }}
+        name: "{{ label }}"
+        tuya_id: {{ parent.id }}
+        switch_datapoint: {{ params.switch_datapoint | default(1) }}
+    {%- if params.icon is defined %}
+        icon: "{{ params.icon }}"
+    {%- endif %}
+    {%- if params.restore_mode is defined %}
+        restore_mode: {{ params.restore_mode }}
+    {%- endif %}
+
+params_schema:
+  switch_datapoint:
+    type: number
+    default: 1
+    description: "Integer DP id on the Tuya MCU that toggles this switch. DP 1 is the main relay on most plugs / switches; multi-gang switches use DP 1..4."
+  icon:
+    type: string
+  restore_mode:
+    type: string
+    enum: [RESTORE_DEFAULT_OFF, RESTORE_DEFAULT_ON, ALWAYS_OFF, ALWAYS_ON, RESTORE_INVERTED_DEFAULT_OFF, RESTORE_INVERTED_DEFAULT_ON, DISABLED]
+
+notes: |
+  One toggleable datapoint on a Tuya MCU. Sits as a child of a tuya
+  hub -- add a tuya component first, then point this switch at it via
+  the HUB connection. The MCU handles the actual relay / triac drive;
+  ESPHome just sends DP set commands and listens for echoes. For
+  current/power/energy readings on the same plug, add tuya_sensor
+  instances pointed at the metering DPs (commonly 17, 18, 19).
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x01
+  value: Tuya switch DP
