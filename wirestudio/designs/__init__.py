@@ -6,6 +6,6 @@ UI can save and reload across browser refreshes. Distinct from
 conversation history, never carries design state).
 """
 
-from wirestudio.designs.store import DesignStore, SavedDesignSummary
+from wirestudio.designs.store import DesignStore, FileDesignStore, SavedDesignSummary
 
 __all__ = ["DesignStore", "SavedDesignSummary"]

@@ -51,7 +51,17 @@ class SavedDesignSummary:
     component_count: int
 
 
-class DesignStore:
+from typing import Optional, Protocol
+
+class DesignStore(Protocol):
+    def exists(self, design_id: str) -> bool: ...
+    def list(self) -> list[SavedDesignSummary]: ...
+    def load(self, design_id: str) -> dict: ...
+    def save(self, design: dict, design_id: Optional[str] = None) -> tuple[str, str]: ...
+    def delete(self, design_id: str) -> bool: ...
+
+class FileDesignStore(DesignStore):
+
     def __init__(self, root: Optional[Path] = None) -> None:
         self.root = Path(root) if root else DESIGNS_DIR_DEFAULT
         self.root.mkdir(parents=True, exist_ok=True)

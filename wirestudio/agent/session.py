@@ -20,7 +20,15 @@ def new_session_id() -> str:
     return secrets.token_urlsafe(8)
 
 
-class SessionStore:
+from typing import Optional, Protocol
+
+class SessionStore(Protocol):
+    def exists(self, session_id: str) -> bool: ...
+    def load(self, session_id: str) -> list[dict]: ...
+    def append(self, session_id: str, role: str, content: str) -> dict: ...
+
+class FileSessionStore(SessionStore):
+
     """One-line-per-message JSONL files. Cheap, greppable, agent-friendly."""
 
     def __init__(self, root: Optional[Path] = None) -> None:

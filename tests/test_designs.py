@@ -11,9 +11,9 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from wirestudio.agent.session import SessionStore
+from wirestudio.agent.session import SessionStore, FileSessionStore
 from wirestudio.api.app import create_app
-from wirestudio.designs.store import DesignStore, sanitize_id
+from wirestudio.designs.store import DesignStore, FileDesignStore, sanitize_id
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 EXAMPLES_DIR = REPO_ROOT / "wirestudio" / "examples"
@@ -45,7 +45,7 @@ def test_sanitize_id_rejects_empty_and_invalid():
 
 
 def test_save_and_load_round_trip(tmp_path, garage_motion_design):
-    store = DesignStore(root=tmp_path)
+    store = FileDesignStore(root=tmp_path)
     sid, saved_at = store.save(garage_motion_design)
     assert sid == "garage-motion-v1"
     assert saved_at  # ISO timestamp
@@ -55,7 +55,7 @@ def test_save_and_load_round_trip(tmp_path, garage_motion_design):
 
 
 def test_save_overwrites(tmp_path, garage_motion_design):
-    store = DesignStore(root=tmp_path)
+    store = FileDesignStore(root=tmp_path)
     sid1, _ = store.save(garage_motion_design)
     modified = dict(garage_motion_design)
     modified["name"] = "Renamed"
@@ -66,20 +66,20 @@ def test_save_overwrites(tmp_path, garage_motion_design):
 
 
 def test_save_with_explicit_id(tmp_path, garage_motion_design):
-    store = DesignStore(root=tmp_path)
+    store = FileDesignStore(root=tmp_path)
     sid, _ = store.save(garage_motion_design, design_id="My Custom Name")
     assert sid == "my-custom-name"
     assert store.load(sid)["id"] == "garage-motion-v1"  # internal id unchanged
 
 
 def test_save_missing_id_raises(tmp_path):
-    store = DesignStore(root=tmp_path)
+    store = FileDesignStore(root=tmp_path)
     with pytest.raises(ValueError):
         store.save({"name": "no id"})
 
 
 def test_list_returns_summaries_newest_first(tmp_path, garage_motion_design):
-    store = DesignStore(root=tmp_path)
+    store = FileDesignStore(root=tmp_path)
     second = dict(garage_motion_design)
     second["id"] = "second"
     second["name"] = "Second design"
@@ -95,13 +95,13 @@ def test_list_returns_summaries_newest_first(tmp_path, garage_motion_design):
 
 
 def test_load_unknown_raises(tmp_path):
-    store = DesignStore(root=tmp_path)
+    store = FileDesignStore(root=tmp_path)
     with pytest.raises(FileNotFoundError):
         store.load("nope")
 
 
 def test_delete(tmp_path, garage_motion_design):
-    store = DesignStore(root=tmp_path)
+    store = FileDesignStore(root=tmp_path)
     sid, _ = store.save(garage_motion_design)
     assert store.delete(sid) is True
     assert not store.exists(sid)
@@ -109,7 +109,7 @@ def test_delete(tmp_path, garage_motion_design):
 
 
 def test_path_rejects_traversal(tmp_path):
-    store = DesignStore(root=tmp_path)
+    store = FileDesignStore(root=tmp_path)
     with pytest.raises(ValueError):
         store.path("../passwd")
     with pytest.raises(ValueError):
@@ -126,8 +126,8 @@ def test_path_rejects_traversal(tmp_path):
 def client(monkeypatch, tmp_path) -> TestClient:
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     return TestClient(create_app(
-        sessions=SessionStore(root=tmp_path / "sessions"),
-        designs=DesignStore(root=tmp_path / "designs"),
+        sessions=FileSessionStore(root=tmp_path / "sessions"),
+        designs=FileDesignStore(root=tmp_path / "designs"),
     ))
 
 
