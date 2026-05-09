@@ -256,7 +256,10 @@ it without a proxy.
 | [`tuya-smart-plug.json`](wirestudio/examples/tuya-smart-plug.json) | ESP8285 1MB | Tuya-MCU smart plug — relay (DP 1) + power (DP 17) + energy (DP 18) over UART 9600; logger off UART0 |
 
 Generated artifacts for each are pinned as goldens in
-[`tests/golden/`](tests/golden/).
+[`tests/golden/`](tests/golden/). For a per-component / per-board view of
+which library entries are exercised by these examples, see
+[`docs/library-coverage.md`](docs/library-coverage.md) (regenerate with
+`python scripts/coverage_matrix.py`).
 
 ## Architecture
 
