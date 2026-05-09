@@ -1,0 +1,73 @@
+id: nextion
+name: Nextion HMI display (UART, 9600 baud default)
+category: display
+use_cases: [hmi, touchscreen, gui, thermostat_ui, control_panel]
+aliases: ["nextion_basic", "nextion_enhanced", "nextion_intelligent"]
+
+electrical:
+  vcc_min: 4.5
+  vcc_max: 5.5
+  current_ma_typical: 90
+  current_ma_peak: 250
+  pins:
+    - {role: VCC, kind: power}
+    - {role: GND, kind: ground}
+    # Display TX -> MCU RX, MCU TX -> Display RX. Bidirectional UART.
+    - {role: TX, kind: uart_tx, voltage: 3.3}
+    - {role: RX, kind: uart_rx, voltage: 3.3}
+  passives:
+    # Backlight + display logic together pull spikes well above 100mA at
+    # power-on; bulk decoupling on VCC keeps the rail clean.
+    - {kind: capacitor, value: "100uF", between: [VCC, GND], purpose: bulk decoupling}
+    - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+
+esphome:
+  required_components: [uart]
+  yaml_template: |
+    display:
+      - platform: nextion
+        id: {{ id }}
+        uart_id: {{ bus.id }}
+        update_interval: {{ params.update_interval | default('5s') }}
+    {%- if params.brightness is defined %}
+        brightness: {{ params.brightness }}
+    {%- endif %}
+    {%- if params.tft_url is defined %}
+        tft_url: "{{ params.tft_url }}"
+    {%- endif %}
+    {%- if params.lambda is defined %}
+        lambda: |-
+          {{ params.lambda | indent(10) }}
+    {%- endif %}
+
+params_schema:
+  update_interval:
+    type: string
+    default: "5s"
+    description: "How often the lambda runs. Most updates should ride dedicated nextion sensor/switch components instead -- use a long interval (60s+) when there's no lambda."
+  brightness:
+    type: string
+    description: "Backlight at boot, e.g. '60%'. Omit to keep the display's stored brightness."
+  tft_url:
+    type: string
+    description: "HTTP(S) URL to a .tft file the display upgrades from on demand. Leave unset unless you're bundling firmware updates."
+  lambda:
+    type: string
+    description: "C++ rendering body. Prefer dedicated nextion components over driving everything from the lambda -- it runs every update_interval and serial-blasts the display."
+
+notes: |
+  Nextion is a serial-driven smart display: the screen runs its own GUI
+  uploaded from Nextion Editor (.HMI -> .tft), and the MCU sends
+  text/value updates over UART. Default baud is 9600 (raise to 115200
+  in Nextion Editor's program.s if you need faster updates). Use a
+  hardware UART -- software UART will glitch on long strings. The
+  display draws ~80mA idle and spikes to ~250mA on touch + backlight
+  full -- size the regulator accordingly. ESPHome 2025.12.x supports
+  Nextion Basic (T-series) and Enhanced/Intelligent (K/P-series); the
+  schema is the same.
+# KiCad symbol mapping. Nextion ships a 4-pin JST connector (5V, GND,
+# TX, RX) that matches a generic 4-pin header.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x04
+  value: Nextion HMI

@@ -1,0 +1,60 @@
+id: tuya_sensor
+name: Tuya datapoint sensor
+category: sensor
+use_cases: [tuya_sensor, smart_plug_metering, tuya_temperature, tuya_humidity, tuya_kwh]
+aliases: ["tuya_dp_sensor"]
+
+electrical:
+  current_ma_typical: 0
+  current_ma_peak: 0
+  pins:
+    - role: HUB
+      kind: hub_ref
+      parent_library_id: tuya
+  passives: []
+
+esphome:
+  required_components: []
+  yaml_template: |
+    sensor:
+      - platform: tuya
+        id: {{ id }}
+        name: "{{ label }}"
+        tuya_id: {{ parent.id }}
+        sensor_datapoint: {{ params.sensor_datapoint | default(17) }}
+    {%- if params.unit_of_measurement is defined %}
+        unit_of_measurement: "{{ params.unit_of_measurement }}"
+    {%- endif %}
+    {%- if params.accuracy_decimals is defined %}
+        accuracy_decimals: {{ params.accuracy_decimals }}
+    {%- endif %}
+    {%- if params.filters is defined %}
+        filters: {{ params.filters | tojson }}
+    {%- endif %}
+
+params_schema:
+  sensor_datapoint:
+    type: number
+    default: 17
+    description: "Integer DP id on the Tuya MCU that emits this reading. Common metering plugs: 17 = current power (dW), 18 = current (mA), 19 = voltage (dV), 22 = total energy (Wh)."
+  unit_of_measurement:
+    type: string
+    description: "e.g. 'W', 'kWh', '°C'. Apply with `filters: [multiply: 0.1]` if the MCU reports decidegrees / dW."
+  accuracy_decimals:
+    type: number
+    description: "Decimal places ESPHome rounds to. Most metering DPs report integers in tenths/hundredths -- pair with a multiply filter."
+  filters:
+    type: array
+    description: "Standard ESPHome sensor filters. `[{multiply: 0.1}]` is common for dW -> W or 0.1°C -> °C scaling on Tuya metering DPs."
+
+notes: |
+  One numeric datapoint on a Tuya MCU. Sits as a child of a tuya hub.
+  Most Tuya plugs/switches expose metering on DPs 17-22 with
+  fixed-point integer encoding (dW, dA, dV, deci-kWh) -- attach a
+  `[{multiply: 0.1}]` filter to get human units. For boolean DPs
+  (e.g. occupancy / smoke / door-open) use a tuya binary_sensor
+  variant rather than wedging this entry into bool mode.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x01
+  value: Tuya sensor DP

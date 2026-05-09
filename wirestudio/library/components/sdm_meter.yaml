@@ -1,0 +1,82 @@
+id: sdm_meter
+name: Eastron SDM single/three-phase energy meter (Modbus RTU over RS485)
+category: sensor
+use_cases: [power_metering, ac_voltage, ac_current, energy, sub_metering, three_phase]
+aliases: ["sdm120", "sdm120m", "sdm220", "sdm230", "sdm630"]
+
+electrical:
+  current_ma_typical: 0
+  current_ma_peak: 0
+  pins:
+    - role: HUB
+      kind: hub_ref
+      parent_library_id: modbus
+  passives: []
+
+esphome:
+  required_components: []
+  yaml_template: |
+    sensor:
+      - platform: sdm_meter
+        modbus_id: {{ parent.id }}
+        address: {{ params.address | default(1) }}
+        update_interval: {{ params.update_interval | default('60s') }}
+        phase_a:
+          voltage:
+            name: "{{ label }} Phase A Voltage"
+          current:
+            name: "{{ label }} Phase A Current"
+          active_power:
+            name: "{{ label }} Phase A Power"
+    {%- if params.three_phase is defined and params.three_phase %}
+        phase_b:
+          voltage:
+            name: "{{ label }} Phase B Voltage"
+          current:
+            name: "{{ label }} Phase B Current"
+          active_power:
+            name: "{{ label }} Phase B Power"
+        phase_c:
+          voltage:
+            name: "{{ label }} Phase C Voltage"
+          current:
+            name: "{{ label }} Phase C Current"
+          active_power:
+            name: "{{ label }} Phase C Power"
+    {%- endif %}
+        frequency:
+          name: "{{ label }} Frequency"
+        import_active_energy:
+          name: "{{ label }} Total Import Energy"
+        export_active_energy:
+          name: "{{ label }} Total Export Energy"
+
+params_schema:
+  address:
+    type: number
+    default: 1
+    description: "Modbus slave address. SDM meters ship as 0x01 from the factory; change via the front-panel menu if you have multiple meters on one bus."
+  update_interval:
+    type: string
+    default: "60s"
+  three_phase:
+    type: boolean
+    default: false
+    description: "Set true for SDM630 / SDM72 (three-phase models). SDM120/SDM220/SDM230 are single-phase, leave false."
+
+notes: |
+  Eastron SDM-series DIN-rail energy meters speak Modbus RTU over an
+  RS485 bus. Wire through a MAX485-class transceiver: A/B to the
+  meter, RO/DI to the MCU UART RX/TX, DE+RE tied together to a GPIO
+  bound to the modbus FLOW pin. Baud rates: SDM120 default is 2400;
+  SDM230 / SDM630 default is 9600 -- check the meter's display menu,
+  most modern installs use 9600. The meter also exposes a wider
+  register set (reactive power, power factor, phase angle, etc.); add
+  per-phase blocks downstream of phase_a as needed.
+# KiCad symbol mapping. The SDM is a DIN-rail meter, not a board-level
+# part; render a generic 4-pin terminal block (A, B, GND, optional shield)
+# for the RS485 connection.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x04
+  value: SDM meter

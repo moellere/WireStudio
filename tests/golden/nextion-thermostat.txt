@@ -1,0 +1,36 @@
++----------------------------------------------------------------------------------------------------------------+
+|  ESP32-DevKitC-V4  ---  nextion-thermostat                                                                     |
++----------------------------------------------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                                                           |
+|                                                                                                                |
+|  screen  [Nextion HMI display (UART, 9600 baud default)]  -- Thermostat                                        |
+|    VCC   -> rail 5V                                                                                            |
+|    GND   -> rail GND                                                                                           |
+|    TX    -> nextion_uart (GPIO16)                                                                              |
+|    RX    -> nextion_uart (GPIO17)                                                                              |
+|                                                                                                                |
+|  th  [Sensirion SHT3x / SHT4x temperature + humidity (I2C)]  -- Room                                           |
+|    VCC   -> rail 3V3                                                                                           |
+|    GND   -> rail GND                                                                                           |
+|    SDA   -> i2c0 (GPIO21)                                                                                      |
+|    SCL   -> i2c0 (GPIO22)                                                                                      |
+|                                                                                                                |
+|  Passives:                                                                                                     |
+|    c1: 100uF capacitor, screen.VCC  <->  GND   (bulk decoupling nextion backlight inrush)                      |
+|    c2: 100nF capacitor, screen.VCC  <->  GND   (decoupling nextion logic)                                      |
+|    c3: 100nF capacitor, th.VCC  <->  GND   (decoupling sht3xd)                                                 |
+|                                                                                                                |
+|  BOM:                                                                                                          |
+|    - ESP32-DevKitC-V4                                                                                          |
+|    - Nextion HMI display (UART, 9600 baud default)  (screen)                                                   |
+|    - Sensirion SHT3x / SHT4x temperature + humidity (I2C)  (th)                                                |
+|    - 1x 100uF capacitor                                                                                        |
+|    - 2x 100nF capacitor                                                                                        |
+|                                                                                                                |
+|  Power: ~90mA typical, ~251mA peak (budget 800mA)  OK                                                          |
+|                                                                                                                |
+|  Warnings:                                                                                                     |
+|    [info] nextion_5v_supply: The Nextion's VCC rides the board's 5V rail (USB) -- a Nextion at full backlight  |
+|                              pulls 200-250mA. Check your USB supply margin or feed the display from a          |
+|                              separate 5V brick if you're also driving WS2812 strips off the same regulator.    |
++----------------------------------------------------------------------------------------------------------------+

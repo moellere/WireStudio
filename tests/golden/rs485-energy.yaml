@@ -1,0 +1,44 @@
+esphome:
+  name: rs485-energy
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+logger: {}
+api:
+  encryption:
+    key: !secret api_key
+ota:
+- platform: esphome
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+captive_portal: {}
+uart:
+- id: modbus_uart
+  rx_pin: GPIO16
+  tx_pin: GPIO17
+  baud_rate: 9600
+modbus:
+  id: rs485_bus
+  uart_id: modbus_uart
+  flow_control_pin: GPIO5
+  send_wait_time: 200ms
+sensor:
+- platform: sdm_meter
+  modbus_id: rs485_bus
+  address: 1
+  update_interval: 30s
+  phase_a:
+    voltage:
+      name: Mains Phase A Voltage
+    current:
+      name: Mains Phase A Current
+    active_power:
+      name: Mains Phase A Power
+  frequency:
+    name: Mains Frequency
+  import_active_energy:
+    name: Mains Total Import Energy
+  export_active_energy:
+    name: Mains Total Export Energy

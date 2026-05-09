@@ -1,0 +1,97 @@
+id: bl0906
+name: BL0906 6-channel AC energy meter (UART, 19200 baud)
+category: sensor
+use_cases: [power_metering, ac_voltage, ac_current, energy, sub_metering, multi_channel]
+aliases: ["athom_em6", "bl0906_em6"]
+
+electrical:
+  vcc_min: 3.3
+  vcc_max: 3.6
+  current_ma_typical: 8
+  current_ma_peak: 20
+  pins:
+    - {role: VCC, kind: power}
+    - {role: GND, kind: ground}
+    - {role: TX, kind: uart_tx, voltage: 3.3}
+    - {role: RX, kind: uart_rx, voltage: 3.3}
+  passives:
+    - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+
+esphome:
+  required_components: [uart]
+  yaml_template: |
+    sensor:
+      - platform: bl0906
+        uart_id: {{ bus.id }}
+        update_interval: {{ params.update_interval | default('60s') }}
+        voltage:
+          name: "{{ label }} Voltage"
+        frequency:
+          name: "{{ label }} Frequency"
+        total_power:
+          name: "{{ label }} Total Power"
+        total_energy:
+          name: "{{ label }} Total Energy"
+        channel_1:
+          current:
+            name: "{{ label }} Ch1 Current"
+          power:
+            name: "{{ label }} Ch1 Power"
+          energy:
+            name: "{{ label }} Ch1 Energy"
+        channel_2:
+          current:
+            name: "{{ label }} Ch2 Current"
+          power:
+            name: "{{ label }} Ch2 Power"
+          energy:
+            name: "{{ label }} Ch2 Energy"
+        channel_3:
+          current:
+            name: "{{ label }} Ch3 Current"
+          power:
+            name: "{{ label }} Ch3 Power"
+          energy:
+            name: "{{ label }} Ch3 Energy"
+        channel_4:
+          current:
+            name: "{{ label }} Ch4 Current"
+          power:
+            name: "{{ label }} Ch4 Power"
+          energy:
+            name: "{{ label }} Ch4 Energy"
+        channel_5:
+          current:
+            name: "{{ label }} Ch5 Current"
+          power:
+            name: "{{ label }} Ch5 Power"
+          energy:
+            name: "{{ label }} Ch5 Energy"
+        channel_6:
+          current:
+            name: "{{ label }} Ch6 Current"
+          power:
+            name: "{{ label }} Ch6 Power"
+          energy:
+            name: "{{ label }} Ch6 Energy"
+
+params_schema:
+  update_interval:
+    type: string
+    default: "60s"
+
+notes: |
+  BL0906 is the 6-channel sibling of BL0937 (3-pin pulse), used in the
+  Athom EM6 whole-home energy monitor. Talks UART at 19200 8N1 -- bind
+  a UART bus to those pins. ESP32-class MCU recommended (UART2 or
+  UART1 free; UART0 stays available for the ESPHome logger). Each of
+  the six current-transformer channels (CT clamp ratio 2000:1 in stock
+  Athom hardware) yields current/power/energy; the chip aggregates
+  total_power/total_energy across all six. The voltage / frequency
+  sensors are global (single AC service feeding the meter).
+# KiCad symbol mapping. BL0906 isn't in stock KiCad libs; use a generic
+# 4-pin header for the LV side breakout (VCC, GND, TX, RX).
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x04
+  value: BL0906

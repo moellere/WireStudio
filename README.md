@@ -250,6 +250,10 @@ it without a proxy.
 | [`smart-plug.json`](wirestudio/examples/smart-plug.json) | ESP8285 1MB | Athom-style smart plug — relay + button + CSE7766 AC power metering over UART 4800 8E1 |
 | [`smart-plug-v1.json`](wirestudio/examples/smart-plug-v1.json) | ESP8285 1MB | Older Athom v1 / Sonoff POW R1 plug — same topology with the HLW8012 / BL0937 3-pin pulse meter |
 | [`desk-matrix.json`](wirestudio/examples/desk-matrix.json) | ESP32-DevKitC | 8x8 WS2812 matrix driven by the ESP32 RMT peripheral (no bit-banging) |
+| [`rs485-energy.json`](wirestudio/examples/rs485-energy.json) | ESP32-DevKitC-V4 | Eastron SDM230 single-phase energy meter via Modbus RTU (UART2 + MAX485 transceiver, GPIO5 drives DE+RE) |
+| [`bl0906-mainmeter.json`](wirestudio/examples/bl0906-mainmeter.json) | ESP32-DevKitC-V4 | BL0906 6-channel CT-clamp energy monitor over UART2 (Athom EM6-style whole-home sub-metering) |
+| [`nextion-thermostat.json`](wirestudio/examples/nextion-thermostat.json) | ESP32-DevKitC-V4 | Nextion HMI thermostat panel — display on UART2 + SHT3xD temp/humidity on default I2C |
+| [`tuya-smart-plug.json`](wirestudio/examples/tuya-smart-plug.json) | ESP8285 1MB | Tuya-MCU smart plug — relay (DP 1) + power (DP 17) + energy (DP 18) over UART 9600; logger off UART0 |
 
 Generated artifacts for each are pinned as goldens in
 [`tests/golden/`](tests/golden/).
@@ -372,6 +376,14 @@ _Light / audio / camera:_
 _Power metering:_
 - `cse7766` — Chipsea AC voltage / current / power / energy over UART 4800 8E1 (Athom v2/c3 + Sonoff plugs)
 - `hlw8012` — HLW8012 / BL0937 / CSE7759 AC power meter via 3-pin pulse interface (older Athom v1 + Sonoff POW R1)
+- `bl0906` — Belling 6-channel AC energy meter over UART 19200 (Athom EM6 / whole-home sub-metering)
+- `modbus` + `sdm_meter` — Modbus RTU bus (RS485 via MAX485 transceiver) + Eastron SDM120/220/230/630 single/three-phase DIN-rail meter
+
+_Vendor bridges:_
+- `tuya` + `tuya_switch` + `tuya_sensor` — Tuya MCU UART bridge plus per-datapoint switch and sensor platforms (smart plugs / switches / climate gadgets that ship with an ESP8266-class radio talking to a separate Tuya MCU)
+
+_Displays (HMI):_
+- `nextion` — Nextion HMI smart display over UART 9600 (T/K/P series; .tft uploaded separately via Nextion Editor)
 
 _Location:_
 - `uart_gps` — generic UART GPS module (NEO-6M / NEO-8M)

@@ -1,0 +1,97 @@
+{
+  "schema_version": "0.1",
+  "id": "tuya-smart-plug",
+  "name": "Tuya MCU smart plug (relay + energy DPs)",
+  "description": "ESP8285 1MB module (the typical Tuya plug radio side) talking to its onboard Tuya MCU over UART0. The MCU owns the relay + the metering chip; ESPHome reaches them through datapoints: DP 1 toggles the relay, DP 17 streams instantaneous power, DP 18 streams cumulative energy.",
+  "created_at": "2026-05-09T00:00:00Z",
+  "updated_at": "2026-05-09T00:00:00Z",
+
+  "board": {
+    "library_id": "esp8285-1m",
+    "mcu": "esp8266",
+    "framework": "arduino"
+  },
+
+  "power": {
+    "supply": "ac-mains",
+    "rail_voltage_v": 230.0,
+    "regulator": "onboard-acdc-3v3",
+    "budget_ma": 200
+  },
+
+  "requirements": [
+    { "id": "r1", "kind": "capability", "text": "drive the load relay via Tuya DP 1 with HA-controllable state" },
+    { "id": "r2", "kind": "capability", "text": "publish current power (DP 17) and cumulative energy (DP 18)" },
+    { "id": "r3", "kind": "constraint",  "text": "ESPHome logger must NOT use UART0 -- the Tuya MCU owns the bus" }
+  ],
+
+  "components": [
+    {
+      "id": "tuya_mcu",
+      "library_id": "tuya",
+      "label": "Tuya bridge",
+      "params": {}
+    },
+    {
+      "id": "relay",
+      "library_id": "tuya_switch",
+      "label": "Plug relay",
+      "params": { "switch_datapoint": 1, "restore_mode": "RESTORE_DEFAULT_OFF" }
+    },
+    {
+      "id": "watts",
+      "library_id": "tuya_sensor",
+      "label": "Plug power",
+      "params": {
+        "sensor_datapoint": 17,
+        "unit_of_measurement": "W",
+        "filters": [{"multiply": 0.1}]
+      }
+    },
+    {
+      "id": "kwh",
+      "library_id": "tuya_sensor",
+      "label": "Plug energy",
+      "params": {
+        "sensor_datapoint": 18,
+        "unit_of_measurement": "kWh",
+        "accuracy_decimals": 2,
+        "filters": [{"multiply": 0.01}]
+      }
+    }
+  ],
+
+  "buses": [
+    { "id": "tuya_uart", "type": "uart", "rx": "GPIO3", "tx": "GPIO1", "baud_rate": 9600 }
+  ],
+
+  "connections": [
+    { "component_id": "tuya_mcu", "pin_role": "UART", "target": { "kind": "bus", "bus_id": "tuya_uart" } },
+
+    { "component_id": "relay", "pin_role": "HUB", "target": { "kind": "component", "component_id": "tuya_mcu" } },
+    { "component_id": "watts", "pin_role": "HUB", "target": { "kind": "component", "component_id": "tuya_mcu" } },
+    { "component_id": "kwh",   "pin_role": "HUB", "target": { "kind": "component", "component_id": "tuya_mcu" } }
+  ],
+
+  "passives": [],
+
+  "warnings": [
+    { "level": "warn", "code": "logger_baud_collision",
+      "text": "Disable the ESPHome serial logger (or move it off UART0) -- the Tuya MCU owns the 9600-baud UART0 bus." }
+  ],
+
+  "esphome_extras": {
+    "captive_portal": {},
+    "logger": { "baud_rate": 0 }
+  },
+
+  "fleet": {
+    "device_name": "tuya-smart-plug",
+    "tags": ["plug", "tuya", "power"],
+    "secrets_ref": {
+      "wifi_ssid": "!secret wifi_ssid",
+      "wifi_password": "!secret wifi_password",
+      "api_key": "!secret api_key"
+    }
+  }
+}

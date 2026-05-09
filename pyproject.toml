@@ -21,13 +21,14 @@ dependencies = [
     "fastapi>=0.110",
     "uvicorn[standard]>=0.27",
     "anthropic>=0.40",
+    "httpx>=0.27",
+    "slowapi>=0.1.9",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
     "ruff>=0.4",
-    "httpx>=0.27",
 ]
 
 [project.scripts]

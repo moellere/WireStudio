@@ -17,6 +17,56 @@ committed and pushed. To pick up where we left off:
 4. `pip install -e .[dev] && cd web && npm install` to get a working
    tree; `python -m pytest -q` and `cd web && npm test` should be green.
 
+**Last shipped (2026-05-09 session).** Architectural pass off the
+back of a Jules-authored review.
+
+- **PR #18 — `Gemini refinements.md`.** External review doc (Jules)
+  flagging async IO, separation-of-concerns, state-management
+  abstraction, agent-streaming readability, CORS/rate-limit gaps,
+  and a five-step bite-size PR plan. Doc only; no code.
+- **PR #19 — Gemini plan, items 1–3 + 5 implemented.**
+  - `_validate_design` helper in `wirestudio/api/app.py` (chosen over
+    a global `@app.exception_handler` deliberately — Gemini's
+    proposal #1's "global handler" variant was rejected as too
+    broad: a top-level `ValueError` handler swallows internal bugs
+    along with route-input failures).
+  - `wirestudio/api/app.py` endpoints migrated to `async def`;
+    `wirestudio/fleet/client.py` rewritten on `httpx.AsyncClient`.
+  - `slowapi` rate limiting on `/agent/turn` + `/agent/stream`;
+    CORS origins now read from `WIRESTUDIO_ALLOWED_ORIGINS`
+    (comma-separated) with the localhost defaults preserved when
+    unset.
+  - `typing.Protocol` interfaces extracted: `DesignStore` in
+    `wirestudio/designs/store.py`, `SessionStore` in
+    `wirestudio/agent/session.py`. **No SQLite implementation
+    yet** — Protocol shipped, alternative backend deferred.
+  - `stream_turn_events` in `wirestudio/agent/agent.py` decomposed
+    into smaller helpers; `run_turn` is now a thin collapsing
+    wrapper over the streaming generator.
+
+**Confirmed already-shipped (corrects an earlier stale "Next up"
+block).** Both 0.5 follow-ons that were queued in the
+2026-05-06 doc are in fact in `main`:
+
+- `POST /agent/stream` SSE endpoint (`wirestudio/api/app.py:709`)
+  yields `tool_use_start` / `tool_result` / `text_delta` /
+  `turn_complete` events from `stream_turn_events`.
+- `recommend` agent tool (`wirestudio/agent/tools.py:193`) plus
+  the deterministic ranker at `wirestudio/recommend/recommender.py`
+  and the `POST /library/recommend` HTTP surface
+  (`app.py:511`).
+
+**`esphome compile` smoke gate is in fact green.** The earlier
+session log called it "never observed." Untrue: the nightly ran
+successfully on 2026-05-07 and 2026-05-08, and a manual
+`workflow_dispatch` on 2026-05-09 (run 25589055836) compiled
+`garage-motion` in 4m17s on warm cache. PlatformIO + ESPHome
+2025.12.7 toolchain + our codegen all hold up. Workflow itself
+emits a Node 20 deprecation warning — not urgent (deadline
+2026-09-16) but worth bumping `actions/checkout@v4` /
+`actions/setup-python@v5` / `actions/cache@v4` next time someone
+touches a workflow file.
+
 **Last shipped (2026-05-06 session).** Wide cluster of work; the
 through-line is "make the studio honest about what's verified" + a
 focused first library expansion. Recent merges to `main`:
@@ -118,15 +168,40 @@ reason to publish to PyPI.
   reveals Schematic / Enclosure / Push-to-fleet / Agent. Reduces
   "AI slop" front-door optics. Not started.
 
-**Next up candidates:**
+**Next up candidates (current ordering, 2026-05-09):**
 
-- Library batch 3 from the survey list above (probably the most
-  obvious continuation — same format as #12 / #17).
-- WebUI basic/advanced mode toggle.
-- A real `esphome compile` smoke run + fix anything that surfaces.
-- Component-coverage matrix script.
-- 1.0 — KiCad PCB layout (reuse the schematic's netlist;
-  Freerouting; Gerber + JLCPCB CPL/BOM).
+1. Library batch 3 from the jesserockz survey: tuya MCU bridge
+   (vendor class — switches/sensors/numbers/selects/climate/fan all
+   hang off it), modbus_controller + sdm_meter (RS485 + MAX485
+   transceiver), bl0906 (6-channel energy meter), nextion HMI
+   display. Same format as #12 / #17. This is now the obvious
+   continuation: the compile gate is proven, so library expansion
+   is end-to-end verified by default.
+2. WebUI basic/advanced mode toggle (verified-tier surface by default;
+   Schematic / Enclosure / Push-to-fleet / Agent behind Advanced).
+3. Component-coverage matrix script — walk goldens, emit a checkbox
+   table of which library entries have a passing example.
+4. **Gemini plan tail (open items from PR #19's review doc):**
+   - SQLite-backed `DesignStore` + `SessionStore` implementations
+     (Protocol abstractions are in; alternative backend isn't).
+   - `Field(description="…")` on `wirestudio.api.schemas` so
+     `/docs` (Swagger UI) is self-documenting without reading
+     source.
+   - Split `docs/DEVELOPMENT.md` out of `README.md` (dev onboarding
+     vs. user-facing pitch).
+   - `print` → `logging` cleanup (audit `wirestudio/api`,
+     `wirestudio/agent`, `wirestudio/fleet`).
+   - Agent failure-mode tests: Anthropic 429 / connection error /
+     mid-stream disconnect coverage in `tests/test_agent.py`.
+   - Ruff cleanup: PR #19 left 21 lint errors (unused
+     `SessionStore` / `DesignStore` imports in tests, E402
+     import-order on `tests/test_fleet.py`'s `pytestmark` line).
+     CI doesn't run ruff; the opt-in pre-commit hook does. Cheap
+     `ruff --fix` + manual E402 reorder.
+   - (Decided against:) global `@app.exception_handler` — see PR #19
+     rationale; helper-function approach is the chosen pattern.
+5. 1.0 — KiCad PCB layout (reuse the schematic's netlist;
+   Freerouting; Gerber + JLCPCB CPL/BOM).
 
 
 **0.9 v2 -- library mapping expansion shipped.** The remaining 20
@@ -874,58 +949,6 @@ The UI-first ordering means 0.5's agent and 0.6's solver each have a
 visible place to land. If the agent lands first (alternative ordering),
 it ships as a CLI/tool-only surface and we re-skin it later — strictly
 worse for the headline feature.
-
-### Next up (queued, not started)
-
-Two small follow-ons to 0.5's agent layer, agreed in the last session:
-
-1. **Streaming agent responses.** Swap `POST /agent/turn` for an SSE
-   variant that emits events as they happen:
-   `tool_use_start { tool, input }`, `tool_result { tool, is_error }`,
-   `text_delta { text }`, then a final `turn_complete { design, usage }`
-   carrying the updated design state. Frontend reads the stream and
-   updates the chat + tool-call UI live; the design swap happens once
-   on the final event so the live YAML/ASCII doesn't churn mid-turn.
-   Improves perceived latency a lot — currently a 4-tool turn looks
-   like a 5-second blank stare.
-
-   Implementation sketch: keep `/agent/turn` for backward-compat,
-   add `POST /agent/stream` (or upgrade `/agent/turn` to also accept
-   `Accept: text/event-stream`). Reuse the manual agentic loop in
-   `wirestudio/agent/agent.py`; just yield events instead of accumulating.
-   Anthropic SDK supports `client.messages.stream(...)` with
-   `get_final_message()` — the per-tool-call dispatch stays the same.
-
-2. **Recommendation mode.** New `recommend(query)` agent tool that
-   takes a capability query (*"motion detection on a battery-powered
-   ESP32"*, *"weather station outdoors"*) and returns ranked component
-   candidates with electrical trade-offs. Pairs naturally with the
-   solver: pick a candidate, add it, solve. Shape:
-
-   ```python
-   {
-       "name": "recommend",
-       "description": "...",
-       "input_schema": {
-           "type": "object",
-           "properties": {
-               "capability": {"type": "string"},
-               "constraints": {"type": "object"},  # power, indoor/outdoor, etc.
-           },
-       },
-   }
-   ```
-
-   The tool implementation is a small ranking function over
-   `library.list_components()`: filter by `use_cases` + `aliases`
-   matching the query; rank by current draw, voltage compatibility,
-   and presence in existing examples (a proxy for "battle-tested").
-
-   v1 should NOT call out to an LLM internally — keep the recommender
-   deterministic and fast. The agent then narrates the options.
-
-Both fit comfortably in one PR. Streaming first (it's the bigger UX
-win); recommend second.
 
 ## Studio web UI (0.3)
 
