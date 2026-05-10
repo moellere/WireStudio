@@ -49,6 +49,7 @@ from wirestudio.api.schemas import (
     UseCaseEntry,
     ValidateResponse,
 )
+from wirestudio.designs.events import DesignEventBus, EventEmittingDesignStore
 from wirestudio.fleet.client import FleetClient, FleetUnavailable
 from wirestudio.csp.compatibility import check_pin_compatibility
 from wirestudio.csp.pin_solver import solve_pins as run_solve_pins
@@ -132,6 +133,7 @@ def create_app(
     sessions: Optional[SessionStore] = None,
     designs: Optional[DesignStore] = None,
     fleet_client_factory=None,
+    event_bus: Optional[DesignEventBus] = None,
 ) -> FastAPI:
     import os as _os
     lib = library or default_library()
@@ -139,7 +141,12 @@ def create_app(
     # the stores at a /data volume without the caller plumbing args
     # through. Falls back to the package-local default in dev.
     sessions_store = sessions or FileSessionStore(root=_os.environ.get("SESSIONS_DIR") or None)
-    designs_store = designs or FileDesignStore(root=_os.environ.get("DESIGNS_DIR") or None)
+    inner_designs = designs or FileDesignStore(root=_os.environ.get("DESIGNS_DIR") or None)
+    bus = event_bus or DesignEventBus()
+    # Every write goes through the wrapper so MCP tools, HTTP endpoints,
+    # and any future CLI all fan out to subscribed browser tabs without
+    # the caller knowing about the bus.
+    designs_store = EventEmittingDesignStore(inner_designs, bus)
     # Tests substitute a factory that returns a FleetClient bound to an
     # httpx.MockTransport so we never hit the network in CI.
     make_fleet: callable = fleet_client_factory or (lambda: FleetClient())
@@ -499,6 +506,59 @@ def create_app(
         if not removed:
             raise HTTPException(status_code=404, detail=f"no saved design with id {design_id!r}")
         return {"deleted": True, "id": design_id}
+
+    @app.get("/designs/{design_id}/events", tags=["designs"])
+    async def design_events(design_id: str, request: Request):
+        """SSE stream of writes to one design.
+
+        Browser tabs open this once per displayed design; any save or
+        delete from MCP / HTTP / CLI emits a `saved` or `deleted` event
+        the client uses to re-fetch + re-render. Also emits a `: ping`
+        comment every 15s to keep intermediate proxies (nginx, vite-dev,
+        Cloudflare) from killing an idle connection.
+
+        The endpoint doesn't validate that `design_id` exists -- a tab
+        opening this stream for a not-yet-saved design is a legitimate
+        race where the next save will be the first event the client
+        ever sees.
+        """
+        queue = bus.subscribe(design_id)
+
+        async def event_source():
+            try:
+                # Replay the current saved-at timestamp on connect so a
+                # late-joining tab can reconcile against its own state
+                # without an explicit fetch race.
+                if designs_store.exists(design_id):
+                    summary = next(
+                        (s for s in designs_store.list() if s.id == design_id),
+                        None,
+                    )
+                    if summary is not None:
+                        yield (
+                            "event: hello\n"
+                            f"data: {json.dumps({'design_id': design_id, 'saved_at': summary.saved_at})}\n\n"
+                        )
+                while True:
+                    if await request.is_disconnected():
+                        return
+                    try:
+                        event = await asyncio.wait_for(queue.get(), timeout=15.0)
+                    except asyncio.TimeoutError:
+                        yield ": ping\n\n"
+                        continue
+                    yield (
+                        f"event: {event.kind}\n"
+                        f"data: {json.dumps(event.to_dict())}\n\n"
+                    )
+            finally:
+                bus.unsubscribe(design_id, queue)
+
+        return StreamingResponse(
+            event_source(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
 
     @app.get("/library/use_cases", response_model=list[UseCaseEntry], tags=["library"])
     def list_use_cases() -> list[UseCaseEntry]:

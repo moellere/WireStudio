@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError } from "./api/client";
 import type {
   BoardSummary,
@@ -142,6 +142,61 @@ export default function App() {
     })();
     return () => { cancelled = true; };
   }, [selectedExample]);
+
+  // Refs so the SSE handler can read the latest design/originalDesign
+  // without re-creating the EventSource on every keystroke. Using state
+  // in the handler's closure would freeze whatever was current at the
+  // time the effect ran.
+  const designRef = useRef<Design | null>(design);
+  const originalDesignRef = useRef<Design | null>(originalDesign);
+  useEffect(() => { designRef.current = design; }, [design]);
+  useEffect(() => { originalDesignRef.current = originalDesign; }, [originalDesign]);
+
+  // Subscribe to design-changed events for the active saved design. Any
+  // write from the MCP tool surface (or another tab, or the CLI) fires a
+  // `saved` event we react to by re-fetching. If the user has unsaved
+  // local edits we skip the refresh -- silently overwriting them would
+  // be hostile. `deleted` always wins because the design is gone.
+  useEffect(() => {
+    if (!selectedSaved) return;
+    if (typeof EventSource === "undefined") return;
+    const id = selectedSaved;
+    const url = `/api/designs/${encodeURIComponent(id)}/events`;
+    const es = new EventSource(url);
+    console.log("[wirestudio] SSE opening", url);
+    es.addEventListener("open", () => console.log("[wirestudio] SSE open", url));
+    es.addEventListener("error", (e) => console.warn("[wirestudio] SSE error", url, e));
+    es.addEventListener("hello", (ev) =>
+      console.log("[wirestudio] SSE hello", (ev as MessageEvent).data),
+    );
+    es.addEventListener("saved", (ev) => {
+      const dirty = isDirty(originalDesignRef.current, designRef.current);
+      console.log("[wirestudio] SSE saved", { dirty, data: (ev as MessageEvent).data });
+      if (dirty) return;
+      (async () => {
+        try {
+          const d = await api.getSavedDesign(id);
+          setOriginalDesign(d);
+          setDesign(d);
+          void refreshSavedDesigns();
+          console.log("[wirestudio] SSE saved -> design refreshed");
+        } catch (err) {
+          console.warn("[wirestudio] SSE saved -> refresh failed", err);
+        }
+      })();
+    });
+    es.addEventListener("deleted", (ev) => {
+      console.log("[wirestudio] SSE deleted", (ev as MessageEvent).data);
+      setSelectedSaved(null);
+      setOriginalDesign(null);
+      setDesign(null);
+      void refreshSavedDesigns();
+    });
+    return () => {
+      console.log("[wirestudio] SSE closing", url);
+      es.close();
+    };
+  }, [selectedSaved]);
 
   // Cache the full library board for the design's `board.library_id`.
   // ConnectionForm needs rails + GPIO capabilities; refetching per inspector
