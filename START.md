@@ -238,11 +238,18 @@ testing surfaced two strategic items below.)
 
    ### Phase 1: wirestudio MCP server (the actual scope)
 
-   1. **MCP server skeleton** — `wirestudio/mcp/server.py`
-      wrapping the 11 tools in `wirestudio/agent/tools.py`. Same
-      Python, different protocol shim. Day-1 deliverable. Tools
-      expose only the design-editing surface; generators stay
-      callable via HTTP API + CLI as before.
+   1. **MCP server skeleton — shipped (PR #27, 2026-05-10).**
+      `wirestudio/mcp/server.py` wraps all 12 tools from
+      `wirestudio/agent/tools.py` as FastMCP tools; mounted into
+      the existing FastAPI app at `/mcp` over Streamable HTTP.
+      Bearer-token auth (`WIRESTUDIO_MCP_TOKEN` env var or
+      auto-generated to `~/.config/wirestudio/mcp-token` mode
+      0600). Mutating tools take `design_id` and persist back to
+      the design store; read-only library tools skip storage.
+      `WIRESTUDIO_MCP_ENABLED=false` short-circuits the wiring
+      for envs that don't need it. `docs/MCP.md` covers config +
+      env-var precedence; a polished walkthrough lands with the
+      Phase 1.5 docs sweep.
    2. **`design-changed` SSE channel** on the HTTP API. Browser
       tabs subscribe per design id; any write to that design
       (from MCP, HTTP, or CLI) triggers the same channel and the
@@ -255,14 +262,15 @@ testing surfaced two strategic items below.)
    4. **`set_active_design(id)` tool + UI plumbing.** Browser
       cookies the active id; MCP tools default to it. So the
       user's "add a BME280 to this design" prompt resolves
-      against whatever the browser tab is showing.
-   5. **MCP docs.** `docs/MCP.md` with the
-      `claude_desktop_config.json` snippet and a one-screen
-      walkthrough.
+      against whatever the browser tab is showing. Until this
+      lands, every design-bound MCP tool needs an explicit
+      `design_id` and the design must already exist in the
+      store (created via the web UI's save flow).
+   5. **MCP docs.** Polished walkthrough on top of the
+      Phase 1.1 `docs/MCP.md` skeleton — end-to-end "click here,
+      paste this, ask Claude to do that" flow.
 
-   ~2-3 PRs of work total. The first is genuinely small because
-   `tools.py` is already a clean function surface — MCP is
-   mostly bindings.
+   Remaining 1.2-1.5 are the next 2-3 PRs.
 
    ### Phase 2: knowledge importers (bigger payoff than KiCAD-MCP)
 
