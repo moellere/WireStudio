@@ -185,3 +185,63 @@ async def test_mounted_mcp_route_requires_token(monkeypatch, tmp_path: Path):
             headers={"Accept": "application/json, text/event-stream"},
         )
     assert r.status_code == 401, r.text
+
+
+async def test_non_mcp_paths_unaffected_by_token(monkeypatch, tmp_path: Path):
+    # Regression: with the MCP app mounted at "/", an unscoped middleware
+    # would 401 every fall-through path -- including the SPA root and the
+    # rest of the API. The token must only gate /mcp.
+    monkeypatch.setenv("WIRESTUDIO_MCP_TOKEN", "test-secret")
+    monkeypatch.setenv("DESIGNS_DIR", str(tmp_path / "designs"))
+    monkeypatch.setenv("SESSIONS_DIR", str(tmp_path / "sessions"))
+
+    from wirestudio.api.app import create_app
+
+    app = create_app()
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://t") as c:
+        # Existing FastAPI route -- token must not interfere.
+        health = await c.get("/health")
+        assert health.status_code == 200
+        # Library route the SPA hits unauthenticated.
+        boards = await c.get("/library/boards")
+        assert boards.status_code == 200
+        # Unknown path: should land in the mcp_app router (not the auth
+        # gate) and 404 cleanly. A 401 here would be the regression.
+        unknown = await c.get("/no-such-path")
+        assert unknown.status_code != 401
+
+
+async def test_prod_wrapper_gates_api_mcp(monkeypatch, tmp_path: Path):
+    # Regression for the nested-mount case. In wirestudio.api.serve the
+    # studio app is mounted under /api, which means the inner mcp_app
+    # middleware sees scope[path] as "/api/mcp" rather than "/mcp" by the
+    # time it runs (Starlette's nested Mount('/') doesn't reliably strip).
+    # The middleware must still 401 unauthed traffic, and /api/library/...
+    # must remain open.
+    monkeypatch.setenv("WIRESTUDIO_MCP_TOKEN", "test-secret")
+    monkeypatch.setenv("DESIGNS_DIR", str(tmp_path / "designs"))
+    monkeypatch.setenv("SESSIONS_DIR", str(tmp_path / "sessions"))
+    static = tmp_path / "static"
+    static.mkdir()
+    (static / "index.html").write_text("<!doctype html><title>t</title>")
+
+    from wirestudio.api.serve import create_serve_app
+
+    app = create_serve_app(static)
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://t") as c:
+        # SPA root -- unauthenticated, must serve index.html.
+        root = await c.get("/")
+        assert root.status_code == 200
+        assert "<title>t</title>" in root.text
+        # API routes the SPA hits -- still unauthenticated.
+        health = await c.get("/api/health")
+        assert health.status_code == 200
+        # The MCP endpoint -- gated.
+        mcp_unauthed = await c.post(
+            "/api/mcp",
+            json={},
+            headers={"Accept": "application/json, text/event-stream"},
+        )
+        assert mcp_unauthed.status_code == 401, mcp_unauthed.text

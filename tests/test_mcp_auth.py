@@ -24,7 +24,16 @@ def _ok(_request):
 
 
 def _build_app(token: str) -> Starlette:
-    app = Starlette(routes=[Route("/probe", _ok)])
+    # Two routes: /mcp (gated) and /public (bypassed). The middleware only
+    # enforces auth on the prefix; everything else falls through. Mirrors
+    # the production layout where the same FastAPI app serves both /mcp and
+    # the unauthenticated SPA + /library/* surface.
+    app = Starlette(
+        routes=[
+            Route("/mcp", _ok),
+            Route("/public", _ok),
+        ]
+    )
     app.add_middleware(BearerTokenMiddleware, token=token)
     return app
 
@@ -33,7 +42,7 @@ async def test_middleware_rejects_missing_header():
     app = _build_app("secret-token")
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://t") as c:
-        r = await c.get("/probe")
+        r = await c.get("/mcp")
     assert r.status_code == 401
     assert r.headers["www-authenticate"].startswith("Bearer")
 
@@ -42,7 +51,7 @@ async def test_middleware_rejects_wrong_token():
     app = _build_app("right")
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://t") as c:
-        r = await c.get("/probe", headers={"Authorization": "Bearer wrong"})
+        r = await c.get("/mcp", headers={"Authorization": "Bearer wrong"})
     assert r.status_code == 401
 
 
@@ -50,7 +59,7 @@ async def test_middleware_accepts_correct_token():
     app = _build_app("right")
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://t") as c:
-        r = await c.get("/probe", headers={"Authorization": "Bearer right"})
+        r = await c.get("/mcp", headers={"Authorization": "Bearer right"})
     assert r.status_code == 200
     assert r.json() == {"ok": True}
 
@@ -59,8 +68,21 @@ async def test_middleware_rejects_non_bearer_scheme():
     app = _build_app("right")
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://t") as c:
-        r = await c.get("/probe", headers={"Authorization": "Basic right"})
+        r = await c.get("/mcp", headers={"Authorization": "Basic right"})
     assert r.status_code == 401
+
+
+async def test_middleware_lets_non_mcp_paths_through():
+    # The token only gates /mcp. Hitting an unrelated path with no auth
+    # header must not 401 -- otherwise the SPA root, favicon, and the
+    # /library + /design API surface all break behind a Bearer prompt
+    # the browser can't satisfy.
+    app = _build_app("secret-token")
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://t") as c:
+        r = await c.get("/public")
+    assert r.status_code == 200
+    assert r.json() == {"ok": True}
 
 
 def test_resolve_token_env_wins(monkeypatch, tmp_path: Path):

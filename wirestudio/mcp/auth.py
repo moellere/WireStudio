@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import secrets
 from pathlib import Path
 
@@ -49,20 +50,37 @@ def resolve_token(
 
 
 class BearerTokenMiddleware:
-    """ASGI middleware that 401s any HTTP request without a matching bearer token.
+    """ASGI middleware that 401s requests under `path_prefix` lacking a matching bearer token.
 
     Compares the `Authorization: Bearer <token>` header against the configured
     token using `secrets.compare_digest` so a malicious client can't use timing
-    to brute-force the token. Non-HTTP scopes (lifespan, websocket) pass
-    through untouched.
+    to brute-force the token. Requests outside `path_prefix` (e.g. the SPA's
+    `/`, `/favicon.ico`, `/library/...`) pass through untouched -- the token
+    only gates the MCP endpoint, not the rest of the API.
     """
 
-    def __init__(self, app: ASGIApp, *, token: str) -> None:
+    def __init__(self, app: ASGIApp, *, token: str, path_prefix: str = "/mcp") -> None:
         self.app = app
         self._token = token
+        # Regex match: prefix as a path component (preceded by "/" or start,
+        # followed by "/" or end). We can't compare scope[path] literally
+        # because Starlette's nested Mount('/') doesn't strip path
+        # consistently -- in the prod-mode wrapper studio_app's mount of
+        # mcp_app at "/" leaves path as "/api/mcp" rather than "/mcp" by
+        # the time the inner middleware runs. Suffix-as-component match
+        # works for both bare ("/mcp") and wrapped ("/api/mcp") deployments.
+        slug = path_prefix.strip("/")
+        if not slug:
+            raise ValueError(f"path_prefix must contain at least one path segment: {path_prefix!r}")
+        self._path_re = re.compile(rf"(^|/){re.escape(slug)}(/|$)")
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        path = scope.get("path", "")
+        if not self._path_re.search(path):
             await self.app(scope, receive, send)
             return
 
