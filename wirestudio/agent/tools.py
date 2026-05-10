@@ -358,8 +358,35 @@ def _run_add_bus(design: dict, library: Library, **fields: Any) -> dict:
     buses = design.setdefault("buses", [])
     if any(b.get("id") == fields["id"] for b in buses):
         return {"ok": False, "error": f"bus id '{fields['id']}' already exists"}
-    buses.append({k: v for k, v in fields.items() if v is not None})
-    return {"ok": True}
+
+    # User-provided fields win; whatever's missing is filled from the
+    # board's default_buses[type] map (e.g. for esp32-devkitc-v4,
+    # i2c default = {sda: GPIO21, scl: GPIO22}). The LLM almost never
+    # remembers the right pins for every board variant, and ESPHome
+    # refuses to compile an I2C bus with null sda/scl, so the previous
+    # behavior of "store exactly what was passed" silently produced
+    # uncompilable designs.
+    bus_type = fields.get("type")
+    defaults: dict = {}
+    board_id = (design.get("board") or {}).get("library_id")
+    if board_id and bus_type:
+        try:
+            board = library.board(board_id)
+        except FileNotFoundError:
+            board = None
+        if board is not None:
+            defaults = (getattr(board, "default_buses", None) or {}).get(bus_type, {}) or {}
+
+    new_bus: dict[str, Any] = {**defaults}
+    for k, v in fields.items():
+        if v is not None:
+            new_bus[k] = v
+    buses.append(new_bus)
+    applied_defaults = sorted(k for k, v in defaults.items() if fields.get(k) is None)
+    out: dict[str, Any] = {"ok": True}
+    if applied_defaults:
+        out["board_defaults_applied"] = applied_defaults
+    return out
 
 
 def _run_render(design: dict, library: Library) -> dict:
