@@ -144,10 +144,16 @@ function DesignInspector({
       </Section>
 
       <Section title={`Components (${components.length})`}>
+        <div className="mb-2">
+          <AddComponentControl
+            libraryComponents={libraryComponents}
+            onAdd={onAddComponent}
+          />
+        </div>
         {components.length === 0 ? (
-          <div className="mb-2 text-xs text-zinc-500">no components</div>
+          <div className="text-xs text-zinc-500">no components</div>
         ) : (
-          <ul className="mb-2 space-y-1">
+          <ul className="space-y-1">
             {components.map((c) => (
               <li key={c.id} className="flex items-stretch gap-1">
                 <button
@@ -171,10 +177,6 @@ function DesignInspector({
             ))}
           </ul>
         )}
-        <AddComponentControl
-          libraryComponents={libraryComponents}
-          onAdd={onAddComponent}
-        />
       </Section>
 
       <Section title={`Buses (${buses.length})`}>
