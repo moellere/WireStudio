@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from contextlib import AsyncExitStack, asynccontextmanager
 from pathlib import Path
 from typing import Optional
 
@@ -14,6 +15,8 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import os
 from pydantic import ValidationError
+
+from wirestudio.mcp import BearerTokenMiddleware, build_mcp_server, resolve_token
 
 from wirestudio import __version__
 from wirestudio.agent.agent import is_available as agent_available, run_turn, stream_turn_events
@@ -144,6 +147,20 @@ def create_app(
     limiter = Limiter(key_func=get_remote_address)
 
 
+    mcp_enabled = os.environ.get("WIRESTUDIO_MCP_ENABLED", "true").lower() != "false"
+    mcp_server = build_mcp_server(lib, designs_store) if mcp_enabled else None
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI):
+        # FastMCP's session_manager wraps the streamable_http_app; without
+        # entering its run() context the /mcp endpoint 500s with "Task group
+        # is not initialized." AsyncExitStack lets us no-op when MCP is
+        # disabled without a duplicate yield branch.
+        async with AsyncExitStack() as stack:
+            if mcp_server is not None:
+                await stack.enter_async_context(mcp_server.session_manager.run())
+            yield
+
     # `docs_url=None` disables FastAPI's built-in /docs so we can serve our
     # own that points Swagger UI at /api/openapi.json -- which works whether
     # the page is reached directly (browser at :8765/docs) or via the
@@ -158,6 +175,7 @@ def create_app(
             "Pure layer over `wirestudio.generate`; no server-side state."
         ),
         docs_url=None,
+        lifespan=lifespan,
     )
 
     app.state.limiter = limiter
@@ -750,6 +768,24 @@ def create_app(
             session_id=session_id,
             messages=[AgentSessionMessage(**m) for m in messages],
         )
+
+    if mcp_server is not None:
+        # Streamable HTTP transport. mcp_server.streamable_http_app() registers
+        # `/mcp` on its own Starlette app; we wrap it in BearerTokenMiddleware
+        # and mount at root so the path stays `/mcp`. Mounting at `/mcp` would
+        # land the inner route at `/mcp/mcp`, which is wrong.
+        allowed_hosts = os.environ.get("WIRESTUDIO_MCP_ALLOWED_HOSTS")
+        if allowed_hosts:
+            mcp_server.settings.transport_security.allowed_hosts = [
+                h.strip() for h in allowed_hosts.split(",") if h.strip()
+            ]
+        token_path_env = os.environ.get("WIRESTUDIO_MCP_TOKEN_PATH")
+        token = resolve_token(
+            token_path=Path(token_path_env) if token_path_env else None,
+        )
+        mcp_app = mcp_server.streamable_http_app()
+        mcp_app.add_middleware(BearerTokenMiddleware, token=token)
+        app.mount("/", mcp_app)
 
     return app
 
