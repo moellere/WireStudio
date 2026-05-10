@@ -135,6 +135,20 @@ def _render_component(comp: Component, design: Design, library: Library) -> dict
             f"component '{comp.id}' (library_id={comp.library_id}) cannot be rendered: {e.message}. "
             f"Likely a missing bus connection; add a matching bus to the design or fix the connection target."
         ) from e
+    except TypeError as e:
+        # Jinja's StrictUndefined leaks past `tojson` because json.dumps gets
+        # the StrictUndefined object as input and TypeErrors out before
+        # Jinja's UndefinedError can fire (filters bypass the normal __call__
+        # that triggers it). Most often: `{{ pins.OUT | tojson }}` against a
+        # component whose OUT pin has no connection. Translate to a 422-able
+        # ValueError with a hint at the likely cause.
+        if "is not JSON serializable" in str(e):
+            raise ValueError(
+                f"component '{comp.id}' (library_id={comp.library_id}) cannot be rendered: "
+                f"a referenced pin or bus has no connection. Add the missing connection "
+                f"(or run solve_pins) and try again. Underlying error: {e}"
+            ) from e
+        raise
     parsed = yaml.safe_load(rendered)
     return parsed or {}
 
