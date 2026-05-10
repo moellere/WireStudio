@@ -10,16 +10,22 @@ electrical:
   current_ma_typical: 8
   current_ma_peak: 30
   pins:
+    # The piezo is two-terminal: one terminal driven by a PWM-capable GPIO,
+    # the other tied to ground. Modelling both pins lets the generator
+    # auto-target GND to a ground rail and lets the schematic export show
+    # the full connection.
     - role: OUT
       kind: digital_out
       voltage: 3.3
+    - role: GND
+      kind: ground
   passives: []
 
 esphome:
   required_components: []
   yaml_template: |
     output:
-      - platform: {{ params.output_platform | default('esp8266_pwm') }}
+      - platform: {{ params.output_platform | default(('ledc' if board and board.chip_variant.startswith('esp32') else 'esp8266_pwm')) }}
         pin: {{ pins.OUT | tojson }}
         id: {{ id }}_out
     rtttl:
@@ -33,12 +39,11 @@ params_schema:
   output_platform:
     type: string
     enum: [esp8266_pwm, ledc]
-    default: esp8266_pwm
-    description: "Use `ledc` on ESP32; `esp8266_pwm` on ESP8266."
+    description: "Defaults to `ledc` on ESP32 family boards, `esp8266_pwm` on ESP8266. Override only if you have a specific reason."
   on_finished_playback:
     type: array
 
-notes: "RTTTL needs a PWM-capable output, not a plain GPIO. ESP8266 can only PWM on a subset of pins (see board capabilities); ESP32 LEDC works on any GPIO. The piezo itself is passive -- a typical 5V active buzzer should NOT be wired here, since RTTTL drives a frequency, not a level. Calls look like `rtttl.play: 'success:d=24,o=5,b=100:c,g,b'`."
+notes: "RTTTL needs a PWM-capable output, not a plain GPIO. ESP8266 can only PWM on a subset of pins (see board capabilities); ESP32 LEDC works on any GPIO. The platform is auto-picked from the board's chip family; override via params.output_platform only if necessary. The piezo itself is passive -- a typical 5V active buzzer should NOT be wired here, since RTTTL drives a frequency, not a level. The GND pin ties to the board's ground rail. Calls look like `rtttl.play: 'success:d=24,o=5,b=100:c,g,b'`."
 # KiCad symbol mapping (0.9). RTTTL plays melodies through a piezo
 # buzzer; the schematic part is just the buzzer itself.
 kicad:
