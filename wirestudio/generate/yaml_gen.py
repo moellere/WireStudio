@@ -117,6 +117,21 @@ def _render_component(comp: Component, design: Design, library: Library) -> dict
         return {}
     bus = _bus_for(comp.id, design)
     parent = _parent_for(comp.id, design)
+    # `board` carries the chip family / variant / mcu / framework so a
+    # template can pick chip-specific platform names (e.g. rtttl uses
+    # `ledc` on ESP32, `esp8266_pwm` on ESP8266). Templates that don't
+    # need it ignore the key.
+    try:
+        board_lib = library.board(design.board.library_id)
+        board_ctx = {
+            "library_id": board_lib.id,
+            "mcu": board_lib.mcu,
+            "chip_variant": board_lib.chip_variant,
+            "framework": board_lib.framework,
+            "platformio_board": board_lib.platformio_board,
+        }
+    except FileNotFoundError:
+        board_ctx = None
     ctx = {
         "id": comp.id,
         "label": comp.label,
@@ -124,6 +139,7 @@ def _render_component(comp: Component, design: Design, library: Library) -> dict
         "pins": _pins_for(comp.id, design, library),
         "bus": bus.model_dump() if bus else None,
         "parent": parent,
+        "board": board_ctx,
     }
     try:
         rendered = _jinja.from_string(template_str).render(**ctx)
