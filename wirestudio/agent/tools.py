@@ -11,6 +11,7 @@ from typing import Any, Callable
 
 from wirestudio.csp.compatibility import check_pin_compatibility
 from wirestudio.csp.pin_solver import solve_pins as _solve_pins
+from wirestudio.designs.seed import add_component_with_connections
 from wirestudio.generate.ascii_gen import render_ascii
 from wirestudio.generate.yaml_gen import render_yaml
 from wirestudio.library import Library
@@ -303,25 +304,13 @@ def _run_add_component(
     instance_id_hint: str | None = None,
     params: dict | None = None,
 ) -> dict:
-    lib = library.component(library_id)  # raises if unknown
-    components = design.setdefault("components", [])
-    used = {c["id"] for c in components}
-
-    if instance_id_hint and instance_id_hint not in used:
-        instance_id = instance_id_hint
-    else:
-        base = "".join(ch if ch.isalnum() else "_" for ch in library_id)
-        n = 1
-        while f"{base}_{n}" in used:
-            n += 1
-        instance_id = f"{base}_{n}"
-
-    components.append({
-        "id": instance_id,
-        "library_id": library_id,
-        "label": label or lib.name,
-        "params": params or {},
-    })
+    instance_id, _ = add_component_with_connections(
+        design, library,
+        library_id=library_id,
+        label=label,
+        instance_id_hint=instance_id_hint,
+        params=params,
+    )
     return {"ok": True, "instance_id": instance_id}
 
 
