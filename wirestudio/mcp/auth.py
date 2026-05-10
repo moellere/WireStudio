@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import secrets
 from pathlib import Path
 
@@ -61,7 +62,17 @@ class BearerTokenMiddleware:
     def __init__(self, app: ASGIApp, *, token: str, path_prefix: str = "/mcp") -> None:
         self.app = app
         self._token = token
-        self._prefix = path_prefix
+        # Regex match: prefix as a path component (preceded by "/" or start,
+        # followed by "/" or end). We can't compare scope[path] literally
+        # because Starlette's nested Mount('/') doesn't strip path
+        # consistently -- in the prod-mode wrapper studio_app's mount of
+        # mcp_app at "/" leaves path as "/api/mcp" rather than "/mcp" by
+        # the time the inner middleware runs. Suffix-as-component match
+        # works for both bare ("/mcp") and wrapped ("/api/mcp") deployments.
+        slug = path_prefix.strip("/")
+        if not slug:
+            raise ValueError(f"path_prefix must contain at least one path segment: {path_prefix!r}")
+        self._path_re = re.compile(rf"(^|/){re.escape(slug)}(/|$)")
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
@@ -69,7 +80,7 @@ class BearerTokenMiddleware:
             return
 
         path = scope.get("path", "")
-        if not (path == self._prefix or path.startswith(self._prefix + "/")):
+        if not self._path_re.search(path):
             await self.app(scope, receive, send)
             return
 
