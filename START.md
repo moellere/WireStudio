@@ -250,11 +250,20 @@ testing surfaced two strategic items below.)
       for envs that don't need it. `docs/MCP.md` covers config +
       env-var precedence; a polished walkthrough lands with the
       Phase 1.5 docs sweep.
-   2. **`design-changed` SSE channel** on the HTTP API. Browser
-      tabs subscribe per design id; any write to that design
-      (from MCP, HTTP, or CLI) triggers the same channel and the
-      browser re-fetches + re-renders. Closes the
-      "drive-from-chat, see-it-in-the-browser" loop.
+   2. **`design-changed` SSE channel — shipped (PR #29, 2026-05-10).**
+      `wirestudio/designs/events.py` ships an in-process
+      `DesignEventBus` (per-design `asyncio.Queue` fan-out) plus an
+      `EventEmittingDesignStore` wrapper that publishes a
+      `saved` / `deleted` event after every successful write. All
+      callers -- MCP tool surface, HTTP `POST /designs`, future CLI
+      -- get the broadcast for free because they all go through
+      the wrapped store. New `GET /designs/{id}/events` SSE
+      endpoint streams to subscribed browser tabs (15s heartbeat,
+      hello frame on connect). `App.tsx` opens an `EventSource`
+      per active saved design and re-fetches on `saved`,
+      clears state on `deleted`. Skips refresh while the user has
+      unsaved local edits so an MCP write doesn't blow away the
+      buffer they're typing into.
    3. **MCP resources** — `library://components`,
       `library://boards`, `design://{id}/yaml`,
       `design://{id}/ascii`. Read-only views the LLM can pull
