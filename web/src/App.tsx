@@ -152,6 +152,14 @@ export default function App() {
   useEffect(() => { designRef.current = design; }, [design]);
   useEffect(() => { originalDesignRef.current = originalDesign; }, [originalDesign]);
 
+  // Mirror the browser's selectedSaved into the server's active-design
+  // pointer so MCP tool calls default their `design_id` to whatever the
+  // user is currently looking at. "Add a BME280 to this design" in chat
+  // then resolves naturally against the visible design.
+  useEffect(() => {
+    void api.setActiveDesign(selectedSaved);
+  }, [selectedSaved]);
+
   // Subscribe to design-changed events for the active saved design. Any
   // write from the MCP tool surface (or another tab, or the CLI) fires a
   // `saved` event we react to by re-fetching. If the user has unsaved
