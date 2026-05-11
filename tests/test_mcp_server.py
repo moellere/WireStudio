@@ -29,6 +29,8 @@ EXPECTED_TOOLS = {
     "set_connection",
     "add_bus",
     "solve_pins",
+    "set_active_design",
+    "get_active_design",
 }
 
 
