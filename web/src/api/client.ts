@@ -127,6 +127,12 @@ export const api = {
     request<{ deleted: boolean; id: string }>(`/designs/${encodeURIComponent(id)}`, {
       method: "DELETE",
     }),
+  getActiveDesign: () => request<{ id: string | null }>("/designs/active"),
+  setActiveDesign: (id: string | null) =>
+    request<{ id: string | null }>("/designs/active", {
+      method: "PUT",
+      body: JSON.stringify({ id }),
+    }),
 
   fleetStatus: () => request<FleetStatus>("/fleet/status"),
   fleetPush: (body: { design: Design; compile?: boolean; device_name?: string; strict?: boolean }) =>

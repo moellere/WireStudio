@@ -34,6 +34,7 @@ from wirestudio.agent.tools import (
     _run_solve_pins,
     _run_validate,
 )
+from wirestudio.designs.active import ActiveDesignTracker
 from wirestudio.designs.store import DesignStore
 from wirestudio.generate.ascii_gen import render_ascii
 from wirestudio.generate.yaml_gen import render_yaml
@@ -46,11 +47,22 @@ def build_mcp_server(
     designs: DesignStore,
     *,
     name: str = "wirestudio",
+    active: Optional[ActiveDesignTracker] = None,
 ) -> FastMCP:
-    """Build a FastMCP server with all wirestudio tools + resources registered."""
+    """Build a FastMCP server with all wirestudio tools + resources registered.
+
+    `active` is the shared active-design tracker (Phase 1.4). When set,
+    design-bound tools default their `design_id` argument to the tracker's
+    current value, so "add a BME280 to this design" resolves against
+    whatever the browser is showing. A fresh tracker is built if the
+    caller doesn't supply one (test-only path -- production wires through
+    `create_app`).
+    """
     mcp = FastMCP(name=name)
+    tracker = active or ActiveDesignTracker()
     _register_library_tools(mcp, library)
-    _register_design_tools(mcp, library, designs)
+    _register_design_tools(mcp, library, designs, tracker)
+    _register_active_tools(mcp, tracker, designs)
     _register_resources(mcp, library, designs)
     return mcp
 
@@ -100,11 +112,33 @@ def _register_library_tools(mcp: FastMCP, library: Library) -> None:
         )
 
 
+_DESIGN_ID_HINT = (
+    " Pass `design_id` explicitly to target a specific design; omit it "
+    "to default to the active design set via `set_active_design` (or by "
+    "the browser when the user selects a design)."
+)
+
+_NO_DESIGN_ERROR = {
+    "ok": False,
+    "error": (
+        "design_id was not provided and no active design is set. "
+        "Either pass design_id explicitly or call set_active_design first."
+    ),
+}
+
+
 def _register_design_tools(
-    mcp: FastMCP, library: Library, designs: DesignStore
+    mcp: FastMCP, library: Library, designs: DesignStore,
+    active: ActiveDesignTracker,
 ) -> None:
-    def _load(design_id: str) -> dict:
-        return designs.load(design_id)
+    def _resolve(design_id: Optional[str]) -> Optional[str]:
+        return design_id or active.get()
+
+    def _load(design_id: Optional[str]) -> tuple[Optional[str], Optional[dict]]:
+        rid = _resolve(design_id)
+        if not rid:
+            return None, None
+        return rid, designs.load(rid)
 
     def _save(design_id: str, design: dict) -> None:
         designs.save(design, design_id=design_id)
@@ -113,35 +147,43 @@ def _register_design_tools(
         name="render",
         description=(
             "Render the named design to ESPHome YAML + ASCII diagram. "
-            "Returns both as strings. Read-only."
+            "Returns both as strings. Read-only." + _DESIGN_ID_HINT
         ),
     )
-    def render(design_id: str) -> dict:
-        return _run_render(_load(design_id), library)
+    def render(design_id: Optional[str] = None) -> dict:
+        rid, design = _load(design_id)
+        if design is None:
+            return _NO_DESIGN_ERROR
+        return _run_render(design, library)
 
     @mcp.tool(
         name="validate",
         description=(
             "Validate the named design against the JSON schema and library. "
             "Returns ok=true plus a summary, or ok=false with the failing "
-            "field path + message. Read-only."
+            "field path + message. Read-only." + _DESIGN_ID_HINT
         ),
     )
-    def validate(design_id: str) -> dict:
-        return _run_validate(_load(design_id), library)
+    def validate(design_id: Optional[str] = None) -> dict:
+        rid, design = _load(design_id)
+        if design is None:
+            return _NO_DESIGN_ERROR
+        return _run_validate(design, library)
 
     @mcp.tool(
         name="set_board",
         description=(
             "Replace the design's board. Looks up the library board by id "
             "and updates `design.board.{library_id, mcu, framework}`. Does "
-            "NOT translate existing pin references."
+            "NOT translate existing pin references." + _DESIGN_ID_HINT
         ),
     )
-    def set_board(design_id: str, library_id: str) -> dict:
-        design = _load(design_id)
+    def set_board(library_id: str, design_id: Optional[str] = None) -> dict:
+        rid, design = _load(design_id)
+        if design is None:
+            return _NO_DESIGN_ERROR
         result = _run_set_board(design, library, library_id=library_id)
-        _save(design_id, design)
+        _save(rid, design)
         return result
 
     @mcp.tool(
@@ -150,17 +192,19 @@ def _register_design_tools(
             "Add a component instance to the design. Auto-generates a "
             "unique instance_id (or use `instance_id_hint`), sets `label` "
             "(default = library component name), copies any provided "
-            "`params`. Returns the new instance_id."
+            "`params`. Returns the new instance_id." + _DESIGN_ID_HINT
         ),
     )
     def add_component(
-        design_id: str,
         library_id: str,
         label: Optional[str] = None,
         instance_id_hint: Optional[str] = None,
         params: Optional[dict] = None,
+        design_id: Optional[str] = None,
     ) -> dict:
-        design = _load(design_id)
+        rid, design = _load(design_id)
+        if design is None:
+            return _NO_DESIGN_ERROR
         result = _run_add_component(
             design,
             library,
@@ -169,7 +213,7 @@ def _register_design_tools(
             instance_id_hint=instance_id_hint,
             params=params,
         )
-        _save(design_id, design)
+        _save(rid, design)
         return result
 
     @mcp.tool(
@@ -177,33 +221,37 @@ def _register_design_tools(
         description=(
             "Remove a component instance and all connections originating "
             "from it. Connections that target it via expander_id are left "
-            "as orphans."
+            "as orphans." + _DESIGN_ID_HINT
         ),
     )
-    def remove_component(design_id: str, instance_id: str) -> dict:
-        design = _load(design_id)
+    def remove_component(instance_id: str, design_id: Optional[str] = None) -> dict:
+        rid, design = _load(design_id)
+        if design is None:
+            return _NO_DESIGN_ERROR
         result = _run_remove_component(design, library, instance_id=instance_id)
-        _save(design_id, design)
+        _save(rid, design)
         return result
 
     @mcp.tool(
         name="set_param",
         description=(
             "Set a single param on a component instance. Pass `value: null` "
-            "to delete the param entirely."
+            "to delete the param entirely." + _DESIGN_ID_HINT
         ),
     )
     def set_param(
-        design_id: str,
         instance_id: str,
         key: str,
         value: Any = None,
+        design_id: Optional[str] = None,
     ) -> dict:
-        design = _load(design_id)
+        rid, design = _load(design_id)
+        if design is None:
+            return _NO_DESIGN_ERROR
         result = _run_set_param(
             design, library, instance_id=instance_id, key=key, value=value
         )
-        _save(design_id, design)
+        _save(rid, design)
         return result
 
     @mcp.tool(
@@ -212,15 +260,18 @@ def _register_design_tools(
             "Set the target of a single connection identified by "
             "component_id + pin_role. The `target` shape mirrors the "
             "design.json schema: rail, gpio, bus, or expander_pin."
+            + _DESIGN_ID_HINT
         ),
     )
     def set_connection(
-        design_id: str,
         component_id: str,
         pin_role: str,
         target: dict,
+        design_id: Optional[str] = None,
     ) -> dict:
-        design = _load(design_id)
+        rid, design = _load(design_id)
+        if design is None:
+            return _NO_DESIGN_ERROR
         result = _run_set_connection(
             design,
             library,
@@ -228,7 +279,7 @@ def _register_design_tools(
             pin_role=pin_role,
             target=target,
         )
-        _save(design_id, design)
+        _save(rid, design)
         return result
 
     @mcp.tool(
@@ -237,11 +288,10 @@ def _register_design_tools(
             "Add a bus to the design. `type` must be one of i2c / spi / "
             "uart / 1wire / i2s. Other fields depend on type: i2c needs "
             "sda + scl, spi needs clk + miso? + mosi?, uart needs rx + tx "
-            "+ baud_rate, i2s needs lrclk + bclk."
+            "+ baud_rate, i2s needs lrclk + bclk." + _DESIGN_ID_HINT
         ),
     )
     def add_bus(
-        design_id: str,
         id: str,
         type: str,
         sda: Optional[str] = None,
@@ -256,8 +306,11 @@ def _register_design_tools(
         baud_rate: Optional[int] = None,
         lrclk: Optional[str] = None,
         bclk: Optional[str] = None,
+        design_id: Optional[str] = None,
     ) -> dict:
-        design = _load(design_id)
+        rid, design = _load(design_id)
+        if design is None:
+            return _NO_DESIGN_ERROR
         fields = {
             "id": id,
             "type": type,
@@ -277,7 +330,7 @@ def _register_design_tools(
         result = _run_add_bus(
             design, library, **{k: v for k, v in fields.items() if v is not None}
         )
-        _save(design_id, design)
+        _save(rid, design)
         return result
 
     @mcp.tool(
@@ -287,13 +340,54 @@ def _register_design_tools(
             "already-bound pins. Returns the count of assignments made, "
             "any unresolved connections, and any conflict / current-budget "
             "warnings the solver detected. Mutates the design."
+            + _DESIGN_ID_HINT
         ),
     )
-    def solve_pins(design_id: str) -> dict:
-        design = _load(design_id)
+    def solve_pins(design_id: Optional[str] = None) -> dict:
+        rid, design = _load(design_id)
+        if design is None:
+            return _NO_DESIGN_ERROR
         result = _run_solve_pins(design, library)
-        _save(design_id, design)
+        _save(rid, design)
         return result
+
+
+def _register_active_tools(
+    mcp: FastMCP, active: ActiveDesignTracker, designs: DesignStore
+) -> None:
+    @mcp.tool(
+        name="set_active_design",
+        description=(
+            "Set the active design id. Subsequent design-editing tools "
+            "(render, validate, add_component, etc.) default their "
+            "`design_id` to this value when not supplied, so a user "
+            "prompt like 'add a BME280 to this design' resolves without "
+            "an explicit id. Pass an empty string to clear. Validates "
+            "the id exists in the store; returns ok=false otherwise so "
+            "the model knows to create or save a design first."
+        ),
+    )
+    def set_active_design(design_id: str) -> dict:
+        if not design_id:
+            active.clear()
+            return {"ok": True, "active_design_id": None}
+        if not designs.exists(design_id):
+            return {
+                "ok": False,
+                "error": f"no design with id {design_id!r}; save it first",
+            }
+        active.set(design_id)
+        return {"ok": True, "active_design_id": design_id}
+
+    @mcp.tool(
+        name="get_active_design",
+        description=(
+            "Read the current active design id. Returns "
+            "{active_design_id: string | null}."
+        ),
+    )
+    def get_active_design() -> dict:
+        return {"active_design_id": active.get()}
 
 
 def _register_resources(mcp: FastMCP, library: Library, designs: DesignStore) -> None:

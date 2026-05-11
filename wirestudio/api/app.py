@@ -49,6 +49,7 @@ from wirestudio.api.schemas import (
     UseCaseEntry,
     ValidateResponse,
 )
+from wirestudio.designs.active import ActiveDesignTracker
 from wirestudio.designs.events import DesignEventBus, EventEmittingDesignStore
 from wirestudio.fleet.client import FleetClient, FleetUnavailable
 from wirestudio.csp.compatibility import check_pin_compatibility
@@ -134,6 +135,7 @@ def create_app(
     designs: Optional[DesignStore] = None,
     fleet_client_factory=None,
     event_bus: Optional[DesignEventBus] = None,
+    active_design: Optional[ActiveDesignTracker] = None,
 ) -> FastAPI:
     import os as _os
     lib = library or default_library()
@@ -147,6 +149,7 @@ def create_app(
     # and any future CLI all fan out to subscribed browser tabs without
     # the caller knowing about the bus.
     designs_store = EventEmittingDesignStore(inner_designs, bus)
+    active = active_design or ActiveDesignTracker()
     # Tests substitute a factory that returns a FleetClient bound to an
     # httpx.MockTransport so we never hit the network in CI.
     make_fleet: callable = fleet_client_factory or (lambda: FleetClient())
@@ -155,7 +158,7 @@ def create_app(
 
 
     mcp_enabled = os.environ.get("WIRESTUDIO_MCP_ENABLED", "true").lower() != "false"
-    mcp_server = build_mcp_server(lib, designs_store) if mcp_enabled else None
+    mcp_server = build_mcp_server(lib, designs_store, active=active) if mcp_enabled else None
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
@@ -488,6 +491,29 @@ def create_app(
             raise HTTPException(status_code=422, detail=str(e)) from e
         return SaveDesignResponse(id=design_id, saved_at=saved_at)
 
+    # `/designs/active` must register before `/designs/{design_id}` so the
+    # literal path wins matching -- otherwise `active` is captured as a
+    # design id and GET 404s with "no saved design with id 'active'".
+    @app.get("/designs/active", tags=["designs"])
+    def get_active_design() -> dict:
+        """Return the currently-active design id (or null if none set).
+
+        Drives the chat-driven UX: MCP tools fall back to this id when the
+        caller doesn't supply `design_id`. The browser writes it via PUT
+        whenever the user selects a saved design so a prompt like
+        "add a BME280 to this design" resolves naturally.
+        """
+        return {"id": active.get()}
+
+    @app.put("/designs/active", tags=["designs"])
+    def set_active_design(body: dict) -> dict:
+        """Set or clear the active design id. Body: `{id: string | null}`."""
+        new_id = body.get("id")
+        if new_id is not None and not isinstance(new_id, str):
+            raise HTTPException(status_code=422, detail="`id` must be a string or null")
+        active.set(new_id)
+        return {"id": active.get()}
+
     @app.get("/designs/{design_id}", tags=["designs"])
     def get_saved_design(design_id: str) -> dict:
         try:
@@ -505,6 +531,11 @@ def create_app(
             raise HTTPException(status_code=400, detail=str(e)) from e
         if not removed:
             raise HTTPException(status_code=404, detail=f"no saved design with id {design_id!r}")
+        # Clear the active design pointer if it was just deleted -- a
+        # dangling active id would have MCP tools fail with "no such
+        # design" on every default-resolved call.
+        if active.get() == design_id:
+            active.clear()
         return {"deleted": True, "id": design_id}
 
     @app.get("/designs/{design_id}/events", tags=["designs"])

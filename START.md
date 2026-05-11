@@ -277,13 +277,23 @@ testing surfaced two strategic items below.)
       state on each read (verified by a regression test that
       adds a component via the MCP tool and confirms the YAML
       resource reflects it).
-   4. **`set_active_design(id)` tool + UI plumbing.** Browser
-      cookies the active id; MCP tools default to it. So the
-      user's "add a BME280 to this design" prompt resolves
-      against whatever the browser tab is showing. Until this
-      lands, every design-bound MCP tool needs an explicit
-      `design_id` and the design must already exist in the
-      store (created via the web UI's save flow).
+   4. **`set_active_design(id)` tool + UI plumbing — shipped
+      (PR #TBD, 2026-05-11).** `ActiveDesignTracker` is a
+      single-slot in-process tracker (single-user homelab; one
+      tracker per server process). Wired into both the HTTP
+      surface (`GET / PUT /api/designs/active`) and the MCP
+      surface (`set_active_design` + `get_active_design` tools).
+      Every design-bound MCP tool (render, validate, set_board,
+      add_component, remove_component, set_param, set_connection,
+      add_bus, solve_pins) now takes `design_id` as an optional
+      keyword; when omitted the tool resolves from the tracker
+      and returns a clean `{ok: false, error: ...}` if neither
+      is set. The web SPA mirrors `selectedSaved` into the
+      server's active pointer via a useEffect, so the moment
+      the user clicks a design in the sidebar, Claude can act
+      on it without an explicit id. Deleting the active design
+      auto-clears the pointer so the next default-resolved call
+      doesn't 500 on a dangling id.
    5. **MCP docs.** Polished walkthrough on top of the
       Phase 1.1 `docs/MCP.md` skeleton — end-to-end "click here,
       paste this, ask Claude to do that" flow.
