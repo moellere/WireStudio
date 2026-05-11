@@ -5,6 +5,11 @@ Mutating tools take a `design_id` argument, load the design from the store,
 call the underlying handler (which mutates the dict in place), and persist
 the result back. Read-only library tools skip the store entirely.
 
+Resources expose read-only views over the library and stored designs:
+- `library://components` + `library://components/{id}` for the library catalog
+- `library://boards` + `library://boards/{id}` for boards
+- `design://{id}/{format}` for rendered design output (json / yaml / ascii)
+
 The server is a `FastMCP` instance. The caller is responsible for mounting
 its `streamable_http_app()` into the parent FastAPI app and arranging
 `session_manager.run()` in the parent's lifespan.
@@ -30,7 +35,10 @@ from wirestudio.agent.tools import (
     _run_validate,
 )
 from wirestudio.designs.store import DesignStore
+from wirestudio.generate.ascii_gen import render_ascii
+from wirestudio.generate.yaml_gen import render_yaml
 from wirestudio.library import Library
+from wirestudio.model import Design
 
 
 def build_mcp_server(
@@ -39,10 +47,11 @@ def build_mcp_server(
     *,
     name: str = "wirestudio",
 ) -> FastMCP:
-    """Build a FastMCP server with all wirestudio tools registered."""
+    """Build a FastMCP server with all wirestudio tools + resources registered."""
     mcp = FastMCP(name=name)
     _register_library_tools(mcp, library)
     _register_design_tools(mcp, library, designs)
+    _register_resources(mcp, library, designs)
     return mcp
 
 
@@ -285,3 +294,141 @@ def _register_design_tools(
         result = _run_solve_pins(design, library)
         _save(design_id, design)
         return result
+
+
+def _register_resources(mcp: FastMCP, library: Library, designs: DesignStore) -> None:
+    """Read-only views of the library and stored designs.
+
+    The library catalog resources serve a dual purpose: they let an LLM
+    client pull a compact index without burning tool-call tokens, and
+    they're the natural place for a host (Claude Desktop, Claude Code)
+    to surface attachable references like `@library://components/bme280`.
+    Design resources expose the rendered output (yaml / ascii) so a
+    user can drop the current design into chat without copy-paste.
+    """
+
+    @mcp.resource(
+        "library://components",
+        name="components_index",
+        title="Library: components index",
+        description=(
+            "Compact list of every library component (id, name, category, "
+            "use_cases, aliases). Pull this first to discover available "
+            "parts, then read library://components/{id} for the full "
+            "electrical + ESPHome detail of a specific entry."
+        ),
+        mime_type="application/json",
+    )
+    def components_index() -> dict:
+        return {
+            "components": [
+                {
+                    "id": c.id,
+                    "name": c.name,
+                    "category": c.category,
+                    "use_cases": list(c.use_cases),
+                    "aliases": list(c.aliases),
+                }
+                for c in library.list_components()
+            ],
+        }
+
+    @mcp.resource(
+        "library://components/{component_id}",
+        name="component_detail",
+        title="Library: component detail",
+        description=(
+            "Full library entry for one component: electrical pins, ESPHome "
+            "Jinja template, params schema, KiCad symbol mapping, current "
+            "draw, vcc band. Use this before add_component to learn the "
+            "exact pin roles + param keys the part expects."
+        ),
+        mime_type="application/json",
+    )
+    def component_detail(component_id: str) -> dict:
+        return library.component(component_id).model_dump()
+
+    @mcp.resource(
+        "library://boards",
+        name="boards_index",
+        title="Library: boards index",
+        description=(
+            "Compact list of every supported board (id, name, mcu, "
+            "chip_variant, framework, platformio_board). Pull this to "
+            "pick a board target; read library://boards/{id} for pinout, "
+            "rails, default_buses."
+        ),
+        mime_type="application/json",
+    )
+    def boards_index() -> dict:
+        return {
+            "boards": [
+                {
+                    "id": b.id,
+                    "name": b.name,
+                    "mcu": b.mcu,
+                    "chip_variant": b.chip_variant,
+                    "framework": b.framework,
+                    "platformio_board": b.platformio_board,
+                    "flash_size_mb": b.flash_size_mb,
+                }
+                for b in library.list_boards()
+            ],
+        }
+
+    @mcp.resource(
+        "library://boards/{board_id}",
+        name="board_detail",
+        title="Library: board detail",
+        description=(
+            "Full library entry for one board: rails, GPIO capabilities "
+            "per-pin, default buses (sda/scl/clk/miso/mosi), enclosure "
+            "metadata, KiCad symbol mapping."
+        ),
+        mime_type="application/json",
+    )
+    def board_detail(board_id: str) -> dict:
+        return library.board(board_id).model_dump()
+
+    @mcp.resource(
+        "design://{design_id}/json",
+        name="design_json",
+        title="Design: raw design.json",
+        description=(
+            "The on-disk design.json for the named design. Read-only view; "
+            "to mutate, use the design-editing tools."
+        ),
+        mime_type="application/json",
+    )
+    def design_json(design_id: str) -> dict:
+        return designs.load(design_id)
+
+    @mcp.resource(
+        "design://{design_id}/yaml",
+        name="design_yaml",
+        title="Design: rendered ESPHome YAML",
+        description=(
+            "Current ESPHome YAML for the named design. Refreshes on every "
+            "read against the latest stored state, so an MCP write followed "
+            "by a re-read shows the new output."
+        ),
+        mime_type="text/yaml",
+    )
+    def design_yaml(design_id: str) -> str:
+        d = Design.model_validate(designs.load(design_id))
+        return render_yaml(d, library)
+
+    @mcp.resource(
+        "design://{design_id}/ascii",
+        name="design_ascii",
+        title="Design: ASCII diagram",
+        description=(
+            "ASCII pinout diagram for the named design. A compact view of "
+            "rails, components, pin assignments, and BOM that fits in a "
+            "single chat message."
+        ),
+        mime_type="text/plain",
+    )
+    def design_ascii(design_id: str) -> str:
+        d = Design.model_validate(designs.load(design_id))
+        return render_ascii(d, library)

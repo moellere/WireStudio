@@ -264,10 +264,19 @@ testing surfaced two strategic items below.)
       clears state on `deleted`. Skips refresh while the user has
       unsaved local edits so an MCP write doesn't blow away the
       buffer they're typing into.
-   3. **MCP resources** — `library://components`,
-      `library://boards`, `design://{id}/yaml`,
-      `design://{id}/ascii`. Read-only views the LLM can pull
-      without burning tokens reconstructing them.
+   3. **MCP resources — shipped (PR #TBD, 2026-05-11).** Seven
+      read-only resources registered on the FastMCP server:
+      `library://components` + `library://components/{id}` (compact
+      index + full per-component detail), `library://boards` +
+      `library://boards/{id}`, `design://{id}/json`,
+      `design://{id}/yaml`, `design://{id}/ascii`. Compact indexes
+      surface id + name + category + use_cases + aliases; the
+      `{id}` templates serve the full library entry on demand so
+      the LLM doesn't have to round-trip a tool call. Design YAML
+      and ASCII resources re-render against the latest stored
+      state on each read (verified by a regression test that
+      adds a component via the MCP tool and confirms the YAML
+      resource reflects it).
    4. **`set_active_design(id)` tool + UI plumbing.** Browser
       cookies the active id; MCP tools default to it. So the
       user's "add a BME280 to this design" prompt resolves
