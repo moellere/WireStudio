@@ -1,0 +1,35 @@
++--------------------------------------------------------------------------------------+
+|  WeMos D1 Mini  ---  attic-logger                                                    |
++--------------------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                                 |
+|                                                                                      |
+|  th  [DHT11 / DHT22 / AM2302 temperature + humidity]  -- Attic climate               |
+|    VCC   -> rail 3V3                                                                 |
+|    GND   -> rail GND                                                                 |
+|    DATA  -> D5                                                                       |
+|                                                                                      |
+|  baro  [BMP180 / BMP085 barometric pressure + temperature (I2C)]  -- Attic pressure  |
+|    VCC   -> rail 3V3                                                                 |
+|    GND   -> rail GND                                                                 |
+|    SDA   -> i2c0 (D2)                                                                |
+|    SCL   -> i2c0 (D1)                                                                |
+|                                                                                      |
+|  Passives:                                                                           |
+|    c1: 100nF capacitor, th.VCC  <->  GND   (decoupling th)                           |
+|    c2: 100nF capacitor, baro.VCC  <->  GND   (decoupling baro)                       |
+|    r1: 10k resistor, th.DATA  <->  3V3   (DHT22 data-line pull-up)                   |
+|    r2: 4.7k resistor, i2c0.SDA  <->  3V3   (I2C pull-up)                             |
+|    r3: 4.7k resistor, i2c0.SCL  <->  3V3   (I2C pull-up)                             |
+|                                                                                      |
+|  BOM:                                                                                |
+|    - WeMos D1 Mini                                                                   |
+|    - DHT11 / DHT22 / AM2302 temperature + humidity  (th)                             |
+|    - BMP180 / BMP085 barometric pressure + temperature (I2C)  (baro)                 |
+|    - 2x 100nF capacitor                                                              |
+|    - 1x 10k resistor                                                                 |
+|    - 2x 4.7k resistor                                                                |
+|                                                                                      |
+|  Power: ~1mA typical, ~3mA peak (budget 500mA)  OK                                   |
+|                                                                                      |
+|  Warnings: none                                                                      |
++--------------------------------------------------------------------------------------+
