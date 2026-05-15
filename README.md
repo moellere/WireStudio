@@ -254,6 +254,8 @@ it without a proxy.
 | [`bl0906-mainmeter.json`](wirestudio/examples/bl0906-mainmeter.json) | ESP32-DevKitC-V4 | BL0906 6-channel CT-clamp energy monitor over UART2 (Athom EM6-style whole-home sub-metering) |
 | [`nextion-thermostat.json`](wirestudio/examples/nextion-thermostat.json) | ESP32-DevKitC-V4 | Nextion HMI thermostat panel — display on UART2 + SHT3xD temp/humidity on default I2C |
 | [`tuya-smart-plug.json`](wirestudio/examples/tuya-smart-plug.json) | ESP8285 1MB | Tuya-MCU smart plug — relay (DP 1) + power (DP 17) + energy (DP 18) over UART 9600; logger off UART0 |
+| [`weather-station.json`](wirestudio/examples/weather-station.json) | ESP32-DevKitC-V4 | BMP280 barometer + HTU21D temp/humidity + TSL2561 lux on one shared I2C bus |
+| [`attic-logger.json`](wirestudio/examples/attic-logger.json) | WeMos D1 Mini | DHT22 single-wire temp/humidity + legacy BMP180 I2C barometer |
 
 Generated artifacts for each are pinned as goldens in
 [`tests/golden/`](tests/golden/). For a per-component / per-board view of

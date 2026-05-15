@@ -1,0 +1,95 @@
+{
+  "schema_version": "0.1",
+  "id": "weather-station",
+  "name": "Outdoor weather station (pressure + climate + light)",
+  "description": "ESP32-DevKitC with a BMP280 barometer, an HTU21D temperature/humidity sensor, and a TSL2561 lux sensor sharing one I2C bus -- the classic three-sensor outdoor weather node. Distinct I2C addresses (0x76 / 0x40 / 0x39) so all three coexist on the same two pins.",
+  "created_at": "2026-05-15T00:00:00Z",
+  "updated_at": "2026-05-15T00:00:00Z",
+
+  "board": {
+    "library_id": "esp32-devkitc-v4",
+    "mcu": "esp32",
+    "framework": "arduino"
+  },
+
+  "power": {
+    "supply": "usb-5v",
+    "rail_voltage_v": 5.0,
+    "regulator": "onboard-ams1117",
+    "budget_ma": 500
+  },
+
+  "requirements": [
+    { "id": "r1", "kind": "capability",  "text": "report barometric pressure" },
+    { "id": "r2", "kind": "capability",  "text": "report ambient temperature + humidity" },
+    { "id": "r3", "kind": "capability",  "text": "report illuminance in lux" },
+    { "id": "r4", "kind": "constraint",  "text": "all three sensors share one I2C bus -- no extra GPIOs" }
+  ],
+
+  "components": [
+    {
+      "id": "baro",
+      "library_id": "bmp280",
+      "label": "Weather pressure",
+      "params": { "address": "0x76", "update_interval": "60s" }
+    },
+    {
+      "id": "climate",
+      "library_id": "htu21d",
+      "label": "Weather climate",
+      "params": { "update_interval": "60s" }
+    },
+    {
+      "id": "lux",
+      "library_id": "tsl2561",
+      "label": "Weather light",
+      "params": { "address": "0x39", "update_interval": "60s" }
+    }
+  ],
+
+  "buses": [
+    { "id": "i2c0", "type": "i2c", "frequency_hz": 100000, "sda": "GPIO21", "scl": "GPIO22" }
+  ],
+
+  "connections": [
+    { "component_id": "baro",    "pin_role": "VCC", "target": { "kind": "rail", "rail": "3V3" } },
+    { "component_id": "baro",    "pin_role": "GND", "target": { "kind": "rail", "rail": "GND" } },
+    { "component_id": "baro",    "pin_role": "SDA", "target": { "kind": "bus",  "bus_id": "i2c0" } },
+    { "component_id": "baro",    "pin_role": "SCL", "target": { "kind": "bus",  "bus_id": "i2c0" } },
+
+    { "component_id": "climate", "pin_role": "VCC", "target": { "kind": "rail", "rail": "3V3" } },
+    { "component_id": "climate", "pin_role": "GND", "target": { "kind": "rail", "rail": "GND" } },
+    { "component_id": "climate", "pin_role": "SDA", "target": { "kind": "bus",  "bus_id": "i2c0" } },
+    { "component_id": "climate", "pin_role": "SCL", "target": { "kind": "bus",  "bus_id": "i2c0" } },
+
+    { "component_id": "lux",     "pin_role": "VCC", "target": { "kind": "rail", "rail": "3V3" } },
+    { "component_id": "lux",     "pin_role": "GND", "target": { "kind": "rail", "rail": "GND" } },
+    { "component_id": "lux",     "pin_role": "SDA", "target": { "kind": "bus",  "bus_id": "i2c0" } },
+    { "component_id": "lux",     "pin_role": "SCL", "target": { "kind": "bus",  "bus_id": "i2c0" } }
+  ],
+
+  "passives": [
+    { "id": "c1", "kind": "capacitor", "value": "100nF", "between": ["baro.VCC", "GND"],    "purpose": "decoupling baro" },
+    { "id": "c2", "kind": "capacitor", "value": "100nF", "between": ["climate.VCC", "GND"], "purpose": "decoupling climate" },
+    { "id": "c3", "kind": "capacitor", "value": "100nF", "between": ["lux.VCC", "GND"],     "purpose": "decoupling lux" },
+    { "id": "r1", "kind": "resistor",  "value": "4.7k",  "between": ["i2c0.SDA", "3V3"],    "purpose": "I2C pull-up" },
+    { "id": "r2", "kind": "resistor",  "value": "4.7k",  "between": ["i2c0.SCL", "3V3"],    "purpose": "I2C pull-up" }
+  ],
+
+  "warnings": [],
+
+  "esphome_extras": {
+    "captive_portal": {},
+    "logger": {}
+  },
+
+  "fleet": {
+    "device_name": "weather-station",
+    "tags": ["outdoor", "weather"],
+    "secrets_ref": {
+      "wifi_ssid": "!secret wifi_ssid",
+      "wifi_password": "!secret wifi_password",
+      "api_key": "!secret api_key"
+    }
+  }
+}
