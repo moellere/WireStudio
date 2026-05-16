@@ -74,6 +74,7 @@ from wirestudio.kicad.render import (
     render_schematic,
     render_status,
 )
+from wirestudio.jlcpcb import check_bom, jlcpcb_status, report_to_dict
 from wirestudio.recommend.recommender import Constraints, recommend_components
 from wirestudio.generate.ascii_gen import render_ascii
 from wirestudio.generate.yaml_gen import render_yaml
@@ -435,6 +436,23 @@ def create_app(
             raise HTTPException(status_code=500, detail=str(e)) from e
         media = "image/svg+xml" if format == "svg" else "image/png"
         return Response(content=data, media_type=media)
+
+    @app.get("/design/jlcpcb/status", tags=["design"])
+    def design_jlcpcb_status() -> dict:
+        """Probe the JLCPCB parts search API. The UI gates the BOM-check
+        action on `available` and surfaces `reason` when it's down."""
+        return jlcpcb_status()
+
+    @app.post("/design/jlcpcb/check", tags=["design"])
+    def design_jlcpcb_check(design: dict) -> dict:
+        """Check the design's component BOM against JLCPCB stock + price.
+
+        Always 200: an unreachable API comes back as `available: false`
+        with a `reason`, so the caller degrades gracefully rather than
+        treating a flaky third-party API as a hard failure.
+        """
+        d = _validate_design(design)
+        return report_to_dict(check_bom(d, lib))
 
     @app.get("/enclosure/search/status", tags=["enclosure"])
     def enclosure_search_status() -> dict:
