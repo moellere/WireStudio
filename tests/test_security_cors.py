@@ -15,7 +15,10 @@ def test_cors_preflight_headers_restricted():
 
     response = client.options("/health", headers=headers)
 
-    assert response.status_code == 200
+    # Starlette's CORSMiddleware returns 400 ("Disallowed CORS headers")
+    # when a preflight requests a header outside the allow-list -- that
+    # rejection is exactly the restriction working.
+    assert response.status_code == 400
     allow_headers = response.headers.get("access-control-allow-headers", "")
 
     # After the fix, X-Custom-Header should NOT be allowed.
