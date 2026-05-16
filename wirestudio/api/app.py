@@ -202,7 +202,7 @@ def create_app(
         CORSMiddleware,
         allow_origins=origins,
         allow_methods=["GET", "POST", "PUT", "DELETE"],
-        allow_headers=["*"],
+        allow_headers=["Content-Type", "Authorization", "Accept"],
     )
 
     @app.get("/docs", include_in_schema=False)
