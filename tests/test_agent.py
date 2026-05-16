@@ -179,6 +179,23 @@ def test_add_bus_appends_and_dedupes(lib, garage_motion_design):
     assert body2["ok"] is False
 
 
+
+def test_render_catches_value_error(lib, garage_motion_design):
+    # Mutate the design to create a ValueError condition during render:
+    # A connection references an expander that does not exist in components.
+    garage_motion_design["connections"].append({
+        "component_id": "pir1",
+        "pin_role": "OUT",
+        "target": {"kind": "expander_pin", "expander_id": "ghost_expander", "number": 1}
+    })
+
+    out, is_error = execute_tool("render", {}, garage_motion_design, lib)
+    assert is_error is False
+    body = json.loads(out)
+    assert body["ok"] is False
+    assert "error" in body
+    assert "unknown expander 'ghost_expander'" in body["error"]
+
 def test_render_returns_yaml_and_ascii(lib, garage_motion_design):
     out, is_error = execute_tool("render", {}, garage_motion_design, lib)
     assert is_error is False
