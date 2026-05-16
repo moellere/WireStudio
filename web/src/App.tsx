@@ -24,6 +24,20 @@ import { SchematicDialog } from "./components/SchematicDialog";
 import { useDebouncedValue } from "./lib/debounce";
 import { useAdvancedMode } from "./lib/uiMode";
 import {
+  Bot,
+  FilePlus,
+  Save,
+  Wand2,
+  Usb,
+  Plus,
+  Cpu,
+  Box,
+  UploadCloud,
+  RotateCcw,
+  Download,
+  ExternalLink
+} from "lucide-react";
+import {
   addComponent,
   isDirty,
   prepareBusesForLib,
@@ -430,149 +444,193 @@ export default function App() {
 
   return (
     <div className="grid h-full grid-rows-[auto_auto_1fr] bg-zinc-950 text-zinc-200">
-      <header className="flex items-center justify-between border-b border-zinc-800 px-4 py-2">
-        <div className="flex items-baseline gap-3">
-          <h1 className="text-base font-semibold tracking-tight">wirestudio</h1>
-          <span className="text-xs text-zinc-500">{version ? `API v${version}` : "connecting..."}</span>
-          {rendering && <span className="text-xs text-blue-300">rendering...</span>}
-          {dirty && !rendering && (
-            <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-xs text-amber-200 ring-1 ring-amber-500/40">
-              modified
-            </span>
-          )}
+      <header className="flex h-14 items-center justify-between border-b border-zinc-800 bg-zinc-950 px-4">
+        {/* Left: Branding & Status */}
+        <div className="flex items-center gap-4">
+          <div className="flex items-baseline gap-2">
+            <h1 className="text-lg font-semibold tracking-tight text-zinc-100">wirestudio</h1>
+            <span className="text-xs font-medium text-zinc-500">{version ? `v${version}` : "..."}</span>
+          </div>
+
+          <div className="flex items-center gap-2 border-l border-zinc-800 pl-4">
+            {rendering && (
+              <span className="flex items-center gap-1.5 text-xs text-blue-400">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75"></span>
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-500"></span>
+                </span>
+                rendering
+              </span>
+            )}
+            {dirty && !rendering && (
+              <span className="rounded-md bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-400 ring-1 ring-amber-500/30">
+                Unsaved changes
+              </span>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          {advancedMode && (
+
+        {/* Right: Actions */}
+        <div className="flex items-center gap-3">
+          {/* Group 1: Core Design Actions */}
+          <div className="flex items-center gap-1 rounded-md bg-zinc-900/50 p-1 ring-1 ring-inset ring-zinc-800">
             <button
-              onClick={() => setShowAgent(true)}
-              className="rounded bg-blue-500/15 px-2 py-1 text-xs text-blue-100 ring-1 ring-blue-400/40 hover:bg-blue-500/25"
-              title="Open the design agent"
+              onClick={() => setShowNewDialog(true)}
+              className="flex items-center gap-1.5 rounded p-1.5 text-xs font-medium text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-zinc-100"
+              title="Create a fresh design from a board"
             >
-              Agent
+              <FilePlus className="h-4 w-4" />
+              <span className="hidden sm:inline">New</span>
             </button>
-          )}
-          <button
-            onClick={() => setShowNewDialog(true)}
-            className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
-            title="Create a fresh design from a board"
-          >
-            New design
-          </button>
-          <button
-            disabled={!design || savingState === "saving"}
-            onClick={handleSave}
-            className={`rounded px-2 py-1 text-xs transition-colors disabled:opacity-40 ${
-              savingState === "saved"
-                ? "bg-emerald-500/15 text-emerald-100 ring-1 ring-emerald-400/40"
-                : "border border-zinc-800 text-zinc-300 enabled:hover:bg-zinc-900"
-            }`}
-            title="Persist the current design to designs/<id>.json on the server"
-          >
-            {savingState === "saving" ? "Saving..." : savingState === "saved" ? "Saved ✓" : "Save"}
-          </button>
-          <button
-            disabled={!design || solving}
-            onClick={handleSolvePins}
-            className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 enabled:hover:bg-zinc-900 disabled:opacity-40"
-            title="Auto-assign every unbound connection"
-          >
-            {solving ? "Solving..." : "Solve pins"}
-          </button>
-          <label
-            className={`flex cursor-pointer items-center gap-1 rounded border px-2 py-1 text-xs transition-colors ${
-              strictMode
-                ? "border-amber-600/50 bg-amber-900/20 text-amber-100"
-                : "border-zinc-800 text-zinc-300 hover:bg-zinc-900"
-            }`}
-            title="Strict mode: render fails when compatibility warnings of severity warn or error remain. Use as a pre-deploy gate."
-          >
-            <input
-              type="checkbox"
-              checked={strictMode}
-              onChange={(e) => setStrictMode(e.target.checked)}
-              className="h-3 w-3"
-            />
-            strict
-          </label>
-          <label
-            className={`flex cursor-pointer items-center gap-1 rounded border px-2 py-1 text-xs transition-colors ${
-              advancedMode
-                ? "border-violet-600/50 bg-violet-900/20 text-violet-100"
-                : "border-zinc-800 text-zinc-300 hover:bg-zinc-900"
-            }`}
-            title="Advanced mode reveals the Agent, Schematic (KiCad), Enclosure, and Push-to-fleet surfaces. Persists across sessions."
-          >
-            <input
-              type="checkbox"
-              checked={advancedMode}
-              onChange={(e) => setAdvancedMode(e.target.checked)}
-              className="h-3 w-3"
-            />
-            advanced
-          </label>
-          <button
-            onClick={() => setShowUsbDialog(true)}
-            className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
-            title="Detect a connected ESP via WebSerial"
-          >
-            Connect device
-          </button>
-          <button
-            disabled={!design}
-            onClick={() => setShowCapabilityDialog(true)}
-            className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 enabled:hover:bg-zinc-900 disabled:opacity-40"
-            title="Pick a capability and add a matching component"
-          >
-            Add by function
-          </button>
+
+            <button
+              disabled={!design || savingState === "saving"}
+              onClick={handleSave}
+              className={`flex items-center gap-1.5 rounded p-1.5 text-xs font-medium transition-colors disabled:opacity-40 ${
+                savingState === "saved"
+                  ? "bg-emerald-500/20 text-emerald-300"
+                  : "text-zinc-300 enabled:hover:bg-zinc-800 enabled:hover:text-zinc-100"
+              }`}
+              title="Persist the current design to designs/<id>.json on the server"
+            >
+              <Save className="h-4 w-4" />
+              <span className="hidden sm:inline">
+                {savingState === "saving" ? "Saving..." : savingState === "saved" ? "Saved" : "Save"}
+              </span>
+            </button>
+
+            <div className="mx-1 h-4 w-px bg-zinc-700"></div>
+
+            <button
+              disabled={!dirty}
+              onClick={handleReset}
+              className="flex items-center gap-1.5 rounded p-1.5 text-xs font-medium text-zinc-300 transition-colors enabled:hover:bg-zinc-800 enabled:hover:text-zinc-100 disabled:opacity-40"
+              title="Reset to last saved state"
+            >
+              <RotateCcw className="h-4 w-4" />
+              <span className="hidden lg:inline">Reset</span>
+            </button>
+
+            <button
+              disabled={!design}
+              onClick={handleDownload}
+              className="flex items-center gap-1.5 rounded p-1.5 text-xs font-medium text-zinc-300 transition-colors enabled:hover:bg-zinc-800 enabled:hover:text-zinc-100 disabled:opacity-40"
+              title="Download JSON"
+            >
+              <Download className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* Group 2: Builder Actions */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowUsbDialog(true)}
+              className="flex items-center gap-1.5 rounded-md bg-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-200 transition-colors hover:bg-zinc-700"
+              title="Detect a connected ESP via WebSerial"
+            >
+              <Usb className="h-4 w-4 text-zinc-400" />
+              Connect Device
+            </button>
+
+            <button
+              disabled={!design}
+              onClick={() => setShowCapabilityDialog(true)}
+              className="flex items-center gap-1.5 rounded-md bg-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-200 transition-colors enabled:hover:bg-zinc-700 disabled:opacity-40"
+              title="Pick a capability and add a matching component"
+            >
+              <Plus className="h-4 w-4 text-zinc-400" />
+              Add Component
+            </button>
+
+            <button
+              disabled={!design || solving}
+              onClick={handleSolvePins}
+              className="flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition-colors enabled:hover:bg-blue-500 disabled:opacity-40"
+              title="Auto-assign every unbound connection"
+            >
+              <Wand2 className="h-4 w-4" />
+              {solving ? "Solving..." : "Solve Pins"}
+            </button>
+          </div>
+
+          {/* Group 3: Advanced & Export Actions */}
           {advancedMode && (
-            <>
+            <div className="flex items-center gap-1 border-l border-zinc-800 pl-3">
               <button
                 disabled={!design}
                 onClick={() => setShowSchematicDialog(true)}
-                className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 enabled:hover:bg-zinc-900 disabled:opacity-40"
-                title="Download a SKiDL Python script that produces a .kicad_sch when run locally"
+                className="flex items-center gap-1.5 rounded p-1.5 text-xs font-medium text-zinc-400 transition-colors enabled:hover:bg-zinc-800 enabled:hover:text-zinc-200 disabled:opacity-40"
+                title="Schematic (KiCad)"
               >
-                Schematic
+                <Cpu className="h-4 w-4" />
               </button>
               <button
                 disabled={!design}
                 onClick={() => setShowEnclosureDialog(true)}
-                className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 enabled:hover:bg-zinc-900 disabled:opacity-40"
-                title="Generate a parametric .scad shell or search community-uploaded models"
+                className="flex items-center gap-1.5 rounded p-1.5 text-xs font-medium text-zinc-400 transition-colors enabled:hover:bg-zinc-800 enabled:hover:text-zinc-200 disabled:opacity-40"
+                title="Enclosure Model"
               >
-                Enclosure
+                <Box className="h-4 w-4" />
               </button>
               <button
                 disabled={!design}
                 onClick={() => setShowFleetDialog(true)}
-                className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 enabled:hover:bg-zinc-900 disabled:opacity-40"
-                title="Push the rendered YAML to distributed-esphome"
+                className="flex items-center gap-1.5 rounded p-1.5 text-xs font-medium text-zinc-400 transition-colors enabled:hover:bg-zinc-800 enabled:hover:text-zinc-200 disabled:opacity-40"
+                title="Push to Fleet"
               >
-                Push to fleet
+                <UploadCloud className="h-4 w-4" />
               </button>
-            </>
+
+              <div className="mx-1 h-4 w-px bg-zinc-800"></div>
+
+              <button
+                onClick={() => setShowAgent(true)}
+                className="flex items-center gap-1.5 rounded p-1.5 text-xs font-medium text-blue-400 transition-colors hover:bg-blue-500/10 hover:text-blue-300"
+                title="Open the design agent"
+              >
+                <Bot className="h-4 w-4" />
+                <span className="hidden lg:inline">Agent</span>
+              </button>
+            </div>
           )}
-          <button
-            disabled={!dirty}
-            onClick={handleReset}
-            className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 enabled:hover:bg-zinc-900 disabled:opacity-40"
-          >
-            Reset
-          </button>
-          <button
-            disabled={!design}
-            onClick={handleDownload}
-            className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 enabled:hover:bg-zinc-900 disabled:opacity-40"
-          >
-            Download JSON
-          </button>
-          <a
-            href="/api/docs" target="_blank" rel="noreferrer"
-            className="text-xs text-zinc-400 hover:text-zinc-200"
-          >
-            OpenAPI ↗
-          </a>
+
+          {/* Group 4: Settings & Links */}
+          <div className="flex items-center gap-2 border-l border-zinc-800 pl-3">
+            <div className="flex flex-col gap-1">
+              <label
+                className="flex cursor-pointer items-center gap-1.5 text-[10px] font-medium text-zinc-400 transition-colors hover:text-zinc-200"
+                title="Strict mode: render fails when compatibility warnings of severity warn or error remain"
+              >
+                <input
+                  type="checkbox"
+                  checked={strictMode}
+                  onChange={(e) => setStrictMode(e.target.checked)}
+                  className="h-3 w-3 rounded-sm border-zinc-700 bg-zinc-900 accent-blue-500"
+                />
+                STRICT
+              </label>
+              <label
+                className="flex cursor-pointer items-center gap-1.5 text-[10px] font-medium text-zinc-400 transition-colors hover:text-zinc-200"
+                title="Advanced mode reveals Agent, Schematic, Enclosure, and Fleet options"
+              >
+                <input
+                  type="checkbox"
+                  checked={advancedMode}
+                  onChange={(e) => setAdvancedMode(e.target.checked)}
+                  className="h-3 w-3 rounded-sm border-zinc-700 bg-zinc-900 accent-violet-500"
+                />
+                ADVANCED
+              </label>
+            </div>
+
+            <a
+              href="/api/docs" target="_blank" rel="noreferrer"
+              className="ml-1 flex items-center gap-1 rounded p-1.5 text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-300"
+              title="OpenAPI Documentation"
+            >
+              <ExternalLink className="h-4 w-4" />
+            </a>
+          </div>
         </div>
       </header>
       {solveBanner && (

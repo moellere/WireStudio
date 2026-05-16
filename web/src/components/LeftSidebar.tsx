@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { FolderHeart, FolderOpen, Cpu, Component } from "lucide-react";
 import type { BoardSummary, ComponentSummary, ExampleSummary, SavedDesignSummary } from "../types/api";
 
 type Tab = "examples" | "saved" | "boards" | "components";
@@ -22,33 +23,46 @@ export function LeftSidebar(props: Props) {
   const [search, setSearch] = useState("");
 
   return (
-    <aside className="flex min-h-0 flex-col border-r border-zinc-800">
-      <div className="flex border-b border-zinc-800 text-xs">
-        {(["examples", "saved", "boards", "components"] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`flex-1 px-2 py-2 capitalize transition-colors ${
-              tab === t
-                ? "bg-zinc-900 text-zinc-100"
-                : "text-zinc-500 hover:bg-zinc-900/50 hover:text-zinc-300"
-            }`}
-          >
-            {t}
-            {t === "saved" && props.saved && props.saved.length > 0 && (
-              <span className="ml-1 text-[10px] text-zinc-500">({props.saved.length})</span>
-            )}
-          </button>
-        ))}
+    <aside className="flex min-h-0 flex-col border-r border-zinc-800 bg-zinc-950">
+      <div className="flex border-b border-zinc-800 p-2 gap-1 bg-zinc-950">
+        {(["examples", "saved", "boards", "components"] as const).map((t) => {
+          const Icon = t === "examples" ? FolderOpen : t === "saved" ? FolderHeart : t === "boards" ? Cpu : Component;
+          return (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`flex flex-1 flex-col items-center gap-1 rounded-md py-2 transition-colors ${
+                tab === t
+                  ? "bg-zinc-800/80 text-zinc-100 ring-1 ring-zinc-700/50"
+                  : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
+              }`}
+              title={t.charAt(0).toUpperCase() + t.slice(1)}
+            >
+              <Icon className="h-4 w-4" />
+              <span className="text-[10px] font-medium capitalize tracking-wide">
+                {t}
+                {t === "saved" && props.saved && props.saved.length > 0 && (
+                  <span className="ml-1 opacity-70">({props.saved.length})</span>
+                )}
+              </span>
+            </button>
+          );
+        })}
       </div>
-      <input
-        type="search"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        placeholder={`Filter ${tab}...`}
-        className="m-2 rounded border border-zinc-800 bg-zinc-950 px-2 py-1 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
-      />
-      <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
+
+      <div className="p-3 pb-2">
+        <div className="relative">
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={`Filter ${tab}...`}
+            className="w-full rounded-md border border-zinc-800 bg-zinc-900/50 px-3 py-1.5 text-xs text-zinc-200 placeholder:text-zinc-500 focus:border-zinc-600 focus:bg-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-600 transition-all"
+          />
+        </div>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
         {tab === "examples" && (
           <ExamplesList
             items={props.examples}
@@ -95,33 +109,42 @@ function SavedList({
   if (filtered === null) return <Loading />;
   if (filtered.length === 0) {
     return (
-      <div className="px-2 py-3 text-xs text-zinc-500">
-        No saved designs yet. Click <span className="font-mono text-zinc-400">Save</span> in the
-        header to persist the current design here.
+      <div className="flex flex-col items-center justify-center py-8 text-center px-4">
+        <FolderHeart className="h-8 w-8 text-zinc-800 mb-3" />
+        <p className="text-xs text-zinc-500">No saved designs yet.</p>
+        <p className="text-xs text-zinc-600 mt-1">
+          Click <span className="font-medium text-zinc-400 bg-zinc-900 px-1 py-0.5 rounded">Save</span> in the header to persist the current design here.
+        </p>
       </div>
     );
   }
 
   return (
-    <ul className="space-y-1 text-sm">
+    <ul className="space-y-1.5 text-sm">
       {filtered.map((s) => {
         const active = selected === s.id;
         return (
-          <li key={s.id} className="flex items-stretch gap-1">
+          <li key={s.id} className="group flex items-stretch gap-1">
             <button
               onClick={() => onSelect(s.id)}
-              className={`flex-1 rounded px-2 py-1.5 text-left transition-colors ${
+              className={`flex-1 rounded-md px-3 py-2 text-left transition-all ${
                 active
-                  ? "bg-blue-500/15 text-blue-100 ring-1 ring-blue-400/40"
-                  : "hover:bg-zinc-900"
+                  ? "bg-blue-500/15 text-blue-100 ring-1 ring-inset ring-blue-500/30"
+                  : "bg-zinc-900/30 hover:bg-zinc-800/80"
               }`}
             >
-              <div className="truncate font-medium">{s.name || s.id}</div>
-              <div className="mt-0.5 truncate text-xs text-zinc-500">
-                {s.chip_family} · {s.board_library_id} · {s.component_count} comp
+              <div className="flex items-baseline justify-between gap-2">
+                <div className={`truncate font-medium ${active ? "text-blue-100" : "text-zinc-200"}`}>
+                  {s.name || s.id}
+                </div>
+                <div className="shrink-0 text-[10px] font-medium text-zinc-500">
+                  {relativeTime(s.saved_at)}
+                </div>
               </div>
-              <div className="mt-0.5 truncate text-[10px] text-zinc-600">
-                saved {relativeTime(s.saved_at)}
+              <div className="mt-1 flex items-center gap-2 truncate text-xs text-zinc-500">
+                <span className="truncate">{s.board_library_id}</span>
+                <span className="h-1 w-1 shrink-0 rounded-full bg-zinc-700"></span>
+                <span className="shrink-0">{s.component_count} comp</span>
               </div>
             </button>
             <button
@@ -129,7 +152,9 @@ function SavedList({
                 if (confirm(`Delete saved design "${s.name || s.id}"?`)) onDelete(s.id);
               }}
               title={`Delete ${s.id}`}
-              className="rounded border border-zinc-800 px-2 text-xs text-zinc-500 transition-colors hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-300"
+              className={`flex items-center justify-center rounded-md px-2 text-zinc-500 transition-colors hover:bg-red-500/15 hover:text-red-400 ${
+                active ? "bg-blue-500/5 hover:bg-red-500/15" : "bg-zinc-900/30 opacity-0 group-hover:opacity-100"
+              }`}
             >
               ✕
             </button>
@@ -165,25 +190,29 @@ function ExamplesList({
   }, [items, search]);
 
   if (filtered === null) return <Loading />;
-  if (filtered.length === 0) return <Empty>no examples</Empty>;
+  if (filtered.length === 0) return <Empty>No examples found.</Empty>;
 
   return (
-    <ul className="space-y-1 text-sm">
+    <ul className="space-y-1.5 text-sm">
       {filtered.map((e) => {
         const active = selected === e.id;
         return (
           <li key={e.id}>
             <button
               onClick={() => onSelect(e.id)}
-              className={`w-full rounded px-2 py-1.5 text-left transition-colors ${
+              className={`w-full rounded-md px-3 py-2 text-left transition-all ${
                 active
-                  ? "bg-blue-500/15 text-blue-100 ring-1 ring-blue-400/40"
-                  : "hover:bg-zinc-900"
+                  ? "bg-blue-500/15 text-blue-100 ring-1 ring-inset ring-blue-500/30"
+                  : "bg-zinc-900/30 hover:bg-zinc-800/80"
               }`}
             >
-              <div className="truncate font-medium">{e.name}</div>
-              <div className="mt-0.5 truncate text-xs text-zinc-500">
-                {e.chip_family} · {e.board_library_id}
+              <div className={`truncate font-medium ${active ? "text-blue-100" : "text-zinc-200"}`}>
+                {e.name}
+              </div>
+              <div className="mt-1 flex items-center gap-2 truncate text-xs text-zinc-500">
+                <span className="shrink-0 font-medium text-zinc-400">{e.chip_family}</span>
+                <span className="h-1 w-1 shrink-0 rounded-full bg-zinc-700"></span>
+                <span className="truncate">{e.board_library_id}</span>
               </div>
             </button>
           </li>
@@ -207,20 +236,27 @@ function BoardsList({
   }, [items, search]);
 
   if (filtered === null) return <Loading />;
-  if (filtered.length === 0) return <Empty>no boards</Empty>;
+  if (filtered.length === 0) return <Empty>No boards found.</Empty>;
 
   return (
-    <ul className="space-y-1 text-sm">
+    <ul className="space-y-1.5 text-sm">
       {filtered.map((b) => (
         <li key={b.id}>
           <button
             onClick={() => onSelect(b.id)}
-            className="w-full rounded px-2 py-1.5 text-left transition-colors hover:bg-zinc-900"
+            className="w-full rounded-md bg-zinc-900/30 px-3 py-2 text-left transition-colors hover:bg-zinc-800/80"
           >
-            <div className="truncate font-medium">{b.name}</div>
-            <div className="mt-0.5 truncate text-xs text-zinc-500">
-              {b.chip_variant} · {b.framework}
-              {b.flash_size_mb ? ` · ${b.flash_size_mb}MB` : ""}
+            <div className="truncate font-medium text-zinc-200">{b.name}</div>
+            <div className="mt-1 flex items-center gap-1.5 truncate text-xs text-zinc-500">
+              <span className="rounded bg-zinc-800 px-1 py-0.5 font-medium text-zinc-400">{b.chip_variant}</span>
+              <span className="text-zinc-600">·</span>
+              <span>{b.framework}</span>
+              {b.flash_size_mb && (
+                <>
+                  <span className="text-zinc-600">·</span>
+                  <span>{b.flash_size_mb}MB</span>
+                </>
+              )}
             </div>
           </button>
         </li>
@@ -251,21 +287,28 @@ function ComponentsList({
   }, [items, search]);
 
   if (filtered === null) return <Loading />;
-  if (filtered.length === 0) return <Empty>no components</Empty>;
+  if (filtered.length === 0) return <Empty>No components found.</Empty>;
 
   return (
-    <ul className="space-y-1 text-sm">
+    <ul className="space-y-1.5 text-sm">
       {filtered.map((c) => (
         <li key={c.id}>
           <button
             onClick={() => onSelect(c.id)}
-            className="w-full rounded px-2 py-1.5 text-left transition-colors hover:bg-zinc-900"
+            className="w-full rounded-md bg-zinc-900/30 px-3 py-2 text-left transition-colors hover:bg-zinc-800/80"
           >
-            <div className="truncate font-medium">{c.name}</div>
-            <div className="mt-0.5 truncate text-xs text-zinc-500">
-              {c.category}
-              {c.required_components.length ? ` · ${c.required_components.join(", ")}` : ""}
+            <div className="flex items-baseline justify-between gap-2">
+              <div className="truncate font-medium text-zinc-200">{c.name}</div>
+              <div className="shrink-0 text-[10px] font-medium uppercase tracking-wider text-zinc-500">
+                {c.category}
+              </div>
             </div>
+            {c.required_components.length > 0 && (
+              <div className="mt-1 truncate text-xs text-zinc-500">
+                <span className="text-zinc-600 mr-1">Requires:</span>
+                {c.required_components.join(", ")}
+              </div>
+            )}
           </button>
         </li>
       ))}
@@ -274,8 +317,23 @@ function ComponentsList({
 }
 
 function Loading() {
-  return <div className="px-2 py-3 text-xs text-zinc-500">loading...</div>;
+  return (
+    <div className="flex items-center justify-center py-8 text-xs text-zinc-500">
+      <div className="flex items-center gap-2">
+        <span className="relative flex h-2 w-2">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-zinc-500 opacity-75"></span>
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-zinc-600"></span>
+        </span>
+        Loading...
+      </div>
+    </div>
+  );
 }
+
 function Empty({ children }: { children: React.ReactNode }) {
-  return <div className="px-2 py-3 text-xs text-zinc-500">{children}</div>;
+  return (
+    <div className="flex items-center justify-center py-8 text-center text-sm text-zinc-500">
+      {children}
+    </div>
+  );
 }
