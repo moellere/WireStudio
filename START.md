@@ -426,6 +426,32 @@ testing surfaced two strategic items below.)
 5. 1.0 — KiCad PCB layout (reuse the schematic's netlist;
    Freerouting; Gerber + JLCPCB CPL/BOM).
 
+6. **Board-picker UI + M5Stack controller coverage.** Surfaced
+   2026-05-16 from a UI-quality review.
+   - *Board images.* The board selector is text-only today.
+     Add a thumbnail per board so the picker is recognisable at
+     a glance (cf. the labelled-board reference grid at
+     `https://miro.medium.com/v2/resize:fit:1200/1*YKc8KpAfMrlhrOLmNjdRwQ.png`).
+     Needs an `image` field on `wirestudio/library/boards/<id>.yaml`
+     plumbed through the `/library/boards` summary + the board
+     detail resource. Decide local-asset vs. hotlink — a bundled
+     asset keeps the studio offline-clean and is the likely call.
+   - *Wider UI pass.* The text-only board picker is one symptom;
+     the web UI wants a broader review + polish pass — layout,
+     visual hierarchy, the add-component and inspector flows.
+     Scope a concrete punch-list before starting; this is
+     "significant UI improvements", not a one-off tweak.
+   - *M5Stack controllers.* Expand board coverage across the
+     M5Stack controller line
+     (`https://shop.m5stack.com/collections/controllers`) —
+     Atom Lite, Atom Echo, Atom Matrix, AtomS3 Lite, AtomU,
+     M5StickC variants, etc. Today only `m5stack-atom`
+     (Lite/Echo shared) and `m5stack-atoms3` exist; split the
+     shared entry where pinouts / onboard peripherals diverge
+     and add the missing variants. Each is a
+     `wirestudio/library/boards/` manifest plus a bundled
+     example to clear the `esphome config` gate.
+
 
 **0.9 v2 -- library mapping expansion shipped.** The remaining 20
 components + 7 boards now carry a `kicad:` block, taking coverage
