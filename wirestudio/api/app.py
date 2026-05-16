@@ -9,7 +9,13 @@ from typing import Optional
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_swagger_ui_html
-from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, StreamingResponse
+from fastapi.responses import (
+    HTMLResponse,
+    JSONResponse,
+    PlainTextResponse,
+    Response,
+    StreamingResponse,
+)
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -62,6 +68,12 @@ from wirestudio.enclosure import (
     search_enclosures,
 )
 from wirestudio.kicad import generate_skidl
+from wirestudio.kicad.render import (
+    RenderError,
+    RenderUnavailable,
+    render_schematic,
+    render_status,
+)
 from wirestudio.recommend.recommender import Constraints, recommend_components
 from wirestudio.generate.ascii_gen import render_ascii
 from wirestudio.generate.yaml_gen import render_yaml
@@ -393,6 +405,36 @@ def create_app(
             content=script,
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
+
+    @app.get("/design/kicad/render/status", tags=["design"])
+    def design_kicad_render_status() -> dict:
+        """Probe whether the schematic-render pipeline (SKiDL + kicad-cli)
+        is available. The web UI gates the inline preview on `available`
+        and surfaces `reason` when a tool is missing."""
+        return render_status()
+
+    @app.post("/design/kicad/render", tags=["design"])
+    def design_kicad_render(design: dict, format: str = "svg") -> Response:
+        """Render the design's schematic to an image.
+
+        Runs the generated SKiDL script + `kicad-cli` in a subprocess.
+        `format` is `svg` (default, browser-native) or `png`. Returns
+        503 when the tools aren't installed -- check
+        `/design/kicad/render/status` first.
+        """
+        if format not in ("svg", "png"):
+            raise HTTPException(status_code=422, detail="format must be 'svg' or 'png'")
+        d = _validate_design(design)
+        try:
+            data = render_schematic(d, lib, fmt=format)
+        except RenderUnavailable as e:
+            raise HTTPException(status_code=503, detail=str(e)) from e
+        except FileNotFoundError as e:
+            raise HTTPException(status_code=422, detail=str(e)) from e
+        except RenderError as e:
+            raise HTTPException(status_code=500, detail=str(e)) from e
+        media = "image/svg+xml" if format == "svg" else "image/png"
+        return Response(content=data, media_type=media)
 
     @app.get("/enclosure/search/status", tags=["enclosure"])
     def enclosure_search_status() -> dict:

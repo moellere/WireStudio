@@ -221,6 +221,14 @@ export interface EnclosureSearchStatus {
   sources: EnclosureSourceStatus[];
 }
 
+export interface KicadRenderStatus {
+  available: boolean;
+  kicad_cli: boolean;
+  skidl: boolean;
+  png: boolean;
+  reason: string | null;
+}
+
 export interface EnclosureHit {
   source: string;
   id: string;

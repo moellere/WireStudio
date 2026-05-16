@@ -339,11 +339,20 @@ testing surfaced two strategic items below.)
      JLCPCB, surfaces "C25 (BME280) — 12 in stock @ $4.20" or
      "P/N not found, source manually." Pre-PCB-order
      feasibility gate.
-   - `wirestudio.kicad.cli render --png` — shells out to
-     `kicad-cli` to produce a PNG of the rendered schematic.
-     Inline preview in the web UI; closes the "I can't see
-     what the schematic looks like without leaving the studio"
-     gap.
+   - `wirestudio.kicad.render` — **shipped (PR #TBD, 2026-05-16).**
+     Pipeline: design → SKiDL script → run it in a subprocess
+     (`.kicad_sch`) → `kicad-cli sch export svg` → SVG, with an
+     optional SVG→PNG rasterize step. SKiDL is run as a
+     subprocess via `sys.executable`, never imported, so the
+     EDA-toolchain weight stays out of wirestudio's import graph.
+     Feature-gated like the agent / fleet surfaces:
+     `GET /design/kicad/render/status` probes for the tools and
+     the web UI's Schematic dialog shows the inline SVG preview
+     when they're present, a notice when they're not.
+     `POST /design/kicad/render` serves the image; CLI:
+     `python -m wirestudio.kicad.render <design.json> [--png]`.
+     Closes the "I can't see what the schematic looks like
+     without leaving the studio" gap.
 
    These importers benefit the CLI and web UI too, not just
    the chat-driven flow. Same code reachable from MCP tools so

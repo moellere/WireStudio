@@ -1,8 +1,7 @@
 /**
- * Component tests for SchematicDialog (0.9). The dialog is small but
- * exercises the same download-blob pattern as EnclosureDialog's
- * Generate tab; we verify the API call shape, the success affirmation,
- * and the error path.
+ * Component tests for SchematicDialog. Covers the download-script path
+ * (API call shape, success affirmation, error banner) and the inline
+ * SVG preview, which is feature-gated on /design/kicad/render/status.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
@@ -10,18 +9,33 @@ import userEvent from "@testing-library/user-event";
 
 import { SchematicDialog } from "./SchematicDialog";
 import { api } from "../api/client";
-import type { Design } from "../types/api";
+import type { Design, KicadRenderStatus } from "../types/api";
 
 vi.mock("../api/client", async () => {
   const actual = await vi.importActual<typeof import("../api/client")>("../api/client");
   return {
     ...actual,
-    api: { ...actual.api, kicadSchematic: vi.fn() },
+    api: {
+      ...actual.api,
+      kicadSchematic: vi.fn(),
+      kicadRenderStatus: vi.fn(),
+      kicadRender: vi.fn(),
+    },
   };
 });
 
 const mockApi = api as unknown as {
   kicadSchematic: ReturnType<typeof vi.fn>;
+  kicadRenderStatus: ReturnType<typeof vi.fn>;
+  kicadRender: ReturnType<typeof vi.fn>;
+};
+
+const UNAVAILABLE: KicadRenderStatus = {
+  available: false, kicad_cli: false, skidl: false, png: false,
+  reason: "kicad-cli not on PATH",
+};
+const AVAILABLE: KicadRenderStatus = {
+  available: true, kicad_cli: true, skidl: true, png: true, reason: null,
 };
 
 const design: Design = {
@@ -38,6 +52,9 @@ const design: Design = {
 
 beforeEach(() => {
   mockApi.kicadSchematic.mockReset();
+  mockApi.kicadRenderStatus.mockReset();
+  mockApi.kicadRender.mockReset();
+  mockApi.kicadRenderStatus.mockResolvedValue(UNAVAILABLE);
   (URL as unknown as { createObjectURL: () => string }).createObjectURL = vi.fn(() => "blob:fake");
   (URL as unknown as { revokeObjectURL: () => void }).revokeObjectURL = vi.fn();
 });
@@ -47,7 +64,7 @@ afterEach(() => {
 });
 
 
-describe("SchematicDialog", () => {
+describe("SchematicDialog — download script", () => {
   it("downloads on click and shows the success state", async () => {
     mockApi.kicadSchematic.mockResolvedValue("from skidl import Part\n");
     render(<SchematicDialog design={design} onClose={() => {}} />);
@@ -89,5 +106,41 @@ describe("SchematicDialog", () => {
     render(<SchematicDialog design={design} onClose={onClose} />);
     await userEvent.click(screen.getByRole("button", { name: /Close/ }));
     expect(onClose).toHaveBeenCalled();
+  });
+});
+
+describe("SchematicDialog — inline preview", () => {
+  it("shows a notice when the renderer is unavailable", async () => {
+    render(<SchematicDialog design={design} onClose={() => {}} />);
+    await waitFor(() => screen.getByText(/render it locally instead/));
+    expect(screen.queryByRole("button", { name: /Render schematic/ })).toBeNull();
+  });
+
+  it("renders an SVG preview when the renderer is available", async () => {
+    mockApi.kicadRenderStatus.mockResolvedValue(AVAILABLE);
+    mockApi.kicadRender.mockResolvedValue("<svg><rect/></svg>");
+    render(<SchematicDialog design={design} onClose={() => {}} />);
+    const btn = await screen.findByRole("button", { name: /Render schematic/ });
+    await userEvent.click(btn);
+    await waitFor(() => expect(mockApi.kicadRender).toHaveBeenCalledWith(design));
+    await waitFor(() =>
+      expect(screen.getByAltText("rendered schematic")).toHaveAttribute("src", "blob:fake"),
+    );
+  });
+
+  it("surfaces a render failure in a rose banner", async () => {
+    const { ApiError } = await vi.importActual<typeof import("../api/client")>(
+      "../api/client",
+    );
+    mockApi.kicadRenderStatus.mockResolvedValue(AVAILABLE);
+    mockApi.kicadRender.mockRejectedValue(
+      new ApiError(500, "POST /design/kicad/render -> 500", {
+        detail: "kicad-cli failed: bad symbol",
+      }),
+    );
+    render(<SchematicDialog design={design} onClose={() => {}} />);
+    const btn = await screen.findByRole("button", { name: /Render schematic/ });
+    await userEvent.click(btn);
+    await waitFor(() => screen.getByText(/kicad-cli failed: bad symbol/));
   });
 });
