@@ -5,7 +5,7 @@ get ESPHome YAML, an ASCII wiring diagram, and a BOM that compile
 under upstream ESPHome.
 
 Produces ESPHome configs but is not affiliated with the ESPHome
-project — see [`weirded/distributed-esphome`](https://github.com/weirded/distributed-esphome)
+project — see [`weirded/fleet-for-esphome`](https://github.com/weirded/fleet-for-esphome)
 for the OTA-deploy companion this studio's **Push to fleet** flow
 talks to.
 
