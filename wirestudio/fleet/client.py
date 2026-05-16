@@ -1,4 +1,4 @@
-"""HTTP client for the distributed-esphome ha-addon (ESPHome Fleet).
+"""HTTP client for the fleet-for-esphome ha-addon (ESPHome Fleet).
 
 The addon exposes a /ui/api/* surface guarded by a Bearer token. We need
 three of those endpoints to push a rendered YAML and (optionally) kick
@@ -48,7 +48,7 @@ class FleetUnavailable(RuntimeError):
 
 
 class FleetClient:
-    """Talks to a distributed-esphome ha-addon over HTTP.
+    """Talks to a fleet-for-esphome ha-addon over HTTP.
 
     Configured from environment variables by default so the studio API
     can stay process-state-free:

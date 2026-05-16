@@ -1,4 +1,4 @@
-"""Tests for the distributed-esphome (fleet) handoff client + endpoints.
+"""Tests for the fleet-for-esphome (fleet) handoff client + endpoints.
 
 Uses ``httpx.MockTransport`` to stand in for the addon's /ui/api/* surface
 so we exercise the real client logic without ever touching a network or

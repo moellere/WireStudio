@@ -302,7 +302,7 @@ def create_app(
         `compatibility_warnings` field for the UI to surface non-blocking
         guidance. With `?strict=true`, any compatibility entry of severity
         `warn` or `error` instead 422s -- the same gate the
-        distributed-esphome push path can use to refuse to ship a design
+        fleet-for-esphome push path can use to refuse to ship a design
         with unresolved hardware risks.
         """
         d = _validate_design(design)
@@ -638,7 +638,7 @@ def create_app(
         )
 
     # ---------------------------------------------------------------------
-    # Fleet handoff (distributed-esphome ha-addon)
+    # Fleet handoff (fleet-for-esphome ha-addon)
     # ---------------------------------------------------------------------
 
     @app.get("/fleet/status", response_model=FleetStatus, tags=["fleet"])
