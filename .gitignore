@@ -17,6 +17,7 @@ sessions/
 .env.local
 *.swp
 .DS_Store
+*.log
 
 # Web frontend
 web/node_modules/
