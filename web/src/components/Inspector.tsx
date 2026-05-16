@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { BoardSummary, CompatibilityWarning, ComponentSummary, Design } from "../types/api";
+import { Cpu, Component as ComponentIcon, LayoutGrid } from "lucide-react";
 import {
   readComponents,
   readConnections,
@@ -54,24 +55,24 @@ export function Inspector({
   onAddComponent, onRemoveComponent,
 }: Props) {
   return (
-    <aside className="flex min-h-0 flex-col border-l border-zinc-800">
-      <div className="flex items-center gap-2 border-b border-zinc-800 px-4 py-3">
+    <aside className="flex min-h-0 flex-col border-l border-zinc-800 bg-zinc-950">
+      <div className="flex items-center gap-3 border-b border-zinc-800 px-4 py-3.5 bg-zinc-950">
         {selection.kind !== "design" && (
           <button
             onClick={() => onSelect({ kind: "design" })}
-            className="rounded border border-zinc-800 px-1.5 py-0.5 text-xs text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
+            className="flex items-center justify-center rounded-md border border-zinc-800 p-1.5 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
             title="Back to design"
           >
             ←
           </button>
         )}
         <div className="flex-1">
-          <div className="text-xs uppercase tracking-wide text-zinc-500">Inspector</div>
-          <div className="mt-0.5 truncate text-sm text-zinc-300">
-            {selection.kind === "design" && "Design"}
-            {selection.kind === "board" && <>Board · <code className="text-zinc-100">{selection.id}</code></>}
-            {selection.kind === "component" && <>Library component · <code className="text-zinc-100">{selection.id}</code></>}
-            {selection.kind === "component_instance" && <>Instance · <code className="text-zinc-100">{selection.id}</code></>}
+          <div className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Inspector</div>
+          <div className="mt-1 flex items-center gap-2 truncate text-sm font-medium text-zinc-200">
+            {selection.kind === "design" && <><LayoutGrid className="h-4 w-4 text-zinc-400" /> Design Overview</>}
+            {selection.kind === "board" && <><Cpu className="h-4 w-4 text-zinc-400" /> Board Details</>}
+            {selection.kind === "component" && <><ComponentIcon className="h-4 w-4 text-zinc-400" /> Library Component</>}
+            {selection.kind === "component_instance" && <><ComponentIcon className="h-4 w-4 text-zinc-400" /> Component Instance</>}
           </div>
         </div>
       </div>
@@ -463,35 +464,55 @@ function BoardInspector({ id }: { id: string }) {
   const rails = Array.isArray(b.rails) ? b.rails as Array<Record<string, unknown>> : [];
   const gpio = (b.gpio_capabilities ?? {}) as Record<string, string[]>;
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div>
-        <div className="text-base font-semibold text-zinc-100">{String(b.name)}</div>
-        <div className="text-xs text-zinc-500">{String(b.platformio_board)}</div>
+        <h2 className="text-base font-semibold text-zinc-100">{String(b.name)}</h2>
+        <div className="mt-1 flex items-center gap-2 text-xs text-zinc-500">
+          <span className="rounded bg-zinc-800 px-1.5 py-0.5 font-medium">{String(b.chip_variant)}</span>
+          <span>·</span>
+          <span>{String(b.framework)}</span>
+          {Boolean(b.flash_size_mb) && (
+            <div className="flex items-center gap-2">
+              <span>·</span>
+              <span>{String(b.flash_size_mb)}MB Flash</span>
+            </div>
+          )}
+        </div>
       </div>
-      <Section title="Identity">
-        <KV k="mcu" v={String(b.mcu)} />
-        <KV k="chip_variant" v={String(b.chip_variant)} />
-        <KV k="framework" v={String(b.framework)} />
-        {b.flash_size_mb != null && <KV k="flash" v={`${b.flash_size_mb}MB`} />}
-      </Section>
+
+      <div className="space-y-3 rounded-md border border-zinc-800 bg-zinc-900/50 p-4 text-xs">
+        <div className="flex justify-between items-center border-b border-zinc-800/50 pb-2">
+          <span className="text-zinc-500 font-medium">PlatformIO ID</span>
+          <span className="font-mono text-zinc-300">{b.platformio_board ? String(b.platformio_board) : "Unknown"}</span>
+        </div>
+        <div className="flex justify-between items-center border-b border-zinc-800/50 pb-2">
+          <span className="text-zinc-500 font-medium">MCU Family</span>
+          <span className="font-mono text-zinc-300">{b.mcu ? String(b.mcu) : "Unknown"}</span>
+        </div>
+      </div>
+
       {rails.length > 0 && (
-        <Section title="Rails">
-          <ul className="space-y-1 text-xs">
-            {rails.map((r, i) => (
-              <li key={i} className="font-mono">
-                {String(r.name)} <span className="text-zinc-500">({String(r.voltage)}V)</span>
-              </li>
-            ))}
-          </ul>
+        <Section title="Power Rails">
+          <div className="rounded-md border border-zinc-800 bg-zinc-900/30 overflow-hidden">
+            <ul className="divide-y divide-zinc-800/50 text-xs">
+              {rails.map((r, i) => (
+                <li key={i} className="flex justify-between px-3 py-2">
+                  <span className="font-mono font-medium text-zinc-200">{String(r.name)}</span>
+                  <span className="text-zinc-400">{String(r.voltage)}V</span>
+                </li>
+              ))}
+            </ul>
+          </div>
         </Section>
       )}
+
       {Object.keys(gpio).length > 0 && (
-        <Section title="GPIO capabilities">
-          <ul className="grid grid-cols-2 gap-x-3 gap-y-1 font-mono text-xs">
+        <Section title="GPIO Capabilities">
+          <ul className="grid grid-cols-2 gap-x-3 gap-y-2 font-mono text-xs">
             {Object.entries(gpio).map(([pin, caps]) => (
-              <li key={pin} className="truncate">
-                <span className="text-zinc-100">{pin}</span>
-                <span className="text-zinc-500"> {(caps as string[]).join(",")}</span>
+              <li key={pin} className="flex flex-col gap-1 rounded bg-zinc-900/50 p-2 border border-zinc-800/50">
+                <span className="font-medium text-zinc-200">{pin}</span>
+                <span className="text-[10px] text-zinc-500 leading-tight">{(caps as string[]).join(", ")}</span>
               </li>
             ))}
           </ul>
@@ -504,7 +525,31 @@ function BoardInspector({ id }: { id: string }) {
 function LibraryComponentInspector({ id }: { id: string }) {
   const comp = useFetched(() => api.getComponent(id), [id]);
   if (!comp) return <Loading />;
-  return <FullComponentView comp={comp} />;
+
+  const c = comp as Record<string, unknown>;
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-base font-semibold text-zinc-100">{String(c.name)}</h2>
+        <div className="mt-2 flex items-center gap-2 text-xs text-zinc-500">
+          <span className="rounded bg-zinc-800 px-2 py-0.5 uppercase tracking-wider text-[10px] font-medium text-zinc-300">
+            {String(c.category)}
+          </span>
+        </div>
+      </div>
+
+      <div className="rounded-md border border-zinc-800 bg-zinc-900/50 p-4 text-xs">
+        {c.description ? (
+          <div className="text-zinc-300 leading-relaxed">{String(c.description)}</div>
+        ) : (
+          <div className="text-zinc-500 italic">No description available.</div>
+        )}
+      </div>
+
+      <FullComponentView comp={comp} compact={true} />
+    </div>
+  );
 }
 
 function ComponentInstanceInspector({
