@@ -11,6 +11,7 @@ import type {
   FleetJobLogResponse,
   FleetPushResponse,
   FleetStatus,
+  KicadRenderStatus,
   RecommendConstraints,
   RecommendResponse,
   UseCaseEntry,
@@ -98,6 +99,10 @@ export const api = {
     requestText("/design/enclosure/openscad", { method: "POST", body: JSON.stringify(design) }),
   kicadSchematic: (design: Design) =>
     requestText("/design/kicad/schematic", { method: "POST", body: JSON.stringify(design) }),
+  kicadRenderStatus: () =>
+    request<KicadRenderStatus>("/design/kicad/render/status"),
+  kicadRender: (design: Design) =>
+    requestText("/design/kicad/render", { method: "POST", body: JSON.stringify(design) }),
   enclosureSearchStatus: () =>
     request<EnclosureSearchStatus>("/enclosure/search/status"),
   enclosureSearch: (params: { library_id: string; query?: string; limit?: number }) => {
