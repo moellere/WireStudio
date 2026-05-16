@@ -475,6 +475,30 @@ testing surfaced two strategic items below.)
      decrement when a design is marked "built". Single-user
      homelab scope says one inventory, no auto-decrement.
 
+8. **Compile-status feedback (fleet-for-esphome, and plain
+   ESPHome).** Surfaced 2026-05-16. Push-to-fleet can already
+   stream a build log, but the studio never surfaces a clean
+   verdict — *did the compile succeed?* Close that loop.
+   - *Structured fleet result.* When a push runs with
+     `compile: true`, capture a pass/fail status (plus an
+     error summary on failure) from
+     `weirded/fleet-for-esphome` and show it on the design as
+     a badge / banner, not just a log the user has to read. A
+     `GET /fleet/jobs/{run_id}` status endpoint complements
+     the existing `/fleet/jobs/{run_id}/log` relay so a past
+     run can be re-checked, not only watched live. Needs the
+     addon to expose a terminal job status — coordinate the
+     contract with that repo.
+   - *Plain-ESPHome users.* Not everyone runs the fleet
+     addon. Give the same did-it-compile signal to users who
+     run `esphome` themselves — e.g. an opt-in local
+     `esphome config` / `compile` the studio shells out to
+     (mirrors the CI gate), or an upload-the-result path.
+     Scope is tentative; the fleet half is the concrete one.
+   - A per-design build history (last compiled, result, when)
+     is the natural home for this once there's more than one
+     signal to record.
+
 
 **0.9 v2 -- library mapping expansion shipped.** The remaining 20
 components + 7 boards now carry a `kicad:` block, taking coverage
