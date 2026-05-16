@@ -102,7 +102,7 @@ Secrets are env vars and never baked into the image:
 | Env var | What it gates |
 |---|---|
 | `ANTHROPIC_API_KEY` | the agent (`/agent/*` endpoints + the chat sidebar) |
-| `FLEET_URL` + `FLEET_TOKEN` | distributed-esphome push (`/fleet/*`) |
+| `FLEET_URL` + `FLEET_TOKEN` | fleet-for-esphome push (`/fleet/*`) |
 | `THINGIVERSE_API_KEY` | enclosure search (`/enclosure/search`) |
 
 ## Updates

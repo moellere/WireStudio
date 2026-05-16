@@ -23,7 +23,7 @@ Notes for Claude (and humans) when editing this repo.
   `sessions/<id>.jsonl`, never in `design.json`.
 - Permissive mode: electrical/CSP violations surface in `warnings[]`,
   do not block generation. (Strict mode is a later toggle.)
-- Secrets never go in `design.json`. Reference distributed-esphome's
+- Secrets never go in `design.json`. Reference fleet-for-esphome's
   `secrets.yaml` via `!secret name`.
 
 ## Library files
