@@ -20,6 +20,7 @@ class BoardSummary(_S):
     framework: str = Field(description="Default build framework ('arduino' or 'esp-idf').")
     platformio_board: str = Field(description="PlatformIO board key used in the generated YAML.")
     flash_size_mb: Optional[int] = Field(default=None, description="Onboard flash size in MB, if known.")
+    image: Optional[str] = Field(default=None, description="Product-image URL for the board picker, if known.")
     rail_names: list[str] = Field(description="Power rail names the board exposes, e.g. ['3V3', 'GND'].")
 
 

@@ -540,14 +540,14 @@ function LibraryComponentInspector({ id }: { id: string }) {
       </div>
 
       <div className="rounded-md border border-zinc-800 bg-zinc-900/50 p-4 text-xs">
-        {c.description ? (
-          <div className="text-zinc-300 leading-relaxed">{String(c.description)}</div>
+        {c.notes ? (
+          <div className="text-zinc-300 leading-relaxed">{String(c.notes)}</div>
         ) : (
-          <div className="text-zinc-500 italic">No description available.</div>
+          <div className="text-zinc-500 italic">No notes for this component.</div>
         )}
       </div>
 
-      <FullComponentView comp={comp} compact={true} />
+      <FullComponentView comp={comp} compact hideNotes />
     </div>
   );
 }

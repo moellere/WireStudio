@@ -142,11 +142,9 @@ function SavedList({
                 </div>
               </div>
               <div className="mt-1 flex items-center gap-2 truncate text-xs text-zinc-500">
-<<<<<<< HEAD
+=======
                 <span className="shrink-0 font-medium text-zinc-400">{s.chip_family}</span>
                 <span className="h-1 w-1 shrink-0 rounded-full bg-zinc-700"></span>
-=======
->>>>>>> 002b1d7 (docs: migrate documentation to dedicated docs/ folder)
                 <span className="truncate">{s.board_library_id}</span>
                 <span className="h-1 w-1 shrink-0 rounded-full bg-zinc-700"></span>
                 <span className="shrink-0">{s.component_count} comp</span>
@@ -158,11 +156,9 @@ function SavedList({
               }}
               title={`Delete ${s.id}`}
               className={`flex items-center justify-center rounded-md px-2 text-zinc-500 transition-colors hover:bg-red-500/15 hover:text-red-400 ${
-<<<<<<< HEAD
-                active ? "bg-blue-500/5 hover:bg-red-500/15" : "bg-zinc-900/30"
-=======
                 active ? "bg-blue-500/5 hover:bg-red-500/15" : "bg-zinc-900/30 opacity-0 group-hover:opacity-100"
->>>>>>> 002b1d7 (docs: migrate documentation to dedicated docs/ folder)
+=======
+                active ? "bg-blue-500/5 hover:bg-red-500/15" : "bg-zinc-900/30"
               }`}
             >
               ✕

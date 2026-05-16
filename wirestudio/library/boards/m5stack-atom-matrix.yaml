@@ -1,0 +1,48 @@
+id: m5stack-atom-matrix
+name: M5Stack Atom Matrix
+mcu: esp32
+chip_variant: esp32
+framework: arduino
+platformio_board: m5stack-atom
+flash_size_mb: 4
+image: https://static-cdn.m5stack.com/resource/docs/products/core/ATOM%20Matrix/img-bc9c8013-4f56-43ff-9dc5-0f6b8558790c.webp
+
+rails:
+  - {name: "5V",  voltage: 5.0, source: usb}
+  - {name: "3V3", voltage: 3.3, source: onboard_regulator}
+  - {name: "GND", voltage: 0.0}
+
+# ATOM Matrix is an ESP32-PICO-D4 in the 24mm Atom cube with a 5x5
+# SK6812 RGB LED matrix on GPIO27 (25 LEDs, one data line), a
+# programmable button on GPIO39 (input-only, active low) hidden under
+# the matrix, an IR transmit LED on GPIO12, and an MPU6886 6-axis IMU
+# on an internal I2C bus (SDA GPIO25, SCL GPIO21). The front Grove
+# HY2.0 port breaks out GPIO26 + GPIO32; GPIO19/21/22/23/25/33 are
+# on the bottom header. Same ESP32 strap-pin rules as the WROOM-32
+# boards.
+default_buses:
+  i2c: {sda: GPIO26, scl: GPIO32}
+
+onboard_peripherals:
+  led_matrix_sk6812: {pin: GPIO27, count: 25}
+  button:            {pin: GPIO39, inverted: true}
+  ir_tx:             {pin: GPIO12}
+  imu_mpu6886:       {sda: GPIO25, scl: GPIO21, address: "0x68"}
+
+gpio_capabilities:
+  GPIO12: [gpio, strap, ir_tx, adc, adc2, pwm]
+  GPIO19: [gpio, i2s_bclk]
+  GPIO21: [gpio, imu_scl, i2c_scl]
+  GPIO22: [gpio]
+  GPIO23: [gpio, i2s_din]
+  GPIO25: [gpio, imu_sda, i2c_sda, dac, adc, adc2]
+  GPIO26: [gpio, grove_sda, i2c_sda, dac, adc, adc2]
+  GPIO27: [gpio, builtin_led, adc, adc2, pwm]
+  GPIO32: [gpio, grove_scl, i2c_scl, adc, adc1, pwm]
+  GPIO33: [gpio, adc, adc1, pwm, i2s_lrclk]
+  GPIO39: [gpio, button, adc, adc1, input_only, no_pull_internal]
+# KiCad symbol mapping (0.9). 9-pin bottom header, ESP32-PICO-D4.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x09
+  value: M5Stack Atom Matrix
