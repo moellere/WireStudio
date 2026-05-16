@@ -294,11 +294,17 @@ testing surfaced two strategic items below.)
       on it without an explicit id. Deleting the active design
       auto-clears the pointer so the next default-resolved call
       doesn't 500 on a dangling id.
-   5. **MCP docs.** Polished walkthrough on top of the
-      Phase 1.1 `docs/MCP.md` skeleton — end-to-end "click here,
-      paste this, ask Claude to do that" flow.
+   5. **MCP docs — shipped (PR #TBD, 2026-05-16).** `docs/MCP.md`
+      rewritten from the Phase 1.1 skeleton into an end-to-end
+      walkthrough: start the daemon, copy the token, wire up
+      Claude Code (`claude mcp add`) or Claude Desktop, create a
+      design, chat. New sections on the active-design pointer,
+      the `/api/mcp` path in the Docker image, the tool +
+      resource reference tables, and remote-deployment hurdles
+      (DNS-rebinding allowlist, token distribution). README gains
+      an "MCP server" subsection linking to it.
 
-   Remaining 1.2-1.5 are the next 2-3 PRs.
+   Phase 1 is complete. Phase 2 (knowledge importers) is next.
 
    ### Phase 2: knowledge importers (bigger payoff than KiCAD-MCP)
 
@@ -316,11 +322,18 @@ testing surfaced two strategic items below.)
 
    So we build small in-process **knowledge importers**:
 
-   - `wirestudio.kicad.import` — `python -m
-     wirestudio.kicad.import --symbol Sensor:BME280` emits a
-     draft `library/components/bme280.yaml` snippet (or fills
-     the `kicad:` block on an existing one). Closes the
-     "no-kicad-mapping" tail without hand-writing each entry.
+   - `wirestudio.kicad.import` — **shipped (PR #TBD, 2026-05-16).**
+     `python -m wirestudio.kicad.import --symbol Sensor:BME280`
+     prints a draft `kicad:` block; `--into bme280` splices it
+     into `library/components/bme280.yaml` (textual splice, so
+     hand-written comments + key order survive) and derives a
+     `pin_map` by matching the component's pin roles against the
+     symbol's pin names. Hand-rolled `.kicad_sym` s-expression
+     reader in `wirestudio/kicad/symbol_parser.py` (no `kiutils`
+     dep, consistent with keeping EDA-toolchain weight off the
+     server); handles `extends` inheritance. `--symbol-dir`
+     overrides the standard KiCad install-path search. Closes
+     the "no-kicad-mapping" tail without hand-writing each entry.
    - `wirestudio.jlcpcb` — `python -m wirestudio.jlcpcb check
      examples/garage-motion.json` walks the BOM, queries
      JLCPCB, surfaces "C25 (BME280) — 12 in stock @ $4.20" or
@@ -843,7 +856,7 @@ analog_in lands on an ADC2 pin on a classic ESP32 (chip_variant ==
 analog_in connections land on ADC1 pins (GPIO32-39) by default. 4
 new tests pin both paths.
 
-**0.7 distributed-esphome handoff shipped.** `wirestudio/fleet/client.py`
+**0.7 fleet-for-esphome handoff shipped.** `wirestudio/fleet/client.py`
 talks to the ha-addon's `/ui/api/*` surface using a Bearer token.
 `GET /fleet/status` + `POST /fleet/push` expose this to the UI;
 **Push to fleet** in the header opens a modal with the device-name
@@ -960,9 +973,9 @@ and the HTTP contract end-to-end.
 
 Agent-driven ESPHome device design tool. User describes a goal (or picks parts);
 tool produces an ESPHome YAML, an ASCII wiring diagram, a BOM, and (later) hands
-the device off to `weirded/distributed-esphome` for compile + OTA deploy.
+the device off to `weirded/fleet-for-esphome` for compile + OTA deploy.
 
-Sister project to `weirded/distributed-esphome`. Knowledge base seeded from
+Sister project to `weirded/fleet-for-esphome`. Knowledge base seeded from
 `esphome/esphome` (schemas) plus a hand-curated electrical library.
 
 ## Decisions locked
@@ -972,7 +985,7 @@ Sister project to `weirded/distributed-esphome`. Knowledge base seeded from
   do not block generation. Revisit for "strict mode" toggle later.
 - **Wiring output for 0.1:** **ASCII art only.** KiCad deferred (still the
   longer-term target — design model must not paint into an ASCII corner).
-- **Stack:** Python backend (FastAPI or aiohttp — match distributed-esphome),
+- **Stack:** Python backend (FastAPI or aiohttp — match fleet-for-esphome),
   React 19 + Vite + Tailwind + shadcn frontend (later), Claude API for the
   agent (with prompt caching for the component KB).
 - **Single source of truth:** `design.json` (versioned, JSON-Schema-validated).
@@ -984,7 +997,7 @@ Sister project to `weirded/distributed-esphome`. Knowledge base seeded from
   1. Agent (Claude, tool-using) — elicitation, recommendations, narrative.
   2. CSP solver (`python-constraint` or OR-tools) — pin/bus/budget assignment.
   3. Generators (pure functions) — `design.json` → YAML / ASCII / BOM.
-- **Secrets:** Never in `design.json`. Reference `distributed-esphome`'s
+- **Secrets:** Never in `design.json`. Reference `fleet-for-esphome`'s
   `secrets.yaml` via `!secret name`.
 - **Knowledge base sources** (see *Library sourcing strategy* below for the
   hybrid plan): ESPHome integrations for YAML schema, PlatformIO board JSON
@@ -1042,7 +1055,7 @@ immediate way in and the agent (when it arrives) lands in a working surface.
   options), strict-mode pin locks, multi-objective optimization
   (minimize used pins, minimize current draw, maximize headroom),
   proper backtracking on hard constraints.
-- **0.7 — distributed-esphome handoff.** ✅ Shipped (initial). The studio
+- **0.7 — fleet-for-esphome handoff.** ✅ Shipped (initial). The studio
   API talks to the ha-addon's `/ui/api/*` surface using `FLEET_URL` +
   `FLEET_TOKEN`. Push uses the addon's staged-create flow (`.pending.<n>.yaml`
   -> `<n>.yaml`) for new devices, in-place writes for existing ones.
@@ -1178,7 +1191,7 @@ Three-panel layout, all driven by the API in 0.2.
   - "Connect device" (0.4) → triggers WebSerial detect.
   - "Talk to agent" (0.5) → opens agent sidebar.
   - "Solve pins" (0.6) → runs CSP, applies result, shows diff.
-  - "Push to fleet" (0.7) → POST to distributed-esphome.
+  - "Push to fleet" (0.7) → POST to fleet-for-esphome.
   - Export YAML / Export ASCII / Export `design.json`.
 
 Recommendation surfaces (ranked component options for a stated capability)
@@ -1497,7 +1510,7 @@ Plan:
 
 ## Reference
 
-- distributed-esphome (sister project): https://github.com/weirded/distributed-esphome
+- fleet-for-esphome (sister project): https://github.com/weirded/fleet-for-esphome
 - moellere/esphome (curated device fleet, agent reference corpus): https://github.com/moellere/esphome
 - ESPHome upstream: https://github.com/esphome/esphome
 - ESPHome schema source: `esphome/schema_gen.py` in upstream

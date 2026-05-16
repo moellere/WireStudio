@@ -23,7 +23,7 @@ Tiers, in priority order:
 |---|---|---|---|
 | **Verified** | ESPHome YAML production | render `design.json` → ESPHome YAML | `esphome config` passes on every bundled example, every PR ([gate](.github/workflows/esphome-config.yml)); nightly `esphome compile` smoke against a representative example ([compile](.github/workflows/esphome-compile.yml)) |
 | **Verified** | CSP pin solver + compat checker | assign legal pins, surface boot-strap / ADC2-WiFi / voltage / locked-pin issues | unit tests + property checks in `tests/test_pin_solver.py` + `tests/test_compatibility.py` |
-| **Verified** | Fleet handoff | push YAML to `distributed-esphome` ha-addon, optional compile + log relay | round-trip tests in `tests/test_fleet.py` |
+| **Verified** | Fleet handoff | push YAML to `fleet-for-esphome` ha-addon, optional compile + log relay | round-trip tests in `tests/test_fleet.py` |
 | **Works (lighter checks)** | KiCad schematic | emit a SKiDL Python script the user runs locally | unit tests assert the script is well-formed Python with expected nets; **not** verified by opening in KiCad |
 | **Works (lighter checks)** | Parametric enclosure | OpenSCAD `.scad` from board mount-hole metadata | unit tests + manual-print iteration; not verified by an OpenSCAD parser in CI |
 | **Experimental** | Thingiverse search relay | rank community models for a board | smoke-tested; depends on a third-party search API that ranks unevenly |
@@ -66,7 +66,7 @@ that pin moves, this line moves with it.
   the user runs locally to produce a `.kicad_sch`. Bundled examples
   pinned as goldens.
 - **Deploy.** **Push to fleet** ships the YAML to a running
-  [`weirded/distributed-esphome`](https://github.com/weirded/distributed-esphome)
+  [`weirded/fleet-for-esphome`](https://github.com/weirded/fleet-for-esphome)
   ha-addon over Bearer-token HTTP; optional `compile: true` enqueues
   an OTA build with live log streaming (Server-Sent Events). **Strict
   mode** refuses the push when warn/error compat issues remain.
@@ -108,7 +108,7 @@ without any of them, just with the corresponding feature turned off:
 | Env var | What it gates |
 |---|---|
 | `ANTHROPIC_API_KEY` | the agent (`/agent/*` endpoints + the chat sidebar) |
-| `FLEET_URL` + `FLEET_TOKEN` | distributed-esphome push (`/fleet/*`) |
+| `FLEET_URL` + `FLEET_TOKEN` | fleet-for-esphome push (`/fleet/*`) |
 | `THINGIVERSE_API_KEY` | enclosure search (`/enclosure/search`) |
 
 For Kubernetes, see [`deploy/k8s.yaml`](deploy/k8s.yaml). For an
@@ -150,7 +150,7 @@ Without a key, `/agent/status` reports `available: false` and the agent
 sidebar in the UI shows a friendly notice instead of trying to talk.
 
 To enable the **fleet handoff** (`/fleet/push` and the **Push to fleet**
-header button), point the API at a running distributed-esphome ha-addon:
+header button), point the API at a running fleet-for-esphome ha-addon:
 
 ```sh
 export FLEET_URL=http://homeassistant.local:8765
@@ -161,6 +161,14 @@ python -m wirestudio.api
 `GET /fleet/status` reports `available: true` when both env vars are set
 and the addon answers a probe; otherwise the UI surfaces the specific
 reason (URL missing, unauthorized, unreachable).
+
+### MCP server
+
+The studio's design-editing tools are also exposed over the
+[Model Context Protocol](https://modelcontextprotocol.io) at `/mcp`.
+Point Claude Code or Claude Desktop at the daemon and the model drives
+the studio on your Claude subscription — no Anthropic key, no studio-side
+token spend. See [`docs/MCP.md`](docs/MCP.md) for the end-to-end setup.
 
 ### Web UI (dev)
 
@@ -213,7 +221,7 @@ Useful endpoints:
 | `GET`  | `/enclosure/search/status` | per-source availability + configure hints |
 | `GET`  | `/examples` | list bundled examples |
 | `GET`  | `/examples/{id}` | fetch an example as raw `design.json` |
-| `GET`  | `/fleet/status` | check whether `FLEET_URL` + `FLEET_TOKEN` reach a distributed-esphome ha-addon |
+| `GET`  | `/fleet/status` | check whether `FLEET_URL` + `FLEET_TOKEN` reach a fleet-for-esphome ha-addon |
 | `POST` | `/fleet/push` | render `design.json` and push it as `<device_name>.yaml` (optionally `compile: true`) |
 | `GET`  | `/fleet/jobs/{run_id}/log?offset=N` | poll the addon's build log for a compile run; returns `{log, offset, finished}` |
 | `GET`  | `/fleet/jobs/{run_id}/log/stream` | Server-Sent Events relay over the same log endpoint; ~300ms cadence, exits with `event: done` when the build finishes |
@@ -276,7 +284,7 @@ which library entries are exercised by these examples, see
   ├─ wirestudio.recommend     deterministic capability ranking
   ├─ wirestudio.agent         Claude tool-using agent + session store
   ├─ wirestudio.designs       file-backed designs/<id>.json store
-  ├─ wirestudio.fleet         distributed-esphome HTTP client
+  ├─ wirestudio.fleet         fleet-for-esphome HTTP client
   ├─ wirestudio.enclosure     parametric OpenSCAD + Thingiverse search
   ├─ wirestudio.kicad         SKiDL Python script emitter
   └─ wirestudio.api           FastAPI HTTP layer (mounts everything above)

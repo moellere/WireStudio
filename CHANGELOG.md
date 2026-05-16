@@ -7,7 +7,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-(no changes since v0.9.0)
+(no changes since v0.10.0)
+
+## [0.10.0] — 2026-05-16
+
+Headline: an MCP server that lets a host LLM client drive the studio,
+plus a wide cluster of library, agent, and API work.
+
+### Added
+
+- **MCP server.** The design-editing tool surface is exposed over the
+  Model Context Protocol at `/mcp` — Streamable HTTP transport mounted
+  into the FastAPI app, bearer-token auth (`WIRESTUDIO_MCP_TOKEN` or an
+  auto-generated file token). Drive the studio from Claude Code or
+  Claude Desktop on a Claude subscription instead of an Anthropic key.
+  Phase 1.1 through 1.5:
+  - `design-changed` SSE channel (`GET /designs/{id}/events`) so
+    browser tabs re-fetch after an MCP write.
+  - Seven read-only resources — `library://components{,/id}`,
+    `library://boards{,/id}`, `design://{id}/{json,yaml,ascii}`.
+  - `set_active_design` pointer so design-bound tools resolve a
+    default `design_id` from the browser selection or chat.
+  - End-to-end setup walkthrough in `docs/MCP.md` — start the
+    daemon, wire up Claude Code / Desktop, chat.
+- **KiCad symbol importer.** `python -m wirestudio.kicad.import
+  --symbol Lib:Symbol` reads a `.kicad_sym` library and drafts a
+  `kicad:` block — or, with `--into <id>`, splices it into an existing
+  component with an auto-derived `pin_map`. First of the Phase 2
+  knowledge importers.
+- **Library batches 2 & 3.** cse7766 + hlw8012 power meters,
+  `esp32_rmt_led_strip`, the esp8285-1m board; modbus_controller +
+  sdm_meter, bl0906, nextion HMI, and the tuya MCU bridge.
+- **Component coverage matrix** (`docs/library-coverage.md`) — which
+  library entries have a passing bundled example.
+- KiCad `kicad:` symbol mapping completed across the whole library so
+  every component and board exports to the SKiDL schematic generator.
+- Two environmental-sensor examples (attic-logger, weather-station);
+  `Field(description=...)` across the API schemas so `/docs` is
+  self-documenting.
+
+### Changed
+
+- **Async API.** `wirestudio/api` endpoints migrated to `async def`;
+  the fleet client rewritten on `httpx.AsyncClient`. `slowapi` rate
+  limiting on the agent endpoints; CORS origins read from
+  `WIRESTUDIO_ALLOWED_ORIGINS`. `DesignStore` and `SessionStore`
+  extracted as `typing.Protocol` interfaces.
+- **Agent cost tuning.** Configurable model tier via
+  `WIRESTUDIO_AGENT_MODEL`, prompt-cache breakpoints, and a slimmer
+  system payload — markedly cheaper per turn.
+- Web UI gains a basic / advanced mode toggle that hides the
+  lighter-checked surfaces by default.
+- References to the OTA-deploy companion project updated
+  `distributed-esphome` → `fleet-for-esphome` (upstream rename).
+
+### Fixed
+
+- Multi-turn agent regression — assistant blocks are stripped of SDK
+  parser metadata before they are appended to history.
+- `add_bus` fills missing pin fields from `board.default_buses`; the
+  YAML renderer is guarded against `StrictUndefined`.
+- `esp32:` chip-block emission corrected for every ESP32-family
+  variant.
 
 ## [0.9.0] — 2026-05-05
 
@@ -54,7 +115,7 @@ entries record only what changed since the prior tag.
 ### Fleet handoff (0.7)
 
 - **`POST /fleet/push`** ships the rendered YAML to a configured
-  distributed-esphome ha-addon (`FLEET_URL` + `FLEET_TOKEN`). Optional
+  fleet-for-esphome ha-addon (`FLEET_URL` + `FLEET_TOKEN`). Optional
   `compile: true` enqueues an OTA build. Header **Push to fleet**
   modal with status banner, device-name input, compile checkbox.
 - **Build-log polling** at `GET /fleet/jobs/{run_id}/log?offset=N`;
@@ -192,5 +253,6 @@ ConnectionForm, EnclosureDialog, Inspector, CapabilityPickerDialog,
 PinoutView, PushToFleetDialog, SchematicDialog. ruff + tsc + vite
 build clean across the whole arc.
 
-[Unreleased]: https://github.com/moellere/wirestudio/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/moellere/wirestudio/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/moellere/wirestudio/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/moellere/wirestudio/releases/tag/v0.9.0
