@@ -334,11 +334,21 @@ testing surfaced two strategic items below.)
      server); handles `extends` inheritance. `--symbol-dir`
      overrides the standard KiCad install-path search. Closes
      the "no-kicad-mapping" tail without hand-writing each entry.
-   - `wirestudio.jlcpcb` — `python -m wirestudio.jlcpcb check
-     examples/garage-motion.json` walks the BOM, queries
-     JLCPCB, surfaces "C25 (BME280) — 12 in stock @ $4.20" or
-     "P/N not found, source manually." Pre-PCB-order
-     feasibility gate.
+   - `wirestudio.jlcpcb` — **shipped (PR #TBD, 2026-05-16).**
+     `python -m wirestudio.jlcpcb check <design.json>` walks the
+     component BOM (grouped by part, with quantities), queries a
+     JLCPCB parts search API, and reports stock + price + LCSC id
+     per part — "C92489 — 8508 in stock @ $2.86" or "no JLCPCB
+     match — source manually". `status` probes the API. Defaults
+     to the community-hosted `jlcsearch.tscircuit.com`;
+     `WIRESTUDIO_JLCPCB_API` points at a mirror. Feature-gated
+     like the render / fleet surfaces: `GET /design/jlcpcb/status`
+     + `POST /design/jlcpcb/check`, and check_bom never raises for
+     a down API (returns `available: false`). v1 matches by
+     keyword search on the library id; virtual ESPHome platforms
+     land as `not_found`. Follow-ups: an `lcsc:` library field for
+     exact matches, a web UI panel, and the BOM-vs-inventory diff
+     once item 7 lands. **Phase 2 is complete.**
    - `wirestudio.kicad.render` — **shipped (PR #TBD, 2026-05-16).**
      Pipeline: design → SKiDL script → run it in a subprocess
      (`.kicad_sch`) → `kicad-cli sch export svg` → SVG, with an
