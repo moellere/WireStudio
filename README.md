@@ -11,11 +11,11 @@ talks to.
 
 ## Status
 
-`v0.9.0` — first tagged release. The studio has wide surface area
-(YAML, schematic, enclosure, agent, fleet handoff, web UI) and a
-narrow set of things actually verified against upstream tools. This
-section is honest about which is which, ordered by how much it
-matters that it works.
+`v0.10.0` — on PyPI (`pip install wirestudio`). The studio has wide
+surface area (YAML, schematic, enclosure, agent, MCP server, fleet
+handoff, web UI) and a narrow set of things actually verified against
+upstream tools. This section is honest about which is which, ordered
+by how much it matters that it works.
 
 Tiers, in priority order:
 
@@ -26,6 +26,7 @@ Tiers, in priority order:
 | **Verified** | Fleet handoff | push YAML to `fleet-for-esphome` ha-addon, optional compile + log relay | round-trip tests in `tests/test_fleet.py` |
 | **Works (lighter checks)** | KiCad schematic | emit a SKiDL Python script the user runs locally | unit tests assert the script is well-formed Python with expected nets; **not** verified by opening in KiCad |
 | **Works (lighter checks)** | Parametric enclosure | OpenSCAD `.scad` from board mount-hole metadata | unit tests + manual-print iteration; not verified by an OpenSCAD parser in CI |
+| **Works (lighter checks)** | MCP server | drive the design tools from Claude Code / Desktop over the Model Context Protocol | tool / auth / resource tests in `tests/test_mcp_*.py`; not exercised against a live MCP client in CI |
 | **Experimental** | Thingiverse search relay | rank community models for a board | smoke-tested; depends on a third-party search API that ranks unevenly |
 | **Experimental** | Agent (Claude tool-using) | natural-language design driving | works in practice; tool surface is small; no auto-eval against task list yet |
 | **Deferred** | KiCad PCB layout | Freerouting + Gerber + JLCPCB CPL/BOM | 1.0+, not started |
@@ -65,6 +66,10 @@ that pin moves, this line moves with it.
   parametric OpenSCAD enclosure (`.scad`), and a SKiDL Python script
   the user runs locally to produce a `.kicad_sch`. Bundled examples
   pinned as goldens.
+- **Drive over MCP.** The design-editing tools are exposed over the
+  Model Context Protocol at `/mcp`. Point Claude Code or Claude
+  Desktop at the daemon and the model edits designs on your Claude
+  subscription — no Anthropic key needed. See [`docs/MCP.md`](docs/MCP.md).
 - **Deploy.** **Push to fleet** ships the YAML to a running
   [`weirded/fleet-for-esphome`](https://github.com/weirded/fleet-for-esphome)
   ha-addon over Bearer-token HTTP; optional `compile: true` enqueues
@@ -86,7 +91,7 @@ that pin moves, this line moves with it.
 docker run --rm -p 8765:8765 \
   -e ANTHROPIC_API_KEY=sk-ant-... \
   -v wirestudio-data:/data \
-  ghcr.io/moellere/wirestudio:v0.9.0
+  ghcr.io/moellere/wirestudio:v0.10.0
 ```
 
 Open <http://localhost:8765>. The image bundles the FastAPI server +
@@ -98,7 +103,7 @@ Available tags:
 
 | Tag | What it tracks |
 |---|---|
-| `:v0.9.0` / `:0.9.0` / `:0.9` / `:latest` | the v0.9.0 release |
+| `:v0.10.0` / `:0.10.0` / `:0.10` / `:latest` | the v0.10.0 release |
 | `:main` | latest commit on `main` (rolling) |
 | `:sha-<short>` | a specific commit |
 
@@ -117,14 +122,15 @@ nginx-front compose recipe, see [`deploy/README.md`](deploy/README.md).
 ### CLI
 
 ```sh
-pip install -e .[dev]
-python -m wirestudio.generate examples/garage-motion.json
+pip install wirestudio                       # from PyPI
+# ...or, for a dev checkout:  pip install -e .[dev]
+python -m wirestudio.generate wirestudio/examples/garage-motion.json
 ```
 
 Prints rendered YAML and the ASCII wiring block to stdout. To write to files:
 
 ```sh
-python -m wirestudio.generate examples/garage-motion.json \
+python -m wirestudio.generate wirestudio/examples/garage-motion.json \
     --out-yaml build/garage-motion.yaml \
     --out-ascii build/garage-motion.txt
 ```
@@ -238,23 +244,23 @@ it without a proxy.
 
 | Example | Board | What it is |
 |---|---|---|
-| [`garage-motion.json`](examples/garage-motion.json) | ESP32-DevKitC-V4 | PIR + BME280 (temp/humidity/pressure) over I2C |
-| [`awning-control.json`](examples/awning-control.json) | WeMos D1 Mini | Cover controller — 4 limit switches + buttons via MCP23008 expander, 2 GPIO relays, dual-PWM motor drive |
-| [`wasserpir.json`](examples/wasserpir.json) | WeMos D1 Mini | Single PIR with a scheduled nightly reboot |
-| [`oled.json`](examples/oled.json) | WeMos D1 Mini | SSD1306 status display rendering time, date, IP |
-| [`bluemotion.json`](examples/bluemotion.json) | WeMos D1 Mini | PIR + WS2812B NeoPixel; motion lights the LED |
-| [`distance-sensor.json`](examples/distance-sensor.json) | NodeMCU v2 | HC-SR04 ultrasonic + WS2812B NeoPixel; LED color tracks distance |
-| [`securitypanel.json`](examples/securitypanel.json) | WeMos D1 Mini | 12 door/window/motion sensors via MCP23017 expander, RTTTL piezo, GPIO siren |
-| [`rc522.json`](examples/rc522.json) | WeMos D1 Mini | MFRC522 RFID reader (SPI), NeoPixel status LED, RTTTL piezo, manual button |
-| [`esp32-audio.json`](examples/esp32-audio.json) | NodeMCU-32S | I2S audio (MAX98357A DAC) + ST7789V SPI dashboard display, Arduino framework |
-| [`bluesonoff.json`](examples/bluesonoff.json) | ESP-01S 1MB | Sonoff Basic relay; front button (boot strap pin) toggles a single GPIO relay |
-| [`wemosgps.json`](examples/wemosgps.json) | WeMos D1 Mini | UART GPS module — lat/lon/altitude/speed/satellites + runtime baud-rate selector |
-| [`ttgo-lora32.json`](examples/ttgo-lora32.json) | TTGO LoRa32 V1 | ESP32 + onboard SX1276 LoRa radio + onboard SSD1306 OLED + battery ADC, ESP-IDF |
-| [`multi-temp.json`](examples/multi-temp.json) | WeMos D1 Mini | Two DS18B20 temp sensors sharing a single 1-wire bus + an RCWL-0516 microwave motion sensor |
-| [`room-climate.json`](examples/room-climate.json) | WeMos D1 Mini | BH1750 ambient-light + AHT20 temp/humidity on one I2C bus |
-| [`desk-climate.json`](examples/desk-climate.json) | ESP32-C3-DevKitM-1 | Sensirion SHT3x precision temp/humidity over I2C |
-| [`parking-distance.json`](examples/parking-distance.json) | NodeMCU v2 | VL53L0X laser ToF distance (indoor parking-spot indicator) |
-| [`keypad.json`](examples/keypad.json) | WeMos D1 Mini | 8 buttons read through a PCF8574 GPIO expander over I2C |
+| [`garage-motion.json`](wirestudio/examples/garage-motion.json) | ESP32-DevKitC-V4 | PIR + BME280 (temp/humidity/pressure) over I2C |
+| [`awning-control.json`](wirestudio/examples/awning-control.json) | WeMos D1 Mini | Cover controller — 4 limit switches + buttons via MCP23008 expander, 2 GPIO relays, dual-PWM motor drive |
+| [`wasserpir.json`](wirestudio/examples/wasserpir.json) | WeMos D1 Mini | Single PIR with a scheduled nightly reboot |
+| [`oled.json`](wirestudio/examples/oled.json) | WeMos D1 Mini | SSD1306 status display rendering time, date, IP |
+| [`bluemotion.json`](wirestudio/examples/bluemotion.json) | WeMos D1 Mini | PIR + WS2812B NeoPixel; motion lights the LED |
+| [`distance-sensor.json`](wirestudio/examples/distance-sensor.json) | NodeMCU v2 | HC-SR04 ultrasonic + WS2812B NeoPixel; LED color tracks distance |
+| [`securitypanel.json`](wirestudio/examples/securitypanel.json) | WeMos D1 Mini | 12 door/window/motion sensors via MCP23017 expander, RTTTL piezo, GPIO siren |
+| [`rc522.json`](wirestudio/examples/rc522.json) | WeMos D1 Mini | MFRC522 RFID reader (SPI), NeoPixel status LED, RTTTL piezo, manual button |
+| [`esp32-audio.json`](wirestudio/examples/esp32-audio.json) | NodeMCU-32S | I2S audio (MAX98357A DAC) + ST7789V SPI dashboard display, Arduino framework |
+| [`bluesonoff.json`](wirestudio/examples/bluesonoff.json) | ESP-01S 1MB | Sonoff Basic relay; front button (boot strap pin) toggles a single GPIO relay |
+| [`wemosgps.json`](wirestudio/examples/wemosgps.json) | WeMos D1 Mini | UART GPS module — lat/lon/altitude/speed/satellites + runtime baud-rate selector |
+| [`ttgo-lora32.json`](wirestudio/examples/ttgo-lora32.json) | TTGO LoRa32 V1 | ESP32 + onboard SX1276 LoRa radio + onboard SSD1306 OLED + battery ADC, ESP-IDF |
+| [`multi-temp.json`](wirestudio/examples/multi-temp.json) | WeMos D1 Mini | Two DS18B20 temp sensors sharing a single 1-wire bus + an RCWL-0516 microwave motion sensor |
+| [`room-climate.json`](wirestudio/examples/room-climate.json) | WeMos D1 Mini | BH1750 ambient-light + AHT20 temp/humidity on one I2C bus |
+| [`desk-climate.json`](wirestudio/examples/desk-climate.json) | ESP32-C3-DevKitM-1 | Sensirion SHT3x precision temp/humidity over I2C |
+| [`parking-distance.json`](wirestudio/examples/parking-distance.json) | NodeMCU v2 | VL53L0X laser ToF distance (indoor parking-spot indicator) |
+| [`keypad.json`](wirestudio/examples/keypad.json) | WeMos D1 Mini | 8 buttons read through a PCF8574 GPIO expander over I2C |
 | [`smart-plug.json`](wirestudio/examples/smart-plug.json) | ESP8285 1MB | Athom-style smart plug — relay + button + CSE7766 AC power metering over UART 4800 8E1 |
 | [`smart-plug-v1.json`](wirestudio/examples/smart-plug-v1.json) | ESP8285 1MB | Older Athom v1 / Sonoff POW R1 plug — same topology with the HLW8012 / BL0937 3-pin pulse meter |
 | [`desk-matrix.json`](wirestudio/examples/desk-matrix.json) | ESP32-DevKitC | 8x8 WS2812 matrix driven by the ESP32 RMT peripheral (no bit-banging) |
@@ -286,14 +292,15 @@ which library entries are exercised by these examples, see
   ├─ wirestudio.designs       file-backed designs/<id>.json store
   ├─ wirestudio.fleet         fleet-for-esphome HTTP client
   ├─ wirestudio.enclosure     parametric OpenSCAD + Thingiverse search
-  ├─ wirestudio.kicad         SKiDL Python script emitter
+  ├─ wirestudio.kicad         SKiDL schematic emitter + .kicad_sym importer
+  ├─ wirestudio.mcp           MCP server over the agent tool surface
   └─ wirestudio.api           FastAPI HTTP layer (mounts everything above)
                           serve.py adds the production wrapper:
                           API at /api/*, web bundle at /
 ```
 
 Generators are pure functions of `design.json` + the static library — no
-artifact-to-document round-trips. Library files in `library/components/`
+artifact-to-document round-trips. Library files in `wirestudio/library/components/`
 carry the electrical metadata ESPHome doesn't (pin roles, voltage ranges,
 current draw, decoupling caps, pull-up requirements) plus a Jinja2 template
 that renders the ESPHome YAML for that component, an `enclosure:` block
@@ -304,7 +311,7 @@ reads.
 
 Currently shipped:
 
-**Boards** (`library/boards/`)
+**Boards** (`wirestudio/library/boards/`)
 - `esp32-devkitc-v4` — ESP32 DevKitC V4 (ESP32-WROOM-32, 4MB flash)
 - `nodemcu-32s` — NodeMCU-32S (ESP32-WROOM-32, marks I2S-capable pins)
 - `ttgo-lora32-v1` — LilyGO TTGO LoRa32 V1 (ESP32 + onboard SX1276 + onboard SSD1306)
@@ -320,7 +327,7 @@ Currently shipped:
 - `esp01_1m` — ESP-01S 1MB module / Sonoff Basic-class devices
 - `esp8285-1m` — Generic ESP8285 1MB SoC (Athom / Sonoff Basic R3+ / Tuya smart plugs)
 
-**Components** (`library/components/`)
+**Components** (`wirestudio/library/components/`)
 
 _Environmental sensors:_
 - `bme280` — Bosch temperature/humidity/pressure sensor (I2C)
@@ -403,9 +410,9 @@ _Location:_
 
 The `gpio_input` / `gpio_output` components and the `kind: expander_pin`
 connection target together let downstream platforms hang off any expander
-without bloating `esphome_extras`. See `examples/securitypanel.json` for a
-12-sensor MCP23017 wiring or `examples/awning-control.json` for a mix of
-expander inputs and outputs.
+without bloating `esphome_extras`. See `wirestudio/examples/securitypanel.json`
+for a 12-sensor MCP23017 wiring or `wirestudio/examples/awning-control.json`
+for a mix of expander inputs and outputs.
 
 The library now spans the device classes used across the
 [`moellere/esphome`](https://github.com/moellere/esphome) device
@@ -420,12 +427,11 @@ for the hybrid plan.
 ## Layout
 
 ```
-schema/                  JSON Schema for design.json (source of truth)
-library/boards/          board manifests (pinout, rails, framework, enclosure, kicad)
-library/components/      component manifests (electrical + ESPHome + enclosure + kicad)
-wirestudio/                  python package — see Architecture above for the module map
+wirestudio/              python package — see Architecture above for the module map
+wirestudio/schema/       JSON Schema for design.json (source of truth)
+wirestudio/library/      board + component manifests (electrical, ESPHome, enclosure, kicad)
+wirestudio/examples/     bundled design.json files (every one pinned by goldens)
 web/                     React 19 + Vite + Tailwind v4 SPA
-examples/                bundled design.json files (every one pinned by goldens)
 tests/                   pytest + golden artifacts; vitest tests under web/src
 deploy/                  k8s.yaml, docker-compose.yml, nginx.conf for self-hosting
 Dockerfile               multi-stage build for the published GHCR image
@@ -440,7 +446,7 @@ CONTRIBUTING.md          substantive bar a change has to clear (the YAML gate, e
 ## Tests
 
 ```sh
-python -m pytest                          # ~297 cases, ~10s
+python -m pytest                          # ~403 cases, ~20s
 python -m ruff check .                    # lint
 cd web && npx vitest run                  # ~125 cases, ~5s (vitest + jsdom)
 pip install 'esphome==2025.12.7'
@@ -491,15 +497,17 @@ in [`CHANGELOG.md`](CHANGELOG.md) (per-release deltas) and
 
 **Priority 1 — YAML production correctness.** *Active.* The single
 non-negotiable bar: every artifact the studio emits round-trips
-through upstream `esphome config`. Done so far: `esphome config` CI
-gate over every bundled example; pinned ESPHome version called out
-in this README + workflow; CONTRIBUTING.md establishes the gate as
-the merge bar. Next: real `esphome compile` smoke for one example;
-component-coverage matrix (which components have an example that
-validates) so additions are forced through the gate.
+through upstream `esphome config`. Shipped: the `esphome config` CI
+gate over every bundled example; a nightly `esphome compile` smoke;
+the component-coverage matrix (`docs/library-coverage.md`); a pinned
+ESPHome version called out in this README + workflow;
+CONTRIBUTING.md establishes the gate as the merge bar. Next: an
+ESPHome version matrix in CI so component support can be called out
+per release.
 
 **Priority 2 — Wiring schema correctness.** *Verified-light.* SKiDL
-emitter + 100% library `kicad:` coverage shipped. Honest gap: the
+emitter, 100% library `kicad:` coverage, and a `.kicad_sym` symbol
+importer (`python -m wirestudio.kicad.import`) shipped. Honest gap: the
 output is unit-tested as Python text, not opened in KiCad. Next:
 container-side KiCad CLI in CI to actually open + render the
 generated schematic; pin-solver property tests on randomized
@@ -518,7 +526,8 @@ not adding surface here until P1 is rock solid.
 **Plumbing — already shipped.** API (`0.2`), web UI (`0.3` +
 `0.6+`), USB bootstrap (`0.4`), agent (`0.5` + streaming), CSP
 solver (`0.6`), fleet handoff (`0.7`), enclosure (`0.8`), KiCad
-schematic (`0.9`), Docker single-image deploy + K8s manifest. See
+schematic (`0.9`), MCP server + KiCad symbol importer (`0.10`),
+Docker single-image deploy + K8s manifest. See
 [`CHANGELOG.md`](CHANGELOG.md) for the per-release feature deltas.
 
 **Future** — multi-writer state backend so the studio can run as a
