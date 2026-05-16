@@ -445,7 +445,6 @@ export default function App() {
   return (
     <div className="grid h-full grid-rows-[auto_auto_1fr] bg-zinc-950 text-zinc-200">
       <header className="flex h-14 items-center justify-between border-b border-zinc-800 bg-zinc-950 px-4">
-        {/* Left: Branding & Status */}
         <div className="flex items-center gap-4">
           <div className="flex items-baseline gap-2">
             <h1 className="text-lg font-semibold tracking-tight text-zinc-100">wirestudio</h1>
@@ -470,9 +469,7 @@ export default function App() {
           </div>
         </div>
 
-        {/* Right: Actions */}
         <div className="flex items-center gap-3">
-          {/* Group 1: Core Design Actions */}
           <div className="flex items-center gap-1 rounded-md bg-zinc-900/50 p-1 ring-1 ring-inset ring-zinc-800">
             <button
               onClick={() => setShowNewDialog(true)}
@@ -515,13 +512,13 @@ export default function App() {
               disabled={!design}
               onClick={handleDownload}
               className="flex items-center gap-1.5 rounded p-1.5 text-xs font-medium text-zinc-300 transition-colors enabled:hover:bg-zinc-800 enabled:hover:text-zinc-100 disabled:opacity-40"
-              title="Download JSON"
+              title="Download design as JSON"
+              aria-label="Download design as JSON"
             >
               <Download className="h-4 w-4" />
             </button>
           </div>
 
-          {/* Group 2: Builder Actions */}
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowUsbDialog(true)}
@@ -539,7 +536,7 @@ export default function App() {
               title="Pick a capability and add a matching component"
             >
               <Plus className="h-4 w-4 text-zinc-400" />
-              Add Component
+              Add by Function
             </button>
 
             <button
@@ -553,14 +550,14 @@ export default function App() {
             </button>
           </div>
 
-          {/* Group 3: Advanced & Export Actions */}
           {advancedMode && (
             <div className="flex items-center gap-1 border-l border-zinc-800 pl-3">
               <button
                 disabled={!design}
                 onClick={() => setShowSchematicDialog(true)}
                 className="flex items-center gap-1.5 rounded p-1.5 text-xs font-medium text-zinc-400 transition-colors enabled:hover:bg-zinc-800 enabled:hover:text-zinc-200 disabled:opacity-40"
-                title="Schematic (KiCad)"
+                title="Download a SKiDL Python script that produces a .kicad_sch when run locally"
+                aria-label="Schematic (KiCad export)"
               >
                 <Cpu className="h-4 w-4" />
               </button>
@@ -568,7 +565,8 @@ export default function App() {
                 disabled={!design}
                 onClick={() => setShowEnclosureDialog(true)}
                 className="flex items-center gap-1.5 rounded p-1.5 text-xs font-medium text-zinc-400 transition-colors enabled:hover:bg-zinc-800 enabled:hover:text-zinc-200 disabled:opacity-40"
-                title="Enclosure Model"
+                title="Generate a parametric .scad enclosure shell or search community models"
+                aria-label="Enclosure"
               >
                 <Box className="h-4 w-4" />
               </button>
@@ -576,7 +574,8 @@ export default function App() {
                 disabled={!design}
                 onClick={() => setShowFleetDialog(true)}
                 className="flex items-center gap-1.5 rounded p-1.5 text-xs font-medium text-zinc-400 transition-colors enabled:hover:bg-zinc-800 enabled:hover:text-zinc-200 disabled:opacity-40"
-                title="Push to Fleet"
+                title="Push the rendered YAML to the fleet-for-esphome add-on"
+                aria-label="Push to fleet"
               >
                 <UploadCloud className="h-4 w-4" />
               </button>
@@ -594,7 +593,6 @@ export default function App() {
             </div>
           )}
 
-          {/* Group 4: Settings & Links */}
           <div className="flex items-center gap-2 border-l border-zinc-800 pl-3">
             <div className="flex flex-col gap-1">
               <label
@@ -626,7 +624,8 @@ export default function App() {
             <a
               href="/api/docs" target="_blank" rel="noreferrer"
               className="ml-1 flex items-center gap-1 rounded p-1.5 text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-300"
-              title="OpenAPI Documentation"
+              title="OpenAPI documentation"
+              aria-label="OpenAPI documentation"
             >
               <ExternalLink className="h-4 w-4" />
             </a>
