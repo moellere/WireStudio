@@ -452,6 +452,29 @@ testing surfaced two strategic items below.)
      `wirestudio/library/boards/` manifest plus a bundled
      example to clear the `esphome config` gate.
 
+7. **Local component inventory + inventory-aware recommendation.**
+   Future feature, surfaced 2026-05-16 alongside the BOM-stock
+   work. Let the user capture what they physically have on hand
+   — boards, sensors, components, with quantities — and feed
+   that into the recommender so a design prefers parts already
+   in the drawer. Selecting "motion detection" with 3x HC-SR505
+   in inventory ranks the HC-SR505 first.
+   - *Inventory store.* A persisted per-user inventory
+     (library id + quantity, maybe a free-text bin / location).
+     New file-backed store alongside `designs/`; CRUD endpoints
+     plus a web UI panel to add and adjust counts.
+   - *Recommender signal.* `wirestudio/recommend/recommender.py`
+     takes an inventory input; on-hand parts get a ranking
+     boost and the rationale line calls it out ("you have 3").
+   - *BOM cross-check.* Once both land, a design's BOM can be
+     diffed against inventory — "have / need to buy" — the
+     natural local counterpart to the JLCPCB stock check
+     (item 2's `wirestudio.jlcpcb`).
+   - Decisions to make: single inventory (like the
+     active-design tracker) vs. multi-user; whether quantities
+     decrement when a design is marked "built". Single-user
+     homelab scope says one inventory, no auto-decrement.
+
 
 **0.9 v2 -- library mapping expansion shipped.** The remaining 20
 components + 7 boards now carry a `kicad:` block, taking coverage
