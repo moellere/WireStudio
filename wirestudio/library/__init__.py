@@ -148,6 +148,8 @@ class LibraryBoard(_Strict):
     framework: str
     platformio_board: str
     flash_size_mb: Optional[int] = None
+    # Optional product-image URL, surfaced in the board picker.
+    image: Optional[str] = None
     rails: list[Rail] = Field(default_factory=list)
     default_buses: dict = Field(default_factory=dict)
     onboard_peripherals: dict = Field(default_factory=dict)

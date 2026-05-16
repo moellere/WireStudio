@@ -1,0 +1,45 @@
+id: m5stack-atom-echo
+name: M5Stack Atom Echo
+mcu: esp32
+chip_variant: esp32
+framework: arduino
+platformio_board: m5stack-atom
+flash_size_mb: 4
+image: https://shop.m5stack.com/cdn/shop/files/1_da8f77ce-1545-4a44-99c5-e82fd385cdc4_1200x1200.webp
+
+rails:
+  - {name: "5V",  voltage: 5.0, source: usb}
+  - {name: "3V3", voltage: 3.3, source: onboard_regulator}
+  - {name: "GND", voltage: 0.0}
+
+# ATOM Echo is an ESP32-PICO-D4 in the 24mm Atom cube, built as a
+# smart speaker. Onboard: an SK6812 RGB LED on GPIO27, a programmable
+# button on GPIO39 (input-only, active low), an SPM1423 PDM MEMS mic
+# and an NS4168 I2S DAC + speaker. Mic and speaker share one I2S bus
+# -- bclk GPIO19, lrclk GPIO33, mic data-in GPIO23, speaker data-out
+# GPIO22. Same ESP32 strap-pin rules as the WROOM-32 boards; see
+# esp32-devkitc-v4.yaml for the legend.
+default_buses:
+  i2c: {sda: GPIO26, scl: GPIO32}
+
+onboard_peripherals:
+  led_sk6812: {pin: GPIO27}
+  button:     {pin: GPIO39, inverted: true}
+  echo_i2s:   {bclk: GPIO19, lrclk: GPIO33, din: GPIO23, dout: GPIO22}
+
+gpio_capabilities:
+  GPIO19: [gpio, i2s_bclk]
+  GPIO21: [gpio, grove_sda, i2c_sda]
+  GPIO22: [gpio, i2s_dout]
+  GPIO23: [gpio, i2s_din]
+  GPIO25: [gpio, grove_scl, i2c_scl, dac, adc, adc2]
+  GPIO26: [gpio, dac, adc, adc2]
+  GPIO27: [gpio, builtin_led, adc, adc2, pwm]
+  GPIO32: [gpio, adc, adc1, pwm]
+  GPIO33: [gpio, adc, adc1, pwm, i2s_lrclk]
+  GPIO39: [gpio, button, adc, adc1, input_only, no_pull_internal]
+# KiCad symbol mapping (0.9). 9-pin bottom header, ESP32-PICO-D4.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x09
+  value: M5Stack Atom Echo

@@ -1,0 +1,48 @@
+id: m5stack-atomu
+name: M5Stack AtomU
+mcu: esp32
+chip_variant: esp32
+framework: arduino
+platformio_board: m5stack-atom
+flash_size_mb: 4
+image: https://static-cdn.m5stack.com/resource/docs/products/core/ATOM%20U/img-70ca8b36-bd91-4760-af0b-ae247bbb30b7.webp
+
+rails:
+  - {name: "5V",  voltage: 5.0, source: usb}
+  - {name: "3V3", voltage: 3.3, source: onboard_regulator}
+  - {name: "GND", voltage: 0.0}
+
+# ATOM U is an ESP32-PICO-D4 with an integrated USB-A plug, built for
+# voice / IR work. Onboard: an SK6812 RGB LED on GPIO27, a
+# programmable button on GPIO39 (input-only, active low), an IR
+# transmit LED on GPIO12, and an SPM1423 PDM MEMS microphone --
+# clock GPIO5, data GPIO19. A Grove HY2.0 port breaks out GPIO26 +
+# GPIO32. Same ESP32 strap-pin rules as the WROOM-32 boards.
+default_buses:
+  i2c: {sda: GPIO26, scl: GPIO32}
+
+onboard_peripherals:
+  led_sk6812: {pin: GPIO27}
+  button:     {pin: GPIO39, inverted: true}
+  ir_tx:      {pin: GPIO12}
+  pdm_mic:    {clk: GPIO5, data: GPIO19}
+
+gpio_capabilities:
+  GPIO5:  [gpio, pdm_clk, pwm]
+  GPIO12: [gpio, strap, ir_tx, adc, adc2, pwm]
+  GPIO19: [gpio, pdm_data]
+  GPIO21: [gpio]
+  GPIO22: [gpio]
+  GPIO23: [gpio]
+  GPIO25: [gpio, dac, adc, adc2]
+  GPIO26: [gpio, grove_sda, i2c_sda, dac, adc, adc2]
+  GPIO27: [gpio, builtin_led, adc, adc2, pwm]
+  GPIO32: [gpio, grove_scl, i2c_scl, adc, adc1, pwm]
+  GPIO33: [gpio, adc, adc1, pwm]
+  GPIO39: [gpio, button, adc, adc1, input_only, no_pull_internal]
+# KiCad symbol mapping (0.9). USB-A stick, ESP32-PICO-D4, Grove +
+# bottom header broken out.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x09
+  value: M5Stack AtomU

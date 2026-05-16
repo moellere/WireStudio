@@ -107,6 +107,7 @@ def _board_summary(b: LibraryBoard) -> BoardSummary:
         framework=b.framework,
         platformio_board=b.platformio_board,
         flash_size_mb=b.flash_size_mb,
+        image=b.image,
         rail_names=[r.name for r in b.rails],
     )
 

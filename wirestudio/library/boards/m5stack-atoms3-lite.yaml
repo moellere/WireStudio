@@ -1,0 +1,51 @@
+id: m5stack-atoms3-lite
+name: M5Stack AtomS3 Lite
+mcu: esp32
+chip_variant: esp32s3
+framework: arduino
+platformio_board: esp32-s3-devkitc-1
+flash_size_mb: 8
+image: https://static-cdn.m5stack.com/resource/docs/products/core/AtomS3%20Lite/img-dc6432b6-fd9b-4066-9a4d-49786503d1a3.webp
+
+rails:
+  - {name: "5V",  voltage: 5.0, source: usb}
+  - {name: "3V3", voltage: 3.3, source: onboard_regulator}
+  - {name: "GND", voltage: 0.0}
+
+# AtomS3 Lite is an ESP32-S3-FN8 (8MB flash) in the 24mm Atom cube --
+# the display-less AtomS3. Onboard: a WS2812C RGB status LED on
+# GPIO35, a programmable button on GPIO41 (active low, pull-up), and
+# an IR transmit LED on GPIO4. Native USB is on GPIO19/20. The front
+# Grove HY2.0 port breaks out GPIO1 (SDA) + GPIO2 (SCL); the bottom
+# header exposes GPIO5/6/7/8/38/39. Standard ESP32-S3 strap rules
+# (GPIO0 = BOOT).
+default_buses:
+  i2c: {sda: GPIO1, scl: GPIO2}
+
+onboard_peripherals:
+  led_ws2812: {pin: GPIO35}
+  button:     {pin: GPIO41, inverted: true}
+  ir_tx:      {pin: GPIO4}
+
+gpio_capabilities:
+  GPIO0:  [gpio, strap, boot_high]
+  GPIO1:  [gpio, adc, adc1, i2c_sda, grove_sda, pwm]
+  GPIO2:  [gpio, adc, adc1, i2c_scl, grove_scl, pwm]
+  GPIO4:  [gpio, ir_tx, adc, adc1, pwm]
+  GPIO5:  [gpio, adc, adc1, pwm]
+  GPIO6:  [gpio, adc, adc1, pwm]
+  GPIO7:  [gpio, adc, adc1, pwm]
+  GPIO8:  [gpio, adc, adc1, pwm]
+  GPIO19: [gpio, usb]
+  GPIO20: [gpio, usb]
+  GPIO35: [gpio, builtin_led]
+  GPIO38: [gpio, pwm]
+  GPIO39: [gpio, pwm]
+  GPIO41: [gpio, button]
+  GPIO43: [gpio, uart_tx, serial_tx]
+  GPIO44: [gpio, uart_rx, serial_rx]
+# KiCad symbol mapping (0.9). 9-pin bottom header, ESP32-S3.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x09
+  value: M5Stack AtomS3 Lite
