@@ -431,11 +431,11 @@ export default function App() {
   if (bootError) {
     return (
       <div className="flex h-full items-center justify-center p-6 text-sm">
-        <div className="max-w-lg rounded border border-red-500/40 bg-red-500/10 p-4">
-          <div className="mb-2 font-semibold text-red-300">Could not reach the studio API.</div>
+        <div className="max-w-lg rounded-md border border-rose-500/40 bg-rose-500/10 p-4">
+          <div className="mb-2 font-semibold text-rose-300">Could not reach the studio API.</div>
           <div className="text-zinc-300">{bootError}</div>
           <div className="mt-3 text-xs text-zinc-400">
-            Start it with <code className="rounded bg-zinc-800 px-1.5 py-0.5">python -m wirestudio.api</code> and refresh.
+            Start it with <code className="rounded-md bg-zinc-800 px-1.5 py-0.5">python -m wirestudio.api</code> and refresh.
           </div>
         </div>
       </div>
@@ -473,7 +473,7 @@ export default function App() {
           <div className="flex items-center gap-1 rounded-md bg-zinc-900/50 p-1 ring-1 ring-inset ring-zinc-800">
             <button
               onClick={() => setShowNewDialog(true)}
-              className="flex items-center gap-1.5 rounded p-1.5 text-xs font-medium text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-zinc-100"
+              className="flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-zinc-100"
               title="Create a fresh design from a board"
             >
               <FilePlus className="h-4 w-4" />
@@ -483,7 +483,7 @@ export default function App() {
             <button
               disabled={!design || savingState === "saving"}
               onClick={handleSave}
-              className={`flex items-center gap-1.5 rounded p-1.5 text-xs font-medium transition-colors disabled:opacity-40 ${
+              className={`flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium transition-colors disabled:opacity-40 ${
                 savingState === "saved"
                   ? "bg-emerald-500/20 text-emerald-300"
                   : "text-zinc-300 enabled:hover:bg-zinc-800 enabled:hover:text-zinc-100"
@@ -501,7 +501,7 @@ export default function App() {
             <button
               disabled={!dirty}
               onClick={handleReset}
-              className="flex items-center gap-1.5 rounded p-1.5 text-xs font-medium text-zinc-300 transition-colors enabled:hover:bg-zinc-800 enabled:hover:text-zinc-100 disabled:opacity-40"
+              className="flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium text-zinc-300 transition-colors enabled:hover:bg-zinc-800 enabled:hover:text-zinc-100 disabled:opacity-40"
               title="Reset to last saved state"
             >
               <RotateCcw className="h-4 w-4" />
@@ -511,7 +511,7 @@ export default function App() {
             <button
               disabled={!design}
               onClick={handleDownload}
-              className="flex items-center gap-1.5 rounded p-1.5 text-xs font-medium text-zinc-300 transition-colors enabled:hover:bg-zinc-800 enabled:hover:text-zinc-100 disabled:opacity-40"
+              className="flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium text-zinc-300 transition-colors enabled:hover:bg-zinc-800 enabled:hover:text-zinc-100 disabled:opacity-40"
               title="Download design as JSON"
               aria-label="Download design as JSON"
             >
@@ -555,7 +555,7 @@ export default function App() {
               <button
                 disabled={!design}
                 onClick={() => setShowSchematicDialog(true)}
-                className="flex items-center gap-1.5 rounded p-1.5 text-xs font-medium text-zinc-400 transition-colors enabled:hover:bg-zinc-800 enabled:hover:text-zinc-200 disabled:opacity-40"
+                className="flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium text-zinc-400 transition-colors enabled:hover:bg-zinc-800 enabled:hover:text-zinc-200 disabled:opacity-40"
                 title="Download a SKiDL Python script that produces a .kicad_sch when run locally"
                 aria-label="Schematic (KiCad export)"
               >
@@ -564,7 +564,7 @@ export default function App() {
               <button
                 disabled={!design}
                 onClick={() => setShowEnclosureDialog(true)}
-                className="flex items-center gap-1.5 rounded p-1.5 text-xs font-medium text-zinc-400 transition-colors enabled:hover:bg-zinc-800 enabled:hover:text-zinc-200 disabled:opacity-40"
+                className="flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium text-zinc-400 transition-colors enabled:hover:bg-zinc-800 enabled:hover:text-zinc-200 disabled:opacity-40"
                 title="Generate a parametric .scad enclosure shell or search community models"
                 aria-label="Enclosure"
               >
@@ -573,7 +573,7 @@ export default function App() {
               <button
                 disabled={!design}
                 onClick={() => setShowFleetDialog(true)}
-                className="flex items-center gap-1.5 rounded p-1.5 text-xs font-medium text-zinc-400 transition-colors enabled:hover:bg-zinc-800 enabled:hover:text-zinc-200 disabled:opacity-40"
+                className="flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium text-zinc-400 transition-colors enabled:hover:bg-zinc-800 enabled:hover:text-zinc-200 disabled:opacity-40"
                 title="Push the rendered YAML to the fleet-for-esphome add-on"
                 aria-label="Push to fleet"
               >
@@ -584,7 +584,7 @@ export default function App() {
 
               <button
                 onClick={() => setShowAgent(true)}
-                className="flex items-center gap-1.5 rounded p-1.5 text-xs font-medium text-blue-400 transition-colors hover:bg-blue-500/10 hover:text-blue-300"
+                className="flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium text-blue-400 transition-colors hover:bg-blue-500/10 hover:text-blue-300"
                 title="Open the design agent"
               >
                 <Bot className="h-4 w-4" />
@@ -623,7 +623,7 @@ export default function App() {
 
             <a
               href="/api/docs" target="_blank" rel="noreferrer"
-              className="ml-1 flex items-center gap-1 rounded p-1.5 text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-300"
+              className="ml-1 flex items-center gap-1 rounded-md p-1.5 text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-300"
               title="OpenAPI documentation"
               aria-label="OpenAPI documentation"
             >

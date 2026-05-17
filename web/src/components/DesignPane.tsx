@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { Copy, Check } from "lucide-react";
 import type { Design, RenderResponse } from "../types/api";
+import { Loading } from "./Status";
 
 type Tab = "ascii" | "yaml" | "json";
 
@@ -11,8 +13,29 @@ interface Props {
 
 export function DesignPane({ design, render, renderError }: Props) {
   const [tab, setTab] = useState<Tab>("ascii");
+  const [copied, setCopied] = useState(false);
 
   const meta = design ? readMeta(design) : null;
+
+  const content =
+    tab === "json"
+      ? design
+        ? JSON.stringify(design, null, 2)
+        : ""
+      : tab === "yaml"
+        ? render?.yaml ?? ""
+        : render?.ascii ?? "";
+
+  async function copy() {
+    if (!content) return;
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // clipboard blocked (insecure context / permissions) -- no-op
+    }
+  }
 
   return (
     <section className="flex min-h-0 flex-col">
@@ -40,44 +63,49 @@ export function DesignPane({ design, render, renderError }: Props) {
         )}
       </div>
 
-      <div className="flex border-b border-zinc-800 text-xs">
-        {(["ascii", "yaml", "json"] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`px-3 py-2 uppercase tracking-wide transition-colors ${
-              tab === t
-                ? "border-b-2 border-blue-400 text-zinc-100"
-                : "border-b-2 border-transparent text-zinc-500 hover:text-zinc-300"
-            }`}
-          >
-            {t}
-          </button>
-        ))}
+      <div className="flex items-center justify-between border-b border-zinc-800 pr-2 text-xs">
+        <div className="flex">
+          {(["ascii", "yaml", "json"] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`px-3 py-2 uppercase tracking-wide transition-colors ${
+                tab === t
+                  ? "border-b-2 border-blue-400 text-zinc-100"
+                  : "border-b-2 border-transparent text-zinc-500 hover:text-zinc-300"
+              }`}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={copy}
+          disabled={!content}
+          title={`Copy the ${tab.toUpperCase()} to the clipboard`}
+          className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-zinc-400 transition-colors enabled:hover:bg-zinc-800 enabled:hover:text-zinc-200 disabled:opacity-40"
+        >
+          {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+          {copied ? "Copied" : "Copy"}
+        </button>
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto p-4 font-mono text-[13px] leading-snug">
         {renderError && (
-          <div className="mb-3 rounded border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-200">
+          <div className="mb-3 rounded-md border border-rose-500/40 bg-rose-500/10 p-3 text-sm text-rose-200">
             <div className="font-semibold">Render failed</div>
             <div className="mt-1 whitespace-pre-wrap text-xs">{renderError}</div>
           </div>
         )}
 
-        {tab === "ascii" && (
-          render
-            ? <pre className="whitespace-pre text-zinc-200">{render.ascii}</pre>
-            : <Loading />
-        )}
-        {tab === "yaml" && (
-          render
-            ? <pre className="whitespace-pre text-zinc-200">{render.yaml}</pre>
-            : <Loading />
-        )}
-        {tab === "json" && (
-          design
-            ? <pre className="whitespace-pre text-zinc-300">{JSON.stringify(design, null, 2)}</pre>
-            : <Loading />
+        {!design ? (
+          <div className="flex h-full items-center justify-center text-center text-sm text-zinc-600">
+            Pick an example or board to start a design.
+          </div>
+        ) : content ? (
+          <pre className="whitespace-pre text-zinc-200">{content}</pre>
+        ) : (
+          <Loading />
         )}
       </div>
     </section>
@@ -112,8 +140,4 @@ function readMeta(d: Design): DesignMeta {
     busCount: buses.length,
     connectionCount: connections.length,
   };
-}
-
-function Loading() {
-  return <div className="text-xs text-zinc-500">loading...</div>;
 }

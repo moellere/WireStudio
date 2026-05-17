@@ -452,10 +452,17 @@ testing surfaced two strategic items below.)
    - *Examples — shipped.* One bundled example per new board
      (`atom-echo`, `atom-matrix`, `atomu`, `atoms3-lite`); all
      four pass the `esphome config` gate under ESPHome 2025.12.7.
-   - *Remaining.* `image` backfill for the other boards; the
-     wider UI polish pass — layout, visual hierarchy, the
-     add-component and inspector flows; and the M5StickC / Core
-     lines, still uncovered.
+   - *UI polish — shipped.* Standardised destructive/error UI on
+     `rose` (was split red/rose); one shared animated
+     `Loading` / `Empty` (`components/Status.tsx`) in place of
+     the bare "loading..." text; `rounded` → `rounded-md` swept
+     repo-wide; DesignPane gained a copy-to-clipboard button on
+     the YAML/ASCII/JSON tabs and a proper empty state.
+   - *Remaining.* `image` backfill covers the six M5Stack
+     boards; the non-M5Stack boards have no single clean CDN
+     source and stay on the no-image placeholder (a bundled-asset
+     pass would fix that properly). The M5StickC / Core M5Stack
+     lines are also still uncovered — deferred this round.
 
 7. **Local component inventory + inventory-aware recommendation.**
    Future feature, surfaced 2026-05-16 alongside the BOM-stock

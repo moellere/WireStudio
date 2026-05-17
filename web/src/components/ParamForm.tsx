@@ -91,7 +91,7 @@ function renderControl(
         id={id}
         value={v}
         onChange={(e) => onChange(k, coerceToType(e.target.value, entry.type))}
-        className="w-full rounded border border-zinc-800 bg-zinc-950 px-2 py-1 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+        className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
       >
         {entry.enum.map((opt) => (
           <option key={String(opt)} value={String(opt)}>{String(opt)}</option>
@@ -131,14 +131,14 @@ function renderControl(
           if (Number.isNaN(n)) return;
           onChange(k, n);
         }}
-        className="w-full rounded border border-zinc-800 bg-zinc-950 px-2 py-1 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+        className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
       />
     );
   }
 
   if (entry.type === "object" || entry.type === "array") {
     return (
-      <pre className="overflow-auto rounded border border-zinc-800 bg-zinc-950 p-2 text-[11px] text-zinc-400">
+      <pre className="overflow-auto rounded-md border border-zinc-800 bg-zinc-950 p-2 text-[11px] text-zinc-400">
         {JSON.stringify(current, null, 2)}
         <div className="mt-2 italic text-zinc-500">structured editing not yet supported</div>
       </pre>
@@ -152,7 +152,7 @@ function renderControl(
       type="text"
       value={current === undefined || current === null ? "" : String(current)}
       onChange={(e) => onChange(k, e.target.value)}
-      className="w-full rounded border border-zinc-800 bg-zinc-950 px-2 py-1 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+      className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
     />
   );
 }
@@ -176,7 +176,7 @@ function ExtraField({ k, value }: { k: string; value: unknown }) {
         <span className="font-mono text-xs text-zinc-200">{k}</span>
         <span className="text-[11px] text-zinc-500">not in schema</span>
       </div>
-      <pre className="mt-1 overflow-auto rounded border border-zinc-800 bg-zinc-950 p-2 text-[11px] text-zinc-400">
+      <pre className="mt-1 overflow-auto rounded-md border border-zinc-800 bg-zinc-950 p-2 text-[11px] text-zinc-400">
         {JSON.stringify(value, null, 2)}
       </pre>
     </div>

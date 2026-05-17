@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, ApiError } from "../api/client";
 import type { Recommendation, UseCaseEntry } from "../types/api";
+import { Loading } from "./Status";
 
 interface Props {
   /** True when the design has a board picked. We disable Add when there's
@@ -141,7 +142,7 @@ export function CapabilityPickerDialog({ designReady, designBusTypes, onAdd, onC
           </div>
           <button
             onClick={onClose}
-            className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
+            className="rounded-md border border-zinc-800 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
           >
             Close
           </button>
@@ -159,7 +160,7 @@ export function CapabilityPickerDialog({ designReady, designBusTypes, onAdd, onC
                 value={freeText}
                 onChange={(e) => setFreeText(e.target.value)}
                 placeholder="e.g. door sensor"
-                className="w-full rounded border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                className="w-full rounded-md border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs text-zinc-100 focus:border-zinc-600 focus:outline-none"
               />
               {freeText.trim() && (
                 <p className="text-[11px] text-zinc-500">
@@ -172,7 +173,7 @@ export function CapabilityPickerDialog({ designReady, designBusTypes, onAdd, onC
                 library capabilities
               </div>
               {useCases === null ? (
-                <div className="px-2 py-1 text-xs text-zinc-500">loading…</div>
+                <Loading />
               ) : useCases.length === 0 ? (
                 <div className="px-2 py-1 text-xs text-zinc-500">none</div>
               ) : (
@@ -188,14 +189,14 @@ export function CapabilityPickerDialog({ designReady, designBusTypes, onAdd, onC
                               ? `e.g. ${uc.example_components.join(", ")}`
                               : undefined
                           }
-                          className={`flex w-full items-center justify-between gap-2 rounded px-2 py-1 text-left text-xs transition-colors ${
+                          className={`flex w-full items-center justify-between gap-2 rounded-md px-2 py-1 text-left text-xs transition-colors ${
                             active
                               ? "bg-blue-500/15 text-blue-100 ring-1 ring-blue-400/40"
                               : "text-zinc-200 hover:bg-zinc-900"
                           }`}
                         >
                           <span className="truncate">{uc.use_case}</span>
-                          <span className="shrink-0 rounded bg-zinc-800 px-1 text-[10px] text-zinc-400">
+                          <span className="shrink-0 rounded-md bg-zinc-800 px-1 text-[10px] text-zinc-400">
                             {uc.count}
                           </span>
                         </button>
@@ -214,7 +215,7 @@ export function CapabilityPickerDialog({ designReady, designBusTypes, onAdd, onC
                 {activeQuery ? (
                   <>
                     matches for{" "}
-                    <code className="rounded bg-zinc-800 px-1 text-zinc-100">{activeQuery}</code>
+                    <code className="rounded-md bg-zinc-800 px-1 text-zinc-100">{activeQuery}</code>
                   </>
                 ) : (
                   <>pick a capability or enter free text on the left</>
@@ -237,12 +238,12 @@ export function CapabilityPickerDialog({ designReady, designBusTypes, onAdd, onC
             </div>
             <div className="flex-1 overflow-y-auto p-3">
               {!designReady && (
-                <div className="mb-2 rounded border border-amber-700/40 bg-amber-900/15 px-2 py-1.5 text-[11px] text-amber-200">
+                <div className="mb-2 rounded-md border border-amber-700/40 bg-amber-900/15 px-2 py-1.5 text-[11px] text-amber-200">
                   No design loaded — pick or create one before adding components.
                 </div>
               )}
               {error && (
-                <div className="mb-2 rounded border border-rose-700/40 bg-rose-900/15 px-2 py-1.5 text-[11px] text-rose-200">
+                <div className="mb-2 rounded-md border border-rose-700/40 bg-rose-900/15 px-2 py-1.5 text-[11px] text-rose-200">
                   {error}
                 </div>
               )}
@@ -255,7 +256,7 @@ export function CapabilityPickerDialog({ designReady, designBusTypes, onAdd, onC
                   return (
                     <div className="text-xs text-zinc-500">
                       no library components match{" "}
-                      <code className="rounded bg-zinc-800 px-1">{activeQuery}</code>.
+                      <code className="rounded-md bg-zinc-800 px-1">{activeQuery}</code>.
                     </div>
                   );
                 }
@@ -285,13 +286,13 @@ export function CapabilityPickerDialog({ designReady, designBusTypes, onAdd, onC
                     return (
                       <li
                         key={m.library_id}
-                        className="rounded border border-zinc-800 bg-zinc-900/40 p-2"
+                        className="rounded-md border border-zinc-800 bg-zinc-900/40 p-2"
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
                             <div className="flex items-baseline gap-2">
                               {idx === 0 && (
-                                <span className="rounded bg-emerald-500/15 px-1 text-[10px] uppercase tracking-wide text-emerald-200 ring-1 ring-emerald-400/30">
+                                <span className="rounded-md bg-emerald-500/15 px-1 text-[10px] uppercase tracking-wide text-emerald-200 ring-1 ring-emerald-400/30">
                                   top pick
                                 </span>
                               )}
@@ -373,7 +374,7 @@ export function CapabilityPickerDialog({ designReady, designBusTypes, onAdd, onC
                             <button
                               disabled={!designReady || isAdding}
                               onClick={() => handleAdd(m.library_id)}
-                              className={`rounded px-2 py-1 text-xs ring-1 transition-colors disabled:opacity-40 ${
+                              className={`rounded-md px-2 py-1 text-xs ring-1 transition-colors disabled:opacity-40 ${
                                 isAdded
                                   ? "bg-emerald-500/15 text-emerald-100 ring-emerald-400/40"
                                   : "bg-blue-500/15 text-blue-100 ring-blue-400/40 enabled:hover:bg-blue-500/25"
