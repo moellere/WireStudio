@@ -247,7 +247,7 @@ testing surfaced two strategic items below.)
       0600). Mutating tools take `design_id` and persist back to
       the design store; read-only library tools skip storage.
       `WIRESTUDIO_MCP_ENABLED=false` short-circuits the wiring
-      for envs that don't need it. `docs/MCP.md` covers config +
+      for envs that don't need it. `docs/mcp.md` covers config +
       env-var precedence; a polished walkthrough lands with the
       Phase 1.5 docs sweep.
    2. **`design-changed` SSE channel — shipped (PR #29, 2026-05-10).**
@@ -294,7 +294,7 @@ testing surfaced two strategic items below.)
       on it without an explicit id. Deleting the active design
       auto-clears the pointer so the next default-resolved call
       doesn't 500 on a dangling id.
-   5. **MCP docs — shipped (PR #TBD, 2026-05-16).** `docs/MCP.md`
+   5. **MCP docs — shipped (PR #TBD, 2026-05-16).** `docs/mcp.md`
       rewritten from the Phase 1.1 skeleton into an end-to-end
       walkthrough: start the daemon, copy the token, wire up
       Claude Code (`claude mcp add`) or Claude Desktop, create a
@@ -402,7 +402,7 @@ testing surfaced two strategic items below.)
      day-1 UX. OAuth 2.1 (the MCP spec's official multi-user
      flow) is deferred — right for SaaS-grade hosted MCPs,
      wrong for a single-operator homelab tool. Documented as
-     upgrade path in `docs/MCP.md`.
+     upgrade path in `docs/mcp.md`.
    - **Embedded agent retirement: held.** `/agent/turn` and
      `/agent/stream` keep running unchanged through the MCP
      phase. They use the user's Anthropic key and stay useful

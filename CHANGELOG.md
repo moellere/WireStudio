@@ -28,7 +28,7 @@ plus a wide cluster of library, agent, and API work.
     `library://boards{,/id}`, `design://{id}/{json,yaml,ascii}`.
   - `set_active_design` pointer so design-bound tools resolve a
     default `design_id` from the browser selection or chat.
-  - End-to-end setup walkthrough in `docs/MCP.md` — start the
+  - End-to-end setup walkthrough in `docs/mcp.md` — start the
     daemon, wire up Claude Code / Desktop, chat.
 - **KiCad symbol importer.** `python -m wirestudio.kicad.import
   --symbol Lib:Symbol` reads a `.kicad_sym` library and drafts a
