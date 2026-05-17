@@ -2,7 +2,7 @@
   "schema_version": "0.1",
   "id": "oled-knob",
   "name": "OLED + rotary-knob control panel",
-  "description": "The 1.3-inch SH1106 white OLED + EC11 rotary-encoder combo module, the kind sold as one board for menu UIs. The SH1106 display rides the I2C bus; the EC11's quadrature A/B feed the rotary_encoder sensor and its push-switch is a separate gpio_input button.",
+  "description": "The 1.3-inch SH1106 white OLED + EC11 rotary-encoder combo module, the kind sold as one board for menu UIs. The SH1106 display rides the I2C bus; the EC11's quadrature A/B feed the rotary_encoder sensor and its push-switch is a separate gpio_input button. The module also carries two auxiliary push buttons, each wired as its own gpio_input binary sensor.",
   "created_at": "2026-05-17T00:00:00Z",
   "updated_at": "2026-05-17T00:00:00Z",
 
@@ -22,7 +22,8 @@
   "requirements": [
     { "id": "r1", "kind": "capability", "text": "render a menu UI on the 1.3-inch OLED" },
     { "id": "r2", "kind": "capability", "text": "scroll the menu with the rotary encoder" },
-    { "id": "r3", "kind": "capability", "text": "select with the encoder's push button" }
+    { "id": "r3", "kind": "capability", "text": "select with the encoder's push button" },
+    { "id": "r4", "kind": "capability", "text": "read the two auxiliary push buttons" }
   ],
 
   "components": [
@@ -41,6 +42,16 @@
       "id": "knobbtn",
       "library_id": "gpio_input",
       "label": "Knob press"
+    },
+    {
+      "id": "btn1",
+      "library_id": "gpio_input",
+      "label": "Button A"
+    },
+    {
+      "id": "btn2",
+      "library_id": "gpio_input",
+      "label": "Button B"
     }
   ],
 
@@ -55,7 +66,9 @@
     { "component_id": "disp", "pin_role": "SCL", "target": { "kind": "bus",  "bus_id": "i2c0" } },
     { "component_id": "knob", "pin_role": "A", "target": { "kind": "gpio", "pin": "GPIO16" } },
     { "component_id": "knob", "pin_role": "B", "target": { "kind": "gpio", "pin": "GPIO17" } },
-    { "component_id": "knobbtn", "pin_role": "IN", "target": { "kind": "gpio", "pin": "GPIO18" } }
+    { "component_id": "knobbtn", "pin_role": "IN", "target": { "kind": "gpio", "pin": "GPIO18" } },
+    { "component_id": "btn1", "pin_role": "IN", "target": { "kind": "gpio", "pin": "GPIO19" } },
+    { "component_id": "btn2", "pin_role": "IN", "target": { "kind": "gpio", "pin": "GPIO23" } }
   ],
 
   "passives": [
