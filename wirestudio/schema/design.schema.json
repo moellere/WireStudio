@@ -63,7 +63,16 @@
           "label": { "type": "string" },
           "role": { "type": "string" },
           "params": { "type": "object" },
-          "locked_pins": { "type": "object", "additionalProperties": { "type": "string" } }
+          "locked_pins": { "type": "object", "additionalProperties": { "type": "string" } },
+          "module": {
+            "type": "object",
+            "required": ["module_id", "instance"],
+            "additionalProperties": false,
+            "properties": {
+              "module_id": { "type": "string" },
+              "instance": { "type": "string" }
+            }
+          }
         }
       }
     },

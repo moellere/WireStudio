@@ -29,6 +29,16 @@ class Requirement(_Strict):
     text: str
 
 
+class ModuleRef(_Strict):
+    """Provenance for a component inserted as part of a composite module.
+
+    `instance` is unique per insertion so two of the same module stay
+    distinct; the BOM collapses each instance to a single module line.
+    """
+    module_id: str
+    instance: str
+
+
 class Component(_Strict):
     id: str
     library_id: str
@@ -36,6 +46,9 @@ class Component(_Strict):
     role: Optional[str] = None
     params: dict = Field(default_factory=dict)
     locked_pins: dict[str, str] = Field(default_factory=dict)
+    # Set when the component was inserted as part of a composite module
+    # (wirestudio/library/modules/). The BOM lists the module, not this part.
+    module: Optional[ModuleRef] = None
 
 
 class Bus(_Strict):

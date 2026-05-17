@@ -158,13 +158,40 @@ class LibraryBoard(_Strict):
     kicad: Optional[KicadSymbolRef] = None
 
 
+class ModuleComponent(_Strict):
+    """One component a composite module places, with its default label
+    + params. `id_hint` seeds the instance id when the module is inserted."""
+    id_hint: str
+    library_id: str
+    label: Optional[str] = None
+    params: dict = Field(default_factory=dict)
+
+
+class LibraryModule(_Strict):
+    """A composite module -- a physical board bundling several components.
+
+    Selecting a module inserts every `components` entry into the design in
+    one action; per-component wiring is auto-seeded the same way a
+    hand-added component is. The BOM lists the module, not its parts.
+    """
+    id: str
+    name: str
+    category: str = "module"
+    description: Optional[str] = None
+    image: Optional[str] = None
+    aliases: list[str] = Field(default_factory=list)
+    use_cases: list[str] = Field(default_factory=list)
+    components: list[ModuleComponent]
+
+
 class Library:
-    """Lazy loader for board and component definitions."""
+    """Lazy loader for board, component, and module definitions."""
 
     def __init__(self, root: Path):
         self.root = Path(root)
         self._components: dict[str, LibraryComponent] = {}
         self._boards: dict[str, LibraryBoard] = {}
+        self._modules: dict[str, LibraryModule] = {}
 
     def component(self, library_id: str) -> LibraryComponent:
         if library_id not in self._components:
@@ -191,6 +218,19 @@ class Library:
 
     def list_boards(self) -> list[LibraryBoard]:
         return [self.board(p.stem) for p in sorted((self.root / "boards").glob("*.yaml"))]
+
+    def module(self, module_id: str) -> LibraryModule:
+        if module_id not in self._modules:
+            path = self.root / "modules" / f"{module_id}.yaml"
+            if not path.exists():
+                raise FileNotFoundError(f"Unknown module '{module_id}' (looked at {path})")
+            with path.open() as f:
+                data = yaml.safe_load(f)
+            self._modules[module_id] = LibraryModule.model_validate(data)
+        return self._modules[module_id]
+
+    def list_modules(self) -> list[LibraryModule]:
+        return [self.module(p.stem) for p in sorted((self.root / "modules").glob("*.yaml"))]
 
 
 def default_library() -> Library:

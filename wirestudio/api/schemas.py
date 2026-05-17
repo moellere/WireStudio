@@ -41,6 +41,15 @@ class ComponentSummary(_S):
     )
 
 
+class ModuleSummary(_S):
+    id: str = Field(description="Module library id, e.g. 'oled-knob-13'.")
+    name: str = Field(description="Human-readable module name -- the BOM line.")
+    category: str = Field(description="Always 'module'.")
+    description: Optional[str] = Field(default=None, description="What the module is.")
+    use_cases: list[str] = Field(description="Capability tags the picker filters on.")
+    component_count: int = Field(description="Number of components the module inserts.")
+
+
 class ExampleSummary(_S):
     id: str = Field(description="Bundled example id, e.g. 'garage-motion'.")
     name: str = Field(description="Human-readable example name.")

@@ -45,7 +45,7 @@ include = ["wirestudio*"]
 # the wirestudio package so they ship in the wheel; without this, a
 # pip-installed wirestudio crashes at runtime when default_library()
 # tries to read components/ + boards/.
-"wirestudio.library" = ["components/*.yaml", "boards/*.yaml"]
+"wirestudio.library" = ["components/*.yaml", "boards/*.yaml", "modules/*.yaml"]
 "wirestudio.schema" = ["*.json"]
 "wirestudio.examples" = ["*.json"]
 
