@@ -110,7 +110,7 @@ export function SchematicDialog({ design, onClose }: Props) {
           </div>
           <button
             onClick={onClose}
-            className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
+            className="rounded-md border border-zinc-800 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
           >
             Close
           </button>
@@ -129,23 +129,23 @@ export function SchematicDialog({ design, onClose }: Props) {
                 <button
                   onClick={handleRender}
                   disabled={rendering}
-                  className="rounded bg-blue-500/20 px-3 py-1.5 text-sm text-blue-100 ring-1 ring-blue-400/40 enabled:hover:bg-blue-500/30 disabled:opacity-40"
+                  className="rounded-md bg-blue-500/20 px-3 py-1.5 text-sm text-blue-100 ring-1 ring-blue-400/40 enabled:hover:bg-blue-500/30 disabled:opacity-40"
                 >
                   {rendering ? "Rendering…" : svgUrl ? "Re-render" : "Render schematic"}
                 </button>
                 {svgUrl && (
-                  <div className="overflow-auto rounded border border-zinc-800 bg-white p-2">
+                  <div className="overflow-auto rounded-md border border-zinc-800 bg-white p-2">
                     <img src={svgUrl} alt="rendered schematic" className="mx-auto block" />
                   </div>
                 )}
                 {renderError && (
-                  <div className="rounded border border-rose-700/40 bg-rose-900/15 px-2 py-1.5 text-xs text-rose-200">
+                  <div className="rounded-md border border-rose-700/40 bg-rose-900/15 px-2 py-1.5 text-xs text-rose-200">
                     {renderError}
                   </div>
                 )}
               </>
             ) : (
-              <div className="rounded border border-zinc-800 bg-zinc-900/40 px-2 py-1.5 text-xs text-zinc-400">
+              <div className="rounded-md border border-zinc-800 bg-zinc-900/40 px-2 py-1.5 text-xs text-zinc-400">
                 Inline preview needs <code className="text-zinc-200">kicad-cli</code> and{" "}
                 <code className="text-zinc-200">skidl</code> on the server.
                 {renderStatus.reason && (
@@ -174,7 +174,7 @@ export function SchematicDialog({ design, onClose }: Props) {
               </a>
               {" "}installed:
             </p>
-            <pre className="overflow-x-auto rounded border border-zinc-800 bg-black/60 p-2 font-mono text-[11px] leading-relaxed text-zinc-200">
+            <pre className="overflow-x-auto rounded-md border border-zinc-800 bg-black/60 p-2 font-mono text-[11px] leading-relaxed text-zinc-200">
 {`pip install skidl
 python ${design.id ?? "design"}.skidl.py
 # produces ${design.id ?? "design"}.kicad_sch in the cwd`}
@@ -191,7 +191,7 @@ python ${design.id ?? "design"}.skidl.py
             <button
               onClick={handleDownload}
               disabled={downloading}
-              className="rounded bg-blue-500/20 px-3 py-1.5 text-sm text-blue-100 ring-1 ring-blue-400/40 enabled:hover:bg-blue-500/30 disabled:opacity-40"
+              className="rounded-md bg-blue-500/20 px-3 py-1.5 text-sm text-blue-100 ring-1 ring-blue-400/40 enabled:hover:bg-blue-500/30 disabled:opacity-40"
             >
               {downloading
                 ? "Generating…"
@@ -200,7 +200,7 @@ python ${design.id ?? "design"}.skidl.py
                   : "Download .skidl.py →"}
             </button>
             {error && (
-              <div className="rounded border border-rose-700/40 bg-rose-900/15 px-2 py-1.5 text-xs text-rose-200">
+              <div className="rounded-md border border-rose-700/40 bg-rose-900/15 px-2 py-1.5 text-xs text-rose-200">
                 {error}
               </div>
             )}

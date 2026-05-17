@@ -105,7 +105,7 @@ export function PinoutView({
                   data-testid={`pin-${pin}`}
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={(e) => handleDrop(pin, e)}
-                  className={`flex items-center gap-2 rounded border px-2 py-1 text-xs transition-colors ${
+                  className={`flex items-center gap-2 rounded-md border px-2 py-1 text-xs transition-colors ${
                     occupiedBy
                       ? "border-rose-700/40 bg-rose-900/10 text-zinc-200"
                       : heldHere
@@ -118,7 +118,7 @@ export function PinoutView({
                     {SPECIAL_BADGES.filter((b) => caps.includes(b.tag)).map((b) => (
                       <span
                         key={b.tag}
-                        className={`rounded border px-1 text-[10px] uppercase tracking-wide ${b.tone}`}
+                        className={`rounded-md border px-1 text-[10px] uppercase tracking-wide ${b.tone}`}
                       >
                         {b.label}
                       </span>
@@ -158,7 +158,7 @@ export function PinoutView({
                     e.dataTransfer.effectAllowed = "move";
                   }}
                   data-testid={`drag-${row.pin_role}`}
-                  className="flex cursor-grab items-center justify-between gap-2 rounded border border-zinc-800 bg-zinc-900/40 px-2 py-1 text-xs hover:border-zinc-600 active:cursor-grabbing"
+                  className="flex cursor-grab items-center justify-between gap-2 rounded-md border border-zinc-800 bg-zinc-900/40 px-2 py-1 text-xs hover:border-zinc-600 active:cursor-grabbing"
                 >
                   <span className="font-mono">{row.pin_role}</span>
                   <span className={`font-mono ${t.pin ? "text-zinc-100" : "text-zinc-500"}`}>

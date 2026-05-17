@@ -84,13 +84,13 @@ function Row({
   };
 
   return (
-    <div className="rounded border border-zinc-800 bg-zinc-900/30 p-2">
+    <div className="rounded-md border border-zinc-800 bg-zinc-900/30 p-2">
       <div className="mb-1.5 flex items-baseline justify-between">
         <span className="font-mono text-xs text-zinc-100">{row.pin_role}</span>
         <select
           value={t.kind}
           onChange={(e) => onKindChange(e.target.value as Kind)}
-          className="rounded border border-zinc-800 bg-zinc-950 px-1.5 py-0.5 text-[11px] text-zinc-200 focus:border-zinc-600 focus:outline-none"
+          className="rounded-md border border-zinc-800 bg-zinc-950 px-1.5 py-0.5 text-[11px] text-zinc-200 focus:border-zinc-600 focus:outline-none"
         >
           {KINDS.map((k) => (
             <option key={k} value={k}>{k}</option>
@@ -127,7 +127,7 @@ function Row({
         </div>
       )}
       {t.kind === "gpio" && row.locked_pin && row.locked_pin !== t.pin && (
-        <div className="mt-1 rounded border border-amber-700/40 bg-amber-900/15 px-1.5 py-0.5 text-[10px] text-amber-200">
+        <div className="mt-1 rounded-md border border-amber-700/40 bg-amber-900/15 px-1.5 py-0.5 text-[10px] text-amber-200">
           locked to <code>{row.locked_pin}</code> but bound to <code>{t.pin || "<unset>"}</code>;
           solver will flag a mismatch.
         </div>
@@ -204,7 +204,7 @@ function LockToggle({
             ? `Lock this role to ${currentPin}; the pin solver will not move it.`
             : "Pick a pin first, then lock it."
         }
-        className="shrink-0 rounded border border-zinc-800 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-zinc-400 enabled:hover:border-zinc-600 enabled:hover:text-zinc-200 disabled:opacity-40"
+        className="shrink-0 rounded-md border border-zinc-800 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-zinc-400 enabled:hover:border-zinc-600 enabled:hover:text-zinc-200 disabled:opacity-40"
       >
         🔓 lock
       </button>
@@ -220,7 +220,7 @@ function LockToggle({
           ? `Locked to ${lockedPin} (bound: ${currentPin || "<unset>"}). Click to unlock.`
           : `Locked to ${lockedPin}. Click to unlock.`
       }
-      className={`shrink-0 rounded border px-1.5 py-0.5 text-[10px] uppercase tracking-wide ${
+      className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] uppercase tracking-wide ${
         diverged
           ? "border-amber-600/50 bg-amber-900/20 text-amber-200 hover:bg-amber-900/30"
           : "border-emerald-600/50 bg-emerald-900/20 text-emerald-200 hover:bg-emerald-900/30"
@@ -261,7 +261,7 @@ function ExpanderControls({
             if (Number.isNaN(n)) return;
             onChange({ ...target, number: n });
           }}
-          className="w-20 rounded border border-zinc-800 bg-zinc-950 px-1.5 py-0.5 text-xs text-zinc-100 focus:border-zinc-600 focus:outline-none"
+          className="w-20 rounded-md border border-zinc-800 bg-zinc-950 px-1.5 py-0.5 text-xs text-zinc-100 focus:border-zinc-600 focus:outline-none"
         />
       </div>
       <div className="flex items-center gap-2">
@@ -269,7 +269,7 @@ function ExpanderControls({
         <select
           value={target.mode ?? ""}
           onChange={(e) => onChange({ ...target, mode: e.target.value || undefined })}
-          className="flex-1 rounded border border-zinc-800 bg-zinc-950 px-1.5 py-0.5 text-xs text-zinc-100 focus:border-zinc-600 focus:outline-none"
+          className="flex-1 rounded-md border border-zinc-800 bg-zinc-950 px-1.5 py-0.5 text-xs text-zinc-100 focus:border-zinc-600 focus:outline-none"
         >
           <option value="">(unset)</option>
           {["INPUT", "INPUT_PULLUP", "INPUT_PULLDOWN", "OUTPUT", "OUTPUT_OPEN_DRAIN"].map((m) => (
@@ -308,7 +308,7 @@ function SelectInput({
         <select
           value={inOptions ? value : ""}
           onChange={(e) => onChange(e.target.value)}
-          className="flex-1 rounded border border-zinc-800 bg-zinc-950 px-1.5 py-0.5 text-xs text-zinc-100 focus:border-zinc-600 focus:outline-none"
+          className="flex-1 rounded-md border border-zinc-800 bg-zinc-950 px-1.5 py-0.5 text-xs text-zinc-100 focus:border-zinc-600 focus:outline-none"
         >
           {!inOptions && (
             <option value="" disabled>(invalid: {value || "<unset>"})</option>
@@ -323,7 +323,7 @@ function SelectInput({
           value={value}
           readOnly={!allowFree}
           onChange={(e) => allowFree && onChange(e.target.value)}
-          className="flex-1 rounded border border-zinc-800 bg-zinc-950 px-1.5 py-0.5 text-xs text-zinc-100 focus:border-zinc-600 focus:outline-none"
+          className="flex-1 rounded-md border border-zinc-800 bg-zinc-950 px-1.5 py-0.5 text-xs text-zinc-100 focus:border-zinc-600 focus:outline-none"
         />
       )}
     </div>

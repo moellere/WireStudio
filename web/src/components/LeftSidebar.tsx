@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { FolderHeart, FolderOpen, Cpu, Component } from "lucide-react";
+import { Loading, Empty } from "./Status";
 import type { BoardSummary, ComponentSummary, ExampleSummary, SavedDesignSummary } from "../types/api";
 
 type Tab = "examples" | "saved" | "boards" | "components";
@@ -113,7 +114,7 @@ function SavedList({
         <FolderHeart className="h-8 w-8 text-zinc-800 mb-3" />
         <p className="text-xs text-zinc-500">No saved designs yet.</p>
         <p className="text-xs text-zinc-600 mt-1">
-          Click <span className="font-medium text-zinc-400 bg-zinc-900 px-1 py-0.5 rounded">Save</span> in the header to persist the current design here.
+          Click <span className="font-medium text-zinc-400 bg-zinc-900 px-1 py-0.5 rounded-md">Save</span> in the header to persist the current design here.
         </p>
       </div>
     );
@@ -154,8 +155,8 @@ function SavedList({
                 if (confirm(`Delete saved design "${s.name || s.id}"?`)) onDelete(s.id);
               }}
               title={`Delete ${s.id}`}
-              className={`flex items-center justify-center rounded-md px-2 text-zinc-500 transition-colors hover:bg-red-500/15 hover:text-red-400 ${
-                active ? "bg-blue-500/5 hover:bg-red-500/15" : "bg-zinc-900/30"
+              className={`flex items-center justify-center rounded-md px-2 text-zinc-500 transition-colors hover:bg-rose-500/15 hover:text-rose-400 ${
+                active ? "bg-blue-500/5 hover:bg-rose-500/15" : "bg-zinc-900/30"
               }`}
             >
               ✕
@@ -250,7 +251,7 @@ function BoardsList({
           >
             <div className="truncate font-medium text-zinc-200">{b.name}</div>
             <div className="mt-1 flex items-center gap-1.5 truncate text-xs text-zinc-500">
-              <span className="rounded bg-zinc-800 px-1 py-0.5 font-medium text-zinc-400">{b.chip_variant}</span>
+              <span className="rounded-md bg-zinc-800 px-1 py-0.5 font-medium text-zinc-400">{b.chip_variant}</span>
               <span className="text-zinc-600">·</span>
               <span>{b.framework}</span>
               {b.flash_size_mb && (
@@ -318,24 +319,3 @@ function ComponentsList({
   );
 }
 
-function Loading() {
-  return (
-    <div className="flex items-center justify-center py-8 text-xs text-zinc-500">
-      <div className="flex items-center gap-2">
-        <span className="relative flex h-2 w-2">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-zinc-500 opacity-75"></span>
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-zinc-600"></span>
-        </span>
-        Loading...
-      </div>
-    </div>
-  );
-}
-
-function Empty({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex items-center justify-center py-8 text-center text-sm text-zinc-500">
-      {children}
-    </div>
-  );
-}

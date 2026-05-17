@@ -62,7 +62,7 @@ export function NewDesignDialog({ boards, onCancel, onAdopt }: Props) {
           </div>
           <button
             onClick={onCancel}
-            className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
+            className="rounded-md border border-zinc-800 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
           >
             Close
           </button>
@@ -76,7 +76,7 @@ export function NewDesignDialog({ boards, onCancel, onAdopt }: Props) {
               value={id}
               onChange={(e) => setId(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))}
               placeholder="new-device"
-              className="w-full rounded border border-zinc-800 bg-zinc-900 px-2 py-1.5 font-mono text-xs text-zinc-100 focus:border-zinc-600 focus:outline-none"
+              className="w-full rounded-md border border-zinc-800 bg-zinc-900 px-2 py-1.5 font-mono text-xs text-zinc-100 focus:border-zinc-600 focus:outline-none"
             />
             <p className="text-[11px] text-zinc-500">
               Used as the saved-design id and the ESPHome device name. Lowercase letters,
@@ -91,7 +91,7 @@ export function NewDesignDialog({ boards, onCancel, onAdopt }: Props) {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="New device"
-              className="w-full rounded border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+              className="w-full rounded-md border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
             />
           </div>
 
@@ -105,7 +105,7 @@ export function NewDesignDialog({ boards, onCancel, onAdopt }: Props) {
               <ul className="max-h-72 space-y-1.5 overflow-y-auto">
                 {boards.map((b) => (
                   <li key={b.id}>
-                    <label className="flex cursor-pointer items-center gap-3 rounded border border-zinc-800 bg-zinc-900/40 px-2 py-1.5 hover:bg-zinc-900">
+                    <label className="flex cursor-pointer items-center gap-3 rounded-md border border-zinc-800 bg-zinc-900/40 px-2 py-1.5 hover:bg-zinc-900">
                       <input
                         type="radio"
                         name="board"
@@ -122,10 +122,10 @@ export function NewDesignDialog({ boards, onCancel, onAdopt }: Props) {
                           onError={(e) => {
                             (e.currentTarget as HTMLImageElement).style.visibility = "hidden";
                           }}
-                          className="h-10 w-10 shrink-0 rounded bg-white/5 object-contain"
+                          className="h-10 w-10 shrink-0 rounded-md bg-white/5 object-contain"
                         />
                       ) : (
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-zinc-800/60 text-[9px] text-zinc-600">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-zinc-800/60 text-[9px] text-zinc-600">
                           no img
                         </div>
                       )}
@@ -146,14 +146,14 @@ export function NewDesignDialog({ boards, onCancel, onAdopt }: Props) {
           <div className="flex justify-end gap-2 pt-2">
             <button
               onClick={onCancel}
-              className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
+              className="rounded-md border border-zinc-800 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
             >
               Cancel
             </button>
             <button
               disabled={!pickedBoardId || !id.trim()}
               onClick={handleAdopt}
-              className="rounded bg-blue-500/20 px-3 py-1.5 text-sm text-blue-100 ring-1 ring-blue-400/40 enabled:hover:bg-blue-500/30 disabled:opacity-40"
+              className="rounded-md bg-blue-500/20 px-3 py-1.5 text-sm text-blue-100 ring-1 ring-blue-400/40 enabled:hover:bg-blue-500/30 disabled:opacity-40"
             >
               Create →
             </button>

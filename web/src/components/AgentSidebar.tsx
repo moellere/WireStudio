@@ -159,14 +159,14 @@ export function AgentSidebar({ open, design, onClose, onDesignReplaced }: Props)
           <button
             onClick={handleNewSession}
             disabled={messages.length === 0}
-            className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 enabled:hover:bg-zinc-900 disabled:opacity-40"
+            className="rounded-md border border-zinc-800 px-2 py-1 text-xs text-zinc-300 enabled:hover:bg-zinc-900 disabled:opacity-40"
             title="Start a fresh conversation"
           >
             New
           </button>
           <button
             onClick={onClose}
-            className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
+            className="rounded-md border border-zinc-800 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
           >
             Close
           </button>
@@ -175,7 +175,7 @@ export function AgentSidebar({ open, design, onClose, onDesignReplaced }: Props)
 
       <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-auto p-4 text-sm">
         {status && !status.available && (
-          <div className="rounded border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-100">
+          <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-100">
             <div className="mb-1 font-semibold">Agent unavailable</div>
             <div className="whitespace-pre-wrap">{status.reason}</div>
           </div>
@@ -203,16 +203,16 @@ export function AgentSidebar({ open, design, onClose, onDesignReplaced }: Props)
           rows={3}
           placeholder={status?.available ? "Ask the agent... (⌘/Ctrl+Enter)" : "Agent unavailable"}
           disabled={!status?.available || pending}
-          className="w-full resize-none rounded border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none disabled:opacity-50"
+          className="w-full resize-none rounded-md border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none disabled:opacity-50"
         />
         <div className="mt-2 flex items-center justify-between">
           <div className="text-[11px] text-zinc-500">
-            {error ? <span className="text-red-300">{error}</span> : "Edits go directly into the live design."}
+            {error ? <span className="text-rose-300">{error}</span> : "Edits go directly into the live design."}
           </div>
           <button
             onClick={handleSend}
             disabled={!status?.available || pending || !draft.trim()}
-            className="rounded bg-blue-500/20 px-3 py-1 text-xs text-blue-100 ring-1 ring-blue-400/40 enabled:hover:bg-blue-500/30 disabled:opacity-40"
+            className="rounded-md bg-blue-500/20 px-3 py-1 text-xs text-blue-100 ring-1 ring-blue-400/40 enabled:hover:bg-blue-500/30 disabled:opacity-40"
           >
             Send
           </button>
@@ -224,7 +224,7 @@ export function AgentSidebar({ open, design, onClose, onDesignReplaced }: Props)
 
 function Welcome() {
   return (
-    <div className="rounded border border-zinc-800 bg-zinc-900/50 p-3 text-xs text-zinc-400">
+    <div className="rounded-md border border-zinc-800 bg-zinc-900/50 p-3 text-xs text-zinc-400">
       <div className="mb-1.5 font-semibold text-zinc-200">Talk to the design</div>
       <p>The agent can search the library, add or remove components, set
       params, change boards, and edit connections. It edits your current
@@ -246,9 +246,9 @@ function Bubble({ message }: { message: ChatMessage }) {
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div
-        className={`max-w-[85%] rounded px-3 py-2 ${
+        className={`max-w-[85%] rounded-md px-3 py-2 ${
           message.isError
-            ? "border border-red-500/40 bg-red-500/10 text-red-200"
+            ? "border border-rose-500/40 bg-rose-500/10 text-rose-200"
             : isUser
               ? "bg-blue-500/15 text-blue-100 ring-1 ring-blue-400/30"
               : "bg-zinc-900 text-zinc-200 ring-1 ring-zinc-800"
@@ -263,7 +263,7 @@ function Bubble({ message }: { message: ChatMessage }) {
                 : tc.is_error ? "failed" : "ok";
               const palette = tc.is_error === undefined
                 ? "text-blue-300"
-                : tc.is_error ? "text-red-300" : "text-emerald-300";
+                : tc.is_error ? "text-rose-300" : "text-emerald-300";
               return (
                 <li key={tc.tool_use_id} className={palette}>
                   <span className="opacity-90">{tc.tool}({summarizeInput(tc.input)})</span>
@@ -291,7 +291,7 @@ function Bubble({ message }: { message: ChatMessage }) {
             </summary>
             <ul className="mt-1 space-y-1 font-mono">
               {message.toolCalls.map((tc, i) => (
-                <li key={i} className={tc.is_error ? "text-red-300" : "text-zinc-400"}>
+                <li key={i} className={tc.is_error ? "text-rose-300" : "text-zinc-400"}>
                   {tc.tool}({summarizeInput(tc.input)})
                 </li>
               ))}

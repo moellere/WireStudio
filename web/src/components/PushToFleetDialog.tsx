@@ -245,7 +245,7 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
           </div>
           <button
             onClick={onClose}
-            className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
+            className="rounded-md border border-zinc-800 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
           >
             Close
           </button>
@@ -253,7 +253,7 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
 
         <div className="space-y-4 p-4 text-sm">
           {/* Status section */}
-          <div className="rounded border border-zinc-800 bg-zinc-900/40 p-3">
+          <div className="rounded-md border border-zinc-800 bg-zinc-900/40 p-3">
             <div className="text-[11px] uppercase tracking-wide text-zinc-500">fleet status</div>
             {statusError ? (
               <div className="mt-1 text-xs text-rose-400">error: {statusError}</div>
@@ -267,8 +267,8 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
               <div className="mt-1 space-y-1 text-xs">
                 <div className="text-amber-300">unavailable: {status.reason || "unknown"}</div>
                 <div className="text-zinc-500">
-                  Set <code className="rounded bg-zinc-800 px-1">FLEET_URL</code> and{" "}
-                  <code className="rounded bg-zinc-800 px-1">FLEET_TOKEN</code> in the API server's
+                  Set <code className="rounded-md bg-zinc-800 px-1">FLEET_URL</code> and{" "}
+                  <code className="rounded-md bg-zinc-800 px-1">FLEET_TOKEN</code> in the API server's
                   environment, then restart it.
                 </div>
               </div>
@@ -286,7 +286,7 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
                 setDeviceName(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))
               }
               placeholder="garage-motion"
-              className="w-full rounded border border-zinc-800 bg-zinc-900 px-2 py-1.5 font-mono text-xs text-zinc-100 focus:border-zinc-600 focus:outline-none"
+              className="w-full rounded-md border border-zinc-800 bg-zinc-900 px-2 py-1.5 font-mono text-xs text-zinc-100 focus:border-zinc-600 focus:outline-none"
             />
             <p className="text-[11px] text-zinc-500">
               Will be saved on the fleet as <code>{deviceName.trim() || "<name>"}.yaml</code>.
@@ -295,14 +295,14 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
           </div>
 
           {strict && (
-            <div className="rounded border border-amber-700/40 bg-amber-900/15 px-3 py-2 text-[11px] text-amber-200">
+            <div className="rounded-md border border-amber-700/40 bg-amber-900/15 px-3 py-2 text-[11px] text-amber-200">
               Strict mode is on. The push will be refused if the design has any
               warn/error compatibility entries; resolve them or toggle strict
               off in the header to ship anyway.
             </div>
           )}
 
-          <label className="flex cursor-pointer items-start gap-2 rounded border border-zinc-800 bg-zinc-900/40 px-3 py-2">
+          <label className="flex cursor-pointer items-start gap-2 rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2">
             <input
               type="checkbox"
               checked={compile}
@@ -318,16 +318,16 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
           </label>
 
           {pushError && (
-            <div className="rounded border border-rose-700/50 bg-rose-900/20 px-3 py-2 text-xs text-rose-200">
+            <div className="rounded-md border border-rose-700/50 bg-rose-900/20 px-3 py-2 text-xs text-rose-200">
               {pushError}
             </div>
           )}
 
           {result && (
-            <div className="rounded border border-emerald-700/50 bg-emerald-900/20 px-3 py-2 text-xs text-emerald-100">
+            <div className="rounded-md border border-emerald-700/50 bg-emerald-900/20 px-3 py-2 text-xs text-emerald-100">
               <div>
                 {result.created ? "Created" : "Updated"}{" "}
-                <code className="rounded bg-emerald-900/40 px-1">{result.filename}</code> on the fleet.
+                <code className="rounded-md bg-emerald-900/40 px-1">{result.filename}</code> on the fleet.
               </div>
               {result.run_id && (
                 <div className="mt-1 text-emerald-200/80">
@@ -354,7 +354,7 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
               </div>
               <pre
                 ref={logScrollRef}
-                className="max-h-64 overflow-auto rounded border border-zinc-800 bg-black/60 p-2 font-mono text-[11px] leading-relaxed text-zinc-300"
+                className="max-h-64 overflow-auto rounded-md border border-zinc-800 bg-black/60 p-2 font-mono text-[11px] leading-relaxed text-zinc-300"
               >
                 {logText || (logError ? "" : "waiting for first chunk…")}
               </pre>
@@ -367,14 +367,14 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
           <div className="flex justify-end gap-2 pt-2">
             <button
               onClick={onClose}
-              className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
+              className="rounded-md border border-zinc-800 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
             >
               {result ? "Done" : "Cancel"}
             </button>
             <button
               disabled={!canPush}
               onClick={handlePush}
-              className="rounded bg-blue-500/20 px-3 py-1.5 text-sm text-blue-100 ring-1 ring-blue-400/40 enabled:hover:bg-blue-500/30 disabled:opacity-40"
+              className="rounded-md bg-blue-500/20 px-3 py-1.5 text-sm text-blue-100 ring-1 ring-blue-400/40 enabled:hover:bg-blue-500/30 disabled:opacity-40"
             >
               {pushing ? "Pushing…" : compile ? "Push & compile →" : "Push →"}
             </button>

@@ -54,7 +54,7 @@ export function EnclosureDialog({ design, boardLibraryId, boardName, onClose }: 
           </div>
           <button
             onClick={onClose}
-            className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
+            className="rounded-md border border-zinc-800 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
           >
             Close
           </button>
@@ -139,12 +139,12 @@ function GenerateTab({ design }: { design: Design }) {
       <button
         onClick={handleGenerate}
         disabled={downloading}
-        className="rounded bg-blue-500/20 px-3 py-1.5 text-sm text-blue-100 ring-1 ring-blue-400/40 enabled:hover:bg-blue-500/30 disabled:opacity-40"
+        className="rounded-md bg-blue-500/20 px-3 py-1.5 text-sm text-blue-100 ring-1 ring-blue-400/40 enabled:hover:bg-blue-500/30 disabled:opacity-40"
       >
         {downloading ? "Generating…" : downloaded ? "Downloaded ✓ — generate again" : "Generate enclosure →"}
       </button>
       {error && (
-        <div className="rounded border border-rose-700/40 bg-rose-900/15 px-2 py-1.5 text-xs text-rose-200">
+        <div className="rounded-md border border-rose-700/40 bg-rose-900/15 px-2 py-1.5 text-xs text-rose-200">
           {error}
         </div>
       )}
@@ -219,12 +219,12 @@ function SearchTab({ boardLibraryId, boardName }: { boardLibraryId: string; boar
             value={refinement}
             onChange={(e) => setRefinement(e.target.value)}
             placeholder={`e.g. battery, screw mount, slim`}
-            className="flex-1 rounded border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs text-zinc-100 focus:border-zinc-600 focus:outline-none"
+            className="flex-1 rounded-md border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs text-zinc-100 focus:border-zinc-600 focus:outline-none"
           />
           <button
             type="submit"
             disabled={searching}
-            className="rounded border border-zinc-800 px-2 py-1 text-xs text-zinc-300 enabled:hover:bg-zinc-900 disabled:opacity-40"
+            className="rounded-md border border-zinc-800 px-2 py-1 text-xs text-zinc-300 enabled:hover:bg-zinc-900 disabled:opacity-40"
           >
             {searching ? "Searching…" : "Search"}
           </button>
@@ -241,7 +241,7 @@ function SearchTab({ boardLibraryId, boardName }: { boardLibraryId: string; boar
           {sources.map((s) => (
             <div
               key={s.source}
-              className={`rounded border px-2 py-1 text-[11px] ${
+              className={`rounded-md border px-2 py-1 text-[11px] ${
                 s.available
                   ? "border-emerald-700/40 bg-emerald-900/15 text-emerald-200"
                   : "border-amber-700/40 bg-amber-900/15 text-amber-200"
@@ -258,13 +258,13 @@ function SearchTab({ boardLibraryId, boardName }: { boardLibraryId: string; boar
       )}
 
       {error && (
-        <div className="rounded border border-rose-700/40 bg-rose-900/15 px-2 py-1.5 text-xs text-rose-200">
+        <div className="rounded-md border border-rose-700/40 bg-rose-900/15 px-2 py-1.5 text-xs text-rose-200">
           {error}
         </div>
       )}
 
       {!anyAvailable && response && (
-        <div className="rounded border border-zinc-800 bg-zinc-900/30 px-3 py-2 text-xs text-zinc-400">
+        <div className="rounded-md border border-zinc-800 bg-zinc-900/30 px-3 py-2 text-xs text-zinc-400">
           No search source is configured. Set the env var listed in the source
           status above and restart the studio API to enable search.
         </div>
@@ -275,7 +275,7 @@ function SearchTab({ boardLibraryId, boardName }: { boardLibraryId: string; boar
           {results.map((r) => (
             <li
               key={`${r.source}:${r.id}`}
-              className="rounded border border-zinc-800 bg-zinc-900/40 p-2"
+              className="rounded-md border border-zinc-800 bg-zinc-900/40 p-2"
             >
               <div className="flex items-start gap-3">
                 {r.thumbnail_url && (
@@ -283,7 +283,7 @@ function SearchTab({ boardLibraryId, boardName }: { boardLibraryId: string; boar
                     <img
                       src={r.thumbnail_url}
                       alt=""
-                      className="h-20 w-20 shrink-0 rounded object-cover"
+                      className="h-20 w-20 shrink-0 rounded-md object-cover"
                       loading="lazy"
                     />
                   </a>
@@ -313,7 +313,7 @@ function SearchTab({ boardLibraryId, boardName }: { boardLibraryId: string; boar
 
       {!searching && response && results.length === 0 && anyAvailable && (
         <div className="text-xs text-zinc-500">
-          No matches for <code className="rounded bg-zinc-800 px-1">{response.query}</code>.
+          No matches for <code className="rounded-md bg-zinc-800 px-1">{response.query}</code>.
           Try a different refinement.
         </div>
       )}
