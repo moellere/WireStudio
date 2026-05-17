@@ -110,7 +110,7 @@ function renderControl(
           onChange={(e) => onChange(k, e.target.checked)}
           className="h-4 w-4 cursor-pointer"
         />
-        <span>{Boolean(current) ? "true" : "false"}</span>
+        <span>{current ? "true" : "false"}</span>
       </label>
     );
   }
