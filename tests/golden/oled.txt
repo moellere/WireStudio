@@ -3,7 +3,7 @@
 +-------------------------------------------------------------------+
 |  Rails: 5V, 3V3, GND                                              |
 |                                                                   |
-|  oled1  [SSD1306 OLED display (I2C)]  -- Status OLED              |
+|  oled1  [SSD1306 / SH1106 OLED display (I2C)]  -- Status OLED     |
 |    VCC   -> rail 3V3                                              |
 |    GND   -> rail GND                                              |
 |    SDA   -> i2c0 (D2)                                             |
@@ -17,7 +17,7 @@
 |                                                                   |
 |  BOM:                                                             |
 |    - WeMos D1 Mini                                                |
-|    - SSD1306 OLED display (I2C)  (oled1)                          |
+|    - SSD1306 / SH1106 OLED display (I2C)  (oled1)                 |
 |    - 1x 100nF capacitor                                           |
 |    - 2x 4.7k resistor                                             |
 |                                                                   |

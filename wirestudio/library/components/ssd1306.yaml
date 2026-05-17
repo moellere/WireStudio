@@ -1,7 +1,8 @@
 id: ssd1306
-name: SSD1306 OLED display (I2C)
+name: SSD1306 / SH1106 OLED display (I2C)
 category: display
 use_cases: [oled, display, status]
+aliases: [sh1106, sh1107, ssd1309, oled_1in3]
 
 electrical:
   vcc_min: 3.0
@@ -44,8 +45,17 @@ params_schema:
     type: string
     enum: ["0x3C", "0x3D"]
     default: "0x3C"
+  model:
+    type: string
+    enum:
+      - "SSD1306 128x64"
+      - "SSD1306 128x32"
+      - "SH1106 128x64"
+      - "SH1106 128x32"
+      - "SSD1309 128x64"
+    default: "SSD1306 128x64"
 
-notes: "Many breakouts ship with 10kohm pull-ups already. Verify before adding more."
+notes: "The same `ssd1306_i2c` platform drives the SSD1306 and SH1106 controllers -- pick via `model`. The cheap 0.96\" I2C OLED is SSD1306 128x64; the 1.3\" white OLED (including the EC11-encoder combo modules) is SH1106 128x64. Many breakouts ship with 10kohm pull-ups already; verify before adding more."
 # KiCad symbol mapping (0.9 schematic export). Module symbol for the
 # common 0.96" I2C breakout.
 kicad:
