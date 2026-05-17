@@ -174,6 +174,11 @@ def create_app(
 ) -> FastAPI:
     import os as _os
     lib = library or default_library()
+
+    # Pre-compute component and board summaries to avoid re-parsing YAML
+    # and re-allocating models on every request. The library is immutable.
+    _precomputed_components = [_component_summary(c) for c in lib.list_components()]
+    _precomputed_boards = [_board_summary(b) for b in lib.list_boards()]
     # SESSIONS_DIR / DESIGNS_DIR env vars let the Docker image point
     # the stores at a /data volume without the caller plumbing args
     # through. Falls back to the package-local default in dev.
@@ -261,7 +266,7 @@ def create_app(
 
     @app.get("/library/boards", response_model=list[BoardSummary], tags=["library"])
     def list_boards() -> list[BoardSummary]:
-        return [_board_summary(b) for b in lib.list_boards()]
+        return _precomputed_boards
 
     @app.get("/library/boards/{board_id}", response_model=LibraryBoard, tags=["library"])
     def get_board(board_id: str) -> LibraryBoard:
@@ -276,15 +281,18 @@ def create_app(
         use_case: Optional[str] = Query(default=None),
         bus: Optional[str] = Query(default=None, description="Required bus, e.g. i2c, spi, uart, i2s"),
     ) -> list[ComponentSummary]:
+        if not category and not use_case and not bus:
+            return _precomputed_components
+
         out: list[ComponentSummary] = []
-        for c in lib.list_components():
+        for c in _precomputed_components:
             if category and c.category != category:
                 continue
             if use_case and use_case not in c.use_cases:
                 continue
-            if bus and bus not in c.esphome.required_components:
+            if bus and bus not in c.required_components:
                 continue
-            out.append(_component_summary(c))
+            out.append(c)
         return out
 
     @app.get("/library/components/{component_id}", response_model=LibraryComponent, tags=["library"])
