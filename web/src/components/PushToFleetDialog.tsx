@@ -1,8 +1,23 @@
 import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../api/client";
-import type { Design, FleetPushResponse, FleetStatus } from "../types/api";
+import type { Design, FleetPushResponse, FleetRunStatus, FleetStatus } from "../types/api";
 
 const LOG_POLL_INTERVAL_MS = 1500;
+
+const VERDICT_STYLE: Record<string, string> = {
+  passed: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/40",
+  failed: "bg-rose-500/15 text-rose-300 ring-rose-500/40",
+  cancelled: "bg-amber-500/15 text-amber-300 ring-amber-500/40",
+  running: "bg-blue-500/15 text-blue-300 ring-blue-500/40",
+  unknown: "bg-zinc-700/40 text-zinc-400 ring-zinc-600/40",
+};
+const VERDICT_LABEL: Record<string, string> = {
+  passed: "Compile passed",
+  failed: "Compile failed",
+  cancelled: "Compile cancelled",
+  running: "Compiling…",
+  unknown: "Verdict unknown",
+};
 
 interface Props {
   design: Design;
@@ -15,9 +30,10 @@ interface Props {
 
 /**
  * "Push to fleet" modal. Renders the current design's YAML and POSTs it to
- * the distributed-esphome ha-addon configured via FLEET_URL/FLEET_TOKEN on
+ * the fleet-for-esphome ha-addon configured via FLEET_URL/FLEET_TOKEN on
  * the studio API. The user can optionally enqueue a compile in the same
- * round-trip.
+ * round-trip; when the build finishes the dialog surfaces the pass/fail
+ * verdict fetched from the addon's job queue.
  *
  * Status is fetched on open so we can disable the button + show why the
  * fleet isn't reachable when it isn't.
@@ -38,6 +54,7 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
   const [logFinished, setLogFinished] = useState<boolean>(false);
   const [logError, setLogError] = useState<string | null>(null);
   const [logTransport, setLogTransport] = useState<"sse" | "poll" | null>(null);
+  const [verdict, setVerdict] = useState<FleetRunStatus | null>(null);
   const logScrollRef = useRef<HTMLPreElement | null>(null);
   const pollAbortRef = useRef<{ stop: boolean }>({ stop: false });
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -69,6 +86,26 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
       logScrollRef.current.scrollTop = logScrollRef.current.scrollHeight;
     }
   }, [logText]);
+
+  // When the build log reaches a terminal state, fetch the compile
+  // verdict for the run. Best-effort: the log already shows what
+  // happened, so a verdict-fetch failure stays silent.
+  useEffect(() => {
+    const runId = result?.run_id;
+    if (!logFinished || !runId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const v = await api.fleetRunStatus(runId);
+        if (!cancelled) setVerdict(v);
+      } catch {
+        // verdict unavailable -- leave it unset
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [logFinished, result?.run_id]);
 
   /**
    * Open an EventSource against `/api/fleet/jobs/<runId>/log/stream` and
@@ -184,6 +221,7 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
     setPushing(true);
     setPushError(null);
     setResult(null);
+    setVerdict(null);
     try {
       const r = await api.fleetPush({
         design,
@@ -240,7 +278,7 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
           <div>
             <div className="text-sm font-semibold text-zinc-100">Push to fleet</div>
             <div className="text-xs text-zinc-500">
-              Send the rendered YAML to distributed-esphome (ha-addon).
+              Send the rendered YAML to fleet-for-esphome (ha-addon).
             </div>
           </div>
           <button
@@ -344,13 +382,23 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
                 <label className="block text-[11px] uppercase tracking-wide text-zinc-500">
                   build log
                 </label>
-                <span className="text-[11px] text-zinc-500">
-                  {logFinished
-                    ? "finished"
-                    : logError
-                      ? "stopped"
-                      : `tailing… ${logTransport === "sse" ? "(stream)" : logTransport === "poll" ? "(poll)" : ""}`}
-                </span>
+                {verdict ? (
+                  <span
+                    className={`rounded-md px-2 py-0.5 text-[11px] font-medium ring-1 ${
+                      VERDICT_STYLE[verdict.verdict] ?? VERDICT_STYLE.unknown
+                    }`}
+                  >
+                    {VERDICT_LABEL[verdict.verdict] ?? verdict.verdict}
+                  </span>
+                ) : (
+                  <span className="text-[11px] text-zinc-500">
+                    {logFinished
+                      ? "finished"
+                      : logError
+                        ? "stopped"
+                        : `tailing… ${logTransport === "sse" ? "(stream)" : logTransport === "poll" ? "(poll)" : ""}`}
+                  </span>
+                )}
               </div>
               <pre
                 ref={logScrollRef}

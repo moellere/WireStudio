@@ -39,6 +39,10 @@ class FakeFleetAddon:
         # run_id -> {log, finished}; tests mutate this directly to drive the
         # log-tail polling tests through compiling -> finished.
         self.job_logs: dict[str, dict] = {}
+        # Job rows surfaced by GET /ui/api/queue; tests append job dicts
+        # ({"id", "run_id", "state", "target", "finished_at"}) to drive the
+        # run-status verdict tests.
+        self.queue_jobs: list[dict] = []
 
     def transport(self) -> httpx.MockTransport:
         def handler(req: httpx.Request) -> httpx.Response:
@@ -90,6 +94,9 @@ class FakeFleetAddon:
                 self.compile_runs.append({"run_id": run_id, "targets": body.get("targets")})
                 self.job_logs.setdefault(run_id, {"log": "", "finished": False})
                 return httpx.Response(200, json={"run_id": run_id, "enqueued": 1})
+
+            if method == "GET" and path == "/ui/api/queue":
+                return httpx.Response(200, json=self.queue_jobs)
 
             if method == "GET" and path.startswith("/ui/api/jobs/") and path.endswith("/log"):
                 run_id = path[len("/ui/api/jobs/"):-len("/log")]
@@ -339,6 +346,82 @@ async def test_fleet_push_strict_blocks_on_compat_warning(monkeypatch, tmp_path)
     assert all(w["severity"] in ("warn", "error") for w in detail["warnings"])
     # The push must NOT have hit the addon when strict refuses.
     assert len(addon.compile_runs) == 0
+
+
+# ---------------------------------------------------------------------------
+# Compile-run status
+# ---------------------------------------------------------------------------
+
+async def test_get_run_status_passed():
+    addon = FakeFleetAddon()
+    addon.queue_jobs = [
+        {"id": "j1", "run_id": "run-7", "state": "success",
+         "target": "dev.yaml", "finished_at": "2026-05-17T00:00:00Z"},
+        {"id": "j0", "run_id": "other", "state": "failed", "target": "x.yaml"},
+    ]
+    status = await addon.make_client().get_run_status("run-7")
+    assert status.verdict == "passed"
+    assert [j.job_id for j in status.jobs] == ["j1"]
+
+
+async def test_get_run_status_failed_beats_success():
+    addon = FakeFleetAddon()
+    addon.queue_jobs = [
+        {"id": "a", "run_id": "r", "state": "success", "target": "a.yaml"},
+        {"id": "b", "run_id": "r", "state": "failed", "target": "b.yaml"},
+    ]
+    assert (await addon.make_client().get_run_status("r")).verdict == "failed"
+
+
+async def test_get_run_status_running_while_in_flight():
+    addon = FakeFleetAddon()
+    addon.queue_jobs = [
+        {"id": "a", "run_id": "r", "state": "success", "target": "a.yaml"},
+        {"id": "b", "run_id": "r", "state": "working", "target": "b.yaml"},
+    ]
+    assert (await addon.make_client().get_run_status("r")).verdict == "running"
+
+
+async def test_get_run_status_unknown_when_not_in_queue():
+    addon = FakeFleetAddon()
+    status = await addon.make_client().get_run_status("ghost")
+    assert status.verdict == "unknown"
+    assert status.jobs == []
+
+
+async def test_get_run_status_unconfigured_raises():
+    with pytest.raises(FleetUnavailable):
+        await FleetClient(base_url="", token="").get_run_status("r")
+
+
+async def test_fleet_job_status_unconfigured_returns_503(monkeypatch, tmp_path):
+    client = _make_client(monkeypatch, tmp_path, addon=None)
+    r = client.get("/fleet/jobs/run-1")
+    assert r.status_code == 503
+    assert "FLEET_URL" in r.json()["detail"]
+
+
+async def test_fleet_job_status_verdict(monkeypatch, tmp_path):
+    addon = FakeFleetAddon()
+    addon.queue_jobs = [
+        {"id": "j1", "run_id": "run-1", "state": "success",
+         "target": "garage-motion.yaml", "finished_at": "2026-05-17T00:00:00Z"},
+    ]
+    client = _make_client(monkeypatch, tmp_path, addon=addon)
+    r = client.get("/fleet/jobs/run-1")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["verdict"] == "passed"
+    assert body["jobs"][0]["job_id"] == "j1"
+    assert body["jobs"][0]["state"] == "success"
+
+
+async def test_fleet_job_status_unknown_run(monkeypatch, tmp_path):
+    addon = FakeFleetAddon()
+    client = _make_client(monkeypatch, tmp_path, addon=addon)
+    r = client.get("/fleet/jobs/ghost")
+    assert r.status_code == 200
+    assert r.json()["verdict"] == "unknown"
 
 
 # ---------------------------------------------------------------------------

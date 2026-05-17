@@ -10,6 +10,7 @@ import type {
   ExampleSummary,
   FleetJobLogResponse,
   FleetPushResponse,
+  FleetRunStatus,
   FleetStatus,
   KicadRenderStatus,
   RecommendConstraints,
@@ -149,6 +150,8 @@ export const api = {
     request<FleetJobLogResponse>(
       `/fleet/jobs/${encodeURIComponent(runId)}/log?offset=${offset}`,
     ),
+  fleetRunStatus: (runId: string) =>
+    request<FleetRunStatus>(`/fleet/jobs/${encodeURIComponent(runId)}`),
 
   listUseCases: () => request<UseCaseEntry[]>("/library/use_cases"),
   recommend: (body: { query: string; limit?: number; constraints?: RecommendConstraints }) =>

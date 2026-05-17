@@ -491,16 +491,18 @@ testing surfaced two strategic items below.)
    ESPHome).** Surfaced 2026-05-16. Push-to-fleet can already
    stream a build log, but the studio never surfaces a clean
    verdict — *did the compile succeed?* Close that loop.
-   - *Structured fleet result.* When a push runs with
-     `compile: true`, capture a pass/fail status (plus an
-     error summary on failure) from
-     `weirded/fleet-for-esphome` and show it on the design as
-     a badge / banner, not just a log the user has to read. A
-     `GET /fleet/jobs/{run_id}` status endpoint complements
-     the existing `/fleet/jobs/{run_id}/log` relay so a past
-     run can be re-checked, not only watched live. Needs the
-     addon to expose a terminal job status — coordinate the
-     contract with that repo.
+   - *Structured fleet result — shipped (PR #TBD, 2026-05-17).*
+     `FleetClient.get_run_status` reads the addon's
+     `GET /ui/api/queue`, matches jobs by `run_id`, and
+     aggregates their `JobState`s into a verdict
+     (running / passed / failed / cancelled / unknown). New
+     `GET /fleet/jobs/{run_id}` endpoint complements the
+     existing `/log` relay so a run can be re-checked. The
+     Push-to-fleet dialog fetches the verdict when the build
+     log finishes and shows a coloured pass/fail badge. The
+     contract was taken from the `weirded/fleet-for-esphome`
+     repo (no addon change needed — `/ui/api/queue` already
+     carries `run_id` + terminal state).
    - *Plain-ESPHome users.* Not everyone runs the fleet
      addon. Give the same did-it-compile signal to users who
      run `esphome` themselves — e.g. an opt-in local

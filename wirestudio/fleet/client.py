@@ -43,6 +43,45 @@ class JobLogChunk:
     finished: bool    # True once the job is in a terminal state
 
 
+@dataclass
+class JobStatus:
+    """One addon job belonging to a compile run."""
+    job_id: str
+    target: str
+    state: str                      # addon JobState: pending/working/success/...
+    finished_at: Optional[str] = None
+
+
+@dataclass
+class RunStatus:
+    """Compile verdict for a run_id, aggregated from the addon's queue."""
+    run_id: str
+    verdict: str                    # running | passed | failed | cancelled | unknown
+    jobs: list[JobStatus]
+
+
+# Addon JobState values, grouped. A run with any in-flight job is still
+# `running`; once every job is terminal a failure beats a cancellation
+# beats success.
+_IN_FLIGHT_STATES = {"pending", "working", "blocked"}
+_FAILED_STATES = {"failed", "timed_out"}
+
+
+def _verdict(jobs: list[JobStatus]) -> str:
+    if not jobs:
+        return "unknown"
+    states = {j.state for j in jobs}
+    if states & _IN_FLIGHT_STATES:
+        return "running"
+    if states & _FAILED_STATES:
+        return "failed"
+    if "cancelled" in states:
+        return "cancelled"
+    if states <= {"success"}:
+        return "passed"
+    return "unknown"
+
+
 class FleetUnavailable(RuntimeError):
     """Raised when the fleet endpoint is missing config or unreachable."""
 
@@ -208,6 +247,40 @@ class FleetClient:
             offset=int(body.get("offset", offset)),
             finished=bool(body.get("finished", False)),
         )
+
+    # ------------------------------------------------------------------
+    # Compile-run status
+    # ------------------------------------------------------------------
+
+    async def get_run_status(self, run_id: str) -> RunStatus:
+        """Aggregate the addon's job queue for ``run_id`` into a verdict.
+
+        Reads ``GET /ui/api/queue`` and matches jobs by ``run_id``. The
+        queue keeps terminal jobs until they're cleared/coalesced, so a
+        run checked soon after its compile resolves to passed/failed; a
+        run that has aged out of the queue comes back as ``unknown``.
+        """
+        if not self.is_configured():
+            raise FleetUnavailable("FLEET_URL or FLEET_TOKEN missing")
+        async with self._client() as c:
+            resp = await c.get("/ui/api/queue")
+        if resp.status_code >= 400:
+            raise FleetUnavailable(
+                f"queue fetch failed: http {resp.status_code} {resp.text}"
+            )
+        body = resp.json()
+        rows = body if isinstance(body, list) else body.get("jobs", []) or []
+        jobs = [
+            JobStatus(
+                job_id=str(j.get("id", "")),
+                target=str(j.get("target", "")),
+                state=str(j.get("state", "")),
+                finished_at=j.get("finished_at"),
+            )
+            for j in rows
+            if isinstance(j, dict) and j.get("run_id") == run_id
+        ]
+        return RunStatus(run_id=run_id, verdict=_verdict(jobs), jobs=jobs)
 
     # ------------------------------------------------------------------
     # Internals

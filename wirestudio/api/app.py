@@ -39,8 +39,10 @@ from wirestudio.api.schemas import (
     ComponentSummary,
     ExampleSummary,
     FleetJobLogResponse,
+    FleetJobStatus,
     FleetPushRequest,
     FleetPushResponse,
+    FleetRunStatus,
     FleetStatus,
     PinAssignment,
     Recommendation as RecommendationWire,
@@ -785,6 +787,36 @@ def create_app(
             raise HTTPException(status_code=502, detail=str(e)) from e
         return FleetJobLogResponse(
             log=chunk.log, offset=chunk.offset, finished=chunk.finished,
+        )
+
+    @app.get("/fleet/jobs/{run_id}", response_model=FleetRunStatus, tags=["fleet"])
+    async def fleet_job_status(run_id: str) -> FleetRunStatus:
+        """Compile verdict for a Push-to-fleet run: did the build pass?
+
+        Aggregates the addon's job queue for `run_id`. `verdict` is
+        running / passed / failed / cancelled, or `unknown` once the run
+        has aged out of the addon's queue.
+        """
+        fc = make_fleet()
+        if not fc.is_configured():
+            raise HTTPException(
+                status_code=503,
+                detail="fleet not configured (set FLEET_URL and FLEET_TOKEN)",
+            )
+        try:
+            status = await fc.get_run_status(run_id)
+        except FleetUnavailable as e:
+            raise HTTPException(status_code=502, detail=str(e)) from e
+        return FleetRunStatus(
+            run_id=status.run_id,
+            verdict=status.verdict,
+            jobs=[
+                FleetJobStatus(
+                    job_id=j.job_id, target=j.target,
+                    state=j.state, finished_at=j.finished_at,
+                )
+                for j in status.jobs
+            ],
         )
 
     @app.get("/fleet/jobs/{run_id}/log/stream", tags=["fleet"])
