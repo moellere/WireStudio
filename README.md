@@ -22,7 +22,7 @@ Detailed docs live in [`docs/`](docs/):
 
 ## Status
 
-`v0.10.0` — on PyPI (`pip install wirestudio`). The studio has wide
+`v0.11.0` — on PyPI (`pip install wirestudio`). The studio has wide
 surface area (YAML, schematic, enclosure, agent, MCP server, fleet
 handoff, web UI) and a narrow set of things actually verified against
 upstream tools. This section is honest about which is which, ordered
@@ -62,7 +62,7 @@ that pin moves, this line moves with it.
 docker run --rm -p 8765:8765 \
   -e ANTHROPIC_API_KEY=sk-ant-... \
   -v wirestudio-data:/data \
-  ghcr.io/moellere/wirestudio:v0.10.0
+  ghcr.io/moellere/wirestudio:v0.11.0
 ```
 
 Open <http://localhost:8765>. The image bundles the FastAPI server +

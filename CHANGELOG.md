@@ -7,7 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-(no changes since v0.10.0)
+(no changes since v0.11.0)
+
+## [0.11.0] — 2026-05-17
+
+Headline: composite modules, a KiCad schematic renderer, a JLCPCB
+feasibility check, a redesigned web UI, and a much wider board library.
+
+### Added
+
+- **Composite modules.** A `library/modules/<id>.yaml` bundles several
+  components under one part. Selecting it inserts every component at
+  once, each stamped with module provenance, and the BOM collapses the
+  bundle to a single line. The web picker gains a "Modules" tab; new
+  endpoints `GET /library/modules{,/id}` and `POST /design/insert_module`.
+  First module: the 1.3" OLED + EC11 encoder combo.
+- **KiCad schematic render.** `POST /design/kicad/schematic` and an
+  inline web preview render a design to a KiCad sheet via `kicad-cli`.
+  (Phase 2.)
+- **JLCPCB feasibility check.** `wirestudio.jlcpcb` cross-checks the BOM
+  against JLCPCB part stock and price. (Phase 2.)
+- **Compile-status feedback.** Push-to-fleet runs report a compile
+  verdict (running / passed / failed) polled from fleet-for-esphome.
+- **Board library expansion.** M5Stack Atom-family boards (Atom, Atom
+  Matrix, Atom Echo, AtomU, AtomS3, AtomS3 Lite) with bundled examples,
+  and the ESP32 C3 / S3 / C6 SuperMini boards. Boards now carry an
+  optional product image, surfaced in the board picker.
+- **OLED + encoder library.** SH1106 support via a `model` param on the
+  ssd1306 component, plus an OLED-knob example.
+
+### Changed
+
+- **Web UI redesign.** Reworked header, left sidebar, and inspector,
+  followed by a polish pass on error states, loading/empty
+  placeholders, and copy. The board picker is grouped by chip family.
+- **Performance.** Library summaries are pre-computed at load; the
+  PinoutView memoizes its derived state to cut re-renders.
+- **Docs.** Project documentation moved into `docs/`.
+
+### Security
+
+- Fixed a path-traversal vulnerability in the `/examples` endpoint.
+- Restricted the previously over-permissive CORS policy to known
+  origins.
+
+### Fixed
+
+- The Library Component inspector read the wrong field for notes.
 
 ## [0.10.0] — 2026-05-16
 
@@ -253,6 +299,7 @@ ConnectionForm, EnclosureDialog, Inspector, CapabilityPickerDialog,
 PinoutView, PushToFleetDialog, SchematicDialog. ruff + tsc + vite
 build clean across the whole arc.
 
-[Unreleased]: https://github.com/moellere/wirestudio/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/moellere/wirestudio/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/moellere/wirestudio/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/moellere/wirestudio/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/moellere/wirestudio/releases/tag/v0.9.0
