@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { BoardSummary, Design } from "../types/api";
 import { bootstrapDesign } from "../lib/bootstrap";
 
@@ -7,6 +7,10 @@ interface Props {
   onCancel: () => void;
   onAdopt: (design: Design) => void;
 }
+
+// Group the picker by chip family: esp8266 first, then esp32; within a
+// family, by name.
+const MCU_ORDER: Record<string, number> = { esp8266: 0, esp32: 1 };
 
 /**
  * Manual "New design" picker. Same payload shape as the USB detect flow,
@@ -18,12 +22,21 @@ export function NewDesignDialog({ boards, onCancel, onAdopt }: Props) {
   const [name, setName] = useState<string>("New device");
   const [id, setId] = useState<string>("new-device");
 
+  const sortedBoards = useMemo(() => {
+    if (!boards) return boards;
+    return [...boards].sort((a, b) => {
+      const ra = MCU_ORDER[a.mcu] ?? 99;
+      const rb = MCU_ORDER[b.mcu] ?? 99;
+      return ra - rb || a.name.localeCompare(b.name);
+    });
+  }, [boards]);
+
   // Default to the first board once the list arrives.
   useEffect(() => {
-    if (boards && boards.length > 0 && !pickedBoardId) {
-      setPickedBoardId(boards[0].id);
+    if (sortedBoards && sortedBoards.length > 0 && !pickedBoardId) {
+      setPickedBoardId(sortedBoards[0].id);
     }
-  }, [boards, pickedBoardId]);
+  }, [sortedBoards, pickedBoardId]);
 
   function handleAdopt() {
     if (!boards) return;
@@ -97,13 +110,13 @@ export function NewDesignDialog({ boards, onCancel, onAdopt }: Props) {
 
           <div className="space-y-1">
             <label className="block text-[11px] uppercase tracking-wide text-zinc-500">board</label>
-            {boards === null ? (
+            {sortedBoards === null ? (
               <div className="text-xs text-zinc-500">loading boards…</div>
-            ) : boards.length === 0 ? (
+            ) : sortedBoards.length === 0 ? (
               <div className="text-xs text-zinc-500">no boards in the library</div>
             ) : (
               <ul className="max-h-72 space-y-1.5 overflow-y-auto">
-                {boards.map((b) => (
+                {sortedBoards.map((b) => (
                   <li key={b.id}>
                     <label className="flex cursor-pointer items-center gap-3 rounded-md border border-zinc-800 bg-zinc-900/40 px-2 py-1.5 hover:bg-zinc-900">
                       <input
