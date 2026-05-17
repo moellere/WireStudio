@@ -1,0 +1,54 @@
+id: esp32-c6-supermini
+name: ESP32-C6 SuperMini
+mcu: esp32
+chip_variant: esp32c6
+framework: esp-idf
+platformio_board: esp32-c6-devkitc-1
+flash_size_mb: 4
+
+rails:
+  - {name: "5V",  voltage: 5.0, source: usb}
+  - {name: "3V3", voltage: 3.3, source: onboard_regulator}
+  - {name: "GND", voltage: 0.0}
+
+# ESP32-C6 board with USB-C and WiFi 6 / BLE / 802.15.4 (Zigbee+Thread).
+# ESPHome requires the esp-idf framework for the C6. Native USB-Serial-
+# JTAG lives on GPIO12/13 and is the only serial path -- those pins and
+# UART0 (GPIO16/17) are NOT broken out. Strap pins:
+#   GPIO8  = onboard WS2812 LED. Must be HIGH at boot.
+#   GPIO9  = BOOT button (active low). Must be HIGH at boot.
+#   GPIO15 = ROM print control. Must be HIGH at boot.
+# The C6 has a single ADC unit (ADC1) on GPIO0-GPIO6.
+default_buses:
+  i2c: {sda: GPIO8, scl: GPIO9}
+  spi: {clk: GPIO6, miso: GPIO5, mosi: GPIO7}
+
+onboard_peripherals:
+  led_ws2812: {pin: GPIO8}
+  boot_button: {pin: GPIO9, inverted: true}
+
+gpio_capabilities:
+  GPIO0:  [gpio, adc, adc1]
+  GPIO1:  [gpio, adc, adc1]
+  GPIO2:  [gpio, adc, adc1]
+  GPIO3:  [gpio, adc, adc1]
+  GPIO4:  [gpio, adc, adc1, pwm]
+  GPIO5:  [gpio, adc, adc1, spi_miso, pwm]
+  GPIO6:  [gpio, adc, adc1, spi_clk, pwm]
+  GPIO7:  [gpio, spi_mosi, pwm]
+  GPIO8:  [gpio, strap, boot_high, builtin_led, i2c_sda]
+  GPIO9:  [gpio, strap, boot_high, button, i2c_scl]
+  GPIO14: [gpio, pwm]
+  GPIO15: [gpio, strap, boot_high]
+  GPIO18: [gpio, pwm]
+  GPIO19: [gpio, pwm]
+  GPIO20: [gpio, pwm]
+  GPIO21: [gpio, pwm]
+  GPIO22: [gpio, pwm]
+  GPIO23: [gpio, pwm]
+# KiCad symbol mapping. Castellated board, modelled as a 2x11 header
+# until KiCad ships a dedicated SuperMini module symbol.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_02x11_Odd_Even
+  value: ESP32-C6-SuperMini
