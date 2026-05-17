@@ -25,6 +25,15 @@ export interface ComponentSummary {
   current_ma_peak: number | null;
 }
 
+export interface ModuleSummary {
+  id: string;
+  name: string;
+  category: string;
+  description: string | null;
+  use_cases: string[];
+  component_count: number;
+}
+
 export interface ExampleSummary {
   id: string;
   name: string;

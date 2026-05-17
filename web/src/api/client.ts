@@ -13,6 +13,7 @@ import type {
   FleetRunStatus,
   FleetStatus,
   KicadRenderStatus,
+  ModuleSummary,
   RecommendConstraints,
   RecommendResponse,
   UseCaseEntry,
@@ -83,6 +84,13 @@ export const api = {
     return request<ComponentSummary[]>(`/library/components${suffix}`);
   },
   getComponent: (id: string) => request<unknown>(`/library/components/${encodeURIComponent(id)}`),
+
+  listModules: () => request<ModuleSummary[]>("/library/modules"),
+  insertModule: (design: Design, moduleId: string) =>
+    request<Design>(
+      `/design/insert_module?module_id=${encodeURIComponent(moduleId)}`,
+      { method: "POST", body: JSON.stringify(design) },
+    ),
 
   listExamples: () => request<ExampleSummary[]>("/examples"),
   getExample: (id: string) => request<Design>(`/examples/${encodeURIComponent(id)}`),
