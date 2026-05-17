@@ -354,3 +354,20 @@ def test_list_use_cases_includes_known_capabilities(client):
     flat = {(row["use_case"], lib_id) for row in r for lib_id in row["example_components"]}
     assert ("motion", "hc-sr501") in flat
     assert any(uc == "temperature" and lib == "bme280" for uc, lib in flat)
+
+def test_get_example_path_traversal(client):
+    # Attempt to use path traversal
+    r = client.get("/examples/..%2f..%2fetc%2fpasswd")
+    assert r.status_code == 404
+
+    # Attempt to use absolute path
+    r = client.get("/examples/%2fetc%2fpasswd")
+    assert r.status_code == 404
+
+    # Attempt to use forward slash
+    r = client.get("/examples/some%2ffolder")
+    assert r.status_code == 404
+
+    # Attempt to use backslash
+    r = client.get("/examples/some%5cfolder")
+    assert r.status_code == 404

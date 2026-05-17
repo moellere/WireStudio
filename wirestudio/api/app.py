@@ -524,9 +524,13 @@ def create_app(
 
     @app.get("/examples/{example_id}", tags=["examples"])
     def get_example(example_id: str) -> dict:
-        path = EXAMPLES_DIR / f"{example_id}.json"
-        if not path.exists():
+        if "/" in example_id or "\\" in example_id:
             raise HTTPException(status_code=404, detail=f"Unknown example '{example_id}'")
+
+        path = (EXAMPLES_DIR / f"{example_id}.json").resolve()
+        if not path.is_relative_to(EXAMPLES_DIR.resolve()) or not path.exists():
+            raise HTTPException(status_code=404, detail=f"Unknown example '{example_id}'")
+
         return json.loads(path.read_text())
 
     # ---------------------------------------------------------------------
