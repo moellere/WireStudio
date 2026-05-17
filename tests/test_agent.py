@@ -218,6 +218,32 @@ def test_validate_fails_on_missing_field(lib):
     assert body["ok"] is False
 
 
+def test_validate_catches_value_error(lib, garage_motion_design):
+    # Mutate the design to create a ValueError condition during render:
+    # A connection references an expander that does not exist in components.
+    garage_motion_design["connections"].append({
+        "component_id": "pir1",
+        "pin_role": "OUT",
+        "target": {"kind": "expander_pin", "expander_id": "ghost_expander", "number": 1}
+    })
+
+    out, is_error = execute_tool("validate", {}, garage_motion_design, lib)
+    assert is_error is False
+    body = json.loads(out)
+    assert body["ok"] is False
+    assert body.get("schema_ok") is True
+    assert "error" in body
+    assert "unknown expander 'ghost_expander'" in body["error"]
+
+
+def test_validate_catches_exception(lib):
+    out, is_error = execute_tool("validate", {}, None, lib)
+    assert is_error is False
+    body = json.loads(out)
+    assert body["ok"] is False
+    assert "error" in body
+
+
 def test_unknown_tool_is_error(lib):
     out, is_error = execute_tool("set_anything", {}, {}, lib)
     assert is_error is True
@@ -370,3 +396,11 @@ def test_serialize_unknown_block_falls_back_to_model_dump():
 
     out = _serialize_assistant_block(_Future())
     assert out == {"type": "thinking", "thought": "..."}
+
+
+def test_render_catches_exception(lib):
+    out, is_error = execute_tool("render", {}, None, lib)
+    assert is_error is False
+    body = json.loads(out)
+    assert body["ok"] is False
+    assert "error" in body
