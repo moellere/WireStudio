@@ -235,3 +235,20 @@ class FleetJobLogResponse(_S):
     log: str = Field(description="Compile log text from the requested offset.")
     offset: int = Field(description="Byte offset to pass on the next poll to resume the log.")
     finished: bool = Field(description="True when the compile job has finished.")
+
+
+class FleetJobStatus(_S):
+    job_id: str = Field(description="Addon job id.")
+    target: str = Field(description="YAML filename the job compiled.")
+    state: str = Field(description="Addon job state: pending/working/success/failed/timed_out/cancelled.")
+    finished_at: Optional[str] = Field(default=None, description="ISO timestamp the job reached a terminal state.")
+
+
+class FleetRunStatus(_S):
+    run_id: str = Field(description="Compile run id from the Push-to-fleet response.")
+    verdict: str = Field(
+        description="Aggregated compile verdict: running | passed | failed | cancelled | unknown."
+    )
+    jobs: list[FleetJobStatus] = Field(
+        description="Per-target jobs belonging to the run; empty when the run has aged out of the queue."
+    )

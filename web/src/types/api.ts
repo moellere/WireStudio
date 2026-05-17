@@ -154,6 +154,20 @@ export interface FleetJobLogResponse {
   finished: boolean;
 }
 
+export interface FleetJobStatus {
+  job_id: string;
+  target: string;
+  state: string;
+  finished_at: string | null;
+}
+
+export interface FleetRunStatus {
+  run_id: string;
+  /** running | passed | failed | cancelled | unknown */
+  verdict: string;
+  jobs: FleetJobStatus[];
+}
+
 export interface UseCaseEntry {
   use_case: string;
   count: number;

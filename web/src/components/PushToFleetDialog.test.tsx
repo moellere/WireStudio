@@ -26,6 +26,7 @@ vi.mock("../api/client", async () => {
       fleetStatus: vi.fn(),
       fleetPush: vi.fn(),
       fleetJobLog: vi.fn(),
+      fleetRunStatus: vi.fn(),
     },
   };
 });
@@ -34,6 +35,7 @@ const mockApi = api as unknown as {
   fleetStatus: ReturnType<typeof vi.fn>;
   fleetPush: ReturnType<typeof vi.fn>;
   fleetJobLog: ReturnType<typeof vi.fn>;
+  fleetRunStatus: ReturnType<typeof vi.fn>;
 };
 
 const design: Design = {
@@ -53,6 +55,7 @@ beforeEach(() => {
   mockApi.fleetStatus.mockReset();
   mockApi.fleetPush.mockReset();
   mockApi.fleetJobLog.mockReset();
+  mockApi.fleetRunStatus.mockReset();
 });
 
 describe("status + push gating", () => {
@@ -135,6 +138,31 @@ describe("build-log polling", () => {
     expect(mockApi.fleetJobLog).toHaveBeenCalledWith("run-42", 0);
     // Polling stops once finished; only one call.
     expect(mockApi.fleetJobLog).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the compile verdict once the log finishes", async () => {
+    mockApi.fleetStatus.mockResolvedValue({ available: true, reason: null, url: "http://addon" });
+    mockApi.fleetPush.mockResolvedValue({
+      filename: "garage-motion.yaml",
+      created: false,
+      run_id: "run-v",
+      enqueued: 1,
+    });
+    mockApi.fleetJobLog.mockResolvedValueOnce({ log: "build ok\n", offset: 9, finished: true });
+    mockApi.fleetRunStatus.mockResolvedValue({
+      run_id: "run-v",
+      verdict: "passed",
+      jobs: [{ job_id: "j1", target: "garage-motion.yaml", state: "success", finished_at: null }],
+    });
+    render(<PushToFleetDialog design={design} onClose={() => {}} />);
+    const pushBtn = await screen.findByRole("button", { name: /^Push/i });
+    await waitFor(() => expect(pushBtn).not.toBeDisabled());
+    await userEvent.click(screen.getByRole("checkbox", { name: /compile after upload/i }));
+    await userEvent.click(pushBtn);
+
+    await waitFor(() => screen.getByText(/build ok/));
+    await waitFor(() => expect(mockApi.fleetRunStatus).toHaveBeenCalledWith("run-v"));
+    await waitFor(() => screen.getByText(/Compile passed/));
   });
 });
 
