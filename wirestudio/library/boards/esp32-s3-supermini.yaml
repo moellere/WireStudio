@@ -1,0 +1,69 @@
+id: esp32-s3-supermini
+name: ESP32-S3 SuperMini
+mcu: esp32
+chip_variant: esp32s3
+framework: arduino
+platformio_board: esp32-s3-devkitm-1
+flash_size_mb: 4
+
+rails:
+  - {name: "5V",  voltage: 5.0, source: usb}
+  - {name: "3V3", voltage: 3.3, source: onboard_regulator}
+  - {name: "GND", voltage: 0.0}
+
+# Small ESP32-S3 board (4MB flash, no PSRAM) with USB-C. Native USB
+# lives on GPIO19/20 and is the only serial path -- those pins plus
+# UART0 (GPIO43/44) are NOT broken out. Strap pins:
+#   GPIO0  = boot mode. Tied to the BOOT button.
+#   GPIO45 = VDD_SPI voltage select.
+#   GPIO46 = ROM print control.
+# ADC1 covers GPIO1-GPIO10; ADC2 covers GPIO11-GPIO18 and is unusable
+# while WiFi is active. Prefer ADC1.
+default_buses:
+  i2c: {sda: GPIO8, scl: GPIO9}
+  spi: {clk: GPIO12, miso: GPIO13, mosi: GPIO11}
+
+onboard_peripherals:
+  led_ws2812: {pin: GPIO48}
+  boot_button: {pin: GPIO0, inverted: true}
+
+gpio_capabilities:
+  GPIO0:  [gpio, strap, boot_high, button]
+  GPIO1:  [gpio, adc, adc1, pwm]
+  GPIO2:  [gpio, adc, adc1, pwm]
+  GPIO3:  [gpio, adc, adc1, pwm]
+  GPIO4:  [gpio, adc, adc1, pwm]
+  GPIO5:  [gpio, adc, adc1, pwm]
+  GPIO6:  [gpio, adc, adc1, pwm]
+  GPIO7:  [gpio, adc, adc1, pwm]
+  GPIO8:  [gpio, adc, adc1, i2c_sda, pwm]
+  GPIO9:  [gpio, adc, adc1, i2c_scl, pwm]
+  GPIO10: [gpio, adc, adc1, pwm]
+  GPIO11: [gpio, adc, adc2, spi_mosi, pwm]
+  GPIO12: [gpio, adc, adc2, spi_clk, pwm]
+  GPIO13: [gpio, adc, adc2, spi_miso, pwm]
+  GPIO14: [gpio, adc, adc2, pwm]
+  GPIO15: [gpio, adc, adc2, pwm]
+  GPIO16: [gpio, adc, adc2, pwm]
+  GPIO17: [gpio, adc, adc2, pwm]
+  GPIO18: [gpio, adc, adc2, pwm]
+  GPIO21: [gpio, pwm]
+  GPIO33: [gpio, pwm]
+  GPIO34: [gpio, pwm]
+  GPIO35: [gpio, pwm]
+  GPIO36: [gpio, pwm]
+  GPIO37: [gpio, pwm]
+  GPIO38: [gpio, pwm]
+  GPIO39: [gpio, pwm]
+  GPIO40: [gpio, pwm]
+  GPIO41: [gpio, pwm]
+  GPIO45: [gpio, strap, boot_low, pwm]
+  GPIO46: [gpio, strap, boot_low, pwm]
+  GPIO47: [gpio, pwm]
+  GPIO48: [gpio, builtin_led, pwm]
+# KiCad symbol mapping. Castellated board, modelled as a 2x14 header
+# until KiCad ships a dedicated SuperMini module symbol.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_02x14_Odd_Even
+  value: ESP32-S3-SuperMini
