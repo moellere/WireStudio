@@ -13,7 +13,7 @@
 |    RST   -> GPIO23                                                                                             |
 |    DIO0  -> GPIO26                                                                                             |
 |                                                                                                                |
-|  screen  [SSD1306 OLED display (I2C)]  -- TTGO OLED                                                            |
+|  screen  [SSD1306 / SH1106 OLED display (I2C)]  -- TTGO OLED                                                   |
 |    VCC   -> rail 3V3                                                                                           |
 |    GND   -> rail GND                                                                                           |
 |    SDA   -> i2c0 (GPIO21)                                                                                      |
@@ -26,7 +26,7 @@
 |  BOM:                                                                                                          |
 |    - TTGO LoRa32 V1 (T3)                                                                                       |
 |    - Semtech SX1276/SX1278 LoRa radio (SPI)  (lora)                                                            |
-|    - SSD1306 OLED display (I2C)  (screen)                                                                      |
+|    - SSD1306 / SH1106 OLED display (I2C)  (screen)                                                             |
 |    - 1x 10uF capacitor                                                                                         |
 |    - 1x 100nF capacitor                                                                                        |
 |                                                                                                                |
