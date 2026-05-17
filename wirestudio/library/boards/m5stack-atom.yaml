@@ -5,6 +5,7 @@ chip_variant: esp32
 framework: arduino
 platformio_board: m5stack-atom
 flash_size_mb: 4
+image: https://shop.m5stack.com/cdn/shop/products/1_2_c215b5d9-d41a-4ab8-ad54-b2531930f075_1200x1200.jpg
 
 rails:
   - {name: "5V",  voltage: 5.0, source: usb}

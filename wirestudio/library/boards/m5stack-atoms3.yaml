@@ -5,6 +5,7 @@ chip_variant: esp32s3
 framework: arduino
 platformio_board: m5stack-atoms3
 flash_size_mb: 8
+image: https://static-cdn.m5stack.com/resource/docs/products/core/AtomS3/img-abe8d8b0-3d8c-4f42-a84a-093bfed0aa38.png
 
 rails:
   - {name: "5V",  voltage: 5.0, source: usb}
