@@ -513,6 +513,37 @@ testing surfaced two strategic items below.)
      is the natural home for this once there's more than one
      signal to record.
 
+9. **Composite modules (multi-function combo boards).** Surfaced
+   2026-05-17 from the OLED-knob example. A whole class of cheap
+   modules bundles several parts on one board — the 1.3" OLED +
+   EC11 encoder + 2 push buttons combo, multi-sensor breakouts,
+   relay + button boards, etc. Today each part is a separate
+   library `component` and a user adds + wires every one by hand
+   (see `wirestudio/examples/oled-knob.json`, assembled that way).
+   - *Module library entries.* A new library concept — a
+     `module` that names its constituent components, their fixed
+     internal wiring (shared bus, the encoder's A/B, each
+     button), default labels / params, and the header pins it
+     exposes to the host board. Likely
+     `wirestudio/library/modules/<id>.yaml`.
+   - *One selection, all sections.* Picking a module in the
+     component selector inserts every constituent component, the
+     module's buses, the internal connections, and any passives
+     in one action — leaving the user only to assign the
+     module's header pins to host GPIOs (the pin solver takes it
+     from there).
+   - *BOM reflects the module.* The BOM must list the module as
+     one line ("1.3in OLED + encoder combo module"), not its
+     individual SH1106 / EC11 / button parts — you buy the one
+     board. Needs a module-provenance marker on the inserted
+     components so the BOM generator collapses them back; the
+     ESPHome YAML still renders from the individual components.
+   - *Model real modules.* Each module entry needs a real
+     product behind it — worth a survey of the common cheap
+     combo boards (display + input panels, multi-sensor
+     breakouts, relay boards) the way the component library was
+     first seeded.
+
 
 **0.9 v2 -- library mapping expansion shipped.** The remaining 20
 components + 7 boards now carry a `kicad:` block, taking coverage
