@@ -270,6 +270,10 @@ it without a proxy.
 | [`tuya-smart-plug.json`](wirestudio/examples/tuya-smart-plug.json) | ESP8285 1MB | Tuya-MCU smart plug — relay (DP 1) + power (DP 17) + energy (DP 18) over UART 9600; logger off UART0 |
 | [`weather-station.json`](wirestudio/examples/weather-station.json) | ESP32-DevKitC-V4 | BMP280 barometer + HTU21D temp/humidity + TSL2561 lux on one shared I2C bus |
 | [`attic-logger.json`](wirestudio/examples/attic-logger.json) | WeMos D1 Mini | DHT22 single-wire temp/humidity + legacy BMP180 I2C barometer |
+| [`atom-echo.json`](wirestudio/examples/atom-echo.json) | M5Stack Atom Echo | Onboard SK6812 RGB LED (RMT-driven) + the programmable front button |
+| [`atom-matrix.json`](wirestudio/examples/atom-matrix.json) | M5Stack Atom Matrix | Onboard 5x5 (25-LED) SK6812 RGB matrix + the programmable button |
+| [`atomu.json`](wirestudio/examples/atomu.json) | M5Stack AtomU | USB-A stick — onboard SK6812 RGB LED + button |
+| [`atoms3-lite.json`](wirestudio/examples/atoms3-lite.json) | M5Stack AtomS3 Lite | ESP32-S3 — onboard WS2812C RGB LED + button |
 
 Generated artifacts for each are pinned as goldens in
 [`tests/golden/`](tests/golden/). For a per-component / per-board view of

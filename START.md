@@ -449,12 +449,13 @@ testing surfaced two strategic items below.)
      devices catalog: `m5stack-atom-echo`, `m5stack-atom-matrix`,
      `m5stack-atomu`, `m5stack-atoms3-lite`. Existing
      `m5stack-atom` / `m5stack-atoms3` left intact.
-   - *Remaining.* Bundled examples for the four new boards (need
-     the `esphome config` gate — local `esphome` wasn't
-     available); `image` backfill for the other ~14 boards; and
-     the wider UI polish pass — layout, visual hierarchy, the
-     add-component and inspector flows. The M5StickC / Core
-     lines are also still uncovered.
+   - *Examples — shipped.* One bundled example per new board
+     (`atom-echo`, `atom-matrix`, `atomu`, `atoms3-lite`); all
+     four pass the `esphome config` gate under ESPHome 2025.12.7.
+   - *Remaining.* `image` backfill for the other boards; the
+     wider UI polish pass — layout, visual hierarchy, the
+     add-component and inspector flows; and the M5StickC / Core
+     lines, still uncovered.
 
 7. **Local component inventory + inventory-aware recommendation.**
    Future feature, surfaced 2026-05-16 alongside the BOM-stock
