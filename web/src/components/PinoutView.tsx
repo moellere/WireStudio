@@ -16,6 +16,7 @@
  * stays available alongside this view; the inspector toggles between
  * the two.
  */
+import { useMemo } from "react";
 import type { ComponentInstance, ConnectionRow, ConnectionTarget } from "../lib/design";
 
 interface Props {
@@ -43,24 +44,38 @@ const DRAG_MIME = "application/x-wirestudio-connection-index";
 export function PinoutView({
   rows, allConnections, instance, gpioCapabilities, onChange,
 }: Props) {
-  const gpioConnections = rows.filter((r) => r.target.kind === "gpio");
-  const otherUses: Map<string, string> = new Map();
-  for (const c of allConnections) {
-    if (c.component_id === instance.id) continue;
-    if (c.target.kind === "gpio" && c.target.pin) {
-      otherUses.set(c.target.pin, `${c.component_id}.${c.pin_role}`);
+  const gpioConnections = useMemo(
+    () => rows.filter((r) => r.target.kind === "gpio"),
+    [rows]
+  );
+
+  const otherUses = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of allConnections) {
+      if (c.component_id === instance.id) continue;
+      if (c.target.kind === "gpio" && c.target.pin) {
+        map.set(c.target.pin, `${c.component_id}.${c.pin_role}`);
+      }
     }
-  }
+    return map;
+  }, [allConnections, instance.id]);
+
   // Pin -> the connection on THIS instance that targets it (for the
   // "currently here" annotation on each board row).
-  const myUses: Map<string, string> = new Map();
-  for (const c of gpioConnections) {
-    if (c.target.kind === "gpio" && c.target.pin) {
-      myUses.set(c.target.pin, c.pin_role);
+  const myUses = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of gpioConnections) {
+      if (c.target.kind === "gpio" && c.target.pin) {
+        map.set(c.target.pin, c.pin_role);
+      }
     }
-  }
+    return map;
+  }, [gpioConnections]);
 
-  const pinNames = Object.keys(gpioCapabilities);
+  const pinNames = useMemo(
+    () => Object.keys(gpioCapabilities),
+    [gpioCapabilities]
+  );
 
   function handleDrop(pin: string, e: React.DragEvent) {
     e.preventDefault();
