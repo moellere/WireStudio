@@ -38,11 +38,13 @@ const libraryBoards: BoardSummary[] = [
     id: "wemos-d1-mini", name: "WeMos D1 Mini",
     mcu: "esp8266", chip_variant: "esp8266", framework: "arduino",
     platformio_board: "d1_mini", flash_size_mb: 4, rail_names: ["5V", "3V3", "GND"],
+    image: null,
   },
   {
     id: "esp32-devkitc-v4", name: "ESP32 DevKitC",
     mcu: "esp32", chip_variant: "esp32", framework: "arduino",
     platformio_board: "esp32dev", flash_size_mb: 4, rail_names: ["5V", "3V3", "GND"],
+    image: null,
   },
 ];
 
