@@ -120,6 +120,7 @@ it without a proxy. Browse the auto-generated OpenAPI docs at
 | [`atom-matrix.json`](../wirestudio/examples/atom-matrix.json) | M5Stack Atom Matrix | Onboard 5x5 (25-LED) SK6812 RGB matrix + the programmable button |
 | [`atomu.json`](../wirestudio/examples/atomu.json) | M5Stack AtomU | USB-A stick — onboard SK6812 RGB LED + button |
 | [`atoms3-lite.json`](../wirestudio/examples/atoms3-lite.json) | M5Stack AtomS3 Lite | ESP32-S3 — onboard WS2812C RGB LED + button |
+| [`oled-knob.json`](../wirestudio/examples/oled-knob.json) | ESP32-DevKitC-V4 | 1.3" SH1106 OLED + EC11 rotary-encoder combo module — display on I2C, encoder A/B + push button on GPIO |
 
 Generated artifacts for each are pinned as goldens in
 [`tests/golden/`](../tests/golden/). For a per-component / per-board view of

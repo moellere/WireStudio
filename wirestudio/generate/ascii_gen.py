@@ -72,9 +72,23 @@ def render_ascii(design: Design, library: Library) -> str:
 
     lines.append("BOM:")
     lines.append(f"  - {board.name}")
+    # Components inserted as part of a composite module collapse to a
+    # single BOM line -- you buy the module, not its individual parts.
+    seen_modules: set[str] = set()
     for comp in design.components:
-        lib_comp = library.component(comp.library_id)
-        lines.append(f"  - {lib_comp.name}  ({comp.id})")
+        mod = comp.module
+        if mod is not None:
+            if mod.instance in seen_modules:
+                continue
+            seen_modules.add(mod.instance)
+            try:
+                mod_name = library.module(mod.module_id).name
+            except FileNotFoundError:
+                mod_name = mod.module_id
+            lines.append(f"  - {mod_name}  ({mod.instance})")
+        else:
+            lib_comp = library.component(comp.library_id)
+            lines.append(f"  - {lib_comp.name}  ({comp.id})")
     pcounts: dict[str, int] = {}
     for p in design.passives:
         key = f"{p.value} {p.kind}"

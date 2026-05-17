@@ -5,6 +5,7 @@ import type {
   ComponentSummary,
   Design,
   ExampleSummary,
+  ModuleSummary,
   PinAssignment,
   RenderResponse,
   SavedDesignSummary,
@@ -54,6 +55,7 @@ export default function App() {
   const [examples, setExamples] = useState<ExampleSummary[] | null>(null);
   const [boards, setBoards] = useState<BoardSummary[] | null>(null);
   const [components, setComponents] = useState<ComponentSummary[] | null>(null);
+  const [modules, setModules] = useState<ModuleSummary[] | null>(null);
   const [bootError, setBootError] = useState<string | null>(null);
   const [version, setVersion] = useState<string | null>(null);
 
@@ -104,17 +106,19 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
-        const [h, ex, bd, co, sv] = await Promise.all([
+        const [h, ex, bd, co, md, sv] = await Promise.all([
           api.health(),
           api.listExamples(),
           api.listBoards(),
           api.listComponents(),
+          api.listModules(),
           api.listSavedDesigns(),
         ]);
         setVersion(h.version);
         setExamples(ex);
         setBoards(bd);
         setComponents(co);
+        setModules(md);
         setSavedDesigns(sv);
         if (ex.length > 0) setSelectedExample(ex[0].id);
       } catch (e) {
@@ -329,6 +333,21 @@ export default function App() {
       const withBuses = prepareBusesForLib(d, lib, ctx);
       return addComponent(withBuses, lib, { board: ctx, buses: readBuses(withBuses) });
     });
+  }
+
+  async function handleInsertModule(moduleId: string) {
+    if (!design) {
+      setRenderError("Open or create a design before inserting a module.");
+      return;
+    }
+    try {
+      const updated = await api.insertModule(design, moduleId);
+      setDesign(updated);
+      setSelection({ kind: "design" });
+    } catch (e) {
+      const msg = e instanceof ApiError ? `${e.status}: ${e.message}` : String(e);
+      setRenderError(`Could not insert module '${moduleId}': ${msg}`);
+    }
   }
 
   function handleRemoveComponent(instanceId: string) {
@@ -646,6 +665,7 @@ export default function App() {
           saved={savedDesigns}
           boards={boards}
           components={components}
+          modules={modules}
           selectedExample={selectedExample}
           selectedSaved={selectedSaved}
           onSelectExample={(id) => { setSelectedSaved(null); setSelectedExample(id); }}
@@ -653,6 +673,7 @@ export default function App() {
           onDeleteSaved={handleDeleteSaved}
           onSelectBoard={(id) => setSelection({ kind: "board", id })}
           onSelectComponent={(id) => setSelection({ kind: "component", id })}
+          onInsertModule={handleInsertModule}
         />
         <DesignPane design={design} render={render} renderError={renderError} />
         <Inspector

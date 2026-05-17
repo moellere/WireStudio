@@ -1,0 +1,27 @@
+id: oled-knob-13
+name: 1.3in OLED + EC11 encoder combo module
+category: module
+description: >-
+  Inexpensive combo board: a 1.3-inch SH1106 white OLED on I2C, an EC11
+  rotary encoder, and two auxiliary push buttons. One selection drops in
+  all five parts, pre-wired and auto-bus-seeded; the BOM lists this
+  module rather than its individual parts.
+use_cases: [oled, display, encoder, menu_navigation, input, control_panel]
+aliases: [oled-encoder, knob-display, ec11-oled]
+components:
+  - id_hint: disp
+    library_id: ssd1306
+    label: Panel OLED
+    params: {model: "SH1106 128x64", address: "0x3C"}
+  - id_hint: knob
+    library_id: rotary_encoder
+    label: Menu knob
+  - id_hint: knobsw
+    library_id: gpio_input
+    label: Knob press
+  - id_hint: btn1
+    library_id: gpio_input
+    label: Button A
+  - id_hint: btn2
+    library_id: gpio_input
+    label: Button B

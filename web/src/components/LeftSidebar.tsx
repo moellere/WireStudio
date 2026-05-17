@@ -1,15 +1,22 @@
 import { useMemo, useState } from "react";
-import { FolderHeart, FolderOpen, Cpu, Component } from "lucide-react";
+import { FolderHeart, FolderOpen, Cpu, Component, Boxes } from "lucide-react";
 import { Loading, Empty } from "./Status";
-import type { BoardSummary, ComponentSummary, ExampleSummary, SavedDesignSummary } from "../types/api";
+import type {
+  BoardSummary,
+  ComponentSummary,
+  ExampleSummary,
+  ModuleSummary,
+  SavedDesignSummary,
+} from "../types/api";
 
-type Tab = "examples" | "saved" | "boards" | "components";
+type Tab = "examples" | "saved" | "boards" | "components" | "modules";
 
 interface Props {
   examples: ExampleSummary[] | null;
   saved: SavedDesignSummary[] | null;
   boards: BoardSummary[] | null;
   components: ComponentSummary[] | null;
+  modules: ModuleSummary[] | null;
   selectedExample: string | null;
   selectedSaved: string | null;
   onSelectExample: (id: string) => void;
@@ -17,6 +24,7 @@ interface Props {
   onDeleteSaved: (id: string) => void;
   onSelectBoard: (id: string) => void;
   onSelectComponent: (id: string) => void;
+  onInsertModule: (id: string) => void;
 }
 
 export function LeftSidebar(props: Props) {
@@ -26,8 +34,13 @@ export function LeftSidebar(props: Props) {
   return (
     <aside className="flex min-h-0 flex-col border-r border-zinc-800 bg-zinc-950">
       <div className="flex border-b border-zinc-800 p-2 gap-1 bg-zinc-950">
-        {(["examples", "saved", "boards", "components"] as const).map((t) => {
-          const Icon = t === "examples" ? FolderOpen : t === "saved" ? FolderHeart : t === "boards" ? Cpu : Component;
+        {(["examples", "saved", "boards", "components", "modules"] as const).map((t) => {
+          const Icon =
+            t === "examples" ? FolderOpen
+            : t === "saved" ? FolderHeart
+            : t === "boards" ? Cpu
+            : t === "modules" ? Boxes
+            : Component;
           return (
             <button
               key={t}
@@ -86,6 +99,9 @@ export function LeftSidebar(props: Props) {
         )}
         {tab === "components" && (
           <ComponentsList items={props.components} search={search} onSelect={props.onSelectComponent} />
+        )}
+        {tab === "modules" && (
+          <ModulesList items={props.modules} search={search} onInsert={props.onInsertModule} />
         )}
       </div>
     </aside>
@@ -311,6 +327,54 @@ function ComponentsList({
                 <span className="text-zinc-600 mr-1">Requires:</span>
                 {c.required_components.join(", ")}
               </div>
+            )}
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function ModulesList({
+  items, search, onInsert,
+}: {
+  items: ModuleSummary[] | null;
+  search: string;
+  onInsert: (id: string) => void;
+}) {
+  const filtered = useMemo(() => {
+    if (!items) return null;
+    const q = search.trim().toLowerCase();
+    return q
+      ? items.filter((m) =>
+          m.id.toLowerCase().includes(q)
+          || m.name.toLowerCase().includes(q)
+          || (m.description ?? "").toLowerCase().includes(q)
+          || m.use_cases.some((u) => u.toLowerCase().includes(q))
+        )
+      : items;
+  }, [items, search]);
+
+  if (filtered === null) return <Loading />;
+  if (filtered.length === 0) return <Empty>No modules found.</Empty>;
+
+  return (
+    <ul className="space-y-1.5 text-sm">
+      {filtered.map((m) => (
+        <li key={m.id}>
+          <button
+            onClick={() => onInsert(m.id)}
+            title={`Insert all ${m.component_count} components of this module`}
+            className="w-full rounded-md bg-zinc-900/30 px-3 py-2 text-left transition-colors hover:bg-zinc-800/80"
+          >
+            <div className="flex items-baseline justify-between gap-2">
+              <div className="truncate font-medium text-zinc-200">{m.name}</div>
+              <div className="shrink-0 text-[10px] font-medium uppercase tracking-wider text-zinc-500">
+                {m.component_count} parts
+              </div>
+            </div>
+            {m.description && (
+              <div className="mt-1 line-clamp-2 text-xs text-zinc-500">{m.description}</div>
             )}
           </button>
         </li>

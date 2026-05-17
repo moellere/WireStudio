@@ -38,6 +38,7 @@ from wirestudio.api.schemas import (
     CompatibilityWarning as CompatWire,
     ComponentSummary,
     ExampleSummary,
+    ModuleSummary,
     FleetJobLogResponse,
     FleetJobStatus,
     FleetPushRequest,
@@ -80,7 +81,14 @@ from wirestudio.jlcpcb import check_bom, jlcpcb_status, report_to_dict
 from wirestudio.recommend.recommender import Constraints, recommend_components
 from wirestudio.generate.ascii_gen import render_ascii
 from wirestudio.generate.yaml_gen import render_yaml
-from wirestudio.library import Library, LibraryBoard, LibraryComponent, default_library
+from wirestudio.library import (
+    Library,
+    LibraryBoard,
+    LibraryComponent,
+    LibraryModule,
+    default_library,
+)
+from wirestudio.designs.seed import insert_module
 from wirestudio.model import Design
 
 
@@ -124,6 +132,17 @@ def _component_summary(c: LibraryComponent) -> ComponentSummary:
         required_components=list(c.esphome.required_components),
         current_ma_typical=c.electrical.current_ma_typical,
         current_ma_peak=c.electrical.current_ma_peak,
+    )
+
+
+def _module_summary(m: LibraryModule) -> ModuleSummary:
+    return ModuleSummary(
+        id=m.id,
+        name=m.name,
+        category=m.category,
+        description=m.description,
+        use_cases=list(m.use_cases),
+        component_count=len(m.components),
     )
 
 
@@ -274,6 +293,34 @@ def create_app(
             return lib.component(component_id)
         except FileNotFoundError as e:
             raise HTTPException(status_code=404, detail=str(e)) from e
+
+    @app.get("/library/modules", response_model=list[ModuleSummary], tags=["library"])
+    def list_modules() -> list[ModuleSummary]:
+        return [_module_summary(m) for m in lib.list_modules()]
+
+    @app.get("/library/modules/{module_id}", response_model=LibraryModule, tags=["library"])
+    def get_module(module_id: str) -> LibraryModule:
+        try:
+            return lib.module(module_id)
+        except FileNotFoundError as e:
+            raise HTTPException(status_code=404, detail=str(e)) from e
+
+    @app.post("/design/insert_module", tags=["design"])
+    def design_insert_module(design: dict, module_id: str) -> dict:
+        """Insert a composite module's components into the design.
+
+        Adds every component the module bundles (auto-wired the same way
+        a hand-added component is) and returns the updated design. The
+        inserted components carry a shared `module` marker so the BOM
+        collapses them to one line.
+        """
+        _validate_design(design)
+        try:
+            module = lib.module(module_id)
+        except FileNotFoundError as e:
+            raise HTTPException(status_code=404, detail=str(e)) from e
+        _, updated = insert_module(design, lib, module)
+        return updated
 
     @app.post("/design/validate", response_model=ValidateResponse, tags=["design"])
     def validate(design: dict) -> ValidateResponse:
@@ -524,9 +571,13 @@ def create_app(
 
     @app.get("/examples/{example_id}", tags=["examples"])
     def get_example(example_id: str) -> dict:
-        path = EXAMPLES_DIR / f"{example_id}.json"
-        if not path.exists():
+        if "/" in example_id or "\\" in example_id:
             raise HTTPException(status_code=404, detail=f"Unknown example '{example_id}'")
+
+        path = (EXAMPLES_DIR / f"{example_id}.json").resolve()
+        if not path.is_relative_to(EXAMPLES_DIR.resolve()) or not path.exists():
+            raise HTTPException(status_code=404, detail=f"Unknown example '{example_id}'")
+
         return json.loads(path.read_text())
 
     # ---------------------------------------------------------------------
