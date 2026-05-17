@@ -31,27 +31,32 @@
       "id": "disp",
       "library_id": "ssd1306",
       "label": "Panel OLED",
-      "params": { "model": "SH1106 128x64", "address": "0x3C" }
+      "params": { "model": "SH1106 128x64", "address": "0x3C" },
+      "module": { "module_id": "oled-knob-13", "instance": "oled-knob-13-1" }
     },
     {
       "id": "knob",
       "library_id": "rotary_encoder",
-      "label": "Menu knob"
+      "label": "Menu knob",
+      "module": { "module_id": "oled-knob-13", "instance": "oled-knob-13-1" }
     },
     {
       "id": "knobbtn",
       "library_id": "gpio_input",
-      "label": "Knob press"
+      "label": "Knob press",
+      "module": { "module_id": "oled-knob-13", "instance": "oled-knob-13-1" }
     },
     {
       "id": "btn1",
       "library_id": "gpio_input",
-      "label": "Button A"
+      "label": "Button A",
+      "module": { "module_id": "oled-knob-13", "instance": "oled-knob-13-1" }
     },
     {
       "id": "btn2",
       "library_id": "gpio_input",
-      "label": "Button B"
+      "label": "Button B",
+      "module": { "module_id": "oled-knob-13", "instance": "oled-knob-13-1" }
     }
   ],
 

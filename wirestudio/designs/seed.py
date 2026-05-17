@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from wirestudio.library import Library, LibraryBoard, LibraryComponent
+from wirestudio.library import Library, LibraryBoard, LibraryComponent, LibraryModule
 
 
 _BUS_KIND_TO_TYPE: dict[str, str] = {
@@ -198,3 +198,40 @@ def add_component_with_connections(
         prepare_buses(design, lib, board)
     seed_connections(design, instance_id, lib, board)
     return instance_id, design
+
+
+def _next_module_instance(design: dict, module_id: str) -> str:
+    used = {
+        (c.get("module") or {}).get("instance")
+        for c in (design.get("components") or [])
+    }
+    n = 1
+    while f"{module_id}-{n}" in used:
+        n += 1
+    return f"{module_id}-{n}"
+
+
+def insert_module(
+    design: dict, library: Library, module: LibraryModule,
+) -> tuple[str, dict]:
+    """Insert every component of a composite module into the design.
+
+    Each component is added + auto-wired exactly like a hand-added one,
+    then stamped with a shared module-instance marker so the BOM
+    collapses them to a single module line. Returns (instance, design);
+    the design is mutated in place.
+    """
+    instance = _next_module_instance(design, module.id)
+    for mc in module.components:
+        comp_id, _ = add_component_with_connections(
+            design, library,
+            library_id=mc.library_id,
+            label=mc.label,
+            instance_id_hint=mc.id_hint,
+            params=dict(mc.params),
+        )
+        for c in design["components"]:
+            if c["id"] == comp_id:
+                c["module"] = {"module_id": module.id, "instance": instance}
+                break
+    return instance, design
