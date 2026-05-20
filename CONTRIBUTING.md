@@ -65,6 +65,12 @@ esphome` fails on the `paho-mqtt` wheel, drop into a fresh venv first:
    an example using it round-trips through `esphome config`. If the
    component doesn't have an example yet, it isn't supported, even
    if the YAML template "looks right."
+6. The `--strict` coverage gate (`python scripts/coverage_matrix.py
+   --strict`, also wired into CI) refuses the merge if a new library
+   entry lands without an example unless you explicitly add it to
+   `scripts/coverage_baseline.yaml`. When you close a gap by adding
+   an example, also remove the id from the baseline — the gate fails
+   on stale entries too.
 
 ### When the gate fails
 

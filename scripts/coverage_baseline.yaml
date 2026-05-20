@@ -1,0 +1,36 @@
+# Library components and boards that have no bundled example yet.
+#
+# `python scripts/coverage_matrix.py --strict` enforces this list in CI:
+#   - if a library entry has no example AND is not listed here, the
+#     check fails -- a new library entry must ship with an example OR be
+#     deliberately added here (with a follow-up plan).
+#   - if a baseline entry now has an example, the check also fails --
+#     a closed gap means this file must shrink. That keeps the list
+#     accurate as coverage grows.
+#
+# When you close a gap, remove the id from the matching section. When
+# you add a new library entry without an example, add its id here.
+
+components:
+  - apa102
+  - cc1101
+  - esp32_camera
+  - ili9xxx
+  - lcd_pcf8574
+  - ld2420
+  - max7219
+  - pulse_counter
+  - rdm6300
+  - rf_bridge
+  - rotary_encoder
+  - rtttl
+  - tm1638
+  - xpt2046
+
+boards:
+  - esp32-s3-devkitc-1
+  - esp32-wrover-cam
+  - esp32cam-ai-thinker
+  - m5stack-atom
+  - m5stack-atoms3
+  - ttgo-t-beam
