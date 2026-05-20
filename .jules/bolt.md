@@ -5,3 +5,7 @@
 ## 2024-05-18 - Stable Array References from design.ts Readers
 **Learning:** Helper functions like `readComponents` or `readConnections` in `web/src/lib/design.ts` map over the raw `Design` object and return *new* array references on every call. If called directly in the body of a React component, they defeat any downstream `useMemo` hooks (e.g., in `PinoutView.tsx` drag-and-drop), causing expensive re-computations on every render.
 **Action:** Always wrap the return values of `read*` helpers in `useMemo(..., [design])` at the call site within a React component.
+
+## 2024-05-20 - React Hooks and Early Returns
+**Learning:** When moving derived state computations into `useMemo` hooks inside components that had early returns (like `if (rows.length === 0)`), you must move the early return *after* the hooks to avoid violating React's rules of hooks (hooks cannot be called conditionally).
+**Action:** When adding hooks to an existing component, always check for early returns and ensure all hooks are called unconditionally before any early returns.
