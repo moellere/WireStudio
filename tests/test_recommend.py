@@ -50,11 +50,17 @@ def test_temperature_query_surfaces_ds18b20(lib):
 
 
 def test_adc_query_surfaces_ads1115(lib):
-    """ADC queries should land on the ADS1115 -- it's the only library
-    component carrying the `adc` use_case today."""
+    """ADC queries should land on the ADS1115 family. Both the hub
+    (`ads1115`) and the channel (`ads1115_channel`) carry the `adc`
+    use_case; which one wins the #1 slot shifts with example
+    coverage (channel-instance counts can outscore the hub when a
+    design has multiple channels). Assert the robust invariant:
+    both present, ADS1115 family leads."""
     out = recommend_components(lib, "adc")
     ids = [r.library_id for r in out]
-    assert ids and ids[0] == "ads1115"
+    assert "ads1115" in ids
+    assert "ads1115_channel" in ids
+    assert ids[0] in ("ads1115", "ads1115_channel")
 
 
 def test_imu_query_surfaces_mpu6050(lib):
