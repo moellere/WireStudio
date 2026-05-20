@@ -23,6 +23,7 @@ esphome:
   yaml_template: |
     sensor:
       - platform: hx711
+        id: {{ id }}
         name: "{{ label }}"
         dout_pin: {{ pins.DOUT | tojson }}
         clk_pin: {{ pins.SCK | tojson }}
