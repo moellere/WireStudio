@@ -22,13 +22,15 @@ components:
   - pulse_counter
   - rdm6300
   - rf_bridge
-  - rotary_encoder
   - rtttl
   - tm1638
   - xpt2046
 
 boards:
+  - esp32-c3-supermini
+  - esp32-c6-supermini
   - esp32-s3-devkitc-1
+  - esp32-s3-supermini
   - esp32-wrover-cam
   - esp32cam-ai-thinker
   - m5stack-atom
