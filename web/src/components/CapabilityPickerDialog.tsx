@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api, ApiError } from "../api/client";
 import type { Recommendation, UseCaseEntry } from "../types/api";
 import { Loading } from "./Status";
+import { useDebouncedValue } from "../lib/debounce";
 
 interface Props {
   /** True when the design has a board picked. We disable Add when there's
@@ -86,9 +87,11 @@ export function CapabilityPickerDialog({ designReady, designBusTypes, onAdd, onC
     [freeText, pickedCapability],
   );
 
+  const debouncedQuery = useDebouncedValue(activeQuery, 300);
+
   // Run the recommender whenever the active query changes.
   useEffect(() => {
-    if (!activeQuery) {
+    if (!debouncedQuery) {
       setMatches(null);
       return;
     }
@@ -97,7 +100,7 @@ export function CapabilityPickerDialog({ designReady, designBusTypes, onAdd, onC
     setError(null);
     (async () => {
       try {
-        const r = await api.recommend({ query: activeQuery, limit: 8 });
+        const r = await api.recommend({ query: debouncedQuery, limit: 8 });
         if (!cancelled) setMatches(r.matches);
       } catch (e) {
         if (cancelled) return;
@@ -109,7 +112,7 @@ export function CapabilityPickerDialog({ designReady, designBusTypes, onAdd, onC
       }
     })();
     return () => { cancelled = true; };
-  }, [activeQuery]);
+  }, [debouncedQuery]);
 
   async function handleAdd(libraryId: string) {
     setAdding(libraryId);
