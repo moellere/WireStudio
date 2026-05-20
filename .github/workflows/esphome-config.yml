@@ -63,3 +63,9 @@ jobs:
 
       - name: Validate every example through `esphome config`
         run: python scripts/check_examples.py
+
+      - name: Coverage baseline (no-regression gate)
+        # Fails when a new library entry slips in without an example,
+        # or when scripts/coverage_baseline.yaml lists an id that now
+        # has one (forcing the baseline to shrink as gaps close).
+        run: python scripts/coverage_matrix.py --strict
