@@ -6,6 +6,7 @@
  * target up to the App via onChange(index, target).
  */
 
+import { useMemo } from "react";
 import type { ComponentSummary } from "../types/api";
 import {
   type ConnectionRow,
@@ -30,19 +31,31 @@ interface Props {
 export function ConnectionForm({
   rows, design, boardData, libraryComponents, onChange, onLockedPinChange,
 }: Props) {
+  const board = (boardData ?? {}) as Record<string, unknown>;
+
+  const railNames = useMemo(() => {
+    return Array.isArray(board.rails)
+      ? (board.rails as Array<Record<string, unknown>>).map((r) => String(r.name))
+      : [];
+  }, [board.rails]);
+
+  const gpioPins = useMemo(() => {
+    return Object.keys((board.gpio_capabilities ?? {}) as Record<string, unknown>);
+  }, [board.gpio_capabilities]);
+
+  const buses = useMemo(() => readBuses(design), [design]);
+
+  const expanders = useMemo(() => expandersFromDesign(design, libraryComponents), [design, libraryComponents]);
+
+  const componentInstances = useMemo(() => {
+    return readComponents(design).map((c) => ({
+      id: c.id, library_id: c.library_id,
+    }));
+  }, [design]);
+
   if (rows.length === 0) {
     return <div className="text-xs text-zinc-500">No connections.</div>;
   }
-  const board = (boardData ?? {}) as Record<string, unknown>;
-  const railNames = Array.isArray(board.rails)
-    ? (board.rails as Array<Record<string, unknown>>).map((r) => String(r.name))
-    : [];
-  const gpioPins = Object.keys((board.gpio_capabilities ?? {}) as Record<string, unknown>);
-  const buses = readBuses(design);
-  const expanders = expandersFromDesign(design, libraryComponents);
-  const componentInstances = readComponents(design).map((c) => ({
-    id: c.id, library_id: c.library_id,
-  }));
 
   return (
     <div className="space-y-2">
