@@ -121,6 +121,9 @@ it without a proxy. Browse the auto-generated OpenAPI docs at
 | [`atomu.json`](../wirestudio/examples/atomu.json) | M5Stack AtomU | USB-A stick — onboard SK6812 RGB LED + button |
 | [`atoms3-lite.json`](../wirestudio/examples/atoms3-lite.json) | M5Stack AtomS3 Lite | ESP32-S3 — onboard WS2812C RGB LED + button |
 | [`oled-knob.json`](../wirestudio/examples/oled-knob.json) | ESP32-DevKitC-V4 | 1.3" SH1106 OLED + EC11 rotary-encoder combo module — display on I2C, encoder A/B + push button on GPIO |
+| [`analog-node.json`](../wirestudio/examples/analog-node.json) | ESP32-DevKitC-V4 | ADS1115 I2C ADC with two channels (single-ended + differential) plus an onboard ADC1 pin |
+| [`kitchen-scale.json`](../wirestudio/examples/kitchen-scale.json) | WeMos D1 Mini | HX711 load-cell ADC + SSD1306 OLED readout in grams |
+| [`grill-probe.json`](../wirestudio/examples/grill-probe.json) | ESP32-DevKitC-V4 | MAX31855 K-type thermocouple over read-only SPI + MPU6050 IMU as lid sensor |
 
 Generated artifacts for each are pinned as goldens in
 [`tests/golden/`](../tests/golden/). For a per-component / per-board view of

@@ -1,0 +1,36 @@
++-----------------------------------------------------------------------+
+|  ESP32-DevKitC-V4  ---  analog-node                                   |
++-----------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                  |
+|                                                                       |
+|  ext_adc  [ADS1115 4-channel 16-bit ADC hub (I2C)]  -- External ADC   |
+|    VCC   -> rail 3V3                                                  |
+|    GND   -> rail GND                                                  |
+|    SDA   -> i2c0 (GPIO21)                                             |
+|    SCL   -> i2c0 (GPIO22)                                             |
+|                                                                       |
+|  panel_v  [ADS1115 channel]  -- Solar panel voltage                   |
+|                                                                       |
+|  shunt_i  [ADS1115 channel]  -- Battery shunt current                 |
+|                                                                       |
+|  rail_v  [Generic analog input]  -- Board 3V3 rail                    |
+|    IN    -> GPIO34                                                    |
+|                                                                       |
+|  Passives:                                                            |
+|    c1: 100nF capacitor, ext_adc.VCC  <->  GND   (decoupling ext_adc)  |
+|    r1: 4.7k resistor, i2c0.SDA  <->  3V3   (I2C pull-up)              |
+|    r2: 4.7k resistor, i2c0.SCL  <->  3V3   (I2C pull-up)              |
+|                                                                       |
+|  BOM:                                                                 |
+|    - ESP32-DevKitC-V4                                                 |
+|    - ADS1115 4-channel 16-bit ADC hub (I2C)  (ext_adc)                |
+|    - ADS1115 channel  (panel_v)                                       |
+|    - ADS1115 channel  (shunt_i)                                       |
+|    - Generic analog input  (rail_v)                                   |
+|    - 1x 100nF capacitor                                               |
+|    - 2x 4.7k resistor                                                 |
+|                                                                       |
+|  Power: ~1mA typical, ~2mA peak (budget 500mA)  OK                    |
+|                                                                       |
+|  Warnings: none                                                       |
++-----------------------------------------------------------------------+

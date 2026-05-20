@@ -1,0 +1,37 @@
++---------------------------------------------------------------------------------------------+
+|  WeMos D1 Mini  ---  kitchen-scale                                                          |
++---------------------------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                                        |
+|                                                                                             |
+|  scale  [HX711 24-bit load-cell ADC]  -- Kitchen scale                                      |
+|    VCC   -> rail 3V3                                                                        |
+|    GND   -> rail GND                                                                        |
+|    DOUT  -> D5                                                                              |
+|    SCK   -> D6                                                                              |
+|                                                                                             |
+|  oled1  [SSD1306 OLED display (I2C)]  -- Scale display                                      |
+|    VCC   -> rail 3V3                                                                        |
+|    GND   -> rail GND                                                                        |
+|    SDA   -> i2c0 (D2)                                                                       |
+|    SCL   -> i2c0 (D1)                                                                       |
+|    RESET -> D0                                                                              |
+|                                                                                             |
+|  Passives:                                                                                  |
+|    c1: 100nF capacitor, scale.VCC  <->  GND   (decoupling scale)                            |
+|    c2: 10uF capacitor, scale.VCC  <->  GND   (bulk decoupling for the load-cell front-end)  |
+|    c3: 100nF capacitor, oled1.VCC  <->  GND   (decoupling oled1)                            |
+|    r1: 4.7k resistor, i2c0.SDA  <->  3V3   (I2C pull-up)                                    |
+|    r2: 4.7k resistor, i2c0.SCL  <->  3V3   (I2C pull-up)                                    |
+|                                                                                             |
+|  BOM:                                                                                       |
+|    - WeMos D1 Mini                                                                          |
+|    - HX711 24-bit load-cell ADC  (scale)                                                    |
+|    - SSD1306 OLED display (I2C)  (oled1)                                                    |
+|    - 2x 100nF capacitor                                                                     |
+|    - 1x 10uF capacitor                                                                      |
+|    - 2x 4.7k resistor                                                                       |
+|                                                                                             |
+|  Power: ~9mA typical, ~21mA peak (budget 500mA)  OK                                         |
+|                                                                                             |
+|  Warnings: none                                                                             |
++---------------------------------------------------------------------------------------------+
