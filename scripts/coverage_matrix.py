@@ -18,8 +18,14 @@ Usage:
     python scripts/coverage_matrix.py                  # write docs/library-coverage.md
     python scripts/coverage_matrix.py --stdout         # print to stdout
     python scripts/coverage_matrix.py --output path.md # write elsewhere
+    python scripts/coverage_matrix.py --strict         # CI gate: no drift from baseline
 
-Exit code is always 0 -- this is a reporting tool, not a gate.
+In `--strict` mode the script compares today's uncovered set against
+`scripts/coverage_baseline.yaml` and exits 1 if either:
+  - a library entry has no example and is not listed in the baseline
+    (a new uncovered entry slipped in), or
+  - a baseline entry now has an example (the baseline is stale and must
+    shrink to reflect the closed gap).
 """
 from __future__ import annotations
 
@@ -29,11 +35,14 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
+import yaml
+
 from wirestudio.library import default_library
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 EXAMPLES_DIR = REPO_ROOT / "wirestudio" / "examples"
 DEFAULT_OUTPUT = REPO_ROOT / "docs" / "library-coverage.md"
+DEFAULT_BASELINE = REPO_ROOT / "scripts" / "coverage_baseline.yaml"
 
 
 def _examples_using_component(examples: dict[str, dict]) -> dict[str, list[str]]:
@@ -161,6 +170,55 @@ def _render(library, examples: dict[str, dict]) -> str:
     return "\n".join(lines)
 
 
+def _uncovered_ids(library, examples: dict[str, dict]) -> tuple[set[str], set[str]]:
+    component_refs = _examples_using_component(examples)
+    board_refs = _examples_using_board(examples)
+    components = {c.id for c in library.list_components() if not component_refs.get(c.id)}
+    boards = {b.id for b in library.list_boards() if not board_refs.get(b.id)}
+    return components, boards
+
+
+def _strict_check(library, examples: dict[str, dict], baseline_path: Path) -> int:
+    uncovered_components, uncovered_boards = _uncovered_ids(library, examples)
+    baseline = yaml.safe_load(baseline_path.read_text()) or {}
+    baseline_components = set(baseline.get("components") or [])
+    baseline_boards = set(baseline.get("boards") or [])
+
+    new_uncovered_c = uncovered_components - baseline_components
+    new_uncovered_b = uncovered_boards - baseline_boards
+    stale_c = baseline_components - uncovered_components
+    stale_b = baseline_boards - uncovered_boards
+
+    problems: list[str] = []
+    if new_uncovered_c or new_uncovered_b:
+        problems.append("New uncovered library entries (add an example or list in baseline):")
+        for cid in sorted(new_uncovered_c):
+            problems.append(f"  - component: {cid}")
+        for bid in sorted(new_uncovered_b):
+            problems.append(f"  - board: {bid}")
+    if stale_c or stale_b:
+        problems.append(
+            "Baseline is stale (these now have an example -- remove from "
+            f"{baseline_path.relative_to(REPO_ROOT)}):"
+        )
+        for cid in sorted(stale_c):
+            problems.append(f"  - component: {cid}")
+        for bid in sorted(stale_b):
+            problems.append(f"  - board: {bid}")
+
+    if problems:
+        sys.stderr.write("coverage_matrix --strict failed:\n")
+        sys.stderr.write("\n".join(problems) + "\n")
+        return 1
+
+    print(
+        f"coverage baseline OK: {len(uncovered_components)} components and "
+        f"{len(uncovered_boards)} boards remain uncovered, matching baseline.",
+        file=sys.stderr,
+    )
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument(
@@ -171,12 +229,23 @@ def main(argv: list[str] | None = None) -> int:
         "--stdout", action="store_true",
         help="print to stdout instead of writing a file",
     )
+    parser.add_argument(
+        "--strict", action="store_true",
+        help="CI gate: fail when uncovered set drifts from coverage_baseline.yaml",
+    )
+    parser.add_argument(
+        "--baseline", type=Path, default=DEFAULT_BASELINE,
+        help=f"baseline file for --strict (default: {DEFAULT_BASELINE.relative_to(REPO_ROOT)})",
+    )
     args = parser.parse_args(argv)
 
     library = default_library()
     examples = _load_examples()
-    text = _render(library, examples)
 
+    if args.strict:
+        return _strict_check(library, examples, args.baseline)
+
+    text = _render(library, examples)
     if args.stdout:
         sys.stdout.write(text)
     else:
