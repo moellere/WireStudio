@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { api } from "../api/client";
 import type { BoardSummary, CompatibilityWarning, ComponentSummary, Design } from "../types/api";
 import { Cpu, Component as ComponentIcon, LayoutGrid } from "lucide-react";
@@ -124,10 +124,12 @@ function DesignInspector({
   onAddComponent: (libraryId: string) => void;
   onRemoveComponent: (instanceId: string) => void;
 }) {
+  const components = useMemo(() => design ? readComponents(design) : [], [design]);
+  const requirements = useMemo(() => design ? readRequirements(design) : [], [design]);
+  const warnings = useMemo(() => design ? readWarnings(design) : [], [design]);
+
   if (!design) return <div className="text-xs text-zinc-500">No design loaded.</div>;
-  const components = readComponents(design);
-  const requirements = readRequirements(design);
-  const warnings = readWarnings(design);
+
   const board = (design.board as Record<string, unknown> | undefined) ?? {};
   const fleet = (design.fleet ?? null) as Record<string, unknown> | null;
   const boardRecord = (boardData ?? {}) as Record<string, unknown>;
@@ -566,7 +568,9 @@ function ComponentInstanceInspector({
   onConnectionChange: (connectionIndex: number, target: ConnectionTarget) => void;
   onLockedPinChange: (componentId: string, pinRole: string, pin: string | null) => void;
 }) {
-  const components = readComponents(design);
+  const components = useMemo(() => readComponents(design), [design]);
+  const connectionRows = useMemo(() => readConnections(design, instanceId), [design, instanceId]);
+
   const inst = components.find((c) => c.id === instanceId) as ComponentInstance | undefined;
   const comp = useFetched(() => (inst ? api.getComponent(inst.library_id) : Promise.resolve(null)), [inst?.library_id]);
 
@@ -575,7 +579,6 @@ function ComponentInstanceInspector({
 
   const c = comp as Record<string, unknown>;
   const schema = (c.params_schema ?? {}) as Record<string, never>;
-  const connectionRows = readConnections(design, inst.id);
 
   return (
     <div className="space-y-5">
@@ -649,7 +652,7 @@ function ConnectionsPane({
   const [view, setView] = useState<"form" | "pinout">("form");
   const board = (boardData ?? {}) as Record<string, unknown>;
   const gpioCapabilities = (board.gpio_capabilities ?? {}) as Record<string, string[]>;
-  const allConnections = readConnections(design);
+  const allConnections = useMemo(() => readConnections(design), [design]);
 
   return (
     <div className="space-y-2">
