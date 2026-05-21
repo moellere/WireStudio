@@ -4,7 +4,7 @@
  * for the type; removing leaves any connection targeting the bus
  * dangling (the inspector's render warnings surface that).
  */
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   type BusType,
   addBus,
@@ -43,12 +43,15 @@ export function BusList({
   compatibilityWarnings: CompatibilityWarning[];
   onChange: (updater: (d: Design) => Design) => void;
 }) {
-  const buses = ((design.buses as Array<Record<string, unknown>> | undefined) ?? []).map((b) => ({
-    id: String(b.id),
-    type: String(b.type) as BusType,
-    raw: b,
-  }));
-  const allBusIds = new Set(buses.map((b) => b.id));
+  // ⚡ Bolt: memoize bus derivation to prevent mapping the design.buses array into new object references on every render
+  const buses = useMemo(() => {
+    return ((design.buses as Array<Record<string, unknown>> | undefined) ?? []).map((b) => ({
+      id: String(b.id),
+      type: String(b.type) as BusType,
+      raw: b,
+    }));
+  }, [design.buses]);
+  const allBusIds = useMemo(() => new Set(buses.map((b) => b.id)), [buses]);
 
   const [pickedType, setPickedType] = useState<BusType>("i2c");
 
