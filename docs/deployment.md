@@ -11,7 +11,7 @@ FastAPI serves the API and the built SPA from one process.
 docker run --rm -p 8765:8765 \
   -e ANTHROPIC_API_KEY=sk-ant-... \
   -v wirestudio-data:/data \
-  ghcr.io/moellere/wirestudio:v0.11.0
+  ghcr.io/moellere/wirestudio:v0.12.0
 ```
 
 Open <http://localhost:8765>. The image bundles the FastAPI server +
@@ -23,7 +23,7 @@ Available tags:
 
 | Tag | What it tracks |
 |---|---|
-| `:v0.11.0` / `:0.11.0` / `:0.11` / `:latest` | the v0.11.0 release |
+| `:v0.12.0` / `:0.12.0` / `:0.12` / `:latest` | the v0.12.0 release |
 | `:main` | latest commit on `main` (rolling) |
 | `:sha-<short>` | a specific commit |
 

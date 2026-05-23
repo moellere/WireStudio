@@ -7,7 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-(no changes since v0.11.0)
+(no changes since v0.12.0)
+
+## [0.12.0] — 2026-05-23
+
+Headline: three of the four priority tiers (YAML, wiring schema,
+enclosure) are now gated in CI; onboard peripherals auto-populate when
+you adopt a board; and every library component and board is exercised
+by a bundled example (100% coverage, enforced).
+
+### Added
+
+- **Onboard-peripheral auto-populate.** Adopting a dev board — via USB
+  detection or **New design** — now seeds its built-in parts (LCD,
+  buttons, IMU, RGB/IR, LoRa, GPS, ...) already wired. Covers all 13
+  boards that carry `onboard_peripherals` metadata; peripherals with no
+  library component (e.g. the AXP192 PMIC) are skipped with a warning.
+  New `POST /design/seed_onboard` endpoint.
+- **New library components:** `mpu6886` (Atom-family IMU),
+  `remote_transmitter` (IR blaster), `i2s_microphone` (I2S/PDM mic).
+- **Schematic gate (KiCad) — Verified.** `kicad-schematic` workflow
+  runs every example's SKiDL script against the pinned upstream KiCad
+  symbol libraries and fails on any unresolved symbol or pin.
+- **Enclosure gate (OpenSCAD) — Verified.** `enclosure-render` workflow
+  renders every enclosure-capable board's `.scad` and asserts a
+  non-empty manifold solid.
+- **Coverage `--strict` gate** wired into CI, plus an **`esphome-matrix`**
+  workflow that runs the example gate across the pin + latest stables so
+  pin bumps are evidence-driven.
+- **100% library coverage:** every component (59) and board (21) is now
+  exercised by a bundled example that passes both the ESPHome-config and
+  KiCad-netlist gates; the `--strict` baseline is empty.
+- Agent streaming failure-mode tests; API schema field descriptions.
+
+### Fixed
+
+- USB-connect board detection now matches esptool's detailed chip names
+  (e.g. `ESP32-PICO-D4`) to the right board family; the board-picker
+  modal scrolls and the confirm button stays reachable.
+- ~16 library `kicad:` blocks corrected to real upstream symbols (the
+  schematic gate surfaced hallucinated/wrong references).
+- `BusList` web build break (missing `useEffect` import).
 
 ## [0.11.0] — 2026-05-17
 

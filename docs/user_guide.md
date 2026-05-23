@@ -10,9 +10,11 @@
   library matches against use cases. Drag-and-drop pinout for
   component-to-board pin assignment. Pin locks per role. Bus editor
   with rename propagation + inline compatibility warnings. USB
-  bootstrap from a plugged-in ESP via WebSerial + esptool-js. Saved
-  designs at `designs/<id>.json` with a **Saved** tab + **New design**
-  dialog.
+  bootstrap from a plugged-in ESP via WebSerial + esptool-js — the
+  detected chip is matched to a board family, and the board's built-in
+  peripherals (LCD, button, IMU, RGB/IR, LoRa, GPS, ...) are
+  auto-populated and wired. Saved designs at `designs/<id>.json` with a
+  **Saved** tab + **New design** dialog (which seeds onboard parts too).
 - **Validate.** CSP pin solver assigns every unbound connection with
   capability-aware fallback (boot strap pins de-prioritised; ADC1
   preferred over ADC2 on classic ESP32). Port-compatibility checker
