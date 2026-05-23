@@ -54,6 +54,15 @@ export THINGIVERSE_API_KEY=...
 python -m wirestudio.api
 ```
 
+The generated shell is gate-verified: the [`enclosure-render`](../.github/workflows/enclosure-render.yml)
+workflow renders every enclosure-capable board's `.scad` through real
+OpenSCAD (`scripts/check_enclosures.py`) and fails the PR unless it
+produces a non-empty, manifold (closed, non-self-intersecting) solid.
+The geometry is board-driven — it depends on the board's `enclosure:`
+block, not the design's components — so the gate walks boards, not
+examples. Boards without a clear PCB outline (modules like the ESP-01S)
+have no `enclosure:` block and are skipped by design.
+
 ## KiCad export
 
 `POST /design/kicad/schematic` (and the **Schematic** header button)

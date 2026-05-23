@@ -1,0 +1,53 @@
+name: enclosure-render
+
+# The enclosure-correctness gate. Third of the trio alongside
+# esphome-config.yml (ESPHome YAML) and kicad-schematic.yml (KiCad
+# netlist). The parametric OpenSCAD generator
+# (wirestudio.enclosure.generate_scad) is board-driven: the shell
+# geometry comes from each board's `enclosure:` block. This renders
+# every such board's .scad through real OpenSCAD and fails the PR
+# unless it produces a non-empty, manifold (closed, non-self-
+# intersecting) solid -- the "Verified" bar for enclosures: not "the
+# .scad parses" but "it renders to a printable solid."
+#
+# OpenSCAD is pulled from Ubuntu's universe (2021.01 on noble); the CLI
+# renders headlessly, no display needed for STL export.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 10 * * 1'   # 10:00 UTC every Monday
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: enclosure-render-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  enclosure-render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install studio + OpenSCAD
+        run: |
+          pip install -e .
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends openscad
+
+      - name: Print resolved OpenSCAD version
+        run: openscad --version
+
+      - name: Render every board enclosure to a manifold solid
+        run: python scripts/check_enclosures.py
