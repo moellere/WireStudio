@@ -79,26 +79,32 @@ actually useful. Per-release deltas live in
 non-negotiable bar: every artifact the studio emits round-trips
 through upstream `esphome config`. Shipped: the `esphome config` CI
 gate over every bundled example; a nightly `esphome compile` smoke;
-the component-coverage matrix ([`library-coverage.md`](library-coverage.md));
-a pinned ESPHome version called out in the README + workflow;
-CONTRIBUTING.md establishes the gate as the merge bar. Next: an
-ESPHome version matrix in CI so component support can be called out
-per release.
+the component-coverage matrix ([`library-coverage.md`](library-coverage.md))
+with a `--strict` no-regression gate; a pinned ESPHome version called
+out in the README + workflow; CONTRIBUTING.md establishes the gate as
+the merge bar. Next: an ESPHome version matrix in CI so component
+support can be called out per release.
 
-**Priority 2 — Wiring schema correctness.** *Verified-light.* SKiDL
+**Priority 2 — Wiring schema correctness.** *Verified.* SKiDL
 emitter, 100% library `kicad:` coverage, and a `.kicad_sym` symbol
-importer (`python -m wirestudio.kicad.import`) shipped. Honest gap: the
-output is unit-tested as Python text, not opened in KiCad. Next:
-container-side KiCad CLI in CI to actually open + render the
-generated schematic; pin-solver property tests on randomized
-designs; compatibility-checker fuzzing.
+importer (`python -m wirestudio.kicad.import`) shipped. The
+[`kicad-schematic`](../.github/workflows/kicad-schematic.yml) gate runs
+every bundled example's SKiDL script against the pinned upstream KiCad
+symbol libraries and fails the PR unless it builds a netlist with no
+unresolved symbols or pins; parts KiCad ships no stock symbol for
+render as labeled generic headers. Next: ERC on the generated netlist;
+a full `.kicad_sch` render in CI; pin-solver property tests on
+randomized designs; compatibility-checker fuzzing.
 
-**Priority 3 — Enclosures.** *Lower priority.* Parametric OpenSCAD
-generator + Thingiverse search relay shipped. Open question: keep
-investing here, or outsource to e.g.
-[YAPP_Box](https://github.com/mrWheel/YAPP_Box) and integrate
-instead of reimplementing? Decision deferred until P1 + P2 are
-tighter.
+**Priority 3 — Enclosures.** *Verified.* Parametric OpenSCAD
+generator + Thingiverse search relay shipped. The
+[`enclosure-render`](../.github/workflows/enclosure-render.yml) gate
+renders every enclosure-capable board's `.scad` through real OpenSCAD
+and fails the PR unless it produces a non-empty, manifold solid. Open
+question: keep investing in the in-house generator, or outsource to
+e.g. [YAPP_Box](https://github.com/mrWheel/YAPP_Box) and integrate
+instead of reimplementing? Next: more boards' `enclosure:` metadata
+(only 5 carry it today); a lid + snap-fit; slicer-side print validation.
 
 **Priority 4 — PCB layout.** *Deferred to 1.0+.* No work in flight;
 not adding surface here until P1 is rock solid.
