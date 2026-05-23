@@ -1,0 +1,80 @@
+{
+  "schema_version": "0.1",
+  "id": "atoms3-lcd",
+  "name": "AtomS3 character-LCD status panel",
+  "description": "M5Stack AtomS3 driving a 20x4 HD44780 character LCD over its Grove I2C port via a PCF8574 backpack. The tiny S3 cube sits behind the panel and renders status text on the big, readable character display -- a cheap always-on status board.",
+  "created_at": "2026-05-23T00:00:00Z",
+  "updated_at": "2026-05-23T00:00:00Z",
+
+  "board": {
+    "library_id": "m5stack-atoms3",
+    "mcu": "esp32",
+    "framework": "arduino"
+  },
+
+  "power": {
+    "supply": "usb-5v",
+    "rail_voltage_v": 5.0,
+    "regulator": "onboard-axp",
+    "budget_ma": 500
+  },
+
+  "requirements": [
+    { "id": "r1", "kind": "capability", "text": "render status text on a 20x4 character LCD" },
+    { "id": "r2", "kind": "constraint", "text": "LCD is 5V HD44780 on a PCF8574 backpack; drive it from the AtomS3 Grove I2C port (GPIO1/GPIO2)" }
+  ],
+
+  "components": [
+    {
+      "id": "lcd",
+      "library_id": "lcd_pcf8574",
+      "label": "Status panel",
+      "role": "display",
+      "params": {
+        "dimensions": "20x4",
+        "address": "0x27",
+        "update_interval": "1s",
+        "lambda_": "it.print(0, 0, \"WireStudio\");\nit.printf(0, 1, \"Up %.0fs\", id(uptime_s).state);\nit.printf(0, 2, \"RSSI %.0f dBm\", id(rssi).state);\n"
+      }
+    }
+  ],
+
+  "buses": [
+    { "id": "i2c0", "type": "i2c", "frequency_hz": 100000, "sda": "GPIO1", "scl": "GPIO2" }
+  ],
+
+  "connections": [
+    { "component_id": "lcd", "pin_role": "VCC", "target": { "kind": "rail", "rail": "5V" } },
+    { "component_id": "lcd", "pin_role": "GND", "target": { "kind": "rail", "rail": "GND" } },
+    { "component_id": "lcd", "pin_role": "SDA", "target": { "kind": "bus", "bus_id": "i2c0" } },
+    { "component_id": "lcd", "pin_role": "SCL", "target": { "kind": "bus", "bus_id": "i2c0" } }
+  ],
+
+  "passives": [
+    { "id": "c1", "kind": "capacitor", "value": "100nF", "between": ["lcd.VCC", "GND"], "purpose": "decoupling lcd" }
+  ],
+
+  "warnings": [
+    { "level": "warn", "code": "i2c_5v_pullup",
+      "text": "The PCF8574 backpack pulls SDA/SCL to its 5V VCC, but the ESP32-S3 GPIOs are not 5V-tolerant. Most Grove LCD units work in practice because I2C is open-drain and the bus rarely swings to a hard 5V, but for a clean design add a level shifter or pull the bus to 3V3." }
+  ],
+
+  "esphome_extras": {
+    "captive_portal": {},
+    "logger": {},
+    "sensor": [
+      { "platform": "uptime", "id": "uptime_s", "name": "AtomS3 LCD Uptime" },
+      { "platform": "wifi_signal", "id": "rssi", "name": "AtomS3 LCD RSSI", "update_interval": "15s" }
+    ]
+  },
+
+  "fleet": {
+    "device_name": "atoms3-lcd",
+    "tags": ["indoor", "display"],
+    "secrets_ref": {
+      "wifi_ssid": "!secret wifi_ssid",
+      "wifi_password": "!secret wifi_password",
+      "api_key": "!secret api_key"
+    }
+  }
+}

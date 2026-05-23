@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   bootstrapDesign,
   candidateBoardsFor,
+  chipFamily,
   normalizeChipFamily,
   type DetectedChip,
 } from "./bootstrap";
@@ -29,9 +30,37 @@ describe("normalizeChipFamily", () => {
   });
 });
 
+describe("chipFamily", () => {
+  it("folds ESP32 package codes back to plain esp32", () => {
+    // esptool returns detailed descriptions; these are all classic ESP32.
+    expect(chipFamily("ESP32-PICO-D4 (revision 1)")).toBe("esp32");
+    expect(chipFamily("ESP32-D0WD-V3")).toBe("esp32");
+    expect(chipFamily("ESP32")).toBe("esp32");
+  });
+
+  it("keeps the real sub-family suffix", () => {
+    expect(chipFamily("ESP32-S3 (QFN56) (revision v0.2)")).toBe("esp32s3");
+    expect(chipFamily("ESP32-C3")).toBe("esp32c3");
+    expect(chipFamily("ESP32-C6")).toBe("esp32c6");
+    expect(chipFamily("ESP32-P4")).toBe("esp32p4");
+  });
+
+  it("folds ESP8285 into the esp8266 family", () => {
+    expect(chipFamily("ESP8285")).toBe("esp8266");
+    expect(chipFamily("ESP8266")).toBe("esp8266");
+  });
+});
+
 describe("candidateBoardsFor", () => {
   it("returns boards in the matched chip family", () => {
     const cs = candidateBoardsFor(boards, "ESP32");
+    expect(cs.map((b) => b.id)).toEqual(["esp32-devkitc-v4", "nodemcu-32s", "ttgo-lora32-v1"]);
+  });
+
+  it("matches a detailed esptool chip description to its family", () => {
+    // Regression: the M5Stack Atom Echo reports as ESP32-PICO-D4 and used
+    // to match nothing, dumping the user into the full board list.
+    const cs = candidateBoardsFor(boards, "ESP32-PICO-D4 (revision 1)");
     expect(cs.map((b) => b.id)).toEqual(["esp32-devkitc-v4", "nodemcu-32s", "ttgo-lora32-v1"]);
   });
 
@@ -40,8 +69,10 @@ describe("candidateBoardsFor", () => {
     expect(cs.map((b) => b.id)).toEqual(["wemos-d1-mini", "esp01_1m"]);
   });
 
-  it("returns empty for an unknown chip family", () => {
-    expect(candidateBoardsFor(boards, "ESP32-S3")).toEqual([]);
+  it("does not cross-match esp32 sub-families", () => {
+    // No esp32s3 board in this set, so an S3 detection yields no candidates
+    // (rather than wrongly matching the plain-esp32 boards).
+    expect(candidateBoardsFor(boards, "ESP32-S3").map((b) => b.id)).toEqual([]);
   });
 });
 
