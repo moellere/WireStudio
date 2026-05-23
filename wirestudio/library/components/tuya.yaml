@@ -14,7 +14,8 @@ electrical:
   # the other side of the link with its own VCC/GND. The hub itself
   # owns no pins; downstream tuya_switch / tuya_sensor entries hub-
   # link via parent.id.
-  pins: []
+  pins:
+  - {role: UART, kind: uart_tx}
   passives: []
 
 esphome:
@@ -36,13 +37,16 @@ esphome:
 params_schema:
   time_id:
     type: string
-    description: "ID of a time component (sntp / homeassistant). Tuya MCUs that show the time on their own panel pull it via this link."
+    description: "ID of a time component (sntp / homeassistant). Tuya MCUs that show the time on their
+      own panel pull it via this link."
   status_pin:
     type: string
-    description: "GPIO the Tuya MCU monitors for WiFi-connected status. Wired internally on most Tuya devices -- check the teardown / scopeprobe before guessing."
+    description: "GPIO the Tuya MCU monitors for WiFi-connected status. Wired internally on most Tuya
+      devices -- check the teardown / scopeprobe before guessing."
   ignore_mcu_update_on_datapoints:
     type: array
-    description: "List of integer DP ids the host should not echo back to the MCU. Used to break feedback loops on devices where the MCU pushes its own state changes spuriously."
+    description: "List of integer DP ids the host should not echo back to the MCU. Used to break feedback
+      loops on devices where the MCU pushes its own state changes spuriously."
 
 notes: |
   Tuya / Smart Life devices ship as a radio module (ESP8266/ESP8285/BK7231

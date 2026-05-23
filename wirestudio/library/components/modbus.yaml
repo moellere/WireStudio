@@ -14,7 +14,8 @@ electrical:
     # transceiver's combined DE+RE direction pin. Bind only when
     # half-duplex RS485 is wired through such a transceiver; for
     # full-duplex RS232/TTL modbus stacks, leave it unbound.
-    - {role: FLOW, kind: digital_out, voltage: 3.3}
+  - {role: UART, kind: uart_tx}
+  - {role: FLOW, kind: digital_out, voltage: 3.3}
   passives: []
 
 esphome:
@@ -36,12 +37,14 @@ esphome:
 params_schema:
   send_wait_time:
     type: string
-    description: "Minimum gap between modbus requests, e.g. '200ms'. Some slaves need 100-500ms to settle between transactions."
+    description: "Minimum gap between modbus requests, e.g. '200ms'. Some slaves need 100-500ms to settle
+      between transactions."
   role:
     type: string
     enum: [client, server]
     default: client
-    description: "client = master (the studio reads), server = slave (the studio answers). Almost everyone wants client."
+    description: "client = master (the studio reads), server = slave (the studio answers). Almost everyone
+      wants client."
 
 notes: |
   The bare modbus protocol layer that downstream platforms (sdm_meter,
@@ -58,5 +61,5 @@ notes: |
 # point without inventing a part.
 kicad:
   symbol_lib: Connector_Generic
-  symbol: Conn_01x01
+  symbol: Conn_01x02
   value: Modbus hub

@@ -82,11 +82,13 @@ def test_board_renders_as_first_part(lib):
 
 
 def test_known_part_emits_symbol_and_footprint(lib):
-    """ESP32 DevKitC V4 carries a footprint hint. It should make it into
-    the Part(...) call verbatim."""
+    """A component that carries a footprint hint (BME280) should emit it
+    in the Part(...) call verbatim. Boards map to the real module symbol
+    (the ESP32 DevKitC's onboard ESP32-WROOM-32)."""
     script = generate_skidl(_design("garage-motion"), lib)
-    assert 'Part("MCU_Module", "ESP32-DevKitC-V4"' in script
-    assert 'footprint="Module:Espressif_ESP32-DevKitC-V4"' in script
+    assert 'Part("RF_Module", "ESP32-WROOM-32"' in script
+    assert 'Part("Sensor", "BME280"' in script
+    assert 'footprint="Package_LGA:Bosch_LGA-8_2.5x2.5mm_P0.65mm_ClockwisePinNumbering"' in script
 
 
 def test_unmapped_component_falls_back_to_placeholder(lib):
@@ -163,15 +165,17 @@ def test_bus_targets_share_a_single_net(lib):
     NET_BUS_i2c0 handle so the schematic's I2C pins land on one net."""
     script = generate_skidl(_design("garage-motion"), lib)
     assert 'NET_BUS_i2c0 = Net("BUS_i2c0")' in script
-    # Both BME280's SDA + SCL connections go to that single bus net.
-    assert 'c_bme1["SDA"] += NET_BUS_i2c0' in script
-    assert 'c_bme1["SCL"] += NET_BUS_i2c0' in script
+    # Both BME280's I2C connections go to that single bus net. The
+    # symbol's I2C pins are SDI/SCK (pin_map rewrites SDA->SDI, SCL->SCK).
+    assert 'c_bme1["SDI"] += NET_BUS_i2c0' in script
+    assert 'c_bme1["SCK"] += NET_BUS_i2c0' in script
 
 
 def test_gpio_targets_become_inline_nets(lib):
     script = generate_skidl(_design("garage-motion"), lib)
-    # PIR's OUT pin is wired to GPIO13 in this design.
-    assert 'c_pir1["OUT"] += Net("GPIO_GPIO13")' in script
+    # PIR's OUT pin is wired to GPIO13. The HC-SR501 maps to a generic
+    # connector, so roles bind positionally -- OUT is the 3rd pin.
+    assert 'c_pir1["3"] += Net("GPIO_GPIO13")' in script
 
 
 def test_expander_pin_targets_render(lib):
@@ -214,8 +218,9 @@ def test_component_target_renders_for_ads1115_channel():
     script = generate_skidl(Design.model_validate(design), lib_local)
     # ADS1115's VCC role rewrites to VDD via pin_map.
     assert 'c_adc1["VDD"]' in script
-    # Channel's HUB connection becomes a hub-relative net.
-    assert 'c_bat["HUB"] += Net("adc1_HUB")' in script
+    # The channel maps to a generic 1-pin connector, so its HUB role
+    # binds positionally to pin "1"; the net points at the hub instance.
+    assert 'c_bat["1"] += Net("adc1_HUB")' in script
 
 
 # ---------------------------------------------------------------------------

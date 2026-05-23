@@ -10,17 +10,17 @@ electrical:
   current_ma_typical: 0.12
   current_ma_peak: 0.19
   pins:
-    - {role: VCC, kind: power}
-    - {role: GND, kind: ground}
-    - role: SDA
-      kind: i2c_sda
-      pull_up: {required: true, value: "4.7k", to: VCC}
-    - role: SCL
-      kind: i2c_scl
-      pull_up: {required: true, value: "4.7k", to: VCC}
-    - {role: ADDR, kind: digital_in, voltage: 3.3}
+  - {role: VCC, kind: power}
+  - {role: GND, kind: ground}
+  - role: SDA
+    kind: i2c_sda
+    pull_up: {required: true, value: "4.7k", to: VCC}
+  - role: SCL
+    kind: i2c_scl
+    pull_up: {required: true, value: "4.7k", to: VCC}
+  - {role: ADDR, kind: digital_in, voltage: 3.3}
   passives:
-    - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+  - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
 
 esphome:
   required_components: [i2c]
@@ -48,7 +48,6 @@ notes: |
   lux (16-bit), no spectrum math required. 3.3V only.
 # KiCad symbol mapping (0.9 schematic export).
 kicad:
-  symbol_lib: Sensor_Optical
-  symbol: BH1750FVI
-  pin_map:
-    VCC: VCC
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x05
+  value: BH1750

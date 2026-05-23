@@ -10,17 +10,17 @@ electrical:
   current_ma_typical: 0.1
   current_ma_peak: 25
   pins:
-    - {role: VCC, kind: power}
-    - {role: GND, kind: ground}
-    - role: SDA
-      kind: i2c_sda
-      pull_up: {required: true, value: "4.7k", to: VCC}
-    - role: SCL
-      kind: i2c_scl
-      pull_up: {required: true, value: "4.7k", to: VCC}
-    - {role: INT, kind: digital_out, voltage: 3.3}
+  - {role: VCC, kind: power}
+  - {role: GND, kind: ground}
+  - role: SDA
+    kind: i2c_sda
+    pull_up: {required: true, value: "4.7k", to: VCC}
+  - role: SCL
+    kind: i2c_scl
+    pull_up: {required: true, value: "4.7k", to: VCC}
+  - {role: INT, kind: digital_out, voltage: 3.3}
   passives:
-    - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+  - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
 
 esphome:
   required_components: [i2c]
@@ -58,3 +58,5 @@ kicad:
   symbol: PCF8574
   pin_map:
     VCC: VDD
+    GND: VSS
+    INT: ~{INT}

@@ -1,0 +1,76 @@
+name: kicad-schematic
+
+# The schematic-correctness gate. Companion to esphome-config.yml: where
+# that proves the ESPHome YAML round-trips through `esphome config`, this
+# proves the generated schematic round-trips through real EDA tooling.
+#
+# For every examples/*.json it renders the SKiDL script
+# (wirestudio.kicad.generate_skidl), executes it against the actual KiCad
+# symbol libraries, and emits a netlist. That fails the PR if any
+# component/board `kicad:` block references a symbol that doesn't exist,
+# or maps a connected pin role to a pin the symbol doesn't have -- SKiDL
+# raises in both cases. It's the "Verified" bar for the schematic
+# feature: not "the emitted Python parses" but "it builds a netlist
+# against KiCad's own symbol set."
+#
+# Pinning rationale: KiCad renames/moves symbols between major releases,
+# so we pin the kicad-symbols tag (KICAD_SYMBOLS_REF) and bump it
+# deliberately, the same way the ESPHome version is pinned. SKiDL's
+# heavier PCB-layout deps (kinet2pcb, hierplace) fail to build and aren't
+# needed for netlisting, so we install it --no-deps with just the two
+# pure-Python runtime deps it actually imports.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 10 * * 1'   # 10:00 UTC every Monday
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kicad-schematic-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  KICAD_SYMBOLS_REF: "8.0.0"
+
+jobs:
+  kicad-schematic:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install studio + SKiDL
+        # SKiDL's kinet2pcb/hierplace deps are for PCB layout and fail to
+        # build; netlisting needs only skidl + graphviz + simp_sexp.
+        run: |
+          pip install -e .
+          pip install --no-deps skidl graphviz simp_sexp
+
+      - name: Cache KiCad symbol libraries
+        id: cache-symbols
+        uses: actions/cache@v4
+        with:
+          path: kicad-symbols
+          key: kicad-symbols-${{ env.KICAD_SYMBOLS_REF }}
+
+      - name: Fetch KiCad symbol libraries
+        if: steps.cache-symbols.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch "$KICAD_SYMBOLS_REF" \
+            https://gitlab.com/kicad/libraries/kicad-symbols.git kicad-symbols
+
+      - name: Verify every example netlists against KiCad symbols
+        env:
+          KICAD8_SYMBOL_DIR: ${{ github.workspace }}/kicad-symbols
+        run: python scripts/check_schematics.py

@@ -7,9 +7,9 @@ platformio_board: esp32dev
 flash_size_mb: 4
 
 rails:
-  - {name: "5V",  voltage: 5.0, source: usb}
-  - {name: "3V3", voltage: 3.3, source: onboard_regulator}
-  - {name: "GND", voltage: 0.0}
+- {name: "5V", voltage: 5.0, source: usb}
+- {name: "3V3", voltage: 3.3, source: onboard_regulator}
+- {name: "GND", voltage: 0.0}
 
 default_buses:
   i2c: {sda: GPIO21, scl: GPIO22}
@@ -30,12 +30,12 @@ default_buses:
 # compatibility checker warns whenever an analog_in connection lands on
 # an `adc2`-tagged pin and the pin solver prefers `adc1`.
 gpio_capabilities:
-  GPIO0:  [boot, strap, boot_high, adc, adc2]
-  GPIO1:  [gpio, uart_tx, serial_tx]
-  GPIO2:  [strap, gpio, boot_low, adc, adc2]
-  GPIO3:  [gpio, uart_rx, serial_rx]
-  GPIO4:  [gpio, adc, adc2, pwm]
-  GPIO5:  [gpio, strap, spi_cs, boot_high]
+  GPIO0: [boot, strap, boot_high, adc, adc2]
+  GPIO1: [gpio, uart_tx, serial_tx]
+  GPIO2: [strap, gpio, boot_low, adc, adc2]
+  GPIO3: [gpio, uart_rx, serial_rx]
+  GPIO4: [gpio, adc, adc2, pwm]
+  GPIO5: [gpio, strap, spi_cs, boot_high]
   GPIO12: [gpio, adc, adc2, strap, boot_low]
   GPIO13: [gpio, adc, adc2, pwm]
   GPIO14: [gpio, adc, adc2, pwm]
@@ -66,18 +66,17 @@ enclosure:
     width_mm: 28.6
     thickness_mm: 1.6
   mount_holes:
-    - {x_mm:  3.0,  y_mm: 14.3,  hole_diameter_mm: 3.2}
-    - {x_mm: 51.4,  y_mm: 14.3,  hole_diameter_mm: 3.2}
+  - {x_mm: 3.0, y_mm: 14.3, hole_diameter_mm: 3.2}
+  - {x_mm: 51.4, y_mm: 14.3, hole_diameter_mm: 3.2}
   ports:
-    - kind: usb_micro
-      edge: short_a
-      offset_mm: 10.3          # centred on the 28.6mm short edge
-      width_mm: 8.0
-      height_mm: 3.0
-      height_above_pcb_mm: 1.5
+  - kind: usb_micro
+    edge: short_a
+    offset_mm: 10.3            # centred on the 28.6mm short edge
+    width_mm: 8.0
+    height_mm: 3.0
+    height_above_pcb_mm: 1.5
   component_height_max_mm: 13.0
 # KiCad symbol mapping (0.9 schematic export).
 kicad:
-  symbol_lib: MCU_Module
-  symbol: ESP32-DevKitC-V4
-  footprint: Module:Espressif_ESP32-DevKitC-V4
+  symbol_lib: RF_Module
+  symbol: ESP32-WROOM-32

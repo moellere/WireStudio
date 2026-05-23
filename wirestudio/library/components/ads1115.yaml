@@ -10,16 +10,16 @@ electrical:
   current_ma_typical: 1
   current_ma_peak: 2
   pins:
-    - {role: VCC, kind: power}
-    - {role: GND, kind: ground}
-    - role: SDA
-      kind: i2c_sda
-      pull_up: {required: true, value: "4.7k", to: VCC}
-    - role: SCL
-      kind: i2c_scl
-      pull_up: {required: true, value: "4.7k", to: VCC}
+  - {role: VCC, kind: power}
+  - {role: GND, kind: ground}
+  - role: SDA
+    kind: i2c_sda
+    pull_up: {required: true, value: "4.7k", to: VCC}
+  - role: SCL
+    kind: i2c_scl
+    pull_up: {required: true, value: "4.7k", to: VCC}
   passives:
-    - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+  - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
 
 esphome:
   required_components: [i2c]
@@ -56,6 +56,6 @@ notes: |
 # symbol per channel.
 kicad:
   symbol_lib: Analog_ADC
-  symbol: ADS1115xDGS
+  symbol: ADS1115IDGS
   pin_map:
     VCC: VDD

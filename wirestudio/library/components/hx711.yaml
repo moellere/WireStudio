@@ -10,13 +10,13 @@ electrical:
   current_ma_typical: 1.5
   current_ma_peak: 1.7
   pins:
-    - {role: VCC,  kind: power}
-    - {role: GND,  kind: ground}
-    - {role: DOUT, kind: digital_in,  voltage: 3.3}
-    - {role: SCK,  kind: digital_out, voltage: 3.3}
+  - {role: VCC, kind: power}
+  - {role: GND, kind: ground}
+  - {role: DOUT, kind: digital_in, voltage: 3.3}
+  - {role: SCK, kind: digital_out, voltage: 3.3}
   passives:
-    - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
-    - {kind: capacitor, value: "10uF",  between: [VCC, GND], purpose: "bulk decoupling for the analog front-end"}
+  - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+  - {kind: capacitor, value: "10uF", between: [VCC, GND], purpose: "bulk decoupling for the analog front-end"}
 
 esphome:
   required_components: []
@@ -59,3 +59,5 @@ kicad:
   symbol: HX711
   pin_map:
     VCC: AVDD
+    GND: AGND
+    SCK: PD_SCK
