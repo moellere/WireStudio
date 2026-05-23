@@ -7,7 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-(no changes since v0.12.0)
+### Added
+
+- **`make check`** — one local command that runs the same fast gates CI
+  runs (ruff, pytest, a clean web build, vitest). Heavy external-CLI
+  gates live under `make gates`.
+- **Pre-push clean web build.** The pre-push hook now wipes the `tsc -b`
+  cache and rebuilds the SPA, so a stale local cache can't pass while a
+  fresh-container CI build fails on a real type error.
+- **CHANGELOG nudge.** A `changelog` workflow fails a PR that changes
+  `wirestudio/` code without touching `CHANGELOG.md`; escape with
+  `[skip changelog]` in the PR title or the `skip-changelog` label.
+
+### Changed
+
+- **Version is single-sourced** from `wirestudio/__init__.py`;
+  `pyproject.toml` reads it dynamically. Bump it in one place.
 
 ## [0.12.0] — 2026-05-23
 

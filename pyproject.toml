@@ -7,7 +7,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "wirestudio"
-version = "0.12.0"
+# Single-sourced from wirestudio/__init__.py (see [tool.setuptools.dynamic]).
+# Bump __version__ there; the wheel + `python -m build` read it from the module.
+dynamic = ["version"]
 description = "Agent-driven IoT device design tool that produces ESPHome YAML."
 readme = "README.md"
 license = { text = "MIT" }
@@ -35,6 +37,9 @@ dev = [
 [project.scripts]
 wirestudio-generate = "wirestudio.generate.__main__:main"
 wirestudio-api = "wirestudio.api.__main__:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "wirestudio.__version__" }
 
 [tool.setuptools.packages.find]
 where = ["."]

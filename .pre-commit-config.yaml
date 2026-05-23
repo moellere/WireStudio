@@ -35,3 +35,14 @@ repos:
         # Requires `pip install 'esphome==2025.12.7'` in the same env.
         # On Debian-patched setuptools hosts you'll need a venv first;
         # see CONTRIBUTING.md.
+
+      - id: web-clean-build
+        name: Clean web build (wipes tsc -b cache so CI parity holds)
+        # CI builds the SPA in a fresh container, so a stale
+        # web/node_modules/.tmp can pass locally while CI fails on a real
+        # type error (it has, once). Wipe the cache, then build.
+        entry: bash -c 'rm -rf web/node_modules/.tmp && cd web && npm run build'
+        language: system
+        stages: [pre-push]
+        pass_filenames: false
+        files: ^web/

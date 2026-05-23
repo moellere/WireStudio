@@ -1,0 +1,45 @@
+name: changelog
+
+# Nudge, not a wall: if a PR changes shipped code under wirestudio/ but
+# leaves CHANGELOG.md untouched, fail with a hint. The point is to make
+# "does this need a changelog entry?" a conscious choice, not to block
+# refactors or test-only changes.
+#
+# Escape hatches (either one):
+#   - put [skip changelog] anywhere in the PR title, or
+#   - add the `skip-changelog` label to the PR.
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+jobs:
+  changelog:
+    runs-on: ubuntu-latest
+    if: >-
+      !contains(github.event.pull_request.title, '[skip changelog]') &&
+      !contains(github.event.pull_request.labels.*.name, 'skip-changelog')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Require a CHANGELOG entry for code changes
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          changed=$(git diff --name-only "$BASE" "$HEAD")
+          echo "Changed files:"
+          echo "$changed"
+          code=$(echo "$changed" | grep -E '^wirestudio/' || true)
+          changelog=$(echo "$changed" | grep -E '^CHANGELOG\.md$' || true)
+          if [ -n "$code" ] && [ -z "$changelog" ]; then
+            echo "::error::Code under wirestudio/ changed but CHANGELOG.md was not updated."
+            echo "Add an entry under [Unreleased], or use [skip changelog] in the PR title / the skip-changelog label."
+            exit 1
+          fi
+          echo "changelog check: OK"
