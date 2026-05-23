@@ -133,6 +133,9 @@ it without a proxy. Browse the auto-generated OpenAPI docs at
 | [`s3-supermini.json`](../wirestudio/examples/s3-supermini.json) | ESP32-S3 SuperMini | Onboard WS2812 RGB LED + BOOT button |
 | [`c6-supermini.json`](../wirestudio/examples/c6-supermini.json) | ESP32-C6 SuperMini | Onboard WS2812 RGB LED + BOOT button |
 | [`c3-supermini.json`](../wirestudio/examples/c3-supermini.json) | ESP32-C3 SuperMini | Onboard plain status LED + BOOT button |
+| [`tft-touch.json`](../wirestudio/examples/tft-touch.json) | ESP32-DevKitC-V4 | ILI9341 SPI TFT + XPT2046 resistive touch on a shared SPI bus |
+| [`led-display.json`](../wirestudio/examples/led-display.json) | ESP32-DevKitC-V4 | MAX7219 8x8 LED matrix (SPI) + TM1638 LED&KEY 7-seg module |
+| [`esp32cam.json`](../wirestudio/examples/esp32cam.json) | AI-Thinker ESP32-CAM | OV2640 camera over the fixed DVP pinout + camera web server |
 
 Generated artifacts for each are pinned as goldens in
 [`tests/golden/`](../tests/golden/). For a per-component / per-board view of

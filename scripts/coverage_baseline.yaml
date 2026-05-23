@@ -14,16 +14,10 @@
 components:
 - apa102
 - cc1101
-- esp32_camera
-- ili9xxx
 - ld2420
-- max7219
 - pulse_counter
 - rdm6300
 - rf_bridge
 - rtttl
-- tm1638
-- xpt2046
 boards:
 - esp32-wrover-cam
-- esp32cam-ai-thinker
