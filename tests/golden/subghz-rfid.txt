@@ -1,0 +1,33 @@
++---------------------------------------------------------------------------------+
+|  ESP32-DevKitC-V4  ---  subghz-rfid                                             |
++---------------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                            |
+|                                                                                 |
+|  radio  [Texas Instruments CC1101 sub-GHz transceiver (SPI)]  -- Sub-GHz radio  |
+|    VCC   -> rail 3V3                                                            |
+|    GND   -> rail GND                                                            |
+|    SCK   -> spi0 (GPIO18)                                                       |
+|    MISO  -> spi0 (GPIO19)                                                       |
+|    MOSI  -> spi0 (GPIO23)                                                       |
+|    CS    -> GPIO5                                                               |
+|    GDO0  -> GPIO4                                                               |
+|    GDO2  -> GPIO2                                                               |
+|                                                                                 |
+|  rfid  [RDM6300 125kHz EM4100 RFID reader]  -- RFID reader                      |
+|    VCC   -> rail 5V                                                             |
+|    GND   -> rail GND                                                            |
+|    TX    -> rfid_uart (GPIO16)                                                  |
+|                                                                                 |
+|  Passives:                                                                      |
+|    c1: 100nF capacitor, radio.VCC  <->  GND   (decoupling radio)                |
+|                                                                                 |
+|  BOM:                                                                           |
+|    - ESP32-DevKitC-V4                                                           |
+|    - Texas Instruments CC1101 sub-GHz transceiver (SPI)  (radio)                |
+|    - RDM6300 125kHz EM4100 RFID reader  (rfid)                                  |
+|    - 1x 100nF capacitor                                                         |
+|                                                                                 |
+|  Power: ~67mA typical, ~105mA peak (budget 500mA)  OK                           |
+|                                                                                 |
+|  Warnings: none                                                                 |
++---------------------------------------------------------------------------------+

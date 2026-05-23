@@ -1,0 +1,34 @@
++-----------------------------------------------------------------------------------------------------------------+
+|  ESP32-WROVER-CAM (Freenove-style)  ---  esp32cam-wrover                                                        |
++-----------------------------------------------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                                                            |
+|                                                                                                                 |
+|  cam  [ESP32 OV2640 / OV7670 / OV5640 camera]  -- WROVER cam                                                    |
+|    VCC   -> rail 5V                                                                                             |
+|    GND   -> rail GND                                                                                            |
+|    XCLK  -> GPIO32                                                                                              |
+|    SDA   -> GPIO13                                                                                              |
+|    SCL   -> GPIO12                                                                                              |
+|    D0    -> GPIO5                                                                                               |
+|    D1    -> GPIO14                                                                                              |
+|    D2    -> GPIO4                                                                                               |
+|    D3    -> GPIO15                                                                                              |
+|    D4    -> GPIO18                                                                                              |
+|    D5    -> GPIO23                                                                                              |
+|    D6    -> GPIO36                                                                                              |
+|    D7    -> GPIO39                                                                                              |
+|    VSYNC -> GPIO27                                                                                              |
+|    HREF  -> GPIO25                                                                                              |
+|    PCLK  -> GPIO19                                                                                              |
+|    PWDN  -> GPIO26                                                                                              |
+|                                                                                                                 |
+|  BOM:                                                                                                           |
+|    - ESP32-WROVER-CAM (Freenove-style)                                                                          |
+|    - ESP32 OV2640 / OV7670 / OV5640 camera  (cam)                                                               |
+|                                                                                                                 |
+|  Power: ~90mA typical, ~310mA peak (budget 800mA)  OK                                                           |
+|                                                                                                                 |
+|  Warnings:                                                                                                      |
+|    [info] camera_fixed_pinout: WROVER-CAM camera pins are hardwired to the module; GPIO12/14/15 are boot-strap  |
+|                                pins, so the camera must be idle at reset.                                       |
++-----------------------------------------------------------------------------------------------------------------+

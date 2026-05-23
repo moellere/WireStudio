@@ -1,0 +1,32 @@
++----------------------------------------------------------------------------+
+|  ESP32-DevKitC-V4  ---  led-display                                        |
++----------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                       |
+|                                                                            |
+|  matrix  [MAX7219 7-segment / 8x8 LED matrix driver (SPI)]  -- LED matrix  |
+|    VCC   -> rail 5V                                                        |
+|    GND   -> rail GND                                                       |
+|    CLK   -> spi0 (GPIO18)                                                  |
+|    MOSI  -> spi0 (GPIO23)                                                  |
+|    CS    -> GPIO5                                                          |
+|                                                                            |
+|  panel  [TM1638 8-digit 7-segment + 8 LEDs + 8 buttons]  -- LED&KEY        |
+|    VCC   -> rail 5V                                                        |
+|    GND   -> rail GND                                                       |
+|    STB   -> GPIO16                                                         |
+|    CLK   -> GPIO17                                                         |
+|    DIO   -> GPIO4                                                          |
+|                                                                            |
+|  Passives:                                                                 |
+|    c1: 100nF capacitor, matrix.VCC  <->  GND   (decoupling matrix)         |
+|                                                                            |
+|  BOM:                                                                      |
+|    - ESP32-DevKitC-V4                                                      |
+|    - MAX7219 7-segment / 8x8 LED matrix driver (SPI)  (matrix)             |
+|    - TM1638 8-digit 7-segment + 8 LEDs + 8 buttons  (panel)                |
+|    - 1x 100nF capacitor                                                    |
+|                                                                            |
+|  Power: ~110mA typical, ~400mA peak (budget 500mA)  OK                     |
+|                                                                            |
+|  Warnings: none                                                            |
++----------------------------------------------------------------------------+

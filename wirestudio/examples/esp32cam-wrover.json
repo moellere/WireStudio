@@ -1,0 +1,52 @@
+{
+  "schema_version": "0.1",
+  "id": "esp32cam-wrover",
+  "name": "ESP32-WROVER-CAM (Freenove)",
+  "description": "Freenove-style ESP32-WROVER-CAM (OV2640) on the WROVER camera pinout -- XCLK on GPIO32 and the SCCB I2C on GPIO13/12, which (unlike the AI-Thinker) frees GPIO26/27 for IO. Streams over the camera web server.",
+  "created_at": "2026-05-23T00:00:00Z",
+  "updated_at": "2026-05-23T00:00:00Z",
+
+  "board": { "library_id": "esp32-wrover-cam", "mcu": "esp32", "framework": "esp-idf" },
+  "power": { "supply": "usb-5v", "rail_voltage_v": 5.0, "regulator": "onboard-ams1117", "budget_ma": 800 },
+
+  "requirements": [
+    { "id": "r1", "kind": "capability", "text": "stream the OV2640 camera over the ESP32 camera web server" },
+    { "id": "r2", "kind": "constraint", "text": "WROVER camera pinout: XCLK on GPIO32, SCCB I2C on GPIO13/12" }
+  ],
+
+  "components": [
+    { "id": "cam", "library_id": "esp32_camera", "label": "WROVER cam",
+      "params": { "resolution": "640x480", "xclk_frequency": "20MHz", "web_server_ports": [ { "port": 8080, "mode": "stream" } ] } }
+  ],
+
+  "buses": [],
+
+  "connections": [
+    { "component_id": "cam", "pin_role": "VCC",   "target": { "kind": "rail", "rail": "5V" } },
+    { "component_id": "cam", "pin_role": "GND",   "target": { "kind": "rail", "rail": "GND" } },
+    { "component_id": "cam", "pin_role": "XCLK",  "target": { "kind": "gpio", "pin": "GPIO32" } },
+    { "component_id": "cam", "pin_role": "SDA",   "target": { "kind": "gpio", "pin": "GPIO13" } },
+    { "component_id": "cam", "pin_role": "SCL",   "target": { "kind": "gpio", "pin": "GPIO12" } },
+    { "component_id": "cam", "pin_role": "D0",    "target": { "kind": "gpio", "pin": "GPIO5" } },
+    { "component_id": "cam", "pin_role": "D1",    "target": { "kind": "gpio", "pin": "GPIO14" } },
+    { "component_id": "cam", "pin_role": "D2",    "target": { "kind": "gpio", "pin": "GPIO4" } },
+    { "component_id": "cam", "pin_role": "D3",    "target": { "kind": "gpio", "pin": "GPIO15" } },
+    { "component_id": "cam", "pin_role": "D4",    "target": { "kind": "gpio", "pin": "GPIO18" } },
+    { "component_id": "cam", "pin_role": "D5",    "target": { "kind": "gpio", "pin": "GPIO23" } },
+    { "component_id": "cam", "pin_role": "D6",    "target": { "kind": "gpio", "pin": "GPIO36" } },
+    { "component_id": "cam", "pin_role": "D7",    "target": { "kind": "gpio", "pin": "GPIO39" } },
+    { "component_id": "cam", "pin_role": "VSYNC", "target": { "kind": "gpio", "pin": "GPIO27" } },
+    { "component_id": "cam", "pin_role": "HREF",  "target": { "kind": "gpio", "pin": "GPIO25" } },
+    { "component_id": "cam", "pin_role": "PCLK",  "target": { "kind": "gpio", "pin": "GPIO19" } },
+    { "component_id": "cam", "pin_role": "PWDN",  "target": { "kind": "gpio", "pin": "GPIO26" } }
+  ],
+
+  "passives": [],
+  "warnings": [
+    { "level": "info", "code": "camera_fixed_pinout",
+      "text": "WROVER-CAM camera pins are hardwired to the module; GPIO12/14/15 are boot-strap pins, so the camera must be idle at reset." }
+  ],
+  "esphome_extras": { "logger": {}, "psram": { "mode": "quad", "speed": "40MHz" } },
+  "fleet": { "device_name": "esp32cam-wrover", "tags": ["camera"],
+    "secrets_ref": { "wifi_ssid": "!secret wifi_ssid", "wifi_password": "!secret wifi_password", "api_key": "!secret api_key" } }
+}

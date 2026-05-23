@@ -1,0 +1,38 @@
++---------------------------------------------------------------------+
+|  ESP32-DevKitC-V4  ---  tft-touch                                   |
++---------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                |
+|                                                                     |
+|  tft  [ILI9341 / ILI9486 / ILI9488 SPI TFT display]  -- TFT         |
+|    VCC   -> rail 3V3                                                |
+|    GND   -> rail GND                                                |
+|    SCK   -> spi0 (GPIO18)                                           |
+|    MOSI  -> spi0 (GPIO23)                                           |
+|    MISO  -> spi0 (GPIO19)                                           |
+|    CS    -> GPIO5                                                   |
+|    DC    -> GPIO16                                                  |
+|    RESET -> GPIO17                                                  |
+|    BACKLIGHT -> rail 3V3                                            |
+|                                                                     |
+|  touch  [XPT2046 resistive touchscreen controller (SPI)]  -- Touch  |
+|    VCC   -> rail 3V3                                                |
+|    GND   -> rail GND                                                |
+|    SCK   -> spi0 (GPIO18)                                           |
+|    MOSI  -> spi0 (GPIO23)                                           |
+|    MISO  -> spi0 (GPIO19)                                           |
+|    CS    -> GPIO21                                                  |
+|    IRQ   -> GPIO22                                                  |
+|                                                                     |
+|  Passives:                                                          |
+|    c1: 100nF capacitor, tft.VCC  <->  GND   (decoupling tft)        |
+|                                                                     |
+|  BOM:                                                               |
+|    - ESP32-DevKitC-V4                                               |
+|    - ILI9341 / ILI9486 / ILI9488 SPI TFT display  (tft)             |
+|    - XPT2046 resistive touchscreen controller (SPI)  (touch)        |
+|    - 1x 100nF capacitor                                             |
+|                                                                     |
+|  Power: ~81mA typical, ~222mA peak (budget 500mA)  OK               |
+|                                                                     |
+|  Warnings: none                                                     |
++---------------------------------------------------------------------+
