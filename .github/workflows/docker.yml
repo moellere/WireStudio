@@ -3,9 +3,15 @@ name: docker
 # Build + publish the runtime image to GitHub Container Registry.
 #
 # Triggers:
+#   - push to dev       -> ghcr.io/<owner>/wirestudio:dev + :sha-<short>
 #   - push to main      -> ghcr.io/<owner>/wirestudio:main + :sha-<short>
-#   - tag push v*       -> ghcr.io/<owner>/wirestudio:v1.2.3 + :1.2.3 + :1.2 + :latest
+#   - tag push v*       -> ghcr.io/<owner>/wirestudio:1.2.3 + :1.2 + :latest
 #   - PR target         -> build only (no push), as a sanity gate
+#
+# Deployment model: the :dev tag rolls forward on every dev merge (point
+# a staging Argo app at it); prod pins an immutable release tag (:1.2.3)
+# and bumps in git on release. :latest also moves on each release tag if
+# you'd rather track that.
 #
 # Auth: GITHUB_TOKEN with packages:write. No external secrets needed.
 #
@@ -14,10 +20,10 @@ name: docker
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
     tags: ["v*"]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
   workflow_dispatch:
 
 permissions:
@@ -54,8 +60,9 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository_owner }}/wirestudio
           # Tag strategy:
+          #   dev push       -> :dev, :sha-<short>
           #   main push      -> :main, :sha-<short>
-          #   v1.2.3 tag     -> :v1.2.3, :1.2.3, :1.2, :latest
+          #   v1.2.3 tag     -> :1.2.3, :1.2, :latest
           tags: |
             type=ref,event=branch
             type=ref,event=pr
