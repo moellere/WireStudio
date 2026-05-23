@@ -126,6 +126,13 @@ it without a proxy. Browse the auto-generated OpenAPI docs at
 | [`grill-probe.json`](../wirestudio/examples/grill-probe.json) | ESP32-DevKitC-V4 | MAX31855 K-type thermocouple over read-only SPI + MPU6050 IMU as lid sensor |
 | [`atoms3-lcd.json`](../wirestudio/examples/atoms3-lcd.json) | M5Stack AtomS3 | 20x4 HD44780 character LCD over the Grove I2C port via a PCF8574 backpack |
 | [`atoms3-onboard.json`](../wirestudio/examples/atoms3-onboard.json) | M5Stack AtomS3 | The board's built-in parts auto-populated: onboard ST7789 LCD (SPI) + MPU6886 IMU (I2C) + front button |
+| [`atomu-onboard.json`](../wirestudio/examples/atomu-onboard.json) | M5Stack AtomU | Onboard set: SK6812 RGB LED + button + IR transmitter + SPM1423 PDM microphone |
+| [`atom-lite.json`](../wirestudio/examples/atom-lite.json) | M5Stack Atom Lite | Onboard SK6812 RGB LED + button + I2S microphone |
+| [`t-beam.json`](../wirestudio/examples/t-beam.json) | LilyGO TTGO T-Beam | Onboard SX1276 LoRa radio + NEO-6M GPS (dedicated UART) + user button |
+| [`s3-devkitc.json`](../wirestudio/examples/s3-devkitc.json) | ESP32-S3-DevKitC-1 | Onboard WS2812 RGB LED + BOOT button |
+| [`s3-supermini.json`](../wirestudio/examples/s3-supermini.json) | ESP32-S3 SuperMini | Onboard WS2812 RGB LED + BOOT button |
+| [`c6-supermini.json`](../wirestudio/examples/c6-supermini.json) | ESP32-C6 SuperMini | Onboard WS2812 RGB LED + BOOT button |
+| [`c3-supermini.json`](../wirestudio/examples/c3-supermini.json) | ESP32-C3 SuperMini | Onboard plain status LED + BOOT button |
 
 Generated artifacts for each are pinned as goldens in
 [`tests/golden/`](../tests/golden/). For a per-component / per-board view of

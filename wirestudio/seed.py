@@ -6,12 +6,13 @@ the canvas. This reads the board's `onboard_peripherals` metadata and
 emits the matching library components plus their wiring (rails, buses,
 GPIO pins).
 
-Peripherals the library has no component for yet (ir_tx, axp192, i2s
-mic, ...) are skipped with an info warning so nothing silently
-disappears. The mapping covers every onboard peripheral with a library
-component across the bundled boards: addressable + plain LEDs, buttons,
-ST7789 + SSD1306 displays, the MPU6886 IMU, the SX1276 LoRa radio, a
-NEO-6M GPS, and a battery ADC.
+The mapping covers every onboard peripheral with a library component
+across the bundled boards: addressable + plain LEDs, buttons, ST7789 +
+SSD1306 displays, the MPU6886 IMU, the SX1276 LoRa radio, a NEO-6M GPS,
+a battery ADC, an IR transmitter, and an I2S/PDM microphone. The only
+remaining skip is the AXP192 PMIC, which has no ESPHome core component;
+it (and any future unmapped peripheral) is skipped with an info warning
+so nothing silently disappears.
 """
 from __future__ import annotations
 
@@ -152,6 +153,30 @@ def _seed_gps(key: str, params: dict, ctx: _SeedContext) -> Optional[tuple[dict,
     return comp, conns
 
 
+def _seed_ir_tx(key: str, params: dict, ctx: _SeedContext) -> Optional[tuple[dict, list[dict]]]:
+    pin = params.get("pin")
+    if not pin:
+        return None
+    comp = {"id": "onboard_ir", "library_id": "remote_transmitter", "label": "Onboard IR blaster", "params": {}}
+    return comp, [_gpio("onboard_ir", "IR", pin)]
+
+
+def _seed_mic(key: str, params: dict, ctx: _SeedContext) -> Optional[tuple[dict, list[dict]]]:
+    # PDM mic (pdm_mic: clk/data) or standard I2S mic (echo_i2s: bclk/
+    # lrclk/din). The speaker/dout side of a combo board is left out.
+    pdm = "data" in params
+    ws = params.get("clk") if pdm else params.get("lrclk")
+    din = params.get("data") if pdm else params.get("din")
+    if not (ws and din):
+        return None
+    comp = {"id": "onboard_mic", "library_id": "i2s_microphone", "label": "Onboard microphone",
+            "params": {"pdm": pdm}}
+    conns = [_gpio("onboard_mic", "WS", ws), _gpio("onboard_mic", "DIN", din)]
+    if not pdm and params.get("bclk"):
+        conns.append(_gpio("onboard_mic", "BCLK", params["bclk"]))
+    return comp, conns
+
+
 def _seed_battery_adc(key: str, params: dict, ctx: _SeedContext) -> Optional[tuple[dict, list[dict]]]:
     pin = params.get("pin")
     if not pin:
@@ -242,6 +267,10 @@ def _handler_for(key: str) -> Optional[Handler]:
         return _seed_gps
     if key == "battery_adc":
         return _seed_battery_adc
+    if key == "ir_tx":
+        return _seed_ir_tx
+    if key in ("pdm_mic", "echo_i2s"):
+        return _seed_mic
     return None
 
 

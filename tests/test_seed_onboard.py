@@ -65,12 +65,28 @@ def test_seeded_atoms3_renders_valid_yaml(lib):
     assert "platform: gpio" in yaml  # the button binary_sensor
 
 
-def test_unmapped_peripherals_become_warnings(lib):
-    # Atom Echo: LED + button map; the I2S mic/speaker has no component.
+def test_atom_echo_seeds_standard_i2s_mic(lib):
+    # Atom Echo: the echo_i2s mic maps to a standard (non-PDM) I2S mic
+    # with BCLK wired; LED + button map too, leaving no skips.
     frag = seed_onboard_components(lib.board("m5stack-atom-echo"), lib)
-    assert {c["library_id"] for c in frag["components"]} == {"esp32_rmt_led_strip", "gpio_input"}
-    assert [w["code"] for w in frag["warnings"]] == ["onboard_unmapped"]
-    assert "echo_i2s" in frag["warnings"][0]["text"]
+    assert {c["library_id"] for c in frag["components"]} == {
+        "esp32_rmt_led_strip", "gpio_input", "i2s_microphone"}
+    assert frag["warnings"] == []
+    mic = next(c for c in frag["components"] if c["library_id"] == "i2s_microphone")
+    assert mic["params"]["pdm"] is False
+    roles = {c["pin_role"] for c in frag["connections"] if c["component_id"] == "onboard_mic"}
+    assert roles == {"WS", "BCLK", "DIN"}
+
+
+def test_atomu_seeds_ir_and_pdm_mic(lib):
+    frag = seed_onboard_components(lib.board("m5stack-atomu"), lib)
+    libs = {c["library_id"] for c in frag["components"]}
+    assert {"remote_transmitter", "i2s_microphone"} <= libs
+    mic = next(c for c in frag["components"] if c["library_id"] == "i2s_microphone")
+    assert mic["params"]["pdm"] is True  # AtomU SPM1423 is a PDM mic
+    # PDM has no BCLK -- only WS (clock) + DIN (data).
+    roles = {c["pin_role"] for c in frag["connections"] if c["component_id"] == "onboard_mic"}
+    assert roles == {"WS", "DIN"}
 
 
 def test_board_without_onboard_peripherals_seeds_nothing(lib):

@@ -82,16 +82,17 @@ def test_weight_query_lands_on_hx711(lib):
 
 
 def test_lux_query_surfaces_both_lux_sensors(lib):
-    # "lux ambient light" should rank the two dedicated lux sensors at the
-    # top. Which of bh1750 / tsl2561 wins the #1 slot shifts with example
-    # coverage -- the recommender rewards battle-tested parts -- so assert
-    # the robust invariant rather than pinning a single winner: both are
-    # present, and one of them leads.
+    # "lux ambient light" surfaces the two dedicated lux sensors. The word
+    # "light" also matches addressable LED strips (category 'light'), which
+    # carry heavy example coverage, so they can outrank the sensors overall
+    # -- assert the robust invariant: both lux sensors are present, and
+    # among the *sensor* results a lux sensor leads.
     out = recommend_components(lib, "lux ambient light")
     ids = [r.library_id for r in out]
     assert "bh1750" in ids
     assert "tsl2561" in ids
-    assert ids[0] in ("bh1750", "tsl2561")
+    sensor_ids = [r.library_id for r in out if r.category == "sensor"]
+    assert sensor_ids and sensor_ids[0] in ("bh1750", "tsl2561")
 
 
 def test_pressure_query_includes_bmp180(lib):

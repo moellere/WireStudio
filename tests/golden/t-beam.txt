@@ -1,0 +1,36 @@
++------------------------------------------------------------------------------------------------------------+
+|  LilyGO TTGO T-Beam (v1.x)  ---  t-beam                                                                    |
++------------------------------------------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                                                       |
+|                                                                                                            |
+|  onboard_lora  [Semtech SX1276/SX1278 LoRa radio (SPI)]  -- Onboard LoRa radio                             |
+|    VCC   -> rail 3V3                                                                                       |
+|    GND   -> rail GND                                                                                       |
+|    SCK   -> spi0 (GPIO5)                                                                                   |
+|    MISO  -> spi0 (GPIO19)                                                                                  |
+|    MOSI  -> spi0 (GPIO27)                                                                                  |
+|    CS    -> GPIO18                                                                                         |
+|    RST   -> GPIO23                                                                                         |
+|    DIO0  -> GPIO26                                                                                         |
+|                                                                                                            |
+|  onboard_gps  [Generic UART GPS module (NEO-6M / NEO-8M)]  -- Onboard GPS                                  |
+|    VCC   -> rail 3V3                                                                                       |
+|    GND   -> rail GND                                                                                       |
+|    TX    -> gps_uart (GPIO34)                                                                              |
+|    RX    -> gps_uart (GPIO12)                                                                              |
+|                                                                                                            |
+|  onboard_button  [Generic GPIO binary sensor]  -- Onboard button                                           |
+|    IN    -> GPIO38                                                                                         |
+|                                                                                                            |
+|  BOM:                                                                                                      |
+|    - LilyGO TTGO T-Beam (v1.x)                                                                             |
+|    - Semtech SX1276/SX1278 LoRa radio (SPI)  (onboard_lora)                                                |
+|    - Generic UART GPS module (NEO-6M / NEO-8M)  (onboard_gps)                                              |
+|    - Generic GPIO binary sensor  (onboard_button)                                                          |
+|                                                                                                            |
+|  Power: ~42mA typical, ~210mA peak (budget 500mA)  OK                                                      |
+|                                                                                                            |
+|  Warnings:                                                                                                 |
+|    [info] onboard_unmapped: Onboard 'axp192' was not auto-added (no library component for it yet). Add it  |
+|                             from the inspector if you need it.                                             |
++------------------------------------------------------------------------------------------------------------+

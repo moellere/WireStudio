@@ -1,0 +1,28 @@
++-----------------------------------------------------------------------------------------------+
+|  M5Stack Atom Lite / Echo  ---  atom-lite                                                     |
++-----------------------------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                                          |
+|                                                                                               |
+|  onboard_led  [ESP32 RMT-driven addressable LED strip (WS2812 / SK6812)]  -- Onboard RGB LED  |
+|    VCC   -> rail 5V                                                                           |
+|    GND   -> rail GND                                                                          |
+|    DIN   -> GPIO27                                                                            |
+|                                                                                               |
+|  onboard_button  [Generic GPIO binary sensor]  -- Onboard button                              |
+|    IN    -> GPIO39                                                                            |
+|                                                                                               |
+|  onboard_mic  [I2S / PDM microphone (i2s_audio)]  -- Onboard microphone                       |
+|    WS    -> GPIO33                                                                            |
+|    DIN   -> GPIO23                                                                            |
+|    BCLK  -> GPIO19                                                                            |
+|                                                                                               |
+|  BOM:                                                                                         |
+|    - M5Stack Atom Lite / Echo                                                                 |
+|    - ESP32 RMT-driven addressable LED strip (WS2812 / SK6812)  (onboard_led)                  |
+|    - Generic GPIO binary sensor  (onboard_button)                                             |
+|    - I2S / PDM microphone (i2s_audio)  (onboard_mic)                                          |
+|                                                                                               |
+|  Power: ~22mA typical, ~65mA peak (budget 500mA)  OK                                          |
+|                                                                                               |
+|  Warnings: none                                                                               |
++-----------------------------------------------------------------------------------------------+
