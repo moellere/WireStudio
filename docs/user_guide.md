@@ -136,6 +136,10 @@ it without a proxy. Browse the auto-generated OpenAPI docs at
 | [`tft-touch.json`](../wirestudio/examples/tft-touch.json) | ESP32-DevKitC-V4 | ILI9341 SPI TFT + XPT2046 resistive touch on a shared SPI bus |
 | [`led-display.json`](../wirestudio/examples/led-display.json) | ESP32-DevKitC-V4 | MAX7219 8x8 LED matrix (SPI) + TM1638 LED&KEY 7-seg module |
 | [`esp32cam.json`](../wirestudio/examples/esp32cam.json) | AI-Thinker ESP32-CAM | OV2640 camera over the fixed DVP pinout + camera web server |
+| [`esp32cam-wrover.json`](../wirestudio/examples/esp32cam-wrover.json) | ESP32-WROVER-CAM | OV2640 on the Freenove WROVER pinout (XCLK GPIO32, SCCB on GPIO13/12) |
+| [`subghz-rfid.json`](../wirestudio/examples/subghz-rfid.json) | ESP32-DevKitC-V4 | CC1101 433MHz transceiver (SPI) + RDM6300 125kHz RFID reader (UART) |
+| [`presence-rf.json`](../wirestudio/examples/presence-rf.json) | ESP32-DevKitC-V4 | LD2420 24GHz mmWave presence (UART) + Sonoff-style 433MHz RF bridge (UART) |
+| [`flow-meter.json`](../wirestudio/examples/flow-meter.json) | ESP32-DevKitC-V4 | Pulse-counter flow/RPM sensor + APA102 DotStar strip + RTTTL piezo buzzer |
 
 Generated artifacts for each are pinned as goldens in
 [`tests/golden/`](../tests/golden/). For a per-component / per-board view of

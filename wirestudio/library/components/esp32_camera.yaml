@@ -16,27 +16,27 @@ electrical:
   # bare modules wired to a generic ESP32 you'll bind every role
   # explicitly.
   pins:
-    - {role: VCC,         kind: power}
-    - {role: GND,         kind: ground}
-    - {role: XCLK,        kind: digital_out, voltage: 3.3}
-    - {role: PCLK,        kind: digital_in,  voltage: 3.3}
-    - {role: VSYNC,       kind: digital_in,  voltage: 3.3}
-    - {role: HREF,        kind: digital_in,  voltage: 3.3}
-    - {role: SDA,         kind: i2c_sda}
-    - {role: SCL,         kind: i2c_scl}
-    - {role: D0,          kind: digital_in, voltage: 3.3}
-    - {role: D1,          kind: digital_in, voltage: 3.3}
-    - {role: D2,          kind: digital_in, voltage: 3.3}
-    - {role: D3,          kind: digital_in, voltage: 3.3}
-    - {role: D4,          kind: digital_in, voltage: 3.3}
-    - {role: D5,          kind: digital_in, voltage: 3.3}
-    - {role: D6,          kind: digital_in, voltage: 3.3}
-    - {role: D7,          kind: digital_in, voltage: 3.3}
-    - {role: PWDN,        kind: digital_out, voltage: 3.3}
-    - {role: RESET,       kind: digital_out, voltage: 3.3}
+  - {role: VCC, kind: power}
+  - {role: GND, kind: ground}
+  - {role: XCLK, kind: digital_out, voltage: 3.3}
+  - {role: PCLK, kind: digital_in, voltage: 3.3}
+  - {role: VSYNC, kind: digital_in, voltage: 3.3}
+  - {role: HREF, kind: digital_in, voltage: 3.3}
+  - {role: SDA, kind: i2c_sda}
+  - {role: SCL, kind: i2c_scl}
+  - {role: D0, kind: digital_in, voltage: 3.3}
+  - {role: D1, kind: digital_in, voltage: 3.3}
+  - {role: D2, kind: digital_in, voltage: 3.3}
+  - {role: D3, kind: digital_in, voltage: 3.3}
+  - {role: D4, kind: digital_in, voltage: 3.3}
+  - {role: D5, kind: digital_in, voltage: 3.3}
+  - {role: D6, kind: digital_in, voltage: 3.3}
+  - {role: D7, kind: digital_in, voltage: 3.3}
+  - {role: PWDN, kind: digital_out, voltage: 3.3}
+  - {role: RESET, kind: digital_out, voltage: 3.3}
   passives:
-    - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
-    - {kind: capacitor, value: "10uF",  between: [VCC, GND], purpose: bulk decoupling}
+  - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+  - {kind: capacitor, value: "10uF", between: [VCC, GND], purpose: bulk decoupling}
 
 esphome:
   required_components: []
@@ -90,7 +90,11 @@ params_schema:
     type: array
     description: "Optional `[{ port: 8080, mode: stream }, { port: 8081, mode: snapshot }]` list."
 
-notes: "ESP32 only -- OV2640 needs the dedicated parallel bus + DMA the classic ESP32 / ESP32-S3 expose, and won't work on C3/H2/etc. The sensor pulls >300mA on capture and is intolerant of a sagging 3V3 rail; bring out the 10uF cap on the camera board (most modules already have it). For boards with the camera baked into the board file (AI-Thinker, Wrover, M5Camera, TTGO T-Camera) prefer pinning every camera role to the equivalent `expander_pin: camera` slots from the board's onboard_peripherals."
+notes: "ESP32 only -- OV2640 needs the dedicated parallel bus + DMA the classic ESP32 / ESP32-S3 expose,
+  and won't work on C3/H2/etc. The sensor pulls >300mA on capture and is intolerant of a sagging 3V3 rail;
+  bring out the 10uF cap on the camera board (most modules already have it). For boards with the camera
+  baked into the board file (AI-Thinker, Wrover, M5Camera, TTGO T-Camera) prefer pinning every camera
+  role to the equivalent `expander_pin: camera` slots from the board's onboard_peripherals."
 # KiCad symbol mapping (0.9). The ESP32-CAM camera FPC has 24 pins
 # but the typical AI-Thinker board doesn't break them out -- the
 # camera plugs into the board's onboard FPC connector. We render a
@@ -99,5 +103,5 @@ notes: "ESP32 only -- OV2640 needs the dedicated parallel bus + DMA the classic 
 # their actual breakout / FPC connector after import.
 kicad:
   symbol_lib: Connector_Generic
-  symbol: Conn_01x01
+  symbol: Conn_01x18
   value: ESP32 Camera FPC

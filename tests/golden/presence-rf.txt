@@ -1,0 +1,26 @@
++-----------------------------------------------------------------------------+
+|  ESP32-DevKitC-V4  ---  presence-rf                                         |
++-----------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                        |
+|                                                                             |
+|  presence  [Hi-Link LD2420 24GHz mmWave presence sensor]  -- Room presence  |
+|    VCC   -> rail 3V3                                                        |
+|    GND   -> rail GND                                                        |
+|    TX    -> ld_uart (GPIO16)                                                |
+|    RX    -> ld_uart (GPIO17)                                                |
+|                                                                             |
+|  rfbridge  [Sonoff RF Bridge 433MHz EFM8 module]  -- RF bridge              |
+|    VCC   -> rail 3V3                                                        |
+|    GND   -> rail GND                                                        |
+|    TX    -> rf_uart (GPIO18)                                                |
+|    RX    -> rf_uart (GPIO19)                                                |
+|                                                                             |
+|  BOM:                                                                       |
+|    - ESP32-DevKitC-V4                                                       |
+|    - Hi-Link LD2420 24GHz mmWave presence sensor  (presence)                |
+|    - Sonoff RF Bridge 433MHz EFM8 module  (rfbridge)                        |
+|                                                                             |
+|  Power: ~73mA typical, ~120mA peak (budget 500mA)  OK                       |
+|                                                                             |
+|  Warnings: none                                                             |
++-----------------------------------------------------------------------------+

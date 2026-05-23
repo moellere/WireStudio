@@ -11,13 +11,5 @@
 # When you close a gap, remove the id from the matching section. When
 # you add a new library entry without an example, add its id here.
 
-components:
-- apa102
-- cc1101
-- ld2420
-- pulse_counter
-- rdm6300
-- rf_bridge
-- rtttl
-boards:
-- esp32-wrover-cam
+components: []
+boards: []
