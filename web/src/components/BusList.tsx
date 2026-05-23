@@ -4,7 +4,7 @@
  * for the type; removing leaves any connection targeting the bus
  * dangling (the inspector's render warnings surface that).
  */
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   type BusType,
   addBus,
