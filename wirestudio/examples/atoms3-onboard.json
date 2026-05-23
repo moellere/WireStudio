@@ -1,0 +1,205 @@
+{
+  "schema_version": "0.1",
+  "id": "atoms3-onboard",
+  "name": "M5Stack AtomS3 (onboard peripherals)",
+  "description": "M5Stack AtomS3 with its built-in parts pre-placed: the 0.85\" 128x128 ST7789 LCD on the internal SPI bus, the programmable front button, and the MPU6886 6-axis IMU on I2C. This is exactly what the studio auto-populates when you pick or USB-detect an AtomS3.",
+  "created_at": "2026-05-23T00:00:00Z",
+  "updated_at": "2026-05-23T00:00:00Z",
+  "board": {
+    "library_id": "m5stack-atoms3",
+    "mcu": "esp32",
+    "framework": "arduino"
+  },
+  "power": {
+    "supply": "usb-5v",
+    "rail_voltage_v": 5.0,
+    "regulator": "onboard",
+    "budget_ma": 500
+  },
+  "requirements": [
+    {
+      "id": "r1",
+      "kind": "capability",
+      "text": "drive the onboard 0.85\" ST7789 LCD"
+    },
+    {
+      "id": "r2",
+      "kind": "capability",
+      "text": "read the onboard MPU6886 IMU + the front button"
+    }
+  ],
+  "components": [
+    {
+      "id": "onboard_display",
+      "library_id": "st7789",
+      "label": "Onboard display",
+      "role": "display",
+      "params": {
+        "model": "Custom",
+        "width": 128,
+        "height": 128,
+        "offset_width": 2,
+        "offset_height": 1
+      }
+    },
+    {
+      "id": "onboard_button",
+      "library_id": "gpio_input",
+      "label": "Onboard button",
+      "params": {
+        "filters": [
+          {
+            "invert": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "onboard_imu",
+      "library_id": "mpu6886",
+      "label": "Onboard IMU",
+      "params": {
+        "address": "0x68"
+      }
+    }
+  ],
+  "buses": [
+    {
+      "id": "spi0",
+      "type": "spi",
+      "clk": "GPIO17",
+      "mosi": "GPIO21",
+      "miso": "GPIO13"
+    },
+    {
+      "id": "i2c0",
+      "type": "i2c",
+      "sda": "GPIO1",
+      "scl": "GPIO2"
+    }
+  ],
+  "connections": [
+    {
+      "component_id": "onboard_display",
+      "pin_role": "VCC",
+      "target": {
+        "kind": "rail",
+        "rail": "3V3"
+      }
+    },
+    {
+      "component_id": "onboard_display",
+      "pin_role": "GND",
+      "target": {
+        "kind": "rail",
+        "rail": "GND"
+      }
+    },
+    {
+      "component_id": "onboard_display",
+      "pin_role": "SCK",
+      "target": {
+        "kind": "bus",
+        "bus_id": "spi0"
+      }
+    },
+    {
+      "component_id": "onboard_display",
+      "pin_role": "MOSI",
+      "target": {
+        "kind": "bus",
+        "bus_id": "spi0"
+      }
+    },
+    {
+      "component_id": "onboard_display",
+      "pin_role": "CS",
+      "target": {
+        "kind": "gpio",
+        "pin": "GPIO15"
+      }
+    },
+    {
+      "component_id": "onboard_display",
+      "pin_role": "DC",
+      "target": {
+        "kind": "gpio",
+        "pin": "GPIO33"
+      }
+    },
+    {
+      "component_id": "onboard_display",
+      "pin_role": "RESET",
+      "target": {
+        "kind": "gpio",
+        "pin": "GPIO34"
+      }
+    },
+    {
+      "component_id": "onboard_display",
+      "pin_role": "BACKLIGHT",
+      "target": {
+        "kind": "gpio",
+        "pin": "GPIO16"
+      }
+    },
+    {
+      "component_id": "onboard_button",
+      "pin_role": "IN",
+      "target": {
+        "kind": "gpio",
+        "pin": "GPIO41"
+      }
+    },
+    {
+      "component_id": "onboard_imu",
+      "pin_role": "VCC",
+      "target": {
+        "kind": "rail",
+        "rail": "3V3"
+      }
+    },
+    {
+      "component_id": "onboard_imu",
+      "pin_role": "GND",
+      "target": {
+        "kind": "rail",
+        "rail": "GND"
+      }
+    },
+    {
+      "component_id": "onboard_imu",
+      "pin_role": "SDA",
+      "target": {
+        "kind": "bus",
+        "bus_id": "i2c0"
+      }
+    },
+    {
+      "component_id": "onboard_imu",
+      "pin_role": "SCL",
+      "target": {
+        "kind": "bus",
+        "bus_id": "i2c0"
+      }
+    }
+  ],
+  "passives": [],
+  "warnings": [],
+  "esphome_extras": {
+    "captive_portal": {},
+    "logger": {}
+  },
+  "fleet": {
+    "device_name": "atoms3-onboard",
+    "tags": [
+      "indoor",
+      "display"
+    ],
+    "secrets_ref": {
+      "wifi_ssid": "!secret wifi_ssid",
+      "wifi_password": "!secret wifi_password",
+      "api_key": "!secret api_key"
+    }
+  }
+}
