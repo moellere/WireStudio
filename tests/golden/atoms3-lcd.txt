@@ -1,0 +1,27 @@
++------------------------------------------------------------------------------------------------------------+
+|  M5Stack AtomS3  ---  atoms3-lcd                                                                           |
++------------------------------------------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                                                       |
+|                                                                                                            |
+|  lcd  [HD44780 character LCD (16x2 / 20x4) via PCF8574 I2C backpack]  -- Status panel                      |
+|    VCC   -> rail 5V                                                                                        |
+|    GND   -> rail GND                                                                                       |
+|    SDA   -> i2c0 (GPIO1)                                                                                   |
+|    SCL   -> i2c0 (GPIO2)                                                                                   |
+|                                                                                                            |
+|  Passives:                                                                                                 |
+|    c1: 100nF capacitor, lcd.VCC  <->  GND   (decoupling lcd)                                               |
+|                                                                                                            |
+|  BOM:                                                                                                      |
+|    - M5Stack AtomS3                                                                                        |
+|    - HD44780 character LCD (16x2 / 20x4) via PCF8574 I2C backpack  (lcd)                                   |
+|    - 1x 100nF capacitor                                                                                    |
+|                                                                                                            |
+|  Power: ~25mA typical, ~60mA peak (budget 500mA)  OK                                                       |
+|                                                                                                            |
+|  Warnings:                                                                                                 |
+|    [warn] i2c_5v_pullup: The PCF8574 backpack pulls SDA/SCL to its 5V VCC, but the ESP32-S3 GPIOs are not  |
+|                          5V-tolerant. Most Grove LCD units work in practice because I2C is open-drain and  |
+|                          the bus rarely swings to a hard 5V, but for a clean design add a level shifter    |
+|                          or pull the bus to 3V3.                                                           |
++------------------------------------------------------------------------------------------------------------+

@@ -12,27 +12,24 @@
 # you add a new library entry without an example, add its id here.
 
 components:
-  - apa102
-  - cc1101
-  - esp32_camera
-  - ili9xxx
-  - lcd_pcf8574
-  - ld2420
-  - max7219
-  - pulse_counter
-  - rdm6300
-  - rf_bridge
-  - rtttl
-  - tm1638
-  - xpt2046
-
+- apa102
+- cc1101
+- esp32_camera
+- ili9xxx
+- ld2420
+- max7219
+- pulse_counter
+- rdm6300
+- rf_bridge
+- rtttl
+- tm1638
+- xpt2046
 boards:
-  - esp32-c3-supermini
-  - esp32-c6-supermini
-  - esp32-s3-devkitc-1
-  - esp32-s3-supermini
-  - esp32-wrover-cam
-  - esp32cam-ai-thinker
-  - m5stack-atom
-  - m5stack-atoms3
-  - ttgo-t-beam
+- esp32-c3-supermini
+- esp32-c6-supermini
+- esp32-s3-devkitc-1
+- esp32-s3-supermini
+- esp32-wrover-cam
+- esp32cam-ai-thinker
+- m5stack-atom
+- ttgo-t-beam
