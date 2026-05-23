@@ -43,12 +43,12 @@ export function ConnectionForm({
     return Object.keys((board.gpio_capabilities ?? {}) as Record<string, unknown>);
   }, [board.gpio_capabilities]);
 
-  const buses = useMemo(() => readBuses(design), [design]);
+  const buses = useMemo(() => (design ? readBuses(design) : []), [design]);
 
-  const expanders = useMemo(() => expandersFromDesign(design, libraryComponents), [design, libraryComponents]);
+  const expanders = useMemo(() => (design ? expandersFromDesign(design, libraryComponents) : []), [design, libraryComponents]);
 
   const componentInstances = useMemo(() => {
-    return readComponents(design).map((c) => ({
+    return (design ? readComponents(design) : []).map((c) => ({
       id: c.id, library_id: c.library_id,
     }));
   }, [design]);

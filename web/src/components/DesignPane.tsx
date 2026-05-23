@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Copy, Check } from "lucide-react";
 import type { Design, RenderResponse } from "../types/api";
 import { Loading } from "./Status";
@@ -15,16 +15,17 @@ export function DesignPane({ design, render, renderError }: Props) {
   const [tab, setTab] = useState<Tab>("ascii");
   const [copied, setCopied] = useState(false);
 
-  const meta = design ? readMeta(design) : null;
+  const meta = useMemo(() => (design ? readMeta(design) : null), [design]);
 
-  const content =
-    tab === "json"
+  const content = useMemo(() => {
+    return tab === "json"
       ? design
         ? JSON.stringify(design, null, 2)
         : ""
       : tab === "yaml"
         ? render?.yaml ?? ""
         : render?.ascii ?? "";
+  }, [tab, design, render]);
 
   async function copy() {
     if (!content) return;
