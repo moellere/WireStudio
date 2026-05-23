@@ -1,0 +1,20 @@
++---------------------------------------------------------------------+
+|  ESP32-C3 SuperMini  ---  c3-supermini                              |
++---------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                |
+|                                                                     |
+|  onboard_led  [Generic GPIO switch / relay output]  -- Onboard LED  |
+|    OUT   -> GPIO8                                                   |
+|                                                                     |
+|  onboard_button  [Generic GPIO binary sensor]  -- Onboard button    |
+|    IN    -> GPIO9                                                   |
+|                                                                     |
+|  BOM:                                                               |
+|    - ESP32-C3 SuperMini                                             |
+|    - Generic GPIO switch / relay output  (onboard_led)              |
+|    - Generic GPIO binary sensor  (onboard_button)                   |
+|                                                                     |
+|  Power: ~0mA typical, ~0mA peak (budget 500mA)  OK                  |
+|                                                                     |
+|  Warnings: none                                                     |
++---------------------------------------------------------------------+
