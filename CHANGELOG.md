@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **CHANGELOG nudge.** A `changelog` workflow fails a PR that changes
   `wirestudio/` code without touching `CHANGELOG.md`; escape with
   `[skip changelog]` in the PR title or the `skip-changelog` label.
+- **`dev` integration branch.** The PR gates and image build now run on
+  `dev` as well as `main`; `dev` merges publish a rolling `:dev` image.
+- **Side-by-side ArgoCD deploys.** `deploy/overlays/{prod,dev}` +
+  `deploy/argocd/` run a pinned-release prod app and a rolling dev app
+  from one tree; CI commits the new image sha to the dev overlay on each
+  `dev` merge. See `docs/deployment.md`.
 
 ### Changed
 

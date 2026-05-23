@@ -87,3 +87,32 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # Roll the dev Argo app forward: pin deploy/overlays/dev to the image
+  # just built and commit it back to dev. ArgoCD (automated sync) deploys
+  # the new sha. Pushes made with GITHUB_TOKEN don't retrigger workflows,
+  # and [skip ci] makes that explicit.
+  bump-dev:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: dev
+      - name: Pin dev overlay to the freshly built image
+        run: |
+          tag="sha-$(echo "${GITHUB_SHA}" | cut -c1-7)"
+          file=deploy/overlays/dev/kustomization.yaml
+          sed -i -E "s|^( *newTag: ).*|\1${tag}|" "$file"
+          if git diff --quiet -- "$file"; then
+            echo "dev overlay already at ${tag}"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$file"
+          git commit -m "deploy(dev): roll to ${tag} [skip ci]"
+          git push origin dev
