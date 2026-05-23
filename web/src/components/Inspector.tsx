@@ -124,9 +124,9 @@ function DesignInspector({
   onAddComponent: (libraryId: string) => void;
   onRemoveComponent: (instanceId: string) => void;
 }) {
-  const components = useMemo(() => design ? readComponents(design) : [], [design]);
-  const requirements = useMemo(() => design ? readRequirements(design) : [], [design]);
-  const warnings = useMemo(() => design ? readWarnings(design) : [], [design]);
+  const components = useMemo(() => (design ? readComponents(design) : []), [design]);
+  const requirements = useMemo(() => (design ? readRequirements(design) : []), [design]);
+  const warnings = useMemo(() => (design ? readWarnings(design) : []), [design]);
 
   if (!design) return <div className="text-xs text-zinc-500">No design loaded.</div>;
 
@@ -568,8 +568,8 @@ function ComponentInstanceInspector({
   onConnectionChange: (connectionIndex: number, target: ConnectionTarget) => void;
   onLockedPinChange: (componentId: string, pinRole: string, pin: string | null) => void;
 }) {
-  const components = useMemo(() => readComponents(design), [design]);
-  const connectionRows = useMemo(() => readConnections(design, instanceId), [design, instanceId]);
+  const components = useMemo(() => (design ? readComponents(design) : []), [design]);
+  const connectionRows = useMemo(() => (design ? readConnections(design, instanceId) : []), [design, instanceId]);
 
   const inst = components.find((c) => c.id === instanceId) as ComponentInstance | undefined;
   const comp = useFetched(() => (inst ? api.getComponent(inst.library_id) : Promise.resolve(null)), [inst?.library_id]);
@@ -652,7 +652,7 @@ function ConnectionsPane({
   const [view, setView] = useState<"form" | "pinout">("form");
   const board = (boardData ?? {}) as Record<string, unknown>;
   const gpioCapabilities = (board.gpio_capabilities ?? {}) as Record<string, string[]>;
-  const allConnections = useMemo(() => readConnections(design), [design]);
+  const allConnections = useMemo(() => (design ? readConnections(design) : []), [design]);
 
   return (
     <div className="space-y-2">
