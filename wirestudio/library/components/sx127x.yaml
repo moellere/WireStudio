@@ -10,17 +10,17 @@ electrical:
   current_ma_typical: 12
   current_ma_peak: 130
   pins:
-    - {role: VCC,   kind: power}
-    - {role: GND,   kind: ground}
-    - {role: SCK,   kind: spi_clk}
-    - {role: MISO,  kind: spi_miso}
-    - {role: MOSI,  kind: spi_mosi}
-    - {role: CS,    kind: spi_cs,     voltage: 3.3}
-    - {role: RST,   kind: digital_in, voltage: 3.3}
-    - {role: DIO0,  kind: digital_out, voltage: 3.3}
+  - {role: VCC, kind: power}
+  - {role: GND, kind: ground}
+  - {role: SCK, kind: spi_clk}
+  - {role: MISO, kind: spi_miso}
+  - {role: MOSI, kind: spi_mosi}
+  - {role: CS, kind: spi_cs, voltage: 3.3}
+  - {role: RST, kind: digital_in, voltage: 3.3}
+  - {role: DIO0, kind: digital_out, voltage: 3.3}
   passives:
-    - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
-    - {kind: capacitor, value: "10uF",  between: [VCC, GND], purpose: bulk decoupling on TX}
+  - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+  - {kind: capacitor, value: "10uF", between: [VCC, GND], purpose: bulk decoupling on TX}
 
 esphome:
   required_components: [spi]
@@ -68,23 +68,26 @@ esphome:
     {%- endif %}
 
 params_schema:
-  frequency:        { type: integer, description: "Carrier frequency in Hz, e.g. 915000000 (US) or 868000000 (EU)" }
-  modulation:       { type: string, enum: [LORA, FSK, OOK], default: LORA }
-  bandwidth:        { type: string, default: "125_0kHz" }
-  spreading_factor: { type: integer, minimum: 6, maximum: 12, default: 7 }
-  coding_rate:      { type: string, enum: ["CR_4_5","CR_4_6","CR_4_7","CR_4_8"], default: "CR_4_5" }
-  preamble_size:    { type: integer, default: 8 }
-  sync_value:       { type: integer }
-  crc_enable:       { type: boolean, default: true }
-  pa_pin:           { type: string, enum: [BOOST, RFO], default: BOOST }
-  pa_power:         { type: integer, minimum: 2, maximum: 20, default: 17 }
-  rx_start:         { type: boolean, default: true }
+  frequency: {type: integer, description: "Carrier frequency in Hz, e.g. 915000000 (US) or 868000000 (EU)"}
+  modulation: {type: string, enum: [LORA, FSK, OOK], default: LORA}
+  bandwidth: {type: string, default: "125_0kHz"}
+  spreading_factor: {type: integer, minimum: 6, maximum: 12, default: 7}
+  coding_rate: {type: string, enum: ["CR_4_5", "CR_4_6", "CR_4_7", "CR_4_8"], default: "CR_4_5"}
+  preamble_size: {type: integer, default: 8}
+  sync_value: {type: integer}
+  crc_enable: {type: boolean, default: true}
+  pa_pin: {type: string, enum: [BOOST, RFO], default: BOOST}
+  pa_power: {type: integer, minimum: 2, maximum: 20, default: 17}
+  rx_start: {type: boolean, default: true}
 
-notes: "ESPHome's `sx127x` is a singleton. The module typically needs a 10uF bulk cap close to VCC because TX bursts pull >100mA momentarily. Frequency must match a band legal in your region."
+notes: "ESPHome's `sx127x` is a singleton. The module typically needs a 10uF bulk cap close to VCC because
+  TX bursts pull >100mA momentarily. Frequency must match a band legal in your region."
 # KiCad symbol mapping (0.9 schematic export). Generic SX1276 covers
 # the SX1272/SX1278 variants with the same pinout.
 kicad:
   symbol_lib: RF
   symbol: SX1276
   pin_map:
-    VCC: VDD
+    VCC: VBAT_ANA
+    CS: NSS
+    RST: ~{RESET}

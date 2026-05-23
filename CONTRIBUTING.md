@@ -145,13 +145,55 @@ python scripts/check_examples.py --compile garage-motion
 
 (First-time toolchain pull will take several minutes.)
 
-## The schematic gate (lighter)
+## The schematic gate
 
-`tests/test_kicad.py` runs the SKiDL emitter against bundled examples
-and checks the output is well-formed Python plus the expected nets.
-It does **not** run KiCad to validate. The honest bar for "schematic
-works" is: open the generated `.kicad_sch` in KiCad and verify the
-nets visually. Add one such check per new component class.
+`.github/workflows/kicad-schematic.yml` runs `scripts/check_schematics.py`
+against the pinned upstream KiCad symbol libraries. For every
+`examples/*.json` it renders the SKiDL script, executes it against the
+real symbol set, and emits a netlist — failing the PR if any
+component/board `kicad:` block references a symbol that doesn't exist or
+maps a connected pin role to a pin the symbol lacks. This is the
+**Verified** bar for the schematic: not "the emitted Python parses" but
+"it builds a netlist against KiCad's own symbols."
+
+`tests/test_kicad.py` covers the emitter's structure (well-formed
+Python, expected nets, pin-map application) without needing KiCad;
+`tests/test_schematics_gate.py` mirrors the netlist gate and skips
+unless `KICAD8_SYMBOL_DIR` points at a `kicad-symbols` checkout.
+
+### Running the schematic gate locally
+
+```sh
+pip install --no-deps skidl graphviz simp_sexp
+git clone --depth 1 --branch 8.0.0 \
+    https://gitlab.com/kicad/libraries/kicad-symbols.git
+export KICAD8_SYMBOL_DIR=$PWD/kicad-symbols
+python scripts/check_schematics.py            # all examples
+python scripts/check_schematics.py garage-motion
+```
+
+### `kicad:` mapping rules
+
+When adding or editing a component/board, its `kicad:` block must
+netlist:
+
+- **Real symbol where one exists.** Map `symbol_lib` / `symbol` to the
+  actual upstream KiCad symbol, and give `pin_map` an entry for every
+  role whose name differs from the symbol's pin (e.g. `VCC: VDD`,
+  `GND: VSS`, `CS: "~{CS}"`). Run the gate; SKiDL names the offending
+  pin if you miss one.
+- **Generic header otherwise.** KiCad ships no symbol for most sensor /
+  module breakouts. Map those to `Connector_Generic:Conn_01x0N` (N = pin
+  count) with `value:` set to the real part name. The generator binds
+  generic-connector pins positionally by the order of `electrical.pins`,
+  so no `pin_map` is needed — but every connected role must be declared
+  in `electrical.pins`.
+- **Boards** map to the onboard module/MCU symbol (e.g. an ESP32 DevKitC
+  to `RF_Module:ESP32-WROOM-32`); board pins float in the schematic, so
+  only the symbol needs to resolve.
+
+When you bump `KICAD_SYMBOLS_REF` in the workflow, expect symbol renames
+across the major version and re-run the gate.
 
 ## Tests
 
@@ -180,6 +222,8 @@ done
 - [ ] `python -m ruff check .` passes.
 - [ ] `python scripts/check_examples.py` passes against the pinned
       ESPHome (or the pre-push hook ran on `git push`).
+- [ ] `python scripts/check_schematics.py` passes against the pinned
+      KiCad symbols (if you touched a `kicad:` block or added a part).
 - [ ] If you added or changed a library entry, an example uses it.
 - [ ] If a golden changed, the regenerated golden is in the same diff.
 - [ ] If you bumped the ESPHome pin, all three pin sites (config

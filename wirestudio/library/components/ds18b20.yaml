@@ -10,11 +10,11 @@ electrical:
   current_ma_typical: 1
   current_ma_peak: 2
   pins:
-    - {role: VCC,  kind: power}
-    - {role: GND,  kind: ground}
-    - {role: DATA, kind: onewire_data, voltage: 3.3}
+  - {role: VCC, kind: power}
+  - {role: GND, kind: ground}
+  - {role: DATA, kind: onewire_data, voltage: 3.3}
   passives:
-    - {kind: resistor, value: "4.7k", between: ["DATA", "VCC"], purpose: "1-wire bus pull-up"}
+  - {kind: resistor, value: "4.7k", between: ["DATA", "VCC"], purpose: "1-wire bus pull-up"}
 
 esphome:
   required_components: ["1wire"]
@@ -34,7 +34,8 @@ esphome:
 params_schema:
   address:
     type: string
-    description: "ROM address (e.g., 0x1c0000031edd2a28). Required when more than one DS18B20 shares a bus."
+    description: "ROM address (e.g., 0x1c0000031edd2a28). Required when more than one DS18B20 shares a
+      bus."
   update_interval:
     type: string
     default: "60s"
@@ -59,5 +60,5 @@ kicad:
   symbol: DS18B20
   footprint: Package_TO_SOT_THT:TO-92_Inline
   pin_map:
-    VCC: VDD
+    VCC: V_{DD}
     DATA: DQ

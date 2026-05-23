@@ -10,11 +10,11 @@ electrical:
   current_ma_typical: 20
   current_ma_peak: 60
   pins:
-    - {role: VCC, kind: power}
-    - {role: GND, kind: ground}
-    - {role: DIN, kind: digital_in, voltage: 5.0}
+  - {role: VCC, kind: power}
+  - {role: GND, kind: ground}
+  - {role: DIN, kind: digital_in, voltage: 5.0}
   passives:
-    - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+  - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
 
 esphome:
   required_components: []
@@ -57,3 +57,4 @@ kicad:
   symbol: WS2812B
   pin_map:
     VCC: VDD
+    GND: VSS

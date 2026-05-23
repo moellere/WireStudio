@@ -64,6 +64,16 @@ emits a SKiDL Python script the user runs locally to produce a
 library. PCB layout (Freerouting + Gerber export) is on the 1.0+
 roadmap.
 
+The output is gate-verified: the [`kicad-schematic`](../.github/workflows/kicad-schematic.yml)
+workflow runs every bundled example's SKiDL script against the pinned
+upstream KiCad symbol libraries and asserts it builds a netlist with no
+unresolved symbols or pins (`scripts/check_schematics.py`). Parts KiCad
+ships no stock symbol for — most sensor/module breakouts — render as
+labeled generic headers (`Connector_Generic`) with the part name as the
+value, rather than a fictional symbol; everything with a real upstream
+symbol (ICs, modules, boards' onboard MCUs) maps to it with a verified
+pin map.
+
 ## MCP server
 
 The design-editing tools are exposed over the Model Context Protocol

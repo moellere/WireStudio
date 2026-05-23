@@ -84,8 +84,24 @@ def _emit_placeholder(var: str, ref: str, lib_id: str) -> str:
     )
 
 
-def _resolve_pin_role(role: str, kicad: KicadSymbolRef | None) -> str:
-    if kicad and role in kicad.pin_map:
+def _resolve_pin_role(role: str, lib_comp) -> str:
+    """Resolve a component pin role to the symbol's pin identifier.
+
+    Generic `Connector_Generic:Conn_01xNN` symbols have no semantic pin
+    names -- their pins are numbered "1".."N" -- so we bind roles
+    positionally by their order in the component's electrical pin list.
+    Real symbols use the `kicad.pin_map` (role -> symbol pin name),
+    falling back to the role itself when the names already match.
+    """
+    kicad = getattr(lib_comp, "kicad", None) if lib_comp is not None else None
+    if kicad is None:
+        return role
+    if kicad.symbol_lib == "Connector_Generic":
+        roles = [p.role for p in lib_comp.electrical.pins]
+        if role in roles:
+            return str(roles.index(role) + 1)
+        return role
+    if role in kicad.pin_map:
         return kicad.pin_map[role]
     return role
 
@@ -288,14 +304,13 @@ def _render_connections(
             lines.append(f'# skipped: {conn.component_id}.{conn.pin_role} (component not in design)')
             continue
         comp = by_id.get(conn.component_id)
-        kicad = None
+        lib_comp = None
         if comp is not None:
             try:
                 lib_comp = library.component(comp.library_id)
-                kicad = lib_comp.kicad
             except FileNotFoundError:
                 pass
-        pin_name = _resolve_pin_role(conn.pin_role, kicad)
+        pin_name = _resolve_pin_role(conn.pin_role, lib_comp)
         net_expr = _net_handle_for(conn.target, design, ref_index)
         lines.append(f'{comp_var}[{_quote(pin_name)}] += {net_expr}')
     return "\n".join(lines)

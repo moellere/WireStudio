@@ -23,3 +23,7 @@ sessions/
 web/node_modules/
 web/dist/
 web/.vite/
+
+# SKiDL schematic-gate side effects
+*.erc
+*_sklib.py
