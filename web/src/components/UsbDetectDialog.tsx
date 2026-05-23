@@ -60,10 +60,10 @@ export function UsbDetectDialog({ boards, onCancel, onAdopt }: Props) {
       onClick={onCancel}
     >
       <div
-        className="m-4 max-h-[85vh] w-full max-w-2xl overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 shadow-2xl"
+        className="m-4 flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
+        <div className="flex shrink-0 items-center justify-between border-b border-zinc-800 px-4 py-3">
           <div>
             <div className="text-sm font-semibold text-zinc-100">Connect device</div>
             <div className="text-xs text-zinc-500">
@@ -78,7 +78,7 @@ export function UsbDetectDialog({ boards, onCancel, onAdopt }: Props) {
           </button>
         </div>
 
-        <div className="space-y-4 p-4 text-sm">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 text-sm">
           {supported === "no" && (
             <UnsupportedNotice />
           )}
@@ -215,7 +215,7 @@ function DetectedPanel({
         <div className="mb-2 text-xs uppercase tracking-wide text-zinc-500">
           {noMatch ? "All boards" : `Matching boards (${candidates.length})`}
         </div>
-        <ul className="space-y-1">
+        <ul className="max-h-[45vh] space-y-1 overflow-y-auto pr-1">
           {(showAll ? boards : candidates).map((b) => (
             <li key={b.id}>
               <label className="flex cursor-pointer items-center gap-2 rounded-md border border-zinc-800 bg-zinc-900/40 px-2 py-1.5 hover:bg-zinc-900">
