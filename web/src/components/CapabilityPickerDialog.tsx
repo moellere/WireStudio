@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { api, ApiError } from "../api/client";
 import type { Recommendation, UseCaseEntry } from "../types/api";
 import { Loading } from "./Status";
@@ -54,7 +54,7 @@ export function CapabilityPickerDialog({ designReady, designBusTypes, onAdd, onC
    * components advertise these via `required_components` (e.g., "i2c", "spi");
    * non-bus tokens like "decoupling_caps" are passed through untouched.
    */
-  function passesBusFilter(rec: Recommendation): boolean {
+  const passesBusFilter = useCallback((rec: Recommendation): boolean => {
     if (!filterByBuses) return true;
     for (const req of rec.required_components) {
       if (BUS_REQUIREMENT_KEYS.has(req) && !designBusSet.has(req)) {
@@ -62,7 +62,7 @@ export function CapabilityPickerDialog({ designReady, designBusTypes, onAdd, onC
       }
     }
     return true;
-  }
+  }, [filterByBuses, designBusSet]);
 
   // Bootstrap the use-case list.
   useEffect(() => {
@@ -263,7 +263,7 @@ export function CapabilityPickerDialog({ designReady, designBusTypes, onAdd, onC
                     </div>
                   );
                 }
-                const visible = matches.filter(passesBusFilter);
+                const visible = useMemo(() => matches.filter(passesBusFilter), [matches, passesBusFilter]);
                 const hiddenByFilter = matches.length - visible.length;
                 if (visible.length === 0) {
                   return (
