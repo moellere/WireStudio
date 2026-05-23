@@ -195,6 +195,27 @@ netlist:
 When you bump `KICAD_SYMBOLS_REF` in the workflow, expect symbol renames
 across the major version and re-run the gate.
 
+## The enclosure gate
+
+`.github/workflows/enclosure-render.yml` runs `scripts/check_enclosures.py`,
+which renders every enclosure-capable board's `.scad` through real
+OpenSCAD and fails the PR unless it produces a non-empty, manifold
+(closed, non-self-intersecting) solid. This is the **Verified** bar for
+enclosures: not "the `.scad` parses" but "it renders to a printable
+solid." The geometry is board-driven (from the board's `enclosure:`
+block), so the gate walks boards, not examples.
+
+```sh
+sudo apt-get install -y openscad
+python scripts/check_enclosures.py            # all enclosure boards
+python scripts/check_enclosures.py wemos-d1-mini
+```
+
+When you add an `enclosure:` block to a board, run the gate — OpenSCAD
+will reject self-intersecting standoffs or port cutouts that breach a
+wall. `tests/test_enclosure_gate.py` mirrors it and skips when
+`openscad` is absent.
+
 ## Tests
 
 ```sh
@@ -224,6 +245,8 @@ done
       ESPHome (or the pre-push hook ran on `git push`).
 - [ ] `python scripts/check_schematics.py` passes against the pinned
       KiCad symbols (if you touched a `kicad:` block or added a part).
+- [ ] `python scripts/check_enclosures.py` passes (if you touched a
+      board's `enclosure:` block).
 - [ ] If you added or changed a library entry, an example uses it.
 - [ ] If a golden changed, the regenerated golden is in the same diff.
 - [ ] If you bumped the ESPHome pin, all three pin sites (config
