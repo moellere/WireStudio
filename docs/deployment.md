@@ -23,8 +23,9 @@ Available tags:
 
 | Tag | What it tracks |
 |---|---|
-| `:v0.12.0` / `:0.12.0` / `:0.12` / `:latest` | the v0.12.0 release |
+| `:0.12.0` / `:0.12` / `:latest` | the v0.12.0 release |
 | `:main` | latest commit on `main` (rolling) |
+| `:dev` | latest commit on `dev` (rolling, pre-release) |
 | `:sha-<short>` | a specific commit |
 
 All feature-gating env vars are optional — the studio runs without any
@@ -48,6 +49,41 @@ is file-on-disk and not multi-writer safe.
 ```sh
 kubectl apply -f deploy/k8s.yaml
 ```
+
+## ArgoCD: side-by-side prod + dev
+
+Two Argo apps off one source tree, so a stable prod and a rolling dev
+run in their own namespaces:
+
+| App | Tracks | Image | Moves when |
+|---|---|---|---|
+| `wirestudio-prod` | branch `main`, path `deploy/overlays/prod` | pinned `:0.12.0` | you bump `newTag` in git |
+| `wirestudio-dev` | branch `dev`, path `deploy/overlays/dev` | rolling `:sha-<short>` | every `dev` merge (CI commits the bump) |
+
+```sh
+kubectl apply -f deploy/argocd/wirestudio-prod.yaml
+kubectl apply -f deploy/argocd/wirestudio-dev.yaml
+```
+
+How the image tag gets into git (no extra controller — pure GitOps):
+
+- **dev** rolls itself. On every push to `dev`, the `docker` workflow's
+  `bump-dev` job rewrites `deploy/overlays/dev/kustomization.yaml`'s
+  `newTag` to the just-built `sha-<short>` and commits it back to `dev`
+  (with `[skip ci]`). ArgoCD's automated sync deploys it.
+- **prod** is promoted by hand. On release, bump `newTag` in
+  `deploy/overlays/prod/kustomization.yaml` to the new version — do it in
+  the `dev → main` release PR alongside `wirestudio/__init__.py` and
+  `CHANGELOG.md`. ArgoCD rolls it out; rollback is a one-commit revert.
+
+Each overlay sets its own namespace, so the two apps get independent
+PVCs and never share `/data`.
+
+> Branch protection note: the `bump-dev` job pushes to `dev` as
+> `github-actions[bot]`. If you protect `dev`, add that bot to the
+> "allow to bypass" list (or keep `dev` protection to required status
+> checks on PRs only). Protect `main` strictly — PRs + green checks, no
+> direct pushes — since releases land there via PR.
 
 ## nginx-front compose recipe
 
