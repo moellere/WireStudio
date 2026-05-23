@@ -1,0 +1,41 @@
+esphome:
+  name: presence-rf
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+logger:
+  baud_rate: 0
+api:
+  encryption:
+    key: !secret api_key
+ota:
+- platform: esphome
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+captive_portal: {}
+uart:
+- id: ld_uart
+  rx_pin: GPIO16
+  tx_pin: GPIO17
+  baud_rate: 115200
+- id: rf_uart
+  rx_pin: GPIO18
+  tx_pin: GPIO19
+  baud_rate: 19200
+ld2420:
+  uart_id: ld_uart
+  id: presence
+binary_sensor:
+- platform: ld2420
+  has_target:
+    name: Room presence Presence
+    device_class: presence
+sensor:
+- platform: ld2420
+  moving_distance:
+    name: Room presence Moving Distance
+rf_bridge:
+  uart_id: rf_uart
+  id: rfbridge

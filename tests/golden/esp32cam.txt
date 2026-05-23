@@ -1,0 +1,35 @@
++----------------------------------------------------------------------------------------------------------------+
+|  AI-Thinker ESP32-CAM  ---  esp32cam                                                                           |
++----------------------------------------------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                                                           |
+|                                                                                                                |
+|  cam  [ESP32 OV2640 / OV7670 / OV5640 camera]  -- ESP32-CAM                                                    |
+|    VCC   -> rail 5V                                                                                            |
+|    GND   -> rail GND                                                                                           |
+|    XCLK  -> GPIO0                                                                                              |
+|    SDA   -> GPIO26                                                                                             |
+|    SCL   -> GPIO27                                                                                             |
+|    D0    -> GPIO5                                                                                              |
+|    D1    -> GPIO18                                                                                             |
+|    D2    -> GPIO19                                                                                             |
+|    D3    -> GPIO21                                                                                             |
+|    D4    -> GPIO36                                                                                             |
+|    D5    -> GPIO39                                                                                             |
+|    D6    -> GPIO34                                                                                             |
+|    D7    -> GPIO35                                                                                             |
+|    VSYNC -> GPIO25                                                                                             |
+|    HREF  -> GPIO23                                                                                             |
+|    PCLK  -> GPIO22                                                                                             |
+|    PWDN  -> GPIO32                                                                                             |
+|                                                                                                                |
+|  BOM:                                                                                                          |
+|    - AI-Thinker ESP32-CAM                                                                                      |
+|    - ESP32 OV2640 / OV7670 / OV5640 camera  (cam)                                                              |
+|                                                                                                                |
+|  Power: ~90mA typical, ~310mA peak (budget 800mA)  OK                                                          |
+|                                                                                                                |
+|  Warnings:                                                                                                     |
+|    [info] camera_fixed_pinout: The OV2640 DVP pins are hardwired on the AI-Thinker module; they're not         |
+|                                reassignable. GPIO0 doubles as the camera XCLK and the boot-strap pin, so hold  |
+|                                it low only for flashing.                                                       |
++----------------------------------------------------------------------------------------------------------------+
