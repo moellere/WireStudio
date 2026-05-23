@@ -1,0 +1,70 @@
+name: esphome-matrix
+
+# Compatibility report across ESPHome versions.
+#
+# The `esphome-config` gate validates every example against ONE pinned
+# ESPHome (the merge bar). This workflow runs the same validation across
+# a small matrix of versions -- the pin plus the latest stables -- so we
+# can see, at a glance, whether what the studio emits still validates on
+# newer ESPHome before we bump the pin. It's a *report*, not a gate:
+# legs are allowed to fail without failing the run (the pinned version
+# is already enforced per-PR by esphome-config.yml).
+#
+# When a newer version goes green here across the board, that's the
+# signal to bump the pin (see CONTRIBUTING.md "Bumping the pinned
+# ESPHome"). When it goes red, the failing examples tell you what
+# upstream changed.
+#
+# Runs on a schedule + manual dispatch only -- a multi-version sweep is
+# too heavy for every PR.
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'   # 09:00 UTC Monday (ahead of the per-PR gates)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: esphome-matrix-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    # Informational: a version that rejects our YAML must not fail the run.
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        # The pinned baseline + the latest stables. Bump as releases land;
+        # the pin itself lives in esphome-config.yml / esphome-compile.yml.
+        esphome_version: ["2025.12.7", "2026.4.5", "2026.5.0"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install studio + ESPHome ${{ matrix.esphome_version }}
+        run: |
+          pip install -e .
+          pip install "esphome==${{ matrix.esphome_version }}"
+
+      - name: Validate every example through `esphome config`
+        id: gate
+        continue-on-error: true
+        run: python scripts/check_examples.py
+
+      - name: Report result
+        if: always()
+        run: |
+          if [ "${{ steps.gate.outcome }}" = "success" ]; then
+            echo "### ESPHome ${{ matrix.esphome_version }} — ✅ all examples validate" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### ESPHome ${{ matrix.esphome_version }} — ❌ some examples failed" >> "$GITHUB_STEP_SUMMARY"
+            echo "Re-run with the logs open to see which; this version is not the pinned merge bar." >> "$GITHUB_STEP_SUMMARY"
+          fi

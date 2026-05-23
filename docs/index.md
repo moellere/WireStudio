@@ -81,9 +81,12 @@ through upstream `esphome config`. Shipped: the `esphome config` CI
 gate over every bundled example; a nightly `esphome compile` smoke;
 the component-coverage matrix ([`library-coverage.md`](library-coverage.md))
 with a `--strict` no-regression gate; a pinned ESPHome version called
-out in the README + workflow; CONTRIBUTING.md establishes the gate as
-the merge bar. Next: an ESPHome version matrix in CI so component
-support can be called out per release.
+out in the README + workflow; an
+[`esphome-matrix`](../.github/workflows/esphome-matrix.yml) compatibility
+report that runs the gate across the pin + latest stables so a pin bump
+is evidence-driven; CONTRIBUTING.md establishes the gate as the merge
+bar. Next: attribute matrix failures to specific components so support
+can be stated per ESPHome release.
 
 **Priority 2 — Wiring schema correctness.** *Verified.* SKiDL
 emitter, 100% library `kicad:` coverage, and a `.kicad_sym` symbol
@@ -115,7 +118,8 @@ solver (`0.6`), fleet handoff (`0.7`), enclosure (`0.8`), KiCad
 schematic (`0.9`), MCP server + KiCad symbol importer (`0.10`),
 Docker single-image deploy + K8s manifest.
 
-**Future** — multi-writer state backend so the studio can run as a
-HA replica; agent eval harness against a task list; ESPHome version
-matrix in CI (last 2 stables) so we can call out which components
-work where.
+**Future** — full library coverage (close the last components + the
+two camera boards, then flip `--strict` to zero-uncovered); an agent
+eval harness scoring tool-use against a fixed task list; PCB layout
+(Priority 4); a multi-writer state backend so the studio can run as a
+HA replica.
