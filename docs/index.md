@@ -80,7 +80,9 @@ non-negotiable bar: every artifact the studio emits round-trips
 through upstream `esphome config`. Shipped: the `esphome config` CI
 gate over every bundled example; a nightly `esphome compile` smoke;
 the component-coverage matrix ([`library-coverage.md`](library-coverage.md))
-with a `--strict` no-regression gate; a pinned ESPHome version called
+with a `--strict` no-regression gate now at **zero uncovered** (every
+one of the 59 components and 21 boards is exercised by a bundled
+example that passes the gate); a pinned ESPHome version called
 out in the README + workflow; an
 [`esphome-matrix`](../.github/workflows/esphome-matrix.yml) compatibility
 report that runs the gate across the pin + latest stables so a pin bump
@@ -118,8 +120,9 @@ solver (`0.6`), fleet handoff (`0.7`), enclosure (`0.8`), KiCad
 schematic (`0.9`), MCP server + KiCad symbol importer (`0.10`),
 Docker single-image deploy + K8s manifest.
 
-**Future** — full library coverage (close the last components + the
-two camera boards, then flip `--strict` to zero-uncovered); an agent
-eval harness scoring tool-use against a fixed task list; PCB layout
-(Priority 4); a multi-writer state backend so the studio can run as a
-HA replica.
+**Future** — PCB layout (Priority 4): SKiDL → KiCad PCB, Freerouting,
+Gerber + JLCPCB export, now that the schematic is Verified; an agent
+eval harness scoring tool-use against a fixed task list (to promote the
+agent from Experimental); a multi-writer state backend so the studio
+can run as a HA replica; attributing `esphome-matrix` failures to
+specific components for per-release support tables.
