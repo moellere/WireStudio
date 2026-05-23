@@ -119,6 +119,13 @@ below), and `README.md` (the version we advertise). Bump all three
 in the same diff. The bump PR's burden of proof is "the gate passes
 against the new version" — not "the new version is fashionable."
 
+The [`esphome-matrix`](.github/workflows/esphome-matrix.yml) workflow
+(scheduled + manual) runs the example gate across the pin plus the
+latest stables, so you can see a candidate version go green across the
+board *before* bumping. When it does, bump the pin (and add the new
+version to the matrix list); when it's red, the failing examples show
+what upstream changed.
+
 ### Nightly compile smoke
 
 `.github/workflows/esphome-compile.yml` runs `esphome compile`
