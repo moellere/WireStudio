@@ -12,7 +12,8 @@ name: release
 #   3. Create the matching `pypi` GitHub environment in repo settings.
 #
 # Trigger: any pushed `v*` tag + manual workflow_dispatch. Tag must
-# match pyproject.toml's version.
+# match the version in wirestudio/__init__.py (pyproject reads it
+# dynamically from there at build time).
 
 on:
   push:

@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: wirestudio-dev
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/moellere/WireStudio.git
+    targetRevision: dev             # integration branch
+    path: deploy/overlays/dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: wirestudio-dev
+  syncPolicy:
+    # Rolls forward automatically: CI commits the new sha-<short> to
+    # deploy/overlays/dev on every dev merge, ArgoCD syncs it.
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

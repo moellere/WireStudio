@@ -1,0 +1,8 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Base layer = the plain manifest. `kubectl apply -f k8s.yaml` still works
+# standalone; the prod/dev overlays layer a namespace + image tag on top
+# of this so the two Argo apps can run side by side from one source tree.
+resources:
+  - k8s.yaml

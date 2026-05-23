@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: wirestudio-prod
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/moellere/WireStudio.git
+    targetRevision: main            # released code only
+    path: deploy/overlays/prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: wirestudio-prod
+  syncPolicy:
+    # Automated, but the image tag in deploy/overlays/prod is a pinned
+    # release version, so prod only moves when you bump it in git on
+    # main. selfHeal reverts manual cluster edits; prune removes orphans.
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

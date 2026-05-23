@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Dev/staging overlay. Rolling: the docker workflow's bump-dev job
+# rewrites newTag to the freshly built sha-<short> on every dev merge and
+# commits it here, so the dev Argo app auto-syncs to HEAD of dev. The
+# placeholder below is replaced on the first dev build.
+namespace: wirestudio-dev
+
+resources:
+  - ../../
+
+images:
+  - name: ghcr.io/moellere/wirestudio
+    newTag: sha-0000000
