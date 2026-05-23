@@ -49,6 +49,7 @@ _Specialty sensors:_
 - `hx711` — AVIA 24-bit load-cell ADC (custom 2-wire serial)
 - `tsl2561` — AMS ambient light sensor (lux, I2C)
 - `mpu6050` — InvenSense 6-axis IMU (3-axis accel + 3-axis gyro + die temp, I2C)
+- `mpu6886` — InvenSense MPU6886 6-axis IMU (the onboard IMU on the M5Stack Atom / AtomS3 family, I2C)
 
 _Presence / distance:_
 - `hc-sr04` — ultrasonic distance sensor (4-pin: VCC, GND, TRIGGER, ECHO)
@@ -94,7 +95,9 @@ _Light / audio / camera:_
 - `esp32_rmt_led_strip` — same WS2812 / SK6812 silicon, ESP32 RMT-driven (preferred on ESP32 / S2 / S3 / C3)
 - `apa102` — APA102 / SK9822 addressable RGB strip (DotStar, SPI-style)
 - `max98357a` — Maxim Class-D mono I2S amp + DAC
+- `i2s_microphone` — I2S / PDM microphone (SPM1423 on the M5Stack Atom Echo / AtomU, or a standard I2S mic)
 - `rtttl` — piezo buzzer + RTTTL melody player (PWM output)
+- `remote_transmitter` — IR transmitter / blaster on a single GPIO (the onboard IR LED on the M5Stack Atom family)
 - `esp32_camera` — ESP32 OV2640 / OV7670 / OV5640 camera
 
 _Power metering:_

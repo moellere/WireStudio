@@ -22,11 +22,14 @@ Detailed docs live in [`docs/`](docs/):
 
 ## Status
 
-`v0.11.0` — on PyPI (`pip install wirestudio`). The studio has wide
+`v0.12.0` — on PyPI (`pip install wirestudio`). The studio has wide
 surface area (YAML, schematic, enclosure, agent, MCP server, fleet
-handoff, web UI) and a narrow set of things actually verified against
-upstream tools. This section is honest about which is which, ordered
-by how much it matters that it works.
+handoff, web UI) and a set of things actually verified against upstream
+tools. Three of the four priority tiers (YAML, wiring schema, enclosure)
+are now gated in CI, and **every library component and board is
+exercised by a bundled example** that passes those gates. This section
+is honest about which is which, ordered by how much it matters that it
+works.
 
 Tiers, in priority order:
 
@@ -62,7 +65,7 @@ that pin moves, this line moves with it.
 docker run --rm -p 8765:8765 \
   -e ANTHROPIC_API_KEY=sk-ant-... \
   -v wirestudio-data:/data \
-  ghcr.io/moellere/wirestudio:v0.11.0
+  ghcr.io/moellere/wirestudio:v0.12.0
 ```
 
 Open <http://localhost:8765>. The image bundles the FastAPI server +
