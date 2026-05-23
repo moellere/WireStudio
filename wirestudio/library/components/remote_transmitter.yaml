@@ -1,0 +1,40 @@
+id: remote_transmitter
+name: IR transmitter (remote_transmitter)
+category: output
+use_cases: [ir, infrared, remote_control, ir_blaster]
+aliases: [ir_tx, ir_led, ir_blaster]
+
+electrical:
+  vcc_min: 0.0
+  vcc_max: 0.0
+  current_ma_typical: 0
+  current_ma_peak: 0
+  pins:
+    - {role: IR, kind: digital_out, voltage: 3.3}
+  passives: []
+
+esphome:
+  required_components: []
+  yaml_template: |
+    remote_transmitter:
+      pin: {{ pins.IR | tojson }}
+      carrier_duty_percent: {{ params.carrier_duty_percent | default('50%') }}
+
+params_schema:
+  carrier_duty_percent:
+    type: string
+    default: "50%"
+    description: "IR carrier duty cycle. 50% suits most 38kHz IR LEDs; 100% for an unmodulated LED driver."
+
+notes: |
+  An IR LED driven from a single GPIO -- the onboard IR blaster on the
+  M5Stack Atom / AtomU / Atom Matrix, or any discrete IR LED. ESPHome's
+  `remote_transmitter` carries the transmit config; pair it with
+  `transmit_*` actions (NEC, RC5, raw, ...) in esphome_extras to send
+  codes. The receive side is a separate `remote_receiver`.
+# KiCad: a single-pin drive net for the IR LED (the cathode/driver
+# transistor pin); no stock IR-LED symbol, render a generic header.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x01
+  value: IR LED

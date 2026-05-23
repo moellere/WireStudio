@@ -1,0 +1,29 @@
+esphome:
+  name: c3-supermini
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: arduino
+  variant: ESP32C3
+logger: {}
+api:
+  encryption:
+    key: !secret api_key
+ota:
+- platform: esphome
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+captive_portal: {}
+switch:
+- platform: gpio
+  pin: GPIO8
+  name: Onboard LED
+  id: onboard_led
+binary_sensor:
+- platform: gpio
+  pin: GPIO9
+  name: Onboard button
+  id: onboard_button
+  filters:
+  - invert: null

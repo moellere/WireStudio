@@ -1,0 +1,22 @@
++-----------------------------------------------------------------------------------------------+
+|  ESP32-S3-DevKitC-1  ---  s3-devkitc                                                          |
++-----------------------------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                                          |
+|                                                                                               |
+|  onboard_led  [ESP32 RMT-driven addressable LED strip (WS2812 / SK6812)]  -- Onboard RGB LED  |
+|    VCC   -> rail 5V                                                                           |
+|    GND   -> rail GND                                                                          |
+|    DIN   -> GPIO48                                                                            |
+|                                                                                               |
+|  onboard_button  [Generic GPIO binary sensor]  -- Onboard button                              |
+|    IN    -> GPIO0                                                                             |
+|                                                                                               |
+|  BOM:                                                                                         |
+|    - ESP32-S3-DevKitC-1                                                                       |
+|    - ESP32 RMT-driven addressable LED strip (WS2812 / SK6812)  (onboard_led)                  |
+|    - Generic GPIO binary sensor  (onboard_button)                                             |
+|                                                                                               |
+|  Power: ~20mA typical, ~60mA peak (budget 500mA)  OK                                          |
+|                                                                                               |
+|  Warnings: none                                                                               |
++-----------------------------------------------------------------------------------------------+

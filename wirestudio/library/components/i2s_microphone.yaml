@@ -1,0 +1,52 @@
+id: i2s_microphone
+name: I2S / PDM microphone (i2s_audio)
+category: audio
+use_cases: [microphone, voice, sound, audio_in]
+aliases: [i2s_mic, pdm_mic, spm1423]
+
+electrical:
+  vcc_min: 1.8
+  vcc_max: 3.6
+  current_ma_typical: 2
+  current_ma_peak: 5
+  pins:
+    - {role: WS,   kind: digital_out, voltage: 3.3}
+    - {role: BCLK, kind: digital_out, voltage: 3.3}
+    - {role: DIN,  kind: digital_in,  voltage: 3.3}
+  passives: []
+
+esphome:
+  required_components: []
+  yaml_template: |
+    i2s_audio:
+      - id: {{ id }}_bus
+        i2s_lrclk_pin: {{ pins.WS | tojson }}
+    {%- if pins.BCLK is defined %}
+        i2s_bclk_pin: {{ pins.BCLK | tojson }}
+    {%- endif %}
+    microphone:
+      - platform: i2s_audio
+        id: {{ id }}
+        i2s_audio_id: {{ id }}_bus
+        i2s_din_pin: {{ pins.DIN | tojson }}
+        adc_type: external
+        pdm: {{ params.pdm | default(false) | tojson }}
+
+params_schema:
+  pdm:
+    type: boolean
+    default: false
+    description: "true for a PDM mic (single clock + data, e.g. the Atom Echo/AtomU SPM1423); false for a standard I2S mic."
+
+notes: |
+  Microphone over the ESPHome `i2s_audio` bus. PDM mics (the M5Stack
+  Atom Echo / AtomU SPM1423) use the WS pin as the PDM clock with no
+  BCLK; set `pdm: true` and leave BCLK unconnected. Standard I2S mics
+  wire WS + BCLK + DIN. The speaker side of a combo board (e.g. the
+  Echo's NS4168 amp) is a separate component.
+# KiCad: generic 3-pin header for the I2S signal lines (WS/BCLK/DIN);
+# no stock symbol for these MEMS mic breakouts.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x03
+  value: I2S microphone
