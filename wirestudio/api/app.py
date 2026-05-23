@@ -90,6 +90,7 @@ from wirestudio.library import (
 )
 from wirestudio.designs.seed import insert_module
 from wirestudio.model import Design
+from wirestudio.seed import seed_onboard_components
 
 
 def _wire_compat(warnings) -> list[CompatWire]:
@@ -329,6 +330,30 @@ def create_app(
             raise HTTPException(status_code=404, detail=str(e)) from e
         _, updated = insert_module(design, lib, module)
         return updated
+
+    @app.post("/design/seed_onboard", tags=["design"])
+    def design_seed_onboard(design: dict) -> dict:
+        """Add the design's board's built-in (onboard) peripherals.
+
+        Reads the board's `onboard_peripherals` metadata and appends the
+        matching library components plus their wiring (buses, rails, GPIO
+        pins). Peripherals with no library component yet come back as
+        info-level warnings on the design. Used by the connect-bootstrap
+        and new-design flows so a dev board lands with its soldered-on
+        parts already placed.
+        """
+        _validate_design(design)
+        board_id = (design.get("board") or {}).get("library_id")
+        try:
+            board = lib.board(board_id)
+        except FileNotFoundError as e:
+            raise HTTPException(status_code=404, detail=str(e)) from e
+        frag = seed_onboard_components(board, lib)
+        design.setdefault("components", []).extend(frag["components"])
+        design.setdefault("buses", []).extend(frag["buses"])
+        design.setdefault("connections", []).extend(frag["connections"])
+        design.setdefault("warnings", []).extend(frag["warnings"])
+        return design
 
     @app.post("/design/validate", response_model=ValidateResponse, tags=["design"])
     def validate(design: dict) -> ValidateResponse:

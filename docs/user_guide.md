@@ -125,6 +125,7 @@ it without a proxy. Browse the auto-generated OpenAPI docs at
 | [`kitchen-scale.json`](../wirestudio/examples/kitchen-scale.json) | WeMos D1 Mini | HX711 load-cell ADC + SSD1306 OLED readout in grams |
 | [`grill-probe.json`](../wirestudio/examples/grill-probe.json) | ESP32-DevKitC-V4 | MAX31855 K-type thermocouple over read-only SPI + MPU6050 IMU as lid sensor |
 | [`atoms3-lcd.json`](../wirestudio/examples/atoms3-lcd.json) | M5Stack AtomS3 | 20x4 HD44780 character LCD over the Grove I2C port via a PCF8574 backpack |
+| [`atoms3-onboard.json`](../wirestudio/examples/atoms3-onboard.json) | M5Stack AtomS3 | The board's built-in parts auto-populated: onboard ST7789 LCD (SPI) + MPU6886 IMU (I2C) + front button |
 
 Generated artifacts for each are pinned as goldens in
 [`tests/golden/`](../tests/golden/). For a per-component / per-board view of

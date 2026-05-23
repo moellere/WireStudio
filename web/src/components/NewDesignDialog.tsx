@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { BoardSummary, Design } from "../types/api";
 import { bootstrapDesign } from "../lib/bootstrap";
+import { api } from "../api/client";
 
 interface Props {
   boards: BoardSummary[] | null;
@@ -38,7 +39,7 @@ export function NewDesignDialog({ boards, onCancel, onAdopt }: Props) {
     }
   }, [sortedBoards, pickedBoardId]);
 
-  function handleAdopt() {
+  async function handleAdopt() {
     if (!boards) return;
     const board = boards.find((b) => b.id === pickedBoardId);
     if (!board) return;
@@ -49,12 +50,19 @@ export function NewDesignDialog({ boards, onCancel, onAdopt }: Props) {
     const trimmedId = id.trim() || "new-device";
     const trimmedName = name.trim() || trimmedId;
     const fleet = d.fleet as Record<string, unknown>;
-    onAdopt({
+    const base = {
       ...d,
       id: trimmedId,
       name: trimmedName,
       fleet: { ...fleet, device_name: trimmedId },
-    });
+    };
+    // Pre-populate the board's onboard peripherals. Best-effort: never
+    // block creating the design on a seeding failure.
+    try {
+      onAdopt(await api.seedOnboard(base));
+    } catch {
+      onAdopt(base);
+    }
   }
 
   return (
@@ -70,7 +78,7 @@ export function NewDesignDialog({ boards, onCancel, onAdopt }: Props) {
           <div>
             <div className="text-sm font-semibold text-zinc-100">New design</div>
             <div className="text-xs text-zinc-500">
-              Pick a board and seed a fresh, empty design. Add components from the inspector after.
+              Pick a board; we seed a fresh design with its built-in parts. Add more from the inspector after.
             </div>
           </div>
           <button

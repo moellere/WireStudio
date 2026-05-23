@@ -91,6 +91,8 @@ export const api = {
       `/design/insert_module?module_id=${encodeURIComponent(moduleId)}`,
       { method: "POST", body: JSON.stringify(design) },
     ),
+  seedOnboard: (design: Design) =>
+    request<Design>("/design/seed_onboard", { method: "POST", body: JSON.stringify(design) }),
 
   listExamples: () => request<ExampleSummary[]>("/examples"),
   getExample: (id: string) => request<Design>(`/examples/${encodeURIComponent(id)}`),

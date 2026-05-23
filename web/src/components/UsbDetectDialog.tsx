@@ -6,6 +6,7 @@ import {
   type DetectedChip,
 } from "../lib/bootstrap";
 import { detectChip, isWebSerialSupported } from "../lib/usb-detect";
+import { api } from "../api/client";
 
 type Phase =
   | { kind: "idle" }
@@ -47,11 +48,18 @@ export function UsbDetectDialog({ boards, onCancel, onAdopt }: Props) {
     }
   }
 
-  function handleAdopt() {
+  async function handleAdopt() {
     if (phase.kind !== "detected") return;
     const board = boards?.find((b) => b.id === pickedBoardId);
     if (!board) return;
-    onAdopt(bootstrapDesign(board, phase.chip));
+    const base = bootstrapDesign(board, phase.chip);
+    // Pre-populate the board's onboard peripherals (LCD, button, IMU, ...).
+    // Best-effort: a seeding failure must never block adopting the board.
+    try {
+      onAdopt(await api.seedOnboard(base));
+    } catch {
+      onAdopt(base);
+    }
   }
 
   return (

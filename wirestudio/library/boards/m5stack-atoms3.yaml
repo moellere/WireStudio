@@ -34,7 +34,7 @@ default_buses:
   spi: {clk: GPIO17, mosi: GPIO21, miso: GPIO13}
 
 onboard_peripherals:
-  display_st7789: {cs: GPIO15, dc: GPIO33, reset: GPIO34, backlight: GPIO16, width: 128, height: 128}
+  display_st7789: {cs: GPIO15, dc: GPIO33, reset: GPIO34, backlight: GPIO16, width: 128, height: 128, offset_width: 2, offset_height: 1}
   button:         {pin: GPIO41, inverted: true}
   imu_mpu6886:    {address: "0x68"}
 

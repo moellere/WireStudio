@@ -1,0 +1,34 @@
++---------------------------------------------------------------------------+
+|  M5Stack AtomS3  ---  atoms3-onboard                                      |
++---------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                      |
+|                                                                           |
+|  onboard_display  [Sitronix ST7789V color TFT (SPI)]  -- Onboard display  |
+|    VCC   -> rail 3V3                                                      |
+|    GND   -> rail GND                                                      |
+|    SCK   -> spi0 (GPIO17)                                                 |
+|    MOSI  -> spi0 (GPIO21)                                                 |
+|    CS    -> GPIO15                                                        |
+|    DC    -> GPIO33                                                        |
+|    RESET -> GPIO34                                                        |
+|    BACKLIGHT -> GPIO16                                                    |
+|                                                                           |
+|  onboard_button  [Generic GPIO binary sensor]  -- Onboard button          |
+|    IN    -> GPIO41                                                        |
+|                                                                           |
+|  onboard_imu  [MPU6886 6-axis IMU (accel + gyro, I2C)]  -- Onboard IMU    |
+|    VCC   -> rail 3V3                                                      |
+|    GND   -> rail GND                                                      |
+|    SDA   -> i2c0 (GPIO1)                                                  |
+|    SCL   -> i2c0 (GPIO2)                                                  |
+|                                                                           |
+|  BOM:                                                                     |
+|    - M5Stack AtomS3                                                       |
+|    - Sitronix ST7789V color TFT (SPI)  (onboard_display)                  |
+|    - Generic GPIO binary sensor  (onboard_button)                         |
+|    - MPU6886 6-axis IMU (accel + gyro, I2C)  (onboard_imu)                |
+|                                                                           |
+|  Power: ~28mA typical, ~94mA peak (budget 500mA)  OK                      |
+|                                                                           |
+|  Warnings: none                                                           |
++---------------------------------------------------------------------------+
