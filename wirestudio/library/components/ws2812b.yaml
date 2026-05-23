@@ -10,11 +10,11 @@ electrical:
   current_ma_typical: 20
   current_ma_peak: 60
   pins:
-    - {role: VCC, kind: power}
-    - {role: GND, kind: ground}
-    - {role: DIN, kind: digital_in, voltage: 5.0}
+  - {role: VCC, kind: power}
+  - {role: GND, kind: ground}
+  - {role: DIN, kind: digital_in, voltage: 5.0}
   passives:
-    - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+  - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
 
 esphome:
   required_components: []
@@ -36,18 +36,19 @@ esphome:
     {%- endif %}
 
 params_schema:
-  variant: { type: string, default: "WS2812",
-             enum: ["WS2811", "WS2812", "WS2812X", "400KBPS", "SK6812", "TM1814"] }
-  method:  { type: string, default: "ESP8266_UART1",
-             enum: ["BIT_BANG", "ESP8266_UART0", "ESP8266_UART1", "ESP8266_DMA",
-                    "ESP32_RMT", "ESP32_I2S0", "ESP32_I2S1"] }
-  type:    { type: string, default: "GRB" }
-  num_leds: { type: integer, default: 1, minimum: 1 }
+  variant: {type: string, default: "WS2812", enum: ["WS2811", "WS2812", "WS2812X", "400KBPS", "SK6812",
+      "TM1814"]}
+  method: {type: string, default: "ESP8266_UART1", enum: ["BIT_BANG", "ESP8266_UART0", "ESP8266_UART1",
+      "ESP8266_DMA", "ESP32_RMT", "ESP32_I2S0", "ESP32_I2S1"]}
+  type: {type: string, default: "GRB"}
+  num_leds: {type: integer, default: 1, minimum: 1}
 
-notes: "Current rises ~60mA per LED at full white. Budget accordingly. Add a 300-500ohm series resistor on DIN and a 1000uF cap across VCC/GND for strips >8 LEDs."
+notes: "Current rises ~60mA per LED at full white. Budget accordingly. Add a 300-500ohm series resistor
+  on DIN and a 1000uF cap across VCC/GND for strips >8 LEDs."
 # KiCad symbol mapping (0.9 schematic export).
 kicad:
   symbol_lib: LED
   symbol: WS2812B
   pin_map:
     VCC: VDD
+    GND: VSS

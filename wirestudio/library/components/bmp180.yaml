@@ -10,16 +10,16 @@ electrical:
   current_ma_typical: 0.005
   current_ma_peak: 1
   pins:
-    - {role: VCC, kind: power}
-    - {role: GND, kind: ground}
-    - role: SDA
-      kind: i2c_sda
-      pull_up: {required: true, value: "4.7k", to: VCC}
-    - role: SCL
-      kind: i2c_scl
-      pull_up: {required: true, value: "4.7k", to: VCC}
+  - {role: VCC, kind: power}
+  - {role: GND, kind: ground}
+  - role: SDA
+    kind: i2c_sda
+    pull_up: {required: true, value: "4.7k", to: VCC}
+  - role: SCL
+    kind: i2c_scl
+    pull_up: {required: true, value: "4.7k", to: VCC}
   passives:
-    - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+  - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
 
 esphome:
   required_components: [i2c]
@@ -47,7 +47,6 @@ notes: |
 # KiCad symbol mapping (0.9 schematic export). BMP085 / BMP180 share
 # pinout + symbol in kicad-symbols.
 kicad:
-  symbol_lib: Sensor
-  symbol: BMP180
-  pin_map:
-    VCC: VDD
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x04
+  value: BMP180

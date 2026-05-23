@@ -10,14 +10,14 @@ electrical:
   current_ma_typical: 1.5
   current_ma_peak: 2
   pins:
-    - {role: VCC, kind: power}
-    - {role: GND, kind: ground}
-    - {role: CLK, kind: spi_clk}
-    - {role: MISO, kind: spi_miso}
-    - {role: CS,   kind: spi_cs}
+  - {role: VCC, kind: power}
+  - {role: GND, kind: ground}
+  - {role: CLK, kind: spi_clk}
+  - {role: MISO, kind: spi_miso}
+  - {role: CS, kind: spi_cs}
   passives:
-    - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
-    - {kind: capacitor, value: "10nF",  between: [T+, T-],   purpose: "thermocouple noise filter (optional)"}
+  - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+  - {kind: capacitor, value: "10nF", between: [T+, T-], purpose: "thermocouple noise filter (optional)"}
 
 esphome:
   required_components: [spi]
@@ -52,7 +52,9 @@ notes: |
 # KiCad symbol mapping (0.9 schematic export).
 kicad:
   symbol_lib: Sensor_Temperature
-  symbol: MAX31855xASA
+  symbol: MAX31855KASA
   pin_map:
-    VCC: VDD
+    VCC: V_CC
     CLK: SCK
+    MISO: SO
+    CS: ~{CS}
