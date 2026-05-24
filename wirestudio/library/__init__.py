@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class _Strict(BaseModel):
@@ -140,6 +140,47 @@ class KicadSymbolRef(_Strict):
     pin_map: dict[str, str] = Field(default_factory=dict)
 
 
+class RadioPins(_Strict):
+    """Control/IRQ pins wiring the MCU to the LoRa transceiver. cs + rst
+    are always present. SX127x (sx1276/sx1278) drive dio0; SX126x (sx1262)
+    drive dio1 + busy. The unused fields stay null per chip family."""
+    cs: str
+    rst: str
+    dio0: Optional[str] = None
+    dio1: Optional[str] = None
+    busy: Optional[str] = None
+
+
+class Radio(_Strict):
+    """LoRa/LoRaWAN transceiver metadata ESPHome's library doesn't carry.
+    Only boards with this block are offered by the lorawan target. The
+    firmware generator branches on `radiolib_class` to pick the RadioLib
+    module and wiring constructor.
+
+    `tcxo_voltage` is the TCXO reference for SX1262 boards (0 = none, i.e.
+    a crystal); `dio2_as_rf_switch` is the SX1262 RF-switch control. Both
+    are no-ops for SX127x. Getting them wrong on SX126x makes radio init
+    fail and presents as 'won't join'.
+    """
+    chip: Literal["sx1276", "sx1278", "sx1262"]
+    radiolib_class: str
+    pins: RadioPins
+    tcxo_voltage: float = 0.0
+    dio2_as_rf_switch: bool = False
+
+    @model_validator(mode="after")
+    def _require_family_pins(self) -> "Radio":
+        if self.chip == "sx1262":
+            missing = [p for p in ("dio1", "busy") if getattr(self.pins, p) is None]
+            if missing:
+                raise ValueError(
+                    f"sx1262 radio requires pins {missing} (SX126x uses dio1 + busy)"
+                )
+        elif self.pins.dio0 is None:
+            raise ValueError(f"{self.chip} radio requires pin 'dio0' (SX127x uses dio0)")
+        return self
+
+
 class LibraryBoard(_Strict):
     id: str
     name: str
@@ -156,6 +197,11 @@ class LibraryBoard(_Strict):
     gpio_capabilities: dict[str, list[str]] = Field(default_factory=dict)
     enclosure: Optional[BoardEnclosure] = None
     kicad: Optional[KicadSymbolRef] = None
+    radio: Optional[Radio] = None
+
+    @property
+    def has_radio(self) -> bool:
+        return self.radio is not None
 
 
 class ModuleComponent(_Strict):

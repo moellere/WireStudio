@@ -1,0 +1,71 @@
+name: lorawan-firmware
+
+# Compile gate for the LoRaWAN target's generated firmware. Runs `pio run`
+# for every radio board so an upstream churn -- a new RadioLib /
+# LoRaWAN_ESP32 release, a PlatformIO toolchain bump, an espressif32 platform
+# update -- that breaks the generated firmware is caught.
+#
+# Triggers:
+#   - pull_request touching the firmware generator, its templates, the compile
+#     worker, the board library, or this workflow -- the files that can change
+#     what gets built.
+#   - schedule: 12:00 UTC daily, to catch upstream-only breakage.
+#   - workflow_dispatch: manual rerun.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "wirestudio/targets/lorawan/firmware_gen.py"
+      - "wirestudio/targets/lorawan/compile.py"
+      - "wirestudio/targets/lorawan/templates/**"
+      - "wirestudio/library/boards/*.yaml"
+      - "scripts/build_lorawan_firmware.py"
+      - ".github/workflows/lorawan-firmware.yml"
+  schedule:
+    - cron: "0 12 * * *"   # 12:00 UTC daily (after esphome-compile at 11:00)
+  workflow_dispatch:
+    inputs:
+      boards:
+        description: "Space-separated board ids (default: all radio boards)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lorawan-firmware-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # Cold cache: espressif32 platform + toolchain + ESP32-S3 framework pull,
+    # then two board builds (~10-15min). Warm cache: ~3-4min.
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install studio + PlatformIO
+        run: |
+          pip install -e .
+          pip install platformio
+
+      - name: Cache PlatformIO toolchain
+        # The platform/toolchain/framework pull dominates a cold run. Keyed on
+        # the lib pins so a deliberate RadioLib/LoRaWAN_ESP32 bump invalidates it.
+        uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-lorawan-${{ runner.os }}-radiolib7.6-loraesp32-1.3
+          restore-keys: |
+            pio-lorawan-${{ runner.os }}-
+
+      - name: Build firmware for every radio board
+        run: python scripts/build_lorawan_firmware.py ${{ inputs.boards }}
