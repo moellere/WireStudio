@@ -48,4 +48,5 @@ notes: "ESPHome's `rc522_spi` is a singleton -- one reader per device. 3.3V only
 kicad:
   symbol_lib: Connector_Generic
   symbol: Conn_01x08
+  footprint: Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical
   value: MFRC522

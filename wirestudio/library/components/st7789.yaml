@@ -69,4 +69,5 @@ notes: "Bare ST7789 panels often need precise model dimensions and offsets; if y
 kicad:
   symbol_lib: Connector_Generic
   symbol: Conn_01x08
+  footprint: Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical
   value: ST7789V

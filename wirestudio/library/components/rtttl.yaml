@@ -54,6 +54,7 @@ notes: "RTTTL needs a PWM-capable output, not a plain GPIO. ESP8266 can only PWM
 kicad:
   symbol_lib: Device
   symbol: Buzzer
+  footprint: Buzzer_Beeper:Buzzer_D14mm_H7mm_P10mm
   value: Piezo
   pin_map:
     OUT: '1'

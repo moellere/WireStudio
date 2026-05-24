@@ -66,4 +66,5 @@ notes: "Lives on a typical 3.5\" Pi-style display alongside the ILI9486 panel an
 kicad:
   symbol_lib: Connector_Generic
   symbol: Conn_01x07
+  footprint: Connector_PinHeader_2.54mm:PinHeader_1x07_P2.54mm_Vertical
   value: XPT2046

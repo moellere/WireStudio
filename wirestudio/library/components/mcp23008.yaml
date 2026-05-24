@@ -47,6 +47,7 @@ notes: "Per-pin direction/mode is configured by the downstream gpio platforms (b
 kicad:
   symbol_lib: Interface_Expansion
   symbol: MCP23008-xP
+  footprint: Package_DIP:DIP-18_W7.62mm
   pin_map:
     VCC: VDD
     GND: VSS

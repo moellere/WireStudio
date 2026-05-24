@@ -47,6 +47,7 @@ notes: "16 GPIOs (A0-A7, B0-B7) addressable as numbers 0-15. Per-pin direction i
 kicad:
   symbol_lib: Interface_Expansion
   symbol: MCP23017_SP
+  footprint: Package_DIP:DIP-28_W7.62mm
   pin_map:
     VCC: VDD
     GND: VSS
