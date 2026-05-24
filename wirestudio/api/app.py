@@ -90,6 +90,7 @@ from wirestudio.library import (
 )
 from wirestudio.designs.seed import insert_module
 from wirestudio.model import Design
+from wirestudio.targets import get_target, target_ids
 
 
 def _wire_compat(warnings) -> list[CompatWire]:
@@ -265,8 +266,18 @@ def create_app(
         return {"ok": True, "version": __version__}
 
     @app.get("/library/boards", response_model=list[BoardSummary], tags=["library"])
-    def list_boards() -> list[BoardSummary]:
-        return _precomputed_boards
+    def list_boards(
+        target: Optional[str] = Query(
+            default=None,
+            description="Filter to boards selectable by a generation target (esphome|lorawan)",
+        ),
+    ) -> list[BoardSummary]:
+        if target is None:
+            return _precomputed_boards
+        if target not in target_ids():
+            raise HTTPException(status_code=422, detail=f"unknown target {target!r}")
+        allowed = set(get_target(target).board_ids(lib))
+        return [b for b in _precomputed_boards if b.id in allowed]
 
     @app.get("/library/boards/{board_id}", response_model=LibraryBoard, tags=["library"])
     def get_board(board_id: str) -> LibraryBoard:
@@ -333,6 +344,10 @@ def create_app(
     @app.post("/design/validate", response_model=ValidateResponse, tags=["design"])
     def validate(design: dict) -> ValidateResponse:
         d = _validate_design(design)
+        # Append the active target's permissive checks. esphome adds none,
+        # so existing designs see no change; lorawan flags a non-radio board
+        # or a missing config block.
+        target_warnings = get_target(d.target).validate(d, lib)
         return ValidateResponse(
             ok=True,
             design_id=d.id,
@@ -340,7 +355,7 @@ def create_app(
             component_count=len(d.components),
             bus_count=len(d.buses),
             connection_count=len(d.connections),
-            warnings=[w.model_dump() for w in d.warnings],
+            warnings=[w.model_dump() for w in list(d.warnings) + target_warnings],
             compatibility_warnings=_wire_compat(check_pin_compatibility(design, lib)),
         )
 
@@ -1011,6 +1026,14 @@ def create_app(
             session_id=session_id,
             messages=[AgentSessionMessage(**m) for m in messages],
         )
+
+    # Mount each registered target's optional router under /<id> (e.g. the
+    # lorawan target's /lorawan/compile endpoints). esphome returns None -- its
+    # endpoints are the top-level routes above.
+    for target_id in target_ids():
+        target_router = get_target(target_id).router(lib)
+        if target_router is not None:
+            app.include_router(target_router, prefix=f"/{target_id}")
 
     if mcp_server is not None:
         # Streamable HTTP transport. mcp_server.streamable_http_app() registers

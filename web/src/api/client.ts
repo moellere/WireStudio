@@ -13,6 +13,9 @@ import type {
   FleetRunStatus,
   FleetStatus,
   KicadRenderStatus,
+  LorawanCompileEvent,
+  LorawanCompileStatus,
+  LorawanProvisionResponse,
   ModuleSummary,
   RecommendConstraints,
   RecommendResponse,
@@ -73,6 +76,9 @@ export const api = {
   health: () => request<{ ok: boolean; version: string }>("/health"),
 
   listBoards: () => request<BoardSummary[]>("/library/boards"),
+  /** Boards selectable by a generation target (e.g. "lorawan" -> radio boards). */
+  listBoardsForTarget: (target: string) =>
+    request<BoardSummary[]>(`/library/boards?target=${encodeURIComponent(target)}`),
   getBoard: (id: string) => request<unknown>(`/library/boards/${encodeURIComponent(id)}`),
 
   listComponents: (filters?: { category?: string; use_case?: string; bus?: string }) => {
@@ -161,6 +167,32 @@ export const api = {
   fleetRunStatus: (runId: string) =>
     request<FleetRunStatus>(`/fleet/jobs/${encodeURIComponent(runId)}`),
 
+  lorawanCompileStatus: () => request<LorawanCompileStatus>("/lorawan/compile/status"),
+  /** Register the device in ChirpStack and get back the band/EUIs/AppKey to
+   *  write into its serial provisioning prompt. */
+  lorawanProvision: (body: { dev_eui: string; design: Design }) =>
+    request<LorawanProvisionResponse>("/lorawan/provision", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  /** Set the design's decodeUplink codec on the device's ChirpStack profile so
+   *  uplinks decode into named fields (reflects an external GPS in lorawan.gps). */
+  lorawanSetCodec: (body: { dev_eui: string; design: Design }) =>
+    request<{ dev_eui: string; device_profile_id: string; codec_set: boolean }>(
+      "/lorawan/codec",
+      { method: "POST", body: JSON.stringify(body) },
+    ),
+  /** Download a built firmware image by its compile cache_key. */
+  lorawanFirmware: async (cacheKey: string): Promise<Uint8Array> => {
+    const res = await fetch(`${API_BASE}/lorawan/firmware/${encodeURIComponent(cacheKey)}`);
+    if (!res.ok) {
+      let body: unknown = undefined;
+      try { body = await res.json(); } catch { /* not json */ }
+      throw new ApiError(res.status, `GET /lorawan/firmware/${cacheKey} -> ${res.status}`, body);
+    }
+    return new Uint8Array(await res.arrayBuffer());
+  },
+
   listUseCases: () => request<UseCaseEntry[]>("/library/use_cases"),
   recommend: (body: { query: string; limit?: number; constraints?: RecommendConstraints }) =>
     request<RecommendResponse>("/library/recommend", {
@@ -208,6 +240,59 @@ export async function* agentStream(body: {
           const json = line.slice(6);
           try {
             yield JSON.parse(json) as AgentStreamEvent;
+          } catch {
+            // ignore malformed event line
+          }
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Stream a LoRaWAN firmware build over SSE. Yields `{type:"log"}` chunks and a
+ * final `{type:"done"}` carrying the cache_key to fetch the bin with. Throws
+ * ApiError on non-2xx (422 bad design / non-radio board) and Error on an
+ * `event: error` frame (e.g. PlatformIO unavailable mid-build).
+ */
+export async function* lorawanCompile(design: Design): AsyncGenerator<LorawanCompileEvent> {
+  const res = await fetch(`${API_BASE}/lorawan/compile`, {
+    method: "POST",
+    headers: { "content-type": "application/json", accept: "text/event-stream" },
+    body: JSON.stringify(design),
+  });
+  if (!res.ok) {
+    let errBody: unknown = undefined;
+    try { errBody = await res.json(); } catch { /* not json */ }
+    throw new ApiError(res.status, `POST /lorawan/compile -> ${res.status}`, errBody);
+  }
+  if (!res.body) {
+    throw new Error("lorawan/compile: no response body");
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let sep: number;
+    while ((sep = buffer.indexOf("\n\n")) !== -1) {
+      const block = buffer.slice(0, sep);
+      buffer = buffer.slice(sep + 2);
+      let isError = false;
+      for (const line of block.split("\n")) {
+        if (line.startsWith("event: error")) {
+          isError = true;
+        } else if (line.startsWith("data: ")) {
+          const json = line.slice(6);
+          if (isError) {
+            let message = json;
+            try { message = (JSON.parse(json) as { message?: string }).message ?? json; } catch { /* keep raw */ }
+            throw new Error(message);
+          }
+          try {
+            yield JSON.parse(json) as LorawanCompileEvent;
           } catch {
             // ignore malformed event line
           }
