@@ -1,0 +1,99 @@
+id: heltec-wifi-lora32-v3
+name: Heltec WiFi LoRa 32 V3 (SX1262)
+mcu: esp32
+chip_variant: esp32s3
+framework: arduino
+platformio_board: heltec_wifi_lora_32_V3
+flash_size_mb: 8
+
+rails:
+  - {name: "5V",  voltage: 5.0, source: usb}
+  - {name: "3V3", voltage: 3.3, source: onboard_regulator}
+  - {name: "GND", voltage: 0.0}
+
+# ESP32-S3FN8 (native USB-C) + Semtech SX1262 LoRa + onboard SSD1306
+# 0.96" OLED + CN3165 LiPo charger. The SX1262 sits on a dedicated SPI
+# group (NSS/SCK/MOSI/MISO = 8/9/10/11); the OLED is on its own I2C bus
+# (17/18) gated, with the rest of the external rail, by Vext on GPIO36
+# (active low). Battery voltage is read on GPIO1 once ADC_Ctrl (GPIO37)
+# is driven. Radio pins (cs/rst/dio1/busy = 8/12/14/13) match the
+# canonical RadioLib Heltec V3 constructor `new Module(8, 14, 12, 13)`.
+#
+# Same ESP32-S3 strap rules as ESP32-S3-DevKitC-1 (see that file): GPIO0
+# boot, GPIO45 VDD_SPI, GPIO46 ROM-print. ADC1 = GPIO1-10, ADC2 =
+# GPIO11-20 (unusable while WiFi is active).
+default_buses:
+  i2c: {sda: GPIO17, scl: GPIO18}
+  spi: {clk: GPIO9, miso: GPIO11, mosi: GPIO10}
+
+onboard_peripherals:
+  lora_sx1262:  {cs: GPIO8, rst: GPIO12, dio1: GPIO14, busy: GPIO13}
+  oled_ssd1306: {address: "0x3C", reset: GPIO21, vext: GPIO36}
+  battery_adc:  {pin: GPIO1, control: GPIO37, divider: 4.9}
+  vext:         {pin: GPIO36, inverted: true}
+  led:          {pin: GPIO35}
+  button:       {pin: GPIO0, inverted: true}
+
+# SX1262 on the dedicated radio SPI. SX126x uses dio1 + busy (no dio0).
+# The TCXO is referenced off DIO3 at 1.8V and DIO2 controls the TX/RX RF
+# switch -- both are SX1262-specific and load-bearing: a wrong tcxo_voltage
+# makes radio.begin() fail and looks like a join problem, not a radio one.
+# TODO(0.x): verify tcxo_voltage against a real board; 1.8 is the widely
+# used Heltec V3 value but some units calibrate at 1.6.
+radio:
+  chip: sx1262
+  radiolib_class: SX1262
+  pins: {cs: GPIO8, rst: GPIO12, dio1: GPIO14, busy: GPIO13}
+  tcxo_voltage: 1.8
+  dio2_as_rf_switch: true
+
+gpio_capabilities:
+  GPIO0:  [gpio, strap, boot_high, button]
+  GPIO1:  [gpio, adc, adc1, battery_sense]
+  GPIO2:  [gpio, adc, adc1, pwm]
+  GPIO3:  [gpio, adc, adc1, strap]
+  GPIO4:  [gpio, adc, adc1, pwm]
+  GPIO5:  [gpio, adc, adc1, pwm]
+  GPIO6:  [gpio, adc, adc1, pwm]
+  GPIO7:  [gpio, adc, adc1, pwm]
+  GPIO8:  [gpio, adc, adc1, lora_cs]
+  GPIO9:  [gpio, adc, adc1, spi_clk]
+  GPIO10: [gpio, adc, adc1, spi_mosi]
+  GPIO11: [gpio, adc, adc2, spi_miso]
+  GPIO12: [gpio, adc, adc2, lora_rst]
+  GPIO13: [gpio, adc, adc2, lora_busy]
+  GPIO14: [gpio, adc, adc2, lora_dio1]
+  GPIO15: [gpio, adc, adc2, pwm]
+  GPIO16: [gpio, adc, adc2, pwm]
+  GPIO17: [gpio, adc, adc2, i2c_sda]
+  GPIO18: [gpio, adc, adc2, i2c_scl]
+  GPIO19: [gpio, usb, pwm]
+  GPIO20: [gpio, usb, pwm]
+  GPIO21: [gpio, oled_reset]
+  GPIO33: [gpio, pwm]
+  GPIO34: [gpio, pwm]
+  GPIO35: [gpio, led, pwm]
+  GPIO36: [gpio, vext_control]
+  GPIO37: [gpio, adc_control]
+  GPIO38: [gpio, pwm]
+  GPIO39: [gpio, pwm]
+  GPIO40: [gpio, pwm]
+  GPIO41: [gpio, pwm]
+  GPIO42: [gpio, pwm]
+  GPIO43: [gpio, uart_tx, serial_tx]
+  GPIO44: [gpio, uart_rx, serial_rx]
+  GPIO45: [gpio, strap, boot_low, pwm]
+  GPIO46: [gpio, strap, boot_low, pwm]
+  GPIO47: [gpio, pwm]
+  GPIO48: [gpio, pwm]
+
+# Enclosure geometry deferred: the V3 ships an IPEX/U.FL antenna jack
+# (not the TTGO's edge SMA) and an onboard OLED; modelling the cutouts
+# needs a measured board. TODO(0.x): add enclosure: once verified.
+
+# KiCad symbol mapping (0.9). 36-pin board, modelled as a 2x18 header
+# until KiCad ships a dedicated Heltec V3 module symbol.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_02x18_Odd_Even
+  value: Heltec WiFi LoRa 32 V3

@@ -22,6 +22,7 @@ import { PushToFleetDialog } from "./components/PushToFleetDialog";
 import { CapabilityPickerDialog } from "./components/CapabilityPickerDialog";
 import { EnclosureDialog } from "./components/EnclosureDialog";
 import { SchematicDialog } from "./components/SchematicDialog";
+import { LorawanFlashDialog } from "./components/LorawanFlashDialog";
 import { useDebouncedValue } from "./lib/debounce";
 import { useAdvancedMode } from "./lib/uiMode";
 import {
@@ -36,7 +37,8 @@ import {
   UploadCloud,
   RotateCcw,
   Download,
-  ExternalLink
+  ExternalLink,
+  Radio
 } from "lucide-react";
 import {
   addComponent,
@@ -97,6 +99,7 @@ export default function App() {
   const [showEnclosureDialog, setShowEnclosureDialog] = useState(false);
   const [showSchematicDialog, setShowSchematicDialog] = useState(false);
   const [showCapabilityDialog, setShowCapabilityDialog] = useState(false);
+  const [showFlashDialog, setShowFlashDialog] = useState(false);
   const [savingState, setSavingState] = useState<"idle" | "saving" | "saved">("idle");
 
   const dirty = useMemo(() => isDirty(originalDesign, design), [originalDesign, design]);
@@ -598,6 +601,14 @@ export default function App() {
               >
                 <UploadCloud className="h-4 w-4" />
               </button>
+              <button
+                onClick={() => setShowFlashDialog(true)}
+                className="flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
+                title="Build + flash LoRaWAN firmware over WebSerial"
+                aria-label="Flash LoRaWAN firmware"
+              >
+                <Radio className="h-4 w-4" />
+              </button>
 
               <div className="mx-1 h-4 w-px bg-zinc-800"></div>
 
@@ -705,6 +716,9 @@ export default function App() {
           onCancel={() => setShowNewDialog(false)}
           onAdopt={handleAdoptNewDesign}
         />
+      )}
+      {showFlashDialog && (
+        <LorawanFlashDialog onClose={() => setShowFlashDialog(false)} />
       )}
       {showFleetDialog && design && (
         <PushToFleetDialog

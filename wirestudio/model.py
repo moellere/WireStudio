@@ -146,6 +146,47 @@ class Agent(_Strict):
     history_ref: Optional[str] = None
 
 
+class GpsSerial(_Strict):
+    """An external GPS module wired to a UART, for boards without an onboard
+    GPS. Pins are MCU-side: the GPS module's TX wire connects to `rx_pin`, its
+    RX wire to `tx_pin`. (Onboard GPS is detected from the board, not here.)
+    """
+    rx_pin: str          # MCU RX  <- GPS module TX
+    tx_pin: str          # MCU TX  -> GPS module RX
+    baud: int = 9600
+
+
+class Dht22(_Strict):
+    """A DHT22 / AM2302 temperature + humidity sensor on a single data GPIO."""
+    pin: str
+
+
+class Oled(_Strict):
+    """An SSD1306 128x64 OLED on the board's I2C bus, used as a status display
+    (lat/lon/battery/temp). Not a payload field -- display only."""
+    enabled: bool = True
+
+
+class LoRaWAN(_Strict):
+    """LoRaWAN target parameters. Region/sub-band are hard-pinned to the
+    gateway (US915 sub-band 2); a mismatch makes the device transmit joins
+    on channels the gateway never hears. `dev_eui` is device-authoritative
+    and filled after runtime serial provisioning, not authored by hand.
+    Keys (AppKey/NwkKey) are deliberately absent: they are secrets and
+    never live in design.json.
+    """
+    region: Literal["US915"] = "US915"
+    sub_band: int = 2
+    join_eui: Optional[str] = None                   # MSB hex; defaults applied downstream
+    chirpstack_application_id: Optional[str] = None  # UUID
+    device_profile_id: Optional[str] = None          # UUID (US915 sub-2 profile)
+    provisioning: Literal["runtime_serial", "compile_time"] = "runtime_serial"
+    dev_eui: Optional[str] = None                    # device-reported, post-provision
+    gps: Optional[GpsSerial] = None                  # external GPS on a UART
+    dht22: Optional[Dht22] = None                    # DHT22 temp/humidity sensor
+    oled: Optional[Oled] = None                      # SSD1306 status display
+
+
 class Design(_Strict):
     schema_version: Literal["0.1"]
     id: str
@@ -164,3 +205,7 @@ class Design(_Strict):
     esphome_extras: dict = Field(default_factory=dict)
     fleet: Optional[Fleet] = None
     agent: Optional[Agent] = None
+    # Generation target. Defaults to "esphome" so every existing design
+    # keeps its current behavior without a schema bump.
+    target: Literal["esphome", "lorawan"] = "esphome"
+    lorawan: Optional[LoRaWAN] = None

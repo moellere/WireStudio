@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **LoRaWAN device target.** A new `lorawan` generation target builds
+  RadioLib + LoRaWAN_ESP32 firmware for US915 radio boards, flashes it over
+  WebSerial, and provisions devices against ChirpStack — the uplink payload
+  and the ChirpStack `decodeUplink` codec come from one field spec, so they
+  stay in lockstep. Adds a `wirestudio/targets/` plugin seam (`esphome` wraps
+  the existing generators in place), `Design.target` + a `LoRaWAN` config
+  block (GPS / DHT22 / OLED), Heltec WiFi LoRa 32 V2 (SX1276) and V3 (SX1262)
+  boards, a `/lorawan/*` API, and a web flash dialog. Behind a `[lorawan]`
+  extra. Validated end-to-end on a TTGO T-Beam against live ChirpStack 4.17.
 - **`make check`** — one local command that runs the same fast gates CI
   runs (ruff, pytest, a clean web build, vitest). Heavy external-CLI
   gates live under `make gates`.
