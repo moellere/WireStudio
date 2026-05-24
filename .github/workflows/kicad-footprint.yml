@@ -1,0 +1,64 @@
+name: kicad-footprint
+
+# The footprint-correctness gate. Companion to kicad-schematic.yml: where
+# that proves every `kicad:` block's *symbol* exists in the KiCad symbol
+# libraries, this proves its *footprint* exists in the KiCad footprint
+# libraries -- the prerequisite for PCB layout. For every library
+# component and board, scripts/check_footprints.py asserts a footprint is
+# declared and that its `LIB:NAME` resolves to a real
+# `LIB.pretty/NAME.kicad_mod`. A bogus or missing footprint fails the PR.
+#
+# Pinning rationale: KiCad renames/moves footprints between major
+# releases, so we pin the kicad-footprints tag (KICAD_FOOTPRINTS_REF) and
+# bump it deliberately, the same way the symbol gate pins kicad-symbols.
+
+on:
+  pull_request:
+    branches: [main, dev]
+  push:
+    branches: [main, dev]
+  schedule:
+    - cron: '0 10 * * 1'   # 10:00 UTC every Monday
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kicad-footprint-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  KICAD_FOOTPRINTS_REF: "8.0.0"
+
+jobs:
+  kicad-footprint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install studio
+        run: pip install -e .
+
+      - name: Cache KiCad footprint libraries
+        id: cache-footprints
+        uses: actions/cache@v4
+        with:
+          path: kicad-footprints
+          key: kicad-footprints-${{ env.KICAD_FOOTPRINTS_REF }}
+
+      - name: Fetch KiCad footprint libraries
+        if: steps.cache-footprints.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch "$KICAD_FOOTPRINTS_REF" \
+            https://gitlab.com/kicad/libraries/kicad-footprints.git kicad-footprints
+
+      - name: Verify every component + board footprint resolves
+        env:
+          KICAD8_FOOTPRINT_DIR: ${{ github.workspace }}/kicad-footprints
+        run: python scripts/check_footprints.py

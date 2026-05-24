@@ -62,6 +62,7 @@ notes: |
 kicad:
   symbol_lib: Connector_Generic
   symbol: Conn_01x06
+  footprint: Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical
   value: VL53L0X
   pin_map:
     VCC: Pin_1

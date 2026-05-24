@@ -104,4 +104,5 @@ notes: "ESP32 only -- OV2640 needs the dedicated parallel bus + DMA the classic 
 kicad:
   symbol_lib: Connector_Generic
   symbol: Conn_01x18
+  footprint: Connector_PinHeader_2.54mm:PinHeader_1x18_P2.54mm_Vertical
   value: ESP32 Camera FPC

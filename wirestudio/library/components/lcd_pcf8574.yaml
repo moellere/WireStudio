@@ -56,4 +56,5 @@ notes: "5V LCD running over a 3.3V I2C bus through a level-shifting PCF8574 back
 kicad:
   symbol_lib: Connector_Generic
   symbol: Conn_01x04
+  footprint: Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical
   value: LCD I2C backpack

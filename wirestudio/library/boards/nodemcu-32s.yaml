@@ -70,3 +70,4 @@ enclosure:
 kicad:
   symbol_lib: RF_Module
   symbol: ESP32-WROOM-32
+  footprint: RF_Module:ESP32-WROOM-32

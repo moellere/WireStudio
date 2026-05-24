@@ -68,4 +68,5 @@ notes: "ESP8266 only has one ADC pin (A0) and reads 0-1.0V via the onboard divid
 kicad:
   symbol_lib: Connector_Generic
   symbol: Conn_01x01
+  footprint: Connector_PinHeader_2.54mm:PinHeader_1x01_P2.54mm_Vertical
   value: ADC sense
