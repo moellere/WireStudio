@@ -66,4 +66,5 @@ gpio_capabilities:
 kicad:
   symbol_lib: Connector_Generic
   symbol: Conn_02x14_Odd_Even
+  footprint: Connector_PinHeader_2.54mm:PinHeader_2x14_P2.54mm_Vertical
   value: ESP32-S3-SuperMini

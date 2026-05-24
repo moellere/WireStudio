@@ -49,4 +49,5 @@ notes: |
 kicad:
   symbol_lib: Connector_Generic
   symbol: Conn_01x04
+  footprint: Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical
   value: BMP180

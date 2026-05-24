@@ -57,5 +57,6 @@ notes: |
 kicad:
   symbol_lib: Analog_ADC
   symbol: ADS1115IDGS
+  footprint: Package_SO:MSOP-10_3x3mm_P0.5mm
   pin_map:
     VCC: VDD
