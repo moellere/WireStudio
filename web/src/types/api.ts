@@ -269,3 +269,34 @@ export interface EnclosureSearchResponse {
   sources: EnclosureSourceStatus[];
   results: EnclosureHit[];
 }
+
+// --- LoRaWAN target -------------------------------------------------------
+
+export interface LorawanCompileStatus {
+  available: boolean;
+  pio: string | null;
+  version: string | null;
+  reason: string | null;
+}
+
+/** One frame from the /lorawan/compile SSE stream. */
+export type LorawanCompileEvent =
+  | { type: "log"; data: string }
+  | {
+      type: "done";
+      ok: boolean;
+      cache_key: string;
+      cache_hit: boolean;
+      env: string;
+      bin: string | null;
+    };
+
+export interface LorawanProvisionResponse {
+  dev_eui: string;
+  join_eui: string;
+  band: string;
+  sub_band: number;
+  app_key: string;
+  application_id: string;
+  device_profile_id: string;
+}

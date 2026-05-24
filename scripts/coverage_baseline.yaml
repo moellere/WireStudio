@@ -12,4 +12,10 @@
 # you add a new library entry without an example, add its id here.
 
 components: []
-boards: []
+boards:
+  # LoRaWAN-target radio boards: exercised by the lorawan firmware build
+  # (scripts/build_lorawan_firmware.py + tests/test_firmware_gen.py), not by
+  # an esphome example. TODO(lorawan): add esphome example fixtures or a
+  # lorawan coverage matrix so these can leave the baseline.
+  - heltec-wifi-lora32-v2
+  - heltec-wifi-lora32-v3

@@ -217,6 +217,43 @@
         "session_id": { "type": "string" },
         "history_ref": { "type": "string" }
       }
+    },
+
+    "target": { "type": "string", "enum": ["esphome", "lorawan"], "default": "esphome" },
+
+    "lorawan": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "region": { "type": "string", "enum": ["US915"], "default": "US915" },
+        "sub_band": { "type": "integer", "default": 2 },
+        "join_eui": { "type": "string" },
+        "chirpstack_application_id": { "type": "string" },
+        "device_profile_id": { "type": "string" },
+        "provisioning": { "type": "string", "enum": ["runtime_serial", "compile_time"], "default": "runtime_serial" },
+        "dev_eui": { "type": "string" },
+        "gps": {
+          "type": "object",
+          "required": ["rx_pin", "tx_pin"],
+          "additionalProperties": false,
+          "properties": {
+            "rx_pin": { "type": "string" },
+            "tx_pin": { "type": "string" },
+            "baud": { "type": "integer", "default": 9600 }
+          }
+        },
+        "dht22": {
+          "type": "object",
+          "required": ["pin"],
+          "additionalProperties": false,
+          "properties": { "pin": { "type": "string" } }
+        },
+        "oled": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": { "enabled": { "type": "boolean", "default": true } }
+        }
+      }
     }
   }
 }

@@ -33,6 +33,14 @@ dev = [
     "pytest>=8.0",
     "ruff>=0.4",
 ]
+# LoRaWAN target. Heavy, target-specific deps kept out of an ESPHome-only
+# install; the modules that need them lazy-import and degrade to a
+# ChirpStackUnavailable status when the extra isn't present.
+lorawan = [
+    "grpcio>=1.60",
+    "chirpstack-api>=4.7,<5",
+    "paho-mqtt>=1.6",
+]
 
 [project.scripts]
 wirestudio-generate = "wirestudio.generate.__main__:main"
@@ -53,6 +61,7 @@ include = ["wirestudio*"]
 "wirestudio.library" = ["components/*.yaml", "boards/*.yaml", "modules/*.yaml"]
 "wirestudio.schema" = ["*.json"]
 "wirestudio.examples" = ["*.json"]
+"wirestudio.targets.lorawan" = ["templates/*.j2"]
 
 [tool.ruff]
 line-length = 100
