@@ -11,7 +11,7 @@ FastAPI serves the API and the built SPA from one process.
 docker run --rm -p 8765:8765 \
   -e ANTHROPIC_API_KEY=sk-ant-... \
   -v wirestudio-data:/data \
-  ghcr.io/moellere/wirestudio:v0.12.0
+  ghcr.io/moellere/wirestudio:v0.13.0
 ```
 
 Open <http://localhost:8765>. The image bundles the FastAPI server +
@@ -23,10 +23,11 @@ Available tags:
 
 | Tag | What it tracks |
 |---|---|
-| `:0.12.0` / `:0.12` / `:latest` | the v0.12.0 release |
+| `:0.13.0` / `:0.13` / `:latest` | the v0.13.0 release |
 | `:main` | latest commit on `main` (rolling) |
 | `:dev` | latest commit on `dev` (rolling, pre-release) |
 | `:sha-<short>` | a specific commit |
+| `:<tag>-lorawan` (e.g. `:dev-lorawan`) | same image **plus** the LoRaWAN compile worker (PlatformIO baked in) — see below |
 
 All feature-gating env vars are optional — the studio runs without any
 of them, just with the corresponding feature turned off. See
@@ -38,6 +39,22 @@ of them, just with the corresponding feature turned off. See
 | `FLEET_URL` + `FLEET_TOKEN` | fleet-for-esphome push (`/fleet/*`) |
 | `THINGIVERSE_API_KEY` | enclosure search (`/enclosure/search`) |
 | `WIRESTUDIO_MCP_TOKEN` | bearer token for the `/mcp` endpoint (auto-generated if unset) |
+| `CHIRPSTACK_API_URL` + `CHIRPSTACK_API_TOKEN` | LoRaWAN device provisioning against ChirpStack (`/lorawan/provision`) |
+
+### LoRaWAN compile worker
+
+The default image is lean — it has no PlatformIO toolchain, so the LoRaWAN
+target's `/lorawan/compile` endpoint returns "PlatformIO not found" and the
+**Flash LoRaWAN firmware** flow can't build. To run that feature in a
+deployment, use the **`-lorawan` image variant** (or build it yourself:
+`docker build --build-arg WITH_LORAWAN=true -t wirestudio:lorawan .`). It adds
+PlatformIO + the `[lorawan]` extra and pre-compiles every radio board so the
+espressif32 toolchain is already warm — a bigger image, but `/lorawan/compile`
+returns a cache hit on first use. Pair it with `CHIRPSTACK_API_URL` +
+`CHIRPSTACK_API_TOKEN` (see
+[Integrations](integrations.md#lorawan--chirpstack)). WebSerial flashing happens
+in the user's browser, so the device only needs to reach *their* machine, not
+the server.
 
 ## Kubernetes
 
