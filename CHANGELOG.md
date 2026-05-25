@@ -17,8 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   A web **Inventory** panel lists/adds/edits/removes entries and runs the BOM
   check against the open design (have / partial / need).
 - **ULN2003 stepper driver** library component (28BYJ-48): ESPHome `stepper`
-  platform on four control pins, with a KiCad footprint. Baselined for the
-  example-coverage gate pending a bundled stepper example.
+  platform on four control pins, with a KiCad footprint and a `blind-stepper`
+  example (motorized blind) that round-trips through `esphome config`.
 
 ## [0.13.0] — 2026-05-25
 
