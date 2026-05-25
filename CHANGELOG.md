@@ -32,6 +32,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   extra baked in, so `/lorawan/compile` works in a deployment — the lean
   default image has no toolchain. Documented in [deployment](docs/deployment.md).
 
+### Fixed
+
+- **LoRaWAN GPS-on-console-UART footgun.** The flash dialog's external-GPS
+  default was GPIO3/GPIO1 — U0RXD/U0TXD (the USB-serial console) on the classic
+  ESP32, so a GPS there flooded the provisioning prompt with garbage and the
+  device never joined. Default is now GPIO23/GPIO17, and the lorawan target's
+  `validate()` warns (`lorawan_gps_on_console_uart`) when a GPS lands on the
+  console UART.
+
 ## [0.13.0] — 2026-05-25
 
 ### Added
