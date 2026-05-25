@@ -41,6 +41,7 @@ class Recommendation:
     score: float
     in_examples: int
     rationale: str
+    on_hand: int = 0
     notes: Optional[str] = None
 
 
@@ -153,15 +154,23 @@ def _passes_constraints(c: LibraryComponent, constraints: Constraints) -> bool:
 # Public API
 # ---------------------------------------------------------------------------
 
+# A part the user already has on hand earns a flat boost -- enough to
+# lift it above an equally-matched part that has to be ordered, never
+# enough to override a clearly stronger text match.
+_INVENTORY_BOOST = 5.0
+
+
 def recommend_components(
     library: Library,
     query: str,
     constraints: Optional[Constraints] = None,
     limit: int = 10,
+    inventory: Optional[dict[str, int]] = None,
 ) -> list[Recommendation]:
     """Rank library components against the query.
 
-    Score = match_score (field-weighted) + 3 * in_examples - 0.05 * peak_mA.
+    Score = match_score (field-weighted) + 3 * in_examples - 0.05 * peak_mA
+    + 5 if on hand.
     Components with zero match are dropped; the rest are returned descending,
     capped at `limit`.
 
@@ -174,11 +183,14 @@ def recommend_components(
     - **peak current penalty** prefers low-power parts when the match
       scores tie. 1000mA peak nudges a candidate down by ~50 points,
       which is meaningful but never decisive against a strong text match.
+    - **inventory boost** (`inventory`: library_id -> quantity on hand)
+      prefers parts already in the drawer. Flat +5, presence not count.
     """
     constraints = constraints or Constraints()
     query_tokens = _tokens(query)
     if not query_tokens:
         return []
+    inventory = inventory or {}
 
     usage = _example_usage_counts()
     out: list[Recommendation] = []
@@ -192,11 +204,16 @@ def recommend_components(
             continue
         in_examples = usage.get(c.id, 0)
         peak_ma = c.electrical.current_ma_peak or 0
+        on_hand = max(0, int(inventory.get(c.id, 0)))
         score = match + 3.0 * in_examples - 0.05 * peak_ma
+        if on_hand:
+            score += _INVENTORY_BOOST
 
         rationale_bits = []
         if matched_tokens:
             rationale_bits.append(f"matched {', '.join(matched_tokens)}")
+        if on_hand:
+            rationale_bits.append(f"you have {on_hand}")
         if in_examples:
             rationale_bits.append(f"used in {in_examples} example{'s' if in_examples != 1 else ''}")
         if c.electrical.current_ma_peak:
@@ -216,6 +233,7 @@ def recommend_components(
             score=round(score, 2),
             in_examples=in_examples,
             rationale="; ".join(rationale_bits),
+            on_hand=on_hand,
             notes=c.notes,
         ))
 

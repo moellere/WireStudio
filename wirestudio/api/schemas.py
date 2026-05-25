@@ -162,6 +162,10 @@ class RecommendRequest(_S):
     constraints: Optional[dict] = Field(
         default=None, description="Optional filters (voltage, max current, bus, excluded categories)."
     )
+    use_inventory: bool = Field(
+        default=True,
+        description="When true, parts already in the local inventory get a ranking boost.",
+    )
 
 
 class Recommendation(_S):
@@ -182,6 +186,7 @@ class Recommendation(_S):
     score: float = Field(description="Recommender score; higher ranks first.")
     in_examples: int = Field(description="Number of bundled examples that use this component.")
     rationale: str = Field(description="Human-readable explanation of why it was recommended.")
+    on_hand: int = Field(default=0, description="Quantity of this part in the local inventory.")
     notes: Optional[str] = Field(default=None, description="Extra caveats or usage notes, if any.")
 
 
@@ -261,3 +266,39 @@ class FleetRunStatus(_S):
     jobs: list[FleetJobStatus] = Field(
         description="Per-target jobs belonging to the run; empty when the run has aged out of the queue."
     )
+
+
+class InventoryEntryModel(_S):
+    library_id: str = Field(description="Library id of the part: a component or a composite module.")
+    kind: str = Field(default="component", description="Part kind: 'component' or 'module'.")
+    quantity: int = Field(description="Number of this part on hand. Non-negative.")
+    location: str = Field(default="", description="Free-text bin/location, e.g. 'drawer 3'.")
+    note: str = Field(default="", description="Free-text note about the part.")
+
+
+class SetInventoryRequest(_S):
+    kind: str = Field(default="component", description="Part kind: 'component' or 'module'.")
+    quantity: int = Field(description="Number of this part on hand. Non-negative.")
+    location: str = Field(default="", description="Free-text bin/location.")
+    note: str = Field(default="", description="Free-text note about the part.")
+
+
+class InventoryCheckRequest(_S):
+    design: dict = Field(description="The design.json to cross-check against the inventory.")
+
+
+class InventoryCheckLine(_S):
+    library_id: str = Field(description="Library id of the BOM part.")
+    kind: str = Field(description="Part kind: 'component' or 'module'.")
+    name: str = Field(description="Human-readable part name.")
+    needed: int = Field(description="Quantity the design needs.")
+    on_hand: int = Field(description="Quantity in the local inventory.")
+    status: str = Field(description="'have' (enough), 'partial' (some, short), or 'need' (none).")
+    location: str = Field(default="", description="Inventory location for the part, if recorded.")
+    note: str = Field(default="", description="Inventory note for the part, if recorded.")
+
+
+class InventoryCheckResponse(_S):
+    design_id: str = Field(description="Id of the checked design.")
+    lines: list[InventoryCheckLine] = Field(description="One line per distinct BOM part.")
+    summary: dict[str, int] = Field(description="Counts keyed by status: have / partial / need.")
