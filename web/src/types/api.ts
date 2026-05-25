@@ -211,6 +211,8 @@ export interface InventoryEntry {
   library_id: string;
   kind: string; // "component" | "module"
   quantity: number;
+  min_quantity: number; // low-stock threshold; 0 = none
+  low_stock: boolean;
   location: string;
   note: string;
 }

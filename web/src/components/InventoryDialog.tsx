@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Boxes, Search, Trash2, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Boxes, Download, Search, Trash2, Upload, X } from "lucide-react";
 import { api } from "../api/client";
 import type { Design, InventoryCheckResponse, InventoryEntry } from "../types/api";
 
@@ -76,6 +76,7 @@ export function InventoryDialog({ design, onClose }: { design?: Design | null; o
       const saved = await api.setInventory(entry.library_id, {
         kind: entry.kind,
         quantity: Math.max(0, Math.trunc(entry.quantity || 0)),
+        min_quantity: Math.max(0, Math.trunc(entry.min_quantity || 0)),
         location: entry.location,
         note: entry.note,
       });
@@ -103,6 +104,34 @@ export function InventoryDialog({ design, onClose }: { design?: Design | null; o
     }
   }
 
+  const fileRef = useRef<HTMLInputElement | null>(null);
+
+  async function exportCsv() {
+    try {
+      const csv = await api.exportInventoryCsv();
+      const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "inventory.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      fail(e);
+    }
+  }
+
+  async function importCsv(file: File) {
+    try {
+      const res = await api.importInventoryCsv(await file.text());
+      setEntries(await api.listInventory());
+      setError(
+        res.skipped.length ? `imported ${res.imported}; skipped unknown: ${res.skipped.join(", ")}` : null,
+      );
+    } catch (e) {
+      fail(e);
+    }
+  }
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
@@ -117,9 +146,30 @@ export function InventoryDialog({ design, onClose }: { design?: Design | null; o
             <Boxes className="h-4 w-4 text-zinc-400" />
             Component Inventory
           </div>
-          <button onClick={onClose} aria-label="Close" className="rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200">
-            <X className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button onClick={exportCsv} title="Export inventory as CSV" aria-label="Export CSV"
+              className="rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200">
+              <Download className="h-4 w-4" />
+            </button>
+            <button onClick={() => fileRef.current?.click()} title="Import inventory from CSV" aria-label="Import CSV"
+              className="rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200">
+              <Upload className="h-4 w-4" />
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".csv,text/csv"
+              className="hidden"
+              onChange={(ev) => {
+                const f = ev.target.files?.[0];
+                if (f) void importCsv(f);
+                ev.target.value = "";
+              }}
+            />
+            <button onClick={onClose} aria-label="Close" className="rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         <div className="space-y-4 overflow-y-auto px-4 py-3">
@@ -167,6 +217,7 @@ export function InventoryDialog({ design, onClose }: { design?: Design | null; o
                   <tr className="text-left text-[11px] uppercase tracking-wide text-zinc-500">
                     <th className="pb-1 font-medium">Part</th>
                     <th className="pb-1 font-medium w-16">Qty</th>
+                    <th className="pb-1 font-medium w-16">Min</th>
                     <th className="pb-1 font-medium">Location</th>
                     <th className="pb-1 font-medium">Note</th>
                     <th className="pb-1"></th>
@@ -180,6 +231,9 @@ export function InventoryDialog({ design, onClose }: { design?: Design | null; o
                         {e.kind === "module" && (
                           <span className="ml-1 rounded bg-zinc-800 px-1 py-0.5 text-[10px] text-zinc-400">module</span>
                         )}
+                        {e.low_stock && (
+                          <span className="ml-1 rounded bg-amber-500/10 px-1 py-0.5 text-[10px] text-amber-300 ring-1 ring-amber-400/30">low</span>
+                        )}
                       </td>
                       <td className="py-1 pr-2">
                         <input
@@ -188,7 +242,18 @@ export function InventoryDialog({ design, onClose }: { design?: Design | null; o
                           value={e.quantity}
                           onChange={(ev) => patch(e.library_id, { quantity: Number(ev.target.value) })}
                           onBlur={() => persist(e)}
-                          className="w-14 rounded border border-zinc-800 bg-zinc-900 px-1.5 py-1 text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                          className={`w-14 rounded border bg-zinc-900 px-1.5 py-1 text-zinc-100 focus:outline-none ${e.low_stock ? "border-amber-500/50 focus:border-amber-400" : "border-zinc-800 focus:border-zinc-600"}`}
+                        />
+                      </td>
+                      <td className="py-1 pr-2">
+                        <input
+                          type="number"
+                          min={0}
+                          value={e.min_quantity}
+                          title="Low-stock threshold (0 = none)"
+                          onChange={(ev) => patch(e.library_id, { min_quantity: Number(ev.target.value) })}
+                          onBlur={() => persist(e)}
+                          className="w-14 rounded border border-zinc-800 bg-zinc-900 px-1.5 py-1 text-zinc-500 focus:border-zinc-600 focus:text-zinc-100 focus:outline-none"
                         />
                       </td>
                       <td className="py-1 pr-2">

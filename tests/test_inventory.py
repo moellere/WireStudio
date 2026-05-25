@@ -5,7 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from wirestudio.api.app import create_app
-from wirestudio.inventory import check_inventory
+from wirestudio.inventory import check_inventory, entries_from_csv, entries_to_csv
 from wirestudio.inventory.store import FileInventoryStore, InventoryEntry
 
 
@@ -89,3 +89,51 @@ def test_recommend_inventory_boost(client):
         "/library/recommend", json={"query": "temperature humidity", "use_inventory": False}
     ).json()["matches"]
     assert next(m for m in off if m["library_id"] == "bme280")["on_hand"] == 0
+
+
+def test_min_quantity_validation():
+    with pytest.raises(ValueError):
+        InventoryEntry(library_id="bme280", quantity=1, min_quantity=-1)
+
+
+def test_low_stock_flag():
+    assert InventoryEntry(library_id="x", quantity=2, min_quantity=3).low_stock is True
+    assert InventoryEntry(library_id="x", quantity=5, min_quantity=3).low_stock is False
+    assert InventoryEntry(library_id="x", quantity=0, min_quantity=0).low_stock is False  # no threshold
+
+
+def test_csv_roundtrip():
+    entries = [
+        InventoryEntry(library_id="bme280", quantity=3, min_quantity=1, location="A1", note="porch"),
+        InventoryEntry(library_id="oled-encoder", kind="module", quantity=1),
+    ]
+    back = entries_from_csv(entries_to_csv(entries))
+    assert [e.library_id for e in back] == ["bme280", "oled-encoder"]
+    assert back[0].min_quantity == 1 and back[0].location == "A1" and back[0].note == "porch"
+    assert back[1].kind == "module"
+
+
+def test_csv_bad_row_raises():
+    with pytest.raises(ValueError):
+        entries_from_csv("library_id,quantity\nbme280,-1\n")
+
+
+def test_set_inventory_low_stock_in_response(client):
+    body = client.put("/inventory/bme280", json={"quantity": 1, "min_quantity": 5}).json()
+    assert body["min_quantity"] == 5 and body["low_stock"] is True
+
+
+def test_inventory_csv_export_import(client):
+    client.put("/inventory/bme280", json={"quantity": 3, "min_quantity": 1, "location": "A1"})
+    csv_text = client.get("/inventory/export.csv").text
+    assert csv_text.startswith("library_id,") and "bme280" in csv_text
+    client.delete("/inventory/bme280")
+    assert client.get("/inventory").json() == []
+    assert client.post("/inventory/import", json={"csv": csv_text}).json()["imported"] == 1
+    restored = client.get("/inventory").json()[0]
+    assert restored["library_id"] == "bme280" and restored["min_quantity"] == 1
+
+
+def test_inventory_import_skips_unknown(client):
+    r = client.post("/inventory/import", json={"csv": "library_id,quantity\nnot-a-part,2\n"})
+    assert r.json() == {"imported": 0, "skipped": ["not-a-part"]}

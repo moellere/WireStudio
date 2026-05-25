@@ -272,6 +272,8 @@ class InventoryEntryModel(_S):
     library_id: str = Field(description="Library id of the part: a component or a composite module.")
     kind: str = Field(default="component", description="Part kind: 'component' or 'module'.")
     quantity: int = Field(description="Number of this part on hand. Non-negative.")
+    min_quantity: int = Field(default=0, description="Low-stock threshold; 0 = none. Low when quantity <= this.")
+    low_stock: bool = Field(default=False, description="True when on hand is at/below the threshold.")
     location: str = Field(default="", description="Free-text bin/location, e.g. 'drawer 3'.")
     note: str = Field(default="", description="Free-text note about the part.")
 
@@ -279,6 +281,7 @@ class InventoryEntryModel(_S):
 class SetInventoryRequest(_S):
     kind: str = Field(default="component", description="Part kind: 'component' or 'module'.")
     quantity: int = Field(description="Number of this part on hand. Non-negative.")
+    min_quantity: int = Field(default=0, description="Low-stock threshold; 0 = none.")
     location: str = Field(default="", description="Free-text bin/location.")
     note: str = Field(default="", description="Free-text note about the part.")
 

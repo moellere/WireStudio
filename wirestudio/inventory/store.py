@@ -26,6 +26,7 @@ class InventoryEntry:
     library_id: str
     kind: str = "component"  # component | module
     quantity: int = 0
+    min_quantity: int = 0  # low-stock threshold; 0 = no threshold
     location: str = ""
     note: str = ""
 
@@ -36,6 +37,13 @@ class InventoryEntry:
             raise ValueError(f"kind must be one of {_KINDS}, got {self.kind!r}")
         if not isinstance(self.quantity, int) or self.quantity < 0:
             raise ValueError("quantity must be a non-negative integer")
+        if not isinstance(self.min_quantity, int) or self.min_quantity < 0:
+            raise ValueError("min_quantity must be a non-negative integer")
+
+    @property
+    def low_stock(self) -> bool:
+        """On hand at or below the reorder threshold (and a threshold is set)."""
+        return self.min_quantity > 0 and self.quantity <= self.min_quantity
 
 
 class InventoryStore(Protocol):
