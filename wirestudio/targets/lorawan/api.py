@@ -218,4 +218,20 @@ def build_router(library: Library) -> APIRouter:
             headers={"Content-Disposition": f'attachment; filename="{cache_key}.bin"'},
         )
 
+    @router.get("/firmware/{cache_key}/factory")
+    def firmware_factory(cache_key: str) -> Response:
+        """Merged bootloader+partitions+app image for flashing a blank board at
+        offset 0x0. 404 when the build didn't produce one (e.g. esptool missing
+        on a cache-hit-only worker) -- the app-region path is the fallback."""
+        if not _KEY_RE.match(cache_key):
+            raise HTTPException(status_code=404, detail="unknown firmware")
+        factory = _default_cache_dir() / cache_key / "factory.bin"
+        if not factory.exists():
+            raise HTTPException(status_code=404, detail="no factory image for this build")
+        return Response(
+            content=factory.read_bytes(),
+            media_type="application/octet-stream",
+            headers={"Content-Disposition": f'attachment; filename="{cache_key}-factory.bin"'},
+        )
+
     return router

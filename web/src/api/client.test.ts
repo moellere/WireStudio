@@ -112,3 +112,25 @@ describe("inventory client", () => {
     expect(r.imported).toBe(1);
   });
 });
+
+describe("lorawan factory image", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("lorawanFactory fetches the merged image bytes", async () => {
+    const bytes = new Uint8Array([0xe9, 1, 2, 3]);
+    const fetchMock = vi.fn().mockResolvedValue(
+      { ok: true, arrayBuffer: async () => bytes.buffer } as unknown as Response,
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const out = await api.lorawanFactory("abc123");
+    expect(fetchMock.mock.calls[0][0]).toContain("/lorawan/firmware/abc123/factory");
+    expect(Array.from(out)).toEqual([0xe9, 1, 2, 3]);
+  });
+
+  it("lorawanFactory throws when there's no factory image (404)", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
+      { ok: false, status: 404, json: async () => ({ detail: "no factory image" }) } as unknown as Response,
+    ));
+    await expect(api.lorawanFactory("abc123")).rejects.toThrow(/factory/);
+  });
+});

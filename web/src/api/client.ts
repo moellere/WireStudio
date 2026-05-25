@@ -220,6 +220,17 @@ export const api = {
     }
     return new Uint8Array(await res.arrayBuffer());
   },
+  /** Download the merged factory image (bootloader+partitions+app, flash at
+   *  0x0) for blank-board flashing. 404 if the build produced no factory image. */
+  lorawanFactory: async (cacheKey: string): Promise<Uint8Array> => {
+    const res = await fetch(`${API_BASE}/lorawan/firmware/${encodeURIComponent(cacheKey)}/factory`);
+    if (!res.ok) {
+      let body: unknown = undefined;
+      try { body = await res.json(); } catch { /* not json */ }
+      throw new ApiError(res.status, `GET /lorawan/firmware/${cacheKey}/factory -> ${res.status}`, body);
+    }
+    return new Uint8Array(await res.arrayBuffer());
+  },
 
   listUseCases: () => request<UseCaseEntry[]>("/library/use_cases"),
   recommend: (body: { query: string; limit?: number; constraints?: RecommendConstraints }) =>

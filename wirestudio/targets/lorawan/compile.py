@@ -67,6 +67,56 @@ def _default_cache_dir() -> Path:
     )
 
 
+# Second-stage bootloader flash offset: 0x1000 on the classic ESP32, 0x0 on
+# every newer chip (S2/S3/C3/C6). Everything else is fixed by the Arduino layout.
+_BOOTLOADER_OFFSETS = {"esp32": "0x1000"}
+
+
+def _pio_packages_dir() -> Path:
+    return Path(os.environ.get("PLATFORMIO_CORE_DIR") or (Path.home() / ".platformio")) / "packages"
+
+
+def _esptool_cmd() -> Optional[list[str]]:
+    """esptool ships inside PlatformIO's tool-esptoolpy package (not the worker's
+    site-packages), so prefer its esptool.py; fall back to a PATH / module copy."""
+    found = sorted(_pio_packages_dir().glob("tool-esptoolpy*/esptool.py"))
+    if found:
+        return [sys.executable, str(found[-1])]
+    if shutil.which("esptool.py"):
+        return ["esptool.py"]
+    if importlib.util.find_spec("esptool") is not None:
+        return [sys.executable, "-m", "esptool"]
+    return None
+
+
+def _find_boot_app0() -> Optional[Path]:
+    found = sorted(_pio_packages_dir().glob("framework-arduinoespressif32*/tools/partitions/boot_app0.bin"))
+    return found[-1] if found else None
+
+
+def _merge_factory(build_dir: Path, chip: str, out: Path) -> bool:
+    """Merge bootloader + partitions + boot_app0 + app into one image flashed at
+    0x0 -- a blank-board factory image (esptool merge_bin). Best-effort: returns
+    False (no factory.bin) if esptool or a part is missing, so a normal re-flash
+    (app region only) still works."""
+    esptool = _esptool_cmd()
+    bootloader, partitions, app = (build_dir / n for n in ("bootloader.bin", "partitions.bin", "firmware.bin"))
+    if not (esptool and bootloader.exists() and partitions.exists() and app.exists()):
+        return False
+    args = [*esptool, "--chip", chip, "merge_bin", "-o", str(out),
+            _BOOTLOADER_OFFSETS.get(chip, "0x0"), str(bootloader),
+            "0x8000", str(partitions)]
+    boot_app0 = _find_boot_app0()
+    if boot_app0:
+        args += ["0xe000", str(boot_app0)]
+    args += ["0x10000", str(app)]
+    try:
+        proc = subprocess.run(args, capture_output=True, text=True, timeout=120)
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return proc.returncode == 0 and out.exists()
+
+
 def cache_key(design: Design, library: Library) -> str:
     """Stable key for the generated project. Hashing the rendered files folds in
     board, region, sub-band, and template version automatically."""
@@ -123,16 +173,19 @@ def compile_firmware_events(
     """
     files = generate_firmware(design, library)
     key = cache_key(design, library)
-    env = library.board(design.board.library_id).platformio_board
+    board = library.board(design.board.library_id)
+    env = board.platformio_board
     slot = Path(cache_dir or _default_cache_dir()) / key
     cached_bin = slot / "firmware.bin"
+    cached_factory = slot / "factory.bin"
     cached_log = slot / "build.log"
 
     if use_cache and cached_bin.exists():
         if cached_log.exists():
             yield {"type": "log", "data": cached_log.read_text()}
-        yield {"type": "done", "ok": True, "cache_key": key,
-               "cache_hit": True, "env": env, "bin": str(cached_bin)}
+        yield {"type": "done", "ok": True, "cache_key": key, "cache_hit": True,
+               "env": env, "bin": str(cached_bin),
+               "factory": str(cached_factory) if cached_factory.exists() else None}
         return
 
     pio = _pio_cmd()
@@ -182,10 +235,14 @@ def compile_firmware_events(
 
     built = project / ".pio" / "build" / env / "firmware.bin"
     ok = proc.returncode == 0 and built.exists()
+    factory = None
     if ok:
         shutil.copy2(built, cached_bin)
+        # Best-effort blank-board factory image (bootloader + partitions + app).
+        if _merge_factory(built.parent, board.chip_variant or "esp32", cached_factory):
+            factory = str(cached_factory)
     yield {"type": "done", "ok": ok, "cache_key": key, "cache_hit": False,
-           "env": env, "bin": str(cached_bin) if ok else None}
+           "env": env, "bin": str(cached_bin) if ok else None, "factory": factory}
 
 
 def compile_firmware(
