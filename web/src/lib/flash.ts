@@ -7,9 +7,10 @@
  * (the app image) at 0x10000 with eraseAll=false. That preserves the existing
  * bootloader/partition table *and the NVS partition* -- the LoRaWAN DevNonce
  * counter lives in NVS, so an app-only re-flash does not reset it (the §2.1
- * fix). A full-chip erase would wipe NVS and needs the bootloader + partition
- * images too; that path is deferred (the worker only caches the app image
- * today).
+ * fix). For a blank board the caller instead passes the merged factory image
+ * (bootloader + partitions + app, from the worker's `/factory` endpoint) at
+ * 0x0 with eraseAll=true; provisioning afterwards re-flushes DevNonces, so the
+ * wiped NVS is fine. This module is image-agnostic -- the caller picks.
  */
 import { isWebSerialSupported } from "./usb-detect";
 

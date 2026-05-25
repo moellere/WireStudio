@@ -127,6 +127,20 @@ def test_firmware_404_bad_key_format(client):
     assert client.get("/lorawan/firmware/not-hex-..").status_code == 404
 
 
+def test_factory_image_download(client, tmp_path, monkeypatch):
+    monkeypatch.setenv("WIRESTUDIO_FW_CACHE", str(tmp_path))
+    key = _seed_cache(tmp_path, _design("ttgo-t-beam"))
+    (tmp_path / key / "factory.bin").write_bytes(b"\xe9FACTORY")  # 0xe9 = ESP image magic
+    r = client.get(f"/lorawan/firmware/{key}/factory")
+    assert r.status_code == 200 and r.content == b"\xe9FACTORY"
+
+
+def test_factory_image_404_when_absent(client, tmp_path, monkeypatch):
+    monkeypatch.setenv("WIRESTUDIO_FW_CACHE", str(tmp_path))
+    key = _seed_cache(tmp_path, _design("ttgo-t-beam"))  # firmware.bin only, no factory
+    assert client.get(f"/lorawan/firmware/{key}/factory").status_code == 404
+
+
 def test_provision_registers_device_and_returns_appkey(client, monkeypatch):
     fake = _FakeChirp()
     monkeypatch.setattr(cs, "ChirpStackClient", lambda: fake)

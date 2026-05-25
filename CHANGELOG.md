@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Blank-board LoRaWAN flash.** The compile worker now also emits a merged
+  factory image (bootloader + partitions + app via esptool `merge_bin` at the
+  per-chip bootloader offset), served at `GET /lorawan/firmware/{key}/factory`.
+  The flash dialog's **"Blank board — full flash"** toggle writes it at 0x0 with
+  a full erase, for a board that's never been flashed; the default stays an
+  app-region re-flash that preserves the bootloader + NVS DevNonces.
 - **Local component inventory.** Track parts on hand in a single
   `inventory.json` (`GET`/`PUT`/`DELETE /inventory`), cross-check a design's
   BOM against it (`POST /design/inventory/check` → have / partial / need),
