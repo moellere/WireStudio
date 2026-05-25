@@ -68,4 +68,5 @@ gpio_capabilities:
 kicad:
   symbol_lib: Connector_Generic
   symbol: Conn_02x18_Odd_Even
+  footprint: Connector_PinHeader_2.54mm:PinHeader_2x18_P2.54mm_Vertical
   value: Heltec WiFi LoRa 32 V2
