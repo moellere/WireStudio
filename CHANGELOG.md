@@ -34,6 +34,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Dev deploy couldn't build LoRaWAN firmware.** The `bump-dev` job pinned
+  the dev overlay to the lean `sha-<short>` image (no PlatformIO), so
+  `/lorawan/compile` failed on the staging instance. The dev app now tracks
+  the `-lorawan` variant (`bump-dev` waits on the `lorawan-image` job and
+  writes the `-lorawan` tag), and the dev pod's memory limit is raised to 2Gi
+  so the espressif32 link step doesn't OOMKill mid-build. Prod stays lean.
 - **LoRaWAN GPS-on-console-UART footgun.** The flash dialog's external-GPS
   default was GPIO3/GPIO1 — U0RXD/U0TXD (the USB-serial console) on the classic
   ESP32, so a GPS there flooded the provisioning prompt with garbage and the

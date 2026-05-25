@@ -135,7 +135,10 @@ jobs:
   # the new sha. Pushes made with GITHUB_TOKEN don't retrigger workflows,
   # and [skip ci] makes that explicit.
   bump-dev:
-    needs: build
+    # Needs lorawan-image too: the dev app runs the -lorawan variant, so
+    # don't pin its tag until that image is actually pushed (else ArgoCD
+    # hits ImagePullBackOff until the slower lorawan build finishes).
+    needs: [build, lorawan-image]
     if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
     runs-on: ubuntu-latest
     permissions:
@@ -146,7 +149,7 @@ jobs:
           ref: dev
       - name: Pin dev overlay to the freshly built image
         run: |
-          tag="sha-$(echo "${GITHUB_SHA}" | cut -c1-7)"
+          tag="sha-$(echo "${GITHUB_SHA}" | cut -c1-7)-lorawan"
           file=deploy/overlays/dev/kustomization.yaml
           sed -i -E "s|^( *newTag: ).*|\1${tag}|" "$file"
           if git diff --quiet -- "$file"; then
