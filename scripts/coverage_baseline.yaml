@@ -11,7 +11,10 @@
 # When you close a gap, remove the id from the matching section. When
 # you add a new library entry without an example, add its id here.
 
-components: []
+components:
+  # Stepper driver: no esphome example yet (needs a board + motor wiring).
+  # TODO(inventory): add a 28BYJ-48 stepper example to close this.
+  - uln2003
 boards:
   # LoRaWAN-target radio boards: exercised by the lorawan firmware build
   # (scripts/build_lorawan_firmware.py + tests/test_firmware_gen.py), not by

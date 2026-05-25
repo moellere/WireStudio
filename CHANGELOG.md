@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Local component inventory.** Track parts on hand in a single
+  `inventory.json` (`GET`/`PUT`/`DELETE /inventory`), cross-check a design's
+  BOM against it (`POST /design/inventory/check` → have / partial / need),
+  and let the recommender prefer parts already in the drawer (`use_inventory`,
+  a flat +5 boost). `INVENTORY_PATH` env override for the Docker `/data` volume.
+- **ULN2003 stepper driver** library component (28BYJ-48): ESPHome `stepper`
+  platform on four control pins, with a KiCad footprint. Baselined for the
+  example-coverage gate pending a bundled stepper example.
+
 ## [0.13.0] — 2026-05-25
 
 ### Added
