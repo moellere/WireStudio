@@ -12,4 +12,4 @@ resources:
 
 images:
   - name: ghcr.io/moellere/wirestudio
-    newTag: sha-4a6fe5c
+    newTag: sha-ab1354c
