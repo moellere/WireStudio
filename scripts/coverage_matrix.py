@@ -92,7 +92,7 @@ def _render(library, examples: dict[str, dict]) -> str:
     component_total = len(components)
     component_covered = sum(1 for c in components if component_refs.get(c.id))
     board_total = len(boards)
-    board_covered = sum(1 for b in boards if board_refs.get(b.id))
+    board_covered = sum(1 for b in boards if board_refs.get(b.id) or b.has_radio)
 
     lines: list[str] = []
     lines.append("# Library coverage")
@@ -103,7 +103,8 @@ def _render(library, examples: dict[str, dict]) -> str:
         "uses it. Bundled examples are validated against pinned ESPHome by the "
         "[esphome-config gate](../.github/workflows/esphome-config.yml), so a "
         "✅ here means that library entry round-trips end-to-end through real "
-        "ESPHome -- not just that the YAML template renders."
+        "ESPHome -- not just that the YAML template renders. Radio (LoRaWAN) "
+        "boards are exercised instead by the lorawan firmware build."
     )
     lines.append("")
     lines.append(
@@ -133,16 +134,19 @@ def _render(library, examples: dict[str, dict]) -> str:
     lines.append("|---|---|---|---|")
     for b in boards:
         refs = board_refs.get(b.id, [])
-        check = "✅" if refs else "⬜"
-        ex_links = ", ".join(
-            f"[`{e}`](../wirestudio/examples/{e}.json)" for e in refs
-        ) or "_(none)_"
+        check = "✅" if (refs or b.has_radio) else "⬜"
+        if refs:
+            ex_links = ", ".join(f"[`{e}`](../wirestudio/examples/{e}.json)" for e in refs)
+        elif b.has_radio:
+            ex_links = "_(lorawan firmware build)_"
+        else:
+            ex_links = "_(none)_"
         chip = getattr(b, "chip_variant", None) or getattr(b, "mcu", "?")
         lines.append(f"| {check} | `{b.id}` | {chip} | {ex_links} |")
     lines.append("")
 
     uncovered_components = [c.id for c in components if not component_refs.get(c.id)]
-    uncovered_boards = [b.id for b in boards if not board_refs.get(b.id)]
+    uncovered_boards = [b.id for b in boards if not board_refs.get(b.id) and not b.has_radio]
     if uncovered_components or uncovered_boards:
         lines.append("## Coverage gaps")
         lines.append("")
@@ -174,7 +178,14 @@ def _uncovered_ids(library, examples: dict[str, dict]) -> tuple[set[str], set[st
     component_refs = _examples_using_component(examples)
     board_refs = _examples_using_board(examples)
     components = {c.id for c in library.list_components() if not component_refs.get(c.id)}
-    boards = {b.id for b in library.list_boards() if not board_refs.get(b.id)}
+    # Radio (LoRaWAN-target) boards are exercised end-to-end by the lorawan
+    # firmware build (tests/test_firmware_gen.py + scripts/build_lorawan_firmware.py
+    # + the lorawan-firmware CI gate), not by an esphome example -- count that.
+    boards = {
+        b.id
+        for b in library.list_boards()
+        if not board_refs.get(b.id) and not getattr(b, "has_radio", False)
+    }
     return components, boards
 
 

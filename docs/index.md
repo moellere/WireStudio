@@ -83,8 +83,8 @@ through upstream `esphome config`. Shipped: the `esphome config` CI
 gate over every bundled example; a nightly `esphome compile` smoke;
 the component-coverage matrix ([`library-coverage.md`](library-coverage.md))
 with a `--strict` no-regression gate now at **zero uncovered** (every
-one of the 59 components and 23 boards is exercised by a bundled
-example that passes the gate); a pinned ESPHome version called
+one of the 60 components and 23 boards is exercised (esphome examples,
+or the lorawan firmware build for radio boards); a pinned ESPHome version called
 out in the README + workflow; an
 [`esphome-matrix`](../.github/workflows/esphome-matrix.yml) compatibility
 report that runs the gate across the pin + latest stables so a pin bump
