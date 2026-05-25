@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] — 2026-05-25
+
 ### Added
 
 - **LoRaWAN device target.** A new `lorawan` generation target builds
@@ -34,7 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   from one tree; CI commits the new image sha to the dev overlay on each
   `dev` merge. See `docs/deployment.md`.
 - **Footprint coverage + gate (PCB layout, step 1).** Every library
-  component (59) and board (21) now declares a real KiCad `footprint`.
+  component (59) and board (23) now declares a real KiCad `footprint`.
   A new `kicad-footprint` workflow clones `kicad-footprints@8.0.0` and
   fails the PR if any referenced footprint doesn't resolve — the
   footprint counterpart to the symbol gate, and the foundation the
