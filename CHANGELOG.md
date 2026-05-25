@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **ULN2003 stepper driver** library component (28BYJ-48): ESPHome `stepper`
   platform on four control pins, with a KiCad footprint and a `blind-stepper`
   example (motorized blind) that round-trips through `esphome config`.
+- **`-lorawan` Docker image.** CI builds and publishes a
+  `wirestudio:<tag>-lorawan` variant (amd64) with PlatformIO + the `[lorawan]`
+  extra baked in, so `/lorawan/compile` works in a deployment — the lean
+  default image has no toolchain. Documented in [deployment](docs/deployment.md).
 
 ## [0.13.0] — 2026-05-25
 
