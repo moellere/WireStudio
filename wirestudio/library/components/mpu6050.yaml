@@ -68,5 +68,6 @@ notes: |
 kicad:
   symbol_lib: Sensor_Motion
   symbol: MPU-6050
+  footprint: Sensor_Motion:InvenSense_QFN-24_4x4mm_P0.5mm
   pin_map:
     VCC: VDD

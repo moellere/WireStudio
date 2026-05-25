@@ -58,6 +58,7 @@ notes: "Pressure-only Bosch sibling of the BME280; same I2C protocol, no humidit
 kicad:
   symbol_lib: Sensor_Pressure
   symbol: BMP280
+  footprint: Package_LGA:Bosch_LGA-8_2x2.5mm_P0.65mm_ClockwisePinNumbering
   pin_map:
     VCC: VDD
     SDA: SDI

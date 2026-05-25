@@ -1,0 +1,72 @@
+id: heltec-wifi-lora32-v2
+name: Heltec WiFi LoRa 32 V2 (SX1276)
+mcu: esp32
+chip_variant: esp32
+framework: arduino
+platformio_board: heltec_wifi_lora_32_V2
+flash_size_mb: 8
+
+rails:
+  - {name: "5V",  voltage: 5.0, source: usb}
+  - {name: "3V3", voltage: 3.3, source: onboard_regulator}
+  - {name: "GND", voltage: 0.0}
+
+# ESP32 (classic) + Semtech SX1276 LoRa + onboard SSD1306 0.96" OLED, micro-USB
+# via a CP2102 USB-UART bridge. Distinct from the V3 (ESP32-S3 + SX1262 + USB-C
+# + native USB). The OLED is on its own I2C (4/15) gated by Vext (GPIO21, active
+# low) and has a reset on GPIO16. UART0 (GPIO1 TX / GPIO3 RX) is the USB-serial
+# console -- keep external UARTs (e.g. an attached GPS) OFF GPIO1/3.
+default_buses:
+  i2c: {sda: GPIO4, scl: GPIO15}
+  spi: {clk: GPIO5, miso: GPIO19, mosi: GPIO27}
+
+onboard_peripherals:
+  lora_sx1276:  {cs: GPIO18, rst: GPIO14, dio0: GPIO26, dio1: GPIO35}
+  oled_ssd1306: {sda: GPIO4, scl: GPIO15, reset: GPIO16, vext: GPIO21, address: "0x3C"}
+  battery_adc:  {pin: GPIO37, divider: 3.2}
+  led:          {pin: GPIO25}
+
+# SX1276 on the dedicated SPI. DIO1 (GPIO35) is wired, which RadioLib's LoRaWAN
+# stack uses for RX-window timing.
+radio:
+  chip: sx1276
+  radiolib_class: SX1276
+  pins: {cs: GPIO18, rst: GPIO14, dio0: GPIO26, dio1: GPIO35}
+
+# Same ESP32 strap rules as ESP32-DevKitC-V4. GPIO5 + GPIO15 are boot_high
+# straps that double as SPI clk / OLED SCL; they settle before those buses take
+# over (the same fragile-but-works pattern as the TTGO LoRa32 V1).
+gpio_capabilities:
+  GPIO0:  [boot, strap, boot_high, adc, adc2]
+  GPIO2:  [strap, gpio, boot_low, adc, adc2]
+  GPIO4:  [gpio, i2c_sda, adc, adc2]
+  GPIO5:  [gpio, spi_clk, boot_high]
+  GPIO12: [gpio, adc, adc2, strap, boot_low]
+  GPIO13: [gpio, adc, adc2, pwm]
+  GPIO14: [gpio, lora_rst, adc, adc2, pwm]
+  GPIO15: [gpio, i2c_scl, strap, boot_high]
+  GPIO16: [gpio, oled_reset]
+  GPIO17: [gpio, pwm]
+  GPIO18: [gpio, lora_cs]
+  GPIO19: [gpio, spi_miso]
+  GPIO21: [gpio, vext_control]
+  GPIO22: [gpio, pwm]
+  GPIO23: [gpio, pwm]
+  GPIO25: [gpio, led, dac, adc, adc2]
+  GPIO26: [gpio, lora_dio0, adc, adc2]
+  GPIO27: [gpio, spi_mosi, adc, adc2]
+  GPIO32: [gpio, adc, adc1, pwm]
+  GPIO33: [gpio, adc, adc1, pwm]
+  GPIO34: [gpio, lora_dio2, adc, adc1, input_only, no_pull_internal]
+  GPIO35: [gpio, lora_dio1, adc, adc1, input_only, no_pull_internal]
+  GPIO36: [gpio, adc, adc1, input_only, no_pull_internal]
+  GPIO37: [gpio, battery_sense, adc, adc1, input_only, no_pull_internal]
+  GPIO39: [gpio, adc, adc1, input_only, no_pull_internal]
+
+# KiCad symbol mapping (0.9). 1306 OLED + LoRa; modelled as a 2x18 header until
+# KiCad ships a dedicated Heltec V2 module symbol.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_02x18_Odd_Even
+  footprint: Connector_PinHeader_2.54mm:PinHeader_2x18_P2.54mm_Vertical
+  value: Heltec WiFi LoRa 32 V2

@@ -53,4 +53,5 @@ notes: "All-in-one module: 8 7-segment digits, 8 red LEDs, 8 momentary buttons. 
 kicad:
   symbol_lib: Connector_Generic
   symbol: Conn_01x05
+  footprint: Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical
   value: TM1638

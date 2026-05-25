@@ -7,8 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] — 2026-05-25
+
 ### Added
 
+- **LoRaWAN device target.** A new `lorawan` generation target builds
+  RadioLib + LoRaWAN_ESP32 firmware for US915 radio boards, flashes it over
+  WebSerial, and provisions devices against ChirpStack — the uplink payload
+  and the ChirpStack `decodeUplink` codec come from one field spec, so they
+  stay in lockstep. Adds a `wirestudio/targets/` plugin seam (`esphome` wraps
+  the existing generators in place), `Design.target` + a `LoRaWAN` config
+  block (GPS / DHT22 / OLED), Heltec WiFi LoRa 32 V2 (SX1276) and V3 (SX1262)
+  boards, a `/lorawan/*` API, and a web flash dialog. Behind a `[lorawan]`
+  extra. Validated end-to-end on a TTGO T-Beam against live ChirpStack 4.17.
 - **`make check`** — one local command that runs the same fast gates CI
   runs (ruff, pytest, a clean web build, vitest). Heavy external-CLI
   gates live under `make gates`.
@@ -24,6 +35,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `deploy/argocd/` run a pinned-release prod app and a rolling dev app
   from one tree; CI commits the new image sha to the dev overlay on each
   `dev` merge. See `docs/deployment.md`.
+- **Footprint coverage + gate (PCB layout, step 1).** Every library
+  component (59) and board (23) now declares a real KiCad `footprint`.
+  A new `kicad-footprint` workflow clones `kicad-footprints@8.0.0` and
+  fails the PR if any referenced footprint doesn't resolve — the
+  footprint counterpart to the symbol gate, and the foundation the
+  upcoming `.kicad_pcb` emit builds on.
 
 ### Changed
 

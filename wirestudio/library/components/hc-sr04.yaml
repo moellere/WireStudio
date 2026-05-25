@@ -52,4 +52,5 @@ notes: "ECHO pin is 5V on bare HC-SR04. ESP boards are not 5V-tolerant; add a vo
 kicad:
   symbol_lib: Connector_Generic
   symbol: Conn_01x04
+  footprint: Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical
   value: HC-SR04

@@ -59,4 +59,5 @@ notes: "ESPHome ships two flavors: `max7219` for stock 7-segment + decimal modul
 kicad:
   symbol_lib: Connector_Generic
   symbol: Conn_01x05
+  footprint: Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical
   value: MAX7219

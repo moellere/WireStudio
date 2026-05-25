@@ -28,3 +28,4 @@ gpio_capabilities:
 kicad:
   symbol_lib: RF_Module
   symbol: ESP-12E
+  footprint: RF_Module:ESP-12E

@@ -87,6 +87,7 @@ notes: "ESPHome's `sx127x` is a singleton. The module typically needs a 10uF bul
 kicad:
   symbol_lib: RF
   symbol: SX1276
+  footprint: Package_DFN_QFN:QFN-28-1EP_5x5mm_P0.5mm_EP3.35x3.35mm
   pin_map:
     VCC: VBAT_ANA
     CS: NSS
