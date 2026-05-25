@@ -75,4 +75,5 @@ notes: "MISO is required only if your code reads back from the panel (touch-on-t
 kicad:
   symbol_lib: Connector_Generic
   symbol: Conn_01x14
+  footprint: Connector_PinHeader_2.54mm:PinHeader_1x14_P2.54mm_Vertical
   value: ILI9xxx

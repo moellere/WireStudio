@@ -44,6 +44,7 @@ notes: "MAX98357A is mono Class-D. For stereo use two boards with one wired left
 kicad:
   symbol_lib: Audio
   symbol: MAX98357A
+  footprint: Package_DFN_QFN:QFN-16-1EP_3x3mm_P0.5mm_EP1.7x1.7mm
   pin_map:
     VCC: VDD
     SD: ~{SD_MODE}

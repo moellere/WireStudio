@@ -49,6 +49,7 @@ notes: "Current rises ~60mA per LED at full white. Budget accordingly. Add a 300
 kicad:
   symbol_lib: LED
   symbol: WS2812B
+  footprint: LED_SMD:LED_WS2812B_PLCC4_5.0x5.0mm_P3.2mm
   pin_map:
     VCC: VDD
     GND: VSS

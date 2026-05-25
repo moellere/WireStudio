@@ -76,4 +76,5 @@ notes: "Both pins must support edge interrupts -- on the ESP8266 D0/GPIO16 does 
 kicad:
   symbol_lib: Device
   symbol: RotaryEncoder
+  footprint: Rotary_Encoder:RotaryEncoder_Alps_EC11E_Vertical_H20mm
   value: Rotary encoder

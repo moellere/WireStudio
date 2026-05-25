@@ -53,6 +53,7 @@ notes: |
 kicad:
   symbol_lib: Sensor_Humidity
   symbol: SHT31-DIS
+  footprint: Package_DFN_QFN:DFN-8-1EP_3x3mm_P0.5mm_EP1.65x2.38mm
   value: SHT3xD
   pin_map:
     VCC: VDD

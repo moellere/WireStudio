@@ -41,6 +41,14 @@ onboard_peripherals:
   axp192:      {address: "0x34"}
   button:      {pin: GPIO38, inverted: true}
 
+# SX1276 (v1.0/v1.1 boards). v1.2+ ships an SX1262 with a busy line on
+# GPIO32 and dio1 on GPIO33 -- a separate board file when we add it, since
+# the AXP192 power gating and radio wiring both differ.
+radio:
+  chip: sx1276
+  radiolib_class: SX1276
+  pins: {cs: GPIO18, rst: GPIO23, dio0: GPIO26}
+
 gpio_capabilities:
   GPIO0:  [boot, strap, boot_high, adc, adc2]
   GPIO1:  [gpio, uart_tx, serial_tx]
@@ -72,4 +80,5 @@ gpio_capabilities:
 kicad:
   symbol_lib: Connector_Generic
   symbol: Conn_02x14_Odd_Even
+  footprint: Connector_PinHeader_2.54mm:PinHeader_2x14_P2.54mm_Vertical
   value: TTGO T-Beam

@@ -23,6 +23,13 @@ onboard_peripherals:
   battery_adc:  {pin: GPIO35, divider: 2.0}
   led:          {pin: GPIO25}
 
+# SX1276 on the shared SPI bus (clk/miso/mosi in default_buses). SX127x
+# uses dio0 for the TX-done/RX-done interrupt; no busy line.
+radio:
+  chip: sx1276
+  radiolib_class: SX1276
+  pins: {cs: GPIO18, rst: GPIO23, dio0: GPIO26}
+
 # Same ESP32 strap pin rules as the WROOM-32 boards. Note GPIO5 is also the
 # LoRa SCK on this board -- the boot_high requirement is satisfied at boot
 # before SPI takes over the line, so the design works in practice but
@@ -88,4 +95,5 @@ enclosure:
 kicad:
   symbol_lib: Connector_Generic
   symbol: Conn_02x18_Odd_Even
+  footprint: Connector_PinHeader_2.54mm:PinHeader_2x18_P2.54mm_Vertical
   value: TTGO_LoRa32_V1

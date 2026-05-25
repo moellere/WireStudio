@@ -53,6 +53,7 @@ notes: |
 kicad:
   symbol_lib: Sensor_Temperature
   symbol: MAX31855KASA
+  footprint: Package_SO:SOIC-8_3.9x4.9mm_P1.27mm
   pin_map:
     VCC: V_CC
     CLK: SCK
