@@ -23,6 +23,7 @@ import { CapabilityPickerDialog } from "./components/CapabilityPickerDialog";
 import { EnclosureDialog } from "./components/EnclosureDialog";
 import { SchematicDialog } from "./components/SchematicDialog";
 import { LorawanFlashDialog } from "./components/LorawanFlashDialog";
+import { InventoryDialog } from "./components/InventoryDialog";
 import { useDebouncedValue } from "./lib/debounce";
 import { useAdvancedMode } from "./lib/uiMode";
 import {
@@ -38,7 +39,8 @@ import {
   RotateCcw,
   Download,
   ExternalLink,
-  Radio
+  Radio,
+  Boxes
 } from "lucide-react";
 import {
   addComponent,
@@ -100,6 +102,7 @@ export default function App() {
   const [showSchematicDialog, setShowSchematicDialog] = useState(false);
   const [showCapabilityDialog, setShowCapabilityDialog] = useState(false);
   const [showFlashDialog, setShowFlashDialog] = useState(false);
+  const [showInventoryDialog, setShowInventoryDialog] = useState(false);
   const [savingState, setSavingState] = useState<"idle" | "saving" | "saved">("idle");
 
   const dirty = useMemo(() => isDirty(originalDesign, design), [originalDesign, design]);
@@ -562,6 +565,15 @@ export default function App() {
             </button>
 
             <button
+              onClick={() => setShowInventoryDialog(true)}
+              className="flex items-center gap-1.5 rounded-md bg-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-200 transition-colors hover:bg-zinc-700"
+              title="View and edit your component inventory; check the open design against what's on hand"
+            >
+              <Boxes className="h-4 w-4 text-zinc-400" />
+              Inventory
+            </button>
+
+            <button
               disabled={!design || solving}
               onClick={handleSolvePins}
               className="flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition-colors enabled:hover:bg-blue-500 disabled:opacity-40"
@@ -754,6 +766,9 @@ export default function App() {
           }}
           onClose={() => setShowCapabilityDialog(false)}
         />
+      )}
+      {showInventoryDialog && (
+        <InventoryDialog design={design} onClose={() => setShowInventoryDialog(false)} />
       )}
       <AgentSidebar
         open={showAgent}

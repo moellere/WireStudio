@@ -47,6 +47,7 @@ function recommendation(over: Partial<Recommendation>): Recommendation {
     score: over.score ?? 0,
     in_examples: over.in_examples ?? 0,
     rationale: over.rationale ?? "",
+    on_hand: over.on_hand ?? 0,
     notes: over.notes ?? null,
   };
 }

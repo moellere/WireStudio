@@ -12,6 +12,8 @@ import type {
   FleetPushResponse,
   FleetRunStatus,
   FleetStatus,
+  InventoryEntry,
+  InventoryCheckResponse,
   KicadRenderStatus,
   LorawanCompileEvent,
   LorawanCompileStatus,
@@ -102,6 +104,24 @@ export const api = {
 
   listExamples: () => request<ExampleSummary[]>("/examples"),
   getExample: (id: string) => request<Design>(`/examples/${encodeURIComponent(id)}`),
+
+  // --- Local component inventory ---
+  listInventory: () => request<InventoryEntry[]>("/inventory"),
+  setInventory: (
+    libraryId: string,
+    body: { kind?: string; quantity: number; location?: string; note?: string },
+  ) =>
+    request<InventoryEntry>(`/inventory/${encodeURIComponent(libraryId)}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  deleteInventory: (libraryId: string) =>
+    request<{ deleted: string }>(`/inventory/${encodeURIComponent(libraryId)}`, { method: "DELETE" }),
+  checkDesignInventory: (design: Design) =>
+    request<InventoryCheckResponse>("/design/inventory/check", {
+      method: "POST",
+      body: JSON.stringify({ design }),
+    }),
 
   validate: (design: Design) =>
     request<ValidateResponse>("/design/validate", { method: "POST", body: JSON.stringify(design) }),
