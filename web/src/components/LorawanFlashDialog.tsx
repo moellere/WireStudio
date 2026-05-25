@@ -70,8 +70,11 @@ export function LorawanFlashDialog({ onClose }: Props) {
   const [devEui, setDevEui] = useState<string | null>(null);
   const [provisionStatus, setProvisionStatus] = useState<string | null>(null);
   const [gpsEnabled, setGpsEnabled] = useState(false);
-  const [gpsRx, setGpsRx] = useState("GPIO3"); // MCU RX  <- GPS module TX
-  const [gpsTx, setGpsTx] = useState("GPIO1"); // MCU TX  -> GPS module RX
+  // NOT GPIO3/1: those are U0RXD/U0TXD (the USB-serial console) on the classic
+  // ESP32 -- a GPS there floods the provisioning prompt with garbage. 23/17 are
+  // free + output-capable on these boards.
+  const [gpsRx, setGpsRx] = useState("GPIO23"); // MCU RX  <- GPS module TX
+  const [gpsTx, setGpsTx] = useState("GPIO17"); // MCU TX  -> GPS module RX
   const [gpsBaud, setGpsBaud] = useState(9600);
   const [dhtEnabled, setDhtEnabled] = useState(false);
   const [dhtPin, setDhtPin] = useState("GPIO13");
@@ -366,6 +369,8 @@ export function LorawanFlashDialog({ onClose }: Props) {
               {gpsEnabled && (
                 <p className="mt-1 text-[11px] text-zinc-600">
                   For boards without an onboard GPS. Ignored if the board already has one.
+                  Avoid GPIO1/GPIO3 on a classic ESP32 — they&apos;re the USB-serial console,
+                  and a GPS there floods the provisioning prompt.
                 </p>
               )}
 
