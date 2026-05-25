@@ -4,6 +4,11 @@ Agent-driven IoT device design tool. Describe a goal (or pick parts);
 get ESPHome YAML, an ASCII wiring diagram, and a BOM that compile
 under upstream ESPHome.
 
+A second generation target builds and flashes **LoRaWAN** firmware
+(RadioLib + LoRaWAN_ESP32) for US915 radio boards — TTGO T-Beam /
+LoRa32, Heltec WiFi LoRa 32 V2/V3 — over WebSerial from the browser, and
+provisions the device against ChirpStack.
+
 Produces ESPHome configs but is not affiliated with the ESPHome
 project — see [`weirded/fleet-for-esphome`](https://github.com/weirded/fleet-for-esphome)
 for the OTA-deploy companion this studio's **Push to fleet** flow
@@ -19,17 +24,18 @@ Detailed docs live in [`docs/`](docs/):
 - [Integrations](docs/integrations.md) — agent, fleet handoff, enclosure search, KiCad.
 - [MCP server](docs/mcp.md) — drive the studio from Claude Code / Desktop.
 - [Library reference](docs/library.md) — every board and component.
+- [LoRaWAN target](docs/lorawan/) — build + flash LoRaWAN firmware, provision against ChirpStack.
 
 ## Status
 
-`v0.12.0` — on PyPI (`pip install wirestudio`). The studio has wide
+`v0.13.0` — on PyPI (`pip install wirestudio`). The studio has wide
 surface area (YAML, schematic, enclosure, agent, MCP server, fleet
-handoff, web UI) and a set of things actually verified against upstream
-tools. Three of the four priority tiers (YAML, wiring schema, enclosure)
-are now gated in CI, and **every library component and board is
-exercised by a bundled example** that passes those gates. This section
-is honest about which is which, ordered by how much it matters that it
-works.
+handoff, web UI, a LoRaWAN flash/provision target) and a set of things
+actually verified against upstream tools. Three of the four priority
+tiers (YAML, wiring schema, enclosure) are now gated in CI, and **every
+library component and board is exercised by a bundled example** that
+passes those gates. This section is honest about which is which, ordered
+by how much it matters that it works.
 
 Tiers, in priority order:
 
@@ -40,6 +46,7 @@ Tiers, in priority order:
 | **Verified** | Fleet handoff | push YAML to `fleet-for-esphome` ha-addon, optional compile + log relay | round-trip tests in `tests/test_fleet.py` |
 | **Verified** | KiCad schematic | emit a SKiDL Python script the user runs locally to produce a `.kicad_sch` | every bundled example builds a KiCad netlist against the pinned upstream symbol libraries, every PR ([gate](.github/workflows/kicad-schematic.yml)) — no unresolved symbols or pins. Parts KiCad ships no symbol for (sensor/module breakouts) render as labeled generic headers |
 | **Verified** | Parametric enclosure | OpenSCAD `.scad` from board mount-hole metadata | every enclosure-capable board renders through real OpenSCAD to a non-empty, manifold (closed, printable) solid, every PR ([gate](.github/workflows/enclosure-render.yml)) |
+| **Works (hardware-validated)** | LoRaWAN target | build RadioLib + LoRaWAN_ESP32 firmware for US915 radio boards, flash over WebSerial, provision against ChirpStack | every radio board's firmware builds in CI ([gate](.github/workflows/lorawan-firmware.yml)); validated end-to-end on a TTGO T-Beam against live ChirpStack 4.17 — no automated live-device gate |
 | **Works (lighter checks)** | MCP server | drive the design tools from Claude Code / Desktop over the Model Context Protocol | tool / auth / resource tests in `tests/test_mcp_*.py`; not exercised against a live MCP client in CI |
 | **Experimental** | Thingiverse search relay | rank community models for a board | smoke-tested; depends on a third-party search API that ranks unevenly |
 | **Experimental** | Agent (Claude tool-using) | natural-language design driving | works in practice; tool surface is small; no auto-eval against task list yet |
@@ -65,7 +72,7 @@ that pin moves, this line moves with it.
 docker run --rm -p 8765:8765 \
   -e ANTHROPIC_API_KEY=sk-ant-... \
   -v wirestudio-data:/data \
-  ghcr.io/moellere/wirestudio:v0.12.0
+  ghcr.io/moellere/wirestudio:v0.13.0
 ```
 
 Open <http://localhost:8765>. The image bundles the FastAPI server +
@@ -108,7 +115,7 @@ The [User guide](docs/user_guide.md) walks the panes and header actions.
 ## Tests
 
 ```sh
-python -m pytest                          # ~440 cases, ~20s
+python -m pytest                          # ~680 cases
 python -m ruff check .                    # lint
 cd web && npx vitest run                  # vitest + jsdom
 pip install 'esphome==2025.12.7'

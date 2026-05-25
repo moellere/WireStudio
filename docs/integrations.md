@@ -83,6 +83,36 @@ value, rather than a fictional symbol; everything with a real upstream
 symbol (ICs, modules, boards' onboard MCUs) maps to it with a verified
 pin map.
 
+## LoRaWAN / ChirpStack
+
+A second generation target (`Design.target: "lorawan"`) for US915 radio
+boards — TTGO LoRa32 / T-Beam (SX1276) and Heltec WiFi LoRa 32 V2 (SX1276)
+/ V3 (SX1262). The **Flash LoRaWAN firmware** header button (advanced
+mode) drives the full loop in the browser:
+
+1. **Build** — `POST /lorawan/compile` builds RadioLib + LoRaWAN_ESP32
+   firmware in an in-pod PlatformIO worker, streaming the log over SSE
+   and content-addressing the `firmware.bin`.
+2. **Flash** — esptool-js writes the image over **WebSerial** (a secure
+   context — `https://` or `http://localhost`; tunnel to a remote
+   studio). The DevEUI is derived from the chip's eFuse MAC.
+3. **Provision** — `POST /lorawan/provision` registers the device in
+   ChirpStack with a freshly issued AppKey, flushes its DevNonces, and
+   sets a per-payload `decodeUplink` codec on the device profile. The
+   firmware's serial prompt is answered automatically; an offline-test
+   mode writes throwaway keys so the sensor/OLED loop runs with no gateway.
+
+The uplink payload packing (C++) and the ChirpStack JS codec come from
+**one field spec** (`wirestudio/targets/lorawan/codec.py`), so they never
+drift. ChirpStack access is configured by `CHIRPSTACK_API_URL` +
+`CHIRPSTACK_API_TOKEN` (a UI-generated API token, never the JWT signing
+secret); the AppKey is ephemeral and never written to `design.json`.
+
+Heavy deps (`grpcio`, `chirpstack-api`, `platformio`) live behind a
+`pip install wirestudio[lorawan]` extra and are lazy-imported, so a plain
+install stays light. Background + the live ChirpStack setup are in
+[`docs/lorawan/`](lorawan/).
+
 ## MCP server
 
 The design-editing tools are exposed over the Model Context Protocol
