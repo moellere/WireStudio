@@ -9,6 +9,7 @@ from wirestudio.inventory.check import (
     InventoryReport,
     check_inventory,
 )
+from wirestudio.inventory.csv_io import entries_from_csv, entries_to_csv
 from wirestudio.inventory.store import (
     FileInventoryStore,
     InventoryEntry,
@@ -22,4 +23,6 @@ __all__ = [
     "InventoryLine",
     "InventoryReport",
     "check_inventory",
+    "entries_to_csv",
+    "entries_from_csv",
 ]

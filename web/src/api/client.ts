@@ -109,7 +109,7 @@ export const api = {
   listInventory: () => request<InventoryEntry[]>("/inventory"),
   setInventory: (
     libraryId: string,
-    body: { kind?: string; quantity: number; location?: string; note?: string },
+    body: { kind?: string; quantity: number; min_quantity?: number; location?: string; note?: string },
   ) =>
     request<InventoryEntry>(`/inventory/${encodeURIComponent(libraryId)}`, {
       method: "PUT",
@@ -121,6 +121,12 @@ export const api = {
     request<InventoryCheckResponse>("/design/inventory/check", {
       method: "POST",
       body: JSON.stringify({ design }),
+    }),
+  exportInventoryCsv: () => requestText("/inventory/export.csv"),
+  importInventoryCsv: (csv: string) =>
+    request<{ imported: number; skipped: string[] }>("/inventory/import", {
+      method: "POST",
+      body: JSON.stringify({ csv }),
     }),
 
   validate: (design: Design) =>

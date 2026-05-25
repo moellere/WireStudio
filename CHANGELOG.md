@@ -15,7 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and let the recommender prefer parts already in the drawer (`use_inventory`,
   a flat +5 boost). `INVENTORY_PATH` env override for the Docker `/data` volume.
   A web **Inventory** panel lists/adds/edits/removes entries and runs the BOM
-  check against the open design (have / partial / need).
+  check against the open design (have / partial / need). Per-part low-stock
+  thresholds (a `low` badge when on hand ≤ the reorder point) and CSV
+  import/export (`GET /inventory/export.csv`, `POST /inventory/import`).
 - **ULN2003 stepper driver** library component (28BYJ-48): ESPHome `stepper`
   platform on four control pins, with a KiCad footprint and a `blind-stepper`
   example (motorized blind) that round-trips through `esphome config`.

@@ -92,4 +92,23 @@ describe("inventory client", () => {
     expect(JSON.parse(init.body).design.id).toBe("d");
     expect(r.summary.need).toBe(0);
   });
+
+  it("exportInventoryCsv reads the CSV as text", async () => {
+    const csv = "library_id,kind,quantity\nbme280,component,3\n";
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
+      { ok: true, text: async () => csv, json: async () => ({}) } as unknown as Response,
+    ));
+    expect(await api.exportInventoryCsv()).toContain("bme280");
+  });
+
+  it("importInventoryCsv POSTs the csv body", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ imported: 1, skipped: [] }));
+    vi.stubGlobal("fetch", fetchMock);
+    const r = await api.importInventoryCsv("library_id,quantity\nbme280,3\n");
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toContain("/inventory/import");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body).csv).toContain("bme280");
+    expect(r.imported).toBe(1);
+  });
 });

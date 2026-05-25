@@ -63,7 +63,12 @@ from wirestudio.api.schemas import (
     UseCaseEntry,
     ValidateResponse,
 )
-from wirestudio.inventory import InventoryEntry, check_inventory
+from wirestudio.inventory import (
+    InventoryEntry,
+    check_inventory,
+    entries_from_csv,
+    entries_to_csv,
+)
 from wirestudio.inventory.store import InventoryStore, default_inventory_store
 from wirestudio.designs.active import ActiveDesignTracker
 from wirestudio.designs.events import DesignEventBus, EventEmittingDesignStore
@@ -826,6 +831,7 @@ def create_app(
     def _entry_wire(e: InventoryEntry) -> InventoryEntryModel:
         return InventoryEntryModel(
             library_id=e.library_id, kind=e.kind, quantity=e.quantity,
+            min_quantity=e.min_quantity, low_stock=e.low_stock,
             location=e.location, note=e.note,
         )
 
@@ -849,7 +855,7 @@ def create_app(
         try:
             entry = InventoryEntry(
                 library_id=library_id, kind=req.kind, quantity=req.quantity,
-                location=req.location, note=req.note,
+                min_quantity=req.min_quantity, location=req.location, note=req.note,
             )
         except ValueError as e:
             raise HTTPException(status_code=422, detail=str(e)) from e
@@ -862,6 +868,33 @@ def create_app(
                 status_code=404, detail=f"no inventory entry for {library_id!r}"
             )
         return {"deleted": library_id}
+
+    @app.get("/inventory/export.csv", tags=["inventory"])
+    def export_inventory() -> Response:
+        return Response(
+            content=entries_to_csv(inventory_store.list()),
+            media_type="text/csv",
+            headers={"Content-Disposition": 'attachment; filename="inventory.csv"'},
+        )
+
+    @app.post("/inventory/import", tags=["inventory"])
+    def import_inventory(body: dict) -> dict:
+        """Upsert entries from a CSV body ({"csv": "..."}). Rows naming a part
+        not in the library are skipped (reported), not failed."""
+        try:
+            entries = entries_from_csv(str(body.get("csv", "")))
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        imported, skipped = 0, []
+        for entry in entries:
+            try:
+                (lib.module if entry.kind == "module" else lib.component)(entry.library_id)
+            except FileNotFoundError:
+                skipped.append(entry.library_id)
+                continue
+            inventory_store.set(entry)
+            imported += 1
+        return {"imported": imported, "skipped": skipped}
 
     @app.post("/design/inventory/check", response_model=InventoryCheckResponse,
               tags=["inventory"])
