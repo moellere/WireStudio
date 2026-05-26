@@ -28,6 +28,7 @@ from __future__ import annotations
 import math
 import os
 import re
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -311,3 +312,48 @@ def generate_kicad_pcb(
         + outline + "\n"
         ")\n"
     )
+
+
+def main(argv: Optional[list[str]] = None) -> int:
+    import argparse
+    import json
+
+    from wirestudio.library import default_library
+
+    parser = argparse.ArgumentParser(
+        prog="wirestudio.kicad.pcb",
+        description="Emit a KiCad .kicad_pcb board from a design.json.",
+    )
+    parser.add_argument("design", nargs="?", help="path to a design.json")
+    parser.add_argument("-o", "--out", help="output file (default: <design id>.kicad_pcb)")
+    parser.add_argument(
+        "--status", action="store_true",
+        help="print KiCad-library availability as JSON and exit",
+    )
+    args = parser.parse_args(argv)
+
+    if args.status:
+        print(json.dumps(pcb_status(), indent=2))
+        return 0
+    if not args.design:
+        parser.error("a design.json path is required (or pass --status)")
+
+    design = Design.model_validate(json.loads(Path(args.design).read_text()))
+    try:
+        board = generate_kicad_pcb(design, default_library())
+    except PcbUnavailable as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        print("run with --status to see what's missing", file=sys.stderr)
+        return 2
+    except (FileNotFoundError, ValueError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+
+    out = Path(args.out) if args.out else Path(f"{design.id}.kicad_pcb")
+    out.write_text(board)
+    print(f"wrote {out}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

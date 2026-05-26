@@ -83,6 +83,7 @@ from wirestudio.enclosure import (
     search_enclosures,
 )
 from wirestudio.kicad import generate_skidl
+from wirestudio.kicad.pcb import PcbUnavailable, generate_kicad_pcb, pcb_status
 from wirestudio.kicad.render import (
     RenderError,
     RenderUnavailable,
@@ -550,6 +551,34 @@ def create_app(
             raise HTTPException(status_code=500, detail=str(e)) from e
         media = "image/svg+xml" if format == "svg" else "image/png"
         return Response(content=data, media_type=media)
+
+    @app.get("/design/kicad/pcb/status", tags=["design"])
+    def design_kicad_pcb_status() -> dict:
+        """Probe whether the .kicad_pcb export is available. Unlike the SKiDL
+        script (always emittable), the board embeds real footprint geometry,
+        so it needs the pinned KiCad footprint + symbol libraries on the
+        server. The web UI gates the download on `available`."""
+        return pcb_status()
+
+    @app.post("/design/kicad/pcb", tags=["design"])
+    def design_kicad_pcb(design: dict) -> PlainTextResponse:
+        """Emit a `<design_id>.kicad_pcb`: footprints embedded + grid-placed,
+        pads bound to nets, an Edge.Cuts outline, no routing. Open it in
+        KiCad's PCB editor and route (or autoroute). Returns 503 when the
+        footprint/symbol libraries aren't installed -- check
+        `/design/kicad/pcb/status` first."""
+        d = _validate_design(design)
+        try:
+            board = generate_kicad_pcb(d, lib)
+        except PcbUnavailable as e:
+            raise HTTPException(status_code=503, detail=str(e)) from e
+        except (FileNotFoundError, ValueError) as e:
+            raise HTTPException(status_code=422, detail=str(e)) from e
+        filename = f"{d.id}.kicad_pcb"
+        return PlainTextResponse(
+            content=board,
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
 
     @app.get("/design/jlcpcb/status", tags=["design"])
     def design_jlcpcb_status() -> dict:
