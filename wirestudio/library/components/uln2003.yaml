@@ -1,0 +1,74 @@
+id: uln2003
+name: ULN2003 stepper driver (28BYJ-48)
+category: actuator
+use_cases: [stepper, motor, blinds, valve, rotation]
+aliases: [28byj-48, stepper_driver, darlington_array]
+
+electrical:
+  vcc_min: 5.0
+  vcc_max: 5.0
+  current_ma_typical: 100
+  current_ma_peak: 240
+  # The ULN2003 Darlington array sinks the 28BYJ-48's coils; the board runs
+  # the motor off 5V while accepting 3.3V logic on IN1-4. Peak draw is the
+  # stepper's, not the driver's.
+  pins:
+  - {role: A, kind: digital_out, voltage: 3.3}
+  - {role: B, kind: digital_out, voltage: 3.3}
+  - {role: C, kind: digital_out, voltage: 3.3}
+  - {role: D, kind: digital_out, voltage: 3.3}
+  - {role: VCC, kind: power}
+  - {role: GND, kind: ground}
+  passives: []
+
+esphome:
+  required_components: []
+  yaml_template: |
+    stepper:
+      - platform: uln2003
+        id: {{ id }}
+        pin_a: {{ pins.A | tojson }}
+        pin_b: {{ pins.B | tojson }}
+        pin_c: {{ pins.C | tojson }}
+        pin_d: {{ pins.D | tojson }}
+        max_speed: {{ params.max_speed | default('250 steps/s', true) }}
+    {%- if params.step_mode is defined %}
+        step_mode: {{ params.step_mode }}
+    {%- endif %}
+    {%- if params.sleep_when_done is defined %}
+        sleep_when_done: {{ params.sleep_when_done | tojson }}
+    {%- endif %}
+    {%- if params.acceleration is defined %}
+        acceleration: {{ params.acceleration }}
+    {%- endif %}
+    {%- if params.deceleration is defined %}
+        deceleration: {{ params.deceleration }}
+    {%- endif %}
+
+params_schema:
+  max_speed:
+    type: string
+    default: "250 steps/s"
+  step_mode:
+    type: string
+    enum: [FULL_STEP, HALF_STEP, WAVE_DRIVE]
+    default: HALF_STEP
+  sleep_when_done:
+    type: boolean
+    default: false
+  acceleration:
+    type: string
+  deceleration:
+    type: string
+
+notes: "Pairs with the 28BYJ-48 5V geared stepper on a ULN2003 breakout: IN1-4 -> pin_a..d, driving the
+  four coils in sequence. sleep_when_done de-energizes the coils when idle (saves power, loses holding
+  torque). max_speed/acceleration/deceleration take ESPHome speed units (e.g. '250 steps/s'). The 28BYJ-48
+  draws up to ~240 mA -- power the board's 5V rail from a supply that can source it, not the MCU's 3V3."
+# KiCad mapping (0.9). The breakout's MCU-facing interface is a 6-pin header
+# (IN1-4 + 5V + GND), modelled as a generic connector like the other modules.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x06
+  footprint: Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical
+  value: ULN2003

@@ -70,13 +70,17 @@ export function LorawanFlashDialog({ onClose }: Props) {
   const [devEui, setDevEui] = useState<string | null>(null);
   const [provisionStatus, setProvisionStatus] = useState<string | null>(null);
   const [gpsEnabled, setGpsEnabled] = useState(false);
-  const [gpsRx, setGpsRx] = useState("GPIO3"); // MCU RX  <- GPS module TX
-  const [gpsTx, setGpsTx] = useState("GPIO1"); // MCU TX  -> GPS module RX
+  // NOT GPIO3/1: those are U0RXD/U0TXD (the USB-serial console) on the classic
+  // ESP32 -- a GPS there floods the provisioning prompt with garbage. 23/17 are
+  // free + output-capable on these boards.
+  const [gpsRx, setGpsRx] = useState("GPIO23"); // MCU RX  <- GPS module TX
+  const [gpsTx, setGpsTx] = useState("GPIO17"); // MCU TX  -> GPS module RX
   const [gpsBaud, setGpsBaud] = useState(9600);
   const [dhtEnabled, setDhtEnabled] = useState(false);
   const [dhtPin, setDhtPin] = useState("GPIO13");
   const [oledEnabled, setOledEnabled] = useState(false);
   const [offlineTest, setOfflineTest] = useState(false);
+  const [fullFlash, setFullFlash] = useState(false);
   const sessionRef = useRef<FlashSession | null>(null);
 
   function buildDesign(): Design | null {
@@ -158,10 +162,16 @@ export function LorawanFlashDialog({ onClose }: Props) {
     provisionerRef.current = null;
     provisionTriggeredRef.current = false;
     try {
-      const bin = await api.lorawanFirmware(cacheKey);
+      // Blank board: a merged factory image (bootloader+partitions+app) flashed
+      // at 0x0 with a full erase. Otherwise an app-region re-flash that keeps the
+      // bootloader + NVS (DevNonces). Provisioning after a full flash re-flushes
+      // nonces, so the wiped NVS is fine.
+      const images = fullFlash
+        ? [{ data: await api.lorawanFactory(cacheKey), address: 0x0 }]
+        : [{ data: await api.lorawanFirmware(cacheKey), address: APP_PARTITION_OFFSET }];
       const session = await flashFirmware({
-        images: [{ data: bin, address: APP_PARTITION_OFFSET }],
-        eraseAll: false, // app-region: preserve bootloader + NVS (DevNonces)
+        images,
+        eraseAll: fullFlash,
         onProgress: (written, total) => setProgress({ written, total }),
         onLog: (line) => setFlashLog((prev) => tail([...prev, line])),
         onSerial: (text) => {
@@ -359,6 +369,8 @@ export function LorawanFlashDialog({ onClose }: Props) {
               {gpsEnabled && (
                 <p className="mt-1 text-[11px] text-zinc-600">
                   For boards without an onboard GPS. Ignored if the board already has one.
+                  Avoid GPIO1/GPIO3 on a classic ESP32 — they&apos;re the USB-serial console,
+                  and a GPS there floods the provisioning prompt.
                 </p>
               )}
 
@@ -403,6 +415,24 @@ export function LorawanFlashDialog({ onClose }: Props) {
                 <p className="mt-1 text-[11px] text-zinc-600">
                   Clears the provisioning prompt without a gateway so the device runs its
                   sensor/OLED loop. It won&apos;t actually join. Re-flash without this for real use.
+                </p>
+              )}
+
+              <label className="mt-2 flex items-center gap-2 text-xs text-zinc-300">
+                <input
+                  type="checkbox"
+                  checked={fullFlash}
+                  disabled={phase === "building"}
+                  onChange={(e) => setFullFlash(e.target.checked)}
+                  className="h-3.5 w-3.5"
+                />
+                Blank board — full flash (bootloader + partitions + app)
+              </label>
+              {fullFlash && (
+                <p className="mt-1 text-[11px] text-zinc-600">
+                  Full-chip erase + a merged factory image at 0x0, for a board that has
+                  never been flashed. Wipes NVS; leave off to re-flash a board that already
+                  boots (preserves the bootloader + stored keys).
                 </p>
               )}
             </section>

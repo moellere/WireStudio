@@ -27,6 +27,7 @@ under upstream ESPHome.
   ┌─ wirestudio.model         pydantic models mirroring the schema
   ├─ wirestudio.library       loads boards/ + components/ YAML
   ├─ wirestudio.generate      design + library → ESPHome YAML + ASCII
+  ├─ wirestudio.targets       generation targets: esphome (wraps generate) + lorawan
   ├─ wirestudio.csp           pin solver + port-compatibility checker
   ├─ wirestudio.recommend     deterministic capability ranking
   ├─ wirestudio.agent         Claude tool-using agent + session store
@@ -54,6 +55,7 @@ reads.
 wirestudio/              python package — see Architecture above for the module map
 wirestudio/schema/       JSON Schema for design.json (source of truth)
 wirestudio/library/      board + component manifests (electrical, ESPHome, enclosure, kicad)
+wirestudio/targets/      generation targets: esphome + lorawan (firmware gen, ChirpStack, compile)
 wirestudio/examples/     bundled design.json files (every one pinned by goldens)
 web/                     React 19 + Vite + Tailwind v4 SPA
 tests/                   pytest + golden artifacts; vitest tests under web/src
@@ -81,8 +83,8 @@ through upstream `esphome config`. Shipped: the `esphome config` CI
 gate over every bundled example; a nightly `esphome compile` smoke;
 the component-coverage matrix ([`library-coverage.md`](library-coverage.md))
 with a `--strict` no-regression gate now at **zero uncovered** (every
-one of the 59 components and 21 boards is exercised by a bundled
-example that passes the gate); a pinned ESPHome version called
+one of the 60 components and 23 boards is exercised (esphome examples,
+or the lorawan firmware build for radio boards); a pinned ESPHome version called
 out in the README + workflow; an
 [`esphome-matrix`](../.github/workflows/esphome-matrix.yml) compatibility
 report that runs the gate across the pin + latest stables so a pin bump
@@ -111,8 +113,22 @@ e.g. [YAPP_Box](https://github.com/mrWheel/YAPP_Box) and integrate
 instead of reimplementing? Next: more boards' `enclosure:` metadata
 (only 5 carry it today); a lid + snap-fit; slicer-side print validation.
 
-**Priority 4 — PCB layout.** *Deferred to 1.0+.* No work in flight;
-not adding surface here until P1 is rock solid.
+**Priority 4 — PCB layout.** *Deferred to 1.0+.* The footprint-coverage
+gate (every component + board names a real KiCad footprint that resolves
+in the pinned libraries) landed as step 1 — the foundation a `.kicad_pcb`
+emit builds on — but the layout itself is not yet in flight.
+
+**LoRaWAN target (0.13).** *Works — hardware-validated.* A second
+generation target alongside ESPHome, on a `wirestudio.targets` plugin
+seam (the `esphome` target wraps the existing generators in place).
+Builds RadioLib + LoRaWAN_ESP32 firmware for US915 radio boards (TTGO
+LoRa32 / T-Beam, Heltec WiFi LoRa 32 V2/V3), flashes it over WebSerial
+from the browser, and provisions the device against ChirpStack — the
+uplink payload and the ChirpStack `decodeUplink` codec are generated
+from one field spec so they stay in lockstep. Every radio board's
+firmware builds in CI ([`lorawan-firmware`](../.github/workflows/lorawan-firmware.yml));
+validated end-to-end on a TTGO T-Beam against live ChirpStack 4.17.
+Behind a `[lorawan]` install extra. See the [LoRaWAN docs](lorawan/).
 
 **Plumbing — already shipped.** API (`0.2`), web UI (`0.3` +
 `0.6+`), USB bootstrap (`0.4`), agent (`0.5` + streaming), CSP

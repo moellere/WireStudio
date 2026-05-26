@@ -2,9 +2,10 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 # Dev/staging overlay. Rolling: the docker workflow's bump-dev job
-# rewrites newTag to the freshly built sha-<short> on every dev merge and
-# commits it here, so the dev Argo app auto-syncs to HEAD of dev. The
-# placeholder below is replaced on the first dev build.
+# rewrites newTag to the freshly built sha-<short>-lorawan on every dev
+# merge and commits it here, so the dev Argo app auto-syncs to HEAD of
+# dev. Dev runs the -lorawan variant (PlatformIO baked in) so the
+# LoRaWAN compile/flash flow works on staging; prod stays lean.
 namespace: wirestudio-dev
 
 resources:
@@ -12,4 +13,27 @@ resources:
 
 images:
   - name: ghcr.io/moellere/wirestudio
-    newTag: sha-a7a9f6d
+    newTag: sha-cd2009c-lorawan
+
+# A LoRaWAN firmware build shells out to PlatformIO; the espressif32 link
+# step peaks well past the base 512Mi limit and OOMKills the pod. Give the
+# dev pod build headroom; the base manifest (and prod) stay lean.
+patches:
+  - target:
+      kind: Deployment
+      name: wirestudio
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: wirestudio
+      spec:
+        template:
+          spec:
+            containers:
+              - name: wirestudio
+                resources:
+                  requests:
+                    memory: 512Mi
+                  limits:
+                    memory: 2Gi

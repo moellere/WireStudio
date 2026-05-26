@@ -1,0 +1,91 @@
+name: pcb-drc
+
+# The "Verified" tier for the board emitter, above the fast structural gate in
+# pcb-layout.yml: it opens every emitted .kicad_pcb in real KiCad and runs DRC,
+# proving KiCad accepts the file (parses, loads the embedded footprints, builds
+# the netlist). The boards are unrouted, so unconnected airwires are expected
+# and ignored; any other error-severity violation fails.
+#
+# Installing KiCad is slow, so this isn't on every push -- it runs on PRs that
+# touch the emitter/library/examples, weekly, and on demand. The fast
+# structural gate (pcb-layout) stays the per-push bar.
+
+on:
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - 'wirestudio/kicad/**'
+      - 'wirestudio/library/**'
+      - 'wirestudio/examples/**'
+      - 'scripts/check_pcb_drc.py'
+      - '.github/workflows/pcb-drc.yml'
+  schedule:
+    - cron: '0 11 * * 1'   # 11:00 UTC every Monday
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pcb-drc-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  KICAD_FOOTPRINTS_REF: "8.0.0"
+  KICAD_SYMBOLS_REF: "8.0.0"
+
+jobs:
+  pcb-drc:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      # Emit against the pinned library clones (same as the schematic/footprint
+      # gates), not the apt libraries -- the two sets differ (e.g. the apt
+      # package lacks Module:WEMOS_D1_mini_light). KiCad is installed only for
+      # the kicad-cli DRC binary; footprints are embedded in the board, so DRC
+      # doesn't read the libraries.
+      - name: Cache KiCad footprint libraries
+        id: cache-footprints
+        uses: actions/cache@v4
+        with:
+          path: kicad-footprints
+          key: kicad-footprints-${{ env.KICAD_FOOTPRINTS_REF }}
+      - name: Fetch KiCad footprint libraries
+        if: steps.cache-footprints.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch "$KICAD_FOOTPRINTS_REF" \
+            https://gitlab.com/kicad/libraries/kicad-footprints.git kicad-footprints
+
+      - name: Cache KiCad symbol libraries
+        id: cache-symbols
+        uses: actions/cache@v4
+        with:
+          path: kicad-symbols
+          key: kicad-symbols-${{ env.KICAD_SYMBOLS_REF }}
+      - name: Fetch KiCad symbol libraries
+        if: steps.cache-symbols.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch "$KICAD_SYMBOLS_REF" \
+            https://gitlab.com/kicad/libraries/kicad-symbols.git kicad-symbols
+
+      - name: Install KiCad 8 (kicad-cli)
+        run: |
+          sudo add-apt-repository --yes ppa:kicad/kicad-8.0-releases
+          sudo apt-get update
+          sudo apt-get install --yes kicad
+          kicad-cli version
+
+      - name: Install studio
+        run: pip install -e .
+
+      - name: Open every example board in KiCad + DRC
+        env:
+          KICAD8_FOOTPRINT_DIR: ${{ github.workspace }}/kicad-footprints
+          KICAD8_SYMBOL_DIR: ${{ github.workspace }}/kicad-symbols
+        run: python scripts/check_pcb_drc.py
