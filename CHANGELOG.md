@@ -20,8 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`wirestudio/kicad/netlist.py`). Feature-gated like the schematic render —
   needs the footprint + symbol libraries on the server (`GET
   /design/kicad/pcb/status`); a new `pcb-layout` CI gate proves every bundled
-  example emits a sound board. Freerouting autoroute and Gerber/CPL/BOM export
-  remain on the path to 1.0.
+  example emits a sound board. The KiCad export dialog gains a **Download
+  .kicad_pcb** button (gated on the server having the libraries). Freerouting
+  autoroute and Gerber/CPL/BOM export remain on the path to 1.0.
 - **Blank-board LoRaWAN flash.** The compile worker now also emits a merged
   factory image (bootloader + partitions + app via esptool `merge_bin` at the
   per-chip bootloader offset), served at `GET /lorawan/firmware/{key}/factory`.

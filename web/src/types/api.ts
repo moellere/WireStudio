@@ -282,6 +282,13 @@ export interface KicadRenderStatus {
   reason: string | null;
 }
 
+export interface KicadPcbStatus {
+  available: boolean;
+  footprints: boolean;
+  symbols: boolean;
+  reason: string | null;
+}
+
 export interface EnclosureHit {
   source: string;
   id: string;
