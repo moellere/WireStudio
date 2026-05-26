@@ -7,6 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] — 2026-05-26
+
+### Added
+
+- **KiCad PCB export (`.kicad_pcb`).** A new `POST /design/kicad/pcb` emits a
+  KiCad 8 board: every component + board footprint embedded from the pinned
+  KiCad libraries and grid-placed, each pad bound to the net it shares in the
+  design, plus an `Edge.Cuts` outline — no routing, so it opens in KiCad's PCB
+  editor with a complete ratsnest ready to route (PCB layout, step 2; the
+  footprint gate in 0.13.0 was step 1). Pad numbers resolve through the
+  component's `kicad.pin_map` and symbol; generic connectors bind positionally.
+  Reference designators and net names are shared with the schematic
+  (`wirestudio/kicad/netlist.py`). Feature-gated like the schematic render —
+  needs the footprint + symbol libraries on the server (`GET
+  /design/kicad/pcb/status`); a `pcb-layout` CI gate proves every bundled
+  example emits a structurally sound board, and a `pcb-drc` tier opens each
+  board in real KiCad and runs DRC (unrouted airwires expected/ignored). The
+  KiCad export dialog gains a **Download .kicad_pcb** button (gated on the
+  server having the libraries). Freerouting autoroute and Gerber/CPL/BOM
+  export remain on the path to 1.0.
+- **Blank-board LoRaWAN flash.** The compile worker now also emits a merged
+  factory image (bootloader + partitions + app via esptool `merge_bin` at the
+  per-chip bootloader offset), served at `GET /lorawan/firmware/{key}/factory`.
+  The flash dialog's **"Blank board — full flash"** toggle writes it at 0x0 with
+  a full erase, for a board that's never been flashed; the default stays an
+  app-region re-flash that preserves the bootloader + NVS DevNonces.
+- **Local component inventory.** Track parts on hand in a single
+  `inventory.json` (`GET`/`PUT`/`DELETE /inventory`), cross-check a design's
+  BOM against it (`POST /design/inventory/check` → have / partial / need),
+  and let the recommender prefer parts already in the drawer (`use_inventory`,
+  a flat +5 boost). `INVENTORY_PATH` env override for the Docker `/data` volume.
+  A web **Inventory** panel lists/adds/edits/removes entries and runs the BOM
+  check against the open design (have / partial / need). Per-part low-stock
+  thresholds (a `low` badge when on hand ≤ the reorder point) and CSV
+  import/export (`GET /inventory/export.csv`, `POST /inventory/import`).
+- **ULN2003 stepper driver** library component (28BYJ-48): ESPHome `stepper`
+  platform on four control pins, with a KiCad footprint and a `blind-stepper`
+  example (motorized blind) that round-trips through `esphome config`.
+- **`-lorawan` Docker image.** CI builds and publishes a
+  `wirestudio:<tag>-lorawan` variant (amd64) with PlatformIO + the `[lorawan]`
+  extra baked in, so `/lorawan/compile` works in a deployment — the lean
+  default image has no toolchain. Documented in [deployment](docs/deployment.md).
+
+### Fixed
+
+- **Dev deploy couldn't build LoRaWAN firmware.** The `bump-dev` job pinned
+  the dev overlay to the lean `sha-<short>` image (no PlatformIO), so
+  `/lorawan/compile` failed on the staging instance. The dev app now tracks
+  the `-lorawan` variant (`bump-dev` waits on the `lorawan-image` job and
+  writes the `-lorawan` tag), and the dev pod's memory limit is raised to 2Gi
+  so the espressif32 link step doesn't OOMKill mid-build. Prod stays lean.
+- **LoRaWAN GPS-on-console-UART footgun.** The flash dialog's external-GPS
+  default was GPIO3/GPIO1 — U0RXD/U0TXD (the USB-serial console) on the classic
+  ESP32, so a GPS there flooded the provisioning prompt with garbage and the
+  device never joined. Default is now GPIO23/GPIO17, and the lorawan target's
+  `validate()` warns (`lorawan_gps_on_console_uart`) when a GPS lands on the
+  console UART.
+
 ## [0.13.0] — 2026-05-25
 
 ### Added

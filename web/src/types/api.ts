@@ -197,12 +197,41 @@ export interface Recommendation {
   score: number;
   in_examples: number;
   rationale: string;
+  on_hand: number;
   notes: string | null;
 }
 
 export interface RecommendResponse {
   query: string;
   matches: Recommendation[];
+}
+
+// --- Local component inventory --------------------------------------------
+export interface InventoryEntry {
+  library_id: string;
+  kind: string; // "component" | "module"
+  quantity: number;
+  min_quantity: number; // low-stock threshold; 0 = none
+  low_stock: boolean;
+  location: string;
+  note: string;
+}
+
+export interface InventoryCheckLine {
+  library_id: string;
+  kind: string;
+  name: string;
+  needed: number;
+  on_hand: number;
+  status: string; // "have" | "partial" | "need"
+  location: string;
+  note: string;
+}
+
+export interface InventoryCheckResponse {
+  design_id: string;
+  lines: InventoryCheckLine[];
+  summary: Record<string, number>;
 }
 
 export interface RecommendConstraints {
@@ -250,6 +279,13 @@ export interface KicadRenderStatus {
   kicad_cli: boolean;
   skidl: boolean;
   png: boolean;
+  reason: string | null;
+}
+
+export interface KicadPcbStatus {
+  available: boolean;
+  footprints: boolean;
+  symbols: boolean;
   reason: string | null;
 }
 

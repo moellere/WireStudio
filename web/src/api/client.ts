@@ -12,6 +12,9 @@ import type {
   FleetPushResponse,
   FleetRunStatus,
   FleetStatus,
+  InventoryEntry,
+  InventoryCheckResponse,
+  KicadPcbStatus,
   KicadRenderStatus,
   LorawanCompileEvent,
   LorawanCompileStatus,
@@ -103,6 +106,30 @@ export const api = {
   listExamples: () => request<ExampleSummary[]>("/examples"),
   getExample: (id: string) => request<Design>(`/examples/${encodeURIComponent(id)}`),
 
+  // --- Local component inventory ---
+  listInventory: () => request<InventoryEntry[]>("/inventory"),
+  setInventory: (
+    libraryId: string,
+    body: { kind?: string; quantity: number; min_quantity?: number; location?: string; note?: string },
+  ) =>
+    request<InventoryEntry>(`/inventory/${encodeURIComponent(libraryId)}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  deleteInventory: (libraryId: string) =>
+    request<{ deleted: string }>(`/inventory/${encodeURIComponent(libraryId)}`, { method: "DELETE" }),
+  checkDesignInventory: (design: Design) =>
+    request<InventoryCheckResponse>("/design/inventory/check", {
+      method: "POST",
+      body: JSON.stringify({ design }),
+    }),
+  exportInventoryCsv: () => requestText("/inventory/export.csv"),
+  importInventoryCsv: (csv: string) =>
+    request<{ imported: number; skipped: string[] }>("/inventory/import", {
+      method: "POST",
+      body: JSON.stringify({ csv }),
+    }),
+
   validate: (design: Design) =>
     request<ValidateResponse>("/design/validate", { method: "POST", body: JSON.stringify(design) }),
   render: (design: Design, opts: { strict?: boolean } = {}) =>
@@ -120,6 +147,10 @@ export const api = {
     request<KicadRenderStatus>("/design/kicad/render/status"),
   kicadRender: (design: Design) =>
     requestText("/design/kicad/render", { method: "POST", body: JSON.stringify(design) }),
+  kicadPcbStatus: () =>
+    request<KicadPcbStatus>("/design/kicad/pcb/status"),
+  kicadPcb: (design: Design) =>
+    requestText("/design/kicad/pcb", { method: "POST", body: JSON.stringify(design) }),
   enclosureSearchStatus: () =>
     request<EnclosureSearchStatus>("/enclosure/search/status"),
   enclosureSearch: (params: { library_id: string; query?: string; limit?: number }) => {
@@ -191,6 +222,17 @@ export const api = {
       let body: unknown = undefined;
       try { body = await res.json(); } catch { /* not json */ }
       throw new ApiError(res.status, `GET /lorawan/firmware/${cacheKey} -> ${res.status}`, body);
+    }
+    return new Uint8Array(await res.arrayBuffer());
+  },
+  /** Download the merged factory image (bootloader+partitions+app, flash at
+   *  0x0) for blank-board flashing. 404 if the build produced no factory image. */
+  lorawanFactory: async (cacheKey: string): Promise<Uint8Array> => {
+    const res = await fetch(`${API_BASE}/lorawan/firmware/${encodeURIComponent(cacheKey)}/factory`);
+    if (!res.ok) {
+      let body: unknown = undefined;
+      try { body = await res.json(); } catch { /* not json */ }
+      throw new ApiError(res.status, `GET /lorawan/firmware/${cacheKey}/factory -> ${res.status}`, body);
     }
     return new Uint8Array(await res.arrayBuffer());
   },

@@ -58,6 +58,25 @@ class LorawanTarget(TargetPlugin):
                     ),
                 )
             )
+        # On the classic ESP32, U0RXD/U0TXD are GPIO3/GPIO1 -- the USB-serial
+        # console the provisioning prompt reads. A GPS UART there floods the
+        # prompt with garbage and the device never joins.
+        gps = design.lorawan.gps if design.lorawan else None
+        if gps and board.chip_variant == "esp32" and (
+            {gps.rx_pin, gps.tx_pin} & {"GPIO1", "GPIO3"}
+        ):
+            warnings.append(
+                DesignWarning(
+                    level="warn",
+                    code="lorawan_gps_on_console_uart",
+                    text=(
+                        f"GPS UART on {gps.rx_pin}/{gps.tx_pin} overlaps the USB-serial "
+                        "console (U0RXD/U0TXD) on the classic ESP32 -- the GPS floods the "
+                        "provisioning prompt and the device can't join. Use other pins "
+                        "(e.g. GPIO23/GPIO17)."
+                    ),
+                )
+            )
         return warnings
 
 

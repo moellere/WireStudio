@@ -74,6 +74,23 @@ def test_lorawan_validate_clean_on_radio_board_with_config():
     assert get_target("lorawan").validate(d, lib) == []
 
 
+def test_lorawan_validate_warns_gps_on_console_uart():
+    lib = default_library()
+    # GPS on GPIO3/1 = U0RXD/U0TXD on the classic ESP32 -> floods the prompt.
+    d = Design.model_validate(_design(
+        "heltec-wifi-lora32-v2", target="lorawan",
+        lorawan={"gps": {"rx_pin": "GPIO3", "tx_pin": "GPIO1"}},
+    ))
+    codes = {w.code for w in get_target("lorawan").validate(d, lib)}
+    assert "lorawan_gps_on_console_uart" in codes
+    # Safe pins -> no such warning.
+    d2 = Design.model_validate(_design(
+        "heltec-wifi-lora32-v2", target="lorawan",
+        lorawan={"gps": {"rx_pin": "GPIO23", "tx_pin": "GPIO17"}},
+    ))
+    assert "lorawan_gps_on_console_uart" not in {w.code for w in get_target("lorawan").validate(d2, lib)}
+
+
 def test_esphome_validate_adds_nothing():
     lib = default_library()
     d = Design.model_validate(_design("esp32-devkitc-v4"))

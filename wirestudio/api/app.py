@@ -38,6 +38,10 @@ from wirestudio.api.schemas import (
     CompatibilityWarning as CompatWire,
     ComponentSummary,
     ExampleSummary,
+    InventoryCheckLine,
+    InventoryCheckRequest,
+    InventoryCheckResponse,
+    InventoryEntryModel,
     ModuleSummary,
     FleetJobLogResponse,
     FleetJobStatus,
@@ -53,11 +57,19 @@ from wirestudio.api.schemas import (
     SaveDesignRequest,
     SaveDesignResponse,
     SavedDesignSummary,
+    SetInventoryRequest,
     SolvePinsResponse,
     SolverWarning,
     UseCaseEntry,
     ValidateResponse,
 )
+from wirestudio.inventory import (
+    InventoryEntry,
+    check_inventory,
+    entries_from_csv,
+    entries_to_csv,
+)
+from wirestudio.inventory.store import InventoryStore, default_inventory_store
 from wirestudio.designs.active import ActiveDesignTracker
 from wirestudio.designs.events import DesignEventBus, EventEmittingDesignStore
 from wirestudio.fleet.client import FleetClient, FleetUnavailable
@@ -71,6 +83,7 @@ from wirestudio.enclosure import (
     search_enclosures,
 )
 from wirestudio.kicad import generate_skidl
+from wirestudio.kicad.pcb import PcbUnavailable, generate_kicad_pcb, pcb_status
 from wirestudio.kicad.render import (
     RenderError,
     RenderUnavailable,
@@ -173,6 +186,7 @@ def create_app(
     fleet_client_factory=None,
     event_bus: Optional[DesignEventBus] = None,
     active_design: Optional[ActiveDesignTracker] = None,
+    inventory: Optional[InventoryStore] = None,
 ) -> FastAPI:
     import os as _os
     lib = library or default_library()
@@ -192,6 +206,9 @@ def create_app(
     # the caller knowing about the bus.
     designs_store = EventEmittingDesignStore(inner_designs, bus)
     active = active_design or ActiveDesignTracker()
+    # INVENTORY_PATH env var points the single inventory.json at a /data
+    # volume in the Docker image; falls back to the package-local default.
+    inventory_store = inventory or default_inventory_store()
     # Tests substitute a factory that returns a FleetClient bound to an
     # httpx.MockTransport so we never hit the network in CI.
     make_fleet: callable = fleet_client_factory or (lambda: FleetClient())
@@ -535,6 +552,34 @@ def create_app(
         media = "image/svg+xml" if format == "svg" else "image/png"
         return Response(content=data, media_type=media)
 
+    @app.get("/design/kicad/pcb/status", tags=["design"])
+    def design_kicad_pcb_status() -> dict:
+        """Probe whether the .kicad_pcb export is available. Unlike the SKiDL
+        script (always emittable), the board embeds real footprint geometry,
+        so it needs the pinned KiCad footprint + symbol libraries on the
+        server. The web UI gates the download on `available`."""
+        return pcb_status()
+
+    @app.post("/design/kicad/pcb", tags=["design"])
+    def design_kicad_pcb(design: dict) -> PlainTextResponse:
+        """Emit a `<design_id>.kicad_pcb`: footprints embedded + grid-placed,
+        pads bound to nets, an Edge.Cuts outline, no routing. Open it in
+        KiCad's PCB editor and route (or autoroute). Returns 503 when the
+        footprint/symbol libraries aren't installed -- check
+        `/design/kicad/pcb/status` first."""
+        d = _validate_design(design)
+        try:
+            board = generate_kicad_pcb(d, lib)
+        except PcbUnavailable as e:
+            raise HTTPException(status_code=503, detail=str(e)) from e
+        except (FileNotFoundError, ValueError) as e:
+            raise HTTPException(status_code=422, detail=str(e)) from e
+        filename = f"{d.id}.kicad_pcb"
+        return PlainTextResponse(
+            content=board,
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+
     @app.get("/design/jlcpcb/status", tags=["design"])
     def design_jlcpcb_status() -> dict:
         """Probe the JLCPCB parts search API. The UI gates the BOM-check
@@ -781,7 +826,16 @@ def create_app(
     @app.post("/library/recommend", response_model=RecommendResponse, tags=["library"])
     def recommend(req: RecommendRequest) -> RecommendResponse:
         constraints = Constraints(**(req.constraints or {})) if req.constraints else Constraints()
-        results = recommend_components(lib, req.query, constraints=constraints, limit=req.limit)
+        on_hand = None
+        if req.use_inventory:
+            on_hand = {
+                e.library_id: e.quantity
+                for e in inventory_store.list()
+                if e.kind == "component"
+            }
+        results = recommend_components(
+            lib, req.query, constraints=constraints, limit=req.limit, inventory=on_hand
+        )
         return RecommendResponse(
             query=req.query,
             matches=[
@@ -793,10 +847,100 @@ def create_app(
                     current_ma_peak=r.current_ma_peak,
                     vcc_min=r.vcc_min, vcc_max=r.vcc_max,
                     score=r.score, in_examples=r.in_examples,
-                    rationale=r.rationale, notes=r.notes,
+                    rationale=r.rationale, on_hand=r.on_hand, notes=r.notes,
                 )
                 for r in results
             ],
+        )
+
+    # ---------------------------------------------------------------------
+    # Local component inventory
+    # ---------------------------------------------------------------------
+
+    def _entry_wire(e: InventoryEntry) -> InventoryEntryModel:
+        return InventoryEntryModel(
+            library_id=e.library_id, kind=e.kind, quantity=e.quantity,
+            min_quantity=e.min_quantity, low_stock=e.low_stock,
+            location=e.location, note=e.note,
+        )
+
+    @app.get("/inventory", response_model=list[InventoryEntryModel], tags=["inventory"])
+    def list_inventory() -> list[InventoryEntryModel]:
+        return [_entry_wire(e) for e in inventory_store.list()]
+
+    @app.put("/inventory/{library_id}", response_model=InventoryEntryModel, tags=["inventory"])
+    def set_inventory(library_id: str, req: SetInventoryRequest) -> InventoryEntryModel:
+        if req.kind not in ("component", "module"):
+            raise HTTPException(status_code=422, detail=f"unknown kind {req.kind!r}")
+        try:
+            if req.kind == "module":
+                lib.module(library_id)
+            else:
+                lib.component(library_id)
+        except FileNotFoundError:
+            raise HTTPException(
+                status_code=404, detail=f"no {req.kind} with library id {library_id!r}"
+            )
+        try:
+            entry = InventoryEntry(
+                library_id=library_id, kind=req.kind, quantity=req.quantity,
+                min_quantity=req.min_quantity, location=req.location, note=req.note,
+            )
+        except ValueError as e:
+            raise HTTPException(status_code=422, detail=str(e)) from e
+        return _entry_wire(inventory_store.set(entry))
+
+    @app.delete("/inventory/{library_id}", tags=["inventory"])
+    def delete_inventory(library_id: str) -> dict:
+        if not inventory_store.remove(library_id):
+            raise HTTPException(
+                status_code=404, detail=f"no inventory entry for {library_id!r}"
+            )
+        return {"deleted": library_id}
+
+    @app.get("/inventory/export.csv", tags=["inventory"])
+    def export_inventory() -> Response:
+        return Response(
+            content=entries_to_csv(inventory_store.list()),
+            media_type="text/csv",
+            headers={"Content-Disposition": 'attachment; filename="inventory.csv"'},
+        )
+
+    @app.post("/inventory/import", tags=["inventory"])
+    def import_inventory(body: dict) -> dict:
+        """Upsert entries from a CSV body ({"csv": "..."}). Rows naming a part
+        not in the library are skipped (reported), not failed."""
+        try:
+            entries = entries_from_csv(str(body.get("csv", "")))
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        imported, skipped = 0, []
+        for entry in entries:
+            try:
+                (lib.module if entry.kind == "module" else lib.component)(entry.library_id)
+            except FileNotFoundError:
+                skipped.append(entry.library_id)
+                continue
+            inventory_store.set(entry)
+            imported += 1
+        return {"imported": imported, "skipped": skipped}
+
+    @app.post("/design/inventory/check", response_model=InventoryCheckResponse,
+              tags=["inventory"])
+    def check_design_inventory(req: InventoryCheckRequest) -> InventoryCheckResponse:
+        design = _validate_design(req.design)
+        report = check_inventory(design, lib, inventory_store.list())
+        return InventoryCheckResponse(
+            design_id=report.design_id,
+            lines=[
+                InventoryCheckLine(
+                    library_id=ln.library_id, kind=ln.kind, name=ln.name,
+                    needed=ln.needed, on_hand=ln.on_hand, status=ln.status,
+                    location=ln.location, note=ln.note,
+                )
+                for ln in report.lines
+            ],
+            summary=report.summary,
         )
 
     # ---------------------------------------------------------------------

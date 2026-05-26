@@ -24,8 +24,7 @@ mappings (symbol, footprint, pin_map applied) appear verbatim.
 """
 from __future__ import annotations
 
-import re
-
+from wirestudio.kicad.netlist import BOARD_KEY, _py_var, assign_refs, net_name
 from wirestudio.library import KicadSymbolRef, Library
 from wirestudio.model import Design
 
@@ -33,17 +32,6 @@ from wirestudio.model import Design
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-_PY_IDENT_RE = re.compile(r"[^A-Za-z0-9_]")
-
-
-def _py_var(name: str) -> str:
-    """Coerce an arbitrary id into a safe Python identifier prefixed
-    with `c_` (component) or `n_` (net) by the caller."""
-    out = _PY_IDENT_RE.sub("_", name)
-    if out and out[0].isdigit():
-        out = "_" + out
-    return out
 
 
 def _quote(s: str) -> str:
@@ -104,59 +92,6 @@ def _resolve_pin_role(role: str, lib_comp) -> str:
     if role in kicad.pin_map:
         return kicad.pin_map[role]
     return role
-
-
-# ---------------------------------------------------------------------------
-# Reference-designator allocator
-# ---------------------------------------------------------------------------
-
-def _ref_for(category: str, counter: dict[str, int]) -> str:
-    prefix = {
-        "sensor": "U",
-        "binary_sensor": "U",
-        "io_expander": "U",
-        "display": "U",
-        "audio": "U",
-        "led": "D",
-        "amp": "U",
-    }.get(category, "U")
-    counter[prefix] = counter.get(prefix, 0) + 1
-    return f"{prefix}{counter[prefix]}"
-
-
-# ---------------------------------------------------------------------------
-# Net derivation
-# ---------------------------------------------------------------------------
-
-def _net_label_for_target(t: dict, design: Design, used_buses: dict[str, str]) -> str:
-    """Map a connection target to a SKiDL net handle.
-
-    rails -> +5V / +3V3 / GND (canonicalised),
-    bus -> the bus's id (sda/scl/clk/etc. resolved per role at the call site),
-    expander_pin -> a hub-relative net like `mcp_hub_GP3`,
-    component -> the parent component's ref-relative HUB net,
-    gpio -> a per-pin net like `GPIO13` or `D5`.
-    """
-    kind = t.get("kind")
-    if kind == "rail":
-        rail = t.get("rail", "")
-        if rail.lower() in ("gnd", "ground"):
-            return "GND"
-        return f"+{rail}".replace("V3", "V3").replace(" ", "")
-    if kind == "gpio":
-        pin = t.get("pin") or "UNBOUND"
-        return f"NET_{pin}"
-    if kind == "bus":
-        bus_id = t.get("bus_id") or "UNBOUND"
-        return f"BUS_{bus_id}"
-    if kind == "expander_pin":
-        ex = t.get("expander_id") or "EX"
-        n = t.get("number")
-        return f"{ex}_GP{n}"
-    if kind == "component":
-        cid = t.get("component_id") or "PARENT"
-        return f"{cid}_REF"
-    return "UNCONNECTED"
 
 
 # ---------------------------------------------------------------------------
@@ -243,7 +178,7 @@ def _render_components(
     text plus a {component_id: skidl_var_name} index for connection
     rendering. Also adds the board itself as a Part (the dev module
     sits at the top of the schematic just like a real design)."""
-    counter: dict[str, int] = {}
+    refs = assign_refs(design, library)
     lines: list[str] = []
     ref_index: dict[str, str] = {}
 
@@ -254,13 +189,13 @@ def _render_components(
         board = None
     if board is not None:
         var = "board"
-        ref = "M1"
+        ref = refs[BOARD_KEY]
         if board.kicad is not None:
             lines.append(_emit_part(var, ref, board.kicad,
                                      comment=f"Board: {board.name}"))
         else:
             lines.append(_emit_placeholder(var, ref, board.id))
-        ref_index["__board__"] = var
+        ref_index[BOARD_KEY] = var
 
     # Components.
     for c in design.components:
@@ -269,11 +204,10 @@ def _render_components(
             lib_comp = library.component(c.library_id)
         except FileNotFoundError:
             lib_comp = None
+        ref = refs[c.id]
         if lib_comp is None or lib_comp.kicad is None:
-            ref = _ref_for("sensor", counter)
             lines.append(_emit_placeholder(var, ref, c.library_id))
         else:
-            ref = _ref_for(lib_comp.category, counter)
             lines.append(_emit_part(var, ref, lib_comp.kicad,
                                      comment=f"{c.id} ({lib_comp.name})"))
         ref_index[c.id] = var
@@ -318,10 +252,10 @@ def _render_connections(
 
 def _net_handle_for(target, design: Design, ref_index: dict[str, str]) -> str:
     """Return a SKiDL expression that evaluates to the net for `target`.
-    For rails we reference the per-script Net handle (NET_PLUS_*, GND);
-    for buses we reference NET_BUS_<id>; for gpio/expander_pin we build
-    an inline Net(...) so each unique landing gets a fresh handle.
-    For component (hub) targets we use the hub's ref var."""
+    Rails and buses reference the per-script Net handle declared once
+    (`NET_PLUS_*` / `GND` / `NET_BUS_<id>`); gpio/expander_pin/component
+    targets build a fresh inline `Net(...)` named canonically (`net_name`)
+    so the schematic and the PCB land them on identically-named nets."""
     kind = target.kind
     if kind == "rail":
         if target.rail.lower() in ("gnd", "ground"):
@@ -329,17 +263,7 @@ def _net_handle_for(target, design: Design, ref_index: dict[str, str]) -> str:
         return f"NET_PLUS_{_py_var(target.rail)}"
     if kind == "bus":
         return f"NET_BUS_{_py_var(target.bus_id)}"
-    if kind == "gpio":
-        pin = target.pin or "UNBOUND"
-        return f'Net("GPIO_{_py_var(pin)}")'
-    if kind == "expander_pin":
-        ex = target.expander_id or "EX"
-        n = target.number
-        return f'Net("{ex}_GP{n}")'
-    if kind == "component":
-        cid = target.component_id or "PARENT"
-        return f'Net("{cid}_HUB")'
-    return 'Net("UNCONNECTED")'
+    return f'Net("{net_name(target)}")'
 
 
 # Re-export helpers used by tests.
