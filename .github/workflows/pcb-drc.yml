@@ -30,6 +30,10 @@ concurrency:
   group: pcb-drc-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  KICAD_FOOTPRINTS_REF: "8.0.0"
+  KICAD_SYMBOLS_REF: "8.0.0"
+
 jobs:
   pcb-drc:
     runs-on: ubuntu-latest
@@ -41,19 +45,47 @@ jobs:
           python-version: "3.11"
           cache: pip
 
-      - name: Install KiCad 8 (kicad-cli + standard libraries)
+      # Emit against the pinned library clones (same as the schematic/footprint
+      # gates), not the apt libraries -- the two sets differ (e.g. the apt
+      # package lacks Module:WEMOS_D1_mini_light). KiCad is installed only for
+      # the kicad-cli DRC binary; footprints are embedded in the board, so DRC
+      # doesn't read the libraries.
+      - name: Cache KiCad footprint libraries
+        id: cache-footprints
+        uses: actions/cache@v4
+        with:
+          path: kicad-footprints
+          key: kicad-footprints-${{ env.KICAD_FOOTPRINTS_REF }}
+      - name: Fetch KiCad footprint libraries
+        if: steps.cache-footprints.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch "$KICAD_FOOTPRINTS_REF" \
+            https://gitlab.com/kicad/libraries/kicad-footprints.git kicad-footprints
+
+      - name: Cache KiCad symbol libraries
+        id: cache-symbols
+        uses: actions/cache@v4
+        with:
+          path: kicad-symbols
+          key: kicad-symbols-${{ env.KICAD_SYMBOLS_REF }}
+      - name: Fetch KiCad symbol libraries
+        if: steps.cache-symbols.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch "$KICAD_SYMBOLS_REF" \
+            https://gitlab.com/kicad/libraries/kicad-symbols.git kicad-symbols
+
+      - name: Install KiCad 8 (kicad-cli)
         run: |
           sudo add-apt-repository --yes ppa:kicad/kicad-8.0-releases
           sudo apt-get update
           sudo apt-get install --yes kicad
-          echo "--- kicad-cli ---"; kicad-cli version
-          echo "--- libraries ---"; ls -d /usr/share/kicad/footprints /usr/share/kicad/symbols
+          kicad-cli version
 
       - name: Install studio
         run: pip install -e .
 
       - name: Open every example board in KiCad + DRC
         env:
-          KICAD8_FOOTPRINT_DIR: /usr/share/kicad/footprints
-          KICAD8_SYMBOL_DIR: /usr/share/kicad/symbols
+          KICAD8_FOOTPRINT_DIR: ${{ github.workspace }}/kicad-footprints
+          KICAD8_SYMBOL_DIR: ${{ github.workspace }}/kicad-symbols
         run: python scripts/check_pcb_drc.py
