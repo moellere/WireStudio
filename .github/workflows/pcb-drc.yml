@@ -1,0 +1,59 @@
+name: pcb-drc
+
+# The "Verified" tier for the board emitter, above the fast structural gate in
+# pcb-layout.yml: it opens every emitted .kicad_pcb in real KiCad and runs DRC,
+# proving KiCad accepts the file (parses, loads the embedded footprints, builds
+# the netlist). The boards are unrouted, so unconnected airwires are expected
+# and ignored; any other error-severity violation fails.
+#
+# Installing KiCad is slow, so this isn't on every push -- it runs on PRs that
+# touch the emitter/library/examples, weekly, and on demand. The fast
+# structural gate (pcb-layout) stays the per-push bar.
+
+on:
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - 'wirestudio/kicad/**'
+      - 'wirestudio/library/**'
+      - 'wirestudio/examples/**'
+      - 'scripts/check_pcb_drc.py'
+      - '.github/workflows/pcb-drc.yml'
+  schedule:
+    - cron: '0 11 * * 1'   # 11:00 UTC every Monday
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pcb-drc-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pcb-drc:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install KiCad 8 (kicad-cli + standard libraries)
+        run: |
+          sudo add-apt-repository --yes ppa:kicad/kicad-8.0-releases
+          sudo apt-get update
+          sudo apt-get install --yes kicad
+          echo "--- kicad-cli ---"; kicad-cli version
+          echo "--- libraries ---"; ls -d /usr/share/kicad/footprints /usr/share/kicad/symbols
+
+      - name: Install studio
+        run: pip install -e .
+
+      - name: Open every example board in KiCad + DRC
+        env:
+          KICAD8_FOOTPRINT_DIR: /usr/share/kicad/footprints
+          KICAD8_SYMBOL_DIR: /usr/share/kicad/symbols
+        run: python scripts/check_pcb_drc.py
