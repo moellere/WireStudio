@@ -14,6 +14,7 @@ import type {
   FleetStatus,
   InventoryEntry,
   InventoryCheckResponse,
+  KicadPcbStatus,
   KicadRenderStatus,
   LorawanCompileEvent,
   LorawanCompileStatus,
@@ -146,6 +147,10 @@ export const api = {
     request<KicadRenderStatus>("/design/kicad/render/status"),
   kicadRender: (design: Design) =>
     requestText("/design/kicad/render", { method: "POST", body: JSON.stringify(design) }),
+  kicadPcbStatus: () =>
+    request<KicadPcbStatus>("/design/kicad/pcb/status"),
+  kicadPcb: (design: Design) =>
+    requestText("/design/kicad/pcb", { method: "POST", body: JSON.stringify(design) }),
   enclosureSearchStatus: () =>
     request<EnclosureSearchStatus>("/enclosure/search/status"),
   enclosureSearch: (params: { library_id: string; query?: string; limit?: number }) => {
