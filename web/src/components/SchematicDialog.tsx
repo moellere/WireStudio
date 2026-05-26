@@ -9,7 +9,7 @@
  */
 import { useEffect, useState } from "react";
 import { api, ApiError } from "../api/client";
-import type { Design, KicadRenderStatus } from "../types/api";
+import type { Design, KicadPcbStatus, KicadRenderStatus } from "../types/api";
 
 interface Props {
   design: Design;
@@ -34,6 +34,11 @@ export function SchematicDialog({ design, onClose }: Props) {
   const [svgUrl, setSvgUrl] = useState<string | null>(null);
   const [renderError, setRenderError] = useState<string | null>(null);
 
+  const [pcbStatus, setPcbStatus] = useState<KicadPcbStatus | null>(null);
+  const [pcbDownloading, setPcbDownloading] = useState(false);
+  const [pcbDownloaded, setPcbDownloaded] = useState(false);
+  const [pcbError, setPcbError] = useState<string | null>(null);
+
   useEffect(() => {
     let live = true;
     api
@@ -42,6 +47,13 @@ export function SchematicDialog({ design, onClose }: Props) {
       .catch(() => live && setRenderStatus({
         available: false, kicad_cli: false, skidl: false, png: false,
         reason: "render status unavailable",
+      }));
+    api
+      .kicadPcbStatus()
+      .then((s) => live && setPcbStatus(s))
+      .catch(() => live && setPcbStatus({
+        available: false, footprints: false, symbols: false,
+        reason: "pcb status unavailable",
       }));
     return () => {
       live = false;
@@ -92,6 +104,28 @@ export function SchematicDialog({ design, onClose }: Props) {
     }
   }
 
+  async function handleDownloadPcb() {
+    setPcbDownloading(true);
+    setPcbDownloaded(false);
+    setPcbError(null);
+    try {
+      const board = await api.kicadPcb(design);
+      const url = URL.createObjectURL(new Blob([board], { type: "application/octet-stream" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${design.id ?? "design"}.kicad_pcb`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setPcbDownloaded(true);
+    } catch (e) {
+      setPcbError(formatError(e));
+    } finally {
+      setPcbDownloading(false);
+    }
+  }
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
@@ -103,9 +137,9 @@ export function SchematicDialog({ design, onClose }: Props) {
       >
         <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
           <div>
-            <div className="text-sm font-semibold text-zinc-100">KiCad schematic</div>
+            <div className="text-sm font-semibold text-zinc-100">KiCad export</div>
             <div className="text-xs text-zinc-500">
-              Preview the schematic, or download a SKiDL script to run locally.
+              Preview the schematic, download a SKiDL script, or export a PCB board.
             </div>
           </div>
           <button
@@ -204,11 +238,47 @@ python ${design.id ?? "design"}.skidl.py
                 {error}
               </div>
             )}
-            <p className="text-[11px] text-zinc-500">
-              PCB layout (Freerouting + Gerber export) is on the 1.0+
-              roadmap; for now the netlist + schematic are sufficient to
-              open in KiCad and start a layout by hand.
+          </section>
+
+          {/* --- PCB board (.kicad_pcb) -------------------------------- */}
+          <section className="space-y-2 border-t border-zinc-800 pt-3">
+            <div className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
+              PCB board
+            </div>
+            <p className="text-xs leading-relaxed text-zinc-400">
+              A <code className="text-zinc-200">.kicad_pcb</code> with every
+              part placed on a grid and pads wired to nets — open it in KiCad's
+              PCB editor with a full ratsnest and route it. Autorouting and
+              Gerber/JLCPCB export are on the 1.0 roadmap.
             </p>
+            {pcbStatus === null ? (
+              <div className="text-xs text-zinc-500">Checking…</div>
+            ) : pcbStatus.available ? (
+              <button
+                onClick={handleDownloadPcb}
+                disabled={pcbDownloading}
+                className="rounded-md bg-blue-500/20 px-3 py-1.5 text-sm text-blue-100 ring-1 ring-blue-400/40 enabled:hover:bg-blue-500/30 disabled:opacity-40"
+              >
+                {pcbDownloading
+                  ? "Generating…"
+                  : pcbDownloaded
+                    ? "Downloaded ✓ — generate again"
+                    : "Download .kicad_pcb →"}
+              </button>
+            ) : (
+              <div className="rounded-md border border-zinc-800 bg-zinc-900/40 px-2 py-1.5 text-xs text-zinc-400">
+                The board export needs the KiCad footprint + symbol libraries
+                on the server.
+                {pcbStatus.reason && (
+                  <span className="text-zinc-500"> ({pcbStatus.reason})</span>
+                )}
+              </div>
+            )}
+            {pcbError && (
+              <div className="rounded-md border border-rose-700/40 bg-rose-900/15 px-2 py-1.5 text-xs text-rose-200">
+                {pcbError}
+              </div>
+            )}
           </section>
         </div>
       </div>

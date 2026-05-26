@@ -1,0 +1,78 @@
+name: pcb-layout
+
+# The board-emit gate. Companion to kicad-schematic.yml (symbols/netlist) and
+# kicad-footprint.yml (footprint existence): this proves every example emits a
+# structurally sound .kicad_pcb -- footprints embed, parens balance, and every
+# net a pad references is declared. It's the fast, KiCad-binary-free bar that
+# blocks a PR; the real open-and-DRC check belongs to a follow-up DRC tier that
+# installs KiCad and runs `kicad-cli pcb drc`.
+#
+# The emitter embeds real footprint geometry and resolves pad numbers via the
+# symbol libraries, so this needs BOTH kicad-footprints and kicad-symbols,
+# pinned to the same tags the other two gates use and bumped deliberately.
+
+on:
+  pull_request:
+    branches: [main, dev]
+  push:
+    branches: [main, dev]
+  schedule:
+    - cron: '0 10 * * 1'   # 10:00 UTC every Monday
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pcb-layout-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  KICAD_FOOTPRINTS_REF: "8.0.0"
+  KICAD_SYMBOLS_REF: "8.0.0"
+
+jobs:
+  pcb-layout:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install studio
+        run: pip install -e .
+
+      - name: Cache KiCad footprint libraries
+        id: cache-footprints
+        uses: actions/cache@v4
+        with:
+          path: kicad-footprints
+          key: kicad-footprints-${{ env.KICAD_FOOTPRINTS_REF }}
+
+      - name: Fetch KiCad footprint libraries
+        if: steps.cache-footprints.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch "$KICAD_FOOTPRINTS_REF" \
+            https://gitlab.com/kicad/libraries/kicad-footprints.git kicad-footprints
+
+      - name: Cache KiCad symbol libraries
+        id: cache-symbols
+        uses: actions/cache@v4
+        with:
+          path: kicad-symbols
+          key: kicad-symbols-${{ env.KICAD_SYMBOLS_REF }}
+
+      - name: Fetch KiCad symbol libraries
+        if: steps.cache-symbols.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch "$KICAD_SYMBOLS_REF" \
+            https://gitlab.com/kicad/libraries/kicad-symbols.git kicad-symbols
+
+      - name: Verify every example emits a sound .kicad_pcb
+        env:
+          KICAD8_FOOTPRINT_DIR: ${{ github.workspace }}/kicad-footprints
+          KICAD8_SYMBOL_DIR: ${{ github.workspace }}/kicad-symbols
+        run: python scripts/check_pcb.py
