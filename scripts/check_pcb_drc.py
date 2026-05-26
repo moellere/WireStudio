@@ -118,6 +118,27 @@ def main() -> int:
         return 1
 
     print(f"all {ok} example boards open in KiCad and pass DRC (modulo unrouted).", file=sys.stderr)
+
+    # Fab-export smoke: kicad-cli is here, so prove the Gerber/drill path runs
+    # and the package zips with the expected members for a representative board.
+    import io
+    import zipfile
+
+    from wirestudio.kicad.fab import export_fab_package
+
+    sample = Design.model_validate(json.loads((EXAMPLES_DIR / "garage-motion.json").read_text()))
+    try:
+        names = zipfile.ZipFile(io.BytesIO(export_fab_package(sample, lib))).namelist()
+    except Exception as exc:  # noqa: BLE001
+        print(f"fab package export failed: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return 1
+    has_gerber = any(n.lower().endswith((".gbr", ".gm1", ".gbl", ".gtl")) for n in names)
+    has_drill = any(n.lower().endswith((".drl", ".xln")) for n in names)
+    has_csv = any(n.endswith("-cpl.csv") for n in names) and any(n.endswith("-bom.csv") for n in names)
+    if not (has_gerber and has_drill and has_csv):
+        print(f"fab package missing members: {names}", file=sys.stderr)
+        return 1
+    print(f"fab package OK ({len(names)} files: gerbers + drill + cpl + bom).", file=sys.stderr)
     return 0
 
 
