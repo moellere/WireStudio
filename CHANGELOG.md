@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **KiCad PCB export (`.kicad_pcb`).** A new `POST /design/kicad/pcb` emits a
+  KiCad 8 board: every component + board footprint embedded from the pinned
+  KiCad libraries and grid-placed, each pad bound to the net it shares in the
+  design, plus an `Edge.Cuts` outline — no routing, so it opens in KiCad's PCB
+  editor with a complete ratsnest ready to route (PCB layout, step 2; the
+  footprint gate in 0.13.0 was step 1). Pad numbers resolve through the
+  component's `kicad.pin_map` and symbol; generic connectors bind positionally.
+  Reference designators and net names are shared with the schematic
+  (`wirestudio/kicad/netlist.py`). Feature-gated like the schematic render —
+  needs the footprint + symbol libraries on the server (`GET
+  /design/kicad/pcb/status`); a new `pcb-layout` CI gate proves every bundled
+  example emits a sound board. Freerouting autoroute and Gerber/CPL/BOM export
+  remain on the path to 1.0.
 - **Blank-board LoRaWAN flash.** The compile worker now also emits a merged
   factory image (bootloader + partitions + app via esptool `merge_bin` at the
   per-chip bootloader offset), served at `GET /lorawan/firmware/{key}/factory`.
