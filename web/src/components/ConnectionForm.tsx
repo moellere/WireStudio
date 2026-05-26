@@ -45,13 +45,15 @@ export function ConnectionForm({
 
   const buses = useMemo(() => (design ? readBuses(design) : []), [design]);
 
-  const expanders = useMemo(() => (design ? expandersFromDesign(design, libraryComponents) : []), [design, libraryComponents]);
+  const components = useMemo(() => (design ? readComponents(design) : []), [design]);
+
+  const expanders = useMemo(() => expandersFromComponents(components, libraryComponents), [components, libraryComponents]);
 
   const componentInstances = useMemo(() => {
-    return (design ? readComponents(design) : []).map((c) => ({
+    return components.map((c) => ({
       id: c.id, library_id: c.library_id,
     }));
-  }, [design]);
+  }, [components]);
 
   if (rows.length === 0) {
     return <div className="text-xs text-zinc-500">No connections.</div>;
@@ -343,12 +345,12 @@ function SelectInput({
   );
 }
 
-function expandersFromDesign(d: Design, libraryComponents: ComponentSummary[] | null) {
+function expandersFromComponents(components: ReturnType<typeof readComponents>, libraryComponents: ComponentSummary[] | null) {
   if (!libraryComponents) return [];
   const expanderLibIds = new Set(
     libraryComponents.filter((c) => c.category === "io_expander").map((c) => c.id),
   );
-  return readComponents(d).filter((c) => expanderLibIds.has(c.library_id));
+  return components.filter((c) => expanderLibIds.has(c.library_id));
 }
 
 function defaultTargetForKind(

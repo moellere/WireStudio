@@ -251,6 +251,9 @@ export function CapabilityPickerDialog({ designReady, designBusTypes, onAdd, onC
                 </div>
               )}
               {(() => {
+                // We hoist the visible calculation out of the IIFE to satisfy the linter
+                // but since we are refactoring, let's just do the filter here directly
+                // because it's a simple render block, and the dependency array was causing issues.
                 if (loadingMatches) {
                   return <div className="text-xs text-zinc-500">searching…</div>;
                 }
@@ -263,7 +266,7 @@ export function CapabilityPickerDialog({ designReady, designBusTypes, onAdd, onC
                     </div>
                   );
                 }
-                const visible = useMemo(() => matches.filter(passesBusFilter), [matches, passesBusFilter]);
+                const visible = matches.filter(passesBusFilter);
                 const hiddenByFilter = matches.length - visible.length;
                 if (visible.length === 0) {
                   return (
