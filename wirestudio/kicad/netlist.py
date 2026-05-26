@@ -9,6 +9,7 @@ same design. Pure: no I/O, no library mutation.
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass, field
 
 from wirestudio.model import Design
 
@@ -90,3 +91,40 @@ def net_name(target) -> str:
     if kind == "component":
         return f"{target.component_id or 'PARENT'}_HUB"
     return "UNCONNECTED"
+
+
+@dataclass(frozen=True)
+class NetPad:
+    """One landing of a net: a component's reference designator plus the
+    design pin role to bind. The role -> pad-number resolution against the
+    KiCad symbol/footprint happens in the PCB emitter, not here."""
+    ref: str
+    component_id: str
+    pin_role: str
+
+
+@dataclass
+class Net:
+    name: str
+    pads: list[NetPad] = field(default_factory=list)
+
+
+def build_netlist(design: Design, library) -> list[Net]:
+    """Group the design's connections into nets, keyed by canonical
+    ``net_name``. Mirrors the schematic's net derivation exactly (same
+    ``assign_refs`` + ``net_name``), so the schematic and the PCB land the
+    same pads on the same nets. Connections to a component not in the design
+    are skipped. Nets are returned sorted by name, pads in connection order,
+    for stable, diffable output."""
+    refs = assign_refs(design, library)
+    by_name: dict[str, Net] = {}
+    for conn in design.connections:
+        ref = refs.get(conn.component_id)
+        if ref is None:
+            continue
+        name = net_name(conn.target)
+        net = by_name.setdefault(name, Net(name=name))
+        net.pads.append(
+            NetPad(ref=ref, component_id=conn.component_id, pin_role=conn.pin_role)
+        )
+    return [by_name[n] for n in sorted(by_name)]
