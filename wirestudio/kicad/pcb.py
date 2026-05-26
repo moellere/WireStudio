@@ -37,10 +37,12 @@ from wirestudio.kicad.symbol_parser import load_symbols, resolve_symbol
 from wirestudio.library import Library
 from wirestudio.model import Design
 
-# Grid placement (mm). Parts land on a coarse grid; the user arranges in KiCad.
-_PITCH_MM = 25.4
+# Shelf placement (mm). Parts are laid out in rows sized to each footprint's
+# bounding box + a gap, so footprints never overlap (which DRC sees as shorts);
+# the user rearranges in KiCad. Coarse but physically valid.
 _ORIGIN_MM = 25.4
-_MARGIN_MM = 12.7  # Edge.Cuts border around the placement bounding box
+_GAP_MM = 5.0       # clear space between adjacent footprints
+_MARGIN_MM = 10.0   # Edge.Cuts border around the placement bounding box
 
 _FOOTPRINT_ENV_VARS = (
     "KICAD8_FOOTPRINT_DIR", "KICAD9_FOOTPRINT_DIR", "KICAD7_FOOTPRINT_DIR",
@@ -200,6 +202,20 @@ def _embed_footprint(
     return _indent(text, 1)
 
 
+def _footprint_extent(mod_text: str) -> tuple[float, float]:
+    """Conservative half-width / half-height (mm) of a footprint about its
+    origin, from pad/graphic positions + pad sizes. Deliberately
+    over-estimates (independent max of coordinates and sizes) so shelf
+    placement never overlaps copper."""
+    coords = re.findall(r"\((?:at|start|end) (-?\d+\.?\d*) (-?\d+\.?\d*)", mod_text)
+    sizes = re.findall(r"\(size (\d+\.?\d*) (\d+\.?\d*)\)", mod_text)
+    max_x = max((abs(float(x)) for x, _ in coords), default=0.0)
+    max_y = max((abs(float(y)) for _, y in coords), default=0.0)
+    max_sx = max((float(sx) for sx, _ in sizes), default=0.0)
+    max_sy = max((float(sy) for _, sy in sizes), default=0.0)
+    return max_x + max_sx / 2 + 1.0, max_y + max_sy / 2 + 1.0
+
+
 def _fmt(v: float) -> str:
     """Trim trailing zeros so 25.4 -> '25.4', 50.0 -> '50'."""
     return f"{v:.4f}".rstrip("0").rstrip(".")
@@ -262,33 +278,52 @@ def generate_kicad_pcb(
                 lib_comp.kicad.value or c.library_id,
             ))
 
-    cols = max(1, math.ceil(math.sqrt(len(placements))))
-    fp_blocks: list[str] = []
+    # Read footprints + measure them, surfacing any that don't resolve.
+    loaded: list[tuple[str, str, str, str, float, float]] = []
     unresolved: list[str] = []
-    max_x = max_y = 0.0
-    for i, (ref, footprint_ref, value) in enumerate(placements):
+    for ref, footprint_ref, value in placements:
         mod = _mod_path(footprint_ref, fp_dir)
         if not mod.is_file():
             unresolved.append(f"{ref}: {footprint_ref}")
             continue
-        x = _ORIGIN_MM + (i % cols) * _PITCH_MM
-        y = _ORIGIN_MM + (i // cols) * _PITCH_MM
-        max_x, max_y = max(max_x, x), max(max_y, y)
-        fp_blocks.append(_embed_footprint(
-            mod.read_text(), footprint_ref, ref, value, x, y,
-            pad_nets_by_ref.get(ref, {}),
-        ))
-
+        text = mod.read_text()
+        hw, hh = _footprint_extent(text)
+        loaded.append((ref, footprint_ref, value, text, hw, hh))
     if unresolved:
         raise ValueError(
             "footprints not found in the library: " + "; ".join(unresolved)
         )
 
+    # Shelf-pack into rows sized to each footprint's bounding box + a gap, so
+    # nothing overlaps. Track the true extent for the board outline.
+    cols = max(1, math.ceil(math.sqrt(len(loaded))))
+    fp_blocks: list[str] = []
+    cursor_x = _ORIGIN_MM
+    row_y = _ORIGIN_MM
+    row_max_h = 0.0
+    col = 0
+    bb_x = bb_y = 0.0
+    for ref, footprint_ref, value, text, hw, hh in loaded:
+        if col >= cols:
+            cursor_x = _ORIGIN_MM
+            row_y += row_max_h + _GAP_MM
+            row_max_h = 0.0
+            col = 0
+        cx, cy = cursor_x + hw, row_y + hh
+        fp_blocks.append(_embed_footprint(
+            text, footprint_ref, ref, value, cx, cy, pad_nets_by_ref.get(ref, {}),
+        ))
+        bb_x = max(bb_x, cx + hw)
+        bb_y = max(bb_y, cy + hh)
+        cursor_x += 2 * hw + _GAP_MM
+        row_max_h = max(row_max_h, 2 * hh)
+        col += 1
+
     net_decls = '\t(net 0 "")\n' + "\n".join(
         f'\t(net {net_index[net.name]} "{net.name}")' for net in nets
     )
     x0, y0 = _ORIGIN_MM - _MARGIN_MM, _ORIGIN_MM - _MARGIN_MM
-    x1, y1 = max_x + _MARGIN_MM, max_y + _MARGIN_MM
+    x1, y1 = bb_x + _MARGIN_MM, bb_y + _MARGIN_MM
     outline = (
         "\t(gr_rect\n"
         f"\t\t(start {_fmt(x0)} {_fmt(y0)})\n"
