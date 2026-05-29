@@ -108,6 +108,14 @@ export default function App() {
   const dirty = useMemo(() => isDirty(originalDesign, design), [originalDesign, design]);
   const debouncedDesign = useDebouncedValue(design, 250);
 
+  // Optimization: `readBuses` maps over the design and returns a new array.
+  // Memoizing this prevents unnecessary re-computations and guarantees a stable
+  // array reference is passed to children like CapabilityPickerDialog.
+  const designBusTypes = useMemo(
+    () => design ? Array.from(new Set(readBuses(design).map((b) => b.type))) : [],
+    [design],
+  );
+
   // Bootstrap.
   useEffect(() => {
     (async () => {
@@ -760,7 +768,7 @@ export default function App() {
       {showCapabilityDialog && (
         <CapabilityPickerDialog
           designReady={!!design}
-          designBusTypes={Array.from(new Set(readBuses(design).map((b) => b.type)))}
+          designBusTypes={designBusTypes}
           onAdd={async (libraryId) => {
             await handleAddComponent(libraryId);
           }}
