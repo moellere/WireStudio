@@ -9,3 +9,4 @@
 ## 2024-05-20 - React Hooks and Early Returns
 **Learning:** When moving derived state computations into `useMemo` hooks inside components that had early returns (like `if (rows.length === 0)`), you must move the early return *after* the hooks to avoid violating React's rules of hooks (hooks cannot be called conditionally).
 **Action:** When adding hooks to an existing component, always check for early returns and ensure all hooks are called unconditionally before any early returns.
+## 2026-05-30 - Hooks and UseMemo\n**Learning:** When moving derived state computations into `useMemo` hooks inside components that had early returns, ensure all hooks are called unconditionally before any early returns to avoid violating React's rules of hooks.\n**Action:** Always check for early returns when adding hooks.

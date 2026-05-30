@@ -89,6 +89,12 @@ export function CapabilityPickerDialog({ designReady, designBusTypes, onAdd, onC
 
   const debouncedQuery = useDebouncedValue(activeQuery, 300);
 
+  // Derive visible matches unconditionally at the top level
+  const visibleMatches = useMemo(() => {
+    if (!matches) return [];
+    return matches.filter(passesBusFilter);
+  }, [matches, passesBusFilter]);
+
   // Run the recommender whenever the active query changes.
   useEffect(() => {
     if (!debouncedQuery) {
@@ -263,9 +269,8 @@ export function CapabilityPickerDialog({ designReady, designBusTypes, onAdd, onC
                     </div>
                   );
                 }
-                const visible = useMemo(() => matches.filter(passesBusFilter), [matches, passesBusFilter]);
-                const hiddenByFilter = matches.length - visible.length;
-                if (visible.length === 0) {
+                const hiddenByFilter = matches.length - visibleMatches.length;
+                if (visibleMatches.length === 0) {
                   return (
                     <div className="text-xs text-zinc-500">
                       {hiddenByFilter} match{hiddenByFilter === 1 ? "" : "es"} hidden
@@ -281,10 +286,10 @@ export function CapabilityPickerDialog({ designReady, designBusTypes, onAdd, onC
                       </div>
                     )}
                     <ul className="space-y-2">
-                      {visible.map((m, idx) => {
+                      {visibleMatches.map((m, idx) => {
                     const isAdded = added.has(m.library_id);
                     const isAdding = adding === m.library_id;
-                    const alternatives = visible.filter((alt) => alt.library_id !== m.library_id);
+                    const alternatives = visibleMatches.filter((alt) => alt.library_id !== m.library_id);
                     const altsOpen = expandedAlts === m.library_id;
                     return (
                       <li
