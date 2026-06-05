@@ -9,3 +9,7 @@
 ## 2024-05-20 - React Hooks and Early Returns
 **Learning:** When moving derived state computations into `useMemo` hooks inside components that had early returns (like `if (rows.length === 0)`), you must move the early return *after* the hooks to avoid violating React's rules of hooks (hooks cannot be called conditionally).
 **Action:** When adding hooks to an existing component, always check for early returns and ensure all hooks are called unconditionally before any early returns.
+
+## 2025-02-14 - Expensive Array Filtering in React Renders
+**Learning:** Although `useMemo` was used in `CapabilityPickerDialog.tsx`, it was incorrectly nested deeply inside conditional blocks (an early return path), which violates the Rule of Hooks. Fixing this also properly guarantees that the `.filter()` operation on potentially large capability matches lists memoizes predictably, avoiding unexpected render cascade behaviors and hook index misalignment issues in React's Fiber engine.
+**Action:** Lift array filtering and other `useMemo` uses to the top level of the component unconditionally, ensuring correct Rule of Hooks compliance and predictable memoization behavior.
