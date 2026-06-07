@@ -9,3 +9,7 @@
 ## 2024-05-20 - React Hooks and Early Returns
 **Learning:** When moving derived state computations into `useMemo` hooks inside components that had early returns (like `if (rows.length === 0)`), you must move the early return *after* the hooks to avoid violating React's rules of hooks (hooks cannot be called conditionally).
 **Action:** When adding hooks to an existing component, always check for early returns and ensure all hooks are called unconditionally before any early returns.
+
+## 2024-05-21 - Derived State Memoization Splitting
+**Learning:** In React components receiving high-frequency updates (e.g. `ConnectionForm.tsx` where `design` changes frequently during drag-and-drop), derived state that depends on *static* or *infrequent* data (like `libraryComponents`) mixed with frequent data (like `design`) in a single `useMemo` forces the expensive static computation to run on every frequent update.
+**Action:** When a computation has both static/infrequent dependencies and high-frequency dependencies, split it into two `useMemo` hooks. Compute the static/infrequent part first (e.g., building a `Set` from a large array), and then use that memoized result in the second `useMemo` that depends on the high-frequency data.

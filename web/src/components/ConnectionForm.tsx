@@ -45,7 +45,14 @@ export function ConnectionForm({
 
   const buses = useMemo(() => (design ? readBuses(design) : []), [design]);
 
-  const expanders = useMemo(() => (design ? expandersFromDesign(design, libraryComponents) : []), [design, libraryComponents]);
+  const expanderLibIds = useMemo(() => {
+    if (!libraryComponents) return new Set<string>();
+    return new Set(libraryComponents.filter((c) => c.category === "io_expander").map((c) => c.id));
+  }, [libraryComponents]);
+
+  const expanders = useMemo(() => {
+    return design ? readComponents(design).filter((c) => expanderLibIds.has(c.library_id)) : [];
+  }, [design, expanderLibIds]);
 
   const componentInstances = useMemo(() => {
     return (design ? readComponents(design) : []).map((c) => ({
@@ -341,14 +348,6 @@ function SelectInput({
       )}
     </div>
   );
-}
-
-function expandersFromDesign(d: Design, libraryComponents: ComponentSummary[] | null) {
-  if (!libraryComponents) return [];
-  const expanderLibIds = new Set(
-    libraryComponents.filter((c) => c.category === "io_expander").map((c) => c.id),
-  );
-  return readComponents(d).filter((c) => expanderLibIds.has(c.library_id));
 }
 
 function defaultTargetForKind(
