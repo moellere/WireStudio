@@ -9,3 +9,6 @@
 ## 2024-05-20 - React Hooks and Early Returns
 **Learning:** When moving derived state computations into `useMemo` hooks inside components that had early returns (like `if (rows.length === 0)`), you must move the early return *after* the hooks to avoid violating React's rules of hooks (hooks cannot be called conditionally).
 **Action:** When adding hooks to an existing component, always check for early returns and ensure all hooks are called unconditionally before any early returns.
+## 2024-05-23 - Rules of Hooks Violation inside JSX IIFE
+**Learning:** Found a case in `CapabilityPickerDialog.tsx` where a `useMemo` was placed inside an immediately invoked function expression (IIFE) within the JSX return block. This IIFE had conditional early returns (e.g. `if (!activeQuery) return null;`) before the hook, causing a violation of the Rules of Hooks ("Rendered more hooks than during the previous render").
+**Action:** Never place React hooks inside inline functions, IIFEs, conditionals, or loops. Always keep hooks unconditionally at the top level of the component and use ternary fallbacks (like `matches ? matches.filter(...) : []`) to safely handle data dependencies that might be undefined or null early in the render cycle.
