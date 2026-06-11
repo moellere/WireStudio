@@ -404,3 +404,67 @@ def test_render_catches_exception(lib):
     body = json.loads(out)
     assert body["ok"] is False
     assert "error" in body
+
+
+def test_kicad_schematic_returns_a_skidl_script(lib, garage_motion_design):
+    out, is_error = execute_tool("kicad_schematic", {}, garage_motion_design, lib)
+    assert is_error is False
+    body = json.loads(out)
+    assert body["ok"] is True
+    assert "from skidl import" in body["script"]
+
+
+def test_fab_status_reports_what_is_available(lib):
+    out, is_error = execute_tool("fab_status", {}, {}, lib)
+    assert is_error is False
+    body = json.loads(out)
+    # BOM is always available; gerbers/cpl depend on the server's tools.
+    assert body["bom"] is True
+    assert set(body) >= {"bom", "cpl", "gerbers", "kicad_cli", "footprints", "reason"}
+
+
+def test_fab_bom_returns_csv(lib, garage_motion_design):
+    out, is_error = execute_tool("fab_bom", {}, garage_motion_design, lib)
+    assert is_error is False
+    body = json.loads(out)
+    assert body["ok"] is True
+    assert body["csv"].splitlines()[0].startswith("Comment,Designator,Footprint")
+    assert body["rows"] > 0
+
+
+def test_library_detail_returns_full_card(lib):
+    """The slim system-prompt index leaves out electrical metadata + esphome
+    template; library_detail restores the full card on demand."""
+    out, is_error = execute_tool(
+        "library_detail", {"library_id": "bme280", "kind": "component"}, {}, lib,
+    )
+    assert is_error is False
+    body = json.loads(out)
+    assert body["ok"] is True
+    detail = body["detail"]
+    assert "electrical" in detail and "esphome" in detail
+    assert detail["id"] == "bme280"
+
+
+def test_library_detail_handles_unknown_id(lib):
+    out, is_error = execute_tool(
+        "library_detail", {"library_id": "no-such-thing", "kind": "component"}, {}, lib,
+    )
+    assert is_error is False  # graceful error, not a dispatcher error
+    body = json.loads(out)
+    assert body["ok"] is False
+    assert "error" in body
+
+
+def test_library_index_is_substantially_smaller_than_full_dump(lib):
+    """The system-prompt slim index is the big token win -- assert it stays
+    that way (< 25% of the size of a full library dump)."""
+    from wirestudio.agent.agent import _build_library_context
+
+    slim = _build_library_context(lib)
+    full_components = [c.model_dump() for c in lib.list_components()]
+    full_boards = [b.model_dump() for b in lib.list_boards()]
+    full_size = len(json.dumps({"boards": full_boards, "components": full_components}))
+    assert len(slim) < 0.25 * full_size, (
+        f"slim index ({len(slim)} chars) is not <25% of full dump ({full_size} chars)"
+    )

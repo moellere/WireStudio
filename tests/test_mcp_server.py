@@ -19,6 +19,7 @@ pytestmark = pytest.mark.anyio
 EXPECTED_TOOLS = {
     "search_components",
     "list_boards",
+    "library_detail",
     "recommend",
     "render",
     "validate",
@@ -29,6 +30,11 @@ EXPECTED_TOOLS = {
     "set_connection",
     "add_bus",
     "solve_pins",
+    "kicad_schematic",
+    "kicad_pcb",
+    "fab_status",
+    "fab_bom",
+    "fab_cpl",
     "set_active_design",
     "get_active_design",
 }

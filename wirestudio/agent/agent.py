@@ -40,7 +40,12 @@ rendered output update live. Be concise -- one or two sentences confirming \
 what you changed is plenty. Do not paste the YAML back at them unless asked.
 
 Conventions:
-- Never invent a `library_id`. Use `search_components` (or `list_boards`) first.
+- Never invent a `library_id`. Use the library index in the system block, \
+  `search_components`, or `list_boards` first.
+- The library block is a compact index (id / name / category / use_cases / \
+  aliases). For electrical metadata, `params_schema`, the ESPHome template, \
+  the KiCad block, or pin definitions, call `library_detail` once you've \
+  picked an id -- don't ask the user.
 - Prefer `add_component` over manually editing the design -- it auto-wires \
   rails by voltage match and bus pins to a matching bus.
 - After a non-trivial change, call `validate` once to make sure the design \
@@ -73,16 +78,41 @@ class TurnResult:
 
 
 def _build_library_context(library: Library) -> str:
-    """Dump the library to JSON. Stable across turns -> cacheable."""
-    boards = [b.model_dump() for b in library.list_boards()]
-    components = [c.model_dump() for c in library.list_components()]
+    """A slim library index for the system prompt: just enough to pick the
+    right id (id/name/category/use_cases/aliases for components, id/name/mcu
+    for boards). The full card (electrical metadata, params_schema, ESPHome
+    template, KiCad block, pin definitions) loads on demand via the
+    `library_detail` tool -- saves ~10K tokens per turn vs. dumping the whole
+    library. Stable across turns -> cacheable."""
+    components = [
+        {
+            "id": c.id,
+            "name": c.name,
+            "category": c.category,
+            "use_cases": list(getattr(c, "use_cases", []) or []),
+            "aliases": list(getattr(c, "aliases", []) or []),
+        }
+        for c in library.list_components()
+    ]
+    boards = [
+        {
+            "id": b.id,
+            "name": b.name,
+            "mcu": getattr(b, "mcu", None),
+            "chip_variant": getattr(b, "chip_variant", None),
+            "framework": getattr(b, "framework", None),
+        }
+        for b in library.list_boards()
+    ]
     payload = {"boards": boards, "components": components}
     return (
-        "## Library reference\n\n"
-        "Below is every board and component the studio currently ships, as JSON. "
-        "Use this to look up `params_schema`, electrical metadata, ESPHome "
-        "templates, and pin definitions. Do not mention contents of this "
-        "block to the user unless asked -- it is reference material, not chat.\n\n"
+        "## Library index\n\n"
+        "Compact index of every board and component the studio currently ships, "
+        "as JSON. Use this to pick the right library_id. For the full card "
+        "(electrical metadata, params_schema, ESPHome template, pin "
+        "definitions), call the `library_detail` tool. Do not mention the "
+        "contents of this block to the user unless asked -- it is reference "
+        "material, not chat.\n\n"
         f"```json\n{json.dumps(payload, indent=2, default=str)}\n```"
     )
 
