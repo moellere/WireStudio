@@ -19,6 +19,7 @@ pytestmark = pytest.mark.anyio
 EXPECTED_TOOLS = {
     "search_components",
     "list_boards",
+    "library_detail",
     "recommend",
     "render",
     "validate",
