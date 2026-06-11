@@ -404,3 +404,29 @@ def test_render_catches_exception(lib):
     body = json.loads(out)
     assert body["ok"] is False
     assert "error" in body
+
+
+def test_kicad_schematic_returns_a_skidl_script(lib, garage_motion_design):
+    out, is_error = execute_tool("kicad_schematic", {}, garage_motion_design, lib)
+    assert is_error is False
+    body = json.loads(out)
+    assert body["ok"] is True
+    assert "from skidl import" in body["script"]
+
+
+def test_fab_status_reports_what_is_available(lib):
+    out, is_error = execute_tool("fab_status", {}, {}, lib)
+    assert is_error is False
+    body = json.loads(out)
+    # BOM is always available; gerbers/cpl depend on the server's tools.
+    assert body["bom"] is True
+    assert set(body) >= {"bom", "cpl", "gerbers", "kicad_cli", "footprints", "reason"}
+
+
+def test_fab_bom_returns_csv(lib, garage_motion_design):
+    out, is_error = execute_tool("fab_bom", {}, garage_motion_design, lib)
+    assert is_error is False
+    body = json.loads(out)
+    assert body["ok"] is True
+    assert body["csv"].splitlines()[0].startswith("Comment,Designator,Footprint")
+    assert body["rows"] > 0
