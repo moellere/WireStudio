@@ -13,3 +13,7 @@
 ## 2024-05-21 - Derived State Memoization Splitting
 **Learning:** In React components receiving high-frequency updates (e.g. `ConnectionForm.tsx` where `design` changes frequently during drag-and-drop), derived state that depends on *static* or *infrequent* data (like `libraryComponents`) mixed with frequent data (like `design`) in a single `useMemo` forces the expensive static computation to run on every frequent update.
 **Action:** When a computation has both static/infrequent dependencies and high-frequency dependencies, split it into two `useMemo` hooks. Compute the static/infrequent part first (e.g., building a `Set` from a large array), and then use that memoized result in the second `useMemo` that depends on the high-frequency data.
+
+## 2024-05-23 - Rules of Hooks Violation inside JSX IIFE
+**Learning:** Found a case in `CapabilityPickerDialog.tsx` where a `useMemo` was placed inside an immediately invoked function expression (IIFE) within the JSX return block. This IIFE had conditional early returns (e.g. `if (!activeQuery) return null;`) before the hook, causing a violation of the Rules of Hooks ("Rendered more hooks than during the previous render").
+**Action:** Never place React hooks inside inline functions, IIFEs, conditionals, or loops. Always keep hooks unconditionally at the top level of the component and use ternary fallbacks (like `matches ? matches.filter(...) : []`) to safely handle data dependencies that might be undefined or null early in the render cycle.
