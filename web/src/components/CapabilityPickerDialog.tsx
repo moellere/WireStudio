@@ -263,7 +263,7 @@ export function CapabilityPickerDialog({ designReady, designBusTypes, onAdd, onC
                     </div>
                   );
                 }
-                const visible = useMemo(() => matches.filter(passesBusFilter), [matches, passesBusFilter]);
+                const visible = matches.filter(passesBusFilter);
                 const hiddenByFilter = matches.length - visible.length;
                 if (visible.length === 0) {
                   return (
