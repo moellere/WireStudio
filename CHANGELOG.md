@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.0] — 2026-06-11
+
 ### Added
 
 - **Agent system payload slimmed (~10K tokens/turn) + `library_detail` tool.**
