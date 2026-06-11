@@ -13,7 +13,7 @@ resources:
 
 images:
   - name: ghcr.io/moellere/wirestudio
-    newTag: sha-bee565b-lorawan
+    newTag: sha-7276b33-lorawan
 
 # A LoRaWAN firmware build shells out to PlatformIO; the espressif32 link
 # step peaks well past the base 512Mi limit and OOMKills the pod. Give the
