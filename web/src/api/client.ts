@@ -14,6 +14,7 @@ import type {
   FleetStatus,
   InventoryEntry,
   InventoryCheckResponse,
+  FabStatus,
   KicadPcbStatus,
   KicadRenderStatus,
   LorawanCompileEvent,
@@ -73,6 +74,21 @@ async function requestText(path: string, init?: RequestInit): Promise<string> {
     throw new ApiError(res.status, `${init?.method ?? "GET"} ${path} -> ${res.status}`, body);
   }
   return await res.text();
+}
+
+/** Like `request` but expects a binary response (used for the fab-package
+ *  zip). Errors still come back as JSON. */
+async function requestBlob(path: string, init?: RequestInit): Promise<Blob> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
+    ...init,
+  });
+  if (!res.ok) {
+    let body: unknown = undefined;
+    try { body = await res.json(); } catch { /* not json */ }
+    throw new ApiError(res.status, `${init?.method ?? "GET"} ${path} -> ${res.status}`, body);
+  }
+  return await res.blob();
 }
 
 export const api = {
@@ -151,6 +167,14 @@ export const api = {
     request<KicadPcbStatus>("/design/kicad/pcb/status"),
   kicadPcb: (design: Design) =>
     requestText("/design/kicad/pcb", { method: "POST", body: JSON.stringify(design) }),
+  fabStatus: () =>
+    request<FabStatus>("/design/fab/status"),
+  fabBom: (design: Design) =>
+    requestText("/design/fab/bom", { method: "POST", body: JSON.stringify(design) }),
+  fabCpl: (design: Design) =>
+    requestText("/design/fab/cpl", { method: "POST", body: JSON.stringify(design) }),
+  fabPackage: (design: Design) =>
+    requestBlob("/design/fab/package", { method: "POST", body: JSON.stringify(design) }),
   enclosureSearchStatus: () =>
     request<EnclosureSearchStatus>("/enclosure/search/status"),
   enclosureSearch: (params: { library_id: string; query?: string; limit?: number }) => {
