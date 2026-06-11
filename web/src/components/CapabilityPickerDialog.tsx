@@ -126,6 +126,8 @@ export function CapabilityPickerDialog({ designReady, designBusTypes, onAdd, onC
       setAdding(null);
     }
   }
+  const visible = useMemo(() => matches ? matches.filter(passesBusFilter) : [], [matches, passesBusFilter]);
+
 
   return (
     <div
@@ -263,7 +265,6 @@ export function CapabilityPickerDialog({ designReady, designBusTypes, onAdd, onC
                     </div>
                   );
                 }
-                const visible = useMemo(() => matches.filter(passesBusFilter), [matches, passesBusFilter]);
                 const hiddenByFilter = matches.length - visible.length;
                 if (visible.length === 0) {
                   return (
