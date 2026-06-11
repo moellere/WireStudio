@@ -83,6 +83,14 @@ from wirestudio.enclosure import (
     search_enclosures,
 )
 from wirestudio.kicad import generate_skidl
+from wirestudio.kicad.fab import (
+    GerberUnavailable,
+    export_fab_package,
+    export_gerbers,
+    fab_status,
+    generate_bom,
+    generate_cpl,
+)
 from wirestudio.kicad.pcb import PcbUnavailable, generate_kicad_pcb, pcb_status
 from wirestudio.kicad.render import (
     RenderError,
@@ -578,6 +586,70 @@ def create_app(
         return PlainTextResponse(
             content=board,
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+
+    @app.get("/design/fab/status", tags=["design"])
+    def design_fab_status() -> dict:
+        """What fab outputs are available: BOM is always emittable, CPL needs
+        the footprint libraries, Gerbers also need kicad-cli."""
+        return fab_status()
+
+    @app.post("/design/fab/bom", tags=["design"])
+    def design_fab_bom(design: dict) -> PlainTextResponse:
+        """JLCPCB BOM CSV (grouped by part). Pure -- always available."""
+        d = _validate_design(design)
+        return PlainTextResponse(
+            content=generate_bom(d, lib), media_type="text/csv",
+            headers={"Content-Disposition": f'attachment; filename="{d.id}-bom.csv"'},
+        )
+
+    @app.post("/design/fab/cpl", tags=["design"])
+    def design_fab_cpl(design: dict) -> PlainTextResponse:
+        """JLCPCB CPL (pick-and-place) CSV; positions match the .kicad_pcb.
+        503 when the footprint libraries aren't on the server."""
+        d = _validate_design(design)
+        try:
+            cpl = generate_cpl(d, lib)
+        except PcbUnavailable as e:
+            raise HTTPException(status_code=503, detail=str(e)) from e
+        except (FileNotFoundError, ValueError) as e:
+            raise HTTPException(status_code=422, detail=str(e)) from e
+        return PlainTextResponse(
+            content=cpl, media_type="text/csv",
+            headers={"Content-Disposition": f'attachment; filename="{d.id}-cpl.csv"'},
+        )
+
+    @app.post("/design/fab/gerbers", tags=["design"])
+    def design_fab_gerbers(design: dict) -> Response:
+        """Gerber + drill files as a zip. 503 when kicad-cli / the libraries
+        are missing."""
+        d = _validate_design(design)
+        try:
+            data = export_gerbers(d, lib)
+        except (GerberUnavailable, PcbUnavailable) as e:
+            raise HTTPException(status_code=503, detail=str(e)) from e
+        except (FileNotFoundError, ValueError) as e:
+            raise HTTPException(status_code=422, detail=str(e)) from e
+        return Response(
+            content=data, media_type="application/zip",
+            headers={"Content-Disposition": f'attachment; filename="{d.id}-gerbers.zip"'},
+        )
+
+    @app.post("/design/fab/package", tags=["design"])
+    def design_fab_package(design: dict) -> Response:
+        """The JLCPCB upload bundle: Gerbers + drill + CPL + BOM in one zip.
+        Boards are unrouted until the routing step lands, so the Gerbers carry
+        pads but no traces. 503 when kicad-cli / the libraries are missing."""
+        d = _validate_design(design)
+        try:
+            data = export_fab_package(d, lib)
+        except (GerberUnavailable, PcbUnavailable) as e:
+            raise HTTPException(status_code=503, detail=str(e)) from e
+        except (FileNotFoundError, ValueError) as e:
+            raise HTTPException(status_code=422, detail=str(e)) from e
+        return Response(
+            content=data, media_type="application/zip",
+            headers={"Content-Disposition": f'attachment; filename="{d.id}-fab.zip"'},
         )
 
     @app.get("/design/jlcpcb/status", tags=["design"])
