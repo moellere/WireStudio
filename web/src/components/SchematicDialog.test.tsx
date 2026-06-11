@@ -9,7 +9,7 @@ import userEvent from "@testing-library/user-event";
 
 import { SchematicDialog } from "./SchematicDialog";
 import { api } from "../api/client";
-import type { Design, KicadPcbStatus, KicadRenderStatus } from "../types/api";
+import type { Design, FabStatus, KicadPcbStatus, KicadRenderStatus } from "../types/api";
 
 vi.mock("../api/client", async () => {
   const actual = await vi.importActual<typeof import("../api/client")>("../api/client");
@@ -22,6 +22,10 @@ vi.mock("../api/client", async () => {
       kicadRender: vi.fn(),
       kicadPcbStatus: vi.fn(),
       kicadPcb: vi.fn(),
+      fabStatus: vi.fn(),
+      fabBom: vi.fn(),
+      fabCpl: vi.fn(),
+      fabPackage: vi.fn(),
     },
   };
 });
@@ -32,6 +36,10 @@ const mockApi = api as unknown as {
   kicadRender: ReturnType<typeof vi.fn>;
   kicadPcbStatus: ReturnType<typeof vi.fn>;
   kicadPcb: ReturnType<typeof vi.fn>;
+  fabStatus: ReturnType<typeof vi.fn>;
+  fabBom: ReturnType<typeof vi.fn>;
+  fabCpl: ReturnType<typeof vi.fn>;
+  fabPackage: ReturnType<typeof vi.fn>;
 };
 
 const UNAVAILABLE: KicadRenderStatus = {
@@ -47,6 +55,13 @@ const PCB_UNAVAILABLE: KicadPcbStatus = {
 };
 const PCB_AVAILABLE: KicadPcbStatus = {
   available: true, footprints: true, symbols: true, reason: null,
+};
+const FAB_BOM_ONLY: FabStatus = {
+  bom: true, cpl: false, gerbers: false, kicad_cli: false, footprints: false,
+  reason: "kicad-cli not on PATH (needed for Gerbers)",
+};
+const FAB_FULL: FabStatus = {
+  bom: true, cpl: true, gerbers: true, kicad_cli: true, footprints: true, reason: null,
 };
 
 const design: Design = {
@@ -67,8 +82,13 @@ beforeEach(() => {
   mockApi.kicadRender.mockReset();
   mockApi.kicadPcbStatus.mockReset();
   mockApi.kicadPcb.mockReset();
+  mockApi.fabStatus.mockReset();
+  mockApi.fabBom.mockReset();
+  mockApi.fabCpl.mockReset();
+  mockApi.fabPackage.mockReset();
   mockApi.kicadRenderStatus.mockResolvedValue(UNAVAILABLE);
   mockApi.kicadPcbStatus.mockResolvedValue(PCB_UNAVAILABLE);
+  mockApi.fabStatus.mockResolvedValue(FAB_BOM_ONLY);
   (URL as unknown as { createObjectURL: () => string }).createObjectURL = vi.fn(() => "blob:fake");
   (URL as unknown as { revokeObjectURL: () => void }).revokeObjectURL = vi.fn();
 });
@@ -174,5 +194,27 @@ describe("SchematicDialog — PCB board", () => {
     await userEvent.click(btn);
     await waitFor(() => expect(mockApi.kicadPcb).toHaveBeenCalledWith(design));
     await waitFor(() => screen.getByText(/Downloaded ✓/));
+  });
+});
+
+describe("SchematicDialog — fab outputs", () => {
+  it("downloads the BOM (always available) and gates the Gerber package on kicad-cli", async () => {
+    mockApi.fabBom.mockResolvedValue("Comment,Designator\n");
+    render(<SchematicDialog design={design} onClose={() => {}} />);
+    const bom = await screen.findByRole("button", { name: /BOM \.csv/ });
+    await userEvent.click(bom);
+    await waitFor(() => expect(mockApi.fabBom).toHaveBeenCalledWith(design));
+    // With BOM-only status, the Gerber package button is disabled.
+    expect(screen.getByRole("button", { name: /Fab package/ })).toBeDisabled();
+  });
+
+  it("enables the Gerber package when kicad-cli is available", async () => {
+    mockApi.fabStatus.mockResolvedValue(FAB_FULL);
+    mockApi.fabPackage.mockResolvedValue(new Blob(["zip"]));
+    render(<SchematicDialog design={design} onClose={() => {}} />);
+    const pkg = await screen.findByRole("button", { name: /Fab package/ });
+    await waitFor(() => expect(pkg).toBeEnabled());
+    await userEvent.click(pkg);
+    await waitFor(() => expect(mockApi.fabPackage).toHaveBeenCalledWith(design));
   });
 });
