@@ -29,6 +29,11 @@ EXPECTED_TOOLS = {
     "set_connection",
     "add_bus",
     "solve_pins",
+    "kicad_schematic",
+    "kicad_pcb",
+    "fab_status",
+    "fab_bom",
+    "fab_cpl",
     "set_active_design",
     "get_active_design",
 }
