@@ -289,6 +289,15 @@ export interface KicadPcbStatus {
   reason: string | null;
 }
 
+export interface FabStatus {
+  bom: boolean;
+  cpl: boolean;
+  gerbers: boolean;
+  kicad_cli: boolean;
+  footprints: boolean;
+  reason: string | null;
+}
+
 export interface EnclosureHit {
   source: string;
   id: string;
