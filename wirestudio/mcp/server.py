@@ -28,6 +28,7 @@ from wirestudio.agent.tools import (
     _run_fab_status,
     _run_kicad_pcb,
     _run_kicad_schematic,
+    _run_library_detail,
     _run_list_boards,
     _run_recommend,
     _run_remove_component,
@@ -107,6 +108,19 @@ def _register_library_tools(mcp: FastMCP, library: Library) -> None:
             "excluded_categories) to filter before ranking."
         ),
     )
+    @mcp.tool(
+        name="library_detail",
+        description=(
+            "Fetch the full library card for one component or board by id: "
+            "electrical metadata, params_schema, ESPHome template, KiCad "
+            "block, pin definitions. Use after picking an id from the index, "
+            "search_components, or recommend. `kind` is 'component' (default) "
+            "or 'board'. Read-only."
+        ),
+    )
+    def library_detail(library_id: str, kind: str = "component") -> dict:
+        return _run_library_detail({}, library, library_id=library_id, kind=kind)
+
     def recommend(
         query: str,
         limit: int = 10,

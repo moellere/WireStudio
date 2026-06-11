@@ -288,6 +288,32 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
         ),
         "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
     },
+    {
+        "name": "library_detail",
+        "description": (
+            "Fetch the full library card for one component or board by id. "
+            "Returns electrical metadata, params_schema, ESPHome template, "
+            "kicad block, and pin definitions -- everything the system-prompt "
+            "index leaves out. Use it once you've picked an id from the index "
+            "or search_components. Read-only."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "library_id": {
+                    "type": "string",
+                    "description": "The component or board id to look up.",
+                },
+                "kind": {
+                    "type": "string",
+                    "enum": ["component", "board"],
+                    "description": "Which catalog to look in. Defaults to 'component'.",
+                },
+            },
+            "required": ["library_id"],
+            "additionalProperties": False,
+        },
+    },
 ]
 
 
@@ -579,6 +605,23 @@ def _run_fab_bom(design: dict, library: Library) -> dict:
     return {"ok": True, "csv": csv_text, "rows": max(csv_text.count("\n") - 1, 0)}
 
 
+def _run_library_detail(
+    _design: dict, library: Library, *, library_id: str, kind: str = "component",
+) -> dict:
+    """Full library card on demand -- the heavy data the system-prompt index
+    leaves out. design is ignored (library lookup is global)."""
+    try:
+        if kind == "board":
+            entry = library.board(library_id)
+        elif kind == "component":
+            entry = library.component(library_id)
+        else:
+            return {"ok": False, "error": f"kind must be 'component' or 'board', got {kind!r}"}
+    except FileNotFoundError as e:
+        return {"ok": False, "error": str(e)}
+    return {"ok": True, "kind": kind, "library_id": library_id, "detail": entry.model_dump()}
+
+
 def _run_fab_cpl(design: dict, library: Library) -> dict:
     try:
         d = Design.model_validate(design)
@@ -609,6 +652,7 @@ TOOL_HANDLERS: dict[str, Callable[..., Any]] = {
     "fab_status": _run_fab_status,
     "fab_bom": _run_fab_bom,
     "fab_cpl": _run_fab_cpl,
+    "library_detail": _run_library_detail,
 }
 
 
