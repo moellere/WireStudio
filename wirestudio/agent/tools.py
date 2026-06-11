@@ -7,6 +7,7 @@ never load files outside the library, and never execute user-provided code.
 from __future__ import annotations
 
 import json
+import re
 from typing import Any, Callable
 
 from wirestudio.csp.compatibility import check_pin_compatibility
@@ -14,6 +15,9 @@ from wirestudio.csp.pin_solver import solve_pins as _solve_pins
 from wirestudio.designs.seed import add_component_with_connections
 from wirestudio.generate.ascii_gen import render_ascii
 from wirestudio.generate.yaml_gen import render_yaml
+from wirestudio.kicad import generate_skidl
+from wirestudio.kicad.fab import fab_status, generate_bom, generate_cpl
+from wirestudio.kicad.pcb import PcbUnavailable, generate_kicad_pcb
 from wirestudio.library import Library
 from wirestudio.model import Design
 from wirestudio.recommend.recommender import Constraints, recommend_components
@@ -237,6 +241,78 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
             "Mutates the design."
         ),
         "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
+    {
+        "name": "kicad_schematic",
+        "description": (
+            "Emit the design's KiCad schematic as a SKiDL Python script. The "
+            "caller runs it locally (pip install skidl; python <design>.skidl.py) "
+            "to produce a .kicad_sch. Read-only."
+        ),
+        "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
+    {
+        "name": "kicad_pcb",
+        "description": (
+            "Emit the design's KiCad .kicad_pcb board (footprints placed + nets "
+            "bound, no routing). Returns a summary (size_bytes, footprints, nets, "
+            "routed); the actual board file is downloaded via the "
+            "POST /design/kicad/pcb endpoint. Needs the KiCad libraries on the "
+            "server -- returns ok=false, available=false otherwise. Read-only."
+        ),
+        "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
+    {
+        "name": "fab_status",
+        "description": (
+            "What fab outputs the server can produce: BOM is always available, "
+            "CPL needs the footprint libraries, Gerbers need kicad-cli. "
+            "Read-only."
+        ),
+        "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
+    {
+        "name": "fab_bom",
+        "description": (
+            "Emit the design's JLCPCB BOM (CSV; grouped by part). Pure -- always "
+            "works. Returns the CSV text + row count. Read-only."
+        ),
+        "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
+    {
+        "name": "fab_cpl",
+        "description": (
+            "Emit the design's JLCPCB CPL (pick-and-place, CSV); positions match "
+            "the .kicad_pcb. Needs the footprint libraries -- returns ok=false, "
+            "available=false otherwise. Read-only."
+        ),
+        "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
+    {
+        "name": "library_detail",
+        "description": (
+            "Fetch the full library card for one component or board by id. "
+            "Returns electrical metadata, params_schema, ESPHome template, "
+            "kicad block, and pin definitions -- everything the system-prompt "
+            "index leaves out. Use it once you've picked an id from the index "
+            "or search_components. Read-only."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "library_id": {
+                    "type": "string",
+                    "description": "The component or board id to look up.",
+                },
+                "kind": {
+                    "type": "string",
+                    "enum": ["component", "board"],
+                    "description": "Which catalog to look in. Defaults to 'component'.",
+                },
+            },
+            "required": ["library_id"],
+            "additionalProperties": False,
+        },
     },
 ]
 
@@ -483,6 +559,81 @@ def _run_validate(design: dict, library: Library) -> dict:
     }
 
 
+def _run_kicad_schematic(design: dict, library: Library) -> dict:
+    try:
+        d = Design.model_validate(design)
+    except Exception as e:
+        return {"ok": False, "error": f"design failed validation: {e}"}
+    try:
+        return {"ok": True, "script": generate_skidl(d, library)}
+    except (FileNotFoundError, ValueError) as e:
+        return {"ok": False, "error": str(e)}
+
+
+def _run_kicad_pcb(design: dict, library: Library) -> dict:
+    """Return a summary of the emitted board, not the megabyte board text."""
+    try:
+        d = Design.model_validate(design)
+    except Exception as e:
+        return {"ok": False, "error": f"design failed validation: {e}"}
+    try:
+        board = generate_kicad_pcb(d, library)
+    except PcbUnavailable as e:
+        return {"ok": False, "available": False, "error": str(e)}
+    except (FileNotFoundError, ValueError) as e:
+        return {"ok": False, "error": str(e)}
+    return {
+        "ok": True,
+        "size_bytes": len(board),
+        "footprints": board.count('(footprint "'),
+        "nets": len(re.findall(r'^\t\(net \d+ "', board, re.M)),
+        "routed": bool(re.search(r"\((?:segment|via)\b", board)),
+    }
+
+
+def _run_fab_status(_design: dict, _library: Library) -> dict:
+    """Server-side capability probe; the design/library are ignored."""
+    return fab_status()
+
+
+def _run_fab_bom(design: dict, library: Library) -> dict:
+    try:
+        d = Design.model_validate(design)
+    except Exception as e:
+        return {"ok": False, "error": f"design failed validation: {e}"}
+    csv_text = generate_bom(d, library)
+    return {"ok": True, "csv": csv_text, "rows": max(csv_text.count("\n") - 1, 0)}
+
+
+def _run_library_detail(
+    _design: dict, library: Library, *, library_id: str, kind: str = "component",
+) -> dict:
+    """Full library card on demand -- the heavy data the system-prompt index
+    leaves out. design is ignored (library lookup is global)."""
+    try:
+        if kind == "board":
+            entry = library.board(library_id)
+        elif kind == "component":
+            entry = library.component(library_id)
+        else:
+            return {"ok": False, "error": f"kind must be 'component' or 'board', got {kind!r}"}
+    except FileNotFoundError as e:
+        return {"ok": False, "error": str(e)}
+    return {"ok": True, "kind": kind, "library_id": library_id, "detail": entry.model_dump()}
+
+
+def _run_fab_cpl(design: dict, library: Library) -> dict:
+    try:
+        d = Design.model_validate(design)
+    except Exception as e:
+        return {"ok": False, "error": f"design failed validation: {e}"}
+    try:
+        csv_text = generate_cpl(d, library)
+    except PcbUnavailable as e:
+        return {"ok": False, "available": False, "error": str(e)}
+    return {"ok": True, "csv": csv_text, "rows": max(csv_text.count("\n") - 1, 0)}
+
+
 TOOL_HANDLERS: dict[str, Callable[..., Any]] = {
     "search_components": _run_search_components,
     "list_boards": _run_list_boards,
@@ -496,6 +647,12 @@ TOOL_HANDLERS: dict[str, Callable[..., Any]] = {
     "validate": _run_validate,
     "recommend": _run_recommend,
     "solve_pins": _run_solve_pins,
+    "kicad_schematic": _run_kicad_schematic,
+    "kicad_pcb": _run_kicad_pcb,
+    "fab_status": _run_fab_status,
+    "fab_bom": _run_fab_bom,
+    "fab_cpl": _run_fab_cpl,
+    "library_detail": _run_library_detail,
 }
 
 

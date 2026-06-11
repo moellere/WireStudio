@@ -23,6 +23,12 @@ from mcp.server.fastmcp import FastMCP
 from wirestudio.agent.tools import (
     _run_add_bus,
     _run_add_component,
+    _run_fab_bom,
+    _run_fab_cpl,
+    _run_fab_status,
+    _run_kicad_pcb,
+    _run_kicad_schematic,
+    _run_library_detail,
     _run_list_boards,
     _run_recommend,
     _run_remove_component,
@@ -102,6 +108,19 @@ def _register_library_tools(mcp: FastMCP, library: Library) -> None:
             "excluded_categories) to filter before ranking."
         ),
     )
+    @mcp.tool(
+        name="library_detail",
+        description=(
+            "Fetch the full library card for one component or board by id: "
+            "electrical metadata, params_schema, ESPHome template, KiCad "
+            "block, pin definitions. Use after picking an id from the index, "
+            "search_components, or recommend. `kind` is 'component' (default) "
+            "or 'board'. Read-only."
+        ),
+    )
+    def library_detail(library_id: str, kind: str = "component") -> dict:
+        return _run_library_detail({}, library, library_id=library_id, kind=kind)
+
     def recommend(
         query: str,
         limit: int = 10,
@@ -350,6 +369,71 @@ def _register_design_tools(
         result = _run_solve_pins(design, library)
         _save(rid, design)
         return result
+
+    @mcp.tool(
+        name="kicad_schematic",
+        description=(
+            "Emit the named design's KiCad schematic as a SKiDL Python script. "
+            "Read-only." + _DESIGN_ID_HINT
+        ),
+    )
+    def kicad_schematic(design_id: Optional[str] = None) -> dict:
+        rid, design = _load(design_id)
+        if design is None:
+            return _NO_DESIGN_ERROR
+        return _run_kicad_schematic(design, library)
+
+    @mcp.tool(
+        name="kicad_pcb",
+        description=(
+            "Emit the named design's KiCad .kicad_pcb and return a summary "
+            "(size, footprints, nets, routed). The actual board file is "
+            "downloaded via POST /design/kicad/pcb. Needs the KiCad libraries "
+            "on the server. Read-only." + _DESIGN_ID_HINT
+        ),
+    )
+    def kicad_pcb(design_id: Optional[str] = None) -> dict:
+        rid, design = _load(design_id)
+        if design is None:
+            return _NO_DESIGN_ERROR
+        return _run_kicad_pcb(design, library)
+
+    @mcp.tool(
+        name="fab_status",
+        description=(
+            "What fab outputs the server can produce: BOM always; CPL needs "
+            "the footprint libraries; Gerbers need kicad-cli. Read-only."
+        ),
+    )
+    def fab_status_tool() -> dict:
+        return _run_fab_status({}, library)
+
+    @mcp.tool(
+        name="fab_bom",
+        description=(
+            "Emit the named design's JLCPCB BOM (CSV, grouped by part). "
+            "Read-only." + _DESIGN_ID_HINT
+        ),
+    )
+    def fab_bom(design_id: Optional[str] = None) -> dict:
+        rid, design = _load(design_id)
+        if design is None:
+            return _NO_DESIGN_ERROR
+        return _run_fab_bom(design, library)
+
+    @mcp.tool(
+        name="fab_cpl",
+        description=(
+            "Emit the named design's JLCPCB CPL (pick-and-place, CSV). "
+            "Positions match the .kicad_pcb. Needs the footprint libraries. "
+            "Read-only." + _DESIGN_ID_HINT
+        ),
+    )
+    def fab_cpl(design_id: Optional[str] = None) -> dict:
+        rid, design = _load(design_id)
+        if design is None:
+            return _NO_DESIGN_ERROR
+        return _run_fab_cpl(design, library)
 
 
 def _register_active_tools(

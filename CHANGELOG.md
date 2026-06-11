@@ -7,8 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.0] — 2026-06-11
+
 ### Added
 
+- **Agent system payload slimmed (~10K tokens/turn) + `library_detail` tool.**
+  The agent's system block now carries a **compact library index**
+  (id / name / category / use_cases / aliases for components; id / name / mcu
+  for boards) instead of dumping every full pydantic model. The full card
+  (electrical metadata, `params_schema`, ESPHome template, KiCad block, pin
+  definitions) loads on demand via a new `library_detail` tool — exposed on
+  both the agent and the MCP server. Concrete win on 60 components: the
+  library block drops from ~178 KB / ~44,500 tokens to ~23 KB / ~5,900 tokens
+  per turn (**~87% reduction, ~38,600 tokens saved/turn**); the rest is
+  fetched only when the agent actually needs it. The prompt cache still
+  holds the slim block stable across turns.
+- **Agent + MCP tool coverage for PCB and fab outputs.** The agent's tool
+  surface and the MCP server gain `kicad_schematic`, `kicad_pcb` (returns a
+  summary, not the megabyte board text), `fab_status`, `fab_bom`, and
+  `fab_cpl` — so an agent (Claude Desktop / Claude Code over MCP, or the
+  Anthropic API agent) can now drive design → board → BOM/CPL/Gerber-status
+  end to end. Library-gated tools report `available: false` cleanly when the
+  server doesn't have the KiCad libraries.
 - **Fab outputs (Gerber / drill / CPL / BOM).** New `/design/fab/*` endpoints
   turn a design into a JLCPCB upload bundle: a **BOM** CSV (pure, grouped by
   part), a **CPL** pick-and-place CSV whose positions match the `.kicad_pcb`
