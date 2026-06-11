@@ -29,6 +29,7 @@ import math
 import os
 import re
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
@@ -226,6 +227,76 @@ def _indent(block: str, level: int) -> str:
     return "\n".join(pad + line if line else line for line in block.splitlines())
 
 
+@dataclass
+class Placement:
+    """One placed footprint: where it lands and what it is. Shared by the board
+    emitter and the CPL export so their positions agree."""
+    ref: str
+    footprint_ref: str
+    value: str
+    cx: float
+    cy: float
+    half_w: float
+    half_h: float
+    is_board: bool
+    mod_text: str
+
+
+def plan_placements(design: Design, library: Library, fp_dir: Path) -> list[Placement]:
+    """Resolve + shelf-pack the design's footprints (board first, then
+    components in design order) into non-overlapping cells. Raises ValueError
+    listing any footprint that doesn't resolve to a ``.kicad_mod``."""
+    refs = assign_refs(design, library)
+    entries: list[tuple[str, str, str, bool]] = []
+    try:
+        board = library.board(design.board.library_id)
+    except FileNotFoundError:
+        board = None
+    if board is not None and board.kicad is not None and board.kicad.footprint:
+        entries.append(
+            (refs[BOARD_KEY], board.kicad.footprint, board.kicad.value or board.id, True)
+        )
+    for c in design.components:
+        lib_comp = library.component(c.library_id)
+        if lib_comp.kicad is not None and lib_comp.kicad.footprint:
+            entries.append(
+                (refs[c.id], lib_comp.kicad.footprint, lib_comp.kicad.value or c.library_id, False)
+            )
+
+    loaded: list[tuple[str, str, str, bool, str, float, float]] = []
+    unresolved: list[str] = []
+    for ref, footprint_ref, value, is_board in entries:
+        mod = _mod_path(footprint_ref, fp_dir)
+        if not mod.is_file():
+            unresolved.append(f"{ref}: {footprint_ref}")
+            continue
+        text = mod.read_text()
+        hw, hh = _footprint_extent(text)
+        loaded.append((ref, footprint_ref, value, is_board, text, hw, hh))
+    if unresolved:
+        raise ValueError("footprints not found in the library: " + "; ".join(unresolved))
+
+    cols = max(1, math.ceil(math.sqrt(len(loaded))))
+    out: list[Placement] = []
+    cursor_x = _ORIGIN_MM
+    row_y = _ORIGIN_MM
+    row_max_h = 0.0
+    col = 0
+    for ref, footprint_ref, value, is_board, text, hw, hh in loaded:
+        if col >= cols:
+            cursor_x = _ORIGIN_MM
+            row_y += row_max_h + _GAP_MM
+            row_max_h = 0.0
+            col = 0
+        out.append(Placement(
+            ref, footprint_ref, value, cursor_x + hw, row_y + hh, hw, hh, is_board, text,
+        ))
+        cursor_x += 2 * hw + _GAP_MM
+        row_max_h = max(row_max_h, 2 * hh)
+        col += 1
+    return out
+
+
 def generate_kicad_pcb(
     design: Design, library: Library, *,
     footprint_dir: Optional[Path] = None, symbol_dir: Optional[Path] = None,
@@ -240,7 +311,6 @@ def generate_kicad_pcb(
     if fp_dir is None or sym_dir is None:
         raise PcbUnavailable(pcb_status()["reason"])
 
-    refs = assign_refs(design, library)
     nets = build_netlist(design, library)
     net_index = {net.name: i + 1 for i, net in enumerate(nets)}
 
@@ -260,64 +330,17 @@ def generate_kicad_pcb(
                     net_index[net.name], net.name,
                 )
 
-    # The placement order: board (M1) first, then components in design order.
-    placements: list[tuple[str, str, str]] = []  # (ref, footprint_ref, value)
-    try:
-        board = library.board(design.board.library_id)
-    except FileNotFoundError:
-        board = None
-    if board is not None and board.kicad is not None and board.kicad.footprint:
-        placements.append((
-            refs[BOARD_KEY], board.kicad.footprint, board.kicad.value or board.id,
-        ))
-    for c in design.components:
-        lib_comp = library.component(c.library_id)
-        if lib_comp.kicad is not None and lib_comp.kicad.footprint:
-            placements.append((
-                refs[c.id], lib_comp.kicad.footprint,
-                lib_comp.kicad.value or c.library_id,
-            ))
-
-    # Read footprints + measure them, surfacing any that don't resolve.
-    loaded: list[tuple[str, str, str, str, float, float]] = []
-    unresolved: list[str] = []
-    for ref, footprint_ref, value in placements:
-        mod = _mod_path(footprint_ref, fp_dir)
-        if not mod.is_file():
-            unresolved.append(f"{ref}: {footprint_ref}")
-            continue
-        text = mod.read_text()
-        hw, hh = _footprint_extent(text)
-        loaded.append((ref, footprint_ref, value, text, hw, hh))
-    if unresolved:
-        raise ValueError(
-            "footprints not found in the library: " + "; ".join(unresolved)
-        )
-
-    # Shelf-pack into rows sized to each footprint's bounding box + a gap, so
-    # nothing overlaps. Track the true extent for the board outline.
-    cols = max(1, math.ceil(math.sqrt(len(loaded))))
+    # Footprints, placed (board first) into non-overlapping cells.
+    placements = plan_placements(design, library, fp_dir)
     fp_blocks: list[str] = []
-    cursor_x = _ORIGIN_MM
-    row_y = _ORIGIN_MM
-    row_max_h = 0.0
-    col = 0
     bb_x = bb_y = 0.0
-    for ref, footprint_ref, value, text, hw, hh in loaded:
-        if col >= cols:
-            cursor_x = _ORIGIN_MM
-            row_y += row_max_h + _GAP_MM
-            row_max_h = 0.0
-            col = 0
-        cx, cy = cursor_x + hw, row_y + hh
+    for p in placements:
         fp_blocks.append(_embed_footprint(
-            text, footprint_ref, ref, value, cx, cy, pad_nets_by_ref.get(ref, {}),
+            p.mod_text, p.footprint_ref, p.ref, p.value, p.cx, p.cy,
+            pad_nets_by_ref.get(p.ref, {}),
         ))
-        bb_x = max(bb_x, cx + hw)
-        bb_y = max(bb_y, cy + hh)
-        cursor_x += 2 * hw + _GAP_MM
-        row_max_h = max(row_max_h, 2 * hh)
-        col += 1
+        bb_x = max(bb_x, p.cx + p.half_w)
+        bb_y = max(bb_y, p.cy + p.half_h)
 
     net_decls = '\t(net 0 "")\n' + "\n".join(
         f'\t(net {net_index[net.name]} "{net.name}")' for net in nets

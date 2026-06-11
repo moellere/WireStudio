@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Fab outputs (Gerber / drill / CPL / BOM).** New `/design/fab/*` endpoints
+  turn a design into a JLCPCB upload bundle: a **BOM** CSV (pure, grouped by
+  part), a **CPL** pick-and-place CSV whose positions match the `.kicad_pcb`
+  placement, and **Gerber + drill** via `kicad-cli` (gated like the schematic
+  render). `POST /design/fab/package` zips all four. `GET /design/fab/status`
+  reports what's available. Boards are unrouted until the Freerouting step, so
+  the Gerbers carry pads but no traces — `is_routed`/status flag that. The
+  KiCad export dialog gains a **Fab outputs** section (BOM / CPL / fab-package
+  buttons, each gated on what the server supports). The `pcb-drc` CI tier also
+  smoke-tests the Gerber export path.
+
 ## [0.14.0] — 2026-05-26
 
 ### Added

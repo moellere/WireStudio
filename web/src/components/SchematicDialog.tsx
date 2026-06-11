@@ -9,7 +9,7 @@
  */
 import { useEffect, useState } from "react";
 import { api, ApiError } from "../api/client";
-import type { Design, KicadPcbStatus, KicadRenderStatus } from "../types/api";
+import type { Design, FabStatus, KicadPcbStatus, KicadRenderStatus } from "../types/api";
 
 interface Props {
   design: Design;
@@ -22,6 +22,17 @@ function formatError(e: unknown): string {
     return `${e.status}: ${typeof detail === "string" ? detail : e.message}`;
   }
   return e instanceof Error ? e.message : String(e);
+}
+
+function saveBlob(part: BlobPart, filename: string, type: string) {
+  const url = URL.createObjectURL(new Blob([part], { type }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 export function SchematicDialog({ design, onClose }: Props) {
@@ -39,6 +50,10 @@ export function SchematicDialog({ design, onClose }: Props) {
   const [pcbDownloaded, setPcbDownloaded] = useState(false);
   const [pcbError, setPcbError] = useState<string | null>(null);
 
+  const [fabStatus, setFabStatus] = useState<FabStatus | null>(null);
+  const [fabBusy, setFabBusy] = useState<string | null>(null);
+  const [fabError, setFabError] = useState<string | null>(null);
+
   useEffect(() => {
     let live = true;
     api
@@ -54,6 +69,13 @@ export function SchematicDialog({ design, onClose }: Props) {
       .catch(() => live && setPcbStatus({
         available: false, footprints: false, symbols: false,
         reason: "pcb status unavailable",
+      }));
+    api
+      .fabStatus()
+      .then((s) => live && setFabStatus(s))
+      .catch(() => live && setFabStatus({
+        bom: true, cpl: false, gerbers: false, kicad_cli: false,
+        footprints: false, reason: "fab status unavailable",
       }));
     return () => {
       live = false;
@@ -123,6 +145,25 @@ export function SchematicDialog({ design, onClose }: Props) {
       setPcbError(formatError(e));
     } finally {
       setPcbDownloading(false);
+    }
+  }
+
+  const id = design.id ?? "design";
+
+  async function handleFab(
+    kind: string,
+    fetcher: () => Promise<string | Blob>,
+    filename: string,
+    type: string,
+  ) {
+    setFabBusy(kind);
+    setFabError(null);
+    try {
+      saveBlob(await fetcher(), filename, type);
+    } catch (e) {
+      setFabError(formatError(e));
+    } finally {
+      setFabBusy(null);
     }
   }
 
@@ -277,6 +318,54 @@ python ${design.id ?? "design"}.skidl.py
             {pcbError && (
               <div className="rounded-md border border-rose-700/40 bg-rose-900/15 px-2 py-1.5 text-xs text-rose-200">
                 {pcbError}
+              </div>
+            )}
+          </section>
+
+          {/* --- Fab outputs (BOM / CPL / Gerbers) --------------------- */}
+          <section className="space-y-2 border-t border-zinc-800 pt-3">
+            <div className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
+              Fab outputs
+            </div>
+            <p className="text-xs leading-relaxed text-zinc-400">
+              BOM + pick-and-place (CPL) for assembly, and a Gerber/drill bundle
+              for a board house. The board isn't routed yet, so the Gerbers have
+              pads but no traces — useful once routing lands (1.0 roadmap).
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => handleFab("bom", () => api.fabBom(design), `${id}-bom.csv`, "text/csv")}
+                disabled={fabBusy !== null}
+                className="rounded-md bg-zinc-800 px-3 py-1.5 text-sm text-zinc-100 ring-1 ring-zinc-700 enabled:hover:bg-zinc-700 disabled:opacity-40"
+              >
+                {fabBusy === "bom" ? "…" : "BOM .csv"}
+              </button>
+              <button
+                onClick={() => handleFab("cpl", () => api.fabCpl(design), `${id}-cpl.csv`, "text/csv")}
+                disabled={fabBusy !== null || !fabStatus?.cpl}
+                title={fabStatus && !fabStatus.cpl ? "Needs the footprint libraries on the server" : undefined}
+                className="rounded-md bg-zinc-800 px-3 py-1.5 text-sm text-zinc-100 ring-1 ring-zinc-700 enabled:hover:bg-zinc-700 disabled:opacity-40"
+              >
+                {fabBusy === "cpl" ? "…" : "CPL .csv"}
+              </button>
+              <button
+                onClick={() => handleFab("package", () => api.fabPackage(design), `${id}-fab.zip`, "application/zip")}
+                disabled={fabBusy !== null || !fabStatus?.gerbers}
+                title={fabStatus && !fabStatus.gerbers ? "Needs kicad-cli + the libraries on the server" : undefined}
+                className="rounded-md bg-blue-500/20 px-3 py-1.5 text-sm text-blue-100 ring-1 ring-blue-400/40 enabled:hover:bg-blue-500/30 disabled:opacity-40"
+              >
+                {fabBusy === "package" ? "Generating…" : "Fab package .zip →"}
+              </button>
+            </div>
+            {fabStatus && !fabStatus.gerbers && (
+              <div className="text-[11px] text-zinc-500">
+                Gerbers need <code className="text-zinc-300">kicad-cli</code> on the server
+                {fabStatus.reason && <span> ({fabStatus.reason})</span>}. BOM is always available.
+              </div>
+            )}
+            {fabError && (
+              <div className="rounded-md border border-rose-700/40 bg-rose-900/15 px-2 py-1.5 text-xs text-rose-200">
+                {fabError}
               </div>
             )}
           </section>
