@@ -17,3 +17,7 @@
 ## 2024-05-23 - Rules of Hooks Violation inside JSX IIFE
 **Learning:** Found a case in `CapabilityPickerDialog.tsx` where a `useMemo` was placed inside an immediately invoked function expression (IIFE) within the JSX return block. This IIFE had conditional early returns (e.g. `if (!activeQuery) return null;`) before the hook, causing a violation of the Rules of Hooks ("Rendered more hooks than during the previous render").
 **Action:** Never place React hooks inside inline functions, IIFEs, conditionals, or loops. Always keep hooks unconditionally at the top level of the component and use ternary fallbacks (like `matches ? matches.filter(...) : []`) to safely handle data dependencies that might be undefined or null early in the render cycle.
+
+## 2024-05-24 - Intermediate Array Allocation in Render Loops
+**Learning:** Chaining `.filter().map()` inside a frequently re-rendered list (like `pinNames.map()` inside `PinoutView.tsx` during drag-and-drop) allocates intermediate arrays for every item on every render, which creates unnecessary garbage collection pressure and hurts rendering performance.
+**Action:** Replace `.filter().map()` chains with a single `.map()` that returns `null` for filtered items, allowing React to skip rendering them without the overhead of intermediate array allocations.
