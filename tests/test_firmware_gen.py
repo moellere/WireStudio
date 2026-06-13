@@ -68,6 +68,24 @@ def test_join_eui_substituted(lib):
     assert "0x70b3d57ed0000000ULL" in cpp
 
 
+def test_oled_init_is_probed_and_non_blocking(lib):
+    # The onboard SSD1306 must not be able to wedge boot: probe for an I2C
+    # ACK before display.begin(), and gate the loop() refresh on readiness
+    # (issue #80 -- a held-low SDA hung begin() into a TG1WDT reboot).
+    cpp = generate_firmware(_design("ttgo-lora32-v1"), lib)["src/main.cpp"]
+    assert "Wire.setTimeOut(50);" in cpp
+    assert "Wire.endTransmission() == 0 && display.begin(" in cpp
+    assert "if (oledReady) {" in cpp
+
+
+def test_ttgo_v2_uses_v21_platformio_board(lib):
+    # v2.1 (T3 v1.6.1) is electrically identical to v1 but maps to its own
+    # PlatformIO board key.
+    out = generate_firmware(_design("ttgo-lora32-v2"), lib)
+    assert "board = ttgo-lora32-v21" in out["platformio.ini"]
+    assert "SX1276 radio = new Module(18, 26, 23, RADIOLIB_NC);" in out["src/main.cpp"]
+
+
 def test_non_radio_board_raises(lib):
     with pytest.raises(ValueError, match="no radio"):
         generate_firmware(_design("esp32-devkitc-v4"), lib)
