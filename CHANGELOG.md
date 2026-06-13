@@ -10,13 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **LoRaWAN firmware no longer boot-loops on a misbehaving onboard OLED**
-  (issue #80). The generated `main.cpp` bounds each I2C transaction
-  (`Wire.setTimeOut`) and probes for an SSD1306 ACK before calling
-  `display.begin()`, so an absent or differently-wired OLED (seen on some
-  TTGO LoRa32 T3 v1.6.1 units) is treated as best-effort instead of wedging
-  the bus until the interrupt watchdog (`TG1WDT`) reboots the board. The
-  `loop()` display refresh is gated on an `oledReady` flag so it doesn't
-  retry a missing panel every iteration.
+  (issue #80). On some TTGO LoRa32 T3 v1.6.1 units the onboard SSD1306 holds
+  SDA low at boot, wedging I2C bring-up until the interrupt watchdog
+  (`TG1WDT`) reboots the board before LoRaWAN provisioning can run — and a
+  transaction timeout does not rescue a bus already stuck low. The generated
+  `main.cpp` now performs **I2C bus recovery** before `Wire.begin()` (clocks
+  SCL up to 9 times to release a stuck SDA, then issues a STOP), runs the
+  OLED bus at 100 kHz, probes for an ACK before `display.begin()`, and gates
+  the `loop()` display refresh on an `oledReady` flag. Bring-up emits flushed
+  serial breadcrumbs (`WS_OLED_DEBUG`) so any residual hang is pinpointable.
 
 ### Added
 
@@ -24,6 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   mapping to PlatformIO board `ttgo-lora32-v21`. Electrically identical to
   `ttgo-lora32-v1`; the distinct profile lets the most common "TTGO LoRa32"
   hardware select its matching board key.
+- **`ttgo-lora32-v2-nooled` board profile** — same board with the onboard
+  OLED omitted, so the generator emits no display bring-up at all. A
+  guaranteed-boot escape hatch for units whose OLED wedges the I2C bus.
 
 ## [0.15.0] — 2026-06-11
 

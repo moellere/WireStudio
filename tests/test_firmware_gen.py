@@ -68,14 +68,27 @@ def test_join_eui_substituted(lib):
     assert "0x70b3d57ed0000000ULL" in cpp
 
 
-def test_oled_init_is_probed_and_non_blocking(lib):
-    # The onboard SSD1306 must not be able to wedge boot: probe for an I2C
-    # ACK before display.begin(), and gate the loop() refresh on readiness
-    # (issue #80 -- a held-low SDA hung begin() into a TG1WDT reboot).
+def test_oled_init_recovers_bus_and_is_non_blocking(lib):
+    # The onboard SSD1306 must not be able to wedge boot. A held-low SDA
+    # survives a transaction timeout, so recover the bus (clock SCL to release
+    # the slave) BEFORE Wire.begin(), then probe for an ACK before display
+    # init, and gate the loop() refresh on readiness (issue #80).
     cpp = generate_firmware(_design("ttgo-lora32-v1"), lib)["src/main.cpp"]
-    assert "Wire.setTimeOut(50);" in cpp
-    assert "Wire.endTransmission() == 0 && display.begin(" in cpp
+    assert "digitalRead(21) == LOW" in cpp  # bus-recovery checks a stuck SDA
+    assert "oledPresent = (Wire.endTransmission() == 0)" in cpp
+    assert "if (oledPresent && display.begin(" in cpp
     assert "if (oledReady) {" in cpp
+
+
+def test_nooled_board_emits_no_oled_code(lib):
+    # The OLED-disabled board profile must generate firmware with no display
+    # bring-up at all (issue #80 escape hatch).
+    out = generate_firmware(_design("ttgo-lora32-v2-nooled"), lib)
+    cpp = out["src/main.cpp"]
+    assert "display.begin(" not in cpp
+    assert "Adafruit_SSD1306" not in cpp
+    assert "board = ttgo-lora32-v21" in out["platformio.ini"]
+    assert "Adafruit SSD1306" not in out["platformio.ini"]  # lib dep dropped too
 
 
 def test_ttgo_v2_uses_v21_platformio_board(lib):

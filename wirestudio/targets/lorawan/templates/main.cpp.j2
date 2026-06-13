@@ -52,6 +52,15 @@ float dhtHumidity = 0.0;
 // Reset is pulsed explicitly in setup() (after Vext power-on), so pass -1 here.
 Adafruit_SSD1306 display(128, 64, &Wire, -1);
 bool oledReady = false;     // false when the OLED is absent/wedged; loop() skips it then
+// Serial breadcrumbs through OLED bring-up: each step prints + flushes before it
+// runs, so a hang shows up as "the last line you saw". Flip to 0 once the
+// bus-recovery path is confirmed on the target hardware.
+#define WS_OLED_DEBUG 1
+#if WS_OLED_DEBUG
+#define WSDBG(msg) do { Serial.println(msg); Serial.flush(); delay(5); } while (0)
+#else
+#define WSDBG(msg) do {} while (0)
+#endif
 {% endif %}
 
 // Pinned LoRaWAN parameters. The gateway is US915 sub-band 2; a mismatch makes
@@ -94,15 +103,38 @@ void setup() {
   digitalWrite({{ oled_reset }}, LOW);  delay(20);
   digitalWrite({{ oled_reset }}, HIGH);
 {% endif %}
+  // I2C bus recovery BEFORE handing the pins to Wire. An onboard SSD1306 that
+  // came up half-initialised can hold SDA low; that wedges Wire.begin() / the
+  // first transaction long enough to trip the interrupt watchdog (TG1WDT), and
+  // a transaction timeout does NOT rescue a bus already stuck low (this is why
+  // the earlier probe-with-timeout still boot-looped). Clock SCL up to 9 times
+  // to let the slave finish its byte and release SDA, then issue a STOP.
+  WSDBG("oled: bus-recover");
+  pinMode({{ oled_sda }}, INPUT_PULLUP);
+  pinMode({{ oled_scl }}, INPUT_PULLUP);
+  delay(1);
+  if (digitalRead({{ oled_sda }}) == LOW) {
+    pinMode({{ oled_scl }}, OUTPUT);
+    for (int i = 0; i < 9 && digitalRead({{ oled_sda }}) == LOW; i++) {
+      digitalWrite({{ oled_scl }}, LOW);  delayMicroseconds(5);
+      digitalWrite({{ oled_scl }}, HIGH); delayMicroseconds(5);
+    }
+    pinMode({{ oled_sda }}, OUTPUT);        // STOP: SDA low->high while SCL high
+    digitalWrite({{ oled_sda }}, LOW);  delayMicroseconds(5);
+    digitalWrite({{ oled_scl }}, HIGH); delayMicroseconds(5);
+    digitalWrite({{ oled_sda }}, HIGH); delayMicroseconds(5);
+    pinMode({{ oled_sda }}, INPUT_PULLUP);
+    pinMode({{ oled_scl }}, INPUT_PULLUP);
+  }
+  WSDBG("oled: wire-begin");
   Wire.begin({{ oled_sda }}, {{ oled_scl }});
-  Wire.setClock(400000);
-  Wire.setTimeOut(50);                  // ms; bound each I2C transaction (ESP32 core)
-  // A floating / held-low SDA (absent or differently-wired OLED, e.g. some
-  // TTGO LoRa32 T3 v1.6.1 units) would otherwise let display.begin() spin
-  // until the interrupt watchdog reboots the board (TG1WDT). Probe for an ACK
-  // first and only init when the OLED answers, so it's best-effort like radio.
+  Wire.setClock(100000);                 // 100 kHz: most tolerant of marginal onboard wiring
+  Wire.setTimeOut(50);                   // ms; bound each I2C transaction (ESP32 core)
+  WSDBG("oled: probe");
   Wire.beginTransmission({{ oled_addr }});
-  if (Wire.endTransmission() == 0 && display.begin(SSD1306_SWITCHCAPVCC, {{ oled_addr }})) {
+  bool oledPresent = (Wire.endTransmission() == 0);
+  WSDBG(oledPresent ? "oled: present" : "oled: absent");
+  if (oledPresent && display.begin(SSD1306_SWITCHCAPVCC, {{ oled_addr }})) {
     oledReady = true;
     display.clearDisplay();
     display.setTextSize(1);
@@ -113,6 +145,7 @@ void setup() {
   } else {
     Serial.println("OLED absent or init failed; continuing without display");
   }
+  WSDBG("oled: done");
 {% endif %}
 
   int16_t state = radio.begin();
