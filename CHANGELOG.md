@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **LoRaWAN firmware no longer boot-loops on a misbehaving onboard OLED**
+  (issue #80). The generated `main.cpp` bounds each I2C transaction
+  (`Wire.setTimeOut`) and probes for an SSD1306 ACK before calling
+  `display.begin()`, so an absent or differently-wired OLED (seen on some
+  TTGO LoRa32 T3 v1.6.1 units) is treated as best-effort instead of wedging
+  the bus until the interrupt watchdog (`TG1WDT`) reboots the board. The
+  `loop()` display refresh is gated on an `oledReady` flag so it doesn't
+  retry a missing panel every iteration.
+
+### Added
+
+- **`ttgo-lora32-v2` board profile** (LilyGO LoRa32 V2.1 / "T3 v1.6.1"),
+  mapping to PlatformIO board `ttgo-lora32-v21`. Electrically identical to
+  `ttgo-lora32-v1`; the distinct profile lets the most common "TTGO LoRa32"
+  hardware select its matching board key.
+
 ## [0.15.0] — 2026-06-11
 
 ### Added
