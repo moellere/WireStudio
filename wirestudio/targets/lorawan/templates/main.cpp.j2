@@ -51,6 +51,7 @@ float dhtHumidity = 0.0;
 {% if has_oled %}
 // Reset is pulsed explicitly in setup() (after Vext power-on), so pass -1 here.
 Adafruit_SSD1306 display(128, 64, &Wire, -1);
+bool oledReady = false;     // false when the OLED is absent/wedged; loop() skips it then
 {% endif %}
 
 // Pinned LoRaWAN parameters. The gateway is US915 sub-band 2; a mismatch makes
@@ -94,7 +95,15 @@ void setup() {
   digitalWrite({{ oled_reset }}, HIGH);
 {% endif %}
   Wire.begin({{ oled_sda }}, {{ oled_scl }});
-  if (display.begin(SSD1306_SWITCHCAPVCC, {{ oled_addr }})) {
+  Wire.setClock(400000);
+  Wire.setTimeOut(50);                  // ms; bound each I2C transaction (ESP32 core)
+  // A floating / held-low SDA (absent or differently-wired OLED, e.g. some
+  // TTGO LoRa32 T3 v1.6.1 units) would otherwise let display.begin() spin
+  // until the interrupt watchdog reboots the board (TG1WDT). Probe for an ACK
+  // first and only init when the OLED answers, so it's best-effort like radio.
+  Wire.beginTransmission({{ oled_addr }});
+  if (Wire.endTransmission() == 0 && display.begin(SSD1306_SWITCHCAPVCC, {{ oled_addr }})) {
+    oledReady = true;
     display.clearDisplay();
     display.setTextSize(1);
     display.setTextColor(SSD1306_WHITE);
@@ -102,7 +111,7 @@ void setup() {
     display.println("wirestudio");
     display.display();
   } else {
-    Serial.println("OLED init failed");
+    Serial.println("OLED absent or init failed; continuing without display");
   }
 {% endif %}
 
@@ -149,22 +158,24 @@ void loop() {
   while (GPSSerial.available()) gps.encode(GPSSerial.read());  // keep the fix current
 {% endif %}
 {% if has_oled %}
-  display.clearDisplay();
-  display.setCursor(0, 0);
+  if (oledReady) {
+    display.clearDisplay();
+    display.setCursor(0, 0);
 {% if has_gps %}
-  display.printf("Sats:%lu %s\n", (unsigned long) gps.satellites.value(),
-                 gps.location.isValid() ? "FIX" : "...");
-  display.printf("Lat: %.5f\n", gps.location.lat());
-  display.printf("Lon: %.5f\n", gps.location.lng());
+    display.printf("Sats:%lu %s\n", (unsigned long) gps.satellites.value(),
+                   gps.location.isValid() ? "FIX" : "...");
+    display.printf("Lat: %.5f\n", gps.location.lat());
+    display.printf("Lon: %.5f\n", gps.location.lng());
 {% endif %}
 {% if has_axp %}
-  display.printf("Batt: %u mV\n", batteryMv);
+    display.printf("Batt: %u mV\n", batteryMv);
 {% endif %}
 {% if has_dht %}
-  display.printf("Temp: %.1f C\n", dhtTempC);
+    display.printf("Temp: %.1f C\n", dhtTempC);
 {% endif %}
-  display.printf("LoRa: %s\n", node->isActivated() ? "joined" : "no join");
-  display.display();
+    display.printf("LoRa: %s\n", node->isActivated() ? "joined" : "no join");
+    display.display();
+  }
 {% endif %}
 
   static unsigned long lastTx = 0;
