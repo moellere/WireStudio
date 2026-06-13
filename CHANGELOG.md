@@ -9,14 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **LoRaWAN firmware no longer boot-loops on a misbehaving onboard OLED**
-  (issue #80). The generated `main.cpp` bounds each I2C transaction
-  (`Wire.setTimeOut`) and probes for an SSD1306 ACK before calling
-  `display.begin()`, so an absent or differently-wired OLED (seen on some
-  TTGO LoRa32 T3 v1.6.1 units) is treated as best-effort instead of wedging
-  the bus until the interrupt watchdog (`TG1WDT`) reboots the board. The
-  `loop()` display refresh is gated on an `oledReady` flag so it doesn't
-  retry a missing panel every iteration.
+- **LoRaWAN firmware boot-loop on TTGO LoRa32 (issue #80).** The TTGO
+  `ttgo-lora32-v1`/`-v2` profiles declared the onboard SSD1306 reset on
+  GPIO16. On these boards driving GPIO16 in the reset pulse wedges the chip
+  at boot — *before* `Wire.begin()` — so the interrupt watchdog reboots it in
+  a loop (`TG1WDT`), confirmed on hardware by serial bisection. The reset pin
+  is dropped from both profiles (the template already skips the pulse when no
+  reset pin is set; the SSD1306 self-resets on power-up). Heltec profiles keep
+  their GPIO reset, which is correct there. The generated `main.cpp` also
+  bounds the I2C bring-up (`Wire.setTimeOut` + ACK probe before
+  `display.begin()`, `loop()` gated on `oledReady`) so an absent or
+  differently-wired panel degrades gracefully rather than hanging.
 
 ### Added
 
