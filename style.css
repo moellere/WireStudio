@@ -309,7 +309,6 @@ a:hover { text-decoration: underline; }
   .hero { padding: 56px 0 44px; }
   .features, .how, .closing { padding: 56px 0; }
   .arrow { transform: rotate(90deg); }
-  .branch { grid-template-columns: 1fr; }
 }
 
 /* --- intent -> design -> run/build flow --------------------------------- */
@@ -385,3 +384,9 @@ a:hover { text-decoration: underline; }
   line-height: 1.7;
 }
 .flow-legend strong { color: var(--ink); font-weight: 700; }
+
+/* collapse the run/build branch to one column on narrow screens.
+   Defined after the base .branch rule so it wins on mobile. */
+@media (max-width: 760px) {
+  .branch { grid-template-columns: 1fr; }
+}
