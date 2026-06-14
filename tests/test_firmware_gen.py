@@ -78,6 +78,20 @@ def test_oled_init_is_probed_and_non_blocking(lib):
     assert "if (oledReady) {" in cpp
 
 
+def test_ttgo_omits_gpio16_oled_reset_pulse(lib):
+    # issue #80 root cause: driving GPIO16 as the OLED reset wedges the chip at
+    # boot on TTGO LoRa32, before Wire.begin(). The TTGO profiles carry no OLED
+    # reset pin, so no reset pulse is emitted -- but the OLED is still used.
+    for board in ("ttgo-lora32-v1", "ttgo-lora32-v2"):
+        cpp = generate_firmware(_design(board), lib)["src/main.cpp"]
+        assert "pinMode(16, OUTPUT)" not in cpp, board
+        assert "explicit reset pulse" not in cpp, board
+        assert "display.begin(" in cpp, board  # OLED still driven, just no reset
+    # Heltec keeps its GPIO16 reset -- correct/required on that board.
+    heltec = generate_firmware(_design("heltec-wifi-lora32-v2"), lib)["src/main.cpp"]
+    assert "pinMode(16, OUTPUT)" in heltec
+
+
 def test_ttgo_v2_uses_v21_platformio_board(lib):
     # v2.1 (T3 v1.6.1) is electrically identical to v1 but maps to its own
     # PlatformIO board key.
