@@ -19,7 +19,12 @@ default_buses:
 
 onboard_peripherals:
   lora_sx1276: {cs: GPIO18, rst: GPIO23, dio0: GPIO26}
-  oled_ssd1306: {address: "0x3C", reset: GPIO16}
+  # No OLED reset pin. GPIO16 is not a safe reset line on these TTGO LoRa32
+  # boards: driving it in the reset pulse wedges the chip at boot (hangs before
+  # Wire.begin, so the watchdog reboots -> TG1WDT loop). The SSD1306 self-resets
+  # on power-up and works without it. (Heltec boards DO need their GPIO reset;
+  # this is TTGO-specific.)
+  oled_ssd1306: {address: "0x3C"}
   battery_adc:  {pin: GPIO35, divider: 2.0}
   led:          {pin: GPIO25}
 
