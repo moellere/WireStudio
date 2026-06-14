@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>wirestudio — design ESPHome IoT devices, honestly</title>
-<meta name="description" content="wirestudio turns a single design.json into deterministic ESPHome YAML, a KiCad schematic, and a BOM — with a CSP pin solver, a verified-output gate, and an MCP server.">
+<title>wirestudio — design ESPHome, LoRaWAN &amp; KiCad IoT devices, honestly</title>
+<meta name="description" content="wirestudio turns a single design.json into deterministic ESPHome YAML, a KiCad schematic + PCB, an enclosure, and a BOM — plus it builds, flashes, and provisions LoRaWAN firmware (ChirpStack + Home Assistant). CSP pin solver, verified-output gates, MCP server.">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <meta property="og:title" content="wirestudio">
-<meta property="og:description" content="Design IoT devices, honestly. design.json in — ESPHome YAML, KiCad schematic, and BOM out, deterministically.">
+<meta property="og:description" content="Design IoT devices, honestly. design.json in — ESPHome YAML, KiCad schematic + PCB, enclosure, and BOM out; build/flash/provision LoRaWAN firmware with Home Assistant integration.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://wirestudio.io">
 <link rel="stylesheet" href="style.css">
@@ -34,8 +34,10 @@
       <h1>Design IoT devices, honestly.</h1>
       <p class="lede">
         wirestudio takes a single <code>design.json</code> and produces
-        deterministic ESPHome YAML, a KiCad schematic, and a bill of
-        materials. Same design in, same artifacts out — every time.
+        deterministic ESPHome YAML, a KiCad schematic + PCB, a 3D-printable
+        enclosure, and a bill of materials. A second target builds, flashes,
+        and provisions <strong>LoRaWAN</strong> firmware. Same design in,
+        same artifacts out — every time.
       </p>
       <div class="cta-row">
         <a class="btn btn-primary" href="https://github.com/moellere/wirestudio#getting-started">Get started</a>
@@ -47,16 +49,17 @@
         <pre><code><span class="c-prompt">$</span> wirestudio generate garage-motion.json
 <span class="c-ok">✓</span> garage-motion.yaml   <span class="c-dim">esphome config — passes</span>
 <span class="c-ok">✓</span> garage-motion.txt    <span class="c-dim">ascii pinout + BOM</span>
-<span class="c-ok">✓</span> garage-motion.skidl  <span class="c-dim">KiCad schematic script</span></code></pre>
+<span class="c-ok">✓</span> garage-motion.skidl  <span class="c-dim">KiCad schematic + PCB</span>
+<span class="c-ok">✓</span> ttgo-lora32.bin      <span class="c-dim">LoRaWAN firmware → WebSerial</span></code></pre>
       </div>
     </div>
   </section>
 
   <section class="stats">
     <div class="container stats-inner">
-      <div class="stat"><strong>56</strong><span>components</span></div>
-      <div class="stat"><strong>14</strong><span>boards</span></div>
-      <div class="stat"><strong>26</strong><span>example designs</span></div>
+      <div class="stat"><strong>60</strong><span>components</span></div>
+      <div class="stat"><strong>24</strong><span>boards</span></div>
+      <div class="stat"><strong>51</strong><span>example designs</span></div>
       <div class="stat"><strong>MCP</strong><span>ready</span></div>
     </div>
   </section>
@@ -81,10 +84,18 @@
         </article>
 
         <article class="card">
-          <h3>KiCad schematic export</h3>
-          <p>Emits a SKiDL script that builds a <code>.kicad_sch</code>
-          from the same netlist — no LLM placing wires, fully diffable
-          in git.</p>
+          <h3>KiCad schematic + PCB</h3>
+          <p>Emits a SKiDL script for a <code>.kicad_sch</code> and a
+          grid-placed <code>.kicad_pcb</code> with nets and board outline —
+          plus Gerber/drill/CPL/BOM for the fab. No LLM placing wires.</p>
+        </article>
+
+        <article class="card">
+          <h3>LoRaWAN + Home Assistant</h3>
+          <p>Builds RadioLib firmware for US915 radio boards, flashes it
+          over WebSerial, provisions the device against ChirpStack, and
+          surfaces its sensors + GPS as Home Assistant entities and a
+          map tracker.</p>
         </article>
 
         <article class="card">
@@ -107,6 +118,13 @@
           add-on for compile and OTA deploy with live log streaming.</p>
         </article>
 
+        <article class="card">
+          <h3>Local inventory</h3>
+          <p>Track parts on hand, cross-check a design's BOM against the
+          drawer (have / partial / need), and let the recommender prefer
+          parts you already own.</p>
+        </article>
+
       </div>
     </div>
   </section>
@@ -127,8 +145,10 @@
         <div class="node-outputs">
           <span>ESPHome YAML</span>
           <span>ASCII pinout</span>
-          <span>KiCad schematic</span>
+          <span>KiCad schematic + PCB</span>
+          <span>enclosure</span>
           <span>BOM</span>
+          <span>LoRaWAN firmware</span>
         </div>
       </div>
       <p class="how-note">
