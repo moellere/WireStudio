@@ -215,6 +215,10 @@ class ChirpStackClient:
             adr_algorithm_id="default",
             supports_otaa=True,
             uplink_interval=3600,
+            # Let ChirpStack register decoded payload keys as measurements (for
+            # its own metrics dashboards). The chirp2mqtt HA integration reads
+            # entities from the codec's getHaDeviceInfo, independent of this.
+            auto_detect_measurements=True,
         )
         if codec is not None:
             profile.payload_codec_runtime = m.dp.CodecRuntime.JS
