@@ -11,5 +11,6 @@
 # When you close a gap, remove the id from the matching section. When
 # you add a new library entry without an example, add its id here.
 
-components: []
+components:
+  - axp192
 boards: []

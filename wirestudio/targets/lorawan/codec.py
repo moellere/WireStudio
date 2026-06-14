@@ -30,65 +30,61 @@ BUILTIN_FIELDS: list[Field] = [
     {"name": "boot_count", "bytes": 2, "cpp_type": "uint16_t", "cpp_expr": "bootCount"},
 ]
 
-# Added when the board carries a `gps_neo6m` onboard peripheral. lat/lon are
-# scaled by 1e7 into signed int32 (standard LoRaWAN GPS encoding). With no fix,
-# TinyGPSPlus returns 0 -> sats=0 is the "no fix yet" indicator.
-GPS_FIELDS: list[Field] = [
-    {"name": "lat", "bytes": 4, "cpp_type": "int32_t",
-     "cpp_expr": "(int32_t)(gps.location.lat() * 10000000.0)", "signed": True, "scale": 1e7},
-    {"name": "lon", "bytes": 4, "cpp_type": "int32_t",
-     "cpp_expr": "(int32_t)(gps.location.lng() * 10000000.0)", "signed": True, "scale": 1e7},
-    {"name": "alt_m", "bytes": 2, "cpp_type": "int16_t",
-     "cpp_expr": "(int16_t)gps.altitude.meters()", "signed": True},
-    {"name": "sats", "bytes": 1, "cpp_type": "uint8_t",
-     "cpp_expr": "(uint8_t)gps.satellites.value()"},
-]
-
-# Added when the board carries an `axp192` PMIC. batteryMv is read in the loop.
-BATTERY_FIELDS: list[Field] = [
-    {"name": "batt_mv", "bytes": 2, "cpp_type": "uint16_t", "cpp_expr": "batteryMv"},
-]
-
-# Added when the design declares a `dht22`. Temperature signed int16 x100 (degC);
-# humidity uint8 (%). dhtTempC / dhtHumidity are read into globals in the loop.
-DHT_FIELDS: list[Field] = [
-    {"name": "temp_c", "bytes": 2, "cpp_type": "int16_t",
-     "cpp_expr": "(int16_t)(dhtTempC * 100.0)", "signed": True, "scale": 100},
-    {"name": "humidity", "bytes": 1, "cpp_type": "uint8_t", "cpp_expr": "(uint8_t)dhtHumidity"},
-]
 
 
-def sensors(design=None, library=None) -> dict:
-    """Which sensors a design has, from onboard peripherals + lorawan.* configs.
-    firmware_gen and the codec both use this, so they stay in lockstep.
-    Keys: gps, battery, dht, oled (oled is display-only, no payload field)."""
-    onboard: dict = {}
-    if design is not None and library is not None:
-        try:
-            onboard = library.board(design.board.library_id).onboard_peripherals or {}
-        except (FileNotFoundError, AttributeError):
-            onboard = {}
-    lw = getattr(design, "lorawan", None)
-    return {
-        "gps": ("gps_neo6m" in onboard) or (getattr(lw, "gps", None) is not None),
-        "battery": "axp192" in onboard,
-        "dht": getattr(lw, "dht22", None) is not None,
-        "oled": ("oled_ssd1306" in onboard) or (getattr(lw, "oled", None) is not None),
-    }
 
 
 def fields_for(design=None, library=None) -> list[Field]:
-    """Payload fields: built-in telemetry + GPS / battery / DHT when present."""
-    s = sensors(design, library)
+    """Payload fields: built-in telemetry + fields contributed by components."""
     fields = list(BUILTIN_FIELDS)
-    if s["gps"]:
-        fields += GPS_FIELDS
-    if s["battery"]:
-        fields += BATTERY_FIELDS
-    if s["dht"]:
-        fields += DHT_FIELDS
-    return fields
+    if design is None or library is None:
+        return fields
 
+    components = list(design.components)
+    board = library.board(design.board.library_id)
+    onboard = board.onboard_peripherals or {}
+    lw = getattr(design, "lorawan", None)
+
+    has_gps = any(c.library_id == "uart_gps" for c in components)
+    has_dht = any(c.library_id == "dht" for c in components)
+    has_axp = any(c.library_id == "axp192" for c in components)
+    has_oled = any(c.library_id == "ssd1306" for c in components)
+
+    if "gps_neo6m" in onboard or getattr(lw, "gps", None) is not None:
+        if not has_gps:
+            from wirestudio.model import Component
+            components.append(Component(id="gps", library_id="uart_gps", label="GPS"))
+
+    if "axp192" in onboard and not has_axp:
+        from wirestudio.model import Component
+        components.append(Component(id="axp192", library_id="axp192", label="PMIC"))
+
+    if getattr(lw, "dht22", None) is not None and not has_dht:
+        from wirestudio.model import Component
+        components.append(Component(id="dht1", library_id="dht", label="DHT"))
+
+    if "oled_ssd1306" in onboard or getattr(lw, "oled", None) is not None:
+        if not has_oled:
+            from wirestudio.model import Component
+            components.append(Component(id="oled", library_id="ssd1306", label="OLED"))
+
+    for comp_inst in components:
+        try:
+            lib_comp = library.component(comp_inst.library_id)
+            if lib_comp.lorawan and lib_comp.lorawan.fields:
+                for fld in lib_comp.lorawan.fields:
+                    fields.append({
+                        "name": f"{comp_inst.id}_{fld.name}",
+                        "bytes": fld.bytes,
+                        "cpp_type": fld.cpp_type,
+                        "cpp_expr": fld.cpp_expr.replace("{{ id }}", comp_inst.id),
+                        "signed": fld.signed,
+                        "scale": fld.scale
+                    })
+        except Exception:
+            pass
+
+    return fields
 
 def payload_size(fields: list[Field]) -> int:
     return sum(f["bytes"] for f in fields)
@@ -141,17 +137,48 @@ def generate_codec(design=None, library=None) -> str:
     return decode_js(fields_for(design, library))
 
 
-def profile_name(design=None, library=None) -> str:
-    """ChirpStack device-profile name for a design's payload shape. Distinct
-    payloads (board + attached sensors) get distinct profiles, so each carries
-    its own decodeUplink codec without clobbering another device type's."""
-    s = sensors(design, library)
-    board_id = getattr(getattr(design, "board", None), "library_id", "generic")
-    suffix = "".join(
-        tag for tag, on in (("-gps", s["gps"]), ("-batt", s["battery"]), ("-dht", s["dht"])) if on
-    )
-    return f"wirestudio-{board_id}-us915-sub2{suffix}"
 
+def profile_name(design=None, library=None) -> str:
+    """ChirpStack device-profile name for a design's payload shape."""
+    board_id = getattr(getattr(design, "board", None), "library_id", "generic")
+    suffix = ""
+    if design and library:
+        components = list(design.components)
+        board = library.board(design.board.library_id)
+        onboard = board.onboard_peripherals or {}
+        lw = getattr(design, "lorawan", None)
+
+        has_gps = any(c.library_id == "uart_gps" for c in components)
+        has_dht = any(c.library_id == "dht" for c in components)
+        has_axp = any(c.library_id == "axp192" for c in components)
+        has_oled = any(c.library_id == "ssd1306" for c in components)
+
+        if "gps_neo6m" in onboard or getattr(lw, "gps", None) is not None:
+            if not has_gps:
+                from wirestudio.model import Component
+                components.append(Component(id="gps", library_id="uart_gps", label="GPS"))
+
+        if "axp192" in onboard and not has_axp:
+            from wirestudio.model import Component
+            components.append(Component(id="axp192", library_id="axp192", label="PMIC"))
+
+        if getattr(lw, "dht22", None) is not None and not has_dht:
+            from wirestudio.model import Component
+            components.append(Component(id="dht1", library_id="dht", label="DHT"))
+
+        if "oled_ssd1306" in onboard or getattr(lw, "oled", None) is not None:
+            if not has_oled:
+                from wirestudio.model import Component
+                components.append(Component(id="oled", library_id="ssd1306", label="OLED"))
+
+        for comp_inst in components:
+            suffix += f"-{comp_inst.library_id}"
+
+    if len(suffix) > 30:
+        import hashlib
+        suffix = "-" + hashlib.md5(suffix.encode()).hexdigest()[:8]
+
+    return f"wirestudio-{board_id}-us915-sub2{suffix}"
 
 def builtin_codec() -> Optional[str]:
     return decode_js(BUILTIN_FIELDS)

@@ -60,43 +60,7 @@ def _radio_ctx(radio: Radio) -> dict:
     }
 
 
-def _sensor_ctx(design: Design, board) -> dict:
-    """Template flags + pins for onboard sensors, external GPS, DHT22, and OLED.
-    Kept in lockstep with codec.sensors (same onboard keys + lorawan.* configs)."""
-    onboard = board.onboard_peripherals or {}
-    i2c = (board.default_buses or {}).get("i2c", {})
-    lw = design.lorawan
-    onboard_gps = onboard.get("gps_neo6m")
-    external_gps = lw.gps if (lw and lw.gps) else None
-    onboard_oled = onboard.get("oled_ssd1306")
-    ctx = {
-        "has_gps": bool(onboard_gps or external_gps),
-        "has_axp": "axp192" in onboard,
-        "has_dht": bool(lw and lw.dht22),
-        "has_oled": bool(onboard_oled or (lw and lw.oled)),
-    }
-    if ctx["has_axp"]:
-        ctx["i2c_sda"] = _pin(i2c.get("sda"))
-        ctx["i2c_scl"] = _pin(i2c.get("scl"))
-    if onboard_gps:
-        # The peripheral's TX is the MCU's RX (and vice-versa).
-        ctx["gps_rx"] = _pin(onboard_gps.get("tx"))
-        ctx["gps_tx"] = _pin(onboard_gps.get("rx"))
-        ctx["gps_baud"] = onboard_gps.get("baud", 9600)
-    elif external_gps:
-        ctx["gps_rx"] = _pin(external_gps.rx_pin)
-        ctx["gps_tx"] = _pin(external_gps.tx_pin)
-        ctx["gps_baud"] = external_gps.baud
-    if ctx["has_dht"]:
-        ctx["dht_pin"] = _pin(lw.dht22.pin)
-    if ctx["has_oled"]:
-        p = onboard_oled or {}
-        ctx["oled_sda"] = _pin(p.get("sda") or i2c.get("sda"))
-        ctx["oled_scl"] = _pin(p.get("scl") or i2c.get("scl"))
-        ctx["oled_reset"] = _pin(p["reset"]) if p.get("reset") else None
-        ctx["oled_vext"] = _pin(p["vext"]) if p.get("vext") else None
-        ctx["oled_addr"] = p.get("address", "0x3C")
-    return ctx
+
 
 
 def generate_firmware(design: Design, library: Library) -> dict[str, str]:
@@ -127,6 +91,109 @@ def generate_firmware(design: Design, library: Library) -> dict[str, str]:
     # DR3 (SF7) = 242 B. Pick the lowest DR (longest range) that fits so the
     # first post-join uplink isn't rejected as too long; ADR tunes from there.
     min_datarate = 0 if size <= 11 else (1 if size <= 53 else 3)
+
+    components = list(design.components)
+
+    # Add onboard peripherals implicitly
+    onboard = board.onboard_peripherals or {}
+
+    has_gps = False
+    has_dht = False
+    has_oled = False
+    has_axp = False
+    for comp in components:
+        if comp.library_id == "uart_gps":
+            has_gps = True
+        elif comp.library_id == "dht":
+            has_dht = True
+        elif comp.library_id == "ssd1306":
+            has_oled = True
+        elif comp.library_id == "axp192":
+            has_axp = True
+
+    if "gps_neo6m" in onboard or getattr(lw, "gps", None) is not None:
+        if not has_gps:
+            from wirestudio.model import Component
+            gps_conf = getattr(lw, "gps", None)
+            params = {}
+            if gps_conf:
+                params = {"rx_pin": gps_conf.rx_pin, "tx_pin": gps_conf.tx_pin, "baud": gps_conf.baud}
+            elif "gps_neo6m" in onboard:
+                params = {"rx_pin": onboard["gps_neo6m"].get("tx"), "tx_pin": onboard["gps_neo6m"].get("rx"), "baud": onboard["gps_neo6m"].get("baud", 9600)}
+            components.append(Component(id="gps", library_id="uart_gps", label="GPS", params=params))
+
+    if "axp192" in onboard and not has_axp:
+        from wirestudio.model import Component
+        components.append(Component(id="axp192", library_id="axp192", label="PMIC"))
+
+    if getattr(lw, "dht22", None) is not None and not has_dht:
+        from wirestudio.model import Component
+        dht_conf = getattr(lw, "dht22", None)
+        components.append(Component(id="dht1", library_id="dht", label="DHT", params={"pin": dht_conf.pin, "model": "DHT22"}))
+
+    if "oled_ssd1306" in onboard or getattr(lw, "oled", None) is not None:
+        if not has_oled:
+            from wirestudio.model import Component
+            params = {}
+            if "oled_ssd1306" in onboard:
+                params = {"address": onboard["oled_ssd1306"].get("address", "0x3C")}
+                if onboard["oled_ssd1306"].get("reset"):
+                    params["reset_pin"] = onboard["oled_ssd1306"]["reset"]
+                if onboard["oled_ssd1306"].get("vext"):
+                    params["vext_pin"] = onboard["oled_ssd1306"]["vext"]
+            components.append(Component(id="oled", library_id="ssd1306", label="OLED", params=params))
+    component_lib_deps = []
+    component_requires = set()
+    component_globals = []
+    component_setup = []
+    component_loop = []
+
+    for comp_inst in components:
+        try:
+            lib_comp = library.component(comp_inst.library_id)
+            if lib_comp.lorawan:
+                lw_spec = lib_comp.lorawan
+                if lw_spec.lib_deps:
+                    for dep in lw_spec.lib_deps:
+                        if dep not in component_lib_deps:
+                            component_lib_deps.append(dep)
+                if lw_spec.requires:
+                    for req in lw_spec.requires:
+                        component_requires.add(req)
+
+                import jinja2
+                env = jinja2.Environment()
+
+                pins = {}
+                bus = None
+                for conn in design.connections:
+                    if conn.component_id == comp_inst.id:
+                        if conn.target.kind == "gpio":
+                            pins[conn.pin_role] = _pin(conn.target.pin)
+                        elif conn.target.kind == "bus":
+                            for b in design.buses:
+                                if b.id == conn.target.bus_id:
+                                    bus = {"id": b.id, "sda": _pin(getattr(b, "sda", None)), "scl": _pin(getattr(b, "scl", None)), "rx": _pin(getattr(b, "rx", None)), "tx": _pin(getattr(b, "tx", None))}
+                                    break
+
+                pin = pins.get("pin") or list(pins.values())[0] if pins else None
+
+                render_ctx = {"id": comp_inst.id, "label": comp_inst.label, "params": comp_inst.params, "pin": pin, "pins": pins, "bus": bus, "onboard": onboard, "board": board, "i2c_sda": _pin((board.default_buses or {}).get("i2c", {}).get("sda")), "i2c_scl": _pin((board.default_buses or {}).get("i2c", {}).get("scl"))}
+
+                if lw_spec.globals:
+                    component_globals.append(env.from_string(lw_spec.globals).render(**render_ctx))
+                if lw_spec.setup:
+                    component_setup.append(env.from_string(lw_spec.setup).render(**render_ctx))
+                if lw_spec.loop:
+                    component_loop.append(env.from_string(lw_spec.loop).render(**render_ctx))
+        except Exception:
+            pass
+
+    # get i2c_sda and i2c_scl for template setup
+    i2c = (board.default_buses or {}).get("i2c", {})
+    i2c_sda = _pin(i2c.get("sda"))
+    i2c_scl = _pin(i2c.get("scl"))
+
     ctx = {
         "device_name": device_name,
         "board": {
@@ -141,8 +208,14 @@ def generate_firmware(design: Design, library: Library) -> dict[str, str]:
         "payload_size": size,
         "min_datarate": min_datarate,
         "payload_pack": pack_cpp(fields),
+        "component_lib_deps": component_lib_deps,
+        "component_requires": list(component_requires),
+        "component_globals": "\n".join(component_globals),
+        "component_setup": "\n".join(component_setup),
+        "component_loop": "\n".join(component_loop),
+        "i2c_sda": i2c_sda,
+        "i2c_scl": i2c_scl,
         **_radio_ctx(board.radio),
-        **_sensor_ctx(design, board),
     }
     return {
         "platformio.ini": _jinja.get_template("platformio.ini.j2").render(**ctx),

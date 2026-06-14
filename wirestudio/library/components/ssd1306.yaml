@@ -22,6 +22,64 @@ electrical:
   passives:
   - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
 
+lorawan:
+  lib_deps:
+    - "adafruit/Adafruit SSD1306@^2.5.13"
+  requires:
+    - "i2c"
+  globals: |
+    #include <Adafruit_SSD1306.h>
+    // Reset is pulsed explicitly in setup() (after Vext power-on), so pass -1 here.
+    Adafruit_SSD1306 display(128, 64, &Wire, -1);
+    bool oledReady = false;     // false when the OLED is absent/wedged; loop() skips it then
+  setup: |
+      {%- if params.vext_pin is defined %}
+      pinMode({{ params.vext_pin }}, OUTPUT);
+      digitalWrite({{ params.vext_pin }}, LOW);  // Vext low = OLED power on
+      delay(100);                          // let the OLED rail settle before reset/init
+      {%- endif %}
+      {%- if pins.RESET is defined or params.reset_pin is defined %}
+      pinMode({{ pins.RESET | default(params.reset_pin) }}, OUTPUT);   // explicit reset pulse (Heltec sequence)
+      digitalWrite({{ pins.RESET | default(params.reset_pin) }}, HIGH); delay(1);
+      digitalWrite({{ pins.RESET | default(params.reset_pin) }}, LOW);  delay(20);
+      digitalWrite({{ pins.RESET | default(params.reset_pin) }}, HIGH);
+      {%- endif %}
+      // A floating / held-low SDA (absent or differently-wired OLED, e.g. some
+      // TTGO LoRa32 T3 v1.6.1 units) would otherwise let display.begin() spin
+      // until the interrupt watchdog reboots the board (TG1WDT). Probe for an ACK
+      // first and only init when the OLED answers, so it's best-effort like radio.
+      Wire.beginTransmission({{ params.address | default('0x3C') }});
+      if (Wire.endTransmission() == 0 && display.begin(SSD1306_SWITCHCAPVCC, {{ params.address | default('0x3C') }})) {
+        oledReady = true;
+        display.clearDisplay();
+        display.setTextSize(1);
+        display.setTextColor(SSD1306_WHITE);
+        display.setCursor(0, 0);
+        display.println("wirestudio");
+        display.display();
+      } else {
+        Serial.println("OLED absent or init failed; continuing without display");
+      }
+  loop: |
+      if (oledReady) {
+        display.clearDisplay();
+        display.setCursor(0, 0);
+      {%- if has_gps | default(false) %}
+        display.printf("Sats:%lu %s\n", (unsigned long) gps.satellites.value(),
+                       gps.location.isValid() ? "FIX" : "...");
+        display.printf("Lat: %.5f\n", gps.location.lat());
+        display.printf("Lon: %.5f\n", gps.location.lng());
+      {%- endif %}
+      {%- if has_axp | default(false) %}
+        display.printf("Batt: %u mV\n", batteryMv);
+      {%- endif %}
+      {%- if has_dht | default(false) %}
+        display.printf("Temp: %.1f C\n", dhtTempC);
+      {%- endif %}
+        display.printf("LoRa: %s\n", node->isActivated() ? "joined" : "no join");
+        display.display();
+      }
+
 esphome:
   required_components: [i2c]
   yaml_template: |
@@ -31,15 +89,15 @@ esphome:
         address: "{{ params.address | default('0x3C') }}"
         i2c_id: {{ bus.id }}
         id: {{ id }}
-    {%- if pins.RESET is defined %}
+      {%- if pins.RESET is defined %}
         reset_pin: {{ pins.RESET | tojson }}
-    {%- endif %}
-    {%- if params.update_interval is defined %}
+      {%- endif %}
+      {%- if params.update_interval is defined %}
         update_interval: {{ params.update_interval }}
-    {%- endif %}
-    {%- if params.lambda_ is defined %}
+      {%- endif %}
+      {%- if params.lambda_ is defined %}
         lambda: {{ params.lambda_ | tojson }}
-    {%- endif %}
+      {%- endif %}
 
 params_schema:
   address:
