@@ -26,7 +26,7 @@
 |    - ESP32-WROVER-CAM (Freenove-style)                                                                          |
 |    - ESP32 OV2640 / OV7670 / OV5640 camera  (cam)                                                               |
 |                                                                                                                 |
-|  Power: ~90mA typical, ~310mA peak (budget 800mA)  OK                                                           |
+|  Power: ~310mA typical, ~910mA peak (budget 1200mA)  OK                                                         |
 |                                                                                                                 |
 |  Warnings:                                                                                                      |
 |    [info] camera_fixed_pinout: WROVER-CAM camera pins are hardwired to the module; GPIO12/14/15 are boot-strap  |

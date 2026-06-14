@@ -26,7 +26,7 @@
 |    - Generic GPIO binary sensor  (btn)                                                 |
 |    - 1x 100nF capacitor                                                                |
 |                                                                                        |
-|  Power: ~5mA typical, ~15mA peak (budget 200mA)  OK                                    |
+|  Power: ~75mA typical, ~315mA peak (budget 400mA)  OK                                  |
 |                                                                                        |
 |  Warnings: none                                                                        |
 +----------------------------------------------------------------------------------------+

@@ -32,7 +32,7 @@
 |    - XPT2046 resistive touchscreen controller (SPI)  (touch)        |
 |    - 1x 100nF capacitor                                             |
 |                                                                     |
-|  Power: ~81mA typical, ~222mA peak (budget 500mA)  OK               |
+|  Power: ~211mA typical, ~722mA peak (budget 1000mA)  OK             |
 |                                                                     |
 |  Warnings: none                                                     |
 +---------------------------------------------------------------------+

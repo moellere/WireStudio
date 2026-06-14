@@ -28,7 +28,7 @@
 |    - Generic UART GPS module (NEO-6M / NEO-8M)  (onboard_gps)                                              |
 |    - Generic GPIO binary sensor  (onboard_button)                                                          |
 |                                                                                                            |
-|  Power: ~42mA typical, ~210mA peak (budget 500mA)  OK                                                      |
+|  Power: ~242mA typical, ~960mA peak (budget 1200mA)  OK                                                    |
 |                                                                                                            |
 |  Warnings:                                                                                                 |
 |    [info] onboard_unmapped: Onboard 'axp192' was not auto-added (no library component for it yet). Add it  |
