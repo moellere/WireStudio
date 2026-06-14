@@ -31,7 +31,7 @@
 |    - Generic GPIO binary sensor  (rfid_button)                                                                |
 |    - 2x 100nF capacitor                                                                                       |
 |                                                                                                               |
-|  Power: ~33mA typical, ~86mA peak (budget 500mA)  OK                                                          |
+|  Power: ~113mA typical, ~386mA peak (budget 500mA)  OK                                                        |
 |                                                                                                               |
 |  Warnings:                                                                                                    |
 |    [info] buzzer_in_extras: Piezo buzzer (esp8266_pwm output) and RTTTL block live in esphome_extras until a  |

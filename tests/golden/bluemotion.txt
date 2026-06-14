@@ -22,7 +22,7 @@
 |    - WS2812B addressable LED (NeoPixel)  (led1)                 |
 |    - 1x 100nF capacitor                                         |
 |                                                                 |
-|  Power: ~70mA typical, ~125mA peak (budget 500mA)  OK           |
+|  Power: ~150mA typical, ~425mA peak (budget 500mA)  OK          |
 |                                                                 |
 |  Warnings: none                                                 |
 +-----------------------------------------------------------------+

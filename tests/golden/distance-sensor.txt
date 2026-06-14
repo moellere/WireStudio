@@ -23,7 +23,7 @@
 |    - WS2812B addressable LED (NeoPixel)  (distancelight)                                           |
 |    - 1x 100nF capacitor                                                                            |
 |                                                                                                    |
-|  Power: ~35mA typical, ~90mA peak (budget 500mA)  OK                                               |
+|  Power: ~125mA typical, ~390mA peak (budget 500mA)  OK                                             |
 |                                                                                                    |
 |  Warnings:                                                                                         |
 |    [warn] echo_pin_5v: HC-SR04 ECHO is 5V; add a voltage divider to ESP8266 GPIO or use HC-SR04P.  |

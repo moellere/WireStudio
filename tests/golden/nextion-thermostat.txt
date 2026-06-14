@@ -27,7 +27,7 @@
 |    - 1x 100uF capacitor                                                                                        |
 |    - 2x 100nF capacitor                                                                                        |
 |                                                                                                                |
-|  Power: ~90mA typical, ~251mA peak (budget 800mA)  OK                                                          |
+|  Power: ~220mA typical, ~751mA peak (budget 800mA)  OK                                                         |
 |                                                                                                                |
 |  Warnings:                                                                                                     |
 |    [info] nextion_5v_supply: The Nextion's VCC rides the board's 5V rail (USB) -- a Nextion at full backlight  |
