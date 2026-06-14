@@ -5,6 +5,9 @@ chip_variant: esp32
 framework: arduino
 platformio_board: m5stack-atom
 flash_size_mb: 4
+# Onboard board draw at the input rail. ESP32 + I2S DAC + speaker + LED.
+current_ma_typical: 150
+current_ma_peak: 550
 image: https://shop.m5stack.com/cdn/shop/files/1_da8f77ce-1545-4a44-99c5-e82fd385cdc4_1200x1200.webp
 
 rails:

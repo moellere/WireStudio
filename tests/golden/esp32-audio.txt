@@ -40,7 +40,7 @@
 |    - 2x 100nF capacitor                                                                                     |
 |    - 1x 10uF capacitor                                                                                      |
 |                                                                                                             |
-|  Power: ~75mA typical, ~1490mA peak (budget 2000mA)  OK                                                     |
+|  Power: ~205mA typical, ~1990mA peak (budget 2000mA)  OK                                                    |
 |                                                                                                             |
 |  Warnings:                                                                                                  |
 |    [info] fonts_colors_in_extras: font definitions, color palette, status_led, time, and the system status  |

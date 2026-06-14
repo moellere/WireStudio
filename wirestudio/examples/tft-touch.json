@@ -5,51 +5,221 @@
   "description": "ESP32-DevKitC driving an ILI9341 SPI TFT with an XPT2046 resistive touch controller sharing the same SPI bus -- the classic cheap 2.4\" touch display. Distinct CS pins (display vs touch) and a touch IRQ line.",
   "created_at": "2026-05-23T00:00:00Z",
   "updated_at": "2026-05-23T00:00:00Z",
-
-  "board": { "library_id": "esp32-devkitc-v4", "mcu": "esp32", "framework": "arduino" },
-  "power": { "supply": "usb-5v", "rail_voltage_v": 5.0, "regulator": "onboard-ams1117", "budget_ma": 500 },
-
+  "board": {
+    "library_id": "esp32-devkitc-v4",
+    "mcu": "esp32",
+    "framework": "arduino"
+  },
+  "power": {
+    "supply": "usb-5v",
+    "rail_voltage_v": 5.0,
+    "regulator": "onboard-ams1117",
+    "budget_ma": 1000
+  },
   "requirements": [
-    { "id": "r1", "kind": "capability", "text": "render to an ILI9341 SPI TFT" },
-    { "id": "r2", "kind": "capability", "text": "read touch coordinates from an XPT2046 on the same SPI bus" }
+    {
+      "id": "r1",
+      "kind": "capability",
+      "text": "render to an ILI9341 SPI TFT"
+    },
+    {
+      "id": "r2",
+      "kind": "capability",
+      "text": "read touch coordinates from an XPT2046 on the same SPI bus"
+    }
   ],
-
   "components": [
-    { "id": "tft", "library_id": "ili9xxx", "label": "TFT", "role": "display",
-      "params": { "model": "ILI9341", "invert_colors": false, "rotation": "90" } },
-    { "id": "touch", "library_id": "xpt2046", "label": "Touch",
-      "params": { "calibration": { "x_min": 280, "x_max": 3860, "y_min": 340, "y_max": 3860 } } }
+    {
+      "id": "tft",
+      "library_id": "ili9xxx",
+      "label": "TFT",
+      "role": "display",
+      "params": {
+        "model": "ILI9341",
+        "invert_colors": false,
+        "rotation": "90"
+      }
+    },
+    {
+      "id": "touch",
+      "library_id": "xpt2046",
+      "label": "Touch",
+      "params": {
+        "calibration": {
+          "x_min": 280,
+          "x_max": 3860,
+          "y_min": 340,
+          "y_max": 3860
+        }
+      }
+    }
   ],
-
   "buses": [
-    { "id": "spi0", "type": "spi", "clk": "GPIO18", "mosi": "GPIO23", "miso": "GPIO19" }
+    {
+      "id": "spi0",
+      "type": "spi",
+      "clk": "GPIO18",
+      "mosi": "GPIO23",
+      "miso": "GPIO19"
+    }
   ],
-
   "connections": [
-    { "component_id": "tft", "pin_role": "VCC",       "target": { "kind": "rail", "rail": "3V3" } },
-    { "component_id": "tft", "pin_role": "GND",       "target": { "kind": "rail", "rail": "GND" } },
-    { "component_id": "tft", "pin_role": "SCK",       "target": { "kind": "bus",  "bus_id": "spi0" } },
-    { "component_id": "tft", "pin_role": "MOSI",      "target": { "kind": "bus",  "bus_id": "spi0" } },
-    { "component_id": "tft", "pin_role": "MISO",      "target": { "kind": "bus",  "bus_id": "spi0" } },
-    { "component_id": "tft", "pin_role": "CS",        "target": { "kind": "gpio", "pin": "GPIO5" } },
-    { "component_id": "tft", "pin_role": "DC",        "target": { "kind": "gpio", "pin": "GPIO16" } },
-    { "component_id": "tft", "pin_role": "RESET",     "target": { "kind": "gpio", "pin": "GPIO17" } },
-    { "component_id": "tft", "pin_role": "BACKLIGHT", "target": { "kind": "rail", "rail": "3V3" } },
-
-    { "component_id": "touch", "pin_role": "VCC",  "target": { "kind": "rail", "rail": "3V3" } },
-    { "component_id": "touch", "pin_role": "GND",  "target": { "kind": "rail", "rail": "GND" } },
-    { "component_id": "touch", "pin_role": "SCK",  "target": { "kind": "bus",  "bus_id": "spi0" } },
-    { "component_id": "touch", "pin_role": "MOSI", "target": { "kind": "bus",  "bus_id": "spi0" } },
-    { "component_id": "touch", "pin_role": "MISO", "target": { "kind": "bus",  "bus_id": "spi0" } },
-    { "component_id": "touch", "pin_role": "CS",   "target": { "kind": "gpio", "pin": "GPIO21" } },
-    { "component_id": "touch", "pin_role": "IRQ",  "target": { "kind": "gpio", "pin": "GPIO22" } }
+    {
+      "component_id": "tft",
+      "pin_role": "VCC",
+      "target": {
+        "kind": "rail",
+        "rail": "3V3"
+      }
+    },
+    {
+      "component_id": "tft",
+      "pin_role": "GND",
+      "target": {
+        "kind": "rail",
+        "rail": "GND"
+      }
+    },
+    {
+      "component_id": "tft",
+      "pin_role": "SCK",
+      "target": {
+        "kind": "bus",
+        "bus_id": "spi0"
+      }
+    },
+    {
+      "component_id": "tft",
+      "pin_role": "MOSI",
+      "target": {
+        "kind": "bus",
+        "bus_id": "spi0"
+      }
+    },
+    {
+      "component_id": "tft",
+      "pin_role": "MISO",
+      "target": {
+        "kind": "bus",
+        "bus_id": "spi0"
+      }
+    },
+    {
+      "component_id": "tft",
+      "pin_role": "CS",
+      "target": {
+        "kind": "gpio",
+        "pin": "GPIO5"
+      }
+    },
+    {
+      "component_id": "tft",
+      "pin_role": "DC",
+      "target": {
+        "kind": "gpio",
+        "pin": "GPIO16"
+      }
+    },
+    {
+      "component_id": "tft",
+      "pin_role": "RESET",
+      "target": {
+        "kind": "gpio",
+        "pin": "GPIO17"
+      }
+    },
+    {
+      "component_id": "tft",
+      "pin_role": "BACKLIGHT",
+      "target": {
+        "kind": "rail",
+        "rail": "3V3"
+      }
+    },
+    {
+      "component_id": "touch",
+      "pin_role": "VCC",
+      "target": {
+        "kind": "rail",
+        "rail": "3V3"
+      }
+    },
+    {
+      "component_id": "touch",
+      "pin_role": "GND",
+      "target": {
+        "kind": "rail",
+        "rail": "GND"
+      }
+    },
+    {
+      "component_id": "touch",
+      "pin_role": "SCK",
+      "target": {
+        "kind": "bus",
+        "bus_id": "spi0"
+      }
+    },
+    {
+      "component_id": "touch",
+      "pin_role": "MOSI",
+      "target": {
+        "kind": "bus",
+        "bus_id": "spi0"
+      }
+    },
+    {
+      "component_id": "touch",
+      "pin_role": "MISO",
+      "target": {
+        "kind": "bus",
+        "bus_id": "spi0"
+      }
+    },
+    {
+      "component_id": "touch",
+      "pin_role": "CS",
+      "target": {
+        "kind": "gpio",
+        "pin": "GPIO21"
+      }
+    },
+    {
+      "component_id": "touch",
+      "pin_role": "IRQ",
+      "target": {
+        "kind": "gpio",
+        "pin": "GPIO22"
+      }
+    }
   ],
-
   "passives": [
-    { "id": "c1", "kind": "capacitor", "value": "100nF", "between": ["tft.VCC", "GND"], "purpose": "decoupling tft" }
+    {
+      "id": "c1",
+      "kind": "capacitor",
+      "value": "100nF",
+      "between": [
+        "tft.VCC",
+        "GND"
+      ],
+      "purpose": "decoupling tft"
+    }
   ],
   "warnings": [],
-  "esphome_extras": { "captive_portal": {}, "logger": {} },
-  "fleet": { "device_name": "tft-touch", "tags": ["indoor", "display"],
-    "secrets_ref": { "wifi_ssid": "!secret wifi_ssid", "wifi_password": "!secret wifi_password", "api_key": "!secret api_key" } }
+  "esphome_extras": {
+    "captive_portal": {},
+    "logger": {}
+  },
+  "fleet": {
+    "device_name": "tft-touch",
+    "tags": [
+      "indoor",
+      "display"
+    ],
+    "secrets_ref": {
+      "wifi_ssid": "!secret wifi_ssid",
+      "wifi_password": "!secret wifi_password",
+      "api_key": "!secret api_key"
+    }
+  }
 }

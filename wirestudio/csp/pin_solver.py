@@ -505,10 +505,11 @@ def _static_warnings(
                 text=f"expander {ex} pin {n} is targeted by: {', '.join(users)}",
             ))
 
-    # Current budget.
+    # Current budget. Board's own draw is added so a Wi-Fi MCU's ~70-300 mA
+    # isn't invisible; see LibraryBoard.current_ma_* for the convention.
     budget = (design.get("power") or {}).get("budget_ma")
     if budget:
-        peak = sum(
+        peak = (board.current_ma_peak or 0) + sum(
             (lib.electrical.current_ma_peak or 0)
             for lib in library_components.values()
         )
