@@ -130,14 +130,14 @@ export function PinoutView({
                 >
                   <span className="w-14 shrink-0 font-mono">{pin}</span>
                   <div className="flex flex-1 flex-wrap items-center gap-1">
-                    {SPECIAL_BADGES.filter((b) => caps.includes(b.tag)).map((b) => (
+                    {SPECIAL_BADGES.map((b) => caps.includes(b.tag) ? (
                       <span
                         key={b.tag}
                         className={`rounded-md border px-1 text-[10px] uppercase tracking-wide ${b.tone}`}
                       >
                         {b.label}
                       </span>
-                    ))}
+                    ) : null)}
                     {heldHere && (
                       <span className="ml-auto text-[10px] text-emerald-300">
                         ← {heldHere}
