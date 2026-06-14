@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Power budget ignored the board's own draw.** Every Wi-Fi MCU's ~70-300 mA
+  active current was invisible to the budget check; `LibraryBoard` had no
+  current fields, and both budget callsites (`csp/pin_solver.py`,
+  `generate/ascii_gen.py`) only summed `design.components`. Result: a bare D1
+  Mini design reported `~0mA peak`. `LibraryBoard` now carries
+  `current_ma_typical` + `current_ma_peak` (Wi-Fi associated active / TX burst,
+  datasheet-sourced per MCU family with per-board overhead for USB-UART, LDO,
+  status LEDs, onboard radios / displays / PMIC). All 23 bundled boards are
+  annotated; both budget paths include the board's draw. Bumped
+  `power.budget_ma` on the 24 examples whose budgets were silently low because
+  the board was uncounted, and refreshed the ASCII goldens.
+
 ## [0.16.0] — 2026-06-14
 
 ### Fixed

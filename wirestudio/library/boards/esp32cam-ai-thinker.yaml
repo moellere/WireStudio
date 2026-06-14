@@ -5,6 +5,9 @@ chip_variant: esp32
 framework: arduino
 platformio_board: esp32cam
 flash_size_mb: 4
+# Onboard board draw at the input rail. ESP32 + OV2640 camera (~70 mA active).
+current_ma_typical: 220
+current_ma_peak: 600
 
 rails:
   - {name: "5V",  voltage: 5.0, source: usb}

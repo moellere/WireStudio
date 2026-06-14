@@ -5,6 +5,9 @@ chip_variant: esp32s3
 framework: arduino
 platformio_board: esp32-s3-devkitc-1
 flash_size_mb: 8
+# Onboard board draw at the input rail. ESP32-S3 minimal Atom; no display.
+current_ma_typical: 120
+current_ma_peak: 355
 image: https://static-cdn.m5stack.com/resource/docs/products/core/AtomS3%20Lite/img-dc6432b6-fd9b-4066-9a4d-49786503d1a3.webp
 
 rails:

@@ -16,7 +16,7 @@
 |    - ESP32 RMT-driven addressable LED strip (WS2812 / SK6812)  (onboard_led)                  |
 |    - Generic GPIO binary sensor  (onboard_button)                                             |
 |                                                                                               |
-|  Power: ~20mA typical, ~60mA peak (budget 500mA)  OK                                          |
+|  Power: ~150mA typical, ~415mA peak (budget 500mA)  OK                                        |
 |                                                                                               |
 |  Warnings: none                                                                               |
 +-----------------------------------------------------------------------------------------------+
