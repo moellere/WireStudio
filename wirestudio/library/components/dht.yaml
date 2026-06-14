@@ -19,6 +19,35 @@ electrical:
   passives:
     - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
 
+lorawan:
+  lib_deps:
+    - "adafruit/DHT sensor library@^1.4.6"
+  globals: |
+    #include <DHT.h>
+    DHT {{ id }}_dht({{ pin | default(pins.DATA) | default(params.pin) }}, {{ params.model | default('DHT22') }});
+    float {{ id }}_tempC = 0.0;
+    float {{ id }}_humidity = 0.0;
+  setup: |
+    {{ id }}_dht.begin();
+  loop: |
+    {
+      float _t = {{ id }}_dht.readTemperature();
+      float _h = {{ id }}_dht.readHumidity();
+      if (!isnan(_t)) {{ id }}_tempC = _t;
+      if (!isnan(_h)) {{ id }}_humidity = _h;
+    }
+  fields:
+    - name: temp_c
+      bytes: 2
+      cpp_type: int16_t
+      cpp_expr: (int16_t)({{ id }}_tempC * 100.0)
+      signed: true
+      scale: 100.0
+    - name: humidity
+      bytes: 1
+      cpp_type: uint8_t
+      cpp_expr: (uint8_t){{ id }}_humidity
+
 esphome:
   required_components: []
   yaml_template: |

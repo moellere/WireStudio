@@ -1130,6 +1130,35 @@ Sister project to `weirded/fleet-for-esphome`. Knowledge base seeded from
   hybrid plan): ESPHome integrations for YAML schema, PlatformIO board JSON
   for board metadata, hand-curation + LLM-extracted datasheet data for the
   electrical layer ESPHome doesn't carry.
+- **Framework axis (1.x).** `Design.target` selects a *framework* — the
+  firmware/runtime a device compiles to (`esphome`, `lorawan`, later
+  `mythings` / `ttn`). Orthogonal to it sit two more pluggable roles: the
+  **build backend** (artifact → binary / validated config: in-pod PlatformIO
+  vs a remote agent vs the fleet-for-esphome handoff) and the **connectivity /
+  network-server backend** (provision / flash / monitor; for LoRaWAN this is
+  ChirpStack vs TTN vs Helium — same firmware, different device registration +
+  codec upload). Keeping these three axes separate is what makes a new
+  framework or a new network server additive instead of a rewrite. Do not
+  model TTN as a peer of `esphome`/`lorawan`: it's a network-server backend
+  *under* the lorawan framework.
+- **Library is framework-pluggable; the electrical core is shared.** A
+  `library/components/<id>.yaml` splits into a framework-agnostic core
+  (`electrical:`, `kicad:`, `params_schema`, `use_cases`, `aliases`) and one
+  codegen block per framework (`esphome:`, `lorawan:`, …). Component
+  selection, the CSP pin solver, enclosure search, and PCB layout consume
+  *only* the core, so the first ~80% of the build flow (select → wire →
+  enclose → PCB) is framework-neutral; only generate → build → flash branch on
+  the target. A component carrying no block for a framework is simply not
+  offered for that target (a Tuya cloud switch has no LoRaWAN meaning).
+- **Fleet build for LoRaWAN: deferred (low priority).** fleet-for-esphome's
+  worker (`ghcr.io/weirded/esphome-dist-client`) has a PlatformIO toolchain —
+  but only transitively, under ESPHome, and every build path runs
+  `esphome run|compile|config|upload <yaml>`; there is no generic `pio run`
+  job type and the job bundle is an ESPHome YAML project. Rather than teach
+  the upstream worker a new job type, LoRaWAN keeps its in-pod compile worker
+  (`targets/lorawan/compile.py`). Remote LoRaWAN build agents are a later
+  backend branch selected by framework type, not a prerequisite — pursue only
+  if in-pod compile becomes a bottleneck.
 
 ## Phasing
 
@@ -1285,6 +1314,58 @@ immediate way in and the agent (when it arrives) lands in a working surface.
 
 - **Future — KiCad PCB layout.** Reuse the schematic's netlist;
   Freerouting for autorouting; Gerber + JLCPCB CPL/BOM export.
+
+- **1.x — Framework integration.** The `lorawan` target shipped (RadioLib +
+  LoRaWAN_ESP32, ChirpStack provisioning, WebSerial flash) but as a bolt-on:
+  it reuses none of the component library's per-component codegen and instead
+  hardcodes a four-sensor set (GPS / AXP192 battery / DHT22 / OLED) into
+  `targets/lorawan/codec.py` (`*_FIELDS` lists) and `templates/main.cpp.j2`.
+  This phase makes LoRaWAN a first-class peer of ESPHome and lays the rails
+  for future frameworks (MyThings, TTN). Five sub-phases; A→B carry the
+  leverage (schema + a generator refactor, little new infrastructure):
+
+  - **A — Kill the bolt-on (library codegen blocks).** Add a per-framework
+    codegen block to `library/components/<id>.yaml` (schema in *Component
+    library file → per-framework codegen blocks* below). Migrate the four
+    hardcoded sensors into `lorawan:` blocks that contribute payload
+    `Field`s + setup/loop C++ + `lib_deps`. `codec.py` then assembles the
+    payload **and** the matching ChirpStack/TTN `decodeUplink` from whatever
+    components a design carries (preserving today's pack/decode lockstep),
+    instead of from four module-level lists. (This supersedes the
+    hardcoded-sensor approach in `docs/lorawan/LORAWAN_TARGET_PLAN.md` §6/§9,
+    which was the original bolt-on plan — that doc stays as the provisioning /
+    ChirpStack / OTAA reference, which phase A does not change.) The firmware
+    generator walks
+    `design.components` / `buses` / `connections` — the same inventory the
+    ESPHome generator uses — rather than `board.onboard_peripherals` +
+    `lorawan.*` configs. Outcome: expanding the LoRaWAN sensor set is a
+    library-file edit, at parity with ESPHome. (`design.lorawan.gps/dht22/
+    oled` stay accepted as sugar but lower to library components internally.)
+
+  - **B — Formalize the axis.** Promote `generate(design, library) ->
+    dict[str, str]` onto `TargetPlugin` (the seam `targets/base.py` defers
+    "until a second generator forces it" — it's forced now); route the
+    `esphome` target through it too, retiring its special-case in the API.
+    The UI framework selector filters *both* boards and components by
+    framework capability (a component appears iff it carries a block for the
+    selected framework).
+
+  - **C — Build-backend protocol.** Extract a build-backend `Protocol`
+    (enqueue → poll log → fetch artifact, mirroring `FleetClient`'s shape)
+    with the in-pod `targets/lorawan/compile.py` behind a *local* impl and
+    the fleet-for-esphome handoff behind a *remote* impl for esphome. Remote
+    LoRaWAN build agents slot in here later as a second impl (deferred per
+    the locked decision above).
+
+  - **D — Network-server backends.** Put ChirpStack + TTN behind one
+    provision/codec interface under the lorawan framework; region support
+    beyond US915 sub-band 2. The firmware is identical across network
+    servers; only device registration and codec upload differ
+    (ChirpStack gRPC vs TTN REST).
+
+  - **E — Future frameworks.** A new framework (e.g. MyThings) drops in as a
+    codegen plugin + per-component library blocks + (if it's a payload/LPWAN
+    framework) a network-server backend. No core-flow changes.
 
 The UI-first ordering means 0.5's agent and 0.6's solver each have a
 visible place to land. If the agent lands first (alternative ordering),
@@ -1493,6 +1574,99 @@ params_schema:
 
 notes: "3V3 only. On 5V boards, place behind level shifter or use 3V3 rail."
 ​```
+
+### Per-framework codegen blocks (1.x phase A — draft)
+
+Today a component file carries exactly one codegen block, `esphome:`. To make
+LoRaWAN (and later frameworks) reuse the same inventory, generalise to **one
+codegen block per framework**, keyed by the framework id. The split:
+
+- **Framework-agnostic core** (unchanged, shared by every target and by the
+  CSP solver / enclosure / KiCad layers): `id`, `name`, `category`,
+  `use_cases`, `aliases`, `electrical:`, `params_schema`, `kicad:`, `notes`.
+- **Codegen blocks** (one per framework, all optional): `esphome:` keeps its
+  current shape verbatim (no migration of existing files needed); `lorawan:`
+  is new. A component offered for framework *F* iff it has block *F*. The
+  target's `board_ids()` already filters boards; the analogous component
+  filter (`component_ids(framework)`) is added in phase B.
+
+ESPHome is declarative (one merged YAML fragment); LoRaWAN firmware is
+imperative C++ **plus** an uplink-payload contract. So the `lorawan:` block
+contributes code fragments at named insertion points in the firmware project,
+not a single template:
+
+​```yaml
+# library/components/dht.yaml  (illustrative)
+lorawan:
+  lib_deps:                       # appended to platformio.ini (deduped)
+    - "adafruit/DHT sensor library@^1.4.6"
+  requires: []                    # shared init fragments emitted once: i2c|spi
+                                  # (driven from design.buses where possible)
+  globals: |                      # file-scope C++; rendered per instance
+    DHT {{ id }}_dht({{ pin }}, DHT22);
+    float {{ id }}_temp = NAN, {{ id }}_humidity = NAN;
+  setup: |                        # inside setup(), after bus init
+    {{ id }}_dht.begin();
+  loop: |                         # inside sample(), before the payload is packed
+    {{ id }}_temp = {{ id }}_dht.readTemperature();
+    {{ id }}_humidity = {{ id }}_dht.readHumidity();
+  fields:                         # payload contribution; drives BOTH pack_cpp
+    - name: temp_c                # (firmware) and decode_js (ChirpStack codec)
+      bytes: 2
+      cpp_type: int16_t
+      cpp_expr: "(int16_t)({{ id }}_temp * 100.0)"
+      signed: true
+      scale: 100
+    - name: humidity
+      bytes: 1
+      cpp_type: uint8_t
+      cpp_expr: "(uint8_t){{ id }}_humidity"
+  downlink: null                  # optional: a C++ handler fragment for
+                                  # actuators that consume downlink bytes
+​```
+
+Render contract (the generator passes this Jinja context per component
+instance, mirroring how the ESPHome template gets `bus` / `params` / `label`):
+
+- `id` — the component instance id from `design.components[].id`, used to
+  **namespace** every global, so two of the same part don't collide. Field
+  names are likewise namespaced by the generator (`<id>_temp_c`) before they
+  reach `pack_cpp` / `decode_js`, so the codec exposes `dht1.temp_c` vs
+  `dht2.temp_c` distinctly.
+- `label`, `params` — as in the ESPHome template.
+- `pin` / `pins` — resolved from `design.connections` for this instance
+  (bare Arduino ints, via the existing `_pin()` helper that strips `GPIO`).
+- `bus` — the resolved bus (sda/scl or mosi/miso/clk/cs) when the component
+  attaches to one; `requires: [i2c]` makes the generator emit the bus init
+  once for all I2C components rather than per component.
+
+`Field` is the existing `codec.Field` TypedDict (name / bytes / cpp_type /
+cpp_expr / signed / scale) — the schema doesn't change, it just moves from
+hardcoded module lists into the library. `BUILTIN_FIELDS` (uptime, boot_count)
+stay a framework-level contribution, not per-component.
+
+Generator changes this implies (phase A work, not done yet):
+
+- `firmware_gen.generate_firmware` walks `design.components` and renders each
+  one's `lorawan:` fragments into the four insertion points in
+  `main.cpp.j2` (`{globals}`, `{setup}`, `{loop_sample}`, `{payload_pack}`),
+  replacing the current `has_gps`/`has_dht`/`has_oled` conditionals.
+- `codec.fields_for(design, library)` collects `fields` from each component's
+  block (namespaced) + `BUILTIN_FIELDS`, replacing the `GPS_FIELDS` /
+  `BATTERY_FIELDS` / `DHT_FIELDS` constants. `pack_cpp` / `decode_js` are
+  unchanged — they already consume a `list[Field]`.
+- Validation at the boundary: a `lorawan:` block referencing a `bus` the
+  design doesn't define, or a payload that exceeds the region's max app
+  payload for the lowest data rate, surfaces a `DesignWarning` (permissive
+  mode) rather than failing generation.
+- Back-compat: the four migrated sensors gain real `library/components/*.yaml`
+  `lorawan:` blocks (DHT22 → extend `dht.yaml`; GPS → `uart_gps.yaml`; OLED →
+  `ssd1306.yaml`; AXP192 battery → a new `axp192.yaml`). `design.lorawan.gps/
+  dht22/oled` keep working by lowering to those components during load.
+
+Golden tests: add LoRaWAN-target goldens for a representative design under
+`tests/golden/` so the assembled `main.cpp` + codec are pinned the same way
+the ESPHome YAML is.
 
 ## ASCII diagram format
 

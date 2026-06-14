@@ -1,0 +1,56 @@
+id: axp192
+name: X-Powers AXP192 PMIC
+category: power
+use_cases: [power, battery, pmic]
+aliases: [axp]
+
+electrical:
+  vcc_min: 3.3
+  vcc_max: 3.3
+  current_ma_typical: 1
+  current_ma_peak: 2
+  pins:
+    - {role: SDA, kind: i2c_sda}
+    - {role: SCL, kind: i2c_scl}
+
+esphome:
+  required_components: [i2c]
+  yaml_template: "" # Not actively used for ESPHome right now unless there is an AXP192 esphome component.
+
+params_schema: {}
+
+notes: "Onboard PMIC used by TTGO T-Beam"
+
+lorawan:
+  lib_deps:
+    - "lewisxhe/XPowersLib@^0.3.3"
+  requires:
+    - i2c
+  globals: |
+    #define XPOWERS_CHIP_AXP192
+    #include "XPowersLib.h"
+    XPowersPMU power;            // AXP192 PMIC: gates the GPS + LoRa rails, reports battery
+    uint16_t batteryMv = 0;
+  setup: |
+    if (power.begin(Wire, AXP192_SLAVE_ADDRESS, {{ i2c_sda | default(21) }}, {{ i2c_scl | default(22) }})) {
+      power.setLDO2Voltage(3300); power.enableLDO2();  // LoRa rail
+      power.setLDO3Voltage(3300); power.enableLDO3();  // GPS rail
+      power.enableBattDetection();
+      power.enableBattVoltageMeasure();
+      Serial.println("AXP192: LoRa + GPS rails enabled");
+    } else {
+      Serial.println("AXP192 init failed (battery/GPS telemetry unavailable)");
+    }
+  loop: |
+    batteryMv = power.getBattVoltage();
+  fields:
+    - name: batt_mv
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: batteryMv
+
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x02
+  footprint: Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical
+  value: AXP192

@@ -43,7 +43,7 @@ class _FakeChirp:
     def get_device_codec(self, dev_eui):
         return {
             "device_profile_id": "dp-1",
-            "device_profile_name": "wirestudio-ttgo-t-beam-us915-sub2-gps-batt",
+            "device_profile_name": "wirestudio-ttgo-t-beam-us915-sub2-uart_gps-axp192",
             "codec_runtime": "JS" if self.codec_set else "NONE",
             "has_codec": bool(self.codec_set),
             "codec_chars": len(self.codec_set or ""),
@@ -154,8 +154,8 @@ def test_provision_registers_device_and_returns_appkey(client, monkeypatch):
     # The AppKey returned to the host is exactly the one registered in ChirpStack.
     assert fake.provisioned and fake.provisioned["app_key"] == body["app_key"]
     # Per-device-type profile + matching codec.
-    assert fake.provisioned["device_profile_name"] == "wirestudio-ttgo-t-beam-us915-sub2-gps-batt"
-    assert "data.lat" in fake.provisioned["codec"]
+    assert fake.provisioned["device_profile_name"] == "wirestudio-ttgo-t-beam-us915-sub2-uart_gps-axp192"
+    assert "data.gps_lat" in fake.provisioned["codec"]
 
 
 def test_provision_rejects_bad_dev_eui(client, monkeypatch):
@@ -208,7 +208,7 @@ def test_set_codec_applies_design_codec(client, monkeypatch):
     r = client.post("/lorawan/codec", json={"dev_eui": "64b708fffeab8974", "design": design})
     assert r.status_code == 200
     assert r.json()["codec_set"] is True
-    assert fake.codec_set and "data.lat" in fake.codec_set and "data.batt_mv" in fake.codec_set
+    assert fake.codec_set and "data.gps_lat" in fake.codec_set and "data.axp192_batt_mv" in fake.codec_set
 
 
 def test_set_codec_reflects_external_gps(client, monkeypatch):
@@ -218,7 +218,7 @@ def test_set_codec_reflects_external_gps(client, monkeypatch):
     design = _design("heltec-wifi-lora32-v3", gps={"rx_pin": "GPIO3", "tx_pin": "GPIO1"})
     r = client.post("/lorawan/codec", json={"dev_eui": "64b708fffeab8974", "design": design})
     assert r.status_code == 200
-    assert "data.lat" in fake.codec_set and "data.batt_mv" not in fake.codec_set
+    assert "data.gps_lat" in fake.codec_set and "data.axp192_batt_mv" not in fake.codec_set
 
 
 def test_set_codec_rejects_bad_dev_eui(client, monkeypatch):
