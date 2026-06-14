@@ -36,7 +36,7 @@
 |    - 3x 100nF capacitor                                               |
 |    - 2x 4.7k resistor                                                 |
 |                                                                       |
-|  Power: ~1mA typical, ~2mA peak (budget 500mA)  OK                    |
+|  Power: ~131mA typical, ~502mA peak (budget 700mA)  OK                |
 |                                                                       |
 |  Warnings: none                                                       |
 +-----------------------------------------------------------------------+

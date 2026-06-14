@@ -9,7 +9,7 @@
 |    DOUT  -> D5                                                                              |
 |    SCK   -> D6                                                                              |
 |                                                                                             |
-|  oled1  [SSD1306 OLED display (I2C)]  -- Scale display                                      |
+|  oled1  [SSD1306 / SH1106 OLED display (I2C)]  -- Scale display                             |
 |    VCC   -> rail 3V3                                                                        |
 |    GND   -> rail GND                                                                        |
 |    SDA   -> i2c0 (D2)                                                                       |
@@ -26,12 +26,12 @@
 |  BOM:                                                                                       |
 |    - WeMos D1 Mini                                                                          |
 |    - HX711 24-bit load-cell ADC  (scale)                                                    |
-|    - SSD1306 OLED display (I2C)  (oled1)                                                    |
+|    - SSD1306 / SH1106 OLED display (I2C)  (oled1)                                           |
 |    - 2x 100nF capacitor                                                                     |
 |    - 1x 10uF capacitor                                                                      |
 |    - 2x 4.7k resistor                                                                       |
 |                                                                                             |
-|  Power: ~9mA typical, ~21mA peak (budget 500mA)  OK                                         |
+|  Power: ~89mA typical, ~321mA peak (budget 500mA)  OK                                       |
 |                                                                                             |
 |  Warnings: none                                                                             |
 +---------------------------------------------------------------------------------------------+

@@ -26,7 +26,7 @@
 |    - TM1638 8-digit 7-segment + 8 LEDs + 8 buttons  (panel)                |
 |    - 1x 100nF capacitor                                                    |
 |                                                                            |
-|  Power: ~110mA typical, ~400mA peak (budget 500mA)  OK                     |
+|  Power: ~240mA typical, ~900mA peak (budget 1200mA)  OK                    |
 |                                                                            |
 |  Warnings: none                                                            |
 +----------------------------------------------------------------------------+

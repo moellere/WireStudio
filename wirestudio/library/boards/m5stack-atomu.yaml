@@ -5,6 +5,9 @@ chip_variant: esp32
 framework: arduino
 platformio_board: m5stack-atom
 flash_size_mb: 4
+# Onboard board draw at the input rail. ESP32 Atom variant with USB-A connector.
+current_ma_typical: 130
+current_ma_peak: 500
 image: https://static-cdn.m5stack.com/resource/docs/products/core/ATOM%20U/img-70ca8b36-bd91-4760-af0b-ae247bbb30b7.webp
 
 rails:
