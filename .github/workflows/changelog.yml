@@ -11,7 +11,7 @@ name: changelog
 
 on:
   pull_request:
-    branches: [main, dev]
+    branches: [main]
     types: [opened, synchronize, reopened, edited, labeled, unlabeled]
 
 permissions:
