@@ -1,0 +1,1808 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index e4f3531..c9cd0a0 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -7,8 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
+
+ ## [Unreleased]
+
+-## [0.16.0] — 2026-06-14
+-
+ ### Fixed
+
+ - **LoRaWAN firmware boot-loop on TTGO LoRa32 (issue #80).** The TTGO
+@@ -29,16 +27,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
+   mapping to PlatformIO board `ttgo-lora32-v21`. Electrically identical to
+   `ttgo-lora32-v1`; the distinct profile lets the most common "TTGO LoRa32"
+   hardware select its matching board key.
+-- **Home Assistant entities from the LoRaWAN codec.** The generated ChirpStack
+-  codec now includes a `getHaDeviceInfo()` block alongside `decodeUplink`, so
+-  the [chirp2mqtt](https://github.com/modrisb/chirp) HA integration publishes
+-  MQTT-discovery entities for every payload field — temperature, humidity,
+-  battery (mV→V), GPS, link quality (RSSI/SNR) — with proper `device_class`/
+-  unit/`state_class`. GPS payloads (lat+lon) additionally emit a
+-  `device_tracker` whose latitude/longitude attributes drive the HA map. Each
+-  payload `Field` carries optional `ha_*` hints driving this. ChirpStack device
+-  profiles are also created with `auto_detect_measurements` enabled for
+-  ChirpStack's own metrics dashboards.
+
+ ## [0.15.0] — 2026-06-11
+
+diff --git a/README.md b/README.md
+index c315585..e266c2f 100644
+--- a/README.md
++++ b/README.md
+@@ -1,19 +1,13 @@
+ # wirestudio
+
+-[![PyPI](https://img.shields.io/pypi/v/wirestudio)](https://pypi.org/project/wirestudio/)
+-[![Python](https://img.shields.io/pypi/pyversions/wirestudio)](https://pypi.org/project/wirestudio/)
+-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+-
+ Agent-driven IoT device design tool. Describe a goal (or pick parts);
+-get ESPHome YAML, an ASCII wiring diagram, a KiCad schematic + PCB, a
+-3D-printable enclosure, and a BOM that compile under upstream ESPHome.
++get ESPHome YAML, an ASCII wiring diagram, and a BOM that compile
++under upstream ESPHome.
+
+ A second generation target builds and flashes **LoRaWAN** firmware
+ (RadioLib + LoRaWAN_ESP32) for US915 radio boards — TTGO T-Beam /
+-LoRa32, Heltec WiFi LoRa 32 V2/V3 — over WebSerial from the browser,
+-provisions the device against ChirpStack, and surfaces each device's
+-sensors + GPS as **Home Assistant** entities (per-field sensors and a
+-GPS `device_tracker` for the map, via the chirp2mqtt integration).
++LoRa32, Heltec WiFi LoRa 32 V2/V3 — over WebSerial from the browser, and
++provisions the device against ChirpStack.
+
+ Produces ESPHome configs but is not affiliated with the ESPHome
+ project — see [`weirded/fleet-for-esphome`](https://github.com/weirded/fleet-for-esphome)
+@@ -34,7 +28,7 @@ Detailed docs live in [`docs/`](docs/):
+
+ ## Status
+
+-`v0.15.0` — on PyPI (`pip install wirestudio`). The studio has wide
++`v0.13.0` — on PyPI (`pip install wirestudio`). The studio has wide
+ surface area (YAML, schematic, enclosure, agent, MCP server, fleet
+ handoff, web UI, a LoRaWAN flash/provision target) and a set of things
+ actually verified against upstream tools. Three of the four priority
+@@ -52,12 +46,11 @@ Tiers, in priority order:
+ | **Verified** | Fleet handoff | push YAML to `fleet-for-esphome` ha-addon, optional compile + log relay | round-trip tests in `tests/test_fleet.py` |
+ | **Verified** | KiCad schematic | emit a SKiDL Python script the user runs locally to produce a `.kicad_sch` | every bundled example builds a KiCad netlist against the pinned upstream symbol libraries, every PR ([gate](.github/workflows/kicad-schematic.yml)) — no unresolved symbols or pins. Parts KiCad ships no symbol for (sensor/module breakouts) render as labeled generic headers |
+ | **Verified** | Parametric enclosure | OpenSCAD `.scad` from board mount-hole metadata | every enclosure-capable board renders through real OpenSCAD to a non-empty, manifold (closed, printable) solid, every PR ([gate](.github/workflows/enclosure-render.yml)) |
+-| **Verified** | KiCad PCB layout + fab outputs | grid-placed `.kicad_pcb` (pads bound to nets, `Edge.Cuts` outline) + Gerber/drill/CPL/BOM bundle for JLCPCB | every bundled example emits a structurally sound board ([pcb-layout](.github/workflows/pcb-layout.yml)); each board opens in real KiCad and passes DRC, unrouted airwires aside ([pcb-drc](.github/workflows/pcb-drc.yml)) |
+-| **Works (hardware-validated)** | LoRaWAN target | build RadioLib + LoRaWAN_ESP32 firmware for US915 radio boards, flash over WebSerial, provision against ChirpStack, expose sensors/GPS as Home Assistant entities | every radio board's firmware builds in CI ([gate](.github/workflows/lorawan-firmware.yml)); validated end-to-end on a TTGO T-Beam against live ChirpStack 4.17 — no automated live-device gate |
++| **Works (hardware-validated)** | LoRaWAN target | build RadioLib + LoRaWAN_ESP32 firmware for US915 radio boards, flash over WebSerial, provision against ChirpStack | every radio board's firmware builds in CI ([gate](.github/workflows/lorawan-firmware.yml)); validated end-to-end on a TTGO T-Beam against live ChirpStack 4.17 — no automated live-device gate |
+ | **Works (lighter checks)** | MCP server | drive the design tools from Claude Code / Desktop over the Model Context Protocol | tool / auth / resource tests in `tests/test_mcp_*.py`; not exercised against a live MCP client in CI |
+ | **Experimental** | Thingiverse search relay | rank community models for a board | smoke-tested; depends on a third-party search API that ranks unevenly |
+ | **Experimental** | Agent (Claude tool-using) | natural-language design driving | works in practice; tool surface is small; no auto-eval against task list yet |
+-| **Deferred** | PCB autoroute | Freerouting traces | 1.0+; boards currently ship unrouted (pads + ratsnest, no traces) |
++| **Deferred** | KiCad PCB layout | Freerouting + Gerber + JLCPCB CPL/BOM | 1.0+, not started |
+
+ The **Verified** tier is the bar the project is asking to be judged
+ on. Everything else is offered with the caveat that's spelled out in
+@@ -79,7 +72,7 @@ that pin moves, this line moves with it.
+ docker run --rm -p 8765:8765 \
+   -e ANTHROPIC_API_KEY=sk-ant-... \
+   -v wirestudio-data:/data \
+-  ghcr.io/moellere/wirestudio:v0.15.0
++  ghcr.io/moellere/wirestudio:v0.13.0
+ ```
+
+ Open <http://localhost:8765>. The image bundles the FastAPI server +
+@@ -122,7 +115,7 @@ The [User guide](docs/user_guide.md) walks the panes and header actions.
+ ## Tests
+
+ ```sh
+-python -m pytest                          # ~690 cases
++python -m pytest                          # ~680 cases
+ python -m ruff check .                    # lint
+ cd web && npx vitest run                  # vitest + jsdom
+ pip install 'esphome==2025.12.7'
+diff --git a/START.md b/START.md
+index 86ec6b7..484b7bb 100644
+--- a/START.md
++++ b/START.md
+@@ -1130,6 +1130,35 @@ Sister project to `weirded/fleet-for-esphome`. Knowledge base seeded from
+   hybrid plan): ESPHome integrations for YAML schema, PlatformIO board JSON
+   for board metadata, hand-curation + LLM-extracted datasheet data for the
+   electrical layer ESPHome doesn't carry.
++- **Framework axis (1.x).** `Design.target` selects a *framework* — the
++  firmware/runtime a device compiles to (`esphome`, `lorawan`, later
++  `mythings` / `ttn`). Orthogonal to it sit two more pluggable roles: the
++  **build backend** (artifact → binary / validated config: in-pod PlatformIO
++  vs a remote agent vs the fleet-for-esphome handoff) and the **connectivity /
++  network-server backend** (provision / flash / monitor; for LoRaWAN this is
++  ChirpStack vs TTN vs Helium — same firmware, different device registration +
++  codec upload). Keeping these three axes separate is what makes a new
++  framework or a new network server additive instead of a rewrite. Do not
++  model TTN as a peer of `esphome`/`lorawan`: it's a network-server backend
++  *under* the lorawan framework.
++- **Library is framework-pluggable; the electrical core is shared.** A
++  `library/components/<id>.yaml` splits into a framework-agnostic core
++  (`electrical:`, `kicad:`, `params_schema`, `use_cases`, `aliases`) and one
++  codegen block per framework (`esphome:`, `lorawan:`, …). Component
++  selection, the CSP pin solver, enclosure search, and PCB layout consume
++  *only* the core, so the first ~80% of the build flow (select → wire →
++  enclose → PCB) is framework-neutral; only generate → build → flash branch on
++  the target. A component carrying no block for a framework is simply not
++  offered for that target (a Tuya cloud switch has no LoRaWAN meaning).
++- **Fleet build for LoRaWAN: deferred (low priority).** fleet-for-esphome's
++  worker (`ghcr.io/weirded/esphome-dist-client`) has a PlatformIO toolchain —
++  but only transitively, under ESPHome, and every build path runs
++  `esphome run|compile|config|upload <yaml>`; there is no generic `pio run`
++  job type and the job bundle is an ESPHome YAML project. Rather than teach
++  the upstream worker a new job type, LoRaWAN keeps its in-pod compile worker
++  (`targets/lorawan/compile.py`). Remote LoRaWAN build agents are a later
++  backend branch selected by framework type, not a prerequisite — pursue only
++  if in-pod compile becomes a bottleneck.
+
+ ## Phasing
+
+@@ -1286,6 +1315,58 @@ immediate way in and the agent (when it arrives) lands in a working surface.
+ - **Future — KiCad PCB layout.** Reuse the schematic's netlist;
+   Freerouting for autorouting; Gerber + JLCPCB CPL/BOM export.
+
++- **1.x — Framework integration.** The `lorawan` target shipped (RadioLib +
++  LoRaWAN_ESP32, ChirpStack provisioning, WebSerial flash) but as a bolt-on:
++  it reuses none of the component library's per-component codegen and instead
++  hardcodes a four-sensor set (GPS / AXP192 battery / DHT22 / OLED) into
++  `targets/lorawan/codec.py` (`*_FIELDS` lists) and `templates/main.cpp.j2`.
++  This phase makes LoRaWAN a first-class peer of ESPHome and lays the rails
++  for future frameworks (MyThings, TTN). Five sub-phases; A→B carry the
++  leverage (schema + a generator refactor, little new infrastructure):
++
++  - **A — Kill the bolt-on (library codegen blocks).** Add a per-framework
++    codegen block to `library/components/<id>.yaml` (schema in *Component
++    library file → per-framework codegen blocks* below). Migrate the four
++    hardcoded sensors into `lorawan:` blocks that contribute payload
++    `Field`s + setup/loop C++ + `lib_deps`. `codec.py` then assembles the
++    payload **and** the matching ChirpStack/TTN `decodeUplink` from whatever
++    components a design carries (preserving today's pack/decode lockstep),
++    instead of from four module-level lists. (This supersedes the
++    hardcoded-sensor approach in `docs/lorawan/LORAWAN_TARGET_PLAN.md` §6/§9,
++    which was the original bolt-on plan — that doc stays as the provisioning /
++    ChirpStack / OTAA reference, which phase A does not change.) The firmware
++    generator walks
++    `design.components` / `buses` / `connections` — the same inventory the
++    ESPHome generator uses — rather than `board.onboard_peripherals` +
++    `lorawan.*` configs. Outcome: expanding the LoRaWAN sensor set is a
++    library-file edit, at parity with ESPHome. (`design.lorawan.gps/dht22/
++    oled` stay accepted as sugar but lower to library components internally.)
++
++  - **B — Formalize the axis.** Promote `generate(design, library) ->
++    dict[str, str]` onto `TargetPlugin` (the seam `targets/base.py` defers
++    "until a second generator forces it" — it's forced now); route the
++    `esphome` target through it too, retiring its special-case in the API.
++    The UI framework selector filters *both* boards and components by
++    framework capability (a component appears iff it carries a block for the
++    selected framework).
++
++  - **C — Build-backend protocol.** Extract a build-backend `Protocol`
++    (enqueue → poll log → fetch artifact, mirroring `FleetClient`'s shape)
++    with the in-pod `targets/lorawan/compile.py` behind a *local* impl and
++    the fleet-for-esphome handoff behind a *remote* impl for esphome. Remote
++    LoRaWAN build agents slot in here later as a second impl (deferred per
++    the locked decision above).
++
++  - **D — Network-server backends.** Put ChirpStack + TTN behind one
++    provision/codec interface under the lorawan framework; region support
++    beyond US915 sub-band 2. The firmware is identical across network
++    servers; only device registration and codec upload differ
++    (ChirpStack gRPC vs TTN REST).
++
++  - **E — Future frameworks.** A new framework (e.g. MyThings) drops in as a
++    codegen plugin + per-component library blocks + (if it's a payload/LPWAN
++    framework) a network-server backend. No core-flow changes.
++
+ The UI-first ordering means 0.5's agent and 0.6's solver each have a
+ visible place to land. If the agent lands first (alternative ordering),
+ it ships as a CLI/tool-only surface and we re-skin it later — strictly
+@@ -1494,6 +1575,99 @@ params_schema:
+ notes: "3V3 only. On 5V boards, place behind level shifter or use 3V3 rail."
+ ​```
+
++### Per-framework codegen blocks (1.x phase A — draft)
++
++Today a component file carries exactly one codegen block, `esphome:`. To make
++LoRaWAN (and later frameworks) reuse the same inventory, generalise to **one
++codegen block per framework**, keyed by the framework id. The split:
++
++- **Framework-agnostic core** (unchanged, shared by every target and by the
++  CSP solver / enclosure / KiCad layers): `id`, `name`, `category`,
++  `use_cases`, `aliases`, `electrical:`, `params_schema`, `kicad:`, `notes`.
++- **Codegen blocks** (one per framework, all optional): `esphome:` keeps its
++  current shape verbatim (no migration of existing files needed); `lorawan:`
++  is new. A component offered for framework *F* iff it has block *F*. The
++  target's `board_ids()` already filters boards; the analogous component
++  filter (`component_ids(framework)`) is added in phase B.
++
++ESPHome is declarative (one merged YAML fragment); LoRaWAN firmware is
++imperative C++ **plus** an uplink-payload contract. So the `lorawan:` block
++contributes code fragments at named insertion points in the firmware project,
++not a single template:
++
++​```yaml
++# library/components/dht.yaml  (illustrative)
++lorawan:
++  lib_deps:                       # appended to platformio.ini (deduped)
++    - "adafruit/DHT sensor library@^1.4.6"
++  requires: []                    # shared init fragments emitted once: i2c|spi
++                                  # (driven from design.buses where possible)
++  globals: |                      # file-scope C++; rendered per instance
++    DHT {{ id }}_dht({{ pin }}, DHT22);
++    float {{ id }}_temp = NAN, {{ id }}_humidity = NAN;
++  setup: |                        # inside setup(), after bus init
++    {{ id }}_dht.begin();
++  loop: |                         # inside sample(), before the payload is packed
++    {{ id }}_temp = {{ id }}_dht.readTemperature();
++    {{ id }}_humidity = {{ id }}_dht.readHumidity();
++  fields:                         # payload contribution; drives BOTH pack_cpp
++    - name: temp_c                # (firmware) and decode_js (ChirpStack codec)
++      bytes: 2
++      cpp_type: int16_t
++      cpp_expr: "(int16_t)({{ id }}_temp * 100.0)"
++      signed: true
++      scale: 100
++    - name: humidity
++      bytes: 1
++      cpp_type: uint8_t
++      cpp_expr: "(uint8_t){{ id }}_humidity"
++  downlink: null                  # optional: a C++ handler fragment for
++                                  # actuators that consume downlink bytes
++​```
++
++Render contract (the generator passes this Jinja context per component
++instance, mirroring how the ESPHome template gets `bus` / `params` / `label`):
++
++- `id` — the component instance id from `design.components[].id`, used to
++  **namespace** every global, so two of the same part don't collide. Field
++  names are likewise namespaced by the generator (`<id>_temp_c`) before they
++  reach `pack_cpp` / `decode_js`, so the codec exposes `dht1.temp_c` vs
++  `dht2.temp_c` distinctly.
++- `label`, `params` — as in the ESPHome template.
++- `pin` / `pins` — resolved from `design.connections` for this instance
++  (bare Arduino ints, via the existing `_pin()` helper that strips `GPIO`).
++- `bus` — the resolved bus (sda/scl or mosi/miso/clk/cs) when the component
++  attaches to one; `requires: [i2c]` makes the generator emit the bus init
++  once for all I2C components rather than per component.
++
++`Field` is the existing `codec.Field` TypedDict (name / bytes / cpp_type /
++cpp_expr / signed / scale) — the schema doesn't change, it just moves from
++hardcoded module lists into the library. `BUILTIN_FIELDS` (uptime, boot_count)
++stay a framework-level contribution, not per-component.
++
++Generator changes this implies (phase A work, not done yet):
++
++- `firmware_gen.generate_firmware` walks `design.components` and renders each
++  one's `lorawan:` fragments into the four insertion points in
++  `main.cpp.j2` (`{globals}`, `{setup}`, `{loop_sample}`, `{payload_pack}`),
++  replacing the current `has_gps`/`has_dht`/`has_oled` conditionals.
++- `codec.fields_for(design, library)` collects `fields` from each component's
++  block (namespaced) + `BUILTIN_FIELDS`, replacing the `GPS_FIELDS` /
++  `BATTERY_FIELDS` / `DHT_FIELDS` constants. `pack_cpp` / `decode_js` are
++  unchanged — they already consume a `list[Field]`.
++- Validation at the boundary: a `lorawan:` block referencing a `bus` the
++  design doesn't define, or a payload that exceeds the region's max app
++  payload for the lowest data rate, surfaces a `DesignWarning` (permissive
++  mode) rather than failing generation.
++- Back-compat: the four migrated sensors gain real `library/components/*.yaml`
++  `lorawan:` blocks (DHT22 → extend `dht.yaml`; GPS → `uart_gps.yaml`; OLED →
++  `ssd1306.yaml`; AXP192 battery → a new `axp192.yaml`). `design.lorawan.gps/
++  dht22/oled` keep working by lowering to those components during load.
++
++Golden tests: add LoRaWAN-target goldens for a representative design under
++`tests/golden/` so the assembled `main.cpp` + codec are pinned the same way
++the ESPHome YAML is.
++
+ ## ASCII diagram format
+
+ Pinout block + connection table + passives note. Diff-friendly, README-pasteable.
+diff --git a/deploy/overlays/dev/kustomization.yaml b/deploy/overlays/dev/kustomization.yaml
+index cd326e6..81c37ec 100644
+--- a/deploy/overlays/dev/kustomization.yaml
++++ b/deploy/overlays/dev/kustomization.yaml
+@@ -13,7 +13,7 @@ resources:
+
+ images:
+   - name: ghcr.io/moellere/wirestudio
+-    newTag: sha-a14e79f-lorawan
++    newTag: sha-2669987-lorawan
+
+ # A LoRaWAN firmware build shells out to PlatformIO; the espressif32 link
+ # step peaks well past the base 512Mi limit and OOMKills the pod. Give the
+diff --git a/docs/assets/social-preview.svg b/docs/assets/social-preview.svg
+deleted file mode 100644
+index 77c9983..0000000
+--- a/docs/assets/social-preview.svg
++++ /dev/null
+@@ -1,56 +0,0 @@
+-<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" font-family="-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+-  <!-- GitHub social preview, 1280x640. Render to PNG and upload via
+-       Settings > General > Social preview. -->
+-  <defs>
+-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+-      <stop offset="0" stop-color="#0b1220"/>
+-      <stop offset="1" stop-color="#111a2e"/>
+-    </linearGradient>
+-    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+-      <stop offset="0" stop-color="#38bdf8"/>
+-      <stop offset="1" stop-color="#22d3ee"/>
+-    </linearGradient>
+-  </defs>
+-
+-  <rect width="1280" height="640" fill="url(#bg)"/>
+-  <rect x="0" y="0" width="1280" height="8" fill="url(#accent)"/>
+-
+-  <!-- faint circuit traces -->
+-  <g stroke="#1e3a5f" stroke-width="3" fill="none" opacity="0.55">
+-    <path d="M120 470 H320 V540 H520"/>
+-    <path d="M120 510 H260 V470"/>
+-    <path d="M980 130 H1120 V210 H1180"/>
+-    <circle cx="320" cy="470" r="6" fill="#1e3a5f" stroke="none"/>
+-    <circle cx="1120" cy="210" r="6" fill="#1e3a5f" stroke="none"/>
+-  </g>
+-
+-  <text x="100" y="250" font-size="120" font-weight="800" fill="#f8fafc" letter-spacing="-2">wirestudio</text>
+-  <text x="104" y="320" font-size="36" font-weight="500" fill="#94a3b8">Agent-driven IoT device design</text>
+-  <text x="104" y="372" font-size="30" font-weight="400" fill="#cbd5e1">ESPHome YAML · KiCad schematic + PCB · enclosures · LoRaWAN firmware</text>
+-
+-  <!-- domain chips -->
+-  <g font-size="26" font-weight="600">
+-    <g>
+-      <rect x="104" y="436" width="180" height="56" rx="28" fill="#0e2a3a" stroke="#22d3ee" stroke-width="1.5"/>
+-      <text x="194" y="472" fill="#7dd3fc" text-anchor="middle">ESPHome</text>
+-    </g>
+-    <g>
+-      <rect x="300" y="436" width="180" height="56" rx="28" fill="#0e2a3a" stroke="#22d3ee" stroke-width="1.5"/>
+-      <text x="390" y="472" fill="#7dd3fc" text-anchor="middle">LoRaWAN</text>
+-    </g>
+-    <g>
+-      <rect x="496" y="436" width="270" height="56" rx="28" fill="#0e2a3a" stroke="#22d3ee" stroke-width="1.5"/>
+-      <text x="631" y="472" fill="#7dd3fc" text-anchor="middle">Home Assistant</text>
+-    </g>
+-    <g>
+-      <rect x="782" y="436" width="140" height="56" rx="28" fill="#0e2a3a" stroke="#22d3ee" stroke-width="1.5"/>
+-      <text x="852" y="472" fill="#7dd3fc" text-anchor="middle">KiCad</text>
+-    </g>
+-    <g>
+-      <rect x="938" y="436" width="120" height="56" rx="28" fill="#0e2a3a" stroke="#22d3ee" stroke-width="1.5"/>
+-      <text x="998" y="472" fill="#7dd3fc" text-anchor="middle">MCP</text>
+-    </g>
+-  </g>
+-
+-  <text x="104" y="566" font-size="24" fill="#64748b">pip install wirestudio  ·  wirestudio.io  ·  MIT</text>
+-</svg>
+diff --git a/pyproject.toml b/pyproject.toml
+index 646af2d..c4592f0 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -10,26 +10,11 @@ name = "wirestudio"
+ # Single-sourced from wirestudio/__init__.py (see [tool.setuptools.dynamic]).
+ # Bump __version__ there; the wheel + `python -m build` read it from the module.
+ dynamic = ["version"]
+-description = "Agent-driven IoT device design tool: ESPHome YAML, KiCad schematic/PCB, enclosures, and LoRaWAN firmware (ChirpStack + Home Assistant)."
++description = "Agent-driven IoT device design tool that produces ESPHome YAML."
+ readme = "README.md"
+ license = { text = "MIT" }
+ requires-python = ">=3.11"
+ authors = [{ name = "wirestudio contributors" }]
+-keywords = [
+-    "esphome", "esp32", "lorawan", "iot", "home-assistant", "chirpstack",
+-    "kicad", "pcb", "platformio", "openscad", "enclosure", "mcp", "smart-home",
+-]
+-classifiers = [
+-    "Development Status :: 4 - Beta",
+-    "Intended Audience :: Developers",
+-    "License :: OSI Approved :: MIT License",
+-    "Programming Language :: Python :: 3",
+-    "Programming Language :: Python :: 3.11",
+-    "Programming Language :: Python :: 3.12",
+-    "Topic :: Home Automation",
+-    "Topic :: Scientific/Engineering :: Electronic Design Automation (EDA)",
+-    "Topic :: System :: Hardware",
+-]
+ dependencies = [
+     "pydantic>=2.6",
+     "pyyaml>=6.0",
+diff --git a/scripts/coverage_baseline.yaml b/scripts/coverage_baseline.yaml
+index f727349..558c61b 100644
+--- a/scripts/coverage_baseline.yaml
++++ b/scripts/coverage_baseline.yaml
+@@ -11,5 +11,6 @@
+ # When you close a gap, remove the id from the matching section. When
+ # you add a new library entry without an example, add its id here.
+
+-components: []
++components:
++  - axp192
+ boards: []
+diff --git a/tests/golden/t-beam.cpp b/tests/golden/t-beam.cpp
+new file mode 100644
+index 0000000..ee40d02
+--- /dev/null
++++ b/tests/golden/t-beam.cpp
+@@ -0,0 +1,140 @@
++// Generated by wirestudio (lorawan target). Do not edit by hand.
++// Device: dev1
++// Board:  ttgo-t-beam (esp32)
++// Radio:  SX1276  |  Region US915 sub-band 2
++//
++// RadioLib + LoRaWAN_ESP32. NVS keeps DevNonces + session across reboots (the
++// dominant cause of OTAA re-join rejection). When NVS is empty, persist.manage()
++// prompts for band/sub-band + keys over serial -- the host-driven provisioning
++// hook. The uplink payload is packed big-endian from a field spec shared with
++// the ChirpStack decodeUplink codec on the device profile.
++
++#include <RadioLib.h>
++#include <LoRaWAN_ESP32.h>
++#include <Wire.h>
++
++
++// SX1276 wiring on this board: NSS=18, IRQ=26, RST=23, DIO1=RADIOLIB_NC.
++SX1276 radio = new Module(18, 26, 23, RADIOLIB_NC);
++
++LoRaWANNode* node;
++
++// Survives deep sleep / soft reset (cleared on power-on); a coarse boot counter.
++RTC_DATA_ATTR uint16_t bootCount = 0;
++
++#include <TinyGPS++.h>
++TinyGPSPlus gps;
++HardwareSerial GPSSerial(1);
++#define XPOWERS_CHIP_AXP192
++#include "XPowersLib.h"
++XPowersPMU power;            // AXP192 PMIC: gates the GPS + LoRa rails, reports battery
++uint16_t batteryMv = 0;
++
++// Pinned LoRaWAN parameters. The gateway is US915 sub-band 2; a mismatch makes
++// the device transmit joins on channels the gateway never hears.
++static const char*    WS_REGION   = "US915";
++static const uint8_t  WS_SUBBAND  = 2;
++static const uint64_t WS_JOIN_EUI = 0x0000000000000000ULL;
++
++void setup() {
++  Serial.begin(115200);
++  bootCount++;
++  Serial.printf("wirestudio lorawan: %s sub-band %u joinEUI %016llX\n",
++                WS_REGION, WS_SUBBAND, (unsigned long long) WS_JOIN_EUI);
++  Wire.begin(21, 22);
++  Wire.setTimeOut(50);
++
++  GPSSerial.begin(9600, SERIAL_8N1, GPIO34, GPIO12);
++if (power.begin(Wire, AXP192_SLAVE_ADDRESS, 21, 22)) {
++  power.setLDO2Voltage(3300); power.enableLDO2();  // LoRa rail
++  power.setLDO3Voltage(3300); power.enableLDO3();  // GPS rail
++  power.enableBattDetection();
++  power.enableBattVoltageMeasure();
++  Serial.println("AXP192: LoRa + GPS rails enabled");
++} else {
++  Serial.println("AXP192 init failed (battery/GPS telemetry unavailable)");
++}
++
++  int16_t state = radio.begin();
++  if (state != RADIOLIB_ERR_NONE) {
++    Serial.printf("radio.begin() failed: %d\n", state);
++  }
++  node = persist.manage(&radio);
++
++  if (node->isActivated()) {
++    Serial.println("JOINED: OTAA session active");
++  } else {
++    Serial.println("JOIN FAILED: not activated (check keys + gateway coverage; retries on reboot)");
++  }
++  // US915 DR0 (SF10) caps the app payload at 11 bytes; this 19-byte
++  // payload needs at least DR1. ADR tunes the rate from here.
++  node->setDatarate(1);
++}
++
++void loop() {
++  // Host command channel: "wipe" clears stored provisioning + session (e.g. to
++  // recover from an offline test's throwaway keys) and reboots to re-provision.
++  if (Serial.available()) {
++    Serial.setTimeout(100);
++    String cmd = Serial.readStringUntil('\n');
++    cmd.trim();
++    if (cmd == "wipe") {
++      Serial.println("wiping provisioning + session; rebooting...");
++      persist.wipe();
++      delay(200);
++      ESP.restart();
++    }
++  }
++
++  // Sensors + OLED refresh every iteration, independent of the LoRaWAN join,
++  // so you get live feedback even with no gateway in range. The uplink (and a
++  // re-join retry) run on a 60s cadence.
++while (GPSSerial.available()) gps.encode(GPSSerial.read());  // keep the fix current
++batteryMv = power.getBattVoltage();
++
++  static unsigned long lastTx = 0;
++  if (lastTx == 0 || millis() - lastTx >= 60000) {
++    lastTx = millis();
++
++    if (!node->isActivated()) {
++      Serial.println("not joined -- retrying OTAA (sensors still live above)");
++      node->activateOTAA();
++      persist.saveSession(node);
++    }
++    if (node->isActivated()) {
++      // Payload packed big-endian from the generated field spec (codec.py),
++      // in lockstep with the ChirpStack decodeUplink codec on the profile.
++      uint8_t payload[19];
++  uint32_t _v_uptime_s = (uint32_t)(millis() / 1000UL);
++  payload[0] = (uint8_t)(_v_uptime_s >> 24);
++  payload[1] = (uint8_t)(_v_uptime_s >> 16);
++  payload[2] = (uint8_t)(_v_uptime_s >> 8);
++  payload[3] = (uint8_t)(_v_uptime_s);
++  uint16_t _v_boot_count = bootCount;
++  payload[4] = (uint8_t)(_v_boot_count >> 8);
++  payload[5] = (uint8_t)(_v_boot_count);
++  int32_t _v_gps_lat = (int32_t)(gps.location.lat() * 10000000.0);
++  payload[6] = (uint8_t)(_v_gps_lat >> 24);
++  payload[7] = (uint8_t)(_v_gps_lat >> 16);
++  payload[8] = (uint8_t)(_v_gps_lat >> 8);
++  payload[9] = (uint8_t)(_v_gps_lat);
++  int32_t _v_gps_lon = (int32_t)(gps.location.lng() * 10000000.0);
++  payload[10] = (uint8_t)(_v_gps_lon >> 24);
++  payload[11] = (uint8_t)(_v_gps_lon >> 16);
++  payload[12] = (uint8_t)(_v_gps_lon >> 8);
++  payload[13] = (uint8_t)(_v_gps_lon);
++  int16_t _v_gps_alt_m = (int16_t)gps.altitude.meters();
++  payload[14] = (uint8_t)(_v_gps_alt_m >> 8);
++  payload[15] = (uint8_t)(_v_gps_alt_m);
++  uint8_t _v_gps_sats = (uint8_t)gps.satellites.value();
++  payload[16] = (uint8_t)(_v_gps_sats);
++  uint16_t _v_axp192_batt_mv = batteryMv;
++  payload[17] = (uint8_t)(_v_axp192_batt_mv >> 8);
++  payload[18] = (uint8_t)(_v_axp192_batt_mv);
++      int16_t state = node->sendReceive(payload, sizeof(payload));
++      Serial.printf("uplink: RadioLib state %d\n", state);
++      persist.saveSession(node);
++    }
++  }
++  delay(500);
++}
+diff --git a/tests/golden/t-beam.ini b/tests/golden/t-beam.ini
+new file mode 100644
+index 0000000..5277417
+--- /dev/null
++++ b/tests/golden/t-beam.ini
+@@ -0,0 +1,11 @@
++; Generated by wirestudio (lorawan target). Do not edit by hand.
++[env:ttgo-t-beam]
++platform = espressif32
++board = ttgo-t-beam
++framework = arduino
++monitor_speed = 115200
++lib_deps =
++    jgromes/RadioLib@^7.6.0
++    ropg/LoRaWAN_ESP32@^1.3.0
++    mikalhart/TinyGPSPlus@^1.1.0
++    lewisxhe/XPowersLib@^0.3.3
+diff --git a/tests/golden/t-beam.js b/tests/golden/t-beam.js
+new file mode 100644
+index 0000000..41391a5
+--- /dev/null
++++ b/tests/golden/t-beam.js
+@@ -0,0 +1,12 @@
++function decodeUplink(input) {
++  var b = input.bytes;
++  var data = {};
++  data.uptime_s = (((b[0] << 24) | (b[1] << 16) | (b[2] << 8) | b[3]) >>> 0);
++  data.boot_count = (((b[4] << 8) | b[5]) >>> 0);
++  data.gps_lat = ((b[6] << 24) | (b[7] << 16) | (b[8] << 8) | b[9]) / 10000000;
++  data.gps_lon = ((b[10] << 24) | (b[11] << 16) | (b[12] << 8) | b[13]) / 10000000;
++  data.gps_alt_m = ((((b[14] << 8) | b[15]) << 16) >> 16);
++  data.gps_sats = ((b[16]) >>> 0);
++  data.axp192_batt_mv = (((b[17] << 8) | b[18]) >>> 0);
++  return { data: data, warnings: [], errors: [] };
++}
+diff --git a/tests/test_codec.py b/tests/test_codec.py
+index 4cbe919..5b345ab 100644
+--- a/tests/test_codec.py
++++ b/tests/test_codec.py
+@@ -27,7 +27,7 @@ def test_tbeam_adds_onboard_gps_and_battery():
+     lib = default_library()
+     fields = codec.fields_for(_design("ttgo-t-beam"), lib)
+     assert [f["name"] for f in fields] == [
+-        "uptime_s", "boot_count", "lat", "lon", "alt_m", "sats", "batt_mv",
++        "uptime_s", "boot_count", "gps_lat", "gps_lon", "gps_alt_m", "gps_sats", "axp192_batt_mv",
+     ]
+     assert codec.payload_size(fields) == 19
+
+@@ -43,9 +43,9 @@ def test_dht22_adds_temp_and_humidity():
+     lib = default_library()
+     design = _design("ttgo-t-beam", dht22={"pin": "GPIO13"})
+     names = [f["name"] for f in codec.fields_for(design, lib)]
+-    assert "temp_c" in names and "humidity" in names
++    assert "dht1_temp_c" in names and "dht1_humidity" in names
+     # profile name reflects the sensor set (board GPS+battery + DHT)
+-    assert codec.profile_name(design, lib) == "wirestudio-ttgo-t-beam-us915-sub2-gps-batt-dht"
++    assert codec.profile_name(design, lib) == "wirestudio-ttgo-t-beam-us915-sub2-uart_gps-axp192-dht"
+
+
+ def test_oled_is_display_only_no_payload_field():
+@@ -61,17 +61,17 @@ def test_external_gps_adds_gps_fields_without_battery():
+     lib = default_library()
+     design = _design("heltec-wifi-lora32-v3", gps={"rx_pin": "GPIO3", "tx_pin": "GPIO1"})
+     names = [f["name"] for f in codec.fields_for(design, lib)]
+-    assert "lat" in names and "sats" in names
++    assert "gps_lat" in names and "gps_sats" in names
+     assert "batt_mv" not in names  # no AXP192 on the Heltec
+
+
+ def test_decode_js_offsets_and_scaling():
+     js = codec.decode_js(codec.fields_for(_design("ttgo-t-beam"), default_library()))
+     assert "function decodeUplink(input)" in js
+-    assert "data.lat = ((b[6] << 24)" in js  # lat begins after the 6-byte built-in block
++    assert "data.gps_lat = ((b[6] << 24)" in js  # lat begins after the 6-byte built-in block
+     assert "/ 10000000" in js
+-    assert "data.alt_m = ((((b[14] << 8) | b[15]) << 16) >> 16)" in js  # signed 16-bit
+-    assert "data.batt_mv = (((b[17] << 8) | b[18]) >>> 0)" in js
++    assert "data.gps_alt_m = ((((b[14] << 8) | b[15]) << 16) >> 16)" in js  # signed 16-bit
++    assert "data.axp192_batt_mv = (((b[17] << 8) | b[18]) >>> 0)" in js
+
+
+ def test_pack_cpp_matches_size_and_reads_sensors():
+@@ -80,33 +80,3 @@ def test_pack_cpp_matches_size_and_reads_sensors():
+     assert f"payload[{codec.payload_size(fields) - 1}]" in cpp
+     assert "gps.location.lat()" in cpp
+     assert "batteryMv" in cpp
+-
+-
+-def test_generate_codec_includes_decode_and_ha_device_info():
+-    js = codec.generate_codec(_design("ttgo-t-beam"), default_library())
+-    assert "function decodeUplink(input)" in js
+-    assert "function getHaDeviceInfo()" in js
+-
+-
+-def test_ha_device_info_entities_and_units():
+-    lib = default_library()
+-    js = codec.generate_codec(_design("ttgo-t-beam", dht22={"pin": "GPIO13"}), lib)
+-    # payload fields become entities with proper templates/units
+-    assert 'value_template: "{{ value_json.object.temp_c | float }}"' in js
+-    assert 'device_class: "temperature"' in js
+-    # battery is converted mV -> V in the HA template
+-    assert "(value_json.object.batt_mv | float) / 1000" in js
+-    assert 'device_class: "voltage"' in js
+-    # link quality from rxInfo (not payload)
+-    assert "value_json.rxInfo[-1].rssi | int" in js
+-
+-
+-def test_ha_device_info_gps_emits_device_tracker():
+-    lib = default_library()
+-    gps_js = codec.generate_codec(_design("ttgo-t-beam"), lib)  # onboard GPS
+-    assert 'integration: "device_tracker"' in gps_js
+-    assert "'latitude': value_json.object.lat" in gps_js
+-    assert 'json_attributes_topic: "{status_topic}"' in gps_js
+-    # a non-GPS board gets no device_tracker
+-    plain_js = codec.generate_codec(_design("ttgo-lora32-v1"), lib)
+-    assert "device_tracker" not in plain_js
+diff --git a/tests/test_firmware_gen.py b/tests/test_firmware_gen.py
+index 1701b6c..34b168a 100644
+--- a/tests/test_firmware_gen.py
++++ b/tests/test_firmware_gen.py
+@@ -114,3 +114,18 @@ def test_write_firmware_creates_project(lib, tmp_path):
+     write_firmware(_design("ttgo-lora32-v1"), lib, tmp_path)
+     assert (tmp_path / "platformio.ini").is_file()
+     assert (tmp_path / "src" / "main.cpp").is_file()
++
++
++def test_lorawan_matches_golden(lib):
++    from wirestudio.targets.lorawan.codec import generate_codec
++    from pathlib import Path
++
++    design = _design("ttgo-t-beam")
++    fw = generate_firmware(design, lib)
++    codec = generate_codec(design, lib)
++
++    golden_dir = Path(__file__).resolve().parent / "golden"
++
++    assert fw["src/main.cpp"] == (golden_dir / "t-beam.cpp").read_text()
++    assert fw["platformio.ini"] == (golden_dir / "t-beam.ini").read_text()
++    assert codec == (golden_dir / "t-beam.js").read_text()
+diff --git a/tests/test_lorawan_api.py b/tests/test_lorawan_api.py
+index 6e53a9b..b7a5468 100644
+--- a/tests/test_lorawan_api.py
++++ b/tests/test_lorawan_api.py
+@@ -43,7 +43,7 @@ class _FakeChirp:
+     def get_device_codec(self, dev_eui):
+         return {
+             "device_profile_id": "dp-1",
+-            "device_profile_name": "wirestudio-ttgo-t-beam-us915-sub2-gps-batt",
++            "device_profile_name": "wirestudio-ttgo-t-beam-us915-sub2-uart_gps-axp192",
+             "codec_runtime": "JS" if self.codec_set else "NONE",
+             "has_codec": bool(self.codec_set),
+             "codec_chars": len(self.codec_set or ""),
+@@ -154,8 +154,8 @@ def test_provision_registers_device_and_returns_appkey(client, monkeypatch):
+     # The AppKey returned to the host is exactly the one registered in ChirpStack.
+     assert fake.provisioned and fake.provisioned["app_key"] == body["app_key"]
+     # Per-device-type profile + matching codec.
+-    assert fake.provisioned["device_profile_name"] == "wirestudio-ttgo-t-beam-us915-sub2-gps-batt"
+-    assert "data.lat" in fake.provisioned["codec"]
++    assert fake.provisioned["device_profile_name"] == "wirestudio-ttgo-t-beam-us915-sub2-uart_gps-axp192"
++    assert "data.gps_lat" in fake.provisioned["codec"]
+
+
+ def test_provision_rejects_bad_dev_eui(client, monkeypatch):
+@@ -208,7 +208,7 @@ def test_set_codec_applies_design_codec(client, monkeypatch):
+     r = client.post("/lorawan/codec", json={"dev_eui": "64b708fffeab8974", "design": design})
+     assert r.status_code == 200
+     assert r.json()["codec_set"] is True
+-    assert fake.codec_set and "data.lat" in fake.codec_set and "data.batt_mv" in fake.codec_set
++    assert fake.codec_set and "data.gps_lat" in fake.codec_set and "data.axp192_batt_mv" in fake.codec_set
+
+
+ def test_set_codec_reflects_external_gps(client, monkeypatch):
+@@ -218,7 +218,7 @@ def test_set_codec_reflects_external_gps(client, monkeypatch):
+     design = _design("heltec-wifi-lora32-v3", gps={"rx_pin": "GPIO3", "tx_pin": "GPIO1"})
+     r = client.post("/lorawan/codec", json={"dev_eui": "64b708fffeab8974", "design": design})
+     assert r.status_code == 200
+-    assert "data.lat" in fake.codec_set and "data.batt_mv" not in fake.codec_set
++    assert "data.gps_lat" in fake.codec_set and "data.axp192_batt_mv" not in fake.codec_set
+
+
+ def test_set_codec_rejects_bad_dev_eui(client, monkeypatch):
+diff --git a/wirestudio/__init__.py b/wirestudio/__init__.py
+index 661a6fb..5121caf 100644
+--- a/wirestudio/__init__.py
++++ b/wirestudio/__init__.py
+@@ -1,3 +1,3 @@
+ """wirestudio: design.json -> ESPHome YAML + ASCII diagram."""
+
+-__version__ = "0.16.0"
++__version__ = "0.15.0"
+diff --git a/wirestudio/api/app.py b/wirestudio/api/app.py
+index f4c82d8..3aaecf6 100644
+--- a/wirestudio/api/app.py
++++ b/wirestudio/api/app.py
+@@ -100,8 +100,6 @@ from wirestudio.kicad.render import (
+ )
+ from wirestudio.jlcpcb import check_bom, jlcpcb_status, report_to_dict
+ from wirestudio.recommend.recommender import Constraints, recommend_components
+-from wirestudio.generate.ascii_gen import render_ascii
+-from wirestudio.generate.yaml_gen import render_yaml
+ from wirestudio.library import (
+     Library,
+     LibraryBoard,
+@@ -443,8 +441,10 @@ def create_app(
+         """
+         d = _validate_design(design)
+         try:
+-            yaml_text = render_yaml(d, lib)
+-            ascii_text = render_ascii(d, lib)
++            target = get_target(d.target)
++            artifacts = target.generate(d, lib)
++            yaml_text = artifacts.get("firmware.yaml", "")
++            ascii_text = artifacts.get("wiring.txt", "")
+         except FileNotFoundError as e:
+             # Unknown component / board referenced.
+             raise HTTPException(status_code=422, detail=str(e)) from e
+@@ -1035,8 +1035,12 @@ def create_app(
+         except ValidationError as e:
+             raise HTTPException(status_code=422, detail=e.errors()) from e
+         try:
+-            yaml_text = render_yaml(d, lib)
+-        except (FileNotFoundError, ValueError) as e:
++            target = get_target(d.target)
++            artifacts = target.generate(d, lib)
++            yaml_text = artifacts.get("firmware.yaml")
++            if not yaml_text:
++                raise ValueError(f"target '{d.target}' does not produce firmware.yaml")
++        except (FileNotFoundError, ValueError, KeyError) as e:
+             raise HTTPException(status_code=422, detail=str(e)) from e
+
+         # Strict-only push: refuse to ship when any warn/error compatibility
+diff --git a/wirestudio/library/__init__.py b/wirestudio/library/__init__.py
+index 28687a4..8c4dd97 100644
+--- a/wirestudio/library/__init__.py
++++ b/wirestudio/library/__init__.py
+@@ -46,7 +46,28 @@ class Electrical(_Strict):
+     passives: list[PassiveSpec] = Field(default_factory=list)
+
+
++
++class LorawanField(_Strict):
++    name: str
++    bytes: int
++    cpp_type: str
++    cpp_expr: str
++    signed: bool = False
++    scale: float = 1.0
++
++
++class LorawanSpec(_Strict):
++    lib_deps: list[str] = Field(default_factory=list)
++    requires: list[str] = Field(default_factory=list)
++    globals: str = ""
++    setup: str = ""
++    loop: str = ""
++    fields: list[LorawanField] = Field(default_factory=list)
++    downlink: Optional[str] = None
++
++
+ class EsphomeSpec(_Strict):
++
+     required_components: list[str] = Field(default_factory=list)
+     yaml_template: str = ""
+     expander_pin_key: Optional[str] = None
+@@ -60,6 +81,7 @@ class LibraryComponent(_Strict):
+     aliases: list[str] = Field(default_factory=list)
+     electrical: Electrical = Field(default_factory=Electrical)
+     esphome: EsphomeSpec = Field(default_factory=EsphomeSpec)
++    lorawan: Optional[LorawanSpec] = None
+     params_schema: dict = Field(default_factory=dict)
+     notes: Optional[str] = None
+     kicad: Optional[KicadSymbolRef] = None
+diff --git a/wirestudio/library/components/axp192.yaml b/wirestudio/library/components/axp192.yaml
+new file mode 100644
+index 0000000..2bf76bd
+--- /dev/null
++++ b/wirestudio/library/components/axp192.yaml
+@@ -0,0 +1,56 @@
++id: axp192
++name: X-Powers AXP192 PMIC
++category: power
++use_cases: [power, battery, pmic]
++aliases: [axp]
++
++electrical:
++  vcc_min: 3.3
++  vcc_max: 3.3
++  current_ma_typical: 1
++  current_ma_peak: 2
++  pins:
++    - {role: SDA, kind: i2c_sda}
++    - {role: SCL, kind: i2c_scl}
++
++esphome:
++  required_components: [i2c]
++  yaml_template: "" # Not actively used for ESPHome right now unless there is an AXP192 esphome component.
++
++params_schema: {}
++
++notes: "Onboard PMIC used by TTGO T-Beam"
++
++lorawan:
++  lib_deps:
++    - "lewisxhe/XPowersLib@^0.3.3"
++  requires:
++    - i2c
++  globals: |
++    #define XPOWERS_CHIP_AXP192
++    #include "XPowersLib.h"
++    XPowersPMU power;            // AXP192 PMIC: gates the GPS + LoRa rails, reports battery
++    uint16_t batteryMv = 0;
++  setup: |
++    if (power.begin(Wire, AXP192_SLAVE_ADDRESS, {{ i2c_sda | default(21) }}, {{ i2c_scl | default(22) }})) {
++      power.setLDO2Voltage(3300); power.enableLDO2();  // LoRa rail
++      power.setLDO3Voltage(3300); power.enableLDO3();  // GPS rail
++      power.enableBattDetection();
++      power.enableBattVoltageMeasure();
++      Serial.println("AXP192: LoRa + GPS rails enabled");
++    } else {
++      Serial.println("AXP192 init failed (battery/GPS telemetry unavailable)");
++    }
++  loop: |
++    batteryMv = power.getBattVoltage();
++  fields:
++    - name: batt_mv
++      bytes: 2
++      cpp_type: uint16_t
++      cpp_expr: batteryMv
++
++kicad:
++  symbol_lib: Connector_Generic
++  symbol: Conn_01x02
++  footprint: Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical
++  value: AXP192
+diff --git a/wirestudio/library/components/dht.yaml b/wirestudio/library/components/dht.yaml
+index 5f37c90..359276c 100644
+--- a/wirestudio/library/components/dht.yaml
++++ b/wirestudio/library/components/dht.yaml
+@@ -19,6 +19,35 @@ electrical:
+   passives:
+     - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+
++lorawan:
++  lib_deps:
++    - "adafruit/DHT sensor library@^1.4.6"
++  globals: |
++    #include <DHT.h>
++    DHT {{ id }}_dht({{ pin | default(pins.DATA) | default(params.pin) }}, {{ params.model | default('DHT22') }});
++    float {{ id }}_tempC = 0.0;
++    float {{ id }}_humidity = 0.0;
++  setup: |
++    {{ id }}_dht.begin();
++  loop: |
++    {
++      float _t = {{ id }}_dht.readTemperature();
++      float _h = {{ id }}_dht.readHumidity();
++      if (!isnan(_t)) {{ id }}_tempC = _t;
++      if (!isnan(_h)) {{ id }}_humidity = _h;
++    }
++  fields:
++    - name: temp_c
++      bytes: 2
++      cpp_type: int16_t
++      cpp_expr: (int16_t)({{ id }}_tempC * 100.0)
++      signed: true
++      scale: 100.0
++    - name: humidity
++      bytes: 1
++      cpp_type: uint8_t
++      cpp_expr: (uint8_t){{ id }}_humidity
++
+ esphome:
+   required_components: []
+   yaml_template: |
+diff --git a/wirestudio/library/components/ssd1306.yaml b/wirestudio/library/components/ssd1306.yaml
+index 1306886..cb3d9de 100644
+--- a/wirestudio/library/components/ssd1306.yaml
++++ b/wirestudio/library/components/ssd1306.yaml
+@@ -22,6 +22,64 @@ electrical:
+   passives:
+   - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+
++lorawan:
++  lib_deps:
++    - "adafruit/Adafruit SSD1306@^2.5.13"
++  requires:
++    - "i2c"
++  globals: |
++    #include <Adafruit_SSD1306.h>
++    // Reset is pulsed explicitly in setup() (after Vext power-on), so pass -1 here.
++    Adafruit_SSD1306 display(128, 64, &Wire, -1);
++    bool oledReady = false;     // false when the OLED is absent/wedged; loop() skips it then
++  setup: |
++      {%- if params.vext_pin is defined %}
++      pinMode({{ params.vext_pin }}, OUTPUT);
++      digitalWrite({{ params.vext_pin }}, LOW);  // Vext low = OLED power on
++      delay(100);                          // let the OLED rail settle before reset/init
++      {%- endif %}
++      {%- if pins.RESET is defined or params.reset_pin is defined %}
++      pinMode({{ pins.RESET | default(params.reset_pin) }}, OUTPUT);   // explicit reset pulse (Heltec sequence)
++      digitalWrite({{ pins.RESET | default(params.reset_pin) }}, HIGH); delay(1);
++      digitalWrite({{ pins.RESET | default(params.reset_pin) }}, LOW);  delay(20);
++      digitalWrite({{ pins.RESET | default(params.reset_pin) }}, HIGH);
++      {%- endif %}
++      // A floating / held-low SDA (absent or differently-wired OLED, e.g. some
++      // TTGO LoRa32 T3 v1.6.1 units) would otherwise let display.begin() spin
++      // until the interrupt watchdog reboots the board (TG1WDT). Probe for an ACK
++      // first and only init when the OLED answers, so it's best-effort like radio.
++      Wire.beginTransmission({{ params.address | default('0x3C') }});
++      if (Wire.endTransmission() == 0 && display.begin(SSD1306_SWITCHCAPVCC, {{ params.address | default('0x3C') }})) {
++        oledReady = true;
++        display.clearDisplay();
++        display.setTextSize(1);
++        display.setTextColor(SSD1306_WHITE);
++        display.setCursor(0, 0);
++        display.println("wirestudio");
++        display.display();
++      } else {
++        Serial.println("OLED absent or init failed; continuing without display");
++      }
++  loop: |
++      if (oledReady) {
++        display.clearDisplay();
++        display.setCursor(0, 0);
++      {%- if has_gps | default(false) %}
++        display.printf("Sats:%lu %s\n", (unsigned long) gps.satellites.value(),
++                       gps.location.isValid() ? "FIX" : "...");
++        display.printf("Lat: %.5f\n", gps.location.lat());
++        display.printf("Lon: %.5f\n", gps.location.lng());
++      {%- endif %}
++      {%- if has_axp | default(false) %}
++        display.printf("Batt: %u mV\n", batteryMv);
++      {%- endif %}
++      {%- if has_dht | default(false) %}
++        display.printf("Temp: %.1f C\n", dhtTempC);
++      {%- endif %}
++        display.printf("LoRa: %s\n", node->isActivated() ? "joined" : "no join");
++        display.display();
++      }
++
+ esphome:
+   required_components: [i2c]
+   yaml_template: |
+@@ -31,15 +89,15 @@ esphome:
+         address: "{{ params.address | default('0x3C') }}"
+         i2c_id: {{ bus.id }}
+         id: {{ id }}
+-    {%- if pins.RESET is defined %}
++      {%- if pins.RESET is defined %}
+         reset_pin: {{ pins.RESET | tojson }}
+-    {%- endif %}
+-    {%- if params.update_interval is defined %}
++      {%- endif %}
++      {%- if params.update_interval is defined %}
+         update_interval: {{ params.update_interval }}
+-    {%- endif %}
+-    {%- if params.lambda_ is defined %}
++      {%- endif %}
++      {%- if params.lambda_ is defined %}
+         lambda: {{ params.lambda_ | tojson }}
+-    {%- endif %}
++      {%- endif %}
+
+ params_schema:
+   address:
+diff --git a/wirestudio/library/components/uart_gps.yaml b/wirestudio/library/components/uart_gps.yaml
+index bb12386..b228a20 100644
+--- a/wirestudio/library/components/uart_gps.yaml
++++ b/wirestudio/library/components/uart_gps.yaml
+@@ -18,6 +18,44 @@ electrical:
+   passives:
+     - {kind: capacitor, value: "10uF", between: [VCC, GND], purpose: bulk decoupling}
+
++lorawan:
++  lib_deps:
++    - "mikalhart/TinyGPSPlus@^1.1.0"
++  globals: |
++    #include <TinyGPS++.h>
++    TinyGPSPlus gps;
++    HardwareSerial GPSSerial(1);
++  setup: |
++    {%- if bus is not none %}
++      GPSSerial.begin({{ bus.baud | default(9600) }}, SERIAL_8N1, {{ bus.rx }}, {{ bus.tx }});  // RX, TX
++    {%- else %}
++      GPSSerial.begin({{ params.baud | default(9600) }}, SERIAL_8N1, {{ pins.RX | default(params.rx_pin) | default('13') }}, {{ pins.TX | default(params.tx_pin) | default('15') }});
++    {%- endif %}
++  loop: |
++    while (GPSSerial.available()) gps.encode(GPSSerial.read());  // keep the fix current
++  fields:
++    - name: lat
++      bytes: 4
++      cpp_type: int32_t
++      cpp_expr: (int32_t)(gps.location.lat() * 10000000.0)
++      signed: true
++      scale: 10000000.0
++    - name: lon
++      bytes: 4
++      cpp_type: int32_t
++      cpp_expr: (int32_t)(gps.location.lng() * 10000000.0)
++      signed: true
++      scale: 10000000.0
++    - name: alt_m
++      bytes: 2
++      cpp_type: int16_t
++      cpp_expr: (int16_t)gps.altitude.meters()
++      signed: true
++    - name: sats
++      bytes: 1
++      cpp_type: uint8_t
++      cpp_expr: (uint8_t)gps.satellites.value()
++
+ esphome:
+   required_components: [uart]
+   yaml_template: |
+diff --git a/wirestudio/targets/base.py b/wirestudio/targets/base.py
+index b04022d..e87dd20 100644
+--- a/wirestudio/targets/base.py
++++ b/wirestudio/targets/base.py
+@@ -26,6 +26,14 @@ class TargetPlugin(ABC):
+     def board_ids(self, library: Library) -> list[str]:
+         """Library board ids selectable for this target, sorted."""
+
++    @abstractmethod
++    def component_ids(self, library: Library) -> list[str]:
++        """Library component ids selectable for this target, sorted."""
++
++    @abstractmethod
++    def generate(self, design: Design, library: Library) -> dict[str, str]:
++        """Generate artifacts. Returns a map of filename to contents."""
++
+     def validate(self, design: Design, library: Library) -> list[DesignWarning]:
+         """Target-specific, permissive design checks.
+
+diff --git a/wirestudio/targets/esphome.py b/wirestudio/targets/esphome.py
+index 4aa5993..f84a0b6 100644
+--- a/wirestudio/targets/esphome.py
++++ b/wirestudio/targets/esphome.py
+@@ -1,6 +1,7 @@
+ from __future__ import annotations
+
+ from wirestudio.library import Library
++from wirestudio.model import Design
+ from wirestudio.targets.base import TargetPlugin, register
+
+
+@@ -14,5 +15,15 @@ class EsphomeTarget(TargetPlugin):
+     def board_ids(self, library: Library) -> list[str]:
+         return sorted(b.id for b in library.list_boards())
+
++    def component_ids(self, library: Library) -> list[str]:
++        return sorted(c.id for c in library.list_components() if c.esphome is not None)
++
++    def generate(self, design: Design, library: Library) -> dict[str, str]:
++        from wirestudio.generate import yaml_gen, ascii_gen
++        return {
++            "firmware.yaml": yaml_gen.render_yaml(design, library),
++            "wiring.txt": ascii_gen.render_ascii(design, library),
++        }
++
+
+ register(EsphomeTarget())
+diff --git a/wirestudio/targets/lorawan/__init__.py b/wirestudio/targets/lorawan/__init__.py
+index 3532cfc..9af45af 100644
+--- a/wirestudio/targets/lorawan/__init__.py
++++ b/wirestudio/targets/lorawan/__init__.py
+@@ -23,6 +23,13 @@ class LorawanTarget(TargetPlugin):
+     def board_ids(self, library: Library) -> list[str]:
+         return sorted(b.id for b in library.list_boards() if b.has_radio)
+
++    def component_ids(self, library: Library) -> list[str]:
++        return sorted(c.id for c in library.list_components() if c.lorawan is not None)
++
++    def generate(self, design: Design, library: Library) -> dict[str, str]:
++        from wirestudio.targets.lorawan.firmware_gen import generate_firmware
++        return generate_firmware(design, library)
++
+     def router(self, library: Library):
+         # Lazy: keeps the firmware/compile imports out of the target's import path.
+         from wirestudio.targets.lorawan.api import build_router
+diff --git a/wirestudio/targets/lorawan/chirpstack.py b/wirestudio/targets/lorawan/chirpstack.py
+index 3b94188..2329806 100644
+--- a/wirestudio/targets/lorawan/chirpstack.py
++++ b/wirestudio/targets/lorawan/chirpstack.py
+@@ -215,10 +215,6 @@ class ChirpStackClient:
+             adr_algorithm_id="default",
+             supports_otaa=True,
+             uplink_interval=3600,
+-            # Let ChirpStack register decoded payload keys as measurements (for
+-            # its own metrics dashboards). The chirp2mqtt HA integration reads
+-            # entities from the codec's getHaDeviceInfo, independent of this.
+-            auto_detect_measurements=True,
+         )
+         if codec is not None:
+             profile.payload_codec_runtime = m.dp.CodecRuntime.JS
+diff --git a/wirestudio/targets/lorawan/codec.py b/wirestudio/targets/lorawan/codec.py
+index 3035453..0a54cd2 100644
+--- a/wirestudio/targets/lorawan/codec.py
++++ b/wirestudio/targets/lorawan/codec.py
+@@ -22,91 +22,69 @@ class Field(TypedDict, total=False):
+     cpp_expr: str  # C++ expression yielding the value (assigned to a temp, then packed)
+     signed: bool   # default False; affects codec sign-extension
+     scale: float   # default 1; codec divides the decoded int by this (e.g. 1e7 for degrees)
+-    # Home Assistant entity hints, consumed by `getHaDeviceInfo` (the chirp2mqtt
+-    # integration reads them to publish MQTT-discovery entities). All optional.
+-    ha_device_class: str   # HA device_class (e.g. "temperature", "voltage")
+-    ha_unit: str           # unit_of_measurement
+-    ha_state_class: str    # e.g. "measurement"
+-    ha_diagnostic: bool    # entity_category=diagnostic
+-    ha_icon: str           # mdi icon
+-    ha_divide: float       # divide the (already decoded) value in the HA template
+
+
+ # Always present on every LoRaWAN build. Big-endian.
+ BUILTIN_FIELDS: list[Field] = [
+-    {"name": "uptime_s", "bytes": 4, "cpp_type": "uint32_t", "cpp_expr": "(uint32_t)(millis() / 1000UL)",
+-     "ha_device_class": "duration", "ha_unit": "s", "ha_diagnostic": True},
+-    {"name": "boot_count", "bytes": 2, "cpp_type": "uint16_t", "cpp_expr": "bootCount",
+-     "ha_state_class": "measurement", "ha_diagnostic": True, "ha_icon": "mdi:restart"},
++    {"name": "uptime_s", "bytes": 4, "cpp_type": "uint32_t", "cpp_expr": "(uint32_t)(millis() / 1000UL)"},
++    {"name": "boot_count", "bytes": 2, "cpp_type": "uint16_t", "cpp_expr": "bootCount"},
+ ]
+
+-# Added when the board carries a `gps_neo6m` onboard peripheral. lat/lon are
+-# scaled by 1e7 into signed int32 (standard LoRaWAN GPS encoding). With no fix,
+-# TinyGPSPlus returns 0 -> sats=0 is the "no fix yet" indicator.
+-GPS_FIELDS: list[Field] = [
+-    {"name": "lat", "bytes": 4, "cpp_type": "int32_t",
+-     "cpp_expr": "(int32_t)(gps.location.lat() * 10000000.0)", "signed": True, "scale": 1e7,
+-     "ha_unit": "°", "ha_diagnostic": True, "ha_icon": "mdi:latitude"},
+-    {"name": "lon", "bytes": 4, "cpp_type": "int32_t",
+-     "cpp_expr": "(int32_t)(gps.location.lng() * 10000000.0)", "signed": True, "scale": 1e7,
+-     "ha_unit": "°", "ha_diagnostic": True, "ha_icon": "mdi:longitude"},
+-    {"name": "alt_m", "bytes": 2, "cpp_type": "int16_t",
+-     "cpp_expr": "(int16_t)gps.altitude.meters()", "signed": True,
+-     "ha_device_class": "distance", "ha_unit": "m", "ha_state_class": "measurement", "ha_diagnostic": True},
+-    {"name": "sats", "bytes": 1, "cpp_type": "uint8_t",
+-     "cpp_expr": "(uint8_t)gps.satellites.value()",
+-     "ha_state_class": "measurement", "ha_diagnostic": True, "ha_icon": "mdi:satellite-variant"},
+-]
+
+-# Added when the board carries an `axp192` PMIC. batteryMv is read in the loop.
+-BATTERY_FIELDS: list[Field] = [
+-    {"name": "batt_mv", "bytes": 2, "cpp_type": "uint16_t", "cpp_expr": "batteryMv",
+-     "ha_device_class": "voltage", "ha_unit": "V", "ha_state_class": "measurement",
+-     "ha_diagnostic": True, "ha_divide": 1000},
+-]
+
+-# Added when the design declares a `dht22`. Temperature signed int16 x100 (degC);
+-# humidity uint8 (%). dhtTempC / dhtHumidity are read into globals in the loop.
+-DHT_FIELDS: list[Field] = [
+-    {"name": "temp_c", "bytes": 2, "cpp_type": "int16_t",
+-     "cpp_expr": "(int16_t)(dhtTempC * 100.0)", "signed": True, "scale": 100,
+-     "ha_device_class": "temperature", "ha_unit": "°C", "ha_state_class": "measurement"},
+-    {"name": "humidity", "bytes": 1, "cpp_type": "uint8_t", "cpp_expr": "(uint8_t)dhtHumidity",
+-     "ha_device_class": "humidity", "ha_unit": "%", "ha_state_class": "measurement"},
+-]
+
+
+-def sensors(design=None, library=None) -> dict:
+-    """Which sensors a design has, from onboard peripherals + lorawan.* configs.
+-    firmware_gen and the codec both use this, so they stay in lockstep.
+-    Keys: gps, battery, dht, oled (oled is display-only, no payload field)."""
+-    onboard: dict = {}
+-    if design is not None and library is not None:
+-        try:
+-            onboard = library.board(design.board.library_id).onboard_peripherals or {}
+-        except (FileNotFoundError, AttributeError):
+-            onboard = {}
++def fields_for(design=None, library=None) -> list[Field]:
++    """Payload fields: built-in telemetry + fields contributed by components."""
++    fields = list(BUILTIN_FIELDS)
++    if design is None or library is None:
++        return fields
++
++    components = list(design.components)
++    board = library.board(design.board.library_id)
++    onboard = board.onboard_peripherals or {}
+     lw = getattr(design, "lorawan", None)
+-    return {
+-        "gps": ("gps_neo6m" in onboard) or (getattr(lw, "gps", None) is not None),
+-        "battery": "axp192" in onboard,
+-        "dht": getattr(lw, "dht22", None) is not None,
+-        "oled": ("oled_ssd1306" in onboard) or (getattr(lw, "oled", None) is not None),
+-    }
+
++    has_gps = any(c.library_id == "uart_gps" for c in components)
++    has_dht = any(c.library_id == "dht" for c in components)
++    has_axp = any(c.library_id == "axp192" for c in components)
++    has_oled = any(c.library_id == "ssd1306" for c in components)
+
+-def fields_for(design=None, library=None) -> list[Field]:
+-    """Payload fields: built-in telemetry + GPS / battery / DHT when present."""
+-    s = sensors(design, library)
+-    fields = list(BUILTIN_FIELDS)
+-    if s["gps"]:
+-        fields += GPS_FIELDS
+-    if s["battery"]:
+-        fields += BATTERY_FIELDS
+-    if s["dht"]:
+-        fields += DHT_FIELDS
+-    return fields
++    if "gps_neo6m" in onboard or getattr(lw, "gps", None) is not None:
++        if not has_gps:
++            from wirestudio.model import Component
++            components.append(Component(id="gps", library_id="uart_gps", label="GPS"))
+
++    if "axp192" in onboard and not has_axp:
++        from wirestudio.model import Component
++        components.append(Component(id="axp192", library_id="axp192", label="PMIC"))
++
++    if getattr(lw, "dht22", None) is not None and not has_dht:
++        from wirestudio.model import Component
++        components.append(Component(id="dht1", library_id="dht", label="DHT"))
++
++    if "oled_ssd1306" in onboard or getattr(lw, "oled", None) is not None:
++        if not has_oled:
++            from wirestudio.model import Component
++            components.append(Component(id="oled", library_id="ssd1306", label="OLED"))
++
++    for comp_inst in components:
++        try:
++            lib_comp = library.component(comp_inst.library_id)
++            if lib_comp.lorawan and lib_comp.lorawan.fields:
++                for fld in lib_comp.lorawan.fields:
++                    fields.append({
++                        "name": f"{comp_inst.id}_{fld.name}",
++                        "bytes": fld.bytes,
++                        "cpp_type": fld.cpp_type,
++                        "cpp_expr": fld.cpp_expr.replace("{{ id }}", comp_inst.id),
++                        "signed": fld.signed,
++                        "scale": fld.scale
++                    })
++        except Exception:
++            pass
++
++    return fields
+
+ def payload_size(fields: list[Field]) -> int:
+     return sum(f["bytes"] for f in fields)
+@@ -154,89 +132,53 @@ def decode_js(fields: list[Field]) -> str:
+     return "\n".join(lines)
+
+
+-# Link-quality entities every device exposes, read from ChirpStack's rxInfo
+-# (not the payload). Appended to every getHaDeviceInfo.
+-_RX_ENTITIES: list[tuple[str, str, dict]] = [
+-    ("rssi", "value_json.rxInfo[-1].rssi | int",
+-     {"ha_device_class": "signal_strength", "ha_unit": "dBm", "ha_diagnostic": True}),
+-    ("snr", "value_json.rxInfo[-1].snr | float",
+-     {"ha_unit": "dB", "ha_diagnostic": True, "ha_icon": "mdi:wave"}),
+-]
+-
+-
+-def _ha_entity_conf(value_template: str, hints: dict) -> str:
+-    """Render one chirp2mqtt `entity_conf` block from HA hints."""
+-    lines = [f'        value_template: "{{{{ {value_template} }}}}"']
+-    if hints.get("ha_diagnostic"):
+-        lines.append('        entity_category: "diagnostic"')
+-    if hints.get("ha_state_class"):
+-        lines.append(f'        state_class: "{hints["ha_state_class"]}"')
+-    if hints.get("ha_device_class"):
+-        lines.append(f'        device_class: "{hints["ha_device_class"]}"')
+-    if hints.get("ha_unit"):
+-        lines.append(f'        unit_of_measurement: "{hints["ha_unit"]}"')
+-    if hints.get("ha_icon"):
+-        lines.append(f'        icon: "{hints["ha_icon"]}"')
+-    return "{\n" + ",\n".join(lines) + "\n      }"
+-
+-
+-def ha_device_info_js(fields: list[Field], *, model: str) -> str:
+-    """ChirpStack-codec `getHaDeviceInfo` for the chirp2mqtt HA integration.
+-
+-    chirp2mqtt reads this function (not just `decodeUplink`) to publish HA
+-    MQTT-discovery entities. Each payload field with HA hints becomes a sensor;
+-    rssi/snr come from rxInfo; a GPS payload (lat+lon) also yields a
+-    `device_tracker` whose latitude/longitude attributes drive the HA map.
+-    """
+-    blocks: list[str] = []
+-    for fld in fields:
+-        if not any(k.startswith("ha_") for k in fld):
+-            continue
+-        expr = f"value_json.object.{fld['name']} | {'float' if fld['cpp_type'].startswith(('int', 'float')) or fld.get('scale') else 'int'}"
+-        if fld.get("ha_divide"):
+-            expr = f"(value_json.object.{fld['name']} | float) / {fld['ha_divide']:.0f}"
+-        blocks.append(f"    {fld['name']}: {{\n      entity_conf: {_ha_entity_conf(expr, fld)}\n    }}")
+-    for name, expr, hints in _RX_ENTITIES:
+-        blocks.append(f"    {name}: {{\n      entity_conf: {_ha_entity_conf(expr, hints)}\n    }}")
+-    names = {f["name"] for f in fields}
+-    if {"lat", "lon"} <= names:
+-        blocks.append(
+-            '    location: {\n'
+-            '      integration: "device_tracker",\n'
+-            '      entity_conf: {\n'
+-            '        source_type: "gps",\n'
+-            "        value_template: \"{{ 'home' if (value_json.object.sats | int) > 0 else 'not_home' }}\",\n"
+-            '        json_attributes_topic: "{status_topic}",\n'
+-            "        json_attributes_template: \"{{ {'latitude': value_json.object.lat, 'longitude': value_json.object.lon, 'gps_accuracy': 10} | tojson }}\"\n"
+-            '      }\n'
+-            '    }'
+-        )
+-    return (
+-        "\nfunction getHaDeviceInfo() {\n  return {\n"
+-        f'    device: {{ manufacturer: "wirestudio", model: "{model}" }},\n'
+-        "    entities: {\n" + ",\n".join(blocks) + "\n    }\n  };\n}\n"
+-    )
+-
+-
+ def generate_codec(design=None, library=None) -> str:
+-    """The ChirpStack codec for a design's payload: `decodeUplink` plus the
+-    `getHaDeviceInfo` block the chirp2mqtt HA integration reads to publish
+-    MQTT-discovery entities."""
+-    fields = fields_for(design, library)
+-    return decode_js(fields) + ha_device_info_js(fields, model=profile_name(design, library))
++    """The ChirpStack codec for a design's payload."""
++    return decode_js(fields_for(design, library))
++
+
+
+ def profile_name(design=None, library=None) -> str:
+-    """ChirpStack device-profile name for a design's payload shape. Distinct
+-    payloads (board + attached sensors) get distinct profiles, so each carries
+-    its own decodeUplink codec without clobbering another device type's."""
+-    s = sensors(design, library)
++    """ChirpStack device-profile name for a design's payload shape."""
+     board_id = getattr(getattr(design, "board", None), "library_id", "generic")
+-    suffix = "".join(
+-        tag for tag, on in (("-gps", s["gps"]), ("-batt", s["battery"]), ("-dht", s["dht"])) if on
+-    )
+-    return f"wirestudio-{board_id}-us915-sub2{suffix}"
++    suffix = ""
++    if design and library:
++        components = list(design.components)
++        board = library.board(design.board.library_id)
++        onboard = board.onboard_peripherals or {}
++        lw = getattr(design, "lorawan", None)
++
++        has_gps = any(c.library_id == "uart_gps" for c in components)
++        has_dht = any(c.library_id == "dht" for c in components)
++        has_axp = any(c.library_id == "axp192" for c in components)
++        has_oled = any(c.library_id == "ssd1306" for c in components)
++
++        if "gps_neo6m" in onboard or getattr(lw, "gps", None) is not None:
++            if not has_gps:
++                from wirestudio.model import Component
++                components.append(Component(id="gps", library_id="uart_gps", label="GPS"))
++
++        if "axp192" in onboard and not has_axp:
++            from wirestudio.model import Component
++            components.append(Component(id="axp192", library_id="axp192", label="PMIC"))
++
++        if getattr(lw, "dht22", None) is not None and not has_dht:
++            from wirestudio.model import Component
++            components.append(Component(id="dht1", library_id="dht", label="DHT"))
++
++        if "oled_ssd1306" in onboard or getattr(lw, "oled", None) is not None:
++            if not has_oled:
++                from wirestudio.model import Component
++                components.append(Component(id="oled", library_id="ssd1306", label="OLED"))
++
++        for comp_inst in components:
++            suffix += f"-{comp_inst.library_id}"
++
++    if len(suffix) > 30:
++        import hashlib
++        suffix = "-" + hashlib.md5(suffix.encode()).hexdigest()[:8]
+
++    return f"wirestudio-{board_id}-us915-sub2{suffix}"
+
+ def builtin_codec() -> Optional[str]:
+     return decode_js(BUILTIN_FIELDS)
+diff --git a/wirestudio/targets/lorawan/firmware_gen.py b/wirestudio/targets/lorawan/firmware_gen.py
+index cdf0867..3df03fe 100644
+--- a/wirestudio/targets/lorawan/firmware_gen.py
++++ b/wirestudio/targets/lorawan/firmware_gen.py
+@@ -60,43 +60,7 @@ def _radio_ctx(radio: Radio) -> dict:
+     }
+
+
+-def _sensor_ctx(design: Design, board) -> dict:
+-    """Template flags + pins for onboard sensors, external GPS, DHT22, and OLED.
+-    Kept in lockstep with codec.sensors (same onboard keys + lorawan.* configs)."""
+-    onboard = board.onboard_peripherals or {}
+-    i2c = (board.default_buses or {}).get("i2c", {})
+-    lw = design.lorawan
+-    onboard_gps = onboard.get("gps_neo6m")
+-    external_gps = lw.gps if (lw and lw.gps) else None
+-    onboard_oled = onboard.get("oled_ssd1306")
+-    ctx = {
+-        "has_gps": bool(onboard_gps or external_gps),
+-        "has_axp": "axp192" in onboard,
+-        "has_dht": bool(lw and lw.dht22),
+-        "has_oled": bool(onboard_oled or (lw and lw.oled)),
+-    }
+-    if ctx["has_axp"]:
+-        ctx["i2c_sda"] = _pin(i2c.get("sda"))
+-        ctx["i2c_scl"] = _pin(i2c.get("scl"))
+-    if onboard_gps:
+-        # The peripheral's TX is the MCU's RX (and vice-versa).
+-        ctx["gps_rx"] = _pin(onboard_gps.get("tx"))
+-        ctx["gps_tx"] = _pin(onboard_gps.get("rx"))
+-        ctx["gps_baud"] = onboard_gps.get("baud", 9600)
+-    elif external_gps:
+-        ctx["gps_rx"] = _pin(external_gps.rx_pin)
+-        ctx["gps_tx"] = _pin(external_gps.tx_pin)
+-        ctx["gps_baud"] = external_gps.baud
+-    if ctx["has_dht"]:
+-        ctx["dht_pin"] = _pin(lw.dht22.pin)
+-    if ctx["has_oled"]:
+-        p = onboard_oled or {}
+-        ctx["oled_sda"] = _pin(p.get("sda") or i2c.get("sda"))
+-        ctx["oled_scl"] = _pin(p.get("scl") or i2c.get("scl"))
+-        ctx["oled_reset"] = _pin(p["reset"]) if p.get("reset") else None
+-        ctx["oled_vext"] = _pin(p["vext"]) if p.get("vext") else None
+-        ctx["oled_addr"] = p.get("address", "0x3C")
+-    return ctx
++
+
+
+ def generate_firmware(design: Design, library: Library) -> dict[str, str]:
+@@ -127,6 +91,109 @@ def generate_firmware(design: Design, library: Library) -> dict[str, str]:
+     # DR3 (SF7) = 242 B. Pick the lowest DR (longest range) that fits so the
+     # first post-join uplink isn't rejected as too long; ADR tunes from there.
+     min_datarate = 0 if size <= 11 else (1 if size <= 53 else 3)
++
++    components = list(design.components)
++
++    # Add onboard peripherals implicitly
++    onboard = board.onboard_peripherals or {}
++
++    has_gps = False
++    has_dht = False
++    has_oled = False
++    has_axp = False
++    for comp in components:
++        if comp.library_id == "uart_gps":
++            has_gps = True
++        elif comp.library_id == "dht":
++            has_dht = True
++        elif comp.library_id == "ssd1306":
++            has_oled = True
++        elif comp.library_id == "axp192":
++            has_axp = True
++
++    if "gps_neo6m" in onboard or getattr(lw, "gps", None) is not None:
++        if not has_gps:
++            from wirestudio.model import Component
++            gps_conf = getattr(lw, "gps", None)
++            params = {}
++            if gps_conf:
++                params = {"rx_pin": gps_conf.rx_pin, "tx_pin": gps_conf.tx_pin, "baud": gps_conf.baud}
++            elif "gps_neo6m" in onboard:
++                params = {"rx_pin": onboard["gps_neo6m"].get("tx"), "tx_pin": onboard["gps_neo6m"].get("rx"), "baud": onboard["gps_neo6m"].get("baud", 9600)}
++            components.append(Component(id="gps", library_id="uart_gps", label="GPS", params=params))
++
++    if "axp192" in onboard and not has_axp:
++        from wirestudio.model import Component
++        components.append(Component(id="axp192", library_id="axp192", label="PMIC"))
++
++    if getattr(lw, "dht22", None) is not None and not has_dht:
++        from wirestudio.model import Component
++        dht_conf = getattr(lw, "dht22", None)
++        components.append(Component(id="dht1", library_id="dht", label="DHT", params={"pin": dht_conf.pin, "model": "DHT22"}))
++
++    if "oled_ssd1306" in onboard or getattr(lw, "oled", None) is not None:
++        if not has_oled:
++            from wirestudio.model import Component
++            params = {}
++            if "oled_ssd1306" in onboard:
++                params = {"address": onboard["oled_ssd1306"].get("address", "0x3C")}
++                if onboard["oled_ssd1306"].get("reset"):
++                    params["reset_pin"] = onboard["oled_ssd1306"]["reset"]
++                if onboard["oled_ssd1306"].get("vext"):
++                    params["vext_pin"] = onboard["oled_ssd1306"]["vext"]
++            components.append(Component(id="oled", library_id="ssd1306", label="OLED", params=params))
++    component_lib_deps = []
++    component_requires = set()
++    component_globals = []
++    component_setup = []
++    component_loop = []
++
++    for comp_inst in components:
++        try:
++            lib_comp = library.component(comp_inst.library_id)
++            if lib_comp.lorawan:
++                lw_spec = lib_comp.lorawan
++                if lw_spec.lib_deps:
++                    for dep in lw_spec.lib_deps:
++                        if dep not in component_lib_deps:
++                            component_lib_deps.append(dep)
++                if lw_spec.requires:
++                    for req in lw_spec.requires:
++                        component_requires.add(req)
++
++                import jinja2
++                env = jinja2.Environment()
++
++                pins = {}
++                bus = None
++                for conn in design.connections:
++                    if conn.component_id == comp_inst.id:
++                        if conn.target.kind == "gpio":
++                            pins[conn.pin_role] = _pin(conn.target.pin)
++                        elif conn.target.kind == "bus":
++                            for b in design.buses:
++                                if b.id == conn.target.bus_id:
++                                    bus = {"id": b.id, "sda": _pin(getattr(b, "sda", None)), "scl": _pin(getattr(b, "scl", None)), "rx": _pin(getattr(b, "rx", None)), "tx": _pin(getattr(b, "tx", None))}
++                                    break
++
++                pin = pins.get("pin") or list(pins.values())[0] if pins else None
++
++                render_ctx = {"id": comp_inst.id, "label": comp_inst.label, "params": comp_inst.params, "pin": pin, "pins": pins, "bus": bus, "onboard": onboard, "board": board, "i2c_sda": _pin((board.default_buses or {}).get("i2c", {}).get("sda")), "i2c_scl": _pin((board.default_buses or {}).get("i2c", {}).get("scl"))}
++
++                if lw_spec.globals:
++                    component_globals.append(env.from_string(lw_spec.globals).render(**render_ctx))
++                if lw_spec.setup:
++                    component_setup.append(env.from_string(lw_spec.setup).render(**render_ctx))
++                if lw_spec.loop:
++                    component_loop.append(env.from_string(lw_spec.loop).render(**render_ctx))
++        except Exception:
++            pass
++
++    # get i2c_sda and i2c_scl for template setup
++    i2c = (board.default_buses or {}).get("i2c", {})
++    i2c_sda = _pin(i2c.get("sda"))
++    i2c_scl = _pin(i2c.get("scl"))
++
+     ctx = {
+         "device_name": device_name,
+         "board": {
+@@ -141,8 +208,14 @@ def generate_firmware(design: Design, library: Library) -> dict[str, str]:
+         "payload_size": size,
+         "min_datarate": min_datarate,
+         "payload_pack": pack_cpp(fields),
++        "component_lib_deps": component_lib_deps,
++        "component_requires": list(component_requires),
++        "component_globals": "\n".join(component_globals),
++        "component_setup": "\n".join(component_setup),
++        "component_loop": "\n".join(component_loop),
++        "i2c_sda": i2c_sda,
++        "i2c_scl": i2c_scl,
+         **_radio_ctx(board.radio),
+-        **_sensor_ctx(design, board),
+     }
+     return {
+         "platformio.ini": _jinja.get_template("platformio.ini.j2").render(**ctx),
+diff --git a/wirestudio/targets/lorawan/templates/main.cpp.j2 b/wirestudio/targets/lorawan/templates/main.cpp.j2
+index 8abcb0a..d99990c 100644
+--- a/wirestudio/targets/lorawan/templates/main.cpp.j2
++++ b/wirestudio/targets/lorawan/templates/main.cpp.j2
+@@ -11,22 +11,13 @@
+
+ #include <RadioLib.h>
+ #include <LoRaWAN_ESP32.h>
+-{% if has_axp or has_oled %}
++{% if 'i2c' in component_requires %}
+ #include <Wire.h>
+ {% endif %}
+-{% if has_axp %}
+-#define XPOWERS_CHIP_AXP192
+-#include "XPowersLib.h"
+-{% endif %}
+-{% if has_gps %}
+-#include <TinyGPS++.h>
+-{% endif %}
+-{% if has_dht %}
+-#include <DHT.h>
+-{% endif %}
+-{% if has_oled %}
+-#include <Adafruit_SSD1306.h>
++{% if 'spi' in component_requires %}
++#include <SPI.h>
+ {% endif %}
++{{ component_includes | default('') }}
+
+ // {{ radiolib_class }} wiring on this board: NSS={{ cs }}, IRQ={{ irq }}, RST={{ rst }}, {{ 'BUSY' if is_sx126x else 'DIO1' }}={{ gpio }}.
+ {{ radiolib_class }} radio = new Module({{ cs }}, {{ irq }}, {{ rst }}, {{ gpio }});
+@@ -35,24 +26,8 @@ LoRaWANNode* node;
+
+ // Survives deep sleep / soft reset (cleared on power-on); a coarse boot counter.
+ RTC_DATA_ATTR uint16_t bootCount = 0;
+-{% if has_axp %}
+-XPowersPMU power;            // AXP192 PMIC: gates the GPS + LoRa rails, reports battery
+-uint16_t batteryMv = 0;
+-{% endif %}
+-{% if has_gps %}
+-TinyGPSPlus gps;
+-HardwareSerial GPSSerial(1);
+-{% endif %}
+-{% if has_dht %}
+-DHT dht({{ dht_pin }}, DHT22);
+-float dhtTempC = 0.0;
+-float dhtHumidity = 0.0;
+-{% endif %}
+-{% if has_oled %}
+-// Reset is pulsed explicitly in setup() (after Vext power-on), so pass -1 here.
+-Adafruit_SSD1306 display(128, 64, &Wire, -1);
+-bool oledReady = false;     // false when the OLED is absent/wedged; loop() skips it then
+-{% endif %}
++
++{{ component_globals | default('') }}
+
+ // Pinned LoRaWAN parameters. The gateway is US915 sub-band 2; a mismatch makes
+ // the device transmit joins on channels the gateway never hears.
+@@ -65,55 +40,11 @@ void setup() {
+   bootCount++;
+   Serial.printf("wirestudio lorawan: %s sub-band %u joinEUI %016llX\n",
+                 WS_REGION, WS_SUBBAND, (unsigned long long) WS_JOIN_EUI);
+-{% if has_axp %}
+-  if (power.begin(Wire, AXP192_SLAVE_ADDRESS, {{ i2c_sda }}, {{ i2c_scl }})) {
+-    power.setLDO2Voltage(3300); power.enableLDO2();  // LoRa rail
+-    power.setLDO3Voltage(3300); power.enableLDO3();  // GPS rail
+-    power.enableBattDetection();
+-    power.enableBattVoltageMeasure();
+-    Serial.println("AXP192: LoRa + GPS rails enabled");
+-  } else {
+-    Serial.println("AXP192 init failed (battery/GPS telemetry unavailable)");
+-  }
+-{% endif %}
+-{% if has_gps %}
+-  GPSSerial.begin({{ gps_baud }}, SERIAL_8N1, {{ gps_rx }}, {{ gps_tx }});  // RX, TX
+-{% endif %}
+-{% if has_dht %}
+-  dht.begin();
+-{% endif %}
+-{% if has_oled %}
+-{% if oled_vext is not none %}
+-  pinMode({{ oled_vext }}, OUTPUT);
+-  digitalWrite({{ oled_vext }}, LOW);  // Vext low = OLED power on
+-  delay(100);                          // let the OLED rail settle before reset/init
+-{% endif %}
+-{% if oled_reset is not none %}
+-  pinMode({{ oled_reset }}, OUTPUT);   // explicit reset pulse (Heltec sequence)
+-  digitalWrite({{ oled_reset }}, HIGH); delay(1);
+-  digitalWrite({{ oled_reset }}, LOW);  delay(20);
+-  digitalWrite({{ oled_reset }}, HIGH);
+-{% endif %}
+-  Wire.begin({{ oled_sda }}, {{ oled_scl }});
+-  Wire.setClock(400000);
+-  Wire.setTimeOut(50);                  // ms; bound each I2C transaction (ESP32 core)
+-  // A floating / held-low SDA (absent or differently-wired OLED, e.g. some
+-  // TTGO LoRa32 T3 v1.6.1 units) would otherwise let display.begin() spin
+-  // until the interrupt watchdog reboots the board (TG1WDT). Probe for an ACK
+-  // first and only init when the OLED answers, so it's best-effort like radio.
+-  Wire.beginTransmission({{ oled_addr }});
+-  if (Wire.endTransmission() == 0 && display.begin(SSD1306_SWITCHCAPVCC, {{ oled_addr }})) {
+-    oledReady = true;
+-    display.clearDisplay();
+-    display.setTextSize(1);
+-    display.setTextColor(SSD1306_WHITE);
+-    display.setCursor(0, 0);
+-    display.println("wirestudio");
+-    display.display();
+-  } else {
+-    Serial.println("OLED absent or init failed; continuing without display");
+-  }
++{% if 'i2c' in component_requires %}
++  Wire.begin({{ i2c_sda | default(21) }}, {{ i2c_scl | default(22) }});
++  Wire.setTimeOut(50);
+ {% endif %}
++{{ component_setup | default('') }}
+
+   int16_t state = radio.begin();
+   if (state != RADIOLIB_ERR_NONE) {
+@@ -154,55 +85,12 @@ void loop() {
+   // Sensors + OLED refresh every iteration, independent of the LoRaWAN join,
+   // so you get live feedback even with no gateway in range. The uplink (and a
+   // re-join retry) run on a 60s cadence.
+-{% if has_gps %}
+-  while (GPSSerial.available()) gps.encode(GPSSerial.read());  // keep the fix current
+-{% endif %}
+-{% if has_oled %}
+-  if (oledReady) {
+-    display.clearDisplay();
+-    display.setCursor(0, 0);
+-{% if has_gps %}
+-    display.printf("Sats:%lu %s\n", (unsigned long) gps.satellites.value(),
+-                   gps.location.isValid() ? "FIX" : "...");
+-    display.printf("Lat: %.5f\n", gps.location.lat());
+-    display.printf("Lon: %.5f\n", gps.location.lng());
+-{% endif %}
+-{% if has_axp %}
+-    display.printf("Batt: %u mV\n", batteryMv);
+-{% endif %}
+-{% if has_dht %}
+-    display.printf("Temp: %.1f C\n", dhtTempC);
+-{% endif %}
+-    display.printf("LoRa: %s\n", node->isActivated() ? "joined" : "no join");
+-    display.display();
+-  }
+-{% endif %}
++{{ component_loop | default('') }}
+
+   static unsigned long lastTx = 0;
+   if (lastTx == 0 || millis() - lastTx >= 60000) {
+     lastTx = millis();
+-{% if has_axp %}
+-    batteryMv = power.getBattVoltage();
+-{% endif %}
+-{% if has_dht %}
+-    {
+-      float _t = dht.readTemperature();
+-      float _h = dht.readHumidity();
+-      if (!isnan(_t)) dhtTempC = _t;
+-      if (!isnan(_h)) dhtHumidity = _h;
+-    }
+-{% endif %}
+-{% if has_gps %}
+-    Serial.printf("GPS: %s sats=%lu lat=%.6f lon=%.6f\n",
+-                  gps.location.isValid() ? "fix" : "no-fix",
+-                  (unsigned long) gps.satellites.value(), gps.location.lat(), gps.location.lng());
+-{% endif %}
+-{% if has_axp %}
+-    Serial.printf("battery: %u mV\n", batteryMv);
+-{% endif %}
+-{% if has_dht %}
+-    Serial.printf("dht: %.1f C  %.0f%%\n", dhtTempC, dhtHumidity);
+-{% endif %}
++
+     if (!node->isActivated()) {
+       Serial.println("not joined -- retrying OTAA (sensors still live above)");
+       node->activateOTAA();
+diff --git a/wirestudio/targets/lorawan/templates/platformio.ini.j2 b/wirestudio/targets/lorawan/templates/platformio.ini.j2
+index baabee1..5d5b5e9 100644
+--- a/wirestudio/targets/lorawan/templates/platformio.ini.j2
++++ b/wirestudio/targets/lorawan/templates/platformio.ini.j2
+@@ -7,15 +7,6 @@ monitor_speed = 115200
+ lib_deps =
+     jgromes/RadioLib@^7.6.0
+     ropg/LoRaWAN_ESP32@^1.3.0
+-{% if has_gps %}
+-    mikalhart/TinyGPSPlus@^1.1.0
+-{% endif %}
+-{% if has_axp %}
+-    lewisxhe/XPowersLib@^0.3.3
+-{% endif %}
+-{% if has_dht %}
+-    adafruit/DHT sensor library@^1.4.6
+-{% endif %}
+-{% if has_oled %}
+-    adafruit/Adafruit SSD1306@^2.5.13
+-{% endif %}
++{% for dep in component_lib_deps %}
++    {{ dep }}
++{% endfor %}

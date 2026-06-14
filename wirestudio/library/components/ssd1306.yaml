@@ -33,16 +33,16 @@ lorawan:
     Adafruit_SSD1306 display(128, 64, &Wire, -1);
     bool oledReady = false;     // false when the OLED is absent/wedged; loop() skips it then
   setup: |
-      {%- if params.vext_pin is defined %}
-      pinMode({{ params.vext_pin }}, OUTPUT);
-      digitalWrite({{ params.vext_pin }}, LOW);  // Vext low = OLED power on
+      {%- if params.vext_pin %}
+      pinMode({{ params.vext_pin | string | replace('GPIO', '') }}, OUTPUT);
+      digitalWrite({{ params.vext_pin | string | replace('GPIO', '') }}, LOW);  // Vext low = OLED power on
       delay(100);                          // let the OLED rail settle before reset/init
       {%- endif %}
-      {%- if pins.RESET is defined or params.reset_pin is defined %}
-      pinMode({{ pins.RESET | default(params.reset_pin) }}, OUTPUT);   // explicit reset pulse (Heltec sequence)
-      digitalWrite({{ pins.RESET | default(params.reset_pin) }}, HIGH); delay(1);
-      digitalWrite({{ pins.RESET | default(params.reset_pin) }}, LOW);  delay(20);
-      digitalWrite({{ pins.RESET | default(params.reset_pin) }}, HIGH);
+      {%- if pins.RESET is defined or params.reset_pin %}
+      pinMode({{ (pins.RESET | default(params.reset_pin)) | string | replace('GPIO', '') }}, OUTPUT);   // explicit reset pulse (Heltec sequence)
+      digitalWrite({{ (pins.RESET | default(params.reset_pin)) | string | replace('GPIO', '') }}, HIGH); delay(1);
+      digitalWrite({{ (pins.RESET | default(params.reset_pin)) | string | replace('GPIO', '') }}, LOW);  delay(20);
+      digitalWrite({{ (pins.RESET | default(params.reset_pin)) | string | replace('GPIO', '') }}, HIGH);
       {%- endif %}
       // A floating / held-low SDA (absent or differently-wired OLED, e.g. some
       // TTGO LoRa32 T3 v1.6.1 units) would otherwise let display.begin() spin
