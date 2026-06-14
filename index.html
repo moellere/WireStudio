@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>wirestudio — design ESPHome, LoRaWAN &amp; KiCad IoT devices, honestly</title>
-<meta name="description" content="wirestudio turns a single design.json into deterministic ESPHome YAML, a KiCad schematic + PCB, an enclosure, and a BOM — plus it builds, flashes, and provisions LoRaWAN firmware (ChirpStack + Home Assistant). CSP pin solver, verified-output gates, MCP server.">
+<title>wirestudio — from intent to a buildable IoT device</title>
+<meta name="description" content="Start with what the device should do. wirestudio turns a goal — or the parts you pick — into a complete, verified set of artifacts: the firmware to run it (ESPHome / LoRaWAN) and the hardware to build it (schematic, PCB, enclosure, BOM).">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
-<meta property="og:title" content="wirestudio">
-<meta property="og:description" content="Design IoT devices, honestly. design.json in — ESPHome YAML, KiCad schematic + PCB, enclosure, and BOM out; build/flash/provision LoRaWAN firmware with Home Assistant integration.">
+<meta property="og:title" content="wirestudio — from intent to a buildable device">
+<meta property="og:description" content="Describe the function; get the whole device. One design.json yields firmware to run it (ESPHome / LoRaWAN) and hardware to build it (schematic, PCB, enclosure, BOM) — deterministically.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://wirestudio.io">
 <link rel="stylesheet" href="style.css">
@@ -31,13 +31,14 @@
 
   <section class="hero">
     <div class="container">
-      <h1>Design IoT devices, honestly.</h1>
+      <h1>From intent to a buildable device.</h1>
       <p class="lede">
-        wirestudio takes a single <code>design.json</code> and produces
-        deterministic ESPHome YAML, a KiCad schematic + PCB, a 3D-printable
-        enclosure, and a bill of materials. A second target builds, flashes,
-        and provisions <strong>LoRaWAN</strong> firmware. Same design in,
-        same artifacts out — every time.
+        Start with what the device should <em>do</em> — describe the
+        function in plain language, or pick parts by capability. wirestudio
+        turns that intent into a complete, verified set of artifacts:
+        the <strong>firmware to run it</strong> and the
+        <strong>hardware to build it</strong> — code, schematic, PCB,
+        enclosure, and BOM, all from one source of truth.
       </p>
       <div class="cta-row">
         <a class="btn btn-primary" href="https://github.com/moellere/wirestudio#getting-started">Get started</a>
@@ -46,11 +47,11 @@
 
       <div class="code-card" aria-hidden="true">
         <div class="code-bar"><span></span><span></span><span></span></div>
-        <pre><code><span class="c-prompt">$</span> wirestudio generate garage-motion.json
-<span class="c-ok">✓</span> garage-motion.yaml   <span class="c-dim">esphome config — passes</span>
-<span class="c-ok">✓</span> garage-motion.txt    <span class="c-dim">ascii pinout + BOM</span>
-<span class="c-ok">✓</span> garage-motion.skidl  <span class="c-dim">KiCad schematic + PCB</span>
-<span class="c-ok">✓</span> ttgo-lora32.bin      <span class="c-dim">LoRaWAN firmware → WebSerial</span></code></pre>
+        <pre><code><span class="c-prompt">$</span> wirestudio <span class="c-dim">"battery LoRa soil sensor — moisture + GPS"</span>
+<span class="c-ok">✓</span> design.json          <span class="c-dim">board + parts chosen, pins solved</span>
+<span class="c-ok">✓</span> firmware             <span class="c-dim">ESPHome YAML · LoRaWAN (RadioLib)</span>
+<span class="c-ok">✓</span> schematic + PCB      <span class="c-dim">.kicad_sch · .kicad_pcb · Gerbers</span>
+<span class="c-ok">✓</span> enclosure + BOM      <span class="c-dim">OpenSCAD shell · ordered parts list</span></code></pre>
       </div>
     </div>
   </section>
@@ -64,30 +65,49 @@
     </div>
   </section>
 
+  <section class="how">
+    <div class="container">
+      <h2>Intent in. A whole device out.</h2>
+      <p class="how-lede">
+        A goal (or a parts pick) becomes a single <code>design.json</code> —
+        the only state. Pure generators turn it into both halves of a real
+        device: the software that runs it and the hardware you actually build.
+      </p>
+      <div class="pipeline">
+        <div class="node node-source">goal / parts</div>
+        <div class="arrow">→</div>
+        <div class="node node-engine">design.json</div>
+        <div class="arrow">→</div>
+        <div class="node-outputs">
+          <span><strong>Run it</strong> · ESPHome YAML · LoRaWAN firmware</span>
+          <span><strong>Build it</strong> · schematic · PCB · enclosure · BOM</span>
+        </div>
+      </div>
+      <p class="how-note">
+        No LLM sits in a compile or fetch path. The agent edits the design;
+        deterministic generators produce the artifacts — so every device is
+        reproducible, diffable, and cheap to regenerate.
+      </p>
+    </div>
+  </section>
+
   <section class="features">
     <div class="container">
       <h2>What it does</h2>
       <div class="grid">
 
         <article class="card">
+          <h3>Design from intent</h3>
+          <p>Describe what the device should do, or pick parts by function.
+          The agent assembles a coherent design — board, components, wiring —
+          that you refine, instead of starting from a blank canvas.</p>
+        </article>
+
+        <article class="card">
           <h3>Verified ESPHome YAML</h3>
           <p>Every bundled example is run through upstream
           <code>esphome config</code> on each change. The output is real
           ESPHome, not a plausible guess.</p>
-        </article>
-
-        <article class="card">
-          <h3>CSP pin solver</h3>
-          <p>Assigns legal GPIOs automatically and surfaces boot-strap,
-          ADC2-on-WiFi, voltage, and locked-pin conflicts before you
-          ever flash a board.</p>
-        </article>
-
-        <article class="card">
-          <h3>KiCad schematic + PCB</h3>
-          <p>Emits a SKiDL script for a <code>.kicad_sch</code> and a
-          grid-placed <code>.kicad_pcb</code> with nets and board outline —
-          plus Gerber/drill/CPL/BOM for the fab. No LLM placing wires.</p>
         </article>
 
         <article class="card">
@@ -99,9 +119,23 @@
         </article>
 
         <article class="card">
+          <h3>KiCad schematic + PCB</h3>
+          <p>Emits a SKiDL script for a <code>.kicad_sch</code> and a
+          grid-placed <code>.kicad_pcb</code> with nets and board outline —
+          plus Gerber/drill/CPL/BOM for the fab. No LLM placing wires.</p>
+        </article>
+
+        <article class="card">
           <h3>Parametric enclosure</h3>
           <p>Generates an OpenSCAD shell from board mount-hole and
           port geometry, so the box fits the design you just drew.</p>
+        </article>
+
+        <article class="card">
+          <h3>CSP pin solver</h3>
+          <p>Assigns legal GPIOs automatically and surfaces boot-strap,
+          ADC2-on-WiFi, voltage, and locked-pin conflicts before you
+          ever flash a board.</p>
         </article>
 
         <article class="card">
@@ -126,36 +160,6 @@
         </article>
 
       </div>
-    </div>
-  </section>
-
-  <section class="how">
-    <div class="container">
-      <h2>One source of truth</h2>
-      <p class="how-lede">
-        <code>design.json</code> is the only state. The generators are
-        pure functions of that file plus the component library — no
-        artifact ever round-trips back into the design.
-      </p>
-      <div class="pipeline">
-        <div class="node node-source">design.json</div>
-        <div class="arrow">→</div>
-        <div class="node node-engine">pure generators</div>
-        <div class="arrow">→</div>
-        <div class="node-outputs">
-          <span>ESPHome YAML</span>
-          <span>ASCII pinout</span>
-          <span>KiCad schematic + PCB</span>
-          <span>enclosure</span>
-          <span>BOM</span>
-          <span>LoRaWAN firmware</span>
-        </div>
-      </div>
-      <p class="how-note">
-        No LLM sits in a compile or fetch path. Chat is a thin surface
-        over the design-editing tools only — so a design is
-        reproducible, diffable, and cheap to regenerate.
-      </p>
     </div>
   </section>
 
