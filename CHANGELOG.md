@@ -27,6 +27,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   mapping to PlatformIO board `ttgo-lora32-v21`. Electrically identical to
   `ttgo-lora32-v1`; the distinct profile lets the most common "TTGO LoRa32"
   hardware select its matching board key.
+- **Home Assistant entities from the LoRaWAN codec.** The generated ChirpStack
+  codec now includes a `getHaDeviceInfo()` block alongside `decodeUplink`, so
+  the [chirp2mqtt](https://github.com/modrisb/chirp) HA integration publishes
+  MQTT-discovery entities for every payload field — temperature, humidity,
+  battery (mV→V), GPS, link quality (RSSI/SNR) — with proper `device_class`/
+  unit/`state_class`. GPS payloads (lat+lon) additionally emit a
+  `device_tracker` whose latitude/longitude attributes drive the HA map. Each
+  payload `Field` carries optional `ha_*` hints driving this. ChirpStack device
+  profiles are also created with `auto_detect_measurements` enabled for
+  ChirpStack's own metrics dashboards.
 
 ## [0.15.0] — 2026-06-11
 
