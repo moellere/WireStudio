@@ -73,16 +73,55 @@
         the only state. Pure generators turn it into both halves of a real
         device: the software that runs it and the hardware you actually build.
       </p>
-      <div class="pipeline">
+      <div class="flow">
         <div class="node node-source">goal / parts</div>
-        <div class="arrow">→</div>
-        <div class="node node-engine">design.json</div>
-        <div class="arrow">→</div>
-        <div class="node-outputs">
-          <span><strong>Run it</strong> · ESPHome YAML · LoRaWAN firmware</span>
-          <span><strong>Build it</strong> · schematic · PCB · enclosure · BOM</span>
+        <div class="flow-arrow">&#8595;</div>
+        <div class="node node-engine">design.json &middot; pins solved once</div>
+        <div class="flow-arrow">&#8595;</div>
+        <div class="branch">
+
+          <div class="axis axis-run">
+            <div class="axis-head">Run it</div>
+            <div class="axis-sub">pick a target framework — the software &amp; network identity</div>
+            <div class="axis-item">
+              <span class="label">ESPHome YAML<small>WiFi / sensor devices &rarr; Home Assistant</small></span>
+              <span class="badge verified">verified</span>
+            </div>
+            <div class="axis-item">
+              <span class="label">LoRaWAN firmware<small>RadioLib &middot; ChirpStack &middot; Home Assistant</small></span>
+              <span class="badge hw">hardware-validated</span>
+            </div>
+            <div class="axis-item">
+              <span class="label">more frameworks<small>pluggable target seam</small></span>
+              <span class="badge planned">planned</span>
+            </div>
+          </div>
+
+          <div class="axis axis-build">
+            <div class="axis-head">Build it</div>
+            <div class="axis-sub">the physical object — fabricate &amp; house it</div>
+            <div class="axis-item">
+              <span class="label">KiCad schematic<small>.kicad_sch via SKiDL</small></span>
+              <span class="badge verified">verified</span>
+            </div>
+            <div class="axis-item">
+              <span class="label">PCB + fab bundle<small>.kicad_pcb &middot; Gerber / drill / CPL / BOM</small></span>
+              <span class="badge caveat">unrouted</span>
+            </div>
+            <div class="axis-item">
+              <span class="label">Enclosure<small>parametric OpenSCAD shell</small></span>
+              <span class="badge verified">verified</span>
+            </div>
+          </div>
+
         </div>
       </div>
+      <p class="flow-legend">
+        <strong>verified</strong> = gated against upstream tools every PR &middot;
+        <strong>hardware-validated</strong> = proven on a real device &middot;
+        <strong>unrouted</strong> = board ships with pads + ratsnest, autoroute is on the roadmap &middot;
+        <strong>planned</strong> = on the roadmap
+      </p>
       <p class="how-note">
         No LLM sits in a compile or fetch path. The agent edits the design;
         deterministic generators produce the artifacts — so every device is

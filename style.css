@@ -309,4 +309,79 @@ a:hover { text-decoration: underline; }
   .hero { padding: 56px 0 44px; }
   .features, .how, .closing { padding: 56px 0; }
   .arrow { transform: rotate(90deg); }
+  .branch { grid-template-columns: 1fr; }
 }
+
+/* --- intent -> design -> run/build flow --------------------------------- */
+
+.flow {
+  max-width: 780px;
+  margin: 40px auto 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.flow-arrow { color: var(--ink-soft); font-size: 1.25rem; line-height: 1; }
+.branch {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin-top: 4px;
+}
+.axis {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  text-align: left;
+}
+.axis-run { border-top: 3px solid var(--accent); }
+.axis-build { border-top: 3px solid #f59e0b; }
+.axis-head { font-weight: 800; font-size: 1.12rem; letter-spacing: -0.01em; }
+.axis-sub { color: var(--ink-soft); font-size: 0.84rem; margin: 2px 0 6px; }
+.axis-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 0;
+  border-top: 1px solid var(--line);
+}
+.axis-item .label {
+  font-weight: 600;
+  font-size: 0.95rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.axis-item .label small {
+  display: block;
+  margin-top: 2px;
+  font-weight: 400;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+.badge {
+  flex: none;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 4px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.badge.verified { background: #e6f7ef; color: #1d8a5b; }
+.badge.hw { background: #e7edfd; color: var(--accent-dark); }
+.badge.caveat { background: #fdf0dd; color: #b45309; }
+.badge.planned { background: var(--bg-soft); color: var(--ink-soft); }
+.flow-legend {
+  max-width: 720px;
+  margin: 2px auto 22px;
+  text-align: center;
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+  line-height: 1.7;
+}
+.flow-legend strong { color: var(--ink); font-weight: 700; }
