@@ -5,45 +5,168 @@
   "description": "ESP32-DevKitC driving a MAX7219 8x8 LED matrix over SPI and a TM1638 LED&KEY module (8 seven-segment digits + 8 LEDs + 8 buttons) over its own 3-wire interface. Two cheap numeric/segment displays on one board.",
   "created_at": "2026-05-23T00:00:00Z",
   "updated_at": "2026-05-23T00:00:00Z",
-
-  "board": { "library_id": "esp32-devkitc-v4", "mcu": "esp32", "framework": "arduino" },
-  "power": { "supply": "usb-5v", "rail_voltage_v": 5.0, "regulator": "onboard-ams1117", "budget_ma": 500 },
-
+  "board": {
+    "library_id": "esp32-devkitc-v4",
+    "mcu": "esp32",
+    "framework": "arduino"
+  },
+  "power": {
+    "supply": "usb-5v",
+    "rail_voltage_v": 5.0,
+    "regulator": "onboard-ams1117",
+    "budget_ma": 1200
+  },
   "requirements": [
-    { "id": "r1", "kind": "capability", "text": "drive a MAX7219 8x8 LED matrix over SPI" },
-    { "id": "r2", "kind": "capability", "text": "drive a TM1638 7-segment + LED + key module" }
+    {
+      "id": "r1",
+      "kind": "capability",
+      "text": "drive a MAX7219 8x8 LED matrix over SPI"
+    },
+    {
+      "id": "r2",
+      "kind": "capability",
+      "text": "drive a TM1638 7-segment + LED + key module"
+    }
   ],
-
   "components": [
-    { "id": "matrix", "library_id": "max7219", "label": "LED matrix", "role": "display",
-      "params": { "num_chips": 4, "intensity": 8 } },
-    { "id": "panel", "library_id": "tm1638", "label": "LED&KEY", "role": "display",
-      "params": { "intensity": 5 } }
+    {
+      "id": "matrix",
+      "library_id": "max7219",
+      "label": "LED matrix",
+      "role": "display",
+      "params": {
+        "num_chips": 4,
+        "intensity": 8
+      }
+    },
+    {
+      "id": "panel",
+      "library_id": "tm1638",
+      "label": "LED&KEY",
+      "role": "display",
+      "params": {
+        "intensity": 5
+      }
+    }
   ],
-
   "buses": [
-    { "id": "spi0", "type": "spi", "clk": "GPIO18", "mosi": "GPIO23", "miso": "GPIO19" }
+    {
+      "id": "spi0",
+      "type": "spi",
+      "clk": "GPIO18",
+      "mosi": "GPIO23",
+      "miso": "GPIO19"
+    }
   ],
-
   "connections": [
-    { "component_id": "matrix", "pin_role": "VCC",  "target": { "kind": "rail", "rail": "5V" } },
-    { "component_id": "matrix", "pin_role": "GND",  "target": { "kind": "rail", "rail": "GND" } },
-    { "component_id": "matrix", "pin_role": "CLK",  "target": { "kind": "bus",  "bus_id": "spi0" } },
-    { "component_id": "matrix", "pin_role": "MOSI", "target": { "kind": "bus",  "bus_id": "spi0" } },
-    { "component_id": "matrix", "pin_role": "CS",   "target": { "kind": "gpio", "pin": "GPIO5" } },
-
-    { "component_id": "panel", "pin_role": "VCC", "target": { "kind": "rail", "rail": "5V" } },
-    { "component_id": "panel", "pin_role": "GND", "target": { "kind": "rail", "rail": "GND" } },
-    { "component_id": "panel", "pin_role": "STB", "target": { "kind": "gpio", "pin": "GPIO16" } },
-    { "component_id": "panel", "pin_role": "CLK", "target": { "kind": "gpio", "pin": "GPIO17" } },
-    { "component_id": "panel", "pin_role": "DIO", "target": { "kind": "gpio", "pin": "GPIO4" } }
+    {
+      "component_id": "matrix",
+      "pin_role": "VCC",
+      "target": {
+        "kind": "rail",
+        "rail": "5V"
+      }
+    },
+    {
+      "component_id": "matrix",
+      "pin_role": "GND",
+      "target": {
+        "kind": "rail",
+        "rail": "GND"
+      }
+    },
+    {
+      "component_id": "matrix",
+      "pin_role": "CLK",
+      "target": {
+        "kind": "bus",
+        "bus_id": "spi0"
+      }
+    },
+    {
+      "component_id": "matrix",
+      "pin_role": "MOSI",
+      "target": {
+        "kind": "bus",
+        "bus_id": "spi0"
+      }
+    },
+    {
+      "component_id": "matrix",
+      "pin_role": "CS",
+      "target": {
+        "kind": "gpio",
+        "pin": "GPIO5"
+      }
+    },
+    {
+      "component_id": "panel",
+      "pin_role": "VCC",
+      "target": {
+        "kind": "rail",
+        "rail": "5V"
+      }
+    },
+    {
+      "component_id": "panel",
+      "pin_role": "GND",
+      "target": {
+        "kind": "rail",
+        "rail": "GND"
+      }
+    },
+    {
+      "component_id": "panel",
+      "pin_role": "STB",
+      "target": {
+        "kind": "gpio",
+        "pin": "GPIO16"
+      }
+    },
+    {
+      "component_id": "panel",
+      "pin_role": "CLK",
+      "target": {
+        "kind": "gpio",
+        "pin": "GPIO17"
+      }
+    },
+    {
+      "component_id": "panel",
+      "pin_role": "DIO",
+      "target": {
+        "kind": "gpio",
+        "pin": "GPIO4"
+      }
+    }
   ],
-
   "passives": [
-    { "id": "c1", "kind": "capacitor", "value": "100nF", "between": ["matrix.VCC", "GND"], "purpose": "decoupling matrix" }
+    {
+      "id": "c1",
+      "kind": "capacitor",
+      "value": "100nF",
+      "between": [
+        "matrix.VCC",
+        "GND"
+      ],
+      "purpose": "decoupling matrix"
+    }
   ],
   "warnings": [],
-  "esphome_extras": { "captive_portal": {}, "logger": {} },
-  "fleet": { "device_name": "led-display", "tags": ["indoor", "display"],
-    "secrets_ref": { "wifi_ssid": "!secret wifi_ssid", "wifi_password": "!secret wifi_password", "api_key": "!secret api_key" } }
+  "esphome_extras": {
+    "captive_portal": {},
+    "logger": {}
+  },
+  "fleet": {
+    "device_name": "led-display",
+    "tags": [
+      "indoor",
+      "display"
+    ],
+    "secrets_ref": {
+      "wifi_ssid": "!secret wifi_ssid",
+      "wifi_password": "!secret wifi_password",
+      "api_key": "!secret api_key"
+    }
+  }
 }

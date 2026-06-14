@@ -5,6 +5,9 @@ chip_variant: esp8266
 framework: arduino
 platformio_board: esp8285
 flash_size_mb: 1
+# Onboard board draw at the input rail. ESP8285 = ESP8266 family + integrated 1MB flash; bare module.
+current_ma_typical: 70
+current_ma_peak: 300
 
 rails:
   - {name: "MAINS",  voltage: 230.0, source: external}

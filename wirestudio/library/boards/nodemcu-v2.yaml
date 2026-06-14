@@ -5,6 +5,9 @@ chip_variant: esp8266
 framework: arduino
 platformio_board: nodemcuv2
 flash_size_mb: 4
+# Onboard board draw at the input rail. ESP8266 + CH340 USB-UART + LDO + 2 status LEDs.
+current_ma_typical: 90
+current_ma_peak: 300
 
 rails:
 - {name: "5V", voltage: 5.0, source: usb}

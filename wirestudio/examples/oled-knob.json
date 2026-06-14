@@ -5,93 +5,216 @@
   "description": "The 1.3-inch SH1106 white OLED + EC11 rotary-encoder combo module, the kind sold as one board for menu UIs. The SH1106 display rides the I2C bus; the EC11's quadrature A/B feed the rotary_encoder sensor and its push-switch is a separate gpio_input button. The module also carries two auxiliary push buttons, each wired as its own gpio_input binary sensor.",
   "created_at": "2026-05-17T00:00:00Z",
   "updated_at": "2026-05-17T00:00:00Z",
-
   "board": {
     "library_id": "esp32-devkitc-v4",
     "mcu": "esp32",
     "framework": "arduino"
   },
-
   "power": {
     "supply": "usb-5v",
     "rail_voltage_v": 5.0,
     "regulator": "onboard-ams1117",
-    "budget_ma": 500
+    "budget_ma": 700
   },
-
   "requirements": [
-    { "id": "r1", "kind": "capability", "text": "render a menu UI on the 1.3-inch OLED" },
-    { "id": "r2", "kind": "capability", "text": "scroll the menu with the rotary encoder" },
-    { "id": "r3", "kind": "capability", "text": "select with the encoder's push button" },
-    { "id": "r4", "kind": "capability", "text": "read the two auxiliary push buttons" }
+    {
+      "id": "r1",
+      "kind": "capability",
+      "text": "render a menu UI on the 1.3-inch OLED"
+    },
+    {
+      "id": "r2",
+      "kind": "capability",
+      "text": "scroll the menu with the rotary encoder"
+    },
+    {
+      "id": "r3",
+      "kind": "capability",
+      "text": "select with the encoder's push button"
+    },
+    {
+      "id": "r4",
+      "kind": "capability",
+      "text": "read the two auxiliary push buttons"
+    }
   ],
-
   "components": [
     {
       "id": "disp",
       "library_id": "ssd1306",
       "label": "Panel OLED",
-      "params": { "model": "SH1106 128x64", "address": "0x3C" },
-      "module": { "module_id": "oled-knob-13", "instance": "oled-knob-13-1" }
+      "params": {
+        "model": "SH1106 128x64",
+        "address": "0x3C"
+      },
+      "module": {
+        "module_id": "oled-knob-13",
+        "instance": "oled-knob-13-1"
+      }
     },
     {
       "id": "knob",
       "library_id": "rotary_encoder",
       "label": "Menu knob",
-      "module": { "module_id": "oled-knob-13", "instance": "oled-knob-13-1" }
+      "module": {
+        "module_id": "oled-knob-13",
+        "instance": "oled-knob-13-1"
+      }
     },
     {
       "id": "knobbtn",
       "library_id": "gpio_input",
       "label": "Knob press",
-      "module": { "module_id": "oled-knob-13", "instance": "oled-knob-13-1" }
+      "module": {
+        "module_id": "oled-knob-13",
+        "instance": "oled-knob-13-1"
+      }
     },
     {
       "id": "btn1",
       "library_id": "gpio_input",
       "label": "Button A",
-      "module": { "module_id": "oled-knob-13", "instance": "oled-knob-13-1" }
+      "module": {
+        "module_id": "oled-knob-13",
+        "instance": "oled-knob-13-1"
+      }
     },
     {
       "id": "btn2",
       "library_id": "gpio_input",
       "label": "Button B",
-      "module": { "module_id": "oled-knob-13", "instance": "oled-knob-13-1" }
+      "module": {
+        "module_id": "oled-knob-13",
+        "instance": "oled-knob-13-1"
+      }
     }
   ],
-
   "buses": [
-    { "id": "i2c0", "type": "i2c", "frequency_hz": 400000, "sda": "GPIO21", "scl": "GPIO22" }
+    {
+      "id": "i2c0",
+      "type": "i2c",
+      "frequency_hz": 400000,
+      "sda": "GPIO21",
+      "scl": "GPIO22"
+    }
   ],
-
   "connections": [
-    { "component_id": "disp", "pin_role": "VCC", "target": { "kind": "rail", "rail": "3V3" } },
-    { "component_id": "disp", "pin_role": "GND", "target": { "kind": "rail", "rail": "GND" } },
-    { "component_id": "disp", "pin_role": "SDA", "target": { "kind": "bus",  "bus_id": "i2c0" } },
-    { "component_id": "disp", "pin_role": "SCL", "target": { "kind": "bus",  "bus_id": "i2c0" } },
-    { "component_id": "knob", "pin_role": "A", "target": { "kind": "gpio", "pin": "GPIO16" } },
-    { "component_id": "knob", "pin_role": "B", "target": { "kind": "gpio", "pin": "GPIO17" } },
-    { "component_id": "knobbtn", "pin_role": "IN", "target": { "kind": "gpio", "pin": "GPIO18" } },
-    { "component_id": "btn1", "pin_role": "IN", "target": { "kind": "gpio", "pin": "GPIO19" } },
-    { "component_id": "btn2", "pin_role": "IN", "target": { "kind": "gpio", "pin": "GPIO23" } }
+    {
+      "component_id": "disp",
+      "pin_role": "VCC",
+      "target": {
+        "kind": "rail",
+        "rail": "3V3"
+      }
+    },
+    {
+      "component_id": "disp",
+      "pin_role": "GND",
+      "target": {
+        "kind": "rail",
+        "rail": "GND"
+      }
+    },
+    {
+      "component_id": "disp",
+      "pin_role": "SDA",
+      "target": {
+        "kind": "bus",
+        "bus_id": "i2c0"
+      }
+    },
+    {
+      "component_id": "disp",
+      "pin_role": "SCL",
+      "target": {
+        "kind": "bus",
+        "bus_id": "i2c0"
+      }
+    },
+    {
+      "component_id": "knob",
+      "pin_role": "A",
+      "target": {
+        "kind": "gpio",
+        "pin": "GPIO16"
+      }
+    },
+    {
+      "component_id": "knob",
+      "pin_role": "B",
+      "target": {
+        "kind": "gpio",
+        "pin": "GPIO17"
+      }
+    },
+    {
+      "component_id": "knobbtn",
+      "pin_role": "IN",
+      "target": {
+        "kind": "gpio",
+        "pin": "GPIO18"
+      }
+    },
+    {
+      "component_id": "btn1",
+      "pin_role": "IN",
+      "target": {
+        "kind": "gpio",
+        "pin": "GPIO19"
+      }
+    },
+    {
+      "component_id": "btn2",
+      "pin_role": "IN",
+      "target": {
+        "kind": "gpio",
+        "pin": "GPIO23"
+      }
+    }
   ],
-
   "passives": [
-    { "id": "c1", "kind": "capacitor", "value": "100nF", "between": ["disp.VCC", "GND"], "purpose": "decoupling disp" },
-    { "id": "r1", "kind": "resistor", "value": "4.7k", "between": ["i2c0.SDA", "3V3"], "purpose": "I2C pull-up" },
-    { "id": "r2", "kind": "resistor", "value": "4.7k", "between": ["i2c0.SCL", "3V3"], "purpose": "I2C pull-up" }
+    {
+      "id": "c1",
+      "kind": "capacitor",
+      "value": "100nF",
+      "between": [
+        "disp.VCC",
+        "GND"
+      ],
+      "purpose": "decoupling disp"
+    },
+    {
+      "id": "r1",
+      "kind": "resistor",
+      "value": "4.7k",
+      "between": [
+        "i2c0.SDA",
+        "3V3"
+      ],
+      "purpose": "I2C pull-up"
+    },
+    {
+      "id": "r2",
+      "kind": "resistor",
+      "value": "4.7k",
+      "between": [
+        "i2c0.SCL",
+        "3V3"
+      ],
+      "purpose": "I2C pull-up"
+    }
   ],
-
   "warnings": [],
-
   "esphome_extras": {
     "captive_portal": {},
     "logger": {}
   },
-
   "fleet": {
     "device_name": "oled-knob",
-    "tags": ["display", "input"],
+    "tags": [
+      "display",
+      "input"
+    ],
     "secrets_ref": {
       "wifi_ssid": "!secret wifi_ssid",
       "wifi_password": "!secret wifi_password",
