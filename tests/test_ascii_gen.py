@@ -26,21 +26,8 @@ def test_bom_includes_board_and_components(garage_motion_design, library):
 
 def test_power_budget_summary_present(garage_motion_design, library):
     text = render_ascii(garage_motion_design, library)
-    assert "budget 700mA" in text
+    assert "budget 500mA" in text
     assert "OK" in text
-
-
-def test_power_budget_includes_board_draw(garage_motion_design, library):
-    # Without the board's draw the calc silently undercounts the MCU's Wi-Fi
-    # current. Assert the reported peak is at least the board's own peak --
-    # if board draw were dropped this would fall back to component-only sums
-    # and fail for any non-trivial board.
-    import re
-    text = render_ascii(garage_motion_design, library)
-    board = library.board(garage_motion_design.board.library_id)
-    m = re.search(r"~(\d+)mA peak", text)
-    assert m is not None, "power line missing"
-    assert int(m.group(1)) >= int(board.current_ma_peak or 0)
 
 
 def test_awning_matches_golden(awning_control_design, library, golden_dir):

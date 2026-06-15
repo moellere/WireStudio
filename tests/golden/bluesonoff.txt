@@ -14,7 +14,7 @@
 |    - Generic GPIO binary sensor  (front_button)                                                                     |
 |    - Generic GPIO switch / relay output  (soffitoutlets)                                                            |
 |                                                                                                                     |
-|  Power: ~70mA typical, ~300mA peak (budget 400mA)  OK                                                               |
+|  Power: ~0mA typical, ~0mA peak (budget 250mA)  OK                                                                  |
 |                                                                                                                     |
 |  Warnings:                                                                                                          |
 |    [warn] strap_pin_used_as_button: GPIO0 is a strap pin (must be HIGH at boot to enter normal mode). Sonoff Basic  |

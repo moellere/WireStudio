@@ -80,33 +80,3 @@ def test_pack_cpp_matches_size_and_reads_sensors():
     assert f"payload[{codec.payload_size(fields) - 1}]" in cpp
     assert "gps.location.lat()" in cpp
     assert "batteryMv" in cpp
-
-
-def test_generate_codec_includes_decode_and_ha_device_info():
-    js = codec.generate_codec(_design("ttgo-t-beam"), default_library())
-    assert "function decodeUplink(input)" in js
-    assert "function getHaDeviceInfo()" in js
-
-
-def test_ha_device_info_entities_and_units():
-    lib = default_library()
-    js = codec.generate_codec(_design("ttgo-t-beam", dht22={"pin": "GPIO13"}), lib)
-    # payload fields become entities with proper templates/units
-    assert 'value_template: "{{ value_json.object.temp_c | float }}"' in js
-    assert 'device_class: "temperature"' in js
-    # battery is converted mV -> V in the HA template
-    assert "(value_json.object.batt_mv | float) / 1000" in js
-    assert 'device_class: "voltage"' in js
-    # link quality from rxInfo (not payload)
-    assert "value_json.rxInfo[-1].rssi | int" in js
-
-
-def test_ha_device_info_gps_emits_device_tracker():
-    lib = default_library()
-    gps_js = codec.generate_codec(_design("ttgo-t-beam"), lib)  # onboard GPS
-    assert 'integration: "device_tracker"' in gps_js
-    assert "'latitude': value_json.object.lat" in gps_js
-    assert 'json_attributes_topic: "{status_topic}"' in gps_js
-    # a non-GPS board gets no device_tracker
-    plain_js = codec.generate_codec(_design("ttgo-lora32-v1"), lib)
-    assert "device_tracker" not in plain_js

@@ -211,14 +211,6 @@ class LibraryBoard(_Strict):
     framework: str
     platformio_board: str
     flash_size_mb: Optional[int] = None
-    # Onboard current draw of the bare board (MCU + integrated peripherals:
-    # USB-UART, regulator, status LEDs, onboard radios/displays/PMIC). Added
-    # to component draw by the budget check; without it a Wi-Fi MCU's ~70-200
-    # mA active draw is invisible. Convention: typical = Wi-Fi associated
-    # active, peak = TX burst worst case. Datasheet-sourced per family with
-    # per-board overhead for onboard parts.
-    current_ma_typical: Optional[float] = None
-    current_ma_peak: Optional[float] = None
     # Optional product-image URL, surfaced in the board picker.
     image: Optional[str] = None
     rails: list[Rail] = Field(default_factory=list)

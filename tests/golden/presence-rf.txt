@@ -20,7 +20,7 @@
 |    - Hi-Link LD2420 24GHz mmWave presence sensor  (presence)                |
 |    - Sonoff RF Bridge 433MHz EFM8 module  (rfbridge)                        |
 |                                                                             |
-|  Power: ~203mA typical, ~620mA peak (budget 800mA)  OK                      |
+|  Power: ~73mA typical, ~120mA peak (budget 500mA)  OK                       |
 |                                                                             |
 |  Warnings: none                                                             |
 +-----------------------------------------------------------------------------+

@@ -97,11 +97,11 @@ def render_ascii(design: Design, library: Library) -> str:
         lines.append(f"  - {n}x {k}")
 
     if design.power.budget_ma:
-        peak = (board.current_ma_peak or 0) + sum(
+        peak = sum(
             (library.component(c.library_id).electrical.current_ma_peak or 0)
             for c in design.components
         )
-        typ = (board.current_ma_typical or 0) + sum(
+        typ = sum(
             (library.component(c.library_id).electrical.current_ma_typical or 0)
             for c in design.components
         )

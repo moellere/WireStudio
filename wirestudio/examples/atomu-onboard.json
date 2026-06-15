@@ -14,7 +14,7 @@
     "supply": "usb-5v",
     "rail_voltage_v": 5.0,
     "regulator": "onboard",
-    "budget_ma": 700
+    "budget_ma": 500
   },
   "requirements": [
     {
