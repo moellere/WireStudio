@@ -17,7 +17,6 @@
 {% if 'spi' in component_requires %}
 #include <SPI.h>
 {% endif %}
-{{ component_includes | default('') }}
 
 // {{ radiolib_class }} wiring on this board: NSS={{ cs }}, IRQ={{ irq }}, RST={{ rst }}, {{ 'BUSY' if is_sx126x else 'DIO1' }}={{ gpio }}.
 {{ radiolib_class }} radio = new Module({{ cs }}, {{ irq }}, {{ rst }}, {{ gpio }});

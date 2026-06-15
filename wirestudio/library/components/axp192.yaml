@@ -48,6 +48,11 @@ lorawan:
       bytes: 2
       cpp_type: uint16_t
       cpp_expr: batteryMv
+      ha_device_class: voltage
+      ha_unit: V
+      ha_state_class: measurement
+      ha_diagnostic: true
+      ha_divide: 1000
 
 kicad:
   symbol_lib: Connector_Generic
