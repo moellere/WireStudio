@@ -246,52 +246,45 @@ done
 
 ## Branching, PRs, and releases
 
-The repo uses a **two-tier flow** with a long-lived integration branch:
+The repo is **trunk-based**: short-lived branches merge straight to `main`.
+Environments track image channels, not branches — staging follows the tip of
+`main`, prod pins the latest release.
 
 ```
-feature/fix branch ──PR──> dev ──promotion PR──> main ──tag vX.Y.Z──> release
-   (your work)         (integration)         (protected trunk)    (PyPI + images)
+feature/fix branch ──PR──> main ──tag vX.Y.Z──> release
+   (your work)          (protected trunk)     (PyPI + images)
+
+main push  ─> :main-lorawan ─> staging (wsdev), auto every merge
+vX.Y.Z tag ─> :X.Y.Z-lorawan ─> prod, latest release only
 ```
 
-- **`main`** is the protected, always-releasable trunk. It requires a PR
-  with passing checks; never push to it directly. A self-authored PR lands
-  with `gh pr merge --admin` (owner privilege; review is a formality on this
-  solo repo).
-- **`dev`** is the permanent integration branch. Feature work merges here
-  first; both `dev` and `main` run the full gate set.
+- **`main`** is the protected, always-releasable trunk. It requires a PR with
+  passing checks; never push to it directly. A self-authored PR lands with
+  `gh pr merge --admin` (owner privilege; review is a formality on this solo
+  repo).
+- There is **no long-lived `dev` branch.** "Staging vs prod" is a property of
+  which image channel an environment tracks (ArgoCD image-updater), not a git
+  branch — see the `argocd` repo's `infrastructure/argocd-image-updater`.
 
 ### Working on a change
 
 ```sh
-git fetch origin                      # ALWAYS sync first — main/dev drift fast
-git switch -c fix/short-description origin/dev
+git fetch origin                      # ALWAYS sync first — main drifts fast
+git switch -c fix/short-description origin/main
 # ...commit...
 git push -u origin fix/short-description
-gh pr create --base dev               # opens the PR; CI runs the gates
-gh pr merge --admin                   # when green
+gh pr create --base main             # opens the PR; CI runs the gates
+gh pr merge --admin                  # when green
 ```
 
 - One branch = one logical change = one PR. Keep them small and short-lived.
 - Name branches `feat/…`, `fix/…`, `docs/…`, `chore/…`, `release/…`.
 - The repo has **auto-delete-on-merge**, so merged PR branches clean
   themselves up. Locally, `git fetch --prune` then delete the stale copy.
-- If `main`/`dev` moves under you, fold it in (`git merge origin/dev`) so
-  you test against current state and the merge stays clean.
-
-### Promoting `dev` → `main`
-
-Promote through a **throwaway branch**, not `dev` itself — auto-delete-on-merge
-would otherwise delete `dev` (it's the PR head), forcing a recreate:
-
-```sh
-git push origin origin/dev:refs/heads/promote/0.x   # ephemeral head off dev
-gh pr create --base main --head promote/0.x --title "Promote dev → main: ..."
-gh pr merge --admin                                  # promote/0.x auto-deletes; dev survives
-```
-
-Do **not** turn off repo-wide auto-delete to protect `dev` (you'd lose
-feature-branch cleanup), and do **not** add branch protection to `dev` (the
-`bump-dev` CI job pushes to it directly and protection would block that).
+- If `main` moves under you, fold it in (`git merge origin/main`) so you test
+  against current state and the merge stays clean.
+- Every merge to `main` auto-deploys to **wsdev** (staging) via the
+  `:main-lorawan` image — test there before cutting a release.
 
 ### Cutting a release
 
@@ -299,17 +292,18 @@ Version is single-sourced in `wirestudio/__init__.py` (`pyproject.toml` reads
 it dynamically — bump only `__init__.py`).
 
 ```sh
-git switch -c release/X.Y.Z origin/dev
+git switch -c release/X.Y.Z origin/main
 # bump __version__ in wirestudio/__init__.py
 # move CHANGELOG [Unreleased] -> [X.Y.Z] — DATE, add a fresh empty [Unreleased]
 git commit -am "release: cut X.Y.Z"
-# PR -> dev, then promote dev -> main (above), then:
+gh pr create --base main && gh pr merge --admin      # land it on main
 gh release create vX.Y.Z --target main --title vX.Y.Z --notes "..."
 ```
 
 The `vX.Y.Z` tag (must match the version) fires `release.yml` → PyPI
-(Trusted Publisher) and `docker.yml` → `:X.Y.Z` / `:latest` (+ `-lorawan`)
-images.
+(Trusted Publisher) and `docker.yml` → `:X.Y.Z` / `:latest` (+ `:X.Y.Z-lorawan`)
+images. Prod (image-updater, `newest-build` on `^\d+\.\d+\.\d+-lorawan$`) then
+rolls forward to the new release automatically.
 
 ## Quick checklist before opening a PR
 
