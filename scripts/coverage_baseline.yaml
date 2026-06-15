@@ -11,6 +11,11 @@
 # When you close a gap, remove the id from the matching section. When
 # you add a new library entry without an example, add its id here.
 
+# axp192 is the TTGO T-Beam's onboard PMIC: it has no standalone ESPHome
+# platform (its `esphome.yaml_template` is empty) and is never user-added --
+# the LoRaWAN firmware generator materializes it implicitly from the board's
+# `onboard_peripherals`. So no example references it by id; this is a
+# permanent, deliberate baseline entry, not a coverage gap to close.
 components:
   - axp192
 boards: []
