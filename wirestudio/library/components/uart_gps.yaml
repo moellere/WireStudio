@@ -29,32 +29,47 @@ lorawan:
     {%- if bus is not none %}
       GPSSerial.begin({{ bus.baud | default(9600) }}, SERIAL_8N1, {{ bus.rx }}, {{ bus.tx }});  // RX, TX
     {%- else %}
-      GPSSerial.begin({{ params.baud | default(9600) }}, SERIAL_8N1, {{ pins.RX | default(params.rx_pin) | default('13') }}, {{ pins.TX | default(params.tx_pin) | default('15') }});
+      GPSSerial.begin({{ params.baud | default(9600) }}, SERIAL_8N1, {{ (pins.RX | default(params.rx_pin) | default(13)) | string | replace('GPIO', '') }}, {{ (pins.TX | default(params.tx_pin) | default(15)) | string | replace('GPIO', '') }});
     {%- endif %}
   loop: |
     while (GPSSerial.available()) gps.encode(GPSSerial.read());  // keep the fix current
   fields:
+    # gps / GPSSerial are file-scope singletons (one onboard/external GPS per
+    # device), so the C++ exprs and field names are stable, not id-prefixed.
     - name: lat
       bytes: 4
       cpp_type: int32_t
       cpp_expr: (int32_t)(gps.location.lat() * 10000000.0)
       signed: true
       scale: 10000000.0
+      ha_unit: "°"
+      ha_diagnostic: true
+      ha_icon: mdi:latitude
     - name: lon
       bytes: 4
       cpp_type: int32_t
       cpp_expr: (int32_t)(gps.location.lng() * 10000000.0)
       signed: true
       scale: 10000000.0
+      ha_unit: "°"
+      ha_diagnostic: true
+      ha_icon: mdi:longitude
     - name: alt_m
       bytes: 2
       cpp_type: int16_t
       cpp_expr: (int16_t)gps.altitude.meters()
       signed: true
+      ha_device_class: distance
+      ha_unit: m
+      ha_state_class: measurement
+      ha_diagnostic: true
     - name: sats
       bytes: 1
       cpp_type: uint8_t
       cpp_expr: (uint8_t)gps.satellites.value()
+      ha_state_class: measurement
+      ha_diagnostic: true
+      ha_icon: mdi:satellite-variant
 
 esphome:
   required_components: [uart]

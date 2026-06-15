@@ -6,9 +6,7 @@ from wirestudio.targets.base import TargetPlugin, register
 
 
 class EsphomeTarget(TargetPlugin):
-    """The default target. Every board is selectable; generation still runs
-    through ``wirestudio.generate`` directly (the API calls it), so there is
-    no generate() method here until a second generator forces the seam."""
+    """The default target: renders ESPHome YAML + an ASCII wiring diagram."""
 
     id = "esphome"
 
@@ -16,7 +14,9 @@ class EsphomeTarget(TargetPlugin):
         return sorted(b.id for b in library.list_boards())
 
     def component_ids(self, library: Library) -> list[str]:
-        return sorted(c.id for c in library.list_components() if c.esphome is not None)
+        # Every library component carries an esphome block, so all are
+        # selectable for the esphome target.
+        return sorted(c.id for c in library.list_components())
 
     def generate(self, design: Design, library: Library) -> dict[str, str]:
         from wirestudio.generate import yaml_gen, ascii_gen

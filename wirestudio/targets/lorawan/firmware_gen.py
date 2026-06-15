@@ -18,7 +18,13 @@ from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 from wirestudio.library import Library, Radio
 from wirestudio.model import Design
-from wirestudio.targets.lorawan.codec import fields_for, pack_cpp, payload_size
+from wirestudio.targets.lorawan.codec import (
+    _pin,
+    fields_for,
+    pack_cpp,
+    payload_size,
+    resolve_components,
+)
 
 _TEMPLATES = Path(__file__).resolve().parent / "templates"
 _jinja = Environment(
@@ -29,15 +35,22 @@ _jinja = Environment(
     lstrip_blocks=True,
 )
 
+# Separate env for the per-component C++ fragments carried in library YAML.
+# Plain (non-strict) so a fragment's `| default(...)` and missing-attr accesses
+# behave, while a genuine template syntax error still raises.
+_frag_jinja = Environment()
+
 _REGION_DEFAULT = "US915"
 _SUBBAND_DEFAULT = 2
 
+# C++ fragment emission order (stable sort key): the PMIC powers the GPS/LoRa
+# rails so it initializes first; the OLED status display reads the other
+# sensors' globals so it emits last. Everything else keeps its inventory order.
+_SETUP_PRIORITY = {"axp192": 0, "ssd1306": 2}
 
-def _pin(value: Optional[str]) -> Optional[int]:
-    """Board pins are 'GPIO18'; Arduino wants the bare number 18."""
-    if value is None:
-        return None
-    return int(value.removeprefix("GPIO"))
+
+def _emit_priority(component) -> int:
+    return _SETUP_PRIORITY.get(component.library_id, 1)
 
 
 def _radio_ctx(radio: Radio) -> dict:
@@ -61,6 +74,27 @@ def _radio_ctx(radio: Radio) -> dict:
 
 
 
+
+
+def _wiring_for(component_id: str, design: Design) -> tuple[dict, Optional[dict]]:
+    """Resolved GPIO pins (by role) and bus for a component, from the design's
+    physical connections -- the path a user-authored component uses. Synthesized
+    onboard peripherals have no connections and fall back to their params."""
+    pins: dict[str, int] = {}
+    bus: Optional[dict] = None
+    for conn in design.connections:
+        if conn.component_id != component_id:
+            continue
+        t = conn.target
+        if t.kind == "gpio":
+            pins[conn.pin_role] = _pin(t.pin)
+        elif t.kind == "bus":
+            for b in design.buses:
+                if b.id == t.bus_id:
+                    bus = {"id": b.id, "sda": _pin(b.sda), "scl": _pin(b.scl),
+                           "rx": _pin(b.rx), "tx": _pin(b.tx), "baud": b.baud_rate}
+                    break
+    return pins, bus
 
 
 def generate_firmware(design: Design, library: Library) -> dict[str, str]:
@@ -92,107 +126,63 @@ def generate_firmware(design: Design, library: Library) -> dict[str, str]:
     # first post-join uplink isn't rejected as too long; ADR tunes from there.
     min_datarate = 0 if size <= 11 else (1 if size <= 53 else 3)
 
-    components = list(design.components)
-
-    # Add onboard peripherals implicitly
+    # One inventory for both the payload (above, via codec.fields_for) and the
+    # firmware fragments below: the design's components plus synthesized onboard
+    # peripherals. resolve_components returns payload order; emit the C++
+    # fragments in hardware-init order instead -- the PMIC powers the GPS/LoRa
+    # rails so it must initialize first, and the OLED status display reads the
+    # other sensors so it goes last.
+    components = sorted(resolve_components(design, library), key=_emit_priority)
     onboard = board.onboard_peripherals or {}
+    i2c = (board.default_buses or {}).get("i2c", {})
+    i2c_sda, i2c_scl = _pin(i2c.get("sda")), _pin(i2c.get("scl"))
 
-    has_gps = False
-    has_dht = False
-    has_oled = False
-    has_axp = False
-    for comp in components:
-        if comp.library_id == "uart_gps":
-            has_gps = True
-        elif comp.library_id == "dht":
-            has_dht = True
-        elif comp.library_id == "ssd1306":
-            has_oled = True
-        elif comp.library_id == "axp192":
-            has_axp = True
+    # Presence flags fragments key off (e.g. the OLED status display shows a GPS
+    # line only when a GPS is also present).
+    by_lib = {c.library_id for c in components}
+    flags = {
+        "has_gps": "uart_gps" in by_lib,
+        "has_axp": "axp192" in by_lib,
+        "has_dht": "dht" in by_lib,
+        "has_oled": "ssd1306" in by_lib,
+    }
 
-    if "gps_neo6m" in onboard or getattr(lw, "gps", None) is not None:
-        if not has_gps:
-            from wirestudio.model import Component
-            gps_conf = getattr(lw, "gps", None)
-            params = {}
-            if gps_conf:
-                params = {"rx_pin": gps_conf.rx_pin, "tx_pin": gps_conf.tx_pin, "baud": gps_conf.baud}
-            elif "gps_neo6m" in onboard:
-                params = {"rx_pin": onboard["gps_neo6m"].get("tx"), "tx_pin": onboard["gps_neo6m"].get("rx"), "baud": onboard["gps_neo6m"].get("baud", 9600)}
-            components.append(Component(id="gps", library_id="uart_gps", label="GPS", params=params))
-
-    if "axp192" in onboard and not has_axp:
-        from wirestudio.model import Component
-        components.append(Component(id="axp192", library_id="axp192", label="PMIC"))
-
-    if getattr(lw, "dht22", None) is not None and not has_dht:
-        from wirestudio.model import Component
-        dht_conf = getattr(lw, "dht22", None)
-        components.append(Component(id="dht1", library_id="dht", label="DHT", params={"pin": dht_conf.pin, "model": "DHT22"}))
-
-    if "oled_ssd1306" in onboard or getattr(lw, "oled", None) is not None:
-        if not has_oled:
-            from wirestudio.model import Component
-            params = {}
-            if "oled_ssd1306" in onboard:
-                params = {"address": onboard["oled_ssd1306"].get("address", "0x3C")}
-                if onboard["oled_ssd1306"].get("reset"):
-                    params["reset_pin"] = onboard["oled_ssd1306"]["reset"]
-                if onboard["oled_ssd1306"].get("vext"):
-                    params["vext_pin"] = onboard["oled_ssd1306"]["vext"]
-            components.append(Component(id="oled", library_id="ssd1306", label="OLED", params=params))
-    component_lib_deps = []
-    component_requires = set()
-    component_globals = []
-    component_setup = []
-    component_loop = []
+    component_lib_deps: list[str] = []
+    component_requires: set[str] = set()
+    component_globals: list[str] = []
+    component_setup: list[str] = []
+    component_loop: list[str] = []
 
     for comp_inst in components:
-        try:
-            lib_comp = library.component(comp_inst.library_id)
-            if lib_comp.lorawan:
-                lw_spec = lib_comp.lorawan
-                if lw_spec.lib_deps:
-                    for dep in lw_spec.lib_deps:
-                        if dep not in component_lib_deps:
-                            component_lib_deps.append(dep)
-                if lw_spec.requires:
-                    for req in lw_spec.requires:
-                        component_requires.add(req)
+        lib_comp = library.component(comp_inst.library_id)
+        spec = lib_comp.lorawan
+        if spec is None:
+            continue
+        for dep in spec.lib_deps:
+            if dep not in component_lib_deps:
+                component_lib_deps.append(dep)
+        component_requires.update(spec.requires)
 
-                import jinja2
-                env = jinja2.Environment()
-
-                pins = {}
-                bus = None
-                for conn in design.connections:
-                    if conn.component_id == comp_inst.id:
-                        if conn.target.kind == "gpio":
-                            pins[conn.pin_role] = _pin(conn.target.pin)
-                        elif conn.target.kind == "bus":
-                            for b in design.buses:
-                                if b.id == conn.target.bus_id:
-                                    bus = {"id": b.id, "sda": _pin(getattr(b, "sda", None)), "scl": _pin(getattr(b, "scl", None)), "rx": _pin(getattr(b, "rx", None)), "tx": _pin(getattr(b, "tx", None))}
-                                    break
-
-                pin = pins.get("pin") or list(pins.values())[0] if pins else None
-
-                render_ctx = {"id": comp_inst.id, "label": comp_inst.label, "params": comp_inst.params, "pin": pin, "pins": pins, "bus": bus, "onboard": onboard, "board": board, "i2c_sda": _pin((board.default_buses or {}).get("i2c", {}).get("sda")), "i2c_scl": _pin((board.default_buses or {}).get("i2c", {}).get("scl"))}
-
-                if lw_spec.globals:
-                    component_globals.append(env.from_string(lw_spec.globals).render(**render_ctx))
-                if lw_spec.setup:
-                    component_setup.append(env.from_string(lw_spec.setup).render(**render_ctx))
-                if lw_spec.loop:
-                    component_loop.append(env.from_string(lw_spec.loop).render(**render_ctx))
-        except Exception:
-            pass
-
-    # get i2c_sda and i2c_scl for template setup
-    i2c = (board.default_buses or {}).get("i2c", {})
-    i2c_sda = _pin(i2c.get("sda"))
-    i2c_scl = _pin(i2c.get("scl"))
+        pins, bus = _wiring_for(comp_inst.id, design)
+        render_ctx = {
+            "id": comp_inst.id,
+            "label": comp_inst.label,
+            "params": comp_inst.params,
+            "pin": next(iter(pins.values()), None),
+            "pins": pins,
+            "bus": bus,
+            "onboard": onboard,
+            "board": board,
+            "i2c_sda": i2c_sda,
+            "i2c_scl": i2c_scl,
+            **flags,
+        }
+        if spec.globals:
+            component_globals.append(_frag_jinja.from_string(spec.globals).render(**render_ctx))
+        if spec.setup:
+            component_setup.append(_frag_jinja.from_string(spec.setup).render(**render_ctx))
+        if spec.loop:
+            component_loop.append(_frag_jinja.from_string(spec.loop).render(**render_ctx))
 
     ctx = {
         "device_name": device_name,

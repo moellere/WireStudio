@@ -46,18 +46,34 @@ class Electrical(_Strict):
     passives: list[PassiveSpec] = Field(default_factory=list)
 
 
-
 class LorawanField(_Strict):
+    """One uplink payload field a component contributes (LoRaWAN target).
+
+    `cpp_expr` is the C++ expression packed into the payload; it references the
+    C++ symbols the component's `globals`/`loop` declare. The `ha_*` hints are
+    optional Home Assistant entity metadata, consumed by the codec's
+    `getHaDeviceInfo` (the chirp2mqtt integration). They mirror the keys on
+    codec.Field so a migrated field reproduces its old HA entity exactly.
+    """
     name: str
     bytes: int
     cpp_type: str
     cpp_expr: str
     signed: bool = False
     scale: float = 1.0
+    ha_device_class: Optional[str] = None
+    ha_unit: Optional[str] = None
+    ha_state_class: Optional[str] = None
+    ha_diagnostic: Optional[bool] = None
+    ha_icon: Optional[str] = None
+    ha_divide: Optional[float] = None
 
 
 class LorawanSpec(_Strict):
     lib_deps: list[str] = Field(default_factory=list)
+    # Shared build prerequisites a fragment needs (e.g. "i2c", "spi"); the
+    # firmware template brings the corresponding bus up once when any
+    # component requires it.
     requires: list[str] = Field(default_factory=list)
     globals: str = ""
     setup: str = ""
@@ -67,7 +83,6 @@ class LorawanSpec(_Strict):
 
 
 class EsphomeSpec(_Strict):
-
     required_components: list[str] = Field(default_factory=list)
     yaml_template: str = ""
     expander_pin_key: Optional[str] = None
@@ -211,6 +226,14 @@ class LibraryBoard(_Strict):
     framework: str
     platformio_board: str
     flash_size_mb: Optional[int] = None
+    # Onboard current draw of the bare board (MCU + integrated peripherals:
+    # USB-UART, regulator, status LEDs, onboard radios/displays/PMIC). Added
+    # to component draw by the budget check; without it a Wi-Fi MCU's ~70-200
+    # mA active draw is invisible. Convention: typical = Wi-Fi associated
+    # active, peak = TX burst worst case. Datasheet-sourced per family with
+    # per-board overhead for onboard parts.
+    current_ma_typical: Optional[float] = None
+    current_ma_peak: Optional[float] = None
     # Optional product-image URL, surfaced in the board picker.
     image: Optional[str] = None
     rails: list[Rail] = Field(default_factory=list)

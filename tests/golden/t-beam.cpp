@@ -13,7 +13,6 @@
 #include <LoRaWAN_ESP32.h>
 #include <Wire.h>
 
-
 // SX1276 wiring on this board: NSS=18, IRQ=26, RST=23, DIO1=RADIOLIB_NC.
 SX1276 radio = new Module(18, 26, 23, RADIOLIB_NC);
 
@@ -22,13 +21,13 @@ LoRaWANNode* node;
 // Survives deep sleep / soft reset (cleared on power-on); a coarse boot counter.
 RTC_DATA_ATTR uint16_t bootCount = 0;
 
-#include <TinyGPS++.h>
-TinyGPSPlus gps;
-HardwareSerial GPSSerial(1);
 #define XPOWERS_CHIP_AXP192
 #include "XPowersLib.h"
 XPowersPMU power;            // AXP192 PMIC: gates the GPS + LoRa rails, reports battery
 uint16_t batteryMv = 0;
+#include <TinyGPS++.h>
+TinyGPSPlus gps;
+HardwareSerial GPSSerial(1);
 
 // Pinned LoRaWAN parameters. The gateway is US915 sub-band 2; a mismatch makes
 // the device transmit joins on channels the gateway never hears.
@@ -43,8 +42,6 @@ void setup() {
                 WS_REGION, WS_SUBBAND, (unsigned long long) WS_JOIN_EUI);
   Wire.begin(21, 22);
   Wire.setTimeOut(50);
-
-  GPSSerial.begin(9600, SERIAL_8N1, GPIO34, GPIO12);
 if (power.begin(Wire, AXP192_SLAVE_ADDRESS, 21, 22)) {
   power.setLDO2Voltage(3300); power.enableLDO2();  // LoRa rail
   power.setLDO3Voltage(3300); power.enableLDO3();  // GPS rail
@@ -54,6 +51,8 @@ if (power.begin(Wire, AXP192_SLAVE_ADDRESS, 21, 22)) {
 } else {
   Serial.println("AXP192 init failed (battery/GPS telemetry unavailable)");
 }
+
+  GPSSerial.begin(9600, SERIAL_8N1, 34, 12);
 
   int16_t state = radio.begin();
   if (state != RADIOLIB_ERR_NONE) {
@@ -89,8 +88,8 @@ void loop() {
   // Sensors + OLED refresh every iteration, independent of the LoRaWAN join,
   // so you get live feedback even with no gateway in range. The uplink (and a
   // re-join retry) run on a 60s cadence.
-while (GPSSerial.available()) gps.encode(GPSSerial.read());  // keep the fix current
 batteryMv = power.getBattVoltage();
+while (GPSSerial.available()) gps.encode(GPSSerial.read());  // keep the fix current
 
   static unsigned long lastTx = 0;
   if (lastTx == 0 || millis() - lastTx >= 60000) {
@@ -113,24 +112,24 @@ batteryMv = power.getBattVoltage();
   uint16_t _v_boot_count = bootCount;
   payload[4] = (uint8_t)(_v_boot_count >> 8);
   payload[5] = (uint8_t)(_v_boot_count);
-  int32_t _v_gps_lat = (int32_t)(gps.location.lat() * 10000000.0);
-  payload[6] = (uint8_t)(_v_gps_lat >> 24);
-  payload[7] = (uint8_t)(_v_gps_lat >> 16);
-  payload[8] = (uint8_t)(_v_gps_lat >> 8);
-  payload[9] = (uint8_t)(_v_gps_lat);
-  int32_t _v_gps_lon = (int32_t)(gps.location.lng() * 10000000.0);
-  payload[10] = (uint8_t)(_v_gps_lon >> 24);
-  payload[11] = (uint8_t)(_v_gps_lon >> 16);
-  payload[12] = (uint8_t)(_v_gps_lon >> 8);
-  payload[13] = (uint8_t)(_v_gps_lon);
-  int16_t _v_gps_alt_m = (int16_t)gps.altitude.meters();
-  payload[14] = (uint8_t)(_v_gps_alt_m >> 8);
-  payload[15] = (uint8_t)(_v_gps_alt_m);
-  uint8_t _v_gps_sats = (uint8_t)gps.satellites.value();
-  payload[16] = (uint8_t)(_v_gps_sats);
-  uint16_t _v_axp192_batt_mv = batteryMv;
-  payload[17] = (uint8_t)(_v_axp192_batt_mv >> 8);
-  payload[18] = (uint8_t)(_v_axp192_batt_mv);
+  int32_t _v_lat = (int32_t)(gps.location.lat() * 10000000.0);
+  payload[6] = (uint8_t)(_v_lat >> 24);
+  payload[7] = (uint8_t)(_v_lat >> 16);
+  payload[8] = (uint8_t)(_v_lat >> 8);
+  payload[9] = (uint8_t)(_v_lat);
+  int32_t _v_lon = (int32_t)(gps.location.lng() * 10000000.0);
+  payload[10] = (uint8_t)(_v_lon >> 24);
+  payload[11] = (uint8_t)(_v_lon >> 16);
+  payload[12] = (uint8_t)(_v_lon >> 8);
+  payload[13] = (uint8_t)(_v_lon);
+  int16_t _v_alt_m = (int16_t)gps.altitude.meters();
+  payload[14] = (uint8_t)(_v_alt_m >> 8);
+  payload[15] = (uint8_t)(_v_alt_m);
+  uint8_t _v_sats = (uint8_t)gps.satellites.value();
+  payload[16] = (uint8_t)(_v_sats);
+  uint16_t _v_batt_mv = batteryMv;
+  payload[17] = (uint8_t)(_v_batt_mv >> 8);
+  payload[18] = (uint8_t)(_v_batt_mv);
       int16_t state = node->sendReceive(payload, sizeof(payload));
       Serial.printf("uplink: RadioLib state %d\n", state);
       persist.saveSession(node);
