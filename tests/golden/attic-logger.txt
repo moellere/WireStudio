@@ -29,7 +29,7 @@
 |    - 1x 10k resistor                                                                 |
 |    - 2x 4.7k resistor                                                                |
 |                                                                                      |
-|  Power: ~81mA typical, ~303mA peak (budget 500mA)  OK                                |
+|  Power: ~1mA typical, ~3mA peak (budget 500mA)  OK                                   |
 |                                                                                      |
 |  Warnings: none                                                                      |
 +--------------------------------------------------------------------------------------+

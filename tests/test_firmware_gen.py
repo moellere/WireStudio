@@ -114,3 +114,18 @@ def test_write_firmware_creates_project(lib, tmp_path):
     write_firmware(_design("ttgo-lora32-v1"), lib, tmp_path)
     assert (tmp_path / "platformio.ini").is_file()
     assert (tmp_path / "src" / "main.cpp").is_file()
+
+
+def test_lorawan_matches_golden(lib):
+    from wirestudio.targets.lorawan.codec import generate_codec
+    from pathlib import Path
+
+    design = _design("ttgo-t-beam")
+    fw = generate_firmware(design, lib)
+    codec = generate_codec(design, lib)
+
+    golden_dir = Path(__file__).resolve().parent / "golden"
+
+    assert fw["src/main.cpp"] == (golden_dir / "t-beam.cpp").read_text()
+    assert fw["platformio.ini"] == (golden_dir / "t-beam.ini").read_text()
+    assert codec == (golden_dir / "t-beam.js").read_text()

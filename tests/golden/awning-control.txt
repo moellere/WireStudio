@@ -41,7 +41,7 @@
 |    - Generic GPIO switch / relay output  (motor_enable)                                                             |
 |    - 1x 100nF capacitor                                                                                             |
 |                                                                                                                     |
-|  Power: ~81mA typical, ~335mA peak (budget 500mA)  OK                                                               |
+|  Power: ~1mA typical, ~35mA peak (budget 500mA)  OK                                                                 |
 |                                                                                                                     |
 |  Warnings:                                                                                                          |
 |    [info] pwm_and_cover_in_extras: PWM motor drivers (esp8266_pwm on D5/D6) and the endstop cover platform live in  |

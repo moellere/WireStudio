@@ -5,9 +5,6 @@ chip_variant: esp32
 framework: arduino
 platformio_board: ttgo-lora32-v1
 flash_size_mb: 4
-# Onboard board draw at the input rail. ESP32 + SX1276 LoRa + 0.96" OLED.
-current_ma_typical: 150
-current_ma_peak: 700
 
 rails:
   - {name: "5V",  voltage: 5.0, source: usb}

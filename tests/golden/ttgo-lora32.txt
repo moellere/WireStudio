@@ -30,7 +30,7 @@
 |    - 1x 10uF capacitor                                                                                         |
 |    - 1x 100nF capacitor                                                                                        |
 |                                                                                                                |
-|  Power: ~170mA typical, ~850mA peak (budget 1200mA)  OK                                                        |
+|  Power: ~20mA typical, ~150mA peak (budget 500mA)  OK                                                          |
 |                                                                                                                |
 |  Warnings:                                                                                                     |
 |    [info] battery_adc_in_extras: Battery ADC sensor + wifi_signal sensor + font + send-packet template button  |

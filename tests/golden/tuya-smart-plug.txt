@@ -19,7 +19,7 @@
 |    - Tuya datapoint sensor  (watts)                                                                             |
 |    - Tuya datapoint sensor  (kwh)                                                                               |
 |                                                                                                                 |
-|  Power: ~70mA typical, ~300mA peak (budget 400mA)  OK                                                           |
+|  Power: ~0mA typical, ~0mA peak (budget 200mA)  OK                                                              |
 |                                                                                                                 |
 |  Warnings:                                                                                                      |
 |    [warn] logger_baud_collision: Disable the ESPHome serial logger (or move it off UART0) -- the Tuya MCU owns  |

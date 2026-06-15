@@ -46,6 +46,42 @@ class Electrical(_Strict):
     passives: list[PassiveSpec] = Field(default_factory=list)
 
 
+class LorawanField(_Strict):
+    """One uplink payload field a component contributes (LoRaWAN target).
+
+    `cpp_expr` is the C++ expression packed into the payload; it references the
+    C++ symbols the component's `globals`/`loop` declare. The `ha_*` hints are
+    optional Home Assistant entity metadata, consumed by the codec's
+    `getHaDeviceInfo` (the chirp2mqtt integration). They mirror the keys on
+    codec.Field so a migrated field reproduces its old HA entity exactly.
+    """
+    name: str
+    bytes: int
+    cpp_type: str
+    cpp_expr: str
+    signed: bool = False
+    scale: float = 1.0
+    ha_device_class: Optional[str] = None
+    ha_unit: Optional[str] = None
+    ha_state_class: Optional[str] = None
+    ha_diagnostic: Optional[bool] = None
+    ha_icon: Optional[str] = None
+    ha_divide: Optional[float] = None
+
+
+class LorawanSpec(_Strict):
+    lib_deps: list[str] = Field(default_factory=list)
+    # Shared build prerequisites a fragment needs (e.g. "i2c", "spi"); the
+    # firmware template brings the corresponding bus up once when any
+    # component requires it.
+    requires: list[str] = Field(default_factory=list)
+    globals: str = ""
+    setup: str = ""
+    loop: str = ""
+    fields: list[LorawanField] = Field(default_factory=list)
+    downlink: Optional[str] = None
+
+
 class EsphomeSpec(_Strict):
     required_components: list[str] = Field(default_factory=list)
     yaml_template: str = ""
@@ -60,6 +96,7 @@ class LibraryComponent(_Strict):
     aliases: list[str] = Field(default_factory=list)
     electrical: Electrical = Field(default_factory=Electrical)
     esphome: EsphomeSpec = Field(default_factory=EsphomeSpec)
+    lorawan: Optional[LorawanSpec] = None
     params_schema: dict = Field(default_factory=dict)
     notes: Optional[str] = None
     kicad: Optional[KicadSymbolRef] = None

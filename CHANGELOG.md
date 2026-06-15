@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **LoRaWAN target: framework axis + library codegen blocks (phases A & B).**
+  The four LoRaWAN sensors (GPS / AXP192 battery / DHT22 / OLED) were hardcoded
+  into `codec.py` (`*_FIELDS` lists) and `main.cpp.j2`; they now live as
+  per-component `lorawan:` codegen blocks in `library/components/*.yaml`
+  (`lib_deps` / `requires` / `globals` / `setup` / `loop` / `fields` with HA
+  hints). A single `codec.resolve_components()` assembles the design's
+  components plus the board's onboard peripherals, and both the firmware
+  generator and the codec build from that one inventory -- so expanding the
+  LoRaWAN sensor set is now a library-file edit, at parity with ESPHome, and
+  the payload/decoder stay in lockstep. `TargetPlugin` gains formal
+  `generate()` + `component_ids()` and `/design/render` routes through the
+  target. The uplink payload layout, ChirpStack `decodeUplink` + Home Assistant
+  entities, and device-profile names are **unchanged** (byte-identical to
+  0.16.0), so existing provisioned devices and HA entities are unaffected.
+
 ### Fixed
 
 - **Power budget ignored the board's own draw.** Every Wi-Fi MCU's ~70-300 mA

@@ -5,9 +5,6 @@ chip_variant: esp32s3
 framework: arduino
 platformio_board: m5stack-atoms3
 flash_size_mb: 8
-# Onboard board draw at the input rail. ESP32-S3 + 0.85" LCD (~30 mA active).
-current_ma_typical: 150
-current_ma_peak: 400
 image: https://static-cdn.m5stack.com/resource/docs/products/core/AtomS3/img-abe8d8b0-3d8c-4f42-a84a-093bfed0aa38.png
 
 rails:

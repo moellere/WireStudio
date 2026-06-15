@@ -24,7 +24,7 @@
 |    - Generic GPIO binary sensor  (btn)                                                                            |
 |    - 1x 100nF capacitor                                                                                           |
 |                                                                                                                   |
-|  Power: ~75mA typical, ~315mA peak (budget 400mA)  OK                                                             |
+|  Power: ~5mA typical, ~15mA peak (budget 200mA)  OK                                                               |
 |                                                                                                                   |
 |  Warnings:                                                                                                        |
 |    [warn] logger_baud_collision: Disable the ESPHome serial logger or move it off UART0 -- GPIO3 is owned by the  |

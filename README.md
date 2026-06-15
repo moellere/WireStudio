@@ -1,19 +1,13 @@
 # wirestudio
 
-[![PyPI](https://img.shields.io/pypi/v/wirestudio)](https://pypi.org/project/wirestudio/)
-[![Python](https://img.shields.io/pypi/pyversions/wirestudio)](https://pypi.org/project/wirestudio/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-
 Agent-driven IoT device design tool. Describe a goal (or pick parts);
-get ESPHome YAML, an ASCII wiring diagram, a KiCad schematic + PCB, a
-3D-printable enclosure, and a BOM that compile under upstream ESPHome.
+get ESPHome YAML, an ASCII wiring diagram, and a BOM that compile
+under upstream ESPHome.
 
 A second generation target builds and flashes **LoRaWAN** firmware
 (RadioLib + LoRaWAN_ESP32) for US915 radio boards — TTGO T-Beam /
-LoRa32, Heltec WiFi LoRa 32 V2/V3 — over WebSerial from the browser,
-provisions the device against ChirpStack, and surfaces each device's
-sensors + GPS as **Home Assistant** entities (per-field sensors and a
-GPS `device_tracker` for the map, via the chirp2mqtt integration).
+LoRa32, Heltec WiFi LoRa 32 V2/V3 — over WebSerial from the browser, and
+provisions the device against ChirpStack.
 
 Produces ESPHome configs but is not affiliated with the ESPHome
 project — see [`weirded/fleet-for-esphome`](https://github.com/weirded/fleet-for-esphome)
@@ -34,7 +28,7 @@ Detailed docs live in [`docs/`](docs/):
 
 ## Status
 
-`v0.15.0` — on PyPI (`pip install wirestudio`). The studio has wide
+`v0.13.0` — on PyPI (`pip install wirestudio`). The studio has wide
 surface area (YAML, schematic, enclosure, agent, MCP server, fleet
 handoff, web UI, a LoRaWAN flash/provision target) and a set of things
 actually verified against upstream tools. Three of the four priority
@@ -52,12 +46,11 @@ Tiers, in priority order:
 | **Verified** | Fleet handoff | push YAML to `fleet-for-esphome` ha-addon, optional compile + log relay | round-trip tests in `tests/test_fleet.py` |
 | **Verified** | KiCad schematic | emit a SKiDL Python script the user runs locally to produce a `.kicad_sch` | every bundled example builds a KiCad netlist against the pinned upstream symbol libraries, every PR ([gate](.github/workflows/kicad-schematic.yml)) — no unresolved symbols or pins. Parts KiCad ships no symbol for (sensor/module breakouts) render as labeled generic headers |
 | **Verified** | Parametric enclosure | OpenSCAD `.scad` from board mount-hole metadata | every enclosure-capable board renders through real OpenSCAD to a non-empty, manifold (closed, printable) solid, every PR ([gate](.github/workflows/enclosure-render.yml)) |
-| **Verified** | KiCad PCB layout + fab outputs | grid-placed `.kicad_pcb` (pads bound to nets, `Edge.Cuts` outline) + Gerber/drill/CPL/BOM bundle for JLCPCB | every bundled example emits a structurally sound board ([pcb-layout](.github/workflows/pcb-layout.yml)); each board opens in real KiCad and passes DRC, unrouted airwires aside ([pcb-drc](.github/workflows/pcb-drc.yml)) |
-| **Works (hardware-validated)** | LoRaWAN target | build RadioLib + LoRaWAN_ESP32 firmware for US915 radio boards, flash over WebSerial, provision against ChirpStack, expose sensors/GPS as Home Assistant entities | every radio board's firmware builds in CI ([gate](.github/workflows/lorawan-firmware.yml)); validated end-to-end on a TTGO T-Beam against live ChirpStack 4.17 — no automated live-device gate |
+| **Works (hardware-validated)** | LoRaWAN target | build RadioLib + LoRaWAN_ESP32 firmware for US915 radio boards, flash over WebSerial, provision against ChirpStack | every radio board's firmware builds in CI ([gate](.github/workflows/lorawan-firmware.yml)); validated end-to-end on a TTGO T-Beam against live ChirpStack 4.17 — no automated live-device gate |
 | **Works (lighter checks)** | MCP server | drive the design tools from Claude Code / Desktop over the Model Context Protocol | tool / auth / resource tests in `tests/test_mcp_*.py`; not exercised against a live MCP client in CI |
 | **Experimental** | Thingiverse search relay | rank community models for a board | smoke-tested; depends on a third-party search API that ranks unevenly |
 | **Experimental** | Agent (Claude tool-using) | natural-language design driving | works in practice; tool surface is small; no auto-eval against task list yet |
-| **Deferred** | PCB autoroute | Freerouting traces | 1.0+; boards currently ship unrouted (pads + ratsnest, no traces) |
+| **Deferred** | KiCad PCB layout | Freerouting + Gerber + JLCPCB CPL/BOM | 1.0+, not started |
 
 The **Verified** tier is the bar the project is asking to be judged
 on. Everything else is offered with the caveat that's spelled out in
@@ -79,7 +72,7 @@ that pin moves, this line moves with it.
 docker run --rm -p 8765:8765 \
   -e ANTHROPIC_API_KEY=sk-ant-... \
   -v wirestudio-data:/data \
-  ghcr.io/moellere/wirestudio:v0.15.0
+  ghcr.io/moellere/wirestudio:v0.13.0
 ```
 
 Open <http://localhost:8765>. The image bundles the FastAPI server +
@@ -122,7 +115,7 @@ The [User guide](docs/user_guide.md) walks the panes and header actions.
 ## Tests
 
 ```sh
-python -m pytest                          # ~690 cases
+python -m pytest                          # ~680 cases
 python -m ruff check .                    # lint
 cd web && npx vitest run                  # vitest + jsdom
 pip install 'esphome==2025.12.7'

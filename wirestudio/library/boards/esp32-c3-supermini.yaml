@@ -5,9 +5,6 @@ chip_variant: esp32c3
 framework: arduino
 platformio_board: esp32-c3-devkitm-1
 flash_size_mb: 4
-# Onboard board draw at the input rail. ESP32-C3 datasheet; minimal breakout.
-current_ma_typical: 80
-current_ma_peak: 335
 
 rails:
   - {name: "5V",  voltage: 5.0, source: usb}

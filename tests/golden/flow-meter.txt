@@ -22,7 +22,7 @@
 |    - APA102 / SK9822 addressable RGB LED strip (SPI / DotStar)  (strip)               |
 |    - Piezo buzzer + RTTTL melody player  (buzzer)                                     |
 |                                                                                       |
-|  Power: ~168mA typical, ~590mA peak (budget 800mA)  OK                                |
+|  Power: ~38mA typical, ~90mA peak (budget 500mA)  OK                                  |
 |                                                                                       |
 |  Warnings: none                                                                       |
 +---------------------------------------------------------------------------------------+

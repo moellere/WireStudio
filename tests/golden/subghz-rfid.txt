@@ -27,7 +27,7 @@
 |    - RDM6300 125kHz EM4100 RFID reader  (rfid)                                  |
 |    - 1x 100nF capacitor                                                         |
 |                                                                                 |
-|  Power: ~197mA typical, ~605mA peak (budget 800mA)  OK                          |
+|  Power: ~67mA typical, ~105mA peak (budget 500mA)  OK                           |
 |                                                                                 |
 |  Warnings: none                                                                 |
 +---------------------------------------------------------------------------------+

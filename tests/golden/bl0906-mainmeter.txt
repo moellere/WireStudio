@@ -17,7 +17,7 @@
 |    - BL0906 6-channel AC energy meter (UART, 19200 baud)  (em6)        |
 |    - 1x 100nF capacitor                                                |
 |                                                                        |
-|  Power: ~138mA typical, ~520mA peak (budget 700mA)  OK                 |
+|  Power: ~8mA typical, ~20mA peak (budget 500mA)  OK                    |
 |                                                                        |
 |  Warnings: none                                                        |
 +------------------------------------------------------------------------+

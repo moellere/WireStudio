@@ -5,9 +5,6 @@ chip_variant: esp32
 framework: arduino
 platformio_board: m5stack-atom
 flash_size_mb: 4
-# Onboard board draw at the input rail. ESP32 + 5x5 SK6812 matrix (matrix peak software-bounded).
-current_ma_typical: 150
-current_ma_peak: 500
 image: https://static-cdn.m5stack.com/resource/docs/products/core/ATOM%20Matrix/img-bc9c8013-4f56-43ff-9dc5-0f6b8558790c.webp
 
 rails:
