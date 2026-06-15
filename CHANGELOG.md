@@ -9,22 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Power budget ignored the board's own draw.** Every Wi-Fi MCU's ~70-300 mA
-  active current was invisible to the budget check; `LibraryBoard` had no
-  current fields, and both budget callsites (`csp/pin_solver.py`,
-  `generate/ascii_gen.py`) only summed `design.components`. Result: a bare D1
-  Mini design reported `~0mA peak`. `LibraryBoard` now carries
-  `current_ma_typical` + `current_ma_peak` (Wi-Fi associated active / TX burst,
-  datasheet-sourced per MCU family with per-board overhead for USB-UART, LDO,
-  status LEDs, onboard radios / displays / PMIC). All 23 bundled boards are
-  annotated; both budget paths include the board's draw. Bumped
-  `power.budget_ma` on the 24 examples whose budgets were silently low because
-  the board was uncounted, and refreshed the ASCII goldens.
-
-## [0.16.0] — 2026-06-14
-
-### Fixed
-
 - **LoRaWAN firmware boot-loop on TTGO LoRa32 (issue #80).** The TTGO
   `ttgo-lora32-v1`/`-v2` profiles declared the onboard SSD1306 reset on
   GPIO16. On these boards driving GPIO16 in the reset pulse wedges the chip
@@ -43,16 +27,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   mapping to PlatformIO board `ttgo-lora32-v21`. Electrically identical to
   `ttgo-lora32-v1`; the distinct profile lets the most common "TTGO LoRa32"
   hardware select its matching board key.
-- **Home Assistant entities from the LoRaWAN codec.** The generated ChirpStack
-  codec now includes a `getHaDeviceInfo()` block alongside `decodeUplink`, so
-  the [chirp2mqtt](https://github.com/modrisb/chirp) HA integration publishes
-  MQTT-discovery entities for every payload field — temperature, humidity,
-  battery (mV→V), GPS, link quality (RSSI/SNR) — with proper `device_class`/
-  unit/`state_class`. GPS payloads (lat+lon) additionally emit a
-  `device_tracker` whose latitude/longitude attributes drive the HA map. Each
-  payload `Field` carries optional `ha_*` hints driving this. ChirpStack device
-  profiles are also created with `auto_detect_measurements` enabled for
-  ChirpStack's own metrics dashboards.
 
 ## [0.15.0] — 2026-06-11
 
@@ -331,6 +305,12 @@ plus a wide cluster of library, agent, and API work.
   YAML renderer is guarded against `StrictUndefined`.
 - `esp32:` chip-block emission corrected for every ESP32-family
   variant.
+
+## [Unreleased]
+
+### Added
+
+- **Phase A/B LoRaWAN Framework Refactor**: `lorawan:` block introduced in component YAMLs to encapsulate globals, setup, loop, and fields logic. Refactored `targets/lorawan/firmware_gen.py` and `codec.py` to aggregate logic dynamically. Formalized `TargetPlugin.generate()` across both `esphome` and `lorawan` targets.
 
 ## [0.9.0] — 2026-05-05
 

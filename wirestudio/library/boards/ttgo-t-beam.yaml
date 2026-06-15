@@ -5,9 +5,6 @@ chip_variant: esp32
 framework: arduino
 platformio_board: ttgo-t-beam
 flash_size_mb: 4
-# Onboard board draw at the input rail. ESP32 + SX1276/SX1262 LoRa + NEO-6M GPS (~50 mA) + AXP192 PMIC.
-current_ma_typical: 200
-current_ma_peak: 750
 
 rails:
   - {name: "5V",  voltage: 5.0, source: usb}

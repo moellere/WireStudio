@@ -25,7 +25,7 @@
 |    - IR transmitter (remote_transmitter)  (onboard_ir)                                        |
 |    - I2S / PDM microphone (i2s_audio)  (onboard_mic)                                          |
 |                                                                                               |
-|  Power: ~152mA typical, ~565mA peak (budget 700mA)  OK                                        |
+|  Power: ~22mA typical, ~65mA peak (budget 500mA)  OK                                          |
 |                                                                                               |
 |  Warnings: none                                                                               |
 +-----------------------------------------------------------------------------------------------+

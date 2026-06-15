@@ -14,7 +14,7 @@
 |    - Modbus RTU bus protocol (RS485-over-UART)  (rs485_bus)                                                            |
 |    - Eastron SDM single/three-phase energy meter (Modbus RTU over RS485)  (meter)                                      |
 |                                                                                                                        |
-|  Power: ~130mA typical, ~500mA peak (budget 500mA)  OK                                                                 |
+|  Power: ~0mA typical, ~0mA peak (budget 500mA)  OK                                                                     |
 |                                                                                                                        |
 |  Warnings:                                                                                                             |
 |    [info] rs485_transceiver_required: Wire UART RX/TX through a MAX485 (or equivalent) transceiver: A/B to the SDM230  |

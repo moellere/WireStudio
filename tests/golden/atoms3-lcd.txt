@@ -17,7 +17,7 @@
 |    - HD44780 character LCD (16x2 / 20x4) via PCF8574 I2C backpack  (lcd)                                   |
 |    - 1x 100nF capacitor                                                                                    |
 |                                                                                                            |
-|  Power: ~175mA typical, ~460mA peak (budget 500mA)  OK                                                     |
+|  Power: ~25mA typical, ~60mA peak (budget 500mA)  OK                                                       |
 |                                                                                                            |
 |  Warnings:                                                                                                 |
 |    [warn] i2c_5v_pullup: The PCF8574 backpack pulls SDA/SCL to its 5V VCC, but the ESP32-S3 GPIOs are not  |

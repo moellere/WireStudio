@@ -12,7 +12,7 @@
 |    - WeMos D1 Mini                                          |
 |    - HC-SR501 PIR motion sensor  (pir1)                     |
 |                                                             |
-|  Power: ~130mA typical, ~365mA peak (budget 500mA)  OK      |
+|  Power: ~50mA typical, ~65mA peak (budget 500mA)  OK        |
 |                                                             |
 |  Warnings: none                                             |
 +-------------------------------------------------------------+

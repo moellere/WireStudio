@@ -18,7 +18,7 @@
 |    - 1x 1000uF capacitor                                                                                              |
 |    - 1x 330ohm resistor                                                                                               |
 |                                                                                                                       |
-|  Power: ~150mA typical, ~560mA peak (budget 4000mA)  OK                                                               |
+|  Power: ~20mA typical, ~60mA peak (budget 4000mA)  OK                                                                 |
 |                                                                                                                       |
 |  Warnings: none                                                                                                       |
 +-----------------------------------------------------------------------------------------------------------------------+
