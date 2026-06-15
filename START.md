@@ -141,6 +141,22 @@ reason to publish to PyPI.
 
 **Deferred follow-ups (not blocking; pick up when relevant):**
 
+- *LoRaWAN multi-region (single-region limitation).* The lorawan target is
+  **hard-pinned to US915 sub-band 2** — `Design.lorawan.region` is a
+  `Literal["US915"]`, the ChirpStack profile pins `region=US915` /
+  `region_config_id="us915_1"`, and the firmware's `min_datarate` uses the
+  US915 per-DR payload caps. Other regions (EU868, AU915, AS923, …) are not
+  supported; a device built/provisioned for any other band silently won't
+  join. Wanted for adoption outside the US (where LoRaWAN is more prevalent),
+  so this is a real future feature, but it's **major + safety-sensitive +
+  untestable here** (no non-US915 gateway), which is why it's deferred rather
+  than half-shipped. Concrete surface when picked up: widen the model
+  `region`/`sub_band` (per-region valid sub-band sets); a `region -> {DR
+  payload caps, RadioLib band, ChirpStack region_config_id}` table replacing
+  the scattered US915 constants in `firmware_gen.min_datarate`,
+  `chirpstack.ensure_device_profile`, and the `api.provision` /
+  `codec.profile_name` US915/sub-2 literals; and a real join test per region
+  before claiming support. (Pairs naturally with phase D's network-server work.)
 - *PyPI name claim.* `python -m build && twine upload dist/*` from
   any clean checkout claims `wirestudio` on PyPI. After that,
   configure Trusted Publisher at
@@ -1370,11 +1386,20 @@ immediate way in and the agent (when it arrives) lands in a working surface.
     pool is actually wanted — at which point it's a new `BuildBackend` impl, not
     a rewrite.
 
-  - **D — Network-server backends.** Put ChirpStack + TTN behind one
-    provision/codec interface under the lorawan framework; region support
-    beyond US915 sub-band 2. The firmware is identical across network
-    servers; only device registration and codec upload differ
-    (ChirpStack gRPC vs TTN REST).
+  - **D — Network-server backends + multi-region.** Two halves, both
+    deferred (ChirpStack-only + US915-only is the shipped reality):
+    - *Network server.* Put ChirpStack + TTN behind one provision/codec
+      interface under the lorawan framework. The firmware is identical across
+      network servers; only device registration and codec upload differ
+      (ChirpStack gRPC vs TTN REST). Deferred until TTN is actually wanted
+      (and testable) — ChirpStack is the only server today, so a second-impl
+      seam would be premature.
+    - *Multi-region.* Lift the hard-pinned US915 sub-band 2 (see the
+      single-region limitation in *Deferred follow-ups*) into per-region
+      config. This is the higher-value half for non-US adoption, but it's
+      safety-sensitive (a wrong band silently won't join) and untestable
+      without a non-US915 gateway, so it's a documented backlog item, not
+      half-shipped guesswork.
 
   - **E — Future frameworks.** A new framework (e.g. MyThings) drops in as a
     codegen plugin + per-component library blocks + (if it's a payload/LPWAN
