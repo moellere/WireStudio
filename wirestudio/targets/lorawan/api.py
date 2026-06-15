@@ -32,26 +32,28 @@ from pydantic import ValidationError
 
 from wirestudio.library import Library
 from wirestudio.model import Design
-from wirestudio.targets.lorawan.compile import (
-    CompileUnavailable,
-    _default_cache_dir,
-    compile_firmware_events,
-    platformio_status,
-)
+from wirestudio.targets.build_backend import BuildBackend, BuildUnavailable
 from wirestudio.targets.lorawan.firmware_gen import generate_firmware
 
-_KEY_RE = re.compile(r"^[0-9a-f]{1,64}$")
+# A build job id, used as a single path segment to address the artifact. The
+# local backend's id is a hex cache key; a remote worker's is its own handle, so
+# this stays format-agnostic -- alphanumeric start, then word/.-_ chars, no '/'
+# and can't begin with '.', which blocks path traversal.
+_KEY_RE = re.compile(r"^[0-9A-Za-z][0-9A-Za-z._-]{0,127}$")
 _EUI_RE = re.compile(r"^[0-9a-fA-F]{16}$")
 _ZERO_EUI = "0000000000000000"
 _SSE_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
 
 
-def build_router(library: Library) -> APIRouter:
+def build_router(library: Library, backend: BuildBackend) -> APIRouter:
+    """`backend` is the build path the compile/firmware routes drive. The
+    endpoints know nothing about PlatformIO -- swapping in a remote build worker
+    is a different `backend`, not an endpoint change."""
     router = APIRouter(tags=["lorawan"])
 
     @router.get("/compile/status")
     def compile_status() -> dict:
-        return platformio_status()
+        return backend.status()
 
     @router.post("/compile")
     def compile(design: dict) -> StreamingResponse:
@@ -71,11 +73,13 @@ def build_router(library: Library) -> APIRouter:
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 
+        job_id = backend.enqueue(d, library)
+
         def events():
             try:
-                for event in compile_firmware_events(d, library):
+                for event in backend.stream(job_id, d, library):
                     yield f"data: {json.dumps(event)}\n\n"
-            except CompileUnavailable as exc:
+            except BuildUnavailable as exc:
                 yield f"event: error\ndata: {json.dumps({'message': str(exc)})}\n\n"
 
         return StreamingResponse(events(), media_type="text/event-stream", headers=_SSE_HEADERS)
@@ -209,11 +213,11 @@ def build_router(library: Library) -> APIRouter:
     def firmware(cache_key: str) -> Response:
         if not _KEY_RE.match(cache_key):
             raise HTTPException(status_code=404, detail="unknown firmware")
-        bin_path = _default_cache_dir() / cache_key / "firmware.bin"
-        if not bin_path.exists():
+        data = backend.artifact(cache_key)
+        if data is None:
             raise HTTPException(status_code=404, detail="firmware not built; POST /lorawan/compile first")
         return Response(
-            content=bin_path.read_bytes(),
+            content=data,
             media_type="application/octet-stream",
             headers={"Content-Disposition": f'attachment; filename="{cache_key}.bin"'},
         )
@@ -225,11 +229,11 @@ def build_router(library: Library) -> APIRouter:
         on a cache-hit-only worker) -- the app-region path is the fallback."""
         if not _KEY_RE.match(cache_key):
             raise HTTPException(status_code=404, detail="unknown firmware")
-        factory = _default_cache_dir() / cache_key / "factory.bin"
-        if not factory.exists():
+        data = backend.artifact(cache_key, "factory.bin")
+        if data is None:
             raise HTTPException(status_code=404, detail="no factory image for this build")
         return Response(
-            content=factory.read_bytes(),
+            content=data,
             media_type="application/octet-stream",
             headers={"Content-Disposition": f'attachment; filename="{cache_key}-factory.bin"'},
         )
