@@ -113,6 +113,14 @@ Heavy deps (`grpcio`, `chirpstack-api`, `platformio`) live behind a
 install stays light. Background + the live ChirpStack setup are in
 [`docs/lorawan/`](lorawan/).
 
+**Limitations (current).** The LoRaWAN target is **US915 sub-band 2 only**
+and **ChirpStack only**. Region/sub-band are hard-pinned end to end (the
+device firmware's datarate caps, the ChirpStack device profile, and the
+provisioning response), so a device built for any other band (EU868, AU915,
+AS923, …) silently won't join — multi-region is a tracked backlog item
+(safety-sensitive, so it's not half-shipped). The network server is
+ChirpStack v4 over gRPC; TTN / other servers aren't wired yet.
+
 ## MCP server
 
 The design-editing tools are exposed over the Model Context Protocol
