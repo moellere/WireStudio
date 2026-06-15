@@ -19,6 +19,45 @@ electrical:
   passives:
     - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
 
+lorawan:
+  lib_deps:
+    - "adafruit/DHT sensor library@^1.4.6"
+  globals: |
+    #include <DHT.h>
+    DHT dht({{ (pin | default(pins.DATA) | default(params.pin)) | string | replace('GPIO', '') }}, {{ params.model | default('DHT22') }});
+    float dhtTempC = 0.0;
+    float dhtHumidity = 0.0;
+  setup: |
+    dht.begin();
+  loop: |
+    {
+      float _t = dht.readTemperature();
+      float _h = dht.readHumidity();
+      if (!isnan(_t)) dhtTempC = _t;
+      if (!isnan(_h)) dhtHumidity = _h;
+    }
+  # dht / dhtTempC / dhtHumidity are file-scope singletons (one onboard DHT per
+  # LoRaWAN device), so the C++ symbols and field names stay stable -- the OLED
+  # status fragment references dhtTempC directly. A second DHT would collide;
+  # the codec raises a clear duplicate-field error if that's ever attempted.
+  fields:
+    - name: temp_c
+      bytes: 2
+      cpp_type: int16_t
+      cpp_expr: (int16_t)(dhtTempC * 100.0)
+      signed: true
+      scale: 100.0
+      ha_device_class: temperature
+      ha_unit: "°C"
+      ha_state_class: measurement
+    - name: humidity
+      bytes: 1
+      cpp_type: uint8_t
+      cpp_expr: (uint8_t)dhtHumidity
+      ha_device_class: humidity
+      ha_unit: "%"
+      ha_state_class: measurement
+
 esphome:
   required_components: []
   yaml_template: |

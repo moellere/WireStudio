@@ -40,71 +40,137 @@ BUILTIN_FIELDS: list[Field] = [
      "ha_state_class": "measurement", "ha_diagnostic": True, "ha_icon": "mdi:restart"},
 ]
 
-# Added when the board carries a `gps_neo6m` onboard peripheral. lat/lon are
-# scaled by 1e7 into signed int32 (standard LoRaWAN GPS encoding). With no fix,
-# TinyGPSPlus returns 0 -> sats=0 is the "no fix yet" indicator.
-GPS_FIELDS: list[Field] = [
-    {"name": "lat", "bytes": 4, "cpp_type": "int32_t",
-     "cpp_expr": "(int32_t)(gps.location.lat() * 10000000.0)", "signed": True, "scale": 1e7,
-     "ha_unit": "°", "ha_diagnostic": True, "ha_icon": "mdi:latitude"},
-    {"name": "lon", "bytes": 4, "cpp_type": "int32_t",
-     "cpp_expr": "(int32_t)(gps.location.lng() * 10000000.0)", "signed": True, "scale": 1e7,
-     "ha_unit": "°", "ha_diagnostic": True, "ha_icon": "mdi:longitude"},
-    {"name": "alt_m", "bytes": 2, "cpp_type": "int16_t",
-     "cpp_expr": "(int16_t)gps.altitude.meters()", "signed": True,
-     "ha_device_class": "distance", "ha_unit": "m", "ha_state_class": "measurement", "ha_diagnostic": True},
-    {"name": "sats", "bytes": 1, "cpp_type": "uint8_t",
-     "cpp_expr": "(uint8_t)gps.satellites.value()",
-     "ha_state_class": "measurement", "ha_diagnostic": True, "ha_icon": "mdi:satellite-variant"},
+def _pin(value) -> Optional[int]:
+    """Board pins are 'GPIO18'; Arduino wants the bare number 18. Idempotent on
+    ints and tolerant of None."""
+    if value is None:
+        return None
+    if isinstance(value, int):
+        return value
+    return int(str(value).removeprefix("GPIO"))
+
+
+# Onboard peripherals the LoRaWAN firmware materializes implicitly when the
+# board declares them (or the design's `lorawan.*` config asks for them) and
+# the user hasn't already added the matching component. Order here is the
+# *payload* field order, fixed to keep the uplink byte layout (and ChirpStack
+# decode) stable: GPS, battery, DHT. (Firmware setup() reorders to a hardware
+# init order -- PMIC first -- see firmware_gen._SETUP_PRIORITY.) `tag` is the
+# device-profile suffix the field set historically carried, so provisioned
+# devices keep their profile names.
+_ONBOARD = [
+    ("uart_gps", "gps_neo6m", "gps", "GPS", "gps"),
+    ("axp192", "axp192", "axp192", "PMIC", "batt"),
+    ("dht", None, "dht1", "DHT", "dht"),
+    ("ssd1306", "oled_ssd1306", "oled", "OLED", None),
 ]
-
-# Added when the board carries an `axp192` PMIC. batteryMv is read in the loop.
-BATTERY_FIELDS: list[Field] = [
-    {"name": "batt_mv", "bytes": 2, "cpp_type": "uint16_t", "cpp_expr": "batteryMv",
-     "ha_device_class": "voltage", "ha_unit": "V", "ha_state_class": "measurement",
-     "ha_diagnostic": True, "ha_divide": 1000},
-]
-
-# Added when the design declares a `dht22`. Temperature signed int16 x100 (degC);
-# humidity uint8 (%). dhtTempC / dhtHumidity are read into globals in the loop.
-DHT_FIELDS: list[Field] = [
-    {"name": "temp_c", "bytes": 2, "cpp_type": "int16_t",
-     "cpp_expr": "(int16_t)(dhtTempC * 100.0)", "signed": True, "scale": 100,
-     "ha_device_class": "temperature", "ha_unit": "°C", "ha_state_class": "measurement"},
-    {"name": "humidity", "bytes": 1, "cpp_type": "uint8_t", "cpp_expr": "(uint8_t)dhtHumidity",
-     "ha_device_class": "humidity", "ha_unit": "%", "ha_state_class": "measurement"},
-]
+_PROFILE_ORDER = ["gps", "batt", "dht"]
 
 
-def sensors(design=None, library=None) -> dict:
-    """Which sensors a design has, from onboard peripherals + lorawan.* configs.
-    firmware_gen and the codec both use this, so they stay in lockstep.
-    Keys: gps, battery, dht, oled (oled is display-only, no payload field)."""
-    onboard: dict = {}
-    if design is not None and library is not None:
-        try:
-            onboard = library.board(design.board.library_id).onboard_peripherals or {}
-        except (FileNotFoundError, AttributeError):
-            onboard = {}
+def resolve_components(design, library) -> list:
+    """The full LoRaWAN component set: the design's own components plus the
+    board's onboard peripherals (and `lorawan.*`-requested sensors) synthesized
+    as components, so firmware_gen and the codec assemble from one inventory and
+    can't drift. Synthesized peripherals carry pin/config params (pins
+    normalized to bare ints) and a stable id; an onboard peripheral whose
+    library component the user already added is not duplicated."""
+    from wirestudio.model import Component
+
+    components = list(design.components)
+    present = {c.library_id for c in components}
+    used_ids = {c.id for c in components}
+    board = library.board(design.board.library_id)
+    onboard = board.onboard_peripherals or {}
     lw = getattr(design, "lorawan", None)
-    return {
-        "gps": ("gps_neo6m" in onboard) or (getattr(lw, "gps", None) is not None),
-        "battery": "axp192" in onboard,
-        "dht": getattr(lw, "dht22", None) is not None,
-        "oled": ("oled_ssd1306" in onboard) or (getattr(lw, "oled", None) is not None),
-    }
+
+    synth: list = []
+    for lib_id, onboard_key, inst_id, label, _tag in _ONBOARD:
+        # Don't duplicate a peripheral the user already placed, and don't let a
+        # synthesized id collide with an existing component's id.
+        if lib_id in present or inst_id in used_ids:
+            continue
+        params = _synth_params(lib_id, onboard_key, onboard, lw)
+        if params is None:
+            continue
+        synth.append(Component(id=inst_id, library_id=lib_id, label=label, params=params))
+        used_ids.add(inst_id)
+    return components + synth
+
+
+def _synth_params(lib_id, onboard_key, onboard, lw):
+    """Params for a synthesized onboard peripheral, or None when the board /
+    design doesn't call for it. Pin params are normalized to bare ints."""
+    on = onboard_key in onboard if onboard_key else False
+    if lib_id == "axp192":
+        return {} if on else None
+    if lib_id == "uart_gps":
+        gps = getattr(lw, "gps", None)
+        if gps is not None:
+            return {"rx_pin": _pin(gps.rx_pin), "tx_pin": _pin(gps.tx_pin), "baud": gps.baud}
+        if on:
+            ob = onboard[onboard_key]
+            # The peripheral's TX is the MCU's RX (and vice-versa).
+            return {"rx_pin": _pin(ob.get("tx")), "tx_pin": _pin(ob.get("rx")),
+                    "baud": ob.get("baud", 9600)}
+        return None
+    if lib_id == "dht":
+        dht = getattr(lw, "dht22", None)
+        return {"pin": _pin(dht.pin), "model": "DHT22"} if dht is not None else None
+    if lib_id == "ssd1306":
+        oled = getattr(lw, "oled", None)
+        if not on and oled is None:
+            return None
+        params: dict = {}
+        ob = onboard.get(onboard_key) or {}
+        if ob:
+            params["address"] = ob.get("address", "0x3C")
+            if ob.get("reset"):
+                params["reset_pin"] = _pin(ob["reset"])
+            if ob.get("vext"):
+                params["vext_pin"] = _pin(ob["vext"])
+        return params
+    return None
+
+
+def _field_dict(fld) -> Field:
+    """Convert a library `LorawanField` to a codec `Field`, emitting only the
+    keys that affect output -- so a migrated field reproduces its old dict (and
+    thus byte-identical codec) exactly. `scale`/`signed` are omitted at their
+    defaults; HA hints only when set."""
+    d: Field = {"name": fld.name, "bytes": fld.bytes,
+                "cpp_type": fld.cpp_type, "cpp_expr": fld.cpp_expr}
+    if fld.signed:
+        d["signed"] = True
+    if fld.scale and fld.scale != 1.0:
+        d["scale"] = fld.scale
+    for attr in ("ha_device_class", "ha_unit", "ha_state_class",
+                 "ha_diagnostic", "ha_icon", "ha_divide"):
+        v = getattr(fld, attr)
+        if v is not None and v is not False:
+            d[attr] = v
+    return d
 
 
 def fields_for(design=None, library=None) -> list[Field]:
-    """Payload fields: built-in telemetry + GPS / battery / DHT when present."""
-    s = sensors(design, library)
+    """Payload fields: built-in telemetry + fields contributed by every
+    resolved component's `lorawan.fields`. Raises on a duplicate field name so
+    a collision is a loud error, not a silent pack/decode mismatch."""
     fields = list(BUILTIN_FIELDS)
-    if s["gps"]:
-        fields += GPS_FIELDS
-    if s["battery"]:
-        fields += BATTERY_FIELDS
-    if s["dht"]:
-        fields += DHT_FIELDS
+    if design is None or library is None:
+        return fields
+    seen = {f["name"] for f in fields}
+    for comp in resolve_components(design, library):
+        lib_comp = library.component(comp.library_id)
+        if not (lib_comp.lorawan and lib_comp.lorawan.fields):
+            continue
+        for fld in lib_comp.lorawan.fields:
+            if fld.name in seen:
+                raise ValueError(
+                    f"duplicate lorawan payload field {fld.name!r} "
+                    f"(component {comp.id!r}); field names must be unique"
+                )
+            seen.add(fld.name)
+            fields.append(_field_dict(fld))
     return fields
 
 
@@ -226,15 +292,22 @@ def generate_codec(design=None, library=None) -> str:
     return decode_js(fields) + ha_device_info_js(fields, model=profile_name(design, library))
 
 
+
 def profile_name(design=None, library=None) -> str:
     """ChirpStack device-profile name for a design's payload shape. Distinct
     payloads (board + attached sensors) get distinct profiles, so each carries
-    its own decodeUplink codec without clobbering another device type's."""
-    s = sensors(design, library)
+    its own decodeUplink codec without clobbering another device type's. The
+    suffix is the stable set of payload-bearing sensor tags (`-gps`/`-batt`/
+    `-dht`) in a fixed order, so provisioned devices keep their profile name."""
     board_id = getattr(getattr(design, "board", None), "library_id", "generic")
-    suffix = "".join(
-        tag for tag, on in (("-gps", s["gps"]), ("-batt", s["battery"]), ("-dht", s["dht"])) if on
-    )
+    tags: set[str] = set()
+    if design and library:
+        tag_for = {lib_id: tag for lib_id, _k, _i, _l, tag in _ONBOARD if tag}
+        for comp in resolve_components(design, library):
+            tag = tag_for.get(comp.library_id)
+            if tag:
+                tags.add(tag)
+    suffix = "".join(f"-{t}" for t in _PROFILE_ORDER if t in tags)
     return f"wirestudio-{board_id}-us915-sub2{suffix}"
 
 

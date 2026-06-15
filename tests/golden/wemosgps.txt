@@ -17,7 +17,7 @@
 |    - Generic UART GPS module (NEO-6M / NEO-8M)  (gps)                                                                 |
 |    - 1x 10uF capacitor                                                                                                |
 |                                                                                                                       |
-|  Power: ~110mA typical, ~380mA peak (budget 500mA)  OK                                                                |
+|  Power: ~30mA typical, ~80mA peak (budget 500mA)  OK                                                                  |
 |                                                                                                                       |
 |  Warnings:                                                                                                            |
 |    [info] baud_rate_select_in_extras: Runtime baud-rate selector (template select with a lambda set_action) lives in  |

@@ -5,9 +5,6 @@ chip_variant: esp8266
 framework: arduino
 platformio_board: esp01_1m
 flash_size_mb: 1
-# Onboard board draw at the input rail. ESP8266EX datasheet (Wi-Fi active, TX burst); bare 1MB module.
-current_ma_typical: 70
-current_ma_peak: 300
 
 rails:
 - {name: "5V", voltage: 5.0, source: usb}

@@ -23,6 +23,20 @@ class LorawanTarget(TargetPlugin):
     def board_ids(self, library: Library) -> list[str]:
         return sorted(b.id for b in library.list_boards() if b.has_radio)
 
+    def component_ids(self, library: Library) -> list[str]:
+        return sorted(c.id for c in library.list_components() if c.lorawan is not None)
+
+    def generate(self, design: Design, library: Library) -> dict[str, str]:
+        from wirestudio.generate.ascii_gen import render_ascii
+        from wirestudio.targets.lorawan.firmware_gen import generate_firmware
+
+        artifacts = generate_firmware(design, library)
+        # The wiring/BOM diagram is framework-neutral; emit it too so the
+        # design-preview endpoint (/design/render) shows the pinout for a
+        # lorawan design instead of nothing.
+        artifacts["wiring.txt"] = render_ascii(design, library)
+        return artifacts
+
     def router(self, library: Library):
         # Lazy: keeps the firmware/compile imports out of the target's import path.
         from wirestudio.targets.lorawan.api import build_router

@@ -5,9 +5,6 @@ chip_variant: esp32c6
 framework: esp-idf
 platformio_board: esp32-c6-devkitc-1
 flash_size_mb: 4
-# Onboard board draw at the input rail. ESP32-C6 datasheet; minimal breakout.
-current_ma_typical: 85
-current_ma_peak: 350
 
 rails:
   - {name: "5V",  voltage: 5.0, source: usb}

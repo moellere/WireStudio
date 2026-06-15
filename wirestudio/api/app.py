@@ -100,8 +100,6 @@ from wirestudio.kicad.render import (
 )
 from wirestudio.jlcpcb import check_bom, jlcpcb_status, report_to_dict
 from wirestudio.recommend.recommender import Constraints, recommend_components
-from wirestudio.generate.ascii_gen import render_ascii
-from wirestudio.generate.yaml_gen import render_yaml
 from wirestudio.library import (
     Library,
     LibraryBoard,
@@ -443,8 +441,10 @@ def create_app(
         """
         d = _validate_design(design)
         try:
-            yaml_text = render_yaml(d, lib)
-            ascii_text = render_ascii(d, lib)
+            target = get_target(d.target)
+            artifacts = target.generate(d, lib)
+            yaml_text = artifacts.get("firmware.yaml", "")
+            ascii_text = artifacts.get("wiring.txt", "")
         except FileNotFoundError as e:
             # Unknown component / board referenced.
             raise HTTPException(status_code=422, detail=str(e)) from e
@@ -1035,8 +1035,12 @@ def create_app(
         except ValidationError as e:
             raise HTTPException(status_code=422, detail=e.errors()) from e
         try:
-            yaml_text = render_yaml(d, lib)
-        except (FileNotFoundError, ValueError) as e:
+            target = get_target(d.target)
+            artifacts = target.generate(d, lib)
+            yaml_text = artifacts.get("firmware.yaml")
+            if not yaml_text:
+                raise ValueError(f"target '{d.target}' does not produce firmware.yaml")
+        except (FileNotFoundError, ValueError, KeyError) as e:
             raise HTTPException(status_code=422, detail=str(e)) from e
 
         # Strict-only push: refuse to ship when any warn/error compatibility

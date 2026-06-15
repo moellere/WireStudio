@@ -5,9 +5,6 @@ chip_variant: esp8266
 framework: arduino
 platformio_board: d1_mini
 flash_size_mb: 4
-# Onboard board draw at the input rail. ESP8266 + AMS1117 LDO + power LED (~5 mA overhead).
-current_ma_typical: 80
-current_ma_peak: 300
 
 rails:
   - {name: "5V",  voltage: 5.0, source: usb}

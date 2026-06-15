@@ -28,7 +28,7 @@
 |    - RCWL-0516 microwave motion sensor  (radar1)                                        |
 |    - 1x 4.7k resistor                                                                   |
 |                                                                                         |
-|  Power: ~85mA typical, ~308mA peak (budget 500mA)  OK                                   |
+|  Power: ~5mA typical, ~8mA peak (budget 500mA)  OK                                      |
 |                                                                                         |
 |  Warnings: none                                                                         |
 +-----------------------------------------------------------------------------------------+

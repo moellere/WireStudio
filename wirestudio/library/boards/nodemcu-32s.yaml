@@ -5,9 +5,6 @@ chip_variant: esp32
 framework: arduino
 platformio_board: nodemcu-32s
 flash_size_mb: 4
-# Onboard board draw at the input rail. ESP32 + CP2102 USB-UART + LDO + status LED.
-current_ma_typical: 130
-current_ma_peak: 500
 
 rails:
 - {name: "5V", voltage: 5.0, source: usb}

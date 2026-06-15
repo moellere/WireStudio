@@ -28,7 +28,7 @@
 |    - Generic GPIO binary sensor  (onboard_button)                         |
 |    - MPU6886 6-axis IMU (accel + gyro, I2C)  (onboard_imu)                |
 |                                                                           |
-|  Power: ~178mA typical, ~494mA peak (budget 500mA)  OK                    |
+|  Power: ~28mA typical, ~94mA peak (budget 500mA)  OK                      |
 |                                                                           |
 |  Warnings: none                                                           |
 +---------------------------------------------------------------------------+

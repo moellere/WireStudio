@@ -26,6 +26,14 @@ class TargetPlugin(ABC):
     def board_ids(self, library: Library) -> list[str]:
         """Library board ids selectable for this target, sorted."""
 
+    @abstractmethod
+    def component_ids(self, library: Library) -> list[str]:
+        """Library component ids selectable for this target, sorted."""
+
+    @abstractmethod
+    def generate(self, design: Design, library: Library) -> dict[str, str]:
+        """Generate artifacts. Returns a map of filename to contents."""
+
     def validate(self, design: Design, library: Library) -> list[DesignWarning]:
         """Target-specific, permissive design checks.
 

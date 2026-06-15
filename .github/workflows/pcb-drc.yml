@@ -12,7 +12,7 @@ name: pcb-drc
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, dev]
     paths:
       - 'wirestudio/kicad/**'
       - 'wirestudio/library/**'

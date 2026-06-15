@@ -13,9 +13,9 @@ name: pcb-layout
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, dev]
   push:
-    branches: [main]
+    branches: [main, dev]
   schedule:
     - cron: '0 10 * * 1'   # 10:00 UTC every Monday
   workflow_dispatch:

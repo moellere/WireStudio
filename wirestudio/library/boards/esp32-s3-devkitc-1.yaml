@@ -5,9 +5,6 @@ chip_variant: esp32s3
 framework: arduino
 platformio_board: esp32-s3-devkitc-1
 flash_size_mb: 8
-# Onboard board draw at the input rail. ESP32-S3 datasheet + dual USB + LEDs.
-current_ma_typical: 130
-current_ma_peak: 355
 
 rails:
   - {name: "5V",  voltage: 5.0, source: usb}

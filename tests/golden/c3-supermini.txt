@@ -14,7 +14,7 @@
 |    - Generic GPIO switch / relay output  (onboard_led)              |
 |    - Generic GPIO binary sensor  (onboard_button)                   |
 |                                                                     |
-|  Power: ~80mA typical, ~335mA peak (budget 500mA)  OK               |
+|  Power: ~0mA typical, ~0mA peak (budget 500mA)  OK                  |
 |                                                                     |
 |  Warnings: none                                                     |
 +---------------------------------------------------------------------+

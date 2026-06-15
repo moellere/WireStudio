@@ -5,9 +5,6 @@ chip_variant: esp32
 framework: arduino
 platformio_board: heltec_wifi_lora_32_V2
 flash_size_mb: 8
-# Onboard board draw at the input rail. ESP32 + SX1276 LoRa (TX up to ~120 mA) + 0.96" OLED (~20 mA) + LiPo charger.
-current_ma_typical: 150
-current_ma_peak: 700
 
 rails:
   - {name: "5V",  voltage: 5.0, source: usb}
