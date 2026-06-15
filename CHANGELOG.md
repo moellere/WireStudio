@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Build-backend seam (framework axis, phase C — structural).** A
+  `BuildBackend` protocol (`status` / `enqueue` / `stream` / `artifact`) now
+  sits behind the LoRaWAN compile + firmware-download routes, with the in-pod
+  PlatformIO worker wrapped as `LocalCompileBackend` and exposed via
+  `LorawanTarget.build_backend()`. The endpoints no longer import the compile
+  worker directly, so a *remote* LoRaWAN build worker (a build-agent pool, the
+  way fleet-for-esphome pools esphome builds) drops in later as a second
+  backend without touching the API — proven by a fake poll-style backend in the
+  tests. No wire-API, frontend, or behavior change: one-at-a-time WebSerial
+  flashing still streams the in-pod build exactly as before. (The job-id route
+  guard is now backend-agnostic instead of hex-only, so a remote worker's
+  handle addresses its artifact through the same `/lorawan/firmware/{id}`
+  route.)
+
 ### Changed
 
 - **LoRaWAN target: framework axis + library codegen blocks (phases A & B).**

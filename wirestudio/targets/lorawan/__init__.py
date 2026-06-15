@@ -41,7 +41,13 @@ class LorawanTarget(TargetPlugin):
         # Lazy: keeps the firmware/compile imports out of the target's import path.
         from wirestudio.targets.lorawan.api import build_router
 
-        return build_router(library)
+        return build_router(library, self.build_backend())
+
+    def build_backend(self):
+        # Lazy: keeps the PlatformIO worker imports off the target's import path.
+        from wirestudio.targets.lorawan.build_local import LocalCompileBackend
+
+        return LocalCompileBackend()
 
     def validate(self, design: Design, library: Library) -> list[DesignWarning]:
         warnings: list[DesignWarning] = []
