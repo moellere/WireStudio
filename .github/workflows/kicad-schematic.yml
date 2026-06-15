@@ -22,9 +22,9 @@ name: kicad-schematic
 
 on:
   pull_request:
-    branches: [main, dev]
+    branches: [main]
   push:
-    branches: [main, dev]
+    branches: [main]
   schedule:
     - cron: '0 10 * * 1'   # 10:00 UTC every Monday
   workflow_dispatch:
