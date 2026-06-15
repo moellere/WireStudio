@@ -9,6 +9,8 @@ from wirestudio.model import Design, DesignWarning
 if TYPE_CHECKING:
     from fastapi import APIRouter
 
+    from wirestudio.targets.build_backend import BuildBackend
+
 
 class TargetPlugin(ABC):
     """A generation target: the kind of artifact a design compiles to.
@@ -48,6 +50,17 @@ class TargetPlugin(ABC):
 
         Default None: esphome's endpoints are the existing top-level routes.
         lorawan returns a router for compile/flash/provision.
+        """
+        return None
+
+    def build_backend(self) -> "Optional[BuildBackend]":
+        """The build path that turns this target's generated firmware into a
+        flashable artifact (probe / enqueue / stream / fetch).
+
+        Default None: not every target builds in-studio (esphome hands off to
+        fleet-for-esphome via the /fleet/* routes). lorawan returns the in-pod
+        PlatformIO backend; a remote LoRaWAN build worker would slot in here as
+        a second implementation without touching the endpoints.
         """
         return None
 

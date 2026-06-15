@@ -1350,12 +1350,25 @@ immediate way in and the agent (when it arrives) lands in a working surface.
     framework capability (a component appears iff it carries a block for the
     selected framework).
 
-  - **C — Build-backend protocol.** Extract a build-backend `Protocol`
-    (enqueue → poll log → fetch artifact, mirroring `FleetClient`'s shape)
-    with the in-pod `targets/lorawan/compile.py` behind a *local* impl and
-    the fleet-for-esphome handoff behind a *remote* impl for esphome. Remote
-    LoRaWAN build agents slot in here later as a second impl (deferred per
-    the locked decision above).
+  - **C — Build-backend protocol.** 🚧 Structural seam shipped. A
+    `BuildBackend` `Protocol` (`status` / `enqueue` / `stream` / `artifact`,
+    the worker shape so a remote agent is id-first) sits behind the LoRaWAN
+    compile + firmware routes, with `targets/lorawan/compile.py` wrapped as the
+    *local* impl (`LocalCompileBackend`, exposed by `LorawanTarget.build_backend()`).
+    The endpoints are backend-agnostic, so a remote LoRaWAN build worker drops
+    in as a second impl without an endpoint change (proven by a fake poll-style
+    backend in tests).
+
+    Deliberately **not** done, because the use cases differ and forcing them
+    together buys nothing yet: LoRaWAN flashing is one-at-a-time (in-pod build +
+    WebSerial), so it keeps its single-shot compile stream; the esphome path
+    pushes firmware fleet-wide on a schedule, which is why fleet-for-esphome's
+    build-worker *pool* (submit → run_id → poll) is the right shape there. So
+    the two wire APIs stay distinct (no unified `/design/build/*`), the
+    fleet/`/fleet/*` routes are left as-is rather than refactored behind the
+    protocol, and the remote LoRaWAN backend itself is deferred until a build
+    pool is actually wanted — at which point it's a new `BuildBackend` impl, not
+    a rewrite.
 
   - **D — Network-server backends.** Put ChirpStack + TTN behind one
     provision/codec interface under the lorawan framework; region support
