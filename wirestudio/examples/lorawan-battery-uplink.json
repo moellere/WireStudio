@@ -1,0 +1,75 @@
+{
+  "schema_version": "0.1",
+  "id": "lorawan-battery-uplink",
+  "name": "TTGO LoRa32 v1 battery uplink (lorawan-for-esphome spike)",
+  "description": "W2 worked example for the LoRaWAN external-component path: a TTGO LoRa32 v1 reads its battery voltage via the ADC and uplinks it through `lorawan-for-esphome` to a US915 sub-band 2 gateway. The smallest design that exercises the full new path -- external_components fetch, lorawan: block, payload sensor binding -- so the generator output can be gated by `esphome config` in CI and hand-flashed against the live ChirpStack for the spike's hardware-join test. Keys ride `fleet.secrets_ref` -> `!secret` references; the actual values are minted by the ChirpStack provision step (W3) and written to secrets.yaml. The standalone Arduino path is untouched.",
+  "created_at": "2026-06-19T00:00:00Z",
+  "updated_at": "2026-06-19T00:00:00Z",
+
+  "board": {
+    "library_id": "ttgo-lora32-v1",
+    "mcu": "esp32",
+    "framework": "arduino"
+  },
+
+  "power": {
+    "supply": "battery-li-ion",
+    "rail_voltage_v": 3.7,
+    "budget_ma": 250
+  },
+
+  "requirements": [
+    { "id": "r1", "kind": "capability", "text": "uplink battery voltage to ChirpStack via LoRaWAN" }
+  ],
+
+  "components": [
+    {
+      "id": "battery",
+      "library_id": "adc",
+      "label": "Battery",
+      "params": {
+        "attenuation": "11db",
+        "update_interval": "30s",
+        "unit_of_measurement": "V"
+      }
+    }
+  ],
+
+  "buses": [],
+
+  "connections": [
+    { "component_id": "battery", "pin_role": "IN", "target": { "kind": "gpio", "pin": "GPIO36" } }
+  ],
+
+  "passives": [],
+
+  "automations": [],
+
+  "warnings": [],
+
+  "target": "esphome",
+  "lorawan": {
+    "region": "US915",
+    "sub_band": 2,
+    "payload": [
+      { "sensor": "battery" }
+    ]
+  },
+
+  "esphome_extras": {
+    "logger": {}
+  },
+
+  "fleet": {
+    "device_name": "lorawan-battery-uplink",
+    "tags": ["lorawan", "external-component", "spike"],
+    "secrets_ref": {
+      "wifi_ssid":     "!secret wifi_ssid",
+      "wifi_password": "!secret wifi_password",
+      "api_key":       "!secret api_key",
+      "dev_eui":       "!secret dev_eui",
+      "join_eui":      "!secret join_eui",
+      "app_key":       "!secret app_key"
+    }
+  }
+}
