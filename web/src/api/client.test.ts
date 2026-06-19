@@ -134,3 +134,41 @@ describe("lorawan factory image", () => {
     await expect(api.lorawanFactory("abc123")).rejects.toThrow(/factory/);
   });
 });
+
+describe("lorawan provision-esphome + activation (W3)", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("lorawanProvisionEsphome POSTs to /lorawan/provision-esphome with the body", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({
+        secrets: { dev_eui: "70b3d57ed0001234", join_eui: "0000000000000000", app_key: "ff".repeat(16) },
+        chirpstack: { application_id: "app-1", device_profile_id: "dp-1" },
+        band: "US915",
+        sub_band: 2,
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const r = await api.lorawanProvisionEsphome({ dev_eui: "70b3d57ed0001234", design: DESIGN });
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toContain("/lorawan/provision-esphome");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body)).toEqual({ dev_eui: "70b3d57ed0001234", design: DESIGN });
+    expect(r.secrets.dev_eui).toBe("70b3d57ed0001234");
+    expect(r.chirpstack.application_id).toBe("app-1");
+  });
+
+  it("lorawanActivation GETs /lorawan/activation/<eui> and URL-encodes the eui", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({ dev_eui: "70b3d57ed0001234", joined: true, dev_addr: "01020304" }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const r = await api.lorawanActivation("70b3d57ed0001234");
+
+    expect(fetchMock.mock.calls[0][0]).toContain("/lorawan/activation/70b3d57ed0001234");
+    expect(r.joined).toBe(true);
+    expect(r.dev_addr).toBe("01020304");
+  });
+});
