@@ -88,6 +88,41 @@ class EsphomeSpec(_Strict):
     expander_pin_key: Optional[str] = None
 
 
+class CapabilityProvides(_Strict):
+    """One event/value a component emits, used as an `automations` trigger.
+
+    `event` is the name a design references (the same name the existing ESPHome
+    template `params.<event>` passthrough uses, e.g. `on_press`). `esphome`
+    overrides the rendered ESPHome trigger key when it differs from `event`;
+    defaults to `event` so the common case is a single line per provide.
+    """
+    event: str
+    kind: Literal["event", "value"] = "event"
+    esphome: Optional[str] = None
+
+
+class CapabilityAccepts(_Strict):
+    """One action a component takes, used as an `automations` action target.
+
+    `action` is the studio-side name (e.g. `turn_on`); `esphome` is the
+    explicit ESPHome action verb the generator lowers to (e.g.
+    `switch.turn_on`). Explicit rather than category-inferred so the mapping
+    is reviewed code, not a runtime guess.
+    """
+    action: str
+    esphome: str
+
+
+class Capability(_Strict):
+    """Functional layer (intent-to-device synthesis): what role this component
+    plays, what events/values it `provides` to triggers, and what actions it
+    `accepts` from automations. Optional per component; an unannotated
+    component simply cannot be a trigger or action target."""
+    role: Literal["input", "sensor", "output", "controller"]
+    provides: list[CapabilityProvides] = Field(default_factory=list)
+    accepts: list[CapabilityAccepts] = Field(default_factory=list)
+
+
 class LibraryComponent(_Strict):
     id: str
     name: str
@@ -97,6 +132,7 @@ class LibraryComponent(_Strict):
     electrical: Electrical = Field(default_factory=Electrical)
     esphome: EsphomeSpec = Field(default_factory=EsphomeSpec)
     lorawan: Optional[LorawanSpec] = None
+    capability: Optional[Capability] = None
     params_schema: dict = Field(default_factory=dict)
     notes: Optional[str] = None
     kicad: Optional[KicadSymbolRef] = None

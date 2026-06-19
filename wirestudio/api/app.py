@@ -75,6 +75,7 @@ from wirestudio.designs.events import DesignEventBus, EventEmittingDesignStore
 from wirestudio.fleet.client import FleetClient, FleetUnavailable
 from wirestudio.csp.compatibility import check_pin_compatibility
 from wirestudio.csp.pin_solver import solve_pins as run_solve_pins
+from wirestudio.intent import validate_automations
 from wirestudio.enclosure import (
     EnclosureUnavailable,
     default_sources,
@@ -394,8 +395,11 @@ def create_app(
         d = _validate_design(design)
         # Append the active target's permissive checks. esphome adds none,
         # so existing designs see no change; lorawan flags a non-radio board
-        # or a missing config block.
+        # or a missing config block. The intent-to-device automation
+        # validator surfaces dangling trigger/action refs the same way
+        # (warnings, not blocks) so a half-authored automation can render.
         target_warnings = get_target(d.target).validate(d, lib)
+        automation_warnings = validate_automations(d, lib)
         return ValidateResponse(
             ok=True,
             design_id=d.id,
@@ -403,7 +407,10 @@ def create_app(
             component_count=len(d.components),
             bus_count=len(d.buses),
             connection_count=len(d.connections),
-            warnings=[w.model_dump() for w in list(d.warnings) + target_warnings],
+            warnings=[
+                w.model_dump()
+                for w in list(d.warnings) + target_warnings + automation_warnings
+            ],
             compatibility_warnings=_wire_compat(check_pin_compatibility(design, lib)),
         )
 

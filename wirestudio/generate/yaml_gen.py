@@ -110,7 +110,63 @@ def _deep_merge(dst: dict, src: dict) -> dict:
     return dst
 
 
-def _render_component(comp: Component, design: Design, library: Library) -> dict[str, Any]:
+def _lower_automations(design: Design, library: Library) -> dict[str, dict[str, list]]:
+    """Lower `design.automations` into a `{component_id: {event_key: [actions]}}`
+    map the renderer merges into the trigger component's `params`. Returns an
+    empty map when a referenced component / event / action can't be resolved --
+    the validator surfaces those as warnings; the renderer just drops the
+    automation rather than emit invalid YAML.
+    """
+    by_id = {c.id: c for c in design.components}
+    out: dict[str, dict[str, list]] = {}
+    for auto in design.automations:
+        trig_comp = by_id.get(auto.trigger.component_id)
+        if trig_comp is None:
+            continue
+        try:
+            trig_lib = library.component(trig_comp.library_id)
+        except FileNotFoundError:
+            continue
+        cap = trig_lib.capability
+        if cap is None:
+            continue
+        provide = next((p for p in cap.provides if p.event == auto.trigger.event), None)
+        if provide is None:
+            continue
+        event_key = provide.esphome or provide.event
+
+        action_list: list = []
+        for act in auto.actions:
+            act_comp = by_id.get(act.component_id)
+            if act_comp is None:
+                continue
+            try:
+                act_lib = library.component(act_comp.library_id)
+            except FileNotFoundError:
+                continue
+            act_cap = act_lib.capability
+            if act_cap is None:
+                continue
+            accept = next((a for a in act_cap.accepts if a.action == act.action), None)
+            if accept is None:
+                continue
+            # Short form when there are no extra args: `{switch.toggle: porch_light}`.
+            # Long form with args:                     `{light.turn_on: {id: porch_light, brightness: "50%"}}`.
+            if act.args:
+                action_list.append({accept.esphome: {"id": act.component_id, **act.args}})
+            else:
+                action_list.append({accept.esphome: act.component_id})
+
+        if not action_list:
+            continue
+        out.setdefault(trig_comp.id, {}).setdefault(event_key, []).extend(action_list)
+    return out
+
+
+def _render_component(
+    comp: Component, design: Design, library: Library,
+    auto_params: dict[str, dict[str, list]] | None = None,
+) -> dict[str, Any]:
     lib_comp = library.component(comp.library_id)
     template_str = lib_comp.esphome.yaml_template
     if not template_str.strip():
@@ -132,10 +188,25 @@ def _render_component(comp: Component, design: Design, library: Library) -> dict
         }
     except FileNotFoundError:
         board_ctx = None
+    # Merge lowered automations into params: each `params.on_*` list extends
+    # any user-authored list rather than replacing it, so the existing escape
+    # hatch (raw action YAML in `params.on_press`) still composes with new
+    # automation-graph entries instead of silently losing either side.
+    params = dict(comp.params)
+    if auto_params:
+        for key, actions in auto_params.get(comp.id, {}).items():
+            existing = params.get(key)
+            if isinstance(existing, list):
+                params[key] = existing + actions
+            elif existing is None:
+                params[key] = actions
+            else:
+                # Existing param wasn't a list (single action dict); coerce.
+                params[key] = [existing, *actions]
     ctx = {
         "id": comp.id,
         "label": comp.label,
-        "params": dict(comp.params),
+        "params": params,
         "pins": _pins_for(comp.id, design, library),
         "bus": bus.model_dump() if bus else None,
         "parent": parent,
@@ -265,8 +336,9 @@ def build_yaml_dict(design: Design, library: Library) -> dict[str, Any]:
             }
             out.setdefault("one_wire", []).append(wire_entry)
 
+    auto_params = _lower_automations(design, library)
     for comp in design.components:
-        _deep_merge(out, _render_component(comp, design, library))
+        _deep_merge(out, _render_component(comp, design, library, auto_params))
 
     if extras:
         _deep_merge(out, extras)
