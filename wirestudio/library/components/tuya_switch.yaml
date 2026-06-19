@@ -29,6 +29,17 @@ esphome:
         restore_mode: {{ params.restore_mode }}
     {%- endif %}
 
+capability:
+  # Tuya MCU-bridge switch (a switch entity behind the tuya: bridge component).
+  # The template doesn't pass through on_turn_on/off events today, so
+  # phase 1.5a only annotates the action side -- adding the trigger
+  # passthroughs is a follow-up in 1.5b.
+  role: output
+  accepts:
+    - {action: turn_on,  esphome: switch.turn_on}
+    - {action: turn_off, esphome: switch.turn_off}
+    - {action: toggle,   esphome: switch.toggle}
+
 params_schema:
   switch_datapoint:
     type: number

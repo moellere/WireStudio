@@ -29,6 +29,12 @@ esphome:
       on_tag: {{ params.on_tag | tojson }}
     {%- endif %}
 
+capability:
+  # 125kHz EM-style RFID reader. Only on_tag; no removal event in the platform.
+  role: input
+  provides:
+    - {event: on_tag}
+
 params_schema:
   on_tag:
     type: array

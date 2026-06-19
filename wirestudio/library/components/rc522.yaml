@@ -38,6 +38,15 @@ esphome:
       on_tag_removed: {{ params.on_tag_removed | tojson }}
     {%- endif %}
 
+capability:
+  # 13.56MHz RFID reader. on_tag fires when a card is presented; on_tag_removed
+  # when the field clears. ESPHome supplies `tag` to actions; the simple
+  # event->action lowering yields a press+toggle / similar shape.
+  role: input
+  provides:
+    - {event: on_tag}
+    - {event: on_tag_removed}
+
 params_schema:
   update_interval: { type: string, default: "1s" }
 
