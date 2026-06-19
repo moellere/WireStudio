@@ -122,6 +122,129 @@ def test_lorawan_payload_field_rejects_unknown_keys_at_schema_level():
         jsonschema.validate(raw, SCHEMA)
 
 
+# --- W2: generator emits external_components: + lorawan: + payload bindings -
+
+from wirestudio.generate.yaml_gen import render_yaml  # noqa: E402
+
+LORAWAN_EXAMPLE = REPO_ROOT / "wirestudio" / "examples" / "lorawan-battery-uplink.json"
+
+
+def test_lorawan_payload_design_matches_golden():
+    """Round-trip: the W2 worked example renders byte-identical to its
+    pinned golden. Catches drift in any of the four moving pieces --
+    external_components ref, radio config emission, !secret routing, payload
+    sensor binding -- in one assertion."""
+    d = Design.model_validate(json.loads(LORAWAN_EXAMPLE.read_text()))
+    lib = default_library()
+    expected = (REPO_ROOT / "tests" / "golden" / "lorawan-battery-uplink.yaml").read_text()
+    assert render_yaml(d, lib) == expected
+
+
+def test_lorawan_emission_skipped_when_payload_empty():
+    """Without `payload`, the generator MUST NOT emit external_components or
+    a lorawan: block -- existing non-LoRaWAN designs render byte-identical."""
+    d = Design(
+        schema_version="0.1", id="x", name="X",
+        board={"library_id": "ttgo-lora32-v1", "mcu": "esp32"},
+        power={"supply": "usb", "rail_voltage_v": 3.3},
+        target="esphome",
+        # No lorawan block at all
+    )
+    yaml = render_yaml(d, default_library())
+    assert "external_components" not in yaml
+    assert "lorawan:" not in yaml
+
+
+def test_lorawan_emission_skipped_when_lorawan_block_has_empty_payload():
+    """A lorawan block with an empty payload list is treated the same as no
+    block -- the W2 emission is gated on payload being non-empty, since an
+    uplink with zero fields is meaningless."""
+    d = Design(
+        schema_version="0.1", id="x", name="X",
+        board={"library_id": "ttgo-lora32-v1", "mcu": "esp32"},
+        power={"supply": "usb", "rail_voltage_v": 3.3},
+        target="esphome",
+        lorawan={"payload": []},
+    )
+    yaml = render_yaml(d, default_library())
+    assert "external_components" not in yaml
+    assert "lorawan:" not in yaml
+
+
+def test_lorawan_emission_pins_the_external_component_ref():
+    """The generator pins lorawan-for-esphome at a known ref (commit SHA per
+    the locked decision); the rendered YAML must carry both `source:` and
+    `ref:` so a future bump is a one-line reviewed change."""
+    d = Design.model_validate(json.loads(LORAWAN_EXAMPLE.read_text()))
+    yaml = render_yaml(d, default_library())
+    assert "source: github://moellere/lorawan-for-esphome" in yaml
+    assert "ref: " in yaml
+
+
+def test_lorawan_emission_uses_secret_references_for_keys():
+    """Keys (dev_eui / join_eui / app_key) must render as !secret references,
+    not literals -- the CLAUDE.md secrets-never-in-design.json rule applies
+    to the rendered YAML too."""
+    d = Design.model_validate(json.loads(LORAWAN_EXAMPLE.read_text()))
+    yaml = render_yaml(d, default_library())
+    for key in ("dev_eui", "join_eui", "app_key"):
+        assert f"{key}: !secret {key}" in yaml
+
+
+def test_lorawan_emission_reads_radio_config_from_board_library():
+    """The radio block (chip, pins, optional tcxo/dio2-rf-switch) comes from
+    the board library's `radio:` metadata -- not duplicated in design.json.
+    Validates by comparing SX1276 (TTGO LoRa32 v1) and SX1262 (Heltec V3)
+    boards: chip differs, pin set differs, and SX1262 carries tcxo +
+    dio2_as_rf_switch."""
+    sx1276 = Design(
+        schema_version="0.1", id="x", name="X",
+        board={"library_id": "ttgo-lora32-v1", "mcu": "esp32"},
+        power={"supply": "usb", "rail_voltage_v": 3.3},
+        target="esphome",
+        lorawan={"payload": [{"sensor": "x"}]},
+    )
+    sx1262 = Design(
+        schema_version="0.1", id="x", name="X",
+        board={"library_id": "heltec-wifi-lora32-v3", "mcu": "esp32"},
+        power={"supply": "usb", "rail_voltage_v": 3.3},
+        target="esphome",
+        lorawan={"payload": [{"sensor": "x"}]},
+    )
+    y1276 = render_yaml(sx1276, default_library())
+    y1262 = render_yaml(sx1262, default_library())
+
+    assert "chip: sx1276" in y1276
+    assert "dio0_pin:" in y1276
+    assert "tcxo_voltage" not in y1276
+
+    assert "chip: sx1262" in y1262
+    assert "dio1_pin:" in y1262
+    assert "busy_pin:" in y1262
+    assert "tcxo_voltage: 1.8" in y1262
+    assert "dio2_as_rf_switch: true" in y1262
+
+
+def test_lorawan_payload_emits_one_sensor_binding_per_field_in_order():
+    """Each payload entry emits one `sensor: - platform: lorawan` binding in
+    declaration order -- the codec contract relies on this."""
+    d = Design(
+        schema_version="0.1", id="x", name="X",
+        board={"library_id": "ttgo-lora32-v1", "mcu": "esp32"},
+        power={"supply": "usb", "rail_voltage_v": 3.3},
+        target="esphome",
+        lorawan={"payload": [{"sensor": "battery"}, {"sensor": "temp"}, {"sensor": "humidity"}]},
+    )
+    yaml = render_yaml(d, default_library())
+    # Three platform: lorawan entries appear, and in the right order
+    bindings = [line.strip() for line in yaml.splitlines() if "platform: lorawan" in line]
+    assert len(bindings) == 3
+    idx_b = yaml.index("sensor: battery")
+    idx_t = yaml.index("sensor: temp")
+    idx_h = yaml.index("sensor: humidity")
+    assert idx_b < idx_t < idx_h
+
+
 def test_all_boards_still_load():
     # Regression guard: the new radio: field must not break any board YAML.
     boards = default_library().list_boards()
