@@ -45,6 +45,14 @@ esphome:
         deceleration: {{ params.deceleration }}
     {%- endif %}
 
+capability:
+  # Stepper. Action target only -- `stepper.set_target` references the stepper
+  # by id (already emitted), so no template passthrough is needed. The target
+  # is the phase-2 value→transform→action sink for the encoder→stepper case.
+  role: output
+  accepts:
+    - {action: set_target, esphome: stepper.set_target}
+
 params_schema:
   max_speed:
     type: string

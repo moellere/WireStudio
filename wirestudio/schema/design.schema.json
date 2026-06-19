@@ -210,7 +210,12 @@
               "properties": {
                 "component_id": { "type": "string" },
                 "action": { "type": "string" },
-                "args": { "type": "object" }
+                "args": { "type": "object" },
+                "transform": {
+                  "type": "object",
+                  "additionalProperties": { "type": "string" },
+                  "description": "Action arg name -> C++ expression in terms of x (the trigger's value); lowered to !lambda \"return <expr>;\"."
+                }
               }
             }
           }

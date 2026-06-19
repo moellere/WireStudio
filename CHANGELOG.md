@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Intent-to-device synthesis (phase 2 — value→transform→action).** An
+  automation action gains an optional `transform` (action-arg name → a C++
+  expression in terms of `x`, the value the trigger emits) that the generator
+  lowers to an ESPHome `!lambda "return <expr>;"`. `rotary_encoder` gains
+  `on_value` (kind=value) and the `uln2003` stepper gains `set_target`
+  (→ `stepper.set_target`), wiring the canonical encoder→stepper case. New
+  worked example `encoder-drives-stepper.json`: a knob's cumulative count
+  drives the motor via `target: !lambda return (long) (x * 10);`, so each
+  detent commands ten steps. The lambda rides the existing `params.on_*`
+  `tojson` passthrough as a sentinel string and is restored to a tagged
+  `!lambda` scalar after parse; the tag-quoting fixup keeps the body quoted
+  when it isn't a plain-scalar-safe expression (a ternary, say). `design.json`
+  gains `automations[].actions[].transform` in model + schema.
+
 - **Intent-to-device synthesis (phase 1.5b — single-output sensor triggers).**
   Nine single-value sensors gain a `params.on_value` / `on_value_range`
   template passthrough plus a `role: sensor` `capability:` block, so a sensor

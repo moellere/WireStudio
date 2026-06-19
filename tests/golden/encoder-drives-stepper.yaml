@@ -1,0 +1,37 @@
+esphome:
+  name: encoder-stepper
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+logger: {}
+api:
+  encryption:
+    key: !secret api_key
+ota:
+- platform: esphome
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+sensor:
+- platform: rotary_encoder
+  pin_a:
+    number: GPIO16
+    mode: INPUT
+  pin_b:
+    number: GPIO17
+    mode: INPUT
+  name: Position knob
+  id: knob
+  on_value:
+  - stepper.set_target:
+      id: motor
+      target: !lambda return (long) (x * 10);
+stepper:
+- platform: uln2003
+  id: motor
+  pin_a: GPIO25
+  pin_b: GPIO26
+  pin_c: GPIO27
+  pin_d: GPIO14
+  max_speed: 250 steps/s
