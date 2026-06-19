@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **LoRaWAN: fleet push inlines per-device secrets.** `POST /fleet/push`
+  gains an optional `lorawan_secrets: {dev_eui, join_eui, app_key}` body
+  field; when present, the renderer substitutes literal values for the
+  matching `!secret <name>` references in the `lorawan:` block, so the
+  YAML the fleet stores carries the keys minted by
+  `/lorawan/provision-esphome` without a separate write to the fleet's
+  `secrets.yaml`. Any key not provided keeps its `!secret` reference; a
+  request with `lorawan_secrets` against a non-LoRaWAN design is a no-op.
+  The provision dialog gains a **"Push to fleet"** button next to the
+  secrets block: provision → push → compile flows through one click, with
+  the resulting filename + compile run id surfaced inline.
+- **LoRaWAN: WebSerial DevEUI auto-derive (restored).** The provision
+  dialog gains a "Detect from chip" button that reads the chip's eFuse
+  MAC over WebSerial via the existing `detectChip()` + `macToEui64()`
+  helpers and fills the DevEUI field. Disabled with a hint when WebSerial
+  isn't available (e.g. Firefox / mobile). Manual entry remains the
+  fallback; editing the field clears the detection hint.
+
 ### Changed
 
 - **ADC component: `attenuation` value renamed `11db` -> `12db`.** ESPHome

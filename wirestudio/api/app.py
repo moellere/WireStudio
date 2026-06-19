@@ -1043,8 +1043,17 @@ def create_app(
             raise HTTPException(status_code=422, detail=e.errors()) from e
         try:
             target = get_target(d.target)
-            artifacts = target.generate(d, lib)
-            yaml_text = artifacts.get("firmware.yaml")
+            # When the caller supplies lorawan_secrets, render directly so the
+            # literals are substituted for the !secret references in the
+            # `lorawan:` block. The TargetPlugin contract stays fixed; only the
+            # esphome target consumes the override today (the standalone
+            # lorawan target's serial-provisioning flow doesn't need it).
+            if req.lorawan_secrets and d.target == "esphome":
+                from wirestudio.generate import yaml_gen
+                yaml_text = yaml_gen.render_yaml(d, lib, lorawan_secrets=req.lorawan_secrets)
+            else:
+                artifacts = target.generate(d, lib)
+                yaml_text = artifacts.get("firmware.yaml")
             if not yaml_text:
                 raise ValueError(f"target '{d.target}' does not produce firmware.yaml")
         except (FileNotFoundError, ValueError, KeyError) as e:
