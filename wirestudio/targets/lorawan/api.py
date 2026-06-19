@@ -5,6 +5,7 @@
     GET  /lorawan/firmware/{key}      download a cached firmware.bin
     GET  /lorawan/chirpstack/status   ChirpStack reachability + auth probe (read-only)
     POST /lorawan/provision           register a device in ChirpStack; issue an AppKey
+    POST /lorawan/provision-esphome   like /provision but returns secrets formatted for secrets.yaml (W3)
     GET  /lorawan/activation/{eui}    has the device joined? (ChirpStack GetActivation)
     POST /lorawan/codec               set the board's decodeUplink codec on the device's profile
 
@@ -146,6 +147,83 @@ def build_router(library: Library, backend: BuildBackend) -> APIRouter:
             "app_key": app_key,
             "application_id": result["application_id"],
             "device_profile_id": result["device_profile_id"],
+        }
+
+    @router.post("/provision-esphome")
+    def provision_esphome(body: dict) -> dict:
+        """Provision a device for the **ESPHome external-component** path
+        (`lorawan-for-esphome`). The companion of `/provision`, but the keys
+        come back formatted for a `secrets.yaml` next to the rendered ESPHome
+        config -- not for a runtime serial prompt.
+
+        Body shape:
+        - ``dev_eui``: 16 hex chars (manual override per the locked decision in
+          ``docs/lorawan/workflow-integration.md``; MAC-derived from eFuse is
+          a future iteration once the WebSerial-side read lands)
+        - ``design``: a ``design.json``-shaped dict (must have
+          ``lorawan.payload`` non-empty for this path)
+        - ``application_name``: optional ChirpStack application name (default
+          ``wirestudio-esphome``)
+
+        Returns the secrets ready to drop into ``secrets.yaml`` plus the
+        ChirpStack identifiers. The AppKey is ephemeral and never persisted to
+        ``design.json``. Codec generation is deferred to a follow-up endpoint
+        (the new path's decoder is generated from ``design.lorawan.payload``,
+        not from the standalone codec.py); profile is created without a codec
+        so the device joins, then a separate ``/codec-esphome`` call sets the
+        decoder when the format stabilises.
+        """
+        dev_eui = str(body.get("dev_eui", "")).lower()
+        if not _EUI_RE.match(dev_eui):
+            raise HTTPException(status_code=422, detail="dev_eui must be 16 hex characters")
+        try:
+            design = Design.model_validate(body["design"]) if body.get("design") else None
+        except ValidationError as exc:
+            raise HTTPException(status_code=422, detail=exc.errors()) from exc
+        if design is None or design.lorawan is None or not design.lorawan.payload:
+            raise HTTPException(
+                status_code=422,
+                detail="design.lorawan.payload must be non-empty for the ESPHome external-component path",
+            )
+
+        from wirestudio.targets.lorawan import chirpstack as cs
+
+        join_eui = design.lorawan.join_eui or _ZERO_EUI
+        application_name = str(body.get("application_name") or "wirestudio-esphome")
+        device_profile_name = (
+            f"wirestudio-esphome-{design.lorawan.region.lower()}-sub{design.lorawan.sub_band}"
+        )
+
+        client = cs.ChirpStackClient()
+        if not client.is_configured():
+            raise HTTPException(
+                status_code=503,
+                detail="ChirpStack not configured (set CHIRPSTACK_API_TOKEN / CHIRPSTACK_API_URL)",
+            )
+        app_key = secrets.token_hex(16)  # 16 bytes; ephemeral, returned once
+        try:
+            result = client.provision_device(
+                dev_eui=dev_eui,
+                app_key=app_key,
+                application_name=application_name,
+                device_profile_name=device_profile_name,
+                join_eui=join_eui if join_eui != _ZERO_EUI else None,
+                codec=None,
+            )
+        except cs.ChirpStackUnavailable as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+        return {
+            "secrets": {
+                "dev_eui": dev_eui,
+                "join_eui": join_eui,
+                "app_key": app_key,
+            },
+            "chirpstack": {
+                "application_id": result["application_id"],
+                "device_profile_id": result["device_profile_id"],
+            },
+            "band": design.lorawan.region,
+            "sub_band": design.lorawan.sub_band,
         }
 
     @router.get("/activation/{dev_eui}")

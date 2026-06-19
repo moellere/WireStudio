@@ -238,3 +238,128 @@ def test_esphome_target_mounts_no_router(client):
     assert client.get("/lorawan/compile/status").status_code == 200
     # A bogus target prefix is not mounted.
     assert client.get("/esphome/compile/status").status_code == 404
+
+
+# --- W3: provision-esphome (companion of /provision for the new path) -------
+#
+# The new endpoint is the orchestrator side of the external-component flow:
+# it provisions a device in ChirpStack and returns the keys formatted for a
+# secrets.yaml that lives next to the rendered ESPHome config. The
+# AppKey is ephemeral and only travels through this response -- never
+# persisted to design.json (CLAUDE.md rule).
+
+def _esphome_lorawan_design() -> dict:
+    """Smallest external-component-path design: TTGO LoRa32 v1 + ADC battery,
+    with a single payload field. Matches the W2 worked example shape."""
+    return Design(
+        schema_version="0.1", id="d", name="D",
+        target="esphome",
+        lorawan={
+            "region": "US915", "sub_band": 2,
+            "payload": [{"sensor": "battery"}],
+        },
+        board={"library_id": "ttgo-lora32-v1", "mcu": "esp32"},
+        power={"supply": "usb", "rail_voltage_v": 3.3},
+        components=[{"id": "battery", "library_id": "adc", "label": "Battery"}],
+        connections=[{
+            "component_id": "battery", "pin_role": "IN",
+            "target": {"kind": "gpio", "pin": "GPIO36"},
+        }],
+    ).model_dump(mode="json", exclude_none=True)
+
+
+def test_provision_esphome_returns_secrets_block(client, monkeypatch):
+    """The endpoint returns the three lorawan-for-esphome secrets in the shape
+    a `secrets.yaml` consumer expects, plus the ChirpStack identifiers."""
+    fake = _FakeChirp()
+    monkeypatch.setattr(cs, "ChirpStackClient", lambda: fake)
+    r = client.post(
+        "/lorawan/provision-esphome",
+        json={"dev_eui": "70B3D57ED0001234", "design": _esphome_lorawan_design()},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    secrets_block = body["secrets"]
+    assert set(secrets_block) == {"dev_eui", "join_eui", "app_key"}
+    assert secrets_block["dev_eui"] == "70b3d57ed0001234"   # normalised lowercase
+    assert re.fullmatch(r"[0-9a-f]{32}", secrets_block["app_key"])
+    assert secrets_block["join_eui"] == "0000000000000000"   # default when unset
+    assert body["chirpstack"] == {"application_id": "app-1", "device_profile_id": "dp-1"}
+    assert body["band"] == "US915" and body["sub_band"] == 2
+    # The key registered in ChirpStack is the same one returned to the caller.
+    assert fake.provisioned["app_key"] == secrets_block["app_key"]
+
+
+def test_provision_esphome_uses_esphome_profile_naming(client, monkeypatch):
+    """The new path uses a distinct device-profile naming scheme so it
+    doesn't collide with the standalone path's per-component-set profiles."""
+    fake = _FakeChirp()
+    monkeypatch.setattr(cs, "ChirpStackClient", lambda: fake)
+    r = client.post(
+        "/lorawan/provision-esphome",
+        json={"dev_eui": "70b3d57ed0001234", "design": _esphome_lorawan_design()},
+    )
+    assert r.status_code == 200
+    assert fake.provisioned["device_profile_name"] == "wirestudio-esphome-us915-sub2"
+    # Codec is None on the new path -- the decoder is generated from
+    # design.lorawan.payload by a follow-up endpoint, not by the standalone
+    # codec.py (which knows only gps/dht22/oled).
+    assert fake.provisioned["codec"] is None
+
+
+def test_provision_esphome_passes_join_eui_when_set(client, monkeypatch):
+    fake = _FakeChirp()
+    monkeypatch.setattr(cs, "ChirpStackClient", lambda: fake)
+    design = _esphome_lorawan_design()
+    design["lorawan"]["join_eui"] = "70b3d57ed0000000"
+    r = client.post(
+        "/lorawan/provision-esphome",
+        json={"dev_eui": "70b3d57ed0001234", "design": design},
+    )
+    assert r.status_code == 200
+    assert fake.provisioned["join_eui"] == "70b3d57ed0000000"
+    assert r.json()["secrets"]["join_eui"] == "70b3d57ed0000000"
+
+
+def test_provision_esphome_rejects_bad_dev_eui(client, monkeypatch):
+    monkeypatch.setattr(cs, "ChirpStackClient", lambda: _FakeChirp())
+    r = client.post(
+        "/lorawan/provision-esphome",
+        json={"dev_eui": "nothex", "design": _esphome_lorawan_design()},
+    )
+    assert r.status_code == 422
+
+
+def test_provision_esphome_rejects_empty_payload(client, monkeypatch):
+    """The new path is gated on payload being non-empty -- a provision call
+    against a design with no payload is a user error worth surfacing
+    explicitly, not a silent provision with no-op uplinks."""
+    monkeypatch.setattr(cs, "ChirpStackClient", lambda: _FakeChirp())
+    design = _esphome_lorawan_design()
+    design["lorawan"]["payload"] = []
+    r = client.post(
+        "/lorawan/provision-esphome",
+        json={"dev_eui": "70b3d57ed0001234", "design": design},
+    )
+    assert r.status_code == 422
+    assert "payload" in r.json()["detail"]
+
+
+def test_provision_esphome_rejects_design_without_lorawan_block(client, monkeypatch):
+    monkeypatch.setattr(cs, "ChirpStackClient", lambda: _FakeChirp())
+    design = _esphome_lorawan_design()
+    design.pop("lorawan")
+    r = client.post(
+        "/lorawan/provision-esphome",
+        json={"dev_eui": "70b3d57ed0001234", "design": design},
+    )
+    assert r.status_code == 422
+
+
+def test_provision_esphome_503_when_chirpstack_unconfigured(client, monkeypatch):
+    monkeypatch.setattr(cs, "ChirpStackClient", lambda: _FakeChirp(configured=False))
+    r = client.post(
+        "/lorawan/provision-esphome",
+        json={"dev_eui": "70b3d57ed0001234", "design": _esphome_lorawan_design()},
+    )
+    assert r.status_code == 503
