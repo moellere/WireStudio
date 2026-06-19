@@ -46,6 +46,9 @@ capability:
     - {action: turn_on,  esphome: switch.turn_on}
     - {action: turn_off, esphome: switch.turn_off}
     - {action: toggle,   esphome: switch.toggle}
+  checks:
+    - {predicate: is_on,  esphome: switch.is_on}
+    - {predicate: is_off, esphome: switch.is_off}
 
 params_schema:
   icon:

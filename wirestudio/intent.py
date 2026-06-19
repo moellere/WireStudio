@@ -34,6 +34,8 @@ def validate_automations(design: Design, library: Library) -> list[DesignWarning
     - ``automation_value_range_needs_bounds``: the trigger event is
       `on_value_range` but neither `above` nor `below` is set, so the
       range would fire on every reading.
+    - ``automation_unknown_predicate``: a condition names a predicate not
+      in the referenced component's `capability.checks`.
     """
     out: list[DesignWarning] = []
     by_id = {c.id: c for c in design.components}
@@ -99,6 +101,38 @@ def validate_automations(design: Design, library: Library) -> list[DesignWarning
                                   f"{trig.component_id!r} does not provide "
                                   f"{suffix}; provides: {provided}"),
                         ))
+
+        for cond in auto.conditions:
+            cond_comp = by_id.get(cond.component_id)
+            if cond_comp is None:
+                out.append(DesignWarning(
+                    level="warn", code="automation_unknown_component",
+                    text=(f"automation {auto.id!r}: condition component "
+                          f"{cond.component_id!r} is not in the design"),
+                ))
+                continue
+            try:
+                cond_lib = library.component(cond_comp.library_id)
+            except FileNotFoundError:
+                continue
+            cap = cond_lib.capability
+            if cap is None:
+                out.append(DesignWarning(
+                    level="warn", code="automation_component_no_capability",
+                    text=(f"automation {auto.id!r}: condition component "
+                          f"{cond.component_id!r} (library_id="
+                          f"{cond_comp.library_id!r}) has no capability block "
+                          f"and can't be a condition source"),
+                ))
+                continue
+            if not any(c.predicate == cond.predicate for c in cap.checks):
+                supported = ", ".join(c.predicate for c in cap.checks) or "(none)"
+                out.append(DesignWarning(
+                    level="warn", code="automation_unknown_predicate",
+                    text=(f"automation {auto.id!r}: component "
+                          f"{cond.component_id!r} does not support predicate "
+                          f"{cond.predicate!r}; supports: {supported}"),
+                ))
 
         for act in auto.actions:
             act_comp = by_id.get(act.component_id)

@@ -172,13 +172,18 @@ def test_lorawan_emission_skipped_when_lorawan_block_has_empty_payload():
 
 
 def test_lorawan_emission_pins_the_external_component_ref():
-    """The generator pins lorawan-for-esphome at a known ref (commit SHA per
-    the locked decision); the rendered YAML must carry both `source:` and
-    `ref:` so a future bump is a one-line reviewed change."""
+    """The generator pins lorawan-for-esphome at a known ref. ESPHome's
+    external_components: encodes the ref as a `@<ref>` suffix on the source
+    URL (not a separate `ref:` key -- that was a misread of ESPHome's schema
+    and breaks `esphome config`); the test pins the URL shape so a future
+    bump is a one-line reviewed change."""
     d = Design.model_validate(json.loads(LORAWAN_EXAMPLE.read_text()))
     yaml = render_yaml(d, default_library())
-    assert "source: github://moellere/lorawan-for-esphome" in yaml
-    assert "ref: " in yaml
+    assert "source: github://moellere/lorawan-for-esphome@" in yaml
+    # And NO bare `ref:` line under the external_components entry -- that
+    # spelling is invalid (the validator returns "Did you mean refresh?").
+    assert "\n  ref: " not in yaml
+    assert "\n    ref: " not in yaml
 
 
 def test_lorawan_emission_uses_secret_references_for_keys():
