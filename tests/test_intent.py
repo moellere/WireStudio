@@ -287,15 +287,25 @@ _PHASE_2_ANNOTATIONS = [
 # sub-block.
 #
 # (component_id, role, [(channel, event), ...])
+# Phase 4 doubles each channel: both on_value (kind=value) and on_value_range
+# (kind=event) so a multi-channel sensor can drive both direct-value and
+# threshold-bounded triggers.
 _PHASE_3_MULTICHANNEL = [
-    ("dht",     "sensor", [("temperature", "on_value"), ("humidity", "on_value")]),
-    ("bme280",  "sensor", [("temperature", "on_value"), ("humidity", "on_value"),
-                           ("pressure", "on_value")]),
-    ("bmp180",  "sensor", [("temperature", "on_value"), ("pressure", "on_value")]),
-    ("bmp280",  "sensor", [("temperature", "on_value"), ("pressure", "on_value")]),
-    ("aht10",   "sensor", [("temperature", "on_value"), ("humidity", "on_value")]),
-    ("htu21d",  "sensor", [("temperature", "on_value"), ("humidity", "on_value")]),
-    ("sht3xd",  "sensor", [("temperature", "on_value"), ("humidity", "on_value")]),
+    ("dht",     "sensor", [("temperature", "on_value"), ("temperature", "on_value_range"),
+                           ("humidity", "on_value"),    ("humidity", "on_value_range")]),
+    ("bme280",  "sensor", [("temperature", "on_value"), ("temperature", "on_value_range"),
+                           ("humidity", "on_value"),    ("humidity", "on_value_range"),
+                           ("pressure", "on_value"),    ("pressure", "on_value_range")]),
+    ("bmp180",  "sensor", [("temperature", "on_value"), ("temperature", "on_value_range"),
+                           ("pressure", "on_value"),    ("pressure", "on_value_range")]),
+    ("bmp280",  "sensor", [("temperature", "on_value"), ("temperature", "on_value_range"),
+                           ("pressure", "on_value"),    ("pressure", "on_value_range")]),
+    ("aht10",   "sensor", [("temperature", "on_value"), ("temperature", "on_value_range"),
+                           ("humidity", "on_value"),    ("humidity", "on_value_range")]),
+    ("htu21d",  "sensor", [("temperature", "on_value"), ("temperature", "on_value_range"),
+                           ("humidity", "on_value"),    ("humidity", "on_value_range")]),
+    ("sht3xd",  "sensor", [("temperature", "on_value"), ("temperature", "on_value_range"),
+                           ("humidity", "on_value"),    ("humidity", "on_value_range")]),
 ]
 
 _ALL_ANNOTATIONS = _PHASE_1_5_ANNOTATIONS + _PHASE_1_5B_ANNOTATIONS + _PHASE_2_ANNOTATIONS
@@ -406,8 +416,13 @@ def test_phase_3_multichannel_capability_shape(lib, lib_id, role, channels):
     assert cap is not None and cap.role == role
     actual = [(p.channel, p.event) for p in cap.provides]
     assert actual == channels
-    # Every entry is a value-kind provide
-    assert all(p.kind == "value" for p in cap.provides)
+    # on_value is kind=value (the cumulative reading); on_value_range is
+    # kind=event (a discrete threshold-crossing).
+    for p in cap.provides:
+        if p.event == "on_value":
+            assert p.kind == "value"
+        elif p.event == "on_value_range":
+            assert p.kind == "event"
 
 
 def test_phase_3_provides_match_template_per_channel_passthroughs(lib):
@@ -458,6 +473,118 @@ def test_temp_to_fan_lowers_into_the_temperature_sub_block(lib):
 def test_temp_to_fan_validator_quiet(lib):
     d = Design.model_validate(json.loads(TEMP_FAN_EXAMPLE.read_text()))
     assert validate_automations(d, lib) == []
+
+
+# --- phase 4: on_value_range threshold bounds -------------------------------
+
+TEMP_THRESHOLD_EXAMPLE = REPO_ROOT / "wirestudio" / "examples" / "temp-above-turns-on-fan.json"
+
+
+def test_temp_threshold_example_matches_golden(lib):
+    d = Design.model_validate(json.loads(TEMP_THRESHOLD_EXAMPLE.read_text()))
+    expected = (REPO_ROOT / "tests" / "golden" / "temp-above-turns-on-fan.yaml").read_text()
+    assert render_yaml(d, lib) == expected
+
+
+def test_temp_threshold_validator_quiet(lib):
+    d = Design.model_validate(json.loads(TEMP_THRESHOLD_EXAMPLE.read_text()))
+    assert validate_automations(d, lib) == []
+
+
+def test_threshold_above_lowers_into_range_entry_inside_sub_block(lib):
+    """A bme280 temperature range trigger lands a `{above, then}` entry
+    under `temperature.on_value_range`, with the action wrapped in `then:`."""
+    d = Design.model_validate(json.loads(TEMP_THRESHOLD_EXAMPLE.read_text()))
+    yaml = render_yaml(d, lib)
+    expected = (
+        "  temperature:\n"
+        "    name: Climate Temperature\n"
+        "    on_value_range:\n"
+        "    - above: 28.0\n"
+        "      then:\n"
+        "      - switch.turn_on: fan\n"
+    )
+    assert expected in yaml
+
+
+def test_threshold_above_and_below_emit_both_bounds(lib):
+    """Setting both above and below emits both keys in the range entry."""
+    d = Design.model_validate({
+        "schema_version": "0.1", "id": "t", "name": "T",
+        "board": {"library_id": "wemos-d1-mini", "mcu": "esp8266", "framework": "arduino"},
+        "power": {"supply": "usb-5v", "rail_voltage_v": 5.0, "budget_ma": 500},
+        "buses": [{"id": "wire0", "type": "1wire", "pin": "D4"}],
+        "components": [
+            {"id": "temp", "library_id": "ds18b20", "label": "Temp",
+             "params": {"address": "0x1234567890abcdef"}},
+            {"id": "fan",  "library_id": "gpio_output", "label": "Fan"},
+        ],
+        "connections": [
+            {"component_id": "temp", "pin_role": "DATA", "target": {"kind": "bus", "bus_id": "wire0"}},
+            {"component_id": "fan",  "pin_role": "OUT",  "target": {"kind": "gpio", "pin": "D6"}},
+        ],
+        "automations": [{
+            "id": "comfy",
+            "trigger": {"component_id": "temp", "event": "on_value_range",
+                        "above": -10.0, "below": 5.0},
+            "actions": [{"component_id": "fan", "action": "turn_on"}],
+        }],
+    })
+    assert validate_automations(d, lib) == []
+    yaml = render_yaml(d, lib)
+    assert "on_value_range:\n  - above: -10.0\n    below: 5.0\n    then:" in yaml
+
+
+def test_validator_flags_bounds_on_wrong_event(lib):
+    """above/below on a non-range event (e.g. on_press) must warn -- the
+    bounds would otherwise be silently dropped by the lowering."""
+    d = Design.model_validate({
+        "schema_version": "0.1", "id": "t", "name": "T",
+        "board": {"library_id": "wemos-d1-mini", "mcu": "esp8266", "framework": "arduino"},
+        "power": {"supply": "usb-5v", "rail_voltage_v": 5.0, "budget_ma": 500},
+        "components": [
+            {"id": "btn", "library_id": "gpio_input",  "label": "Button"},
+            {"id": "lt",  "library_id": "gpio_output", "label": "Light"},
+        ],
+        "connections": [
+            {"component_id": "btn", "pin_role": "IN",  "target": {"kind": "gpio", "pin": "D5"}},
+            {"component_id": "lt",  "pin_role": "OUT", "target": {"kind": "gpio", "pin": "D6"}},
+        ],
+        "automations": [{
+            "id": "a1",
+            "trigger": {"component_id": "btn", "event": "on_press", "above": 25.0},
+            "actions": [{"component_id": "lt", "action": "toggle"}],
+        }],
+    })
+    codes = [w.code for w in validate_automations(d, lib)]
+    assert "automation_bounds_require_value_range" in codes
+
+
+def test_validator_flags_on_value_range_without_bounds(lib):
+    """An on_value_range trigger with neither bound is meaningless -- the
+    range would fire on every reading."""
+    d = Design.model_validate({
+        "schema_version": "0.1", "id": "t", "name": "T",
+        "board": {"library_id": "wemos-d1-mini", "mcu": "esp8266", "framework": "arduino"},
+        "power": {"supply": "usb-5v", "rail_voltage_v": 5.0, "budget_ma": 500},
+        "buses": [{"id": "wire0", "type": "1wire", "pin": "D4"}],
+        "components": [
+            {"id": "temp", "library_id": "ds18b20", "label": "Temp",
+             "params": {"address": "0x1234567890abcdef"}},
+            {"id": "fan",  "library_id": "gpio_output", "label": "Fan"},
+        ],
+        "connections": [
+            {"component_id": "temp", "pin_role": "DATA", "target": {"kind": "bus", "bus_id": "wire0"}},
+            {"component_id": "fan",  "pin_role": "OUT",  "target": {"kind": "gpio", "pin": "D6"}},
+        ],
+        "automations": [{
+            "id": "a1",
+            "trigger": {"component_id": "temp", "event": "on_value_range"},
+            "actions": [{"component_id": "fan", "action": "turn_on"}],
+        }],
+    })
+    codes = [w.code for w in validate_automations(d, lib)]
+    assert "automation_value_range_needs_bounds" in codes
 
 
 def test_validator_flags_unknown_channel_on_multichannel_sensor(lib):

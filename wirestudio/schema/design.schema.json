@@ -202,6 +202,14 @@
               "channel": {
                 "type": "string",
                 "description": "Sub-block on multi-channel components (e.g. \"temperature\" on a bme280); omit for single-output."
+              },
+              "above": {
+                "type": "number",
+                "description": "Lower bound for an on_value_range trigger; value must rise above this to fire. Set only when event is on_value_range."
+              },
+              "below": {
+                "type": "number",
+                "description": "Upper bound for an on_value_range trigger; value must fall below this to fire. Set only when event is on_value_range."
               }
             }
           },
