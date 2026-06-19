@@ -59,6 +59,69 @@ def test_lorawan_design_validates_against_schema():
     jsonschema.validate(d.model_dump(mode="json", exclude_none=True), SCHEMA)
 
 
+# --- W1: Design.lorawan IR additions for the external-component path --------
+# Adds an ordered `payload` list and broadens `region` to the four bands
+# `lorawan-for-esphome` will support, without touching the standalone Arduino
+# fields. See docs/lorawan/workflow-integration.md.
+
+def test_lorawan_payload_defaults_to_empty():
+    d = _base_design(target="esphome", lorawan={})
+    assert d.lorawan.payload == []
+
+
+def test_lorawan_payload_round_trips_through_the_model():
+    d = _base_design(target="esphome", lorawan={
+        "payload": [{"sensor": "battery"}, {"sensor": "temp"}],
+    })
+    assert [f.sensor for f in d.lorawan.payload] == ["battery", "temp"]
+
+
+def test_lorawan_payload_field_rejects_unknown_keys():
+    # PayloadField is strict (extra="forbid"); a typoed key (e.g. bytes:)
+    # raises rather than silently dropping data the codec would need.
+    with pytest.raises(ValidationError):
+        LoRaWAN(payload=[{"sensor": "x", "bytes": 4}])
+
+
+def test_lorawan_payload_field_requires_sensor():
+    with pytest.raises(ValidationError):
+        LoRaWAN(payload=[{}])
+
+
+@pytest.mark.parametrize("region", ["US915", "EU868", "AU915", "AS923"])
+def test_lorawan_region_accepts_supported_bands(region):
+    d = _base_design(target="esphome", lorawan={"region": region})
+    assert d.lorawan.region == region
+
+
+def test_lorawan_region_rejects_unknown_band():
+    with pytest.raises(ValidationError):
+        LoRaWAN(region="MOON915")
+
+
+def test_lorawan_payload_design_validates_against_schema():
+    d = _base_design(target="esphome", lorawan={
+        "region": "EU868",
+        "sub_band": 0,
+        "payload": [{"sensor": "battery"}],
+    })
+    jsonschema.validate(d.model_dump(mode="json", exclude_none=True), SCHEMA)
+
+
+def test_lorawan_payload_field_rejects_unknown_keys_at_schema_level():
+    # The JSON Schema mirrors the model: extra keys on a payload item fail
+    # schema validation, not just model parsing. Catches a `bytes:` typo even
+    # for callers that bypass the pydantic model.
+    raw = {
+        "schema_version": "0.1", "id": "x", "name": "X",
+        "board": {"library_id": "ttgo-lora32-v1", "mcu": "esp32"},
+        "power": {"supply": "usb", "rail_voltage_v": 3.3},
+        "lorawan": {"payload": [{"sensor": "battery", "bytes": 4}]},
+    }
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(raw, SCHEMA)
+
+
 def test_all_boards_still_load():
     # Regression guard: the new radio: field must not break any board YAML.
     boards = default_library().list_boards()
