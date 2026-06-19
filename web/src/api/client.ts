@@ -214,7 +214,18 @@ export const api = {
     }),
 
   fleetStatus: () => request<FleetStatus>("/fleet/status"),
-  fleetPush: (body: { design: Design; compile?: boolean; device_name?: string; strict?: boolean }) =>
+  fleetPush: (body: {
+    design: Design;
+    compile?: boolean;
+    device_name?: string;
+    strict?: boolean;
+    /** Optional `{dev_eui, join_eui, app_key}` — when present, the server
+     *  inlines these literal values into the pushed YAML in place of the
+     *  matching !secret references, so the fleet's secrets.yaml doesn't
+     *  need a separate write for the LoRaWAN keys minted by
+     *  /lorawan/provision-esphome. */
+    lorawan_secrets?: Record<string, string>;
+  }) =>
     request<FleetPushResponse>("/fleet/push", {
       method: "POST",
       body: JSON.stringify(body),

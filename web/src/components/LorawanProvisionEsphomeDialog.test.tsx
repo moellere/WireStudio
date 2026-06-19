@@ -27,13 +27,26 @@ vi.mock("../api/client", async () => {
       ...actual.api,
       lorawanProvisionEsphome: vi.fn(),
       lorawanActivation: vi.fn(),
+      fleetPush: vi.fn(),
     },
   };
 });
 
+// usb-detect.ts dynamic-imports esptool-js, which is browser-only. Mock both
+// functions so the WebSerial detect button can be exercised in jsdom.
+vi.mock("../lib/usb-detect", () => ({
+  detectChip: vi.fn(),
+  isWebSerialSupported: vi.fn(() => "yes"),
+}));
+
+import { detectChip, isWebSerialSupported } from "../lib/usb-detect";
+const mockDetectChip = detectChip as unknown as ReturnType<typeof vi.fn>;
+const mockSupported = isWebSerialSupported as unknown as ReturnType<typeof vi.fn>;
+
 const mockApi = api as unknown as {
   lorawanProvisionEsphome: ReturnType<typeof vi.fn>;
   lorawanActivation: ReturnType<typeof vi.fn>;
+  fleetPush: ReturnType<typeof vi.fn>;
 };
 
 function design(overrides: Partial<Design> = {}): Design {
@@ -60,6 +73,9 @@ function design(overrides: Partial<Design> = {}): Design {
 beforeEach(() => {
   mockApi.lorawanProvisionEsphome.mockReset();
   mockApi.lorawanActivation.mockReset();
+  mockApi.fleetPush.mockReset();
+  mockDetectChip.mockReset();
+  mockSupported.mockReturnValue("yes");
 });
 
 afterEach(() => {
@@ -216,5 +232,154 @@ describe("error path", () => {
     expect(await screen.findByText(/422: design\.lorawan\.payload/i)).toBeTruthy();
     // The result block didn't render, so Provision stays available for a retry.
     expect(screen.getByRole("button", { name: /Provision →/i })).toBeTruthy();
+  });
+});
+
+describe("DevEUI auto-derive from chip", () => {
+  it("fills the DevEUI field from the eFuse MAC and shows a chip + MAC hint", async () => {
+    const user = userEvent.setup();
+    // 10:52:1c:66:b6:e0 -> EUI-64 by inserting 0xFFFE → 10521cfffe66b6e0
+    mockDetectChip.mockResolvedValue({ chipName: "ESP32-D0WD-V3", mac: "10:52:1c:66:b6:e0" });
+
+    render(<LorawanProvisionEsphomeDialog design={design()} onClose={() => {}} />);
+    await user.click(screen.getByRole("button", { name: /Detect from chip/i }));
+
+    await waitFor(() => {
+      const input = screen.getByPlaceholderText(/70b3d57ed0001234/i) as HTMLInputElement;
+      expect(input.value).toBe("10521cfffe66b6e0");
+    });
+    expect(screen.getByText(/Derived from ESP32-D0WD-V3.*10:52:1c:66:b6:e0/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Provision →/i })).toBeEnabled();
+  });
+
+  it("surfaces a friendly error when the chip detects but no MAC is available", async () => {
+    const user = userEvent.setup();
+    mockDetectChip.mockResolvedValue({ chipName: "ESP32-D0WD-V3", mac: undefined });
+
+    render(<LorawanProvisionEsphomeDialog design={design()} onClose={() => {}} />);
+    await user.click(screen.getByRole("button", { name: /Detect from chip/i }));
+
+    expect(await screen.findByText(/no MAC available/i)).toBeTruthy();
+    expect((screen.getByPlaceholderText(/70b3d57ed0001234/i) as HTMLInputElement).value).toBe("");
+  });
+
+  it("surfaces detectChip errors (user cancel, sync failure) inline", async () => {
+    const user = userEvent.setup();
+    mockDetectChip.mockRejectedValue(new Error("port-picker dismissed"));
+
+    render(<LorawanProvisionEsphomeDialog design={design()} onClose={() => {}} />);
+    await user.click(screen.getByRole("button", { name: /Detect from chip/i }));
+
+    expect(await screen.findByText(/detect failed: port-picker dismissed/i)).toBeTruthy();
+  });
+
+  it("disables Detect when WebSerial isn't available and explains why", () => {
+    mockSupported.mockReturnValue("no");
+
+    render(<LorawanProvisionEsphomeDialog design={design()} onClose={() => {}} />);
+    expect(screen.getByRole("button", { name: /Detect from chip/i })).toBeDisabled();
+    expect(screen.getByText(/WebSerial isn't available/i)).toBeTruthy();
+    expect(mockDetectChip).not.toHaveBeenCalled();
+  });
+
+  it("clears the detection hint when the user manually edits the DevEUI", async () => {
+    const user = userEvent.setup();
+    mockDetectChip.mockResolvedValue({ chipName: "ESP32-D0WD-V3", mac: "10:52:1c:66:b6:e0" });
+
+    render(<LorawanProvisionEsphomeDialog design={design()} onClose={() => {}} />);
+    await user.click(screen.getByRole("button", { name: /Detect from chip/i }));
+    await waitFor(() => expect(screen.queryByText(/Derived from/i)).toBeTruthy());
+
+    await user.type(screen.getByPlaceholderText(/70b3d57ed0001234/i), "0");
+    expect(screen.queryByText(/Derived from/i)).toBeNull();
+  });
+});
+
+describe("push to fleet", () => {
+  async function provisionFirst(user: ReturnType<typeof userEvent.setup>) {
+    mockApi.lorawanProvisionEsphome.mockResolvedValue({
+      secrets: {
+        dev_eui: "70b3d57ed0001234",
+        join_eui: "0000000000000000",
+        app_key: "00112233445566778899aabbccddeeff",
+      },
+      chirpstack: { application_id: "app-1", device_profile_id: "dp-1" },
+      band: "US915",
+      sub_band: 2,
+    });
+    mockApi.lorawanActivation.mockResolvedValue({ dev_eui: "70b3d57ed0001234", joined: false });
+    await user.type(screen.getByPlaceholderText(/70b3d57ed0001234/i), "70b3d57ed0001234");
+    await user.click(screen.getByRole("button", { name: /Provision →/i }));
+    // Wait for the success block (and the push button) to render.
+    await waitFor(() => expect(screen.getByRole("button", { name: /Push to fleet →/i })).toBeTruthy());
+  }
+
+  it("hides the push button until provision succeeds", () => {
+    render(<LorawanProvisionEsphomeDialog design={design()} onClose={() => {}} />);
+    expect(screen.queryByRole("button", { name: /Push to fleet →/i })).toBeNull();
+  });
+
+  it("posts the secrets minted by provision-esphome through to /fleet/push", async () => {
+    const user = userEvent.setup();
+    mockApi.fleetPush.mockResolvedValue({
+      filename: "lw-spike.yaml",
+      created: true,
+      run_id: "run-1",
+      enqueued: 1,
+    });
+
+    render(<LorawanProvisionEsphomeDialog design={design()} onClose={() => {}} />);
+    await provisionFirst(user);
+    await user.click(screen.getByRole("button", { name: /Push to fleet →/i }));
+
+    await waitFor(() => {
+      expect(mockApi.fleetPush).toHaveBeenCalledWith({
+        design: expect.objectContaining({ id: "lw-spike" }),
+        compile: true,
+        lorawan_secrets: {
+          dev_eui: "70b3d57ed0001234",
+          join_eui: "0000000000000000",
+          app_key: "00112233445566778899aabbccddeeff",
+        },
+      });
+    });
+    // Text is split across nested <code> elements; assert on the parts
+    // separately rather than reaching for a regex across element boundaries.
+    expect(await screen.findByText(/Created/i)).toBeTruthy();
+    expect(screen.getByText("lw-spike.yaml")).toBeTruthy();
+    expect(screen.getByText("run-1")).toBeTruthy();
+  });
+
+  it("disables the push button after a successful push (no double-push)", async () => {
+    const user = userEvent.setup();
+    mockApi.fleetPush.mockResolvedValue({
+      filename: "lw-spike.yaml",
+      created: true,
+      run_id: null,
+      enqueued: 0,
+    });
+
+    render(<LorawanProvisionEsphomeDialog design={design()} onClose={() => {}} />);
+    await provisionFirst(user);
+    await user.click(screen.getByRole("button", { name: /Push to fleet →/i }));
+
+    await waitFor(() => expect(screen.getByRole("button", { name: /^Pushed$/i })).toBeDisabled());
+  });
+
+  it("surfaces the server detail on fleet push failure (e.g. 503 unconfigured)", async () => {
+    const user = userEvent.setup();
+    mockApi.fleetPush.mockRejectedValue(
+      new ApiError(503, "POST /fleet/push -> 503", {
+        detail: "fleet not configured (set FLEET_URL and FLEET_TOKEN)",
+      }),
+    );
+
+    render(<LorawanProvisionEsphomeDialog design={design()} onClose={() => {}} />);
+    await provisionFirst(user);
+    await user.click(screen.getByRole("button", { name: /Push to fleet →/i }));
+
+    expect(await screen.findByText(/push failed: 503: fleet not configured/i)).toBeTruthy();
+    // Pre-failed state — Push to fleet stays available for a retry.
+    expect(screen.getByRole("button", { name: /Push to fleet →/i })).toBeEnabled();
   });
 });
