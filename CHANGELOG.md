@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **LoRaWAN workflow integration (W1 — `Design.lorawan` IR extension).** Adds
+  the IR shape the external-component path needs: a `PayloadField` class
+  (`{sensor: <component_id>}`) and an ordered `LoRaWAN.payload: list[...]`
+  list -- the codec contract shared between the device's wire bytes and the
+  ChirpStack `decodeUplink` decoder. Broadens `LoRaWAN.region` to accept
+  US915 / EU868 / AU915 / AS923 (default still US915). The existing
+  standalone-Arduino fields (`gps` / `dht22` / `oled` / `provisioning`) are
+  untouched -- both paths share the block during the transition documented in
+  `docs/lorawan/workflow-integration.md`. Schema mirrors. Pure IR addition,
+  no generator branch yet (W2 wires that up).
+
 - **Intent-to-device synthesis (phase 4 — on_value_range threshold bounds).**
   An automation trigger gains optional `above` / `below` numeric bounds for the
   `on_value_range` event; the lowering wraps the action list in a

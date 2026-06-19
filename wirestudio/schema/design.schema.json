@@ -276,13 +276,25 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "region": { "type": "string", "enum": ["US915"], "default": "US915" },
+        "region": { "type": "string", "enum": ["US915", "EU868", "AU915", "AS923"], "default": "US915" },
         "sub_band": { "type": "integer", "default": 2 },
         "join_eui": { "type": "string" },
         "chirpstack_application_id": { "type": "string" },
         "device_profile_id": { "type": "string" },
         "provisioning": { "type": "string", "enum": ["runtime_serial", "compile_time"], "default": "runtime_serial" },
         "dev_eui": { "type": "string" },
+        "payload": {
+          "type": "array",
+          "description": "Ordered uplink field list for the ESPHome external-component target path (`lorawan-for-esphome`). Each entry packs a sensor's current value into the uplink; the ChirpStack decoder is generated from the same list so device and server stay in lockstep. Unused by the standalone Arduino path.",
+          "items": {
+            "type": "object",
+            "required": ["sensor"],
+            "additionalProperties": false,
+            "properties": {
+              "sensor": { "type": "string", "description": "design-level component_id whose value goes into this slot" }
+            }
+          }
+        },
         "gps": {
           "type": "object",
           "required": ["rx_pin", "tx_pin"],

@@ -221,24 +221,59 @@ class Oled(_Strict):
     enabled: bool = True
 
 
-class LoRaWAN(_Strict):
-    """LoRaWAN target parameters. Region/sub-band are hard-pinned to the
-    gateway (US915 sub-band 2); a mismatch makes the device transmit joins
-    on channels the gateway never hears. `dev_eui` is device-authoritative
-    and filled after runtime serial provisioning, not authored by hand.
-    Keys (AppKey/NwkKey) are deliberately absent: they are secrets and
-    never live in design.json.
+class PayloadField(_Strict):
+    """One slot in the LoRaWAN uplink payload, used by the external-component
+    target path (`lorawan-for-esphome`). `sensor` is a design-level
+    `component_id` whose current value is packed into the uplink; the
+    ChirpStack `decodeUplink` codec is generated from the same ordered list so
+    device wire bytes and server-side decoding stay in lockstep. The standalone
+    Arduino path doesn't use this -- its fields are the explicit `gps`,
+    `dht22`, `oled` blocks below.
     """
-    region: Literal["US915"] = "US915"
+    sensor: str
+
+
+class LoRaWAN(_Strict):
+    """LoRaWAN target parameters. Region/sub-band must match the gateway; a
+    mismatch makes the device transmit joins on channels the gateway never
+    hears. Region defaults to US915 -- the only band exercised end-to-end at
+    time of writing.
+
+    Two generation paths share this block during the transition documented in
+    `docs/lorawan/esphome-component-pivot.md` /
+    `docs/lorawan/workflow-integration.md`:
+
+    - **Standalone Arduino (`target="lorawan"`).** Uses `gps` / `dht22` /
+      `oled` for hardcoded sensor blocks, plus `provisioning` for the runtime
+      serial flow. Hardware-validated; stays shipping behind the `[lorawan]`
+      install extra until the new path joins on real hardware.
+    - **ESPHome external component (`target="esphome"` + `lorawan:` set).**
+      Uses `payload` as the ordered uplink field list; the generator emits
+      ESPHome YAML referencing `lorawan-for-esphome`. Keys ride
+      `fleet.secrets_ref` and the rendered config uses `!secret` references --
+      keys never land in design.json.
+
+    `dev_eui` carries the value the device will use, whichever path: the
+    standalone path fills it post-runtime-serial-provision; the new path
+    accepts a manual override here (per the locked decision in
+    workflow-integration.md), or it's filled post-provision after the eFuse
+    MAC is read over WebSerial. Keys (AppKey / NwkKey) are deliberately
+    absent: they are secrets.
+    """
+    region: Literal["US915", "EU868", "AU915", "AS923"] = "US915"
     sub_band: int = 2
     join_eui: Optional[str] = None                   # MSB hex; defaults applied downstream
     chirpstack_application_id: Optional[str] = None  # UUID
-    device_profile_id: Optional[str] = None          # UUID (US915 sub-2 profile)
+    device_profile_id: Optional[str] = None          # UUID
     provisioning: Literal["runtime_serial", "compile_time"] = "runtime_serial"
-    dev_eui: Optional[str] = None                    # device-reported, post-provision
-    gps: Optional[GpsSerial] = None                  # external GPS on a UART
-    dht22: Optional[Dht22] = None                    # DHT22 temp/humidity sensor
-    oled: Optional[Oled] = None                      # SSD1306 status display
+    dev_eui: Optional[str] = None                    # device-reported (standalone) or override / post-provision (new path)
+    # New path (ESPHome external component): ordered uplink payload field list.
+    payload: list[PayloadField] = Field(default_factory=list)
+    # Standalone path: explicit per-feature sensor blocks. Unused by the new
+    # path; retire when the standalone path retires.
+    gps: Optional[GpsSerial] = None
+    dht22: Optional[Dht22] = None
+    oled: Optional[Oled] = None
 
 
 class Design(_Strict):
