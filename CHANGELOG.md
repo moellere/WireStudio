@@ -9,6 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **LoRaWAN workflow integration (W2 — generator emits the external-component
+  block).** When `design.lorawan.payload` is non-empty, the YAML generator now
+  emits an `external_components: - source: github://moellere/lorawan-for-esphome
+  ref: <pinned>` block, the `lorawan:` config (region / sub_band / keys via
+  `!secret` / radio config sourced from the board library's existing
+  metadata), and one `sensor: - platform: lorawan, sensor: <id>` binding per
+  payload field. Keys never enter `design.json` -- `dev_eui` / `join_eui` /
+  `app_key` route through `Design.fleet.secrets_ref`. The radio block adapts
+  to the chip family: SX127x boards emit dio0; SX126x boards emit dio1, busy,
+  optional `tcxo_voltage`, and `dio2_as_rf_switch`. Worked example
+  `lorawan-battery-uplink.json` (TTGO LoRa32 v1 + ADC battery, US915 sub-band
+  2) -- the smallest design that exercises the full new path and can be
+  hand-flashed against the live ChirpStack for the hardware-join test ahead
+  of W3's orchestration UI. The standalone Arduino path is unaffected:
+  emission is gated on `payload` non-empty, so existing non-LoRaWAN designs
+  render byte-identical.
+
+- **LoRaWAN workflow integration (W1 — `Design.lorawan` IR extension).** Adds
+  the IR shape the external-component path needs: a `PayloadField` class
+  (`{sensor: <component_id>}`) and an ordered `LoRaWAN.payload: list[...]`
+  list -- the codec contract shared between the device's wire bytes and the
+  ChirpStack `decodeUplink` decoder. Broadens `LoRaWAN.region` to accept
+  US915 / EU868 / AU915 / AS923 (default still US915). The existing
+  standalone-Arduino fields (`gps` / `dht22` / `oled` / `provisioning`) are
+  untouched -- both paths share the block during the transition documented in
+  `docs/lorawan/workflow-integration.md`. Schema mirrors. Pure IR addition,
+  no generator branch yet (W2 wires that up).
 - **Intent-to-device synthesis (phase 5 — condition gating).** An automation
   gains an optional `conditions: [...]` list; the trigger must fire AND every
   condition must hold for the actions to run. The generator wraps the action
