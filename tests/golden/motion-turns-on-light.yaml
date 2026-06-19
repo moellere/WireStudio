@@ -15,6 +15,7 @@ binary_sensor:
 - platform: gpio
   pin: D2
   name: Porch Motion
+  id: porch_pir
   device_class: motion
   on_press:
   - light.turn_on: porch_light
