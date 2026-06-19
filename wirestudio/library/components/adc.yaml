@@ -45,6 +45,15 @@ esphome:
         on_value_range: {{ params.on_value_range | tojson }}
     {%- endif %}
 
+capability:
+  # Generic analog input. on_value (kind=value: yields the float x) and
+  # on_value_range (kind=event: fires entering/leaving a threshold) -- both
+  # already pass through the template.
+  role: sensor
+  provides:
+    - {event: on_value, kind: value}
+    - {event: on_value_range, kind: event}
+
 params_schema:
   attenuation:
     type: string
