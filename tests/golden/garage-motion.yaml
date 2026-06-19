@@ -24,6 +24,7 @@ binary_sensor:
 - platform: gpio
   pin: GPIO13
   name: Driveway PIR
+  id: pir1
   device_class: motion
 sensor:
 - platform: bme280_i2c

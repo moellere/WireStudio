@@ -54,6 +54,9 @@ capability:
     - {event: on_release}
     - {event: on_click}
     - {event: on_state, kind: value}
+  checks:
+    - {predicate: is_on,  esphome: binary_sensor.is_on}
+    - {predicate: is_off, esphome: binary_sensor.is_off}
 
 params_schema:
   device_class:

@@ -19,6 +19,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   untouched -- both paths share the block during the transition documented in
   `docs/lorawan/workflow-integration.md`. Schema mirrors. Pure IR addition,
   no generator branch yet (W2 wires that up).
+- **Intent-to-device synthesis (phase 5 — condition gating).** An automation
+  gains an optional `conditions: [...]` list; the trigger must fire AND every
+  condition must hold for the actions to run. The generator wraps the action
+  list in ESPHome's `if: { condition: ..., then: [...] }` form -- a single
+  condition emits as an inline mapping, multiple conditions emit as a list
+  (ESPHome's implicit AND). `CapabilityChecks` adds a `predicate -> esphome`
+  mapping; 5 components gain `is_on` / `is_off` predicates that lower to
+  `binary_sensor.is_on`, `switch.is_on`, or `light.is_on`: `gpio_input`,
+  `gpio_output`, `ws2812b`, `hc-sr501`, `rcwl-0516`. The two motion sensors
+  also gain an `id:` line in their binary_sensor template so condition
+  predicates can reference them. New validator warnings:
+  `automation_unknown_predicate` (predicate not in the component's checks),
+  plus the existing `automation_unknown_component` /
+  `automation_component_no_capability` codes now cover condition references.
+  Worked example `guarded-button-light.json`: a button press toggles a light
+  only when an enable switch is on. `design.json` schema gains
+  `automations[].conditions`. The `sensor.in_range` predicate (single-output
+  and multi-channel) is scoped separately because the multi-channel
+  sub-sensor needs per-channel `id:` template surgery.
 
 - **Intent-to-device synthesis (phase 4 — on_value_range threshold bounds).**
   An automation trigger gains optional `above` / `below` numeric bounds for the

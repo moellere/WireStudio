@@ -213,6 +213,19 @@
               }
             }
           },
+          "conditions": {
+            "type": "array",
+            "description": "Predicates that gate the actions; the trigger must fire AND every condition must hold. Lowered to ESPHome's `if: { condition: ..., then: [...] }`.",
+            "items": {
+              "type": "object",
+              "required": ["component_id", "predicate"],
+              "additionalProperties": false,
+              "properties": {
+                "component_id": { "type": "string" },
+                "predicate": { "type": "string" }
+              }
+            }
+          },
           "actions": {
             "type": "array",
             "items": {
