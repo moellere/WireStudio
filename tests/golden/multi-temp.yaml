@@ -32,4 +32,5 @@ binary_sensor:
 - platform: gpio
   pin: D5
   name: Boiler room presence
+  id: radar1
   device_class: motion
