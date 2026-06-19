@@ -1,0 +1,16 @@
++-----------------------------------------------------+
+|  TTGO LoRa32 V1 (T3)  ---  lorawan-battery-uplink   |
++-----------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                |
+|                                                     |
+|  battery  [Generic analog input]  -- Battery        |
+|    IN    -> GPIO36                                  |
+|                                                     |
+|  BOM:                                               |
+|    - TTGO LoRa32 V1 (T3)                            |
+|    - Generic analog input  (battery)                |
+|                                                     |
+|  Power: ~0mA typical, ~0mA peak (budget 250mA)  OK  |
+|                                                     |
+|  Warnings: none                                     |
++-----------------------------------------------------+

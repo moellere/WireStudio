@@ -315,6 +315,75 @@ def _secret_name(ref: str) -> str:
     return ref.removeprefix("!secret ").strip()
 
 
+# Pinned ref for the lorawan-for-esphome external component. Bumps are
+# reviewed changes like any other dependency pin; switch to a tag after the
+# component repo cuts its first stable release post hardware-join validation
+# (decision logged in docs/lorawan/workflow-integration.md).
+_LORAWAN_FOR_ESPHOME_REPO = "github://moellere/lorawan-for-esphome"
+_LORAWAN_FOR_ESPHOME_REF = "main"  # TODO(lorawan): pin to a commit SHA after the join test runs
+
+
+def _emit_lorawan_blocks(out: dict[str, Any], design: Design, library: Library) -> None:
+    """Emit the ESPHome external-component path for `lorawan-for-esphome`:
+    `external_components:`, the `lorawan:` block (radio config from the board
+    library, keys via !secret), and one `sensor: - platform: lorawan` binding
+    per `design.lorawan.payload` entry. No-op unless `design.lorawan.payload`
+    is non-empty -- the standalone Arduino path (target="lorawan") is rendered
+    elsewhere and unaffected.
+    """
+    lw = design.lorawan
+    if lw is None or not lw.payload:
+        return
+
+    out.setdefault("external_components", []).append({
+        "source": _LORAWAN_FOR_ESPHOME_REPO,
+        "ref": _LORAWAN_FOR_ESPHOME_REF,
+        "components": ["lorawan"],
+    })
+
+    board = library.board(design.board.library_id)
+    radio = board.radio
+    if radio is None:
+        # The validator should already flag a LoRaWAN design on a non-radio
+        # board; the generator just skips the lorawan block rather than emit
+        # nonsense.
+        return
+
+    radio_block: dict[str, Any] = {
+        "chip": radio.chip,
+        "cs_pin":  radio.pins.cs,
+        "rst_pin": radio.pins.rst,
+    }
+    if radio.pins.dio0:
+        radio_block["dio0_pin"] = radio.pins.dio0
+    if radio.pins.dio1:
+        radio_block["dio1_pin"] = radio.pins.dio1
+    if radio.pins.busy:
+        radio_block["busy_pin"] = radio.pins.busy
+    if radio.tcxo_voltage:
+        radio_block["tcxo_voltage"] = radio.tcxo_voltage
+    if radio.dio2_as_rf_switch:
+        radio_block["dio2_as_rf_switch"] = radio.dio2_as_rf_switch
+
+    lorawan_block: dict[str, Any] = {
+        "id": "lw",
+        "region": lw.region,
+        "sub_band": lw.sub_band,
+        "dev_eui":  Secret("dev_eui"),
+        "join_eui": Secret("join_eui"),
+        "app_key":  Secret("app_key"),
+        "radio": radio_block,
+    }
+    out["lorawan"] = lorawan_block
+
+    for field in lw.payload:
+        out.setdefault("sensor", []).append({
+            "platform": "lorawan",
+            "lorawan_id": "lw",
+            "sensor": field.sensor,
+        })
+
+
 def build_yaml_dict(design: Design, library: Library) -> dict[str, Any]:
     board = library.board(design.board.library_id)
     out: dict[str, Any] = {}
@@ -402,6 +471,8 @@ def build_yaml_dict(design: Design, library: Library) -> dict[str, Any]:
     auto_params = _lower_automations(design, library)
     for comp in design.components:
         _deep_merge(out, _render_component(comp, design, library, auto_params))
+
+    _emit_lorawan_blocks(out, design, library)
 
     if extras:
         _deep_merge(out, extras)
