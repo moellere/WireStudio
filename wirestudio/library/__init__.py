@@ -118,14 +118,29 @@ class CapabilityAccepts(_Strict):
     esphome: str
 
 
+class CapabilityChecks(_Strict):
+    """One predicate a component supports as an automation `condition`.
+
+    `predicate` is the studio-side name (e.g. `is_on`); `esphome` is the
+    explicit ESPHome condition verb (e.g. `switch.is_on`). Mirrors the
+    accepts/esphome split so the mapping stays reviewed code. `is_on` / `is_off`
+    cover binary_sensor / switch / light state; `in_range` carries above/below
+    bounds at the trigger site.
+    """
+    predicate: str
+    esphome: str
+
+
 class Capability(_Strict):
     """Functional layer (intent-to-device synthesis): what role this component
-    plays, what events/values it `provides` to triggers, and what actions it
-    `accepts` from automations. Optional per component; an unannotated
-    component simply cannot be a trigger or action target."""
+    plays, what events/values it `provides` to triggers, what actions it
+    `accepts` from automations, and what predicates it supports as condition
+    `checks`. Optional per component; an unannotated component simply cannot
+    be a trigger, action target, or condition source."""
     role: Literal["input", "sensor", "output", "controller"]
     provides: list[CapabilityProvides] = Field(default_factory=list)
     accepts: list[CapabilityAccepts] = Field(default_factory=list)
+    checks: list[CapabilityChecks] = Field(default_factory=list)
 
 
 class LibraryComponent(_Strict):

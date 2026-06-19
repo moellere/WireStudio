@@ -20,6 +20,7 @@ binary_sensor:
 - platform: gpio
   pin: GPIO4
   name: Blue Motion
+  id: pir1
   device_class: motion
   filters:
   - delayed_on: 40ms

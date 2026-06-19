@@ -1,9 +1,9 @@
 # Intent-to-device synthesis (design direction)
 
-Status: **phases 1 + 1.5a + 1.5b + 2 + 3 + 4 shipped** (declarative
+Status: **phases 1 + 1.5a + 1.5b + 2 + 3 + 4 + 5 shipped** (declarative
 event→action, broader library coverage, single-output sensor triggers,
 value→transform→action, multi-channel sensor triggers, on_value_range
-threshold bounds). On `main`: the `capability` library block, the
+threshold bounds, condition gating). On `main`: the `capability` library block, the
 `automations` schema in `design.json` (with `trigger.channel`,
 `trigger.above` / `.below`, `actions[].transform`), generator lowering with
 `!lambda` transforms, per-channel passthroughs and `{above, below, then}`

@@ -209,6 +209,33 @@ def _lower_automations(design: Design, library: Library) -> dict[str, dict[str, 
 
         if not action_list:
             continue
+        # Condition gating: wrap the action list in `if: { condition, then }`
+        # when one or more conditions resolve. A single condition emits as a
+        # mapping under `condition:`; multiple emit as a list (ESPHome treats
+        # the list form as implicit AND). Conditions that don't resolve
+        # (unknown component / capability / predicate) are dropped silently;
+        # the validator surfaces those as warnings.
+        condition_items: list = []
+        for cond in auto.conditions:
+            cond_comp = by_id.get(cond.component_id)
+            if cond_comp is None:
+                continue
+            try:
+                cond_lib = library.component(cond_comp.library_id)
+            except FileNotFoundError:
+                continue
+            cond_cap = cond_lib.capability
+            if cond_cap is None:
+                continue
+            check = next((c for c in cond_cap.checks if c.predicate == cond.predicate), None)
+            if check is None:
+                continue
+            condition_items.append({check.esphome: cond.component_id})
+        if condition_items:
+            condition_value: Any = (condition_items[0] if len(condition_items) == 1
+                                    else condition_items)
+            action_list = [{"if": {"condition": condition_value, "then": action_list}}]
+
         # on_value_range carries threshold bounds: ESPHome's syntax is a list
         # of {above, below, then} entries (vs. a flat action list for the other
         # triggers). Wrap the actions in a range entry when bounds are set so
@@ -315,11 +342,13 @@ def _secret_name(ref: str) -> str:
     return ref.removeprefix("!secret ").strip()
 
 
-# Pinned ref for the lorawan-for-esphome external component. Bumps are
-# reviewed changes like any other dependency pin; switch to a tag after the
-# component repo cuts its first stable release post hardware-join validation
-# (decision logged in docs/lorawan/workflow-integration.md).
-_LORAWAN_FOR_ESPHOME_REPO = "github://moellere/lorawan-for-esphome"
+# Pinned ref for the lorawan-for-esphome external component. ESPHome's
+# external_components: format embeds the ref in the source URL fragment
+# (`github://owner/repo@<ref>`) rather than as a separate `ref:` key. Bumps
+# are reviewed changes like any other dependency pin; switch to a tag after
+# the component repo cuts its first stable release post hardware-join
+# validation (decision logged in docs/lorawan/workflow-integration.md).
+_LORAWAN_FOR_ESPHOME_REPO = "moellere/lorawan-for-esphome"
 _LORAWAN_FOR_ESPHOME_REF = "main"  # TODO(lorawan): pin to a commit SHA after the join test runs
 
 
@@ -336,8 +365,7 @@ def _emit_lorawan_blocks(out: dict[str, Any], design: Design, library: Library) 
         return
 
     out.setdefault("external_components", []).append({
-        "source": _LORAWAN_FOR_ESPHOME_REPO,
-        "ref": _LORAWAN_FOR_ESPHOME_REF,
+        "source": f"github://{_LORAWAN_FOR_ESPHOME_REPO}@{_LORAWAN_FOR_ESPHOME_REF}",
         "components": ["lorawan"],
     })
 

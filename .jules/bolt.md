@@ -21,3 +21,6 @@
 ## 2024-05-24 - Intermediate Array Allocation in Render Loops
 **Learning:** Chaining `.filter().map()` inside a frequently re-rendered list (like `pinNames.map()` inside `PinoutView.tsx` during drag-and-drop) allocates intermediate arrays for every item on every render, which creates unnecessary garbage collection pressure and hurts rendering performance.
 **Action:** Replace `.filter().map()` chains with a single `.map()` that returns `null` for filtered items, allowing React to skip rendering them without the overhead of intermediate array allocations.
+## 2025-02-18 - React O(N²) array allocations in derived state lists
+**Learning:** Calling `.filter()` on a list inside the `.map()` of the very same list (like finding alternatives) creates O(N²) intermediate arrays on every render. This forces unnecessary garbage collection and degrades render performance, especially as lists grow.
+**Action:** Replace nested derived arrays inside render loops with lightweight logic. E.g. counting alternatives can just be `list.length - 1`, and rendering them can just map over the list and conditionally return `null`.

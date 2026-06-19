@@ -49,6 +49,13 @@ def _stub_value(name: str) -> str:
         return "stub-password-1234"
     if name == "ota_password":
         return "stub-ota-password"
+    # LoRaWAN keys carried in secrets.yaml for the external-component path
+    # (lorawan-for-esphome). The component's schema validates them as hex,
+    # so a plain `stub-<name>` would fail `esphome config`.
+    if name in ("dev_eui", "join_eui"):
+        return "0123456789abcdef"  # 16 hex chars (EUI-64)
+    if name == "app_key":
+        return "00112233445566778899aabbccddeeff"  # 32 hex chars (128-bit AES key)
     return f"stub-{name}"
 
 
