@@ -285,7 +285,8 @@ export function CapabilityPickerDialog({ designReady, designBusTypes, onAdd, onC
                       {visible.map((m, idx) => {
                     const isAdded = added.has(m.library_id);
                     const isAdding = adding === m.library_id;
-                    const alternatives = visible.filter((alt) => alt.library_id !== m.library_id);
+                    // ⚡ Bolt: avoid allocating N arrays in an O(N^2) render loop
+                    const alternativesCount = visible.length > 0 ? visible.length - 1 : 0;
                     const altsOpen = expandedAlts === m.library_id;
                     return (
                       <li
@@ -323,20 +324,20 @@ export function CapabilityPickerDialog({ designReady, designBusTypes, onAdd, onC
                                 </span>
                               )}
                             </div>
-                            {alternatives.length > 0 && (
+                            {alternativesCount > 0 && (
                               <button
                                 type="button"
                                 onClick={() => setExpandedAlts(altsOpen ? null : m.library_id)}
                                 aria-expanded={altsOpen}
                                 className="mt-1 text-[11px] text-zinc-500 hover:text-zinc-300"
                               >
-                                {altsOpen ? "▾" : "▸"} {alternatives.length} alternative
-                                {alternatives.length === 1 ? "" : "s"}
+                                {altsOpen ? "▾" : "▸"} {alternativesCount} alternative
+                                {alternativesCount === 1 ? "" : "s"}
                               </button>
                             )}
                             {altsOpen && (
                               <ul className="mt-1 space-y-0.5 border-l border-zinc-800 pl-2">
-                                {alternatives.map((alt) => (
+                                {visible.map((alt) => alt.library_id === m.library_id ? null : (
                                   <li
                                     key={alt.library_id}
                                     className="flex items-baseline justify-between gap-2 text-[11px]"
