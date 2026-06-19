@@ -69,10 +69,10 @@ def test_gpio_output_carries_actions_with_explicit_esphome_verbs(lib):
 
 def test_unannotated_components_keep_capability_none(lib):
     # The annotation rollout is incremental; an un-annotated component still
-    # loads, it just can't participate in `automations` yet. `ds18b20` is a
-    # 1-wire temperature sensor whose template carries no `on_*` passthrough,
-    # so it's a phase 1.5b candidate, not 1.5a -- still capability=None today.
-    assert lib.component("ds18b20").capability is None
+    # loads, it just can't participate in `automations` yet. `dht` is a
+    # multi-channel temp+humidity sensor -- which sub-channel an on_value
+    # trigger hangs off is unresolved, so it stays capability=None for now.
+    assert lib.component("dht").capability is None
 
 
 def test_automation_round_trips_through_the_model():
@@ -198,21 +198,21 @@ def test_validator_flags_unknown_action(lib):
 
 
 def test_validator_flags_component_without_capability(lib):
-    # ds18b20 (1-wire temperature sensor) has no capability block today, so it
-    # can't be used as a trigger source even though it's a real component.
-    # (1.5b will annotate sensors once their templates pass through on_value.)
+    # dht (temp+humidity) is multi-channel, so its on_value trigger placement is
+    # an open design question and it carries no capability block today -- it
+    # can't be a trigger source even though it's a real component. (Single-output
+    # sensors like ds18b20 gained capabilities in 1.5b; multi-channel ones did
+    # not.)
     d = Design.model_validate({
         "schema_version": "0.1", "id": "t", "name": "T",
         "board": {"library_id": "wemos-d1-mini", "mcu": "esp8266", "framework": "arduino"},
         "power": {"supply": "usb", "rail_voltage_v": 5.0, "budget_ma": 500},
-        "buses": [{"id": "wire0", "type": "1wire", "pin": "D4"}],
         "components": [
-            {"id": "temp", "library_id": "ds18b20", "label": "Temp",
-             "params": {"address": "0x1234567890abcdef"}},
+            {"id": "temp", "library_id": "dht", "label": "Temp"},
             {"id": "lt",   "library_id": "gpio_output", "label": "Light"},
         ],
         "connections": [
-            {"component_id": "temp", "pin_role": "DATA", "target": {"kind": "bus", "bus_id": "wire0"}},
+            {"component_id": "temp", "pin_role": "DATA", "target": {"kind": "gpio", "pin": "D4"}},
             {"component_id": "lt",   "pin_role": "OUT",  "target": {"kind": "gpio", "pin": "D6"}},
         ],
         "automations": [{
@@ -248,8 +248,28 @@ _PHASE_1_5_ANNOTATIONS = [
     ("tuya_switch",     "output", [],                                                        ["turn_on", "turn_off", "toggle"]),
 ]
 
+# --- phase 1.5b: single-output sensors gain on_value triggers ----------------
+#
+# The remaining single-value sensors get a params.on_value / on_value_range
+# passthrough plus a role=sensor capability, so a sensor reading can drive an
+# automation. Multi-channel sensors (dht, bme280, IMUs, power meters) are
+# deferred: which sub-channel a trigger hangs off is a separate design call.
+_PHASE_1_5B_ANNOTATIONS = [
+    ("ds18b20",         "sensor", ["on_value", "on_value_range"], []),
+    ("bh1750",          "sensor", ["on_value", "on_value_range"], []),
+    ("tsl2561",         "sensor", ["on_value", "on_value_range"], []),
+    ("vl53l0x",         "sensor", ["on_value", "on_value_range"], []),
+    ("hx711",           "sensor", ["on_value", "on_value_range"], []),
+    ("max31855",        "sensor", ["on_value", "on_value_range"], []),
+    ("pulse_counter",   "sensor", ["on_value", "on_value_range"], []),
+    ("ads1115_channel", "sensor", ["on_value", "on_value_range"], []),
+    ("tuya_sensor",     "sensor", ["on_value", "on_value_range"], []),
+]
 
-@pytest.mark.parametrize("lib_id, role, provides, accepts", _PHASE_1_5_ANNOTATIONS)
+_ALL_1_5_ANNOTATIONS = _PHASE_1_5_ANNOTATIONS + _PHASE_1_5B_ANNOTATIONS
+
+
+@pytest.mark.parametrize("lib_id, role, provides, accepts", _ALL_1_5_ANNOTATIONS)
 def test_phase_1_5_capability_annotation_shape(lib, lib_id, role, provides, accepts):
     cap = lib.component(lib_id).capability
     assert cap is not None, f"{lib_id} should have a capability block"
@@ -263,7 +283,7 @@ def test_phase_1_5_provides_only_keys_the_template_passes_through(lib):
     passthrough in the component's own ESPHome template; otherwise the
     automation lowers into a key the renderer drops on the floor."""
     import re
-    for lib_id, _role, provides, _accepts in _PHASE_1_5_ANNOTATIONS:
+    for lib_id, _role, provides, _accepts in _ALL_1_5_ANNOTATIONS:
         tmpl = lib.component(lib_id).esphome.yaml_template or ""
         passthroughs = set(re.findall(r"params\.(on_\w+)", tmpl))
         for ev in provides:
@@ -280,7 +300,7 @@ def test_phase_1_5_accepts_have_known_esphome_verb_prefixes(lib):
     recognises. The platform prefix is asserted against the small set of
     platforms phase 1.5 covers (switch / light / stepper). Catches typos."""
     known_prefixes = {"switch", "light", "stepper"}
-    for lib_id, _role, _provides, accepts in _PHASE_1_5_ANNOTATIONS:
+    for lib_id, _role, _provides, accepts in _ALL_1_5_ANNOTATIONS:
         cap = lib.component(lib_id).capability
         if not cap or not cap.accepts:
             continue
@@ -315,4 +335,33 @@ def test_motion_to_light_lowers_both_events_to_light_actions(lib):
 def test_motion_to_light_validator_quiet(lib):
     d = Design.model_validate(json.loads(MOTION_EXAMPLE.read_text()))
     assert validate_automations(d, lib) == []
+
+
+# --- phase 1.5b: a sensor value drives an action ---------------------------
+
+def test_sensor_on_value_lowers_into_the_sensor_template(lib):
+    """A single-output sensor's on_value trigger lowers a switch action into the
+    rendered sensor block -- the 1.5b path that lets a reading drive an automation."""
+    d = Design.model_validate({
+        "schema_version": "0.1", "id": "t", "name": "T",
+        "board": {"library_id": "wemos-d1-mini", "mcu": "esp8266", "framework": "arduino"},
+        "power": {"supply": "usb-5v", "rail_voltage_v": 5.0, "budget_ma": 500},
+        "buses": [{"id": "wire0", "type": "1wire", "pin": "D4"}],
+        "components": [
+            {"id": "temp", "library_id": "ds18b20", "label": "Temp",
+             "params": {"address": "0x1234567890abcdef"}},
+            {"id": "fan",  "library_id": "gpio_output", "label": "Fan"},
+        ],
+        "connections": [
+            {"component_id": "temp", "pin_role": "DATA", "target": {"kind": "bus", "bus_id": "wire0"}},
+            {"component_id": "fan",  "pin_role": "OUT",  "target": {"kind": "gpio", "pin": "D6"}},
+        ],
+        "automations": [{
+            "id": "a1",
+            "trigger": {"component_id": "temp", "event": "on_value"},
+            "actions": [{"component_id": "fan", "action": "turn_on"}],
+        }],
+    })
+    assert validate_automations(d, lib) == []
+    assert "on_value:\n  - switch.turn_on: fan" in render_yaml(d, lib)
 

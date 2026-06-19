@@ -36,6 +36,18 @@ esphome:
     {%- if params.integration_time is defined %}
         integration_time: {{ params.integration_time }}
     {%- endif %}
+    {%- if params.on_value is defined %}
+        on_value: {{ params.on_value | tojson }}
+    {%- endif %}
+    {%- if params.on_value_range is defined %}
+        on_value_range: {{ params.on_value_range | tojson }}
+    {%- endif %}
+
+capability:
+  role: sensor
+  provides:
+    - {event: on_value, kind: value}
+    - {event: on_value_range, kind: event}
 
 params_schema:
   address:
