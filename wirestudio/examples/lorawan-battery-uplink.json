@@ -28,7 +28,7 @@
       "library_id": "adc",
       "label": "Battery",
       "params": {
-        "attenuation": "11db",
+        "attenuation": "12db",
         "update_interval": "30s",
         "unit_of_measurement": "V"
       }

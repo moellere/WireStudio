@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **ADC component: `attenuation` value renamed `11db` -> `12db`.** ESPHome
+  2024.5 renamed the value to match the actual ESP-IDF gain; `11db` still
+  parses but emits a deprecation warning that surfaced as noise during the
+  W2 `esphome config` gate. Behaviour is identical -- the same ESP-IDF setting
+  is selected. Updates the `adc.yaml` template (params_schema enum + default
+  + description), the two examples that pin a value explicitly
+  (`analog-node`, `lorawan-battery-uplink`), the matching goldens, and the
+  starter-design generator (`seed.py:_seed_battery_adc`). Verified by
+  diffing goldens: the only golden change is the literal `11db -> 12db`
+  swap on the two affected configs.
+
 ### Added
 
 - **LoRaWAN workflow integration (W3 — orchestration endpoint).** New

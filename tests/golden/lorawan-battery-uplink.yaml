@@ -18,7 +18,7 @@ sensor:
   pin: GPIO36
   name: Battery
   id: battery
-  attenuation: 11db
+  attenuation: 12db
   update_interval: 30s
   unit_of_measurement: V
 - platform: lorawan

@@ -181,7 +181,7 @@ def _seed_battery_adc(key: str, params: dict, ctx: _SeedContext) -> Optional[tup
     pin = params.get("pin")
     if not pin:
         return None
-    p: dict = {"attenuation": "11db", "unit_of_measurement": "V"}
+    p: dict = {"attenuation": "12db", "unit_of_measurement": "V"}
     if params.get("divider"):
         p["filters"] = [{"multiply": params["divider"]}]
     comp = {"id": "onboard_battery", "library_id": "adc", "label": "Battery voltage", "params": p}

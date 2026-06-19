@@ -57,9 +57,13 @@ capability:
 params_schema:
   attenuation:
     type: string
-    enum: ["0db", "2.5db", "6db", "11db", auto]
-    default: "11db"
-    description: "ESP32 only. 11db caps the readable range at ~3.3V; auto picks per-sample."
+    # ESPHome 2024.5 renamed `11db` to `12db` (the ESP-IDF value didn't
+    # change -- just the label was always off by 1dB from reality). `11db`
+    # still parses but emits a deprecation warning that became blocking on
+    # the matrix runs; the renamed value is identical in behaviour.
+    enum: ["0db", "2.5db", "6db", "12db", auto]
+    default: "12db"
+    description: "ESP32 only. 12db caps the readable range at ~3.3V; auto picks per-sample."
   update_interval:
     type: string
     default: "60s"
