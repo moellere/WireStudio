@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **LoRaWAN workflow integration (W3 — orchestration endpoint).** New
+  `POST /lorawan/provision-esphome` mints an AppKey, registers the device in
+  ChirpStack against a path-specific device profile
+  (`wirestudio-esphome-<region>-sub<n>`, distinct from the standalone path's
+  per-component-set profiles), flushes its DevNonces, and returns the three
+  keys in a `secrets:` block ready to drop into the `secrets.yaml` that
+  rides next to the rendered ESPHome config. The AppKey is ephemeral --
+  returned once, never persisted to `design.json` (CLAUDE.md rule). The
+  endpoint gates on `design.lorawan.payload` being non-empty so a
+  misrouted call against a standalone-path design fails with a clear 422.
+  Codec setting (the JS decoder) is deferred to a follow-up endpoint so the
+  device joins first; the new path's decoder is generated from
+  `design.lorawan.payload`, not the standalone `codec.py`. DevEUI is the
+  manual override field per the locked decision; the eFuse-MAC derivation
+  over WebSerial is a separate iteration.
+
 - **LoRaWAN workflow integration (W2 — generator emits the external-component
   block).** When `design.lorawan.payload` is non-empty, the YAML generator now
   emits an `external_components: - source: github://moellere/lorawan-for-esphome
