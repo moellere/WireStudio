@@ -1,11 +1,11 @@
-"""Intent-to-device synthesis (phase 1): validate the `automations` graph.
+"""Intent-to-device synthesis: validate the `automations` graph.
 
-Phase 1 covers declarative event -> action only (the `button_toggles_light`
-shape). Each automation's trigger references a component that must `provide`
-the named event in its library capability block; each action references a
-component that must `accept` the named action. The validator surfaces dangling
-references as permissive warnings (CLAUDE.md: warnings, don't block) so a
-half-authored automation doesn't refuse to render -- it just doesn't fire.
+Each automation's trigger references a component that must `provide` the
+named event in its library capability block; each action references a
+component that must `accept` the named action. The validator surfaces
+dangling references as permissive warnings (CLAUDE.md: warnings, don't
+block) so a half-authored automation doesn't refuse to render -- it just
+doesn't fire.
 
 The generator's lowering (``yaml_gen._lower_automations``) drops the same
 unresolved entries silently rather than emit invalid YAML, so the warnings here
@@ -29,11 +29,31 @@ def validate_automations(design: Design, library: Library) -> list[DesignWarning
       component's `capability.provides`.
     - ``automation_unknown_action``: the action name isn't in the action
       component's `capability.accepts`.
+    - ``automation_bounds_require_value_range``: the trigger sets
+      `above` / `below` on an event other than `on_value_range`.
+    - ``automation_value_range_needs_bounds``: the trigger event is
+      `on_value_range` but neither `above` nor `below` is set, so the
+      range would fire on every reading.
     """
     out: list[DesignWarning] = []
     by_id = {c.id: c for c in design.components}
     for auto in design.automations:
         trig = auto.trigger
+        has_bounds = trig.above is not None or trig.below is not None
+        if has_bounds and trig.event != "on_value_range":
+            out.append(DesignWarning(
+                level="warn", code="automation_bounds_require_value_range",
+                text=(f"automation {auto.id!r}: trigger sets above/below but "
+                      f"event is {trig.event!r}, not 'on_value_range' -- the "
+                      f"bounds would be silently dropped"),
+            ))
+        if trig.event == "on_value_range" and not has_bounds:
+            out.append(DesignWarning(
+                level="warn", code="automation_value_range_needs_bounds",
+                text=(f"automation {auto.id!r}: event is 'on_value_range' but "
+                      f"neither above nor below is set; the range would fire "
+                      f"on every reading"),
+            ))
         trig_comp = by_id.get(trig.component_id)
         if trig_comp is None:
             out.append(DesignWarning(

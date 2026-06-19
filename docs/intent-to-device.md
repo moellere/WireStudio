@@ -1,27 +1,28 @@
 # Intent-to-device synthesis (design direction)
 
-Status: **phases 1 + 1.5a + 1.5b + 2 + 3 shipped** (declarative event→action,
-broader library coverage, single-output sensor triggers, value→transform→action,
-multi-channel sensor triggers). On `main`: the `capability` library block, the
-`automations` schema in `design.json` (including `trigger.channel` and
-`actions[].transform`), generator lowering with `!lambda` transforms and
-per-channel passthroughs, the permissive validator, and four worked examples
-(`button-toggles-light`, `motion-turns-on-light`, `encoder-drives-stepper`,
-`temp-turns-on-fan`). Twenty-nine components carry `capability` annotations:
-the two GPIO primitives, 10 broader-library entries from 1.5a, 9 single-output
-sensors from 1.5b, the uln2003 stepper from phase 2, and 7 multi-channel
-environmental sensors from phase 3 (dht, bme280, bmp180, bmp280, aht10,
-htu21d, sht3xd) with channel-tagged `on_value` provides.
+Status: **phases 1 + 1.5a + 1.5b + 2 + 3 + 4 shipped** (declarative
+event→action, broader library coverage, single-output sensor triggers,
+value→transform→action, multi-channel sensor triggers, on_value_range
+threshold bounds). On `main`: the `capability` library block, the
+`automations` schema in `design.json` (with `trigger.channel`,
+`trigger.above` / `.below`, `actions[].transform`), generator lowering with
+`!lambda` transforms, per-channel passthroughs and `{above, below, then}`
+range entries, the permissive validator (now catching bounds-on-wrong-event
+and range-without-bounds), and five worked examples (`button-toggles-light`,
+`motion-turns-on-light`, `encoder-drives-stepper`, `temp-turns-on-fan`,
+`temp-above-turns-on-fan`). Twenty-nine components carry `capability`
+annotations; the seven phase-3 multi-channel environmental sensors now also
+expose `on_value_range` per channel, so a threshold trigger composes with the
+channel selector cleanly.
 
-Phase 3 adds `trigger.channel` to the IR and per-channel passthroughs to each
-sub-block; the bme280 example drives a fan from the temperature channel,
-landing `on_value` inside `temperature:` (not at the platform level, not on the
-sibling humidity/pressure blocks). The remaining unannotated multi-output
-components (mpu6050/mpu6886 IMUs, cse7766/hlw8012/bl0906/sdm_meter power
-meters) carry too many channels to enumerate without a further design call.
-The `on_value_range` threshold case is declared but its range bounds await a
-richer trigger IR; multi-device topology and a live `esphome config` authoring
-loop arrive in later phases per *Suggested phasing* below.
+Phase 4 carries threshold bounds on the trigger; the bme280 example fires
+`switch.turn_on: fan` when temperature crosses 28°C and the lowering emits
+ESPHome's `on_value_range: - above: 28.0\n  then: [...]` shape inside the
+right sub-block. The remaining unannotated multi-output components
+(mpu6050/mpu6886 IMUs, cse7766/hlw8012/bl0906/sdm_meter power meters) carry
+too many channels to enumerate without a further design call. Condition
+gating, multi-device topology, and a live `esphome config` authoring loop
+arrive in later phases per *Suggested phasing* below.
 
 This document was the agreed plan; per-phase work updates this status line in
 place rather than appending a new file each time.
