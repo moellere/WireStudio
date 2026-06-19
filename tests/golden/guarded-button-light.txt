@@ -1,0 +1,24 @@
++-----------------------------------------------------------+
+|  WeMos D1 Mini  ---  guarded-button-light                 |
++-----------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                      |
+|                                                           |
+|  btn  [Generic GPIO binary sensor]  -- Button             |
+|    IN    -> D5                                            |
+|                                                           |
+|  enable  [Generic GPIO switch / relay output]  -- Enable  |
+|    OUT   -> D7                                            |
+|                                                           |
+|  light  [Generic GPIO switch / relay output]  -- Light    |
+|    OUT   -> D6                                            |
+|                                                           |
+|  BOM:                                                     |
+|    - WeMos D1 Mini                                        |
+|    - Generic GPIO binary sensor  (btn)                    |
+|    - Generic GPIO switch / relay output  (enable)         |
+|    - Generic GPIO switch / relay output  (light)          |
+|                                                           |
+|  Power: ~0mA typical, ~0mA peak (budget 500mA)  OK        |
+|                                                           |
+|  Warnings: none                                           |
++-----------------------------------------------------------+
