@@ -43,6 +43,18 @@ esphome:
         on_state: {{ params.on_state | tojson }}
     {%- endif %}
 
+capability:
+  # Functional layer (intent-to-device): a button/contact is an input that
+  # emits press / release / click events plus a boolean state value. The
+  # generator lowers `automations` triggers into the matching params.on_*
+  # keys the ESPHome template above already passes through.
+  role: input
+  provides:
+    - {event: on_press}
+    - {event: on_release}
+    - {event: on_click}
+    - {event: on_state, kind: value}
+
 params_schema:
   device_class:
     type: string

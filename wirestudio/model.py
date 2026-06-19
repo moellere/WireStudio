@@ -135,6 +135,39 @@ class DesignWarning(_Strict):
     text: str
 
 
+class AutomationTrigger(_Strict):
+    """The event side of one automation: a component emits an event the
+    component's library `capability.provides` declares. `component_id` is a
+    design-level id (the validator checks it resolves)."""
+    component_id: str
+    event: str
+
+
+class AutomationAction(_Strict):
+    """The action side: a component takes an action its library
+    `capability.accepts` declares. `args` are extra ESPHome action args
+    (e.g. `{brightness: "50%"}`) that ride alongside the action target id."""
+    component_id: str
+    action: str
+    args: dict = Field(default_factory=dict)
+
+
+class Automation(_Strict):
+    """One trigger→actions wiring (intent-to-device synthesis, phase 1).
+
+    Declarative event→action only -- value/transform, condition gating, and
+    the periodic / stateful composition patterns from the design doc arrive
+    in later phases. The generator lowers each automation onto the trigger
+    component's params, where the existing ESPHome `params.on_*` passthrough
+    in the library YAML emits it. An automation referencing an unknown
+    component / event / action surfaces as a permissive warning, not a hard
+    failure (CLAUDE.md: warnings, don't block).
+    """
+    id: str
+    trigger: AutomationTrigger
+    actions: list[AutomationAction]
+
+
 class Fleet(_Strict):
     device_name: Optional[str] = None
     tags: list[str] = Field(default_factory=list)
@@ -201,6 +234,10 @@ class Design(_Strict):
     buses: list[Bus] = Field(default_factory=list)
     connections: list[Connection] = Field(default_factory=list)
     passives: list[Passive] = Field(default_factory=list)
+    # Behavioral graph: trigger -> actions wiring lowered into ESPHome
+    # automations by the generator. Parallel to the physical `connections`
+    # graph; optional, default empty so existing designs are unaffected.
+    automations: list[Automation] = Field(default_factory=list)
     warnings: list[DesignWarning] = Field(default_factory=list)
     esphome_extras: dict = Field(default_factory=dict)
     fleet: Optional[Fleet] = None
