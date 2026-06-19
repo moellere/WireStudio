@@ -15,6 +15,7 @@ binary_sensor:
 - platform: gpio
   pin: D2
   name: Wasserstein Motion
+  id: pir1
   device_class: motion
   filters:
   - delayed_on: 100ms

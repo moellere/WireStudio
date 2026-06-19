@@ -209,6 +209,33 @@ def _lower_automations(design: Design, library: Library) -> dict[str, dict[str, 
 
         if not action_list:
             continue
+        # Condition gating: wrap the action list in `if: { condition, then }`
+        # when one or more conditions resolve. A single condition emits as a
+        # mapping under `condition:`; multiple emit as a list (ESPHome treats
+        # the list form as implicit AND). Conditions that don't resolve
+        # (unknown component / capability / predicate) are dropped silently;
+        # the validator surfaces those as warnings.
+        condition_items: list = []
+        for cond in auto.conditions:
+            cond_comp = by_id.get(cond.component_id)
+            if cond_comp is None:
+                continue
+            try:
+                cond_lib = library.component(cond_comp.library_id)
+            except FileNotFoundError:
+                continue
+            cond_cap = cond_lib.capability
+            if cond_cap is None:
+                continue
+            check = next((c for c in cond_cap.checks if c.predicate == cond.predicate), None)
+            if check is None:
+                continue
+            condition_items.append({check.esphome: cond.component_id})
+        if condition_items:
+            condition_value: Any = (condition_items[0] if len(condition_items) == 1
+                                    else condition_items)
+            action_list = [{"if": {"condition": condition_value, "then": action_list}}]
+
         # on_value_range carries threshold bounds: ESPHome's syntax is a list
         # of {above, below, then} entries (vs. a flat action list for the other
         # triggers). Wrap the actions in a range entry when bounds are set so

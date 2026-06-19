@@ -22,6 +22,7 @@ esphome:
       - platform: gpio
         pin: {{ pins.OUT | tojson }}
         name: "{{ label }}"
+        id: {{ id }}
         device_class: motion
     {%- if params.filters is defined %}
         filters: {{ params.filters | tojson }}
@@ -40,6 +41,9 @@ capability:
   provides:
     - {event: on_press}
     - {event: on_release}
+  checks:
+    - {predicate: is_on,  esphome: binary_sensor.is_on}
+    - {predicate: is_off, esphome: binary_sensor.is_off}
 
 params_schema: {}
 

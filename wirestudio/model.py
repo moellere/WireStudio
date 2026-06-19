@@ -154,6 +154,16 @@ class AutomationTrigger(_Strict):
     below: Optional[float] = None
 
 
+class AutomationCondition(_Strict):
+    """One predicate that gates an automation: the actions only fire when the
+    condition holds. `component_id` is a design-level id; `predicate` is the
+    studio-side name (e.g. `is_on`) that must appear in the component's
+    `capability.checks`. Multiple conditions on one automation are combined
+    as ESPHome AND (the list form of `condition:`)."""
+    component_id: str
+    predicate: str
+
+
 class AutomationAction(_Strict):
     """The action side: a component takes an action its library
     `capability.accepts` declares. `args` are extra ESPHome action args
@@ -175,17 +185,18 @@ class AutomationAction(_Strict):
 class Automation(_Strict):
     """One trigger→actions wiring (intent-to-device synthesis).
 
-    Phase 1 is declarative event→action; phase 2 adds value→transform→action
-    via `AutomationAction.transform` (lowered to a `!lambda`). Condition
-    gating and the periodic / stateful composition patterns from the design
-    doc arrive in later phases. The generator lowers each automation onto the
-    trigger component's params, where the existing ESPHome `params.on_*`
-    passthrough in the library YAML emits it. An automation referencing an
-    unknown component / event / action surfaces as a permissive warning, not a
-    hard failure (CLAUDE.md: warnings, don't block).
+    The action list fires when the trigger event lands AND every entry in
+    `conditions` holds. Conditions reference predicates the component declares
+    via its `capability.checks`; the lowering wraps the actions in
+    `if: { condition: ..., then: [...] }`. A transform on an action
+    (phase 2) lowers to a `!lambda`. The periodic / stateful composition
+    patterns from the design doc arrive in later phases. An automation
+    referencing an unknown component / event / action / predicate surfaces as
+    a permissive warning, not a hard failure (CLAUDE.md: warnings, don't block).
     """
     id: str
     trigger: AutomationTrigger
+    conditions: list[AutomationCondition] = Field(default_factory=list)
     actions: list[AutomationAction]
 
 

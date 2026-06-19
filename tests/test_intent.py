@@ -10,7 +10,13 @@ import pytest
 from wirestudio.generate.yaml_gen import _lower_automations, render_yaml
 from wirestudio.intent import validate_automations
 from wirestudio.library import default_library
-from wirestudio.model import Automation, AutomationAction, AutomationTrigger, Design
+from wirestudio.model import (
+    Automation,
+    AutomationAction,
+    AutomationCondition,
+    AutomationTrigger,
+    Design,
+)
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -617,6 +623,194 @@ def test_validator_flags_unknown_channel_on_multichannel_sensor(lib):
     text = next(w.text for w in warns if w.code == "automation_unknown_event")
     assert "channel 'altitude'" in text
     assert "temperature.on_value" in text  # the warning lists what IS provided
+
+
+# --- phase 5: condition gating ----------------------------------------------
+
+GUARDED_EXAMPLE = REPO_ROOT / "wirestudio" / "examples" / "guarded-button-light.json"
+
+
+def test_guarded_example_matches_golden(lib):
+    d = Design.model_validate(json.loads(GUARDED_EXAMPLE.read_text()))
+    expected = (REPO_ROOT / "tests" / "golden" / "guarded-button-light.yaml").read_text()
+    assert render_yaml(d, lib) == expected
+
+
+def test_guarded_validator_quiet(lib):
+    d = Design.model_validate(json.loads(GUARDED_EXAMPLE.read_text()))
+    assert validate_automations(d, lib) == []
+
+
+def test_single_condition_emits_inline_dict(lib):
+    """A single condition emits as a mapping directly under `condition:` --
+    not wrapped in a list -- matching ESPHome's inline form."""
+    d = Design.model_validate(json.loads(GUARDED_EXAMPLE.read_text()))
+    yaml = render_yaml(d, lib)
+    expected = (
+        "  on_press:\n"
+        "  - if:\n"
+        "      condition:\n"
+        "        switch.is_on: enable\n"
+        "      then:\n"
+        "      - switch.toggle: light\n"
+    )
+    assert expected in yaml
+
+
+def test_multiple_conditions_emit_as_list_for_implicit_and(lib):
+    """Two or more conditions emit as a YAML list under `condition:` --
+    ESPHome treats the list form as implicit AND."""
+    d = Design.model_validate({
+        "schema_version": "0.1", "id": "t", "name": "T",
+        "board": {"library_id": "wemos-d1-mini", "mcu": "esp8266", "framework": "arduino"},
+        "power": {"supply": "usb-5v", "rail_voltage_v": 5.0, "budget_ma": 500},
+        "components": [
+            {"id": "btn",    "library_id": "gpio_input",  "label": "Button"},
+            {"id": "enable", "library_id": "gpio_output", "label": "Enable"},
+            {"id": "safe",   "library_id": "gpio_input",  "label": "Safety"},
+            {"id": "light",  "library_id": "gpio_output", "label": "Light"},
+        ],
+        "connections": [
+            {"component_id": "btn",    "pin_role": "IN",  "target": {"kind": "gpio", "pin": "D5"}},
+            {"component_id": "enable", "pin_role": "OUT", "target": {"kind": "gpio", "pin": "D7"}},
+            {"component_id": "safe",   "pin_role": "IN",  "target": {"kind": "gpio", "pin": "D3"}},
+            {"component_id": "light",  "pin_role": "OUT", "target": {"kind": "gpio", "pin": "D6"}},
+        ],
+        "automations": [{
+            "id": "a", "trigger": {"component_id": "btn", "event": "on_press"},
+            "conditions": [
+                {"component_id": "enable", "predicate": "is_on"},
+                {"component_id": "safe",   "predicate": "is_on"},
+            ],
+            "actions": [{"component_id": "light", "action": "toggle"}],
+        }],
+    })
+    assert validate_automations(d, lib) == []
+    yaml = render_yaml(d, lib)
+    expected = (
+        "      condition:\n"
+        "      - switch.is_on: enable\n"
+        "      - binary_sensor.is_on: safe\n"
+        "      then:\n"
+        "      - switch.toggle: light\n"
+    )
+    assert expected in yaml
+
+
+def test_validator_flags_unknown_predicate(lib):
+    """A predicate not in the component's `checks` surfaces a warning that
+    lists what IS supported."""
+    d = Design.model_validate({
+        "schema_version": "0.1", "id": "t", "name": "T",
+        "board": {"library_id": "wemos-d1-mini", "mcu": "esp8266", "framework": "arduino"},
+        "power": {"supply": "usb-5v", "rail_voltage_v": 5.0, "budget_ma": 500},
+        "components": [
+            {"id": "btn",    "library_id": "gpio_input",  "label": "Button"},
+            {"id": "enable", "library_id": "gpio_output", "label": "Enable"},
+            {"id": "light",  "library_id": "gpio_output", "label": "Light"},
+        ],
+        "connections": [
+            {"component_id": "btn",    "pin_role": "IN",  "target": {"kind": "gpio", "pin": "D5"}},
+            {"component_id": "enable", "pin_role": "OUT", "target": {"kind": "gpio", "pin": "D7"}},
+            {"component_id": "light",  "pin_role": "OUT", "target": {"kind": "gpio", "pin": "D6"}},
+        ],
+        "automations": [{
+            "id": "a", "trigger": {"component_id": "btn", "event": "on_press"},
+            "conditions": [{"component_id": "enable", "predicate": "is_pulsing"}],
+            "actions": [{"component_id": "light", "action": "toggle"}],
+        }],
+    })
+    warns = validate_automations(d, lib)
+    codes = [w.code for w in warns]
+    assert "automation_unknown_predicate" in codes
+    text = next(w.text for w in warns if w.code == "automation_unknown_predicate")
+    assert "is_on" in text  # warning lists supported predicates
+
+
+def test_validator_flags_condition_on_capability_less_component(lib):
+    """A condition on a component without a capability block warns
+    (same code as the existing trigger/action checks)."""
+    d = Design.model_validate({
+        "schema_version": "0.1", "id": "t", "name": "T",
+        "board": {"library_id": "wemos-d1-mini", "mcu": "esp8266", "framework": "arduino"},
+        "power": {"supply": "usb", "rail_voltage_v": 5.0, "budget_ma": 500},
+        "buses": [{"id": "i2c0", "type": "i2c", "sda": "D2", "scl": "D1"}],
+        "components": [
+            {"id": "btn",   "library_id": "gpio_input",  "label": "Button"},
+            {"id": "imu",   "library_id": "mpu6050",     "label": "IMU"},
+            {"id": "light", "library_id": "gpio_output", "label": "Light"},
+        ],
+        "connections": [
+            {"component_id": "btn",   "pin_role": "IN",  "target": {"kind": "gpio", "pin": "D5"}},
+            {"component_id": "imu",   "pin_role": "SDA", "target": {"kind": "bus",  "bus_id": "i2c0"}},
+            {"component_id": "imu",   "pin_role": "SCL", "target": {"kind": "bus",  "bus_id": "i2c0"}},
+            {"component_id": "light", "pin_role": "OUT", "target": {"kind": "gpio", "pin": "D6"}},
+        ],
+        "automations": [{
+            "id": "a", "trigger": {"component_id": "btn", "event": "on_press"},
+            "conditions": [{"component_id": "imu", "predicate": "is_on"}],
+            "actions": [{"component_id": "light", "action": "toggle"}],
+        }],
+    })
+    codes = [w.code for w in validate_automations(d, lib)]
+    assert "automation_component_no_capability" in codes
+
+
+def test_unresolved_conditions_drop_silently_from_yaml(lib):
+    """Mirroring the existing trigger/action behavior: an unresolved condition
+    is dropped by the lowering (the validator surfaces it). The action list
+    still emits, unwrapped, when no conditions resolve."""
+    d = Design.model_validate({
+        "schema_version": "0.1", "id": "t", "name": "T",
+        "board": {"library_id": "wemos-d1-mini", "mcu": "esp8266", "framework": "arduino"},
+        "power": {"supply": "usb-5v", "rail_voltage_v": 5.0, "budget_ma": 500},
+        "components": [
+            {"id": "btn",   "library_id": "gpio_input",  "label": "Button"},
+            {"id": "light", "library_id": "gpio_output", "label": "Light"},
+        ],
+        "connections": [
+            {"component_id": "btn",   "pin_role": "IN",  "target": {"kind": "gpio", "pin": "D5"}},
+            {"component_id": "light", "pin_role": "OUT", "target": {"kind": "gpio", "pin": "D6"}},
+        ],
+        "automations": [{
+            "id": "a", "trigger": {"component_id": "btn", "event": "on_press"},
+            "conditions": [{"component_id": "missing", "predicate": "is_on"}],
+            "actions": [{"component_id": "light", "action": "toggle"}],
+        }],
+    })
+    yaml = render_yaml(d, lib)
+    # No `if:` wrap, no dangling ref; the action still fires
+    assert "missing" not in yaml
+    assert "if:" not in yaml
+    assert "switch.toggle: light" in yaml
+
+
+def test_condition_round_trips_through_the_model():
+    """The IR model carries conditions as AutomationCondition instances."""
+    d = Design.model_validate({
+        "schema_version": "0.1", "id": "t", "name": "T",
+        "board": {"library_id": "wemos-d1-mini", "mcu": "esp8266", "framework": "arduino"},
+        "power": {"supply": "usb-5v", "rail_voltage_v": 5.0, "budget_ma": 500},
+        "components": [
+            {"id": "btn", "library_id": "gpio_input", "label": "B"},
+            {"id": "en",  "library_id": "gpio_output", "label": "E"},
+            {"id": "lt",  "library_id": "gpio_output", "label": "L"},
+        ],
+        "connections": [
+            {"component_id": "btn", "pin_role": "IN",  "target": {"kind": "gpio", "pin": "D5"}},
+            {"component_id": "en",  "pin_role": "OUT", "target": {"kind": "gpio", "pin": "D7"}},
+            {"component_id": "lt",  "pin_role": "OUT", "target": {"kind": "gpio", "pin": "D6"}},
+        ],
+        "automations": [{
+            "id": "a", "trigger": {"component_id": "btn", "event": "on_press"},
+            "conditions": [{"component_id": "en", "predicate": "is_on"}],
+            "actions": [{"component_id": "lt", "action": "toggle"}],
+        }],
+    })
+    auto = d.automations[0]
+    assert len(auto.conditions) == 1
+    assert isinstance(auto.conditions[0], AutomationCondition)
+    assert auto.conditions[0].predicate == "is_on"
 
 
 # --- phase 2: value -> transform -> action (encoder -> stepper) -------------

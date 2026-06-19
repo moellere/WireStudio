@@ -21,6 +21,7 @@ esphome:
       - platform: gpio
         pin: {{ pins.OUT | tojson }}
         name: "{{ label }}"
+        id: {{ id }}
         device_class: motion
     {%- if params.filters is defined %}
         filters: {{ params.filters | tojson }}
@@ -33,13 +34,13 @@ esphome:
     {%- endif %}
 
 capability:
-  # PIR (motion). ESPHome emits a press when motion starts and a release when
-  # it ends -- the template already passes these through, so an automation
-  # triggers off them cleanly.
   role: input
   provides:
     - {event: on_press}
     - {event: on_release}
+  checks:
+    - {predicate: is_on,  esphome: binary_sensor.is_on}
+    - {predicate: is_off, esphome: binary_sensor.is_off}
 
 params_schema:
   retrigger:
