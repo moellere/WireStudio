@@ -342,11 +342,13 @@ def _secret_name(ref: str) -> str:
     return ref.removeprefix("!secret ").strip()
 
 
-# Pinned ref for the lorawan-for-esphome external component. Bumps are
-# reviewed changes like any other dependency pin; switch to a tag after the
-# component repo cuts its first stable release post hardware-join validation
-# (decision logged in docs/lorawan/workflow-integration.md).
-_LORAWAN_FOR_ESPHOME_REPO = "github://moellere/lorawan-for-esphome"
+# Pinned ref for the lorawan-for-esphome external component. ESPHome's
+# external_components: format embeds the ref in the source URL fragment
+# (`github://owner/repo@<ref>`) rather than as a separate `ref:` key. Bumps
+# are reviewed changes like any other dependency pin; switch to a tag after
+# the component repo cuts its first stable release post hardware-join
+# validation (decision logged in docs/lorawan/workflow-integration.md).
+_LORAWAN_FOR_ESPHOME_REPO = "moellere/lorawan-for-esphome"
 _LORAWAN_FOR_ESPHOME_REF = "main"  # TODO(lorawan): pin to a commit SHA after the join test runs
 
 
@@ -363,8 +365,7 @@ def _emit_lorawan_blocks(out: dict[str, Any], design: Design, library: Library) 
         return
 
     out.setdefault("external_components", []).append({
-        "source": _LORAWAN_FOR_ESPHOME_REPO,
-        "ref": _LORAWAN_FOR_ESPHOME_REF,
+        "source": f"github://{_LORAWAN_FOR_ESPHOME_REPO}@{_LORAWAN_FOR_ESPHOME_REF}",
         "components": ["lorawan"],
     })
 
