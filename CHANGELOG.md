@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Intent-to-device synthesis (phase 3 — multi-channel sensor triggers).**
+  An automation trigger gains an optional `channel:` selecting which sub-block
+  on a multi-output sensor it hangs off (e.g. `temperature` vs `humidity` on a
+  bme280). Capability `provides` entries gain a matching `channel:` so the
+  validator can check the trigger references a real (channel, event) pair, and
+  the lowering combines them into a `<channel>_<event>` params key so the
+  template's per-channel passthrough fires inside the right sub-block. Seven
+  environmental sensors gain channel-tagged capability blocks and the matching
+  `params.<channel>_on_value` passthroughs: `dht`, `bme280`, `bmp180`, `bmp280`,
+  `aht10`, `htu21d`, `sht3xd`. New worked example `temp-turns-on-fan.json`
+  exercises the path end-to-end (bme280 temperature -> switch). The validator's
+  unknown-event warning now lists provides as `<channel>.<event>` pairs so the
+  fix is obvious. `mpu6050` (7-channel IMU) replaces dht as the unannotated-
+  component test fixture; the remaining unannotated multi-output components
+  (power meters, the other IMU) carry too many channels to enumerate without
+  a further design call. `design.json` schema gains
+  `automations[].trigger.channel`.
+
 - **Intent-to-device synthesis (phase 2 — value→transform→action).** An
   automation action gains an optional `transform` (action-arg name → a C++
   expression in terms of `x`, the value the trigger emits) that the generator

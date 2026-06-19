@@ -138,9 +138,12 @@ class DesignWarning(_Strict):
 class AutomationTrigger(_Strict):
     """The event side of one automation: a component emits an event the
     component's library `capability.provides` declares. `component_id` is a
-    design-level id (the validator checks it resolves)."""
+    design-level id (the validator checks it resolves). `channel` selects a
+    sub-block on multi-channel components (e.g. `temperature` on a bme280) --
+    the provides entry must match both event AND channel."""
     component_id: str
     event: str
+    channel: Optional[str] = None
 
 
 class AutomationAction(_Strict):

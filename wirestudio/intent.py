@@ -57,14 +57,28 @@ def validate_automations(design: Design, library: Library) -> list[DesignWarning
                               f"{trig_comp.library_id!r}) has no capability "
                               f"block and can't trigger automations"),
                     ))
-                elif not any(p.event == trig.event for p in cap.provides):
-                    provided = ", ".join(p.event for p in cap.provides) or "(none)"
-                    out.append(DesignWarning(
-                        level="warn", code="automation_unknown_event",
-                        text=(f"automation {auto.id!r}: component "
-                              f"{trig.component_id!r} does not provide event "
-                              f"{trig.event!r}; provides: {provided}"),
-                    ))
+                else:
+                    trig_channel = trig.channel
+                    match = next(
+                        (p for p in cap.provides
+                         if p.event == trig.event and (p.channel or None) == (trig_channel or None)),
+                        None,
+                    )
+                    if match is None:
+                        provided = ", ".join(
+                            f"{p.channel}.{p.event}" if p.channel else p.event
+                            for p in cap.provides
+                        ) or "(none)"
+                        suffix = (
+                            f"event {trig.event!r} on channel {trig_channel!r}"
+                            if trig_channel else f"event {trig.event!r}"
+                        )
+                        out.append(DesignWarning(
+                            level="warn", code="automation_unknown_event",
+                            text=(f"automation {auto.id!r}: component "
+                                  f"{trig.component_id!r} does not provide "
+                                  f"{suffix}; provides: {provided}"),
+                        ))
 
         for act in auto.actions:
             act_comp = by_id.get(act.component_id)
