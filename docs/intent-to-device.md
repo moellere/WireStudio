@@ -1,19 +1,22 @@
 # Intent-to-device synthesis (design direction)
 
-Status: **phases 1 + 1.5a shipped** (declarative event→action, broader library
-coverage). On `main`: the `capability` library block, the `automations` schema
-in `design.json`, generator lowering, the permissive validator, and two
-worked examples (`button-toggles-light`, `motion-turns-on-light`). Twelve
-components carry `capability` annotations: the two GPIO primitives plus 10
-broader-library entries (PIR/microwave motion, RC522/RDM6300 RFID,
-rotary_encoder, ADC + HC-SR04, RF bridge, WS2812B, tuya_switch).
+Status: **phases 1 + 1.5a + 1.5b shipped** (declarative event→action, broader
+library coverage, single-output sensor triggers). On `main`: the `capability`
+library block, the `automations` schema in `design.json`, generator lowering,
+the permissive validator, and two worked examples (`button-toggles-light`,
+`motion-turns-on-light`). Twenty-one components carry `capability`
+annotations: the two GPIO primitives, 10 broader-library entries from 1.5a
+(PIR/microwave motion, RC522/RDM6300 RFID, rotary_encoder, ADC + HC-SR04, RF
+bridge, WS2812B, tuya_switch), and 9 single-output sensors from 1.5b (ds18b20,
+bh1750, tsl2561, vl53l0x, hx711, max31855, pulse_counter, ads1115_channel,
+tuya_sensor) with `on_value` / `on_value_range`.
 
-Phase 1.5b — passing `params.on_*` through the remaining sensor / display /
-hub templates so they can be triggers or action targets — is scoped
-separately because template surgery has a different risk profile than
-additive capability metadata. Value→transform→action (the encoder→stepper
-case), multi-device topology, and a live `esphome config` authoring loop
-arrive in later phases per *Suggested phasing* below.
+Multi-channel sensors (dht, bme280, IMUs, power meters) stay unannotated —
+which sub-channel a trigger hangs off is a separate design call. The
+`on_value_range` threshold case is declared but awaits phase 2's richer
+trigger IR to carry the range bounds; value→transform→action (the
+encoder→stepper case), multi-device topology, and a live `esphome config`
+authoring loop arrive in later phases per *Suggested phasing* below.
 
 This document was the agreed plan; per-phase work updates this status line in
 place rather than appending a new file each time.
