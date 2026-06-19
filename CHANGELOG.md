@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Intent-to-device synthesis (phase 1 — declarative event→action).** Adds a
+  *functional* layer on top of the existing structural surface: library
+  components gain an optional `capability:` block declaring their `role`
+  (input / sensor / output / controller), the events they `provides`, and the
+  actions they `accepts` with explicit ESPHome verbs. `design.json` gains an
+  `automations: [{trigger, actions}]` graph parallel to the physical
+  `connections` graph. The YAML generator lowers each automation onto the
+  trigger component's `params.<event_key>` (extending any user-authored list,
+  not replacing it), so the existing library templates render it as the right
+  ESPHome trigger block — for the worked example
+  (`button-toggles-light.json`), a press lowers to
+  `on_press: [{switch.toggle: porch_light}]`. The `/design/validate` endpoint
+  surfaces dangling refs as permissive warnings (`automation_unknown_component`,
+  `automation_component_no_capability`, `automation_unknown_event`,
+  `automation_unknown_action`) — half-authored automations don't block
+  rendering, they just don't fire. Annotated `gpio_input` + `gpio_output` (the
+  two components the worked example needs); the remaining ~58 library entries
+  pick up annotations in phase 1.5. Value→transform→action (the encoder /
+  stepper case) and a live `esphome config` authoring loop arrive in later
+  phases per `docs/intent-to-device.md`.
+
 - **Build-backend seam (framework axis, phase C — structural).** A
   `BuildBackend` protocol (`status` / `enqueue` / `stream` / `artifact`) now
   sits behind the LoRaWAN compile + firmware-download routes, with the in-pod

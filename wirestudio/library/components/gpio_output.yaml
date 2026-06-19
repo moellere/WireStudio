@@ -34,6 +34,19 @@ esphome:
         on_turn_off: {{ params.on_turn_off | tojson }}
     {%- endif %}
 
+capability:
+  # Functional layer (intent-to-device): a relay / mosfet / indicator is a
+  # switchable output. Triggers in automations targeting this component lower
+  # to ESPHome's `switch.turn_on` / `turn_off` / `toggle` action verbs.
+  role: output
+  provides:
+    - {event: on_turn_on}
+    - {event: on_turn_off}
+  accepts:
+    - {action: turn_on,  esphome: switch.turn_on}
+    - {action: turn_off, esphome: switch.turn_off}
+    - {action: toggle,   esphome: switch.toggle}
+
 params_schema:
   icon:
     type: string
