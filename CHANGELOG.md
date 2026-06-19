@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Intent-to-device synthesis (phase 4 — on_value_range threshold bounds).**
+  An automation trigger gains optional `above` / `below` numeric bounds for the
+  `on_value_range` event; the lowering wraps the action list in a
+  `{above, below, then}` range entry, producing ESPHome's
+  `on_value_range: - above: 28.0\n  then: [...]` shape. Two new permissive
+  validator warnings (`automation_bounds_require_value_range`,
+  `automation_value_range_needs_bounds`) catch the two cooperative mistakes
+  -- bounds on the wrong event, or `on_value_range` with no bounds (which
+  would fire on every reading). All 7 phase-3 multi-channel sensors (dht,
+  bme280, bmp180, bmp280, aht10, htu21d, sht3xd) gain channel-tagged
+  `on_value_range` provides and matching `params.<channel>_on_value_range`
+  passthroughs in each sub-block, so a threshold trigger composes with the
+  multi-channel selector. New worked example
+  `temp-above-turns-on-fan.json` (bme280 temperature >= 28°C -> fan on).
+  `design.json` schema gains `automations[].trigger.above` / `.below`.
+
 - **Intent-to-device synthesis (phase 3 — multi-channel sensor triggers).**
   An automation trigger gains an optional `channel:` selecting which sub-block
   on a multi-output sensor it hangs off (e.g. `temperature` vs `humidity` on a

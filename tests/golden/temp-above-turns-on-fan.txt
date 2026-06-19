@@ -1,0 +1,23 @@
++-----------------------------------------------------+
+|  WeMos D1 Mini  ---  temp-above-turns-on-fan        |
++-----------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                |
+|                                                     |
+|  climate  [Bosch BME280 (T/H/P)]  -- Climate        |
+|    VCC   -> rail 3V3                                |
+|    GND   -> rail GND                                |
+|    SDA   -> i2c0 (D2)                               |
+|    SCL   -> i2c0 (D1)                               |
+|                                                     |
+|  fan  [Generic GPIO switch / relay output]  -- Fan  |
+|    OUT   -> D6                                      |
+|                                                     |
+|  BOM:                                               |
+|    - WeMos D1 Mini                                  |
+|    - Bosch BME280 (T/H/P)  (climate)                |
+|    - Generic GPIO switch / relay output  (fan)      |
+|                                                     |
+|  Power: ~0mA typical, ~4mA peak (budget 500mA)  OK  |
+|                                                     |
+|  Warnings: none                                     |
++-----------------------------------------------------+

@@ -209,7 +209,20 @@ def _lower_automations(design: Design, library: Library) -> dict[str, dict[str, 
 
         if not action_list:
             continue
-        out.setdefault(trig_comp.id, {}).setdefault(event_key, []).extend(action_list)
+        # on_value_range carries threshold bounds: ESPHome's syntax is a list
+        # of {above, below, then} entries (vs. a flat action list for the other
+        # triggers). Wrap the actions in a range entry when bounds are set so
+        # the rendered YAML is `on_value_range: - above: 25.0\n    then: [...]`.
+        if auto.trigger.above is not None or auto.trigger.below is not None:
+            range_entry: dict[str, Any] = {}
+            if auto.trigger.above is not None:
+                range_entry["above"] = auto.trigger.above
+            if auto.trigger.below is not None:
+                range_entry["below"] = auto.trigger.below
+            range_entry["then"] = action_list
+            out.setdefault(trig_comp.id, {}).setdefault(event_key, []).append(range_entry)
+        else:
+            out.setdefault(trig_comp.id, {}).setdefault(event_key, []).extend(action_list)
     return out
 
 
