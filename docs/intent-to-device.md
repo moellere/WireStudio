@@ -1,26 +1,27 @@
 # Intent-to-device synthesis (design direction)
 
-Status: **phases 1 + 1.5a + 1.5b + 2 shipped** (declarative event→action,
-broader library coverage, single-output sensor triggers, value→transform→action).
-On `main`: the `capability` library block, the `automations` schema in
-`design.json` (including `actions[].transform`), generator lowering with
-`!lambda` transforms, the permissive validator, and three worked examples
-(`button-toggles-light`, `motion-turns-on-light`, `encoder-drives-stepper`).
-Twenty-two components carry `capability` annotations: the two GPIO primitives,
-10 broader-library entries from 1.5a (PIR/microwave motion, RC522/RDM6300 RFID,
-rotary_encoder, ADC + HC-SR04, RF bridge, WS2812B, tuya_switch), 9 single-output
-sensors from 1.5b (ds18b20, bh1750, tsl2561, vl53l0x, hx711, max31855,
-pulse_counter, ads1115_channel, tuya_sensor) with `on_value` / `on_value_range`,
-and the uln2003 stepper from phase 2 (accepts `set_target`).
+Status: **phases 1 + 1.5a + 1.5b + 2 + 3 shipped** (declarative event→action,
+broader library coverage, single-output sensor triggers, value→transform→action,
+multi-channel sensor triggers). On `main`: the `capability` library block, the
+`automations` schema in `design.json` (including `trigger.channel` and
+`actions[].transform`), generator lowering with `!lambda` transforms and
+per-channel passthroughs, the permissive validator, and four worked examples
+(`button-toggles-light`, `motion-turns-on-light`, `encoder-drives-stepper`,
+`temp-turns-on-fan`). Twenty-nine components carry `capability` annotations:
+the two GPIO primitives, 10 broader-library entries from 1.5a, 9 single-output
+sensors from 1.5b, the uln2003 stepper from phase 2, and 7 multi-channel
+environmental sensors from phase 3 (dht, bme280, bmp180, bmp280, aht10,
+htu21d, sht3xd) with channel-tagged `on_value` provides.
 
-Phase 2 lowers an action's `transform` (arg → a C++ expression in `x`, the
-trigger's value) to an ESPHome `!lambda`; the encoder→stepper example drives
-`stepper.set_target` from the encoder's count. Multi-channel sensors (dht,
-bme280, IMUs, power meters) stay unannotated — which sub-channel a trigger
-hangs off is a separate design call. The `on_value_range` threshold case is
-declared but its range bounds await a richer trigger IR; multi-device topology
-and a live `esphome config` authoring loop arrive in later phases per
-*Suggested phasing* below.
+Phase 3 adds `trigger.channel` to the IR and per-channel passthroughs to each
+sub-block; the bme280 example drives a fan from the temperature channel,
+landing `on_value` inside `temperature:` (not at the platform level, not on the
+sibling humidity/pressure blocks). The remaining unannotated multi-output
+components (mpu6050/mpu6886 IMUs, cse7766/hlw8012/bl0906/sdm_meter power
+meters) carry too many channels to enumerate without a further design call.
+The `on_value_range` threshold case is declared but its range bounds await a
+richer trigger IR; multi-device topology and a live `esphome config` authoring
+loop arrive in later phases per *Suggested phasing* below.
 
 This document was the agreed plan; per-phase work updates this status line in
 place rather than appending a new file each time.
