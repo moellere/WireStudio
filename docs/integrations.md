@@ -85,10 +85,13 @@ pin map.
 
 ## LoRaWAN / ChirpStack
 
-A second generation target (`Design.target: "lorawan"`) for US915 radio
-boards — TTGO LoRa32 / T-Beam (SX1276) and Heltec WiFi LoRa 32 V2 (SX1276)
-/ V3 (SX1262). The **Flash LoRaWAN firmware** header button (advanced
-mode) drives the full loop in the browser:
+Two paths for US915 radio boards — TTGO LoRa32 / T-Beam (SX1276), Heltec
+WiFi LoRa 32 V2 (SX1276) / V3 (SX1262).
+
+### Standalone Arduino path (`Design.target: "lorawan"`)
+
+The **Flash LoRaWAN firmware** header button (advanced mode) drives the
+full loop in the browser:
 
 1. **Build** — `POST /lorawan/compile` builds RadioLib + LoRaWAN_ESP32
    firmware in an in-pod PlatformIO worker, streaming the log over SSE
@@ -104,22 +107,55 @@ mode) drives the full loop in the browser:
 
 The uplink payload packing (C++) and the ChirpStack JS codec come from
 **one field spec** (`wirestudio/targets/lorawan/codec.py`), so they never
-drift. ChirpStack access is configured by `CHIRPSTACK_API_URL` +
+drift.
+
+### External-component path (`Design.target: "esphome"` + `lorawan.payload`)
+
+The newer path emits ESPHome YAML referencing
+[`lorawan-for-esphome`](https://github.com/moellere/lorawan-for-esphome),
+so the LoRaWAN device joins the same ESPHome / fleet-for-esphome
+pipeline as every other device. When `design.lorawan.payload` is
+non-empty, the renderer adds an `external_components:` block pinned to
+a ref, a `lorawan:` config (radio block from the board library, region,
+keys via `!secret`), and one `sensor: - platform: lorawan` binding per
+payload field. The **Provision LoRaWAN device** header button (key
+icon) drives the orchestration loop:
+
+1. **Detect** — "Detect from chip" reads the eFuse MAC over WebSerial
+   and derives the EUI-64 DevEUI (`detectChip()` + `macToEui64()`).
+   Manual override remains.
+2. **Provision** — `POST /lorawan/provision-esphome` mints an AppKey,
+   registers the device against a path-specific device profile
+   (`wirestudio-esphome-<region>-sub<n>`), flushes its DevNonces, and
+   returns the three keys formatted for `secrets.yaml`. The AppKey is
+   ephemeral and never persisted to `design.json`.
+3. **Push** — "Push to fleet" forwards the rendered YAML to
+   fleet-for-esphome with the minted secrets inlined into the
+   `lorawan:` block (via the `lorawan_secrets` field on
+   `POST /fleet/push`), so the fleet's `secrets.yaml` doesn't need a
+   separate write. Compile is enqueued in the same call.
+4. **Join** — the dialog polls `GET /lorawan/activation/{dev_eui}`
+   every few seconds; the join indicator flips when ChirpStack reports
+   the OTAA join landed.
+
+Both paths share ChirpStack config: `CHIRPSTACK_API_URL` +
 `CHIRPSTACK_API_TOKEN` (a UI-generated API token, never the JWT signing
-secret); the AppKey is ephemeral and never written to `design.json`.
+secret).
 
 Heavy deps (`grpcio`, `chirpstack-api`, `platformio`) live behind a
 `pip install wirestudio[lorawan]` extra and are lazy-imported, so a plain
 install stays light. Background + the live ChirpStack setup are in
-[`docs/lorawan/`](lorawan/).
+[`docs/lorawan/`](lorawan/) — `esphome-component-pivot.md` covers the
+architecture decision, `workflow-integration.md` the orchestration steps.
 
-**Limitations (current).** The LoRaWAN target is **US915 sub-band 2 only**
-and **ChirpStack only**. Region/sub-band are hard-pinned end to end (the
-device firmware's datarate caps, the ChirpStack device profile, and the
-provisioning response), so a device built for any other band (EU868, AU915,
-AS923, …) silently won't join — multi-region is a tracked backlog item
-(safety-sensitive, so it's not half-shipped). The network server is
-ChirpStack v4 over gRPC; TTN / other servers aren't wired yet.
+**Limitations (current).** Both paths are **US915 sub-band 2 only** and
+**ChirpStack only** in practice — the IR accepts EU868 / AU915 / AS923
+on the external-component path, but the device-side support and the
+ChirpStack profile naming have only been exercised end to end on US915
+sub-2. Multi-region is a tracked backlog item (safety-sensitive, so
+it's not half-shipped). The network server is ChirpStack v4 over gRPC;
+TTN / other servers aren't wired yet. The external-component path is
+hardware-join-verified pending a live test against a real gateway.
 
 ## MCP server
 
