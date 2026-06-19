@@ -1,0 +1,20 @@
++---------------------------------------------------------------------+
+|  WeMos D1 Mini  ---  button-toggles-light                           |
++---------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                |
+|                                                                     |
+|  porch_button  [Generic GPIO binary sensor]  -- Porch Button        |
+|    IN    -> D5                                                      |
+|                                                                     |
+|  porch_light  [Generic GPIO switch / relay output]  -- Porch Light  |
+|    OUT   -> D6                                                      |
+|                                                                     |
+|  BOM:                                                               |
+|    - WeMos D1 Mini                                                  |
+|    - Generic GPIO binary sensor  (porch_button)                     |
+|    - Generic GPIO switch / relay output  (porch_light)              |
+|                                                                     |
+|  Power: ~0mA typical, ~0mA peak (budget 500mA)  OK                  |
+|                                                                     |
+|  Warnings: none                                                     |
++---------------------------------------------------------------------+

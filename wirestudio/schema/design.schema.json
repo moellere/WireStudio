@@ -184,6 +184,40 @@
       }
     },
 
+    "automations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "trigger", "actions"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "trigger": {
+            "type": "object",
+            "required": ["component_id", "event"],
+            "additionalProperties": false,
+            "properties": {
+              "component_id": { "type": "string" },
+              "event": { "type": "string" }
+            }
+          },
+          "actions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["component_id", "action"],
+              "additionalProperties": false,
+              "properties": {
+                "component_id": { "type": "string" },
+                "action": { "type": "string" },
+                "args": { "type": "object" }
+              }
+            }
+          }
+        }
+      }
+    },
+
     "warnings": {
       "type": "array",
       "items": {
