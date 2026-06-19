@@ -40,6 +40,6 @@ sensor:
   pin: GPIO34
   name: Board 3V3 rail
   id: rail_v
-  attenuation: 11db
+  attenuation: 12db
   update_interval: 60s
   unit_of_measurement: V
