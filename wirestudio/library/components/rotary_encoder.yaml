@@ -52,15 +52,19 @@ esphome:
     {%- if params.on_anticlockwise is defined %}
         on_anticlockwise: {{ params.on_anticlockwise | tojson }}
     {%- endif %}
+    {%- if params.on_value is defined %}
+        on_value: {{ params.on_value | tojson }}
+    {%- endif %}
 
 capability:
-  # Quadrature encoder. Phase 1.5 wires the discrete clockwise/anticlockwise
-  # events the template passes through. Phase 2 (value -> transform -> action,
-  # the encoder -> stepper case) adds on_value with a transform IR.
+  # Quadrature encoder. The discrete clockwise/anticlockwise events (phase 1.5)
+  # and the cumulative count via on_value (kind=value) -- the phase-2
+  # value→transform→action source for the encoder→stepper case.
   role: input
   provides:
     - {event: on_clockwise}
     - {event: on_anticlockwise}
+    - {event: on_value, kind: value}
 
 params_schema:
   min_value:
@@ -74,6 +78,8 @@ params_schema:
   on_clockwise:
     type: array
   on_anticlockwise:
+    type: array
+  on_value:
     type: array
 
 notes: "Both pins must support edge interrupts -- on the ESP8266 D0/GPIO16 does not. KY-040 modules ship

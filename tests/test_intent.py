@@ -240,7 +240,7 @@ _PHASE_1_5_ANNOTATIONS = [
     ("rcwl-0516",       "input",  ["on_press", "on_release"],                                []),
     ("rc522",           "input",  ["on_tag", "on_tag_removed"],                              []),
     ("rdm6300",         "input",  ["on_tag"],                                                []),
-    ("rotary_encoder",  "input",  ["on_clockwise", "on_anticlockwise"],                      []),
+    ("rotary_encoder",  "input",  ["on_clockwise", "on_anticlockwise", "on_value"],          []),
     ("adc",             "sensor", ["on_value", "on_value_range"],                            []),
     ("hc-sr04",         "sensor", ["on_value"],                                              []),
     ("rf_bridge",       "input",  ["on_code_received"],                                      []),
@@ -266,10 +266,20 @@ _PHASE_1_5B_ANNOTATIONS = [
     ("tuya_sensor",     "sensor", ["on_value", "on_value_range"], []),
 ]
 
-_ALL_1_5_ANNOTATIONS = _PHASE_1_5_ANNOTATIONS + _PHASE_1_5B_ANNOTATIONS
+# --- phase 2: value -> transform -> action -----------------------------------
+#
+# A sensor/encoder value drives an action through a transform the generator
+# lowers to a `!lambda`. The encoder gains on_value (above); the stepper is the
+# action target (accepts set_target -> stepper.set_target, no passthrough since
+# the action references the stepper by id).
+_PHASE_2_ANNOTATIONS = [
+    ("uln2003", "output", [], ["set_target"]),
+]
+
+_ALL_ANNOTATIONS = _PHASE_1_5_ANNOTATIONS + _PHASE_1_5B_ANNOTATIONS + _PHASE_2_ANNOTATIONS
 
 
-@pytest.mark.parametrize("lib_id, role, provides, accepts", _ALL_1_5_ANNOTATIONS)
+@pytest.mark.parametrize("lib_id, role, provides, accepts", _ALL_ANNOTATIONS)
 def test_phase_1_5_capability_annotation_shape(lib, lib_id, role, provides, accepts):
     cap = lib.component(lib_id).capability
     assert cap is not None, f"{lib_id} should have a capability block"
@@ -283,7 +293,7 @@ def test_phase_1_5_provides_only_keys_the_template_passes_through(lib):
     passthrough in the component's own ESPHome template; otherwise the
     automation lowers into a key the renderer drops on the floor."""
     import re
-    for lib_id, _role, provides, _accepts in _ALL_1_5_ANNOTATIONS:
+    for lib_id, _role, provides, _accepts in _ALL_ANNOTATIONS:
         tmpl = lib.component(lib_id).esphome.yaml_template or ""
         passthroughs = set(re.findall(r"params\.(on_\w+)", tmpl))
         for ev in provides:
@@ -300,7 +310,7 @@ def test_phase_1_5_accepts_have_known_esphome_verb_prefixes(lib):
     recognises. The platform prefix is asserted against the small set of
     platforms phase 1.5 covers (switch / light / stepper). Catches typos."""
     known_prefixes = {"switch", "light", "stepper"}
-    for lib_id, _role, _provides, accepts in _ALL_1_5_ANNOTATIONS:
+    for lib_id, _role, _provides, accepts in _ALL_ANNOTATIONS:
         cap = lib.component(lib_id).capability
         if not cap or not cap.accepts:
             continue
@@ -364,4 +374,61 @@ def test_sensor_on_value_lowers_into_the_sensor_template(lib):
     })
     assert validate_automations(d, lib) == []
     assert "on_value:\n  - switch.turn_on: fan" in render_yaml(d, lib)
+
+
+# --- phase 2: value -> transform -> action (encoder -> stepper) -------------
+
+ENCODER_EXAMPLE = REPO_ROOT / "wirestudio" / "examples" / "encoder-drives-stepper.json"
+
+
+def test_encoder_drives_stepper_example_matches_golden(lib):
+    d = Design.model_validate(json.loads(ENCODER_EXAMPLE.read_text()))
+    expected = (REPO_ROOT / "tests" / "golden" / "encoder-drives-stepper.yaml").read_text()
+    assert render_yaml(d, lib) == expected
+
+
+def test_encoder_drives_stepper_validator_quiet(lib):
+    d = Design.model_validate(json.loads(ENCODER_EXAMPLE.read_text()))
+    assert validate_automations(d, lib) == []
+
+
+def test_transform_lowers_to_a_lambda(lib):
+    """A transform on an action lowers to `<arg>: !lambda "return <expr>;"` --
+    the value→transform→action path. The expr rides through the tojson
+    passthrough as a sentinel and is restored to a tagged !lambda scalar."""
+    d = Design.model_validate(json.loads(ENCODER_EXAMPLE.read_text()))
+    yaml = render_yaml(d, lib)
+    assert "on_value:\n  - stepper.set_target:\n      id: motor\n      target: !lambda return (long) (x * 10);" in yaml
+
+
+def test_transform_keeps_quotes_when_expr_is_not_plain_scalar_safe(lib):
+    """An expression containing `: ` (e.g. a ternary) must stay quoted after the
+    !lambda tag, or the emitted YAML would parse as a mapping."""
+    d = Design.model_validate({
+        "schema_version": "0.1", "id": "t", "name": "T",
+        "board": {"library_id": "esp32-devkitc-v4", "mcu": "esp32", "framework": "arduino"},
+        "power": {"supply": "usb-5v", "rail_voltage_v": 5.0, "budget_ma": 500},
+        "components": [
+            {"id": "knob",  "library_id": "rotary_encoder", "label": "Knob"},
+            {"id": "motor", "library_id": "uln2003", "label": "Motor"},
+        ],
+        "connections": [
+            {"component_id": "knob",  "pin_role": "A",   "target": {"kind": "gpio", "pin": "GPIO16"}},
+            {"component_id": "knob",  "pin_role": "B",   "target": {"kind": "gpio", "pin": "GPIO17"}},
+            {"component_id": "motor", "pin_role": "A",   "target": {"kind": "gpio", "pin": "GPIO25"}},
+            {"component_id": "motor", "pin_role": "B",   "target": {"kind": "gpio", "pin": "GPIO26"}},
+            {"component_id": "motor", "pin_role": "C",   "target": {"kind": "gpio", "pin": "GPIO27"}},
+            {"component_id": "motor", "pin_role": "D",   "target": {"kind": "gpio", "pin": "GPIO14"}},
+            {"component_id": "motor", "pin_role": "VCC", "target": {"kind": "rail", "rail": "5V"}},
+            {"component_id": "motor", "pin_role": "GND", "target": {"kind": "rail", "rail": "GND"}},
+        ],
+        "automations": [{
+            "id": "a1",
+            "trigger": {"component_id": "knob", "event": "on_value"},
+            "actions": [{"component_id": "motor", "action": "set_target",
+                         "transform": {"target": "x > 0 ? 100 : 0"}}],
+        }],
+    })
+    yaml = render_yaml(d, lib)
+    assert "target: !lambda 'return x > 0 ? 100 : 0;'" in yaml
 

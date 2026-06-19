@@ -22,6 +22,37 @@ yaml.add_representer(Secret, _secret_representer)
 yaml.SafeDumper.add_representer(Secret, _secret_representer)
 
 
+class Lambda(str):
+    """String wrapper that dumps as a YAML `!lambda <body>` tag -- an ESPHome
+    inline lambda (e.g. `target: !lambda 'return (long) (x * 10);'`)."""
+
+
+def _lambda_representer(dumper: yaml.Dumper, data: Lambda) -> yaml.ScalarNode:
+    return dumper.represent_scalar("!lambda", str(data), style="'")
+
+
+yaml.add_representer(Lambda, _lambda_representer)
+yaml.SafeDumper.add_representer(Lambda, _lambda_representer)
+
+
+# Lowered automation actions reach the renderer through the trigger template's
+# `{{ params.on_* | tojson }}` passthrough, and JSON can't carry a YAML tag --
+# a Lambda would flatten to a plain string. So carry it as a sentinel-prefixed
+# string across the tojson -> safe_load round-trip, then restore it to a Lambda
+# (which the final dump tags as `!lambda`) once the YAML is parsed back.
+_LAMBDA_SENTINEL = "__wirestudio_lambda__:"
+
+
+def _restore_lambdas(obj: Any) -> Any:
+    if isinstance(obj, str):
+        return Lambda(obj[len(_LAMBDA_SENTINEL):]) if obj.startswith(_LAMBDA_SENTINEL) else obj
+    if isinstance(obj, list):
+        return [_restore_lambdas(v) for v in obj]
+    if isinstance(obj, dict):
+        return {k: _restore_lambdas(v) for k, v in obj.items()}
+    return obj
+
+
 def _str_representer(dumper: yaml.Dumper, data: str) -> yaml.ScalarNode:
     if "\n" in data:
         return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")
@@ -152,8 +183,13 @@ def _lower_automations(design: Design, library: Library) -> dict[str, dict[str, 
                 continue
             # Short form when there are no extra args: `{switch.toggle: porch_light}`.
             # Long form with args:                     `{light.turn_on: {id: porch_light, brightness: "50%"}}`.
-            if act.args:
-                action_list.append({accept.esphome: {"id": act.component_id, **act.args}})
+            # Transform args lower to `!lambda "return <expr>;"` (phase 2,
+            # value→transform→action): `{stepper.set_target: {id: motor, target: !lambda ...}}`.
+            if act.args or act.transform:
+                inner = {"id": act.component_id, **act.args}
+                for arg_name, expr in act.transform.items():
+                    inner[arg_name] = f"{_LAMBDA_SENTINEL}return {expr};"
+                action_list.append({accept.esphome: inner})
             else:
                 action_list.append({accept.esphome: act.component_id})
 
@@ -237,7 +273,7 @@ def _render_component(
             ) from e
         raise
     parsed = yaml.safe_load(rendered)
-    return parsed or {}
+    return _restore_lambdas(parsed) if parsed else {}
 
 
 def _hz_to_freq(hz: int) -> str:
