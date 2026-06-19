@@ -1,5 +1,13 @@
 # WireStudio — LoRaWAN flash/provision target: build plan & handoff
 
+> **Pivot in progress (2026-06):** the firmware-*generation* half of this plan
+> (standalone PlatformIO/Arduino project — `firmware_gen.py`, `templates/`, the
+> per-component arduino snippets) is being re-founded on an ESPHome external
+> component. See [`esphome-component-pivot.md`](esphome-component-pivot.md). The
+> §2 key findings and the ChirpStack / provisioning / HA-confirm work below are
+> carried forward unchanged; the standalone path keeps shipping until the
+> component path is hardware-validated.
+
 > **This doc was written in a different working directory and is meant to be dropped into the
 > WireStudio repo.** Suggested location: `docs/lorawan/`. It is a self-contained handoff:
 > a fresh Claude session opened in `~/wirestudio` should be able to start from this file alone.
