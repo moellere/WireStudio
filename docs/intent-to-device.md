@@ -1,12 +1,19 @@
 # Intent-to-device synthesis (design direction)
 
-Status: **phase 1 shipped** (declarative event→action, narrow). On `main`:
-the `capability` library block, the `automations` schema in `design.json`,
-generator lowering, the permissive validator, and the `button-toggles-light`
-worked example. `gpio_input` + `gpio_output` are annotated; the rest of the
-library picks up annotations in phase 1.5. Value→transform→action (the
-encoder→stepper case), multi-device topology, and a live `esphome config`
-authoring loop arrive in later phases per *Suggested phasing* below.
+Status: **phases 1 + 1.5a shipped** (declarative event→action, broader library
+coverage). On `main`: the `capability` library block, the `automations` schema
+in `design.json`, generator lowering, the permissive validator, and two
+worked examples (`button-toggles-light`, `motion-turns-on-light`). Twelve
+components carry `capability` annotations: the two GPIO primitives plus 10
+broader-library entries (PIR/microwave motion, RC522/RDM6300 RFID,
+rotary_encoder, ADC + HC-SR04, RF bridge, WS2812B, tuya_switch).
+
+Phase 1.5b — passing `params.on_*` through the remaining sensor / display /
+hub templates so they can be triggers or action targets — is scoped
+separately because template surgery has a different risk profile than
+additive capability metadata. Value→transform→action (the encoder→stepper
+case), multi-device topology, and a live `esphome config` authoring loop
+arrive in later phases per *Suggested phasing* below.
 
 This document was the agreed plan; per-phase work updates this status line in
 place rather than appending a new file each time.

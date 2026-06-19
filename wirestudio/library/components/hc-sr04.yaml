@@ -41,6 +41,12 @@ esphome:
         on_value: {{ params.on_value | tojson }}
     {%- endif %}
 
+capability:
+  # Ultrasonic distance sensor; emits a continuous distance value.
+  role: sensor
+  provides:
+    - {event: on_value, kind: value}
+
 params_schema:
   update_interval: { type: string, default: "60s" }
   unit_of_measurement: { type: string, default: "m" }

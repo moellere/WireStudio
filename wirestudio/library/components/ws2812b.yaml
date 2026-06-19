@@ -35,6 +35,18 @@ esphome:
         on_turn_off: {{ params.on_turn_off | tojson }}
     {%- endif %}
 
+capability:
+  # Addressable LED strip / pixel under ESPHome's `light:` platform. Emits
+  # on_turn_on / on_turn_off and accepts the standard light action verbs.
+  role: output
+  provides:
+    - {event: on_turn_on}
+    - {event: on_turn_off}
+  accepts:
+    - {action: turn_on,  esphome: light.turn_on}
+    - {action: turn_off, esphome: light.turn_off}
+    - {action: toggle,   esphome: light.toggle}
+
 params_schema:
   variant: {type: string, default: "WS2812", enum: ["WS2811", "WS2812", "WS2812X", "400KBPS", "SK6812",
       "TM1814"]}

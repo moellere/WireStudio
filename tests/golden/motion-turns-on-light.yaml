@@ -1,0 +1,31 @@
+esphome:
+  name: porch-motion-light
+esp8266:
+  board: d1_mini
+logger: {}
+api:
+  encryption:
+    key: !secret api_key
+ota:
+- platform: esphome
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+binary_sensor:
+- platform: gpio
+  pin: D2
+  name: Porch Motion
+  device_class: motion
+  on_press:
+  - light.turn_on: porch_light
+  on_release:
+  - light.turn_off: porch_light
+light:
+- platform: neopixelbus
+  variant: 400KBPS
+  method: BIT_BANG
+  type: RGB
+  pin: D1
+  num_leds: 1
+  name: Porch Light
+  id: porch_light
