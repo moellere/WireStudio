@@ -33,17 +33,25 @@ esphome:
     {%- if params.temperature_on_value is defined %}
           on_value: {{ params.temperature_on_value | tojson }}
     {%- endif %}
+    {%- if params.temperature_on_value_range is defined %}
+          on_value_range: {{ params.temperature_on_value_range | tojson }}
+    {%- endif %}
         pressure:
           name: "{{ label }} Pressure"
     {%- if params.pressure_on_value is defined %}
           on_value: {{ params.pressure_on_value | tojson }}
+    {%- endif %}
+    {%- if params.pressure_on_value_range is defined %}
+          on_value_range: {{ params.pressure_on_value_range | tojson }}
     {%- endif %}
 
 capability:
   role: sensor
   provides:
     - {event: on_value, kind: value, channel: temperature}
+    - {event: on_value_range, kind: event, channel: temperature}
     - {event: on_value, kind: value, channel: pressure}
+    - {event: on_value_range, kind: event, channel: pressure}
 
 params_schema:
   update_interval:

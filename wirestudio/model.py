@@ -140,10 +140,18 @@ class AutomationTrigger(_Strict):
     component's library `capability.provides` declares. `component_id` is a
     design-level id (the validator checks it resolves). `channel` selects a
     sub-block on multi-channel components (e.g. `temperature` on a bme280) --
-    the provides entry must match both event AND channel."""
+    the provides entry must match both event AND channel.
+
+    `above` / `below` are threshold bounds for the `on_value_range` event:
+    the trigger fires when the value enters the [above, below] band (either
+    bound may be omitted for an open-ended range). At least one must be set
+    when the event is `on_value_range`, and they may NOT be set on any other
+    event -- the validator surfaces both as warnings."""
     component_id: str
     event: str
     channel: Optional[str] = None
+    above: Optional[float] = None
+    below: Optional[float] = None
 
 
 class AutomationAction(_Strict):
