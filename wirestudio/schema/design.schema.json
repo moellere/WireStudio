@@ -198,7 +198,11 @@
             "additionalProperties": false,
             "properties": {
               "component_id": { "type": "string" },
-              "event": { "type": "string" }
+              "event": { "type": "string" },
+              "channel": {
+                "type": "string",
+                "description": "Sub-block on multi-channel components (e.g. \"temperature\" on a bme280); omit for single-output."
+              }
             }
           },
           "actions": {

@@ -95,10 +95,15 @@ class CapabilityProvides(_Strict):
     template `params.<event>` passthrough uses, e.g. `on_press`). `esphome`
     overrides the rendered ESPHome trigger key when it differs from `event`;
     defaults to `event` so the common case is a single line per provide.
+    `channel` names the sub-block this provide lives under for multi-channel
+    components (e.g. a bme280's `temperature` block); single-output components
+    omit it. When set, the rendered params key is `<channel>_<event>` so the
+    template's per-channel passthrough fires the right `on_value`.
     """
     event: str
     kind: Literal["event", "value"] = "event"
     esphome: Optional[str] = None
+    channel: Optional[str] = None
 
 
 class CapabilityAccepts(_Strict):
