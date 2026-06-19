@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Intent-to-device synthesis (phase 1.5b — single-output sensor triggers).**
+  Nine single-value sensors gain a `params.on_value` / `on_value_range`
+  template passthrough plus a `role: sensor` `capability:` block, so a sensor
+  reading can drive an automation: `ds18b20` (1-wire temperature), `bh1750` +
+  `tsl2561` (lux), `vl53l0x` (ToF distance), `hx711` (load cell), `max31855`
+  (thermocouple), `pulse_counter` (rate), `ads1115_channel` (ADC channel), and
+  `tuya_sensor` (Tuya datapoint). `on_value` (kind=value) lowers a direct
+  action list through the existing phase-1 path; `on_value_range` (kind=event)
+  is declared for the threshold case that phase 2's richer trigger IR will
+  carry the bounds for. Multi-channel sensors (`dht`, `bme280`, IMUs, power
+  meters) stay unannotated: which sub-channel a trigger hangs off is a separate
+  design call. Same evidence gate as 1.5a — every declared `provides.event` is
+  tested against a real `params.<event>` passthrough — plus a lowering test
+  proving a `ds18b20` `on_value` automation renders `switch.turn_on` into the
+  sensor block.
+
 - **Intent-to-device synthesis (phase 1.5a — wider library annotations).**
   Ten more library components gain `capability:` blocks so they can
   participate in `automations`: `hc-sr501` + `rcwl-0516` (motion sensors,
