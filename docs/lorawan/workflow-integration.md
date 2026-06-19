@@ -150,21 +150,26 @@ shipping behind the `[lorawan]` extra. They retire only once the
 external-component path joins on real hardware and the chirp HA integration
 sees the entity. No flag day.
 
-## Decisions to lock
+## Locked decisions
 
-Two small, both flagged here so they land in the model + emission diff and
-don't need to be relitigated:
+Two, recorded so they land in the W1 / W2 diffs and don't get relitigated:
 
-1. **External-component pin form.** A pinned **commit SHA** (`ref: <sha>` in
-   the `external_components:` block). Tags would need `lorawan-for-esphome`
-   to start tagging, which the spike isn't ready for. Recommendation: **SHA**.
-   Bumps are reviewed changes like any other dependency pin.
-2. **DevEUI source for the first hardware test.** The pivot doc landed on
-   "build-time injection, DevEUI derived from eFuse MAC during the WebSerial
-   flash". Keep that as the default, but expose a **manual override field**
-   in `LoRaWAN.dev_eui` so the spike's first join can use a known value
-   without depending on the WebSerial-derivation correctness. Removes one
-   variable from the spike's failure surface.
+1. **External-component pin form: pinned commit SHA.** The
+   `external_components:` block uses `ref: <sha>` against
+   `github://moellere/lorawan-for-esphome`. Tags require the component repo
+   to start tagging, which the spike isn't ready for. **Future:** switch to
+   pinned tag once `lorawan-for-esphome` cuts its first stable release
+   (post hardware-join validation). Until then, bumps are reviewed changes
+   like any other dependency pin.
+2. **DevEUI source: MAC-derived from eFuse, with a manual override field.**
+   Default behaviour is the pivot-doc plan — read the chip's base MAC over
+   WebSerial during flashing and derive an EUI-64 per
+   `LORAWAN_TARGET_PLAN.md` §2.2. The `LoRaWAN.dev_eui` field on `Design` is
+   optional and, when set, overrides the derivation. The override defuses the
+   `getEfuseMac()` byte-order risk (`§2.2` caveat / arduino-esp32 #6458) for
+   the first hardware test by removing one variable from the failure surface,
+   and remains available for fleet deployments that want device identity
+   under operator control.
 
 ## Suggested phasing
 
