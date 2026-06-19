@@ -146,22 +146,32 @@ class AutomationTrigger(_Strict):
 class AutomationAction(_Strict):
     """The action side: a component takes an action its library
     `capability.accepts` declares. `args` are extra ESPHome action args
-    (e.g. `{brightness: "50%"}`) that ride alongside the action target id."""
+    (e.g. `{brightness: "50%"}`) that ride alongside the action target id.
+
+    `transform` maps an action arg name to a C++ expression in terms of `x`
+    (the value the trigger emits) -- the value→transform→action case. The
+    generator lowers each entry to `<arg>: !lambda "return <expr>;"`. The
+    expression is a reviewed recipe carried in design.json, not free-handed
+    YAML: e.g. an encoder's count driving a stepper is
+    `{"target": "(long) (x * 10)"}`.
+    """
     component_id: str
     action: str
     args: dict = Field(default_factory=dict)
+    transform: dict[str, str] = Field(default_factory=dict)
 
 
 class Automation(_Strict):
-    """One trigger→actions wiring (intent-to-device synthesis, phase 1).
+    """One trigger→actions wiring (intent-to-device synthesis).
 
-    Declarative event→action only -- value/transform, condition gating, and
-    the periodic / stateful composition patterns from the design doc arrive
-    in later phases. The generator lowers each automation onto the trigger
-    component's params, where the existing ESPHome `params.on_*` passthrough
-    in the library YAML emits it. An automation referencing an unknown
-    component / event / action surfaces as a permissive warning, not a hard
-    failure (CLAUDE.md: warnings, don't block).
+    Phase 1 is declarative event→action; phase 2 adds value→transform→action
+    via `AutomationAction.transform` (lowered to a `!lambda`). Condition
+    gating and the periodic / stateful composition patterns from the design
+    doc arrive in later phases. The generator lowers each automation onto the
+    trigger component's params, where the existing ESPHome `params.on_*`
+    passthrough in the library YAML emits it. An automation referencing an
+    unknown component / event / action surfaces as a permissive warning, not a
+    hard failure (CLAUDE.md: warnings, don't block).
     """
     id: str
     trigger: AutomationTrigger
