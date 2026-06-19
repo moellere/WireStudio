@@ -345,3 +345,33 @@ export interface LorawanProvisionResponse {
   application_id: string;
   device_profile_id: string;
 }
+
+/** Response shape of POST /lorawan/provision-esphome (W3 — external-component
+ *  path). The `secrets` block is formatted for the `secrets.yaml` that rides
+ *  next to the rendered ESPHome config. The AppKey is ephemeral and only
+ *  appears in this response. */
+export interface LorawanProvisionEsphomeResponse {
+  secrets: {
+    dev_eui: string;
+    join_eui: string;
+    app_key: string;
+  };
+  chirpstack: {
+    application_id: string;
+    device_profile_id: string;
+  };
+  band: string;
+  sub_band: number;
+}
+
+/** Response shape of GET /lorawan/activation/{dev_eui}. `joined` flips true
+ *  once the device's OTAA join lands; the other fields populate from
+ *  ChirpStack's GetActivation. */
+export interface LorawanActivationResponse {
+  dev_eui: string;
+  joined: boolean;
+  dev_addr?: string;
+  f_cnt_up?: number;
+  n_f_cnt_down?: number;
+  a_f_cnt_down?: number;
+}

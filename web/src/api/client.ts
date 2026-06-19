@@ -20,6 +20,8 @@ import type {
   LorawanCompileEvent,
   LorawanCompileStatus,
   LorawanProvisionResponse,
+  LorawanProvisionEsphomeResponse,
+  LorawanActivationResponse,
   ModuleSummary,
   RecommendConstraints,
   RecommendResponse,
@@ -239,6 +241,19 @@ export const api = {
       "/lorawan/codec",
       { method: "POST", body: JSON.stringify(body) },
     ),
+  /** Provision a device for the ESPHome external-component path
+   *  (lorawan-for-esphome). Mints an AppKey, registers the device + flushes
+   *  DevNonces, and returns the keys formatted for the secrets.yaml that
+   *  rides next to the rendered ESPHome config. */
+  lorawanProvisionEsphome: (body: { dev_eui: string; design: Design }) =>
+    request<LorawanProvisionEsphomeResponse>("/lorawan/provision-esphome", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  /** Poll ChirpStack for OTAA-join activation status. Used by the
+   *  provision-esphome UI to surface the join landing. */
+  lorawanActivation: (devEui: string) =>
+    request<LorawanActivationResponse>(`/lorawan/activation/${encodeURIComponent(devEui)}`),
   /** Download a built firmware image by its compile cache_key. */
   lorawanFirmware: async (cacheKey: string): Promise<Uint8Array> => {
     const res = await fetch(`${API_BASE}/lorawan/firmware/${encodeURIComponent(cacheKey)}`);

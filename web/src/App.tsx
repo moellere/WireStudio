@@ -23,6 +23,7 @@ import { CapabilityPickerDialog } from "./components/CapabilityPickerDialog";
 import { EnclosureDialog } from "./components/EnclosureDialog";
 import { SchematicDialog } from "./components/SchematicDialog";
 import { LorawanFlashDialog } from "./components/LorawanFlashDialog";
+import { LorawanProvisionEsphomeDialog } from "./components/LorawanProvisionEsphomeDialog";
 import { InventoryDialog } from "./components/InventoryDialog";
 import { useDebouncedValue } from "./lib/debounce";
 import { useAdvancedMode } from "./lib/uiMode";
@@ -40,7 +41,8 @@ import {
   Download,
   ExternalLink,
   Radio,
-  Boxes
+  Boxes,
+  KeyRound,
 } from "lucide-react";
 import {
   addComponent,
@@ -102,6 +104,7 @@ export default function App() {
   const [showSchematicDialog, setShowSchematicDialog] = useState(false);
   const [showCapabilityDialog, setShowCapabilityDialog] = useState(false);
   const [showFlashDialog, setShowFlashDialog] = useState(false);
+  const [showProvisionEsphomeDialog, setShowProvisionEsphomeDialog] = useState(false);
   const [showInventoryDialog, setShowInventoryDialog] = useState(false);
   const [savingState, setSavingState] = useState<"idle" | "saving" | "saved">("idle");
 
@@ -622,6 +625,15 @@ export default function App() {
               >
                 <Radio className="h-4 w-4" />
               </button>
+              <button
+                disabled={!design}
+                onClick={() => setShowProvisionEsphomeDialog(true)}
+                className="flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium text-zinc-400 transition-colors enabled:hover:bg-zinc-800 enabled:hover:text-zinc-200 disabled:opacity-40"
+                title="Provision a LoRaWAN device for the lorawan-for-esphome external-component path"
+                aria-label="Provision LoRaWAN device"
+              >
+                <KeyRound className="h-4 w-4" />
+              </button>
 
               <div className="mx-1 h-4 w-px bg-zinc-800"></div>
 
@@ -728,6 +740,12 @@ export default function App() {
           boards={boards}
           onCancel={() => setShowNewDialog(false)}
           onAdopt={handleAdoptNewDesign}
+        />
+      )}
+      {showProvisionEsphomeDialog && design && (
+        <LorawanProvisionEsphomeDialog
+          design={design}
+          onClose={() => setShowProvisionEsphomeDialog(false)}
         />
       )}
       {showFlashDialog && (
