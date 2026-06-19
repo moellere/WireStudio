@@ -53,6 +53,15 @@ esphome:
         on_anticlockwise: {{ params.on_anticlockwise | tojson }}
     {%- endif %}
 
+capability:
+  # Quadrature encoder. Phase 1.5 wires the discrete clockwise/anticlockwise
+  # events the template passes through. Phase 2 (value -> transform -> action,
+  # the encoder -> stepper case) adds on_value with a transform IR.
+  role: input
+  provides:
+    - {event: on_clockwise}
+    - {event: on_anticlockwise}
+
 params_schema:
   min_value:
     type: integer

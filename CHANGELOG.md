@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Intent-to-device synthesis (phase 1.5a — wider library annotations).**
+  Ten more library components gain `capability:` blocks so they can
+  participate in `automations`: `hc-sr501` + `rcwl-0516` (motion sensors,
+  on_press/on_release), `rc522` + `rdm6300` (RFID readers, on_tag /
+  on_tag_removed), `rotary_encoder` (on_clockwise / on_anticlockwise; on_value
+  with a transform lands in phase 2), `adc` + `hc-sr04` (analog input + ultrasonic
+  distance, on_value / on_value_range), `rf_bridge` (on_code_received),
+  `ws2812b` (light, both events + the standard `light.turn_on`/`turn_off`/
+  `toggle` accepts), and `tuya_switch` (accepts side only — its template
+  doesn't pass through the on_turn_on/off events yet). The annotation is
+  evidence-grounded: each declared `provides.event` is gated by a test that
+  the component's existing ESPHome template actually has a matching
+  `params.<event>` passthrough (so an automation lowers into a key the
+  renderer emits), and each `accepts.esphome` verb is gated against the
+  known ESPHome platform prefixes (`switch.` / `light.` / `stepper.`).
+  Adds a second worked example, `motion-turns-on-light.json` (PIR -> WS2812B
+  via two automations on the on_press / on_release edges), proving the
+  lowering generalises across capability pairs. Components without an `on_*`
+  template passthrough (most of the bare-temperature/humidity sensors,
+  displays, buses, hubs, cameras, PMICs, generic radios) stay unannotated --
+  template-passthrough additions are phase 1.5b, scoped separately because
+  template surgery has a different risk profile than additive metadata.
+
+
+
 - **Intent-to-device synthesis (phase 1 — declarative event→action).** Adds a
   *functional* layer on top of the existing structural surface: library
   components gain an optional `capability:` block declaring their `role`

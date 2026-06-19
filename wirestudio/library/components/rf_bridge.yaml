@@ -27,6 +27,14 @@ esphome:
       on_code_received: {{ params.on_code_received | tojson }}
     {%- endif %}
 
+capability:
+  # Sonoff RF Bridge: on_code_received fires for each 433MHz code seen.
+  # Lowering surfaces the code via ESPHome's `data` substitution; the simple
+  # event -> action lowering wires it into a switch/light action by id.
+  role: input
+  provides:
+    - {event: on_code_received}
+
 params_schema:
   on_code_received:
     type: array
