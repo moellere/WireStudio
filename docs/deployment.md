@@ -11,7 +11,7 @@ FastAPI serves the API and the built SPA from one process.
 docker run --rm -p 8765:8765 \
   -e ANTHROPIC_API_KEY=sk-ant-... \
   -v wirestudio-data:/data \
-  ghcr.io/moellere/wirestudio:v0.13.0
+  ghcr.io/moellere/wirestudio:v0.16.0
 ```
 
 Open <http://localhost:8765>. The image bundles the FastAPI server +
@@ -23,7 +23,7 @@ Available tags:
 
 | Tag | What it tracks |
 |---|---|
-| `:0.13.0` / `:0.13` / `:latest` | the v0.13.0 release |
+| `:0.16.0` / `:0.16` / `:latest` | the v0.16.0 release |
 | `:main` | latest commit on `main` (rolling) |
 | `:dev` | latest commit on `dev` (rolling, pre-release) |
 | `:sha-<short>` | a specific commit |
@@ -39,22 +39,31 @@ of them, just with the corresponding feature turned off. See
 | `FLEET_URL` + `FLEET_TOKEN` | fleet-for-esphome push (`/fleet/*`) |
 | `THINGIVERSE_API_KEY` | enclosure search (`/enclosure/search`) |
 | `WIRESTUDIO_MCP_TOKEN` | bearer token for the `/mcp` endpoint (auto-generated if unset) |
-| `CHIRPSTACK_API_URL` + `CHIRPSTACK_API_TOKEN` | LoRaWAN device provisioning against ChirpStack (`/lorawan/provision`) |
+| `CHIRPSTACK_API_URL` + `CHIRPSTACK_API_TOKEN` | LoRaWAN device provisioning against ChirpStack (`/lorawan/provision`, `/lorawan/provision-esphome`) |
 
 ### LoRaWAN compile worker
 
-The default image is lean — it has no PlatformIO toolchain, so the LoRaWAN
-target's `/lorawan/compile` endpoint returns "PlatformIO not found" and the
-**Flash LoRaWAN firmware** flow can't build. To run that feature in a
-deployment, use the **`-lorawan` image variant** (or build it yourself:
-`docker build --build-arg WITH_LORAWAN=true -t wirestudio:lorawan .`). It adds
-PlatformIO + the `[lorawan]` extra and pre-compiles every radio board so the
-espressif32 toolchain is already warm — a bigger image, but `/lorawan/compile`
-returns a cache hit on first use. Pair it with `CHIRPSTACK_API_URL` +
-`CHIRPSTACK_API_TOKEN` (see
-[Integrations](integrations.md#lorawan--chirpstack)). WebSerial flashing happens
-in the user's browser, so the device only needs to reach *their* machine, not
-the server.
+The default image is lean — it has no PlatformIO toolchain, so the
+**standalone Arduino LoRaWAN target's** `/lorawan/compile` endpoint
+returns "PlatformIO not found" and the **Flash LoRaWAN firmware** flow
+can't build. To run that feature in a deployment, use the **`-lorawan`
+image variant** (or build it yourself:
+`docker build --build-arg WITH_LORAWAN=true -t wirestudio:lorawan .`). It
+adds PlatformIO + the `[lorawan]` extra and pre-compiles every radio
+board so the espressif32 toolchain is already warm — a bigger image, but
+`/lorawan/compile` returns a cache hit on first use.
+
+The **external-component LoRaWAN path** (`Design.target: "esphome"` +
+`lorawan.payload`) doesn't need the `-lorawan` image variant — the
+LoRaWAN device's firmware is built by ESPHome inside fleet-for-esphome
+the same way every other device is, so the studio image stays lean. The
+default image is enough; only the `/lorawan/provision-esphome` endpoint
+needs ChirpStack credentials.
+
+Pair either path with `CHIRPSTACK_API_URL` + `CHIRPSTACK_API_TOKEN` (see
+[Integrations](integrations.md#lorawan--chirpstack)). WebSerial flashing
+happens in the user's browser, so the device only needs to reach *their*
+machine, not the server.
 
 ## Kubernetes
 
