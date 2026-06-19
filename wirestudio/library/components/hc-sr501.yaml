@@ -32,6 +32,15 @@ esphome:
         on_release: {{ params.on_release | tojson }}
     {%- endif %}
 
+capability:
+  # PIR (motion). ESPHome emits a press when motion starts and a release when
+  # it ends -- the template already passes these through, so an automation
+  # triggers off them cleanly.
+  role: input
+  provides:
+    - {event: on_press}
+    - {event: on_release}
+
 params_schema:
   retrigger:
     type: string
