@@ -161,10 +161,24 @@ def _lower_automations(design: Design, library: Library) -> dict[str, dict[str, 
         cap = trig_lib.capability
         if cap is None:
             continue
-        provide = next((p for p in cap.provides if p.event == auto.trigger.event), None)
+        trig_channel = auto.trigger.channel
+        provide = next(
+            (p for p in cap.provides
+             if p.event == auto.trigger.event and (p.channel or None) == (trig_channel or None)),
+            None,
+        )
         if provide is None:
             continue
-        event_key = provide.esphome or provide.event
+        # When `esphome` is set, it's a full explicit override on the params key.
+        # Otherwise build it from the channel + event so a multi-channel
+        # template's per-channel passthrough (e.g. params.temperature_on_value)
+        # fires inside the right sub-block.
+        if provide.esphome:
+            event_key = provide.esphome
+        elif provide.channel:
+            event_key = f"{provide.channel}_{provide.event}"
+        else:
+            event_key = provide.event
 
         action_list: list = []
         for act in auto.actions:

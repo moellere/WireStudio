@@ -69,10 +69,11 @@ def test_gpio_output_carries_actions_with_explicit_esphome_verbs(lib):
 
 def test_unannotated_components_keep_capability_none(lib):
     # The annotation rollout is incremental; an un-annotated component still
-    # loads, it just can't participate in `automations` yet. `dht` is a
-    # multi-channel temp+humidity sensor -- which sub-channel an on_value
-    # trigger hangs off is unresolved, so it stays capability=None for now.
-    assert lib.component("dht").capability is None
+    # loads, it just can't participate in `automations` yet. `mpu6050` is a
+    # 7-channel IMU (accel x/y/z + gyro x/y/z + die temp) -- too rich to
+    # enumerate as triggers without a further design call, so it stays
+    # capability=None for now.
+    assert lib.component("mpu6050").capability is None
 
 
 def test_automation_round_trips_through_the_model():
@@ -198,26 +199,26 @@ def test_validator_flags_unknown_action(lib):
 
 
 def test_validator_flags_component_without_capability(lib):
-    # dht (temp+humidity) is multi-channel, so its on_value trigger placement is
-    # an open design question and it carries no capability block today -- it
-    # can't be a trigger source even though it's a real component. (Single-output
-    # sensors like ds18b20 gained capabilities in 1.5b; multi-channel ones did
-    # not.)
+    # mpu6050 is a 7-channel IMU (accel x/y/z + gyro x/y/z + die temp) -- too
+    # rich to enumerate as triggers without further design, so it carries no
+    # capability block today and can't be a trigger source.
     d = Design.model_validate({
         "schema_version": "0.1", "id": "t", "name": "T",
         "board": {"library_id": "wemos-d1-mini", "mcu": "esp8266", "framework": "arduino"},
         "power": {"supply": "usb", "rail_voltage_v": 5.0, "budget_ma": 500},
+        "buses": [{"id": "i2c0", "type": "i2c", "sda": "D2", "scl": "D1"}],
         "components": [
-            {"id": "temp", "library_id": "dht", "label": "Temp"},
-            {"id": "lt",   "library_id": "gpio_output", "label": "Light"},
+            {"id": "imu", "library_id": "mpu6050", "label": "IMU"},
+            {"id": "lt",  "library_id": "gpio_output", "label": "Light"},
         ],
         "connections": [
-            {"component_id": "temp", "pin_role": "DATA", "target": {"kind": "gpio", "pin": "D4"}},
-            {"component_id": "lt",   "pin_role": "OUT",  "target": {"kind": "gpio", "pin": "D6"}},
+            {"component_id": "imu", "pin_role": "SDA", "target": {"kind": "bus", "bus_id": "i2c0"}},
+            {"component_id": "imu", "pin_role": "SCL", "target": {"kind": "bus", "bus_id": "i2c0"}},
+            {"component_id": "lt",  "pin_role": "OUT", "target": {"kind": "gpio", "pin": "D6"}},
         ],
         "automations": [{
             "id": "a1",
-            "trigger": {"component_id": "temp", "event": "on_value"},
+            "trigger": {"component_id": "imu", "event": "on_value"},
             "actions": [{"component_id": "lt", "action": "turn_on"}],
         }],
     })
@@ -274,6 +275,27 @@ _PHASE_1_5B_ANNOTATIONS = [
 # the action references the stepper by id).
 _PHASE_2_ANNOTATIONS = [
     ("uln2003", "output", [], ["set_target"]),
+]
+
+# --- phase 3: multi-channel sensor triggers ---------------------------------
+#
+# A trigger on a multi-channel sensor (e.g. bme280) carries a `channel:`
+# selector matching the sub-block the on_value belongs to. The capability
+# provides list one entry per channel. The lowering combines channel + event
+# into a `<channel>_<event>` params key, so the template's per-channel
+# `params.temperature_on_value` (etc.) passthrough fires inside the right
+# sub-block.
+#
+# (component_id, role, [(channel, event), ...])
+_PHASE_3_MULTICHANNEL = [
+    ("dht",     "sensor", [("temperature", "on_value"), ("humidity", "on_value")]),
+    ("bme280",  "sensor", [("temperature", "on_value"), ("humidity", "on_value"),
+                           ("pressure", "on_value")]),
+    ("bmp180",  "sensor", [("temperature", "on_value"), ("pressure", "on_value")]),
+    ("bmp280",  "sensor", [("temperature", "on_value"), ("pressure", "on_value")]),
+    ("aht10",   "sensor", [("temperature", "on_value"), ("humidity", "on_value")]),
+    ("htu21d",  "sensor", [("temperature", "on_value"), ("humidity", "on_value")]),
+    ("sht3xd",  "sensor", [("temperature", "on_value"), ("humidity", "on_value")]),
 ]
 
 _ALL_ANNOTATIONS = _PHASE_1_5_ANNOTATIONS + _PHASE_1_5B_ANNOTATIONS + _PHASE_2_ANNOTATIONS
@@ -374,6 +396,100 @@ def test_sensor_on_value_lowers_into_the_sensor_template(lib):
     })
     assert validate_automations(d, lib) == []
     assert "on_value:\n  - switch.turn_on: fan" in render_yaml(d, lib)
+
+
+# --- phase 3: multi-channel sensor capability + lowering ---------------------
+
+@pytest.mark.parametrize("lib_id, role, channels", _PHASE_3_MULTICHANNEL)
+def test_phase_3_multichannel_capability_shape(lib, lib_id, role, channels):
+    cap = lib.component(lib_id).capability
+    assert cap is not None and cap.role == role
+    actual = [(p.channel, p.event) for p in cap.provides]
+    assert actual == channels
+    # Every entry is a value-kind provide
+    assert all(p.kind == "value" for p in cap.provides)
+
+
+def test_phase_3_provides_match_template_per_channel_passthroughs(lib):
+    """Each (channel, event) pair must match a `params.<channel>_<event>`
+    passthrough in the component's template, INSIDE the matching sub-block."""
+    import re
+    for lib_id, _role, channels in _PHASE_3_MULTICHANNEL:
+        tmpl = lib.component(lib_id).esphome.yaml_template or ""
+        passthroughs = set(re.findall(r"params\.([a-z]+_on_\w+)", tmpl))
+        for channel, event in channels:
+            key = f"{channel}_{event}"
+            assert key in passthroughs, (
+                f"{lib_id}: capability declares ({channel!r}, {event!r}) but the "
+                f"template has no params.{key} passthrough. Template has: "
+                f"{sorted(passthroughs) or '(none)'}"
+            )
+
+
+TEMP_FAN_EXAMPLE = REPO_ROOT / "wirestudio" / "examples" / "temp-turns-on-fan.json"
+
+
+def test_temp_to_fan_example_matches_golden(lib):
+    d = Design.model_validate(json.loads(TEMP_FAN_EXAMPLE.read_text()))
+    expected = (REPO_ROOT / "tests" / "golden" / "temp-turns-on-fan.yaml").read_text()
+    assert render_yaml(d, lib) == expected
+
+
+def test_temp_to_fan_lowers_into_the_temperature_sub_block(lib):
+    """The bme280's temperature channel trigger lands on_value inside the
+    temperature sub-block -- not at the platform level, not under humidity."""
+    d = Design.model_validate(json.loads(TEMP_FAN_EXAMPLE.read_text()))
+    yaml = render_yaml(d, lib)
+    # Asserts both the sub-block placement and the absence of stray on_value
+    # on the sibling humidity/pressure channels.
+    expected = (
+        "  temperature:\n"
+        "    name: Climate Temperature\n"
+        "    on_value:\n"
+        "    - switch.turn_on: fan\n"
+        "  humidity:\n"
+        "    name: Climate Humidity\n"
+        "  pressure:\n"
+        "    name: Climate Pressure"
+    )
+    assert expected in yaml
+
+
+def test_temp_to_fan_validator_quiet(lib):
+    d = Design.model_validate(json.loads(TEMP_FAN_EXAMPLE.read_text()))
+    assert validate_automations(d, lib) == []
+
+
+def test_validator_flags_unknown_channel_on_multichannel_sensor(lib):
+    """A trigger naming a channel the component doesn't provide surfaces
+    automation_unknown_event, and the warning text lists what IS provided as
+    `<channel>.<event>` pairs so the fix is obvious."""
+    d = Design.model_validate({
+        "schema_version": "0.1", "id": "t", "name": "T",
+        "board": {"library_id": "wemos-d1-mini", "mcu": "esp8266", "framework": "arduino"},
+        "power": {"supply": "usb-5v", "rail_voltage_v": 5.0, "budget_ma": 500},
+        "buses": [{"id": "i2c0", "type": "i2c", "sda": "D2", "scl": "D1"}],
+        "components": [
+            {"id": "bme", "library_id": "bme280", "label": "Climate"},
+            {"id": "fan", "library_id": "gpio_output", "label": "Fan"},
+        ],
+        "connections": [
+            {"component_id": "bme", "pin_role": "SDA", "target": {"kind": "bus", "bus_id": "i2c0"}},
+            {"component_id": "bme", "pin_role": "SCL", "target": {"kind": "bus", "bus_id": "i2c0"}},
+            {"component_id": "fan", "pin_role": "OUT", "target": {"kind": "gpio", "pin": "D6"}},
+        ],
+        "automations": [{
+            "id": "a1",
+            "trigger": {"component_id": "bme", "channel": "altitude", "event": "on_value"},
+            "actions": [{"component_id": "fan", "action": "turn_on"}],
+        }],
+    })
+    warns = validate_automations(d, lib)
+    codes = [w.code for w in warns]
+    assert "automation_unknown_event" in codes
+    text = next(w.text for w in warns if w.code == "automation_unknown_event")
+    assert "channel 'altitude'" in text
+    assert "temperature.on_value" in text  # the warning lists what IS provided
 
 
 # --- phase 2: value -> transform -> action (encoder -> stepper) -------------

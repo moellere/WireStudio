@@ -1,0 +1,79 @@
+{
+  "schema_version": "0.1",
+  "id": "temp-turns-on-fan",
+  "name": "Temperature turns on the fan",
+  "description": "Phase-3 worked example for intent-to-device synthesis: a BME280's temperature channel triggers a switch action when its on_value fires. Exercises the multi-channel sensor trigger path -- the trigger carries a `channel: temperature` selector that the lowering combines with the event to land `on_value:` inside the `temperature:` sub-block (vs. the bme280's humidity / pressure siblings, which stay clear). Complements the single-channel sensor examples by proving the lowering picks the right sub-block on a multi-output sensor.",
+  "created_at": "2026-06-19T00:00:00Z",
+  "updated_at": "2026-06-19T00:00:00Z",
+
+  "board": {
+    "library_id": "wemos-d1-mini",
+    "mcu": "esp8266",
+    "framework": "arduino"
+  },
+
+  "power": {
+    "supply": "usb-5v",
+    "rail_voltage_v": 5.0,
+    "regulator": "onboard-rt9013",
+    "budget_ma": 500
+  },
+
+  "requirements": [
+    { "id": "r1", "kind": "capability", "text": "turn on the fan when temperature rises" }
+  ],
+
+  "components": [
+    {
+      "id": "climate",
+      "library_id": "bme280",
+      "label": "Climate",
+      "params": { "address": "0x76" }
+    },
+    {
+      "id": "fan",
+      "library_id": "gpio_output",
+      "label": "Fan"
+    }
+  ],
+
+  "buses": [
+    { "id": "i2c0", "type": "i2c", "frequency_hz": 400000, "sda": "D2", "scl": "D1" }
+  ],
+
+  "connections": [
+    { "component_id": "climate", "pin_role": "VCC", "target": { "kind": "rail", "rail": "3V3" } },
+    { "component_id": "climate", "pin_role": "GND", "target": { "kind": "rail", "rail": "GND" } },
+    { "component_id": "climate", "pin_role": "SDA", "target": { "kind": "bus",  "bus_id": "i2c0" } },
+    { "component_id": "climate", "pin_role": "SCL", "target": { "kind": "bus",  "bus_id": "i2c0" } },
+    { "component_id": "fan",     "pin_role": "OUT", "target": { "kind": "gpio", "pin": "D6" } }
+  ],
+
+  "passives": [],
+
+  "automations": [
+    {
+      "id": "temp_turns_on_fan",
+      "trigger": { "component_id": "climate", "channel": "temperature", "event": "on_value" },
+      "actions": [
+        { "component_id": "fan", "action": "turn_on" }
+      ]
+    }
+  ],
+
+  "warnings": [],
+
+  "esphome_extras": {
+    "logger": {}
+  },
+
+  "fleet": {
+    "device_name": "temp-fan",
+    "tags": ["intent-to-device", "phase-3", "example"],
+    "secrets_ref": {
+      "wifi_ssid":     "!secret wifi_ssid",
+      "wifi_password": "!secret wifi_password",
+      "api_key":       "!secret api_key"
+    }
+  }
+}

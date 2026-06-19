@@ -30,10 +30,26 @@ esphome:
         i2c_id: {{ bus.id }}
         temperature:
           name: "{{ label }} Temperature"
+    {%- if params.temperature_on_value is defined %}
+          on_value: {{ params.temperature_on_value | tojson }}
+    {%- endif %}
         humidity:
           name: "{{ label }} Humidity"
+    {%- if params.humidity_on_value is defined %}
+          on_value: {{ params.humidity_on_value | tojson }}
+    {%- endif %}
         pressure:
           name: "{{ label }} Pressure"
+    {%- if params.pressure_on_value is defined %}
+          on_value: {{ params.pressure_on_value | tojson }}
+    {%- endif %}
+
+capability:
+  role: sensor
+  provides:
+    - {event: on_value, kind: value, channel: temperature}
+    - {event: on_value, kind: value, channel: humidity}
+    - {event: on_value, kind: value, channel: pressure}
 
 params_schema:
   address:
