@@ -1,0 +1,24 @@
++---------------------------------------------------------------------+
+|  WeMos D1 Mini  ---  motion-turns-on-light                          |
++---------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                |
+|                                                                     |
+|  porch_pir  [HC-SR501 PIR motion sensor]  -- Porch Motion           |
+|    VCC   -> rail 5V                                                 |
+|    GND   -> rail GND                                                |
+|    OUT   -> D2                                                      |
+|                                                                     |
+|  porch_light  [WS2812B addressable LED (NeoPixel)]  -- Porch Light  |
+|    VCC   -> rail 5V                                                 |
+|    GND   -> rail GND                                                |
+|    DIN   -> D1                                                      |
+|                                                                     |
+|  BOM:                                                               |
+|    - WeMos D1 Mini                                                  |
+|    - HC-SR501 PIR motion sensor  (porch_pir)                        |
+|    - WS2812B addressable LED (NeoPixel)  (porch_light)              |
+|                                                                     |
+|  Power: ~70mA typical, ~125mA peak (budget 500mA)  OK               |
+|                                                                     |
+|  Warnings: none                                                     |
++---------------------------------------------------------------------+

@@ -33,6 +33,14 @@ esphome:
         on_release: {{ params.on_release | tojson }}
     {%- endif %}
 
+capability:
+  # Microwave motion -- shape-identical to hc-sr501 (binary motion sensor),
+  # just doppler instead of pyroelectric. Same trigger shape.
+  role: input
+  provides:
+    - {event: on_press}
+    - {event: on_release}
+
 params_schema: {}
 
 notes: |

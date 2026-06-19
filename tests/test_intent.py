@@ -69,8 +69,10 @@ def test_gpio_output_carries_actions_with_explicit_esphome_verbs(lib):
 
 def test_unannotated_components_keep_capability_none(lib):
     # The annotation rollout is incremental; an un-annotated component still
-    # loads, it just can't participate in `automations` yet.
-    assert lib.component("hc-sr501").capability is None
+    # loads, it just can't participate in `automations` yet. `ds18b20` is a
+    # 1-wire temperature sensor whose template carries no `on_*` passthrough,
+    # so it's a phase 1.5b candidate, not 1.5a -- still capability=None today.
+    assert lib.component("ds18b20").capability is None
 
 
 def test_automation_round_trips_through_the_model():
@@ -196,21 +198,121 @@ def test_validator_flags_unknown_action(lib):
 
 
 def test_validator_flags_component_without_capability(lib):
-    # hc-sr501 has no capability block, so it can't be used as a trigger
-    # source even though it's a real component in the library.
+    # ds18b20 (1-wire temperature sensor) has no capability block today, so it
+    # can't be used as a trigger source even though it's a real component.
+    # (1.5b will annotate sensors once their templates pass through on_value.)
     d = Design.model_validate({
         "schema_version": "0.1", "id": "t", "name": "T",
         "board": {"library_id": "wemos-d1-mini", "mcu": "esp8266", "framework": "arduino"},
         "power": {"supply": "usb", "rail_voltage_v": 5.0, "budget_ma": 500},
+        "buses": [{"id": "wire0", "type": "1wire", "pin": "D4"}],
         "components": [
-            {"id": "pir", "library_id": "hc-sr501", "label": "PIR"},
-            {"id": "lt",  "library_id": "gpio_output", "label": "Light"},
+            {"id": "temp", "library_id": "ds18b20", "label": "Temp",
+             "params": {"address": "0x1234567890abcdef"}},
+            {"id": "lt",   "library_id": "gpio_output", "label": "Light"},
+        ],
+        "connections": [
+            {"component_id": "temp", "pin_role": "DATA", "target": {"kind": "bus", "bus_id": "wire0"}},
+            {"component_id": "lt",   "pin_role": "OUT",  "target": {"kind": "gpio", "pin": "D6"}},
         ],
         "automations": [{
             "id": "a1",
-            "trigger": {"component_id": "pir", "event": "on_state"},
+            "trigger": {"component_id": "temp", "event": "on_value"},
             "actions": [{"component_id": "lt", "action": "turn_on"}],
         }],
     })
     codes = [w.code for w in validate_automations(d, lib)]
     assert "automation_component_no_capability" in codes
+
+
+# --- phase 1.5a: capability annotations on the broader library --------------
+#
+# 10 components gain capability blocks. The annotation must be congruent with
+# the existing ESPHome template -- a `provides` entry whose key the template
+# doesn't pass through is silently broken (the automation lowers into a
+# `params.<key>` the template ignores), so each provides is verified against
+# the actual template, and each accepts has an explicit ESPHome verb.
+
+# (component_id, role, provides, accepts) — sourced from each component's
+# template passthroughs + ESPHome's documented action verbs.
+_PHASE_1_5_ANNOTATIONS = [
+    ("hc-sr501",        "input",  ["on_press", "on_release"],                                []),
+    ("rcwl-0516",       "input",  ["on_press", "on_release"],                                []),
+    ("rc522",           "input",  ["on_tag", "on_tag_removed"],                              []),
+    ("rdm6300",         "input",  ["on_tag"],                                                []),
+    ("rotary_encoder",  "input",  ["on_clockwise", "on_anticlockwise"],                      []),
+    ("adc",             "sensor", ["on_value", "on_value_range"],                            []),
+    ("hc-sr04",         "sensor", ["on_value"],                                              []),
+    ("rf_bridge",       "input",  ["on_code_received"],                                      []),
+    ("ws2812b",         "output", ["on_turn_on", "on_turn_off"],                             ["turn_on", "turn_off", "toggle"]),
+    ("tuya_switch",     "output", [],                                                        ["turn_on", "turn_off", "toggle"]),
+]
+
+
+@pytest.mark.parametrize("lib_id, role, provides, accepts", _PHASE_1_5_ANNOTATIONS)
+def test_phase_1_5_capability_annotation_shape(lib, lib_id, role, provides, accepts):
+    cap = lib.component(lib_id).capability
+    assert cap is not None, f"{lib_id} should have a capability block"
+    assert cap.role == role
+    assert [p.event for p in cap.provides] == provides
+    assert [a.action for a in cap.accepts] == accepts
+
+
+def test_phase_1_5_provides_only_keys_the_template_passes_through(lib):
+    """Each annotated `provides.event` must match a `params.<event>`
+    passthrough in the component's own ESPHome template; otherwise the
+    automation lowers into a key the renderer drops on the floor."""
+    import re
+    for lib_id, _role, provides, _accepts in _PHASE_1_5_ANNOTATIONS:
+        tmpl = lib.component(lib_id).esphome.yaml_template or ""
+        passthroughs = set(re.findall(r"params\.(on_\w+)", tmpl))
+        for ev in provides:
+            assert ev in passthroughs, (
+                f"{lib_id}: capability declares provides.event={ev!r} but the "
+                f"template has no params.{ev} passthrough -- the automation "
+                f"would lower into a key the renderer drops. Template passes "
+                f"through: {sorted(passthroughs) or '(none)'}"
+            )
+
+
+def test_phase_1_5_accepts_have_known_esphome_verb_prefixes(lib):
+    """`accepts.esphome` must be a `<platform>.<verb>` action ESPHome
+    recognises. The platform prefix is asserted against the small set of
+    platforms phase 1.5 covers (switch / light / stepper). Catches typos."""
+    known_prefixes = {"switch", "light", "stepper"}
+    for lib_id, _role, _provides, accepts in _PHASE_1_5_ANNOTATIONS:
+        cap = lib.component(lib_id).capability
+        if not cap or not cap.accepts:
+            continue
+        for acc, declared in zip(accepts, cap.accepts):
+            assert declared.action == acc
+            prefix, _, _ = declared.esphome.partition(".")
+            assert prefix in known_prefixes, (
+                f"{lib_id} accepts.{acc} -> {declared.esphome!r}: "
+                f"unknown ESPHome platform prefix {prefix!r}"
+            )
+
+
+# --- second worked example: motion -> light --------------------------------
+
+MOTION_EXAMPLE = REPO_ROOT / "wirestudio" / "examples" / "motion-turns-on-light.json"
+
+
+def test_motion_to_light_example_matches_golden(lib):
+    d = Design.model_validate(json.loads(MOTION_EXAMPLE.read_text()))
+    expected = (REPO_ROOT / "tests" / "golden" / "motion-turns-on-light.yaml").read_text()
+    assert render_yaml(d, lib) == expected
+
+
+def test_motion_to_light_lowers_both_events_to_light_actions(lib):
+    """Both edges of motion fire a light action through the same lowering."""
+    d = Design.model_validate(json.loads(MOTION_EXAMPLE.read_text()))
+    yaml = render_yaml(d, lib)
+    assert "on_press:\n  - light.turn_on: porch_light" in yaml
+    assert "on_release:\n  - light.turn_off: porch_light" in yaml
+
+
+def test_motion_to_light_validator_quiet(lib):
+    d = Design.model_validate(json.loads(MOTION_EXAMPLE.read_text()))
+    assert validate_automations(d, lib) == []
+
