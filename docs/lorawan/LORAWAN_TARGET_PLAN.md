@@ -271,8 +271,8 @@ Secondary (compile-time) path: server injects literal DevEUI (server-derived fro
 ## 8. ChirpStack integration
 
 **Endpoints (see §10 / bundled `chirpstack-lorawan-setup.md`):** gRPC/REST/UI multiplexed at
-`http://10.254.0.11:8080`. Auth = a **Bearer API token generated in the UI** (NOT the JWT signing secret).
-App-layer MQTT is bridged to the HA broker at `10.250.0.41:1883` (user `chirpstack`).
+`http://<chirpstack-host>:8080`. Auth = a **Bearer API token generated in the UI** (NOT the JWT signing secret).
+App-layer MQTT is bridged to the HA broker at `<ha-mqtt-host>:1883` (user `chirpstack`).
 
 **gRPC sequence (`chirpstack-api` Python):**
 1. `DeviceProfileService` — ensure a **US915, sub-band 2** profile exists (MAC version, OTAA, ADR). Cache its UUID.
@@ -343,14 +343,15 @@ job/log-polling shape for the build-status API so the web UI can stream logs.
 
 ## 10. ChirpStack infra essentials (full detail in bundled `chirpstack-lorawan-setup.md`)
 
-- Gateway `wyolora` @ `10.254.0.11` (remote, behind VPN). RAK2287 / SX1302, **US915 sub-band 2** (`us915_1`):
-  903.9–905.3 MHz multi-SF + 904.6 MHz 500 kHz. Gateway ID `0016c001ff18560f`.
-- ChirpStack 4.17 @ `http://10.254.0.11:8080` (gRPC + REST + UI on one port). Token via UI → API Keys.
-- App MQTT bridged to HA broker `10.250.0.41:1883`, user `chirpstack`. Topics:
+- Gateway `<gw-host>` @ `<gw-ip>` (typical setup: remote, behind VPN). RAK2287 / SX1302, **US915 sub-band 2**
+  (`us915_1`): 903.9–905.3 MHz multi-SF + 904.6 MHz 500 kHz. Gateway ID is the chip-silicon EUI-64
+  (read off your hardware).
+- ChirpStack 4.17 @ `http://<chirpstack-host>:8080` (gRPC + REST + UI on one port). Token via UI → API Keys.
+- App MQTT bridged to HA broker `<ha-mqtt-host>:1883`, user `chirpstack`. Topics:
   `application/{app_id}/device/{dev_eui}/event/{up,join,ack,txack,status,...}` (consume), `.../command/down`
   (downlink). Decoded sensor fields arrive under the payload `object` key (from the device profile codec).
-- Bridge health: `gateway/wyolora/bridge/state` (`1`/`0`, retained). The flasher backend should reach the
-  ChirpStack gRPC API and the HA MQTT broker over the VPN; both are reachable from the HA-site network.
+- Bridge health: `gateway/<gw-host>/bridge/state` (`1`/`0`, retained). The flasher backend should reach the
+  ChirpStack gRPC API and the HA MQTT broker; both need to be reachable from the network the studio runs on.
 
 ---
 
