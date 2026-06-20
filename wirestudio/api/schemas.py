@@ -236,6 +236,17 @@ class FleetPushRequest(_S):
     strict: bool = Field(
         default=False, description="Refuse the push when warn/error compatibility entries remain."
     )
+    lorawan_secrets: Optional[dict[str, str]] = Field(
+        default=None,
+        description=(
+            "Optional `{dev_eui, join_eui, app_key}` mapping. When present, "
+            "the renderer substitutes these literal values for the matching "
+            "`!secret <name>` references in the lorawan: block, so the pushed "
+            "YAML carries the keys minted by /lorawan/provision-esphome "
+            "without needing a separate write to the fleet's secrets.yaml. "
+            "Any key not provided keeps its !secret reference."
+        ),
+    )
 
 
 class FleetPushResponse(_S):

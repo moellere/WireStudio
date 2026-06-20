@@ -21,6 +21,8 @@ import type {
   LorawanActivationResponse,
   LorawanProvisionEsphomeResponse,
 } from "../types/api";
+import { detectChip, isWebSerialSupported } from "../lib/usb-detect";
+import { macToEui64 } from "../lib/provision";
 
 const ACTIVATION_POLL_INTERVAL_MS = 3000;
 const DEV_EUI_RE = /^[0-9a-fA-F]{16}$/;
@@ -70,7 +72,11 @@ export function LorawanProvisionEsphomeDialog({ design, onClose }: Props) {
   const [activation, setActivation] = useState<LorawanActivationResponse | null>(null);
   const [activationErr, setActivationErr] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [detecting, setDetecting] = useState(false);
+  const [detected, setDetected] = useState<{ chipName: string; mac: string } | null>(null);
+  const [detectErr, setDetectErr] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const webSerial = isWebSerialSupported() === "yes";
 
   // Reset the copy-feedback flag a couple seconds after the user copies, so
   // the button doesn't stay green forever on a multi-paste workflow.
@@ -151,6 +157,75 @@ export function LorawanProvisionEsphomeDialog({ design, onClose }: Props) {
     }
   }
 
+  async function handleDetect() {
+    setDetectErr(null);
+    setDetected(null);
+    setDetecting(true);
+    try {
+      // detectChip() triggers the WebSerial port-picker, runs esptool-js's
+      // sync, reads the eFuse MAC, then disconnects. The chip name + MAC come
+      // back; macToEui64 derives a stable EUI-64 from the MAC-48 by inserting
+      // 0xFFFE in the middle (standard IEEE mapping).
+      const chip = await detectChip();
+      if (!chip.mac) {
+        throw new Error(
+          "chip detected but no MAC available -- try unplugging/reconnecting, or enter the DevEUI manually",
+        );
+      }
+      const eui = macToEui64(chip.mac);
+      setDetected({ chipName: chip.chipName, mac: chip.mac });
+      setDevEui(eui);
+    } catch (e) {
+      setDetectErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setDetecting(false);
+    }
+  }
+
+  // "Push to fleet" wires the secrets returned by /lorawan/provision-esphome
+  // through to /fleet/push so the rendered YAML the fleet stores carries
+  // them inline -- skipping the manual "edit fleet's secrets.yaml" step.
+  // State machine: idle -> pushing -> pushed | error. Independent of the
+  // activation poll so the user can fire the push and watch the join in
+  // parallel.
+  type PushState =
+    | { kind: "idle" }
+    | { kind: "pushing" }
+    | { kind: "pushed"; filename: string; created: boolean; run_id: string | null }
+    | { kind: "error"; message: string };
+  const [pushState, setPushState] = useState<PushState>({ kind: "idle" });
+
+  async function handlePushToFleet() {
+    if (!result) return;
+    setPushState({ kind: "pushing" });
+    try {
+      const r = await api.fleetPush({
+        design,
+        compile: true,
+        lorawan_secrets: {
+          dev_eui: result.secrets.dev_eui,
+          join_eui: result.secrets.join_eui,
+          app_key: result.secrets.app_key,
+        },
+      });
+      setPushState({
+        kind: "pushed",
+        filename: r.filename,
+        created: r.created,
+        run_id: r.run_id ?? null,
+      });
+    } catch (e) {
+      let msg: string;
+      if (e instanceof ApiError) {
+        const detail = (e.body as { detail?: unknown } | undefined)?.detail;
+        msg = `${e.status}: ${typeof detail === "string" ? detail : e.message}`;
+      } else {
+        msg = e instanceof Error ? e.message : String(e);
+      }
+      setPushState({ kind: "error", message: msg });
+    }
+  }
+
   const devEuiValid = DEV_EUI_RE.test(devEui);
   const canProvision = eligible && devEuiValid && !provisioning && !result;
 
@@ -219,18 +294,45 @@ export function LorawanProvisionEsphomeDialog({ design, onClose }: Props) {
               <label className="block text-[11px] uppercase tracking-wide text-zinc-500">
                 DevEUI (16 hex chars)
               </label>
-              <input
-                type="text"
-                value={devEui}
-                onChange={(e) => setDevEui(e.target.value)}
-                disabled={!!result}
-                placeholder="70b3d57ed0001234"
-                className="w-full rounded-md border border-zinc-800 bg-black/40 px-2 py-1.5 font-mono text-xs text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none disabled:opacity-60"
-              />
-              <div className="text-[11px] text-zinc-500">
-                Manual override per the locked decision. MAC-derivation from the chip's eFuse over
-                WebSerial lands in a follow-up.
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={devEui}
+                  onChange={(e) => {
+                    setDevEui(e.target.value);
+                    // A manual edit invalidates the previous detection hint.
+                    setDetected(null);
+                  }}
+                  disabled={!!result}
+                  placeholder="70b3d57ed0001234"
+                  className="flex-1 rounded-md border border-zinc-800 bg-black/40 px-2 py-1.5 font-mono text-xs text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none disabled:opacity-60"
+                />
+                <button
+                  onClick={handleDetect}
+                  disabled={!webSerial || detecting || !!result}
+                  className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-[11px] text-zinc-200 hover:bg-zinc-800 disabled:opacity-40"
+                  title={
+                    webSerial
+                      ? "Read the chip's eFuse MAC over WebSerial and derive the DevEUI (MAC-48 → EUI-64)"
+                      : "WebSerial is unavailable in this browser; enter the DevEUI manually."
+                  }
+                >
+                  {detecting ? "Detecting…" : "Detect from chip"}
+                </button>
               </div>
+              <div className="text-[11px] text-zinc-500">
+                {webSerial
+                  ? "Derive from the chip's eFuse MAC over WebSerial, or type a manual override."
+                  : "Manual entry only — WebSerial isn't available (try Chrome/Edge on desktop)."}
+              </div>
+              {detected && (
+                <div className="text-[11px] text-emerald-300">
+                  Derived from {detected.chipName} (MAC {detected.mac}).
+                </div>
+              )}
+              {detectErr && (
+                <div className="text-[11px] text-amber-400">detect failed: {detectErr}</div>
+              )}
               {!devEuiValid && devEui.length > 0 && (
                 <div className="text-[11px] text-amber-400">
                   Expected 16 hex characters; got {devEui.length}.
@@ -277,6 +379,50 @@ export function LorawanProvisionEsphomeDialog({ design, onClose }: Props) {
                   {copied ? "Copied" : "Copy"}
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* Push to fleet -- inline the secrets in the YAML so the operator
+              doesn't need to edit fleet's secrets.yaml separately. */}
+          {result && (
+            <div className="rounded-md border border-zinc-800 bg-zinc-900/40 p-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-[11px] uppercase tracking-wide text-zinc-500">
+                    push to fleet
+                  </div>
+                  <div className="mt-1 text-xs text-zinc-400">
+                    Push the rendered YAML to fleet-for-esphome with these LoRaWAN keys
+                    inlined, and enqueue an OTA compile.
+                  </div>
+                </div>
+                <button
+                  onClick={handlePushToFleet}
+                  disabled={pushState.kind === "pushing" || pushState.kind === "pushed"}
+                  className="rounded-md bg-blue-500/20 px-3 py-1.5 text-sm text-blue-100 ring-1 ring-blue-400/40 enabled:hover:bg-blue-500/30 disabled:opacity-40"
+                >
+                  {pushState.kind === "pushing"
+                    ? "Pushing…"
+                    : pushState.kind === "pushed"
+                      ? "Pushed"
+                      : "Push to fleet →"}
+                </button>
+              </div>
+              {pushState.kind === "pushed" && (
+                <div className="mt-2 text-xs text-emerald-300">
+                  {pushState.created ? "Created" : "Updated"}{" "}
+                  <code className="rounded-md bg-emerald-900/40 px-1">{pushState.filename}</code>{" "}
+                  on the fleet.
+                  {pushState.run_id && (
+                    <> Compile enqueued (<code>{pushState.run_id}</code>).</>
+                  )}
+                </div>
+              )}
+              {pushState.kind === "error" && (
+                <div className="mt-2 text-xs text-rose-400">
+                  push failed: {pushState.message}
+                </div>
+              )}
             </div>
           )}
 
