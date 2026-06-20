@@ -33,7 +33,7 @@ Detailed docs live in [`docs/`](docs/):
 
 ## Status
 
-`v0.16.0` — on PyPI (`pip install wirestudio`). The studio has wide
+`v0.17.1` — on PyPI (`pip install wirestudio`). The studio has wide
 surface area (YAML, schematic, enclosure, agent, MCP server, fleet
 handoff, web UI, two LoRaWAN flash/provision paths — standalone Arduino
 and an external-component path that emits ESPHome YAML referencing
@@ -79,7 +79,7 @@ that pin moves, this line moves with it.
 docker run --rm -p 8765:8765 \
   -e ANTHROPIC_API_KEY=sk-ant-... \
   -v wirestudio-data:/data \
-  ghcr.io/moellere/wirestudio:v0.16.0
+  ghcr.io/moellere/wirestudio:v0.17.1
 ```
 
 Open <http://localhost:8765>. The image bundles the FastAPI server +
