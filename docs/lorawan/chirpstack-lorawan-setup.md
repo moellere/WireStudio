@@ -6,7 +6,9 @@ change, MQTT topic structure, and the operational properties to design around.
 
 > Credentials are redacted to `<placeholders>`; supply the real values at deploy
 > time from the environment / a secret store (see §11). Nothing secret is committed
-> in this repo.
+> in this repo. Hostnames, IP addresses, gateway IDs, and DNS names in this doc
+> are illustrative placeholders (`mygw`, `10.0.x.x`, `*.example.com`) -- swap in
+> your own when adapting.
 
 ---
 
@@ -14,8 +16,8 @@ change, MQTT topic structure, and the operational properties to design around.
 
 | Component | Detail |
 |---|---|
-| Gateway hostname | `wyolora` |
-| Gateway IP | `10.254.0.11` (remote site, behind VPN) |
+| Gateway hostname | `mygw` |
+| Gateway IP | `10.0.0.10` (remote site, behind VPN) |
 | Host | Raspberry Pi 4 Model B Rev 1.1, 4 GB RAM, armv7l |
 | Concentrator | RAK2287 on RAK Pi Hat (SX1302 + dual SX1250) |
 | Antenna | External 8 dBi, SMA via u.fl pigtail |
@@ -23,9 +25,9 @@ change, MQTT topic structure, and the operational properties to design around.
 | SPI | `/dev/spidev0.0` (CS0), reset on GPIO 17 |
 | I²C | `/dev/i2c-1` (concentrator temp sensor) |
 | Region / band | US915, sub-band 2 (`us915_1` in ChirpStack) — 903.9–905.3 MHz multi-SF + 904.6 MHz 500 kHz LoRa-Std |
-| Gateway ID (from chip silicon) | `0016c001ff18560f` |
+| Gateway ID (from chip silicon) | `0000000000000000` (per-device; read from your gateway) |
 
-Access: `ssh root@10.254.0.11` (key auth, no password).
+Access: `ssh root@10.0.0.10` (key auth, no password).
 
 ---
 
@@ -34,9 +36,9 @@ Access: `ssh root@10.254.0.11` (key auth, no password).
 Two separate sites connected over VPN:
 
 ```
-┌── Gateway site (10.254.0.0/24) ──────┐    VPN    ┌── HA site (10.250.0.0/24) ──┐
+┌── Gateway site (10.0.0.0/24) ────────┐    VPN    ┌── HA site (10.0.1.0/24) ────┐
 │                                       │           │                              │
-│  wyolora (10.254.0.11)                │◄═════════►│  HAOS VM (10.250.0.41)       │
+│  mygw (10.0.0.10)                │◄═════════►│  HAOS VM (10.0.1.10)       │
 │   ├─ ChirpStack 4.17 (port 8080)      │           │   ├─ mosquitto (port 1883)   │
 │   ├─ mosquitto (port 1883, local)     │           │   ├─ Home Assistant Core     │
 │   ├─ chirpstack-concentratord-sx1302  │           │   ├─ HACS                    │
@@ -46,9 +48,9 @@ Two separate sites connected over VPN:
 ```
 
 Other reachable hosts you may need:
-- `home.dorktool.com:8123` — HA web UI
-- `argo.dorktool.com` — ArgoCD
-- `authentik.dorktool.com` — SSO
+- `home.example.com:8123` — HA web UI
+- `argo.example.com` — ArgoCD
+- `auth.example.com` — SSO
 
 ---
 
@@ -75,7 +77,7 @@ upgrade ChirpStack you wait for a Gateway OS release with a newer version and ru
 **Everything terminates on the Pi's local mosquitto. A mosquitto bridge handles the VPN.**
 
 ```
-                              Pi (10.254.0.11)
+                              Pi (10.0.0.10)
    ┌──────────────────────────────────────────────────────────┐
    │                                                          │
    │  [RAK2287/SX1302] ──SPI──> [concentratord-sx1302]        │
@@ -102,7 +104,7 @@ upgrade ChirpStack you wait for a Gateway OS release with a newer version and ru
    │                                  ┊  /srv/mosquitto/      │
    └──────────────────────────────────┊───────────────────────┘
                                       ┊ VPN
-                              HAOS VM (10.250.0.41)
+                              HAOS VM (10.0.1.10)
    ┌──────────────────────────────────▼───────────────────────┐
    │  [mosquitto :1883] ──> [chirp custom_component]          │
    │                                  │                       │
@@ -129,7 +131,7 @@ upgrade ChirpStack you wait for a Gateway OS release with a newer version and ru
 | HA chirp integration | Sees no new events until VPN recovers. |
 | Recovery | Bridge auto-reconnects (`restart_timeout 5 30`), drains queue at QoS 1, state topic flips back to `1`. HA gets all the buffered events in order. |
 
-Verified live: blackholed route to 10.250.0.41 → bridge state went `1→0` after ~45 s
+Verified live: blackholed route to 10.0.1.10 → bridge state went `1→0` after ~45 s
 → 5 test messages queued → route restored → state `1` → messages drained to HA broker.
 
 ---
@@ -213,17 +215,17 @@ allow_anonymous true
 
 # --- bridge to HA mosquitto over the VPN ---
 connection ha_bridge
-address 10.250.0.41:1883
+address 10.0.1.10:1883
 remote_username chirpstack
 remote_password <ha-mqtt-password>
-remote_clientid wyolora-bridge
-local_clientid  wyolora-bridge-local
+remote_clientid mygw-bridge
+local_clientid  mygw-bridge-local
 cleansession false
 start_type automatic
 restart_timeout 5 30
 keepalive_interval 30
 notifications true
-notification_topic gateway/wyolora/bridge/state
+notification_topic gateway/mygw/bridge/state
 try_private false
 bridge_protocol_version mqttv311
 
@@ -234,7 +236,7 @@ topic application/+/device/+/state/+ out 1 "" ""
 # downlinks remote -> local
 topic application/+/device/+/command/+ in 1 "" ""
 # bridge connection state -> remote (for HA bridge-health sensor)
-topic gateway/wyolora/bridge/state out 1 "" ""
+topic gateway/mygw/bridge/state out 1 "" ""
 ```
 
 ### 5.5 Disabled service
@@ -245,7 +247,7 @@ topic gateway/wyolora/bridge/state out 1 "" ""
 
 ## 6. MQTT Topic Structure (the contract your project depends on)
 
-All topics live on the HA mosquitto at `10.250.0.41:1883` (creds `chirpstack` / `<ha-mqtt-password>`, see §11) because the bridge ferries them.
+All topics live on the HA mosquitto at `10.0.1.10:1883` (creds `chirpstack` / `<ha-mqtt-password>`, see §11) because the bridge ferries them.
 
 ### 6.1 Gateway-layer topics (`us915_1/...`)
 
@@ -284,7 +286,7 @@ ChirpStack publishes to / subscribes from these. They cross the bridge to HA's b
 
 | Topic | Payload | Meaning |
 |---|---|---|
-| `gateway/wyolora/bridge/state` | `1` or `0` (retained) | VPN/bridge health from local mosquitto's perspective. Exposed in HA as `binary_sensor.wyolora_vpn_bridge`. |
+| `gateway/mygw/bridge/state` | `1` or `0` (retained) | VPN/bridge health from local mosquitto's perspective. Exposed in HA as `binary_sensor.mygw_vpn_bridge`. |
 
 ---
 
@@ -292,12 +294,12 @@ ChirpStack publishes to / subscribes from these. They cross the bridge to HA's b
 
 | Endpoint | Detail |
 |---|---|
-| URL | `http://10.254.0.11:8080` |
+| URL | `http://10.0.0.10:8080` |
 | Protocol | gRPC + HTTP/REST + Web UI multiplexed on the same port |
 | Web UI | Browser to the same URL |
 | API token | Generate in the UI under **API Keys** (or **Tenant → API Keys**). Do **not** use the JWT signing secret in `/etc/config/chirpstack` — that's not a usable token. |
 | gRPC client libs | `chirpstack-api` on pip, also Go/JS/Rust |
-| OpenAPI / Swagger | `http://10.254.0.11:8080/api` (UI at `/api/`) |
+| OpenAPI / Swagger | `http://10.0.0.10:8080/api` (UI at `/api/`) |
 | Region config | `us915_1` (sub-band 2) only |
 | Tenant model | Multi-tenant, but for a single-org install create devices under the default tenant |
 
@@ -307,7 +309,7 @@ ChirpStack publishes to / subscribes from these. They cross the bridge to HA's b
 import grpc, os
 from chirpstack_api import api
 
-server = "10.254.0.11:8080"
+server = "10.0.0.10:8080"
 api_token = os.environ["CHIRPSTACK_API_TOKEN"]   # generated in the ChirpStack UI; see §11
 channel = grpc.insecure_channel(server)
 auth_token = [("authorization", f"Bearer {api_token}")]
@@ -337,7 +339,7 @@ def on_message(c, u, msg):
 c = mqtt.Client()
 c.username_pw_set(os.environ["HA_MQTT_USERNAME"], os.environ["HA_MQTT_PASSWORD"])
 c.on_message = on_message
-c.connect("10.250.0.41", 1883)
+c.connect("10.0.1.10", 1883)
 c.subscribe("application/+/device/+/event/up")
 c.loop_forever()
 ```
@@ -364,9 +366,9 @@ c.publish(f"application/{app_id}/device/{dev_eui}/command/down",
 | Custom component | `github.com/modrisb/chirp` (NOT `chirpha` — that's the broken addon) |
 | Install path | Via HACS as a custom repository, type Integration |
 | Config flow | Settings → Devices & Services → Add Integration → "Chirp" |
-| ChirpStack API endpoint | `http://10.254.0.11:8080` |
+| ChirpStack API endpoint | `http://10.0.0.10:8080` |
 | ChirpStack API token | Generated in the ChirpStack UI |
-| MQTT broker | Reuses HA's MQTT integration (10.250.0.41:1883) |
+| MQTT broker | Reuses HA's MQTT integration (10.0.1.10:1883) |
 
 ### HA YAML — bridge health sensor
 
@@ -374,8 +376,8 @@ c.publish(f"application/{app_id}/device/{dev_eui}/command/down",
 mqtt:
   binary_sensor:
     - name: "Wyolora VPN Bridge"
-      unique_id: wyolora_vpn_bridge_state
-      state_topic: "gateway/wyolora/bridge/state"
+      unique_id: mygw_vpn_bridge_state
+      state_topic: "gateway/mygw/bridge/state"
       payload_on: "1"
       payload_off: "0"
       device_class: connectivity
@@ -423,7 +425,7 @@ The codec has an in-UI tester — paste raw bytes, see the decoded output before
 
 ## 10. Diagnostic Commands
 
-Run on the Pi (`ssh root@10.254.0.11`):
+Run on the Pi (`ssh root@10.0.0.10`):
 
 ```sh
 # Process check
@@ -445,7 +447,7 @@ mosquitto_sub -h 127.0.0.1 -t 'us915_1/#' -v
 mosquitto_sub -h 127.0.0.1 -t 'application/#' -v
 
 # Watch bridge state
-mosquitto_sub -h 127.0.0.1 -t 'gateway/wyolora/bridge/state' -v
+mosquitto_sub -h 127.0.0.1 -t 'gateway/mygw/bridge/state' -v
 
 # Check persistence queue file
 ls -lh /srv/mosquitto/
@@ -455,12 +457,12 @@ ls -lh /srv/mosquitto/
 logread -l 50 | grep concentratord
 ```
 
-From the dev VM (`10.250.0.99` or whatever your VPN-side host is), to sanity-check
+From the dev VM (`10.0.1.20` or whatever your VPN-side host is), to sanity-check
 the HA broker side:
 
 ```sh
-mosquitto_sub -h 10.250.0.41 -p 1883 -u chirpstack -P "$HA_MQTT_PASSWORD" -t 'application/#' -v
-mosquitto_sub -h 10.250.0.41 -p 1883 -u chirpstack -P "$HA_MQTT_PASSWORD" -t 'gateway/wyolora/bridge/state' -v
+mosquitto_sub -h 10.0.1.10 -p 1883 -u chirpstack -P "$HA_MQTT_PASSWORD" -t 'application/#' -v
+mosquitto_sub -h 10.0.1.10 -p 1883 -u chirpstack -P "$HA_MQTT_PASSWORD" -t 'gateway/mygw/bridge/state' -v
 ```
 
 ---
@@ -478,7 +480,7 @@ rule. The `<placeholders>` in §5 and the code examples mark where the real valu
 | HA mosquitto password | `mosquitto.conf` bridge block (§5.4), client examples | `HA_MQTT_PASSWORD` |
 | ChirpStack API token | Generated in the ChirpStack UI under **API Keys** | `CHIRPSTACK_API_TOKEN` |
 | ChirpStack API JWT signing secret (gateway-side; NOT a usable API token) | `chirpstack.toml` `[api] secret` (§5.3) | `CHIRPSTACK_API_SECRET` |
-| Pi SSH | `root@10.254.0.11`, key auth (no password in this repo) | n/a — SSH key on the operator host |
+| Pi SSH | `root@10.0.0.10`, key auth (no password in this repo) | n/a — SSH key on the operator host |
 
 ### Deploy-time injection
 
@@ -525,8 +527,8 @@ When you start building on this from `ubuntu-dev`:
 
 - [ ] Install `python3 chirpstack-api paho-mqtt` (or whatever language SDK)
 - [ ] Generate a ChirpStack API token in the UI, store securely
-- [ ] Verify access: `nc -vz 10.254.0.11 8080` (gRPC/HTTP) and `nc -vz 10.250.0.41 1883` (MQTT)
-- [ ] Subscribe to `application/+/device/+/event/up` on `10.250.0.41:1883` with the chirpstack creds — that's your firehose of decoded sensor data
+- [ ] Verify access: `nc -vz 10.0.0.10 8080` (gRPC/HTTP) and `nc -vz 10.0.1.10 1883` (MQTT)
+- [ ] Subscribe to `application/+/device/+/event/up` on `10.0.1.10:1883` with the chirpstack creds — that's your firehose of decoded sensor data
 - [ ] Decide whether your project consumes via MQTT (push), gRPC list/get (pull), or both
 - [ ] Add HA bridge-health sensor YAML if not already done
-- [ ] Subscribe to `gateway/wyolora/bridge/state` in your project too if you want to gate logic on VPN health
+- [ ] Subscribe to `gateway/mygw/bridge/state` in your project too if you want to gate logic on VPN health

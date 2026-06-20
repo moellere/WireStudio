@@ -166,11 +166,11 @@ def test_provision_rejects_bad_dev_eui(client, monkeypatch):
 def test_chirpstack_status_passthrough(client, monkeypatch):
     monkeypatch.setattr(
         cs, "chirpstack_status",
-        lambda *a, **k: {"available": True, "url": "10.254.0.11:8080", "reason": None},
+        lambda *a, **k: {"available": True, "url": "chirpstack:8080", "reason": None},
     )
     r = client.get("/lorawan/chirpstack/status")
     assert r.status_code == 200
-    assert r.json() == {"available": True, "url": "10.254.0.11:8080", "reason": None}
+    assert r.json() == {"available": True, "url": "chirpstack:8080", "reason": None}
 
 
 def test_provision_503_when_chirpstack_unconfigured(client, monkeypatch):

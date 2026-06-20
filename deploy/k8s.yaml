@@ -27,7 +27,8 @@
 #     --from-literal=anthropic-api-key=sk-ant-... \
 #     --from-literal=fleet-url=http://homeassistant.local:8765 \
 #     --from-literal=fleet-token=xxx \
-#     --from-literal=thingiverse-api-key=xxx
+#     --from-literal=thingiverse-api-key=xxx \
+#     --from-literal=chirpstack-api-token=xxx
 #
 # All keys are optional; the studio runs without any of them, just
 # with the corresponding feature gated off.
@@ -69,7 +70,7 @@ spec:
         runAsGroup: 1000
       containers:
         - name: wirestudio
-          image: ghcr.io/moellere/wirestudio:v0.12.0
+          image: ghcr.io/moellere/wirestudio:v0.17.1
           imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: false
@@ -103,6 +104,21 @@ spec:
                   name: wirestudio-secrets
                   key: thingiverse-api-key
                   optional: true
+            # ChirpStack provisioning (/lorawan/provision*). URL is the gRPC
+            # host:port -- a plain env, since it varies per cluster and isn't
+            # secret. Default targets a Service named `chirpstack` in the same
+            # namespace; override if ChirpStack lives elsewhere.
+            - name: CHIRPSTACK_API_URL
+              value: "chirpstack:8080"
+            - name: CHIRPSTACK_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: wirestudio-secrets
+                  key: chirpstack-api-token
+                  optional: true
+            # Uncomment to use a TLS gRPC channel to ChirpStack.
+            # - name: CHIRPSTACK_API_TLS
+            #   value: "true"
           volumeMounts:
             - { name: data, mountPath: /data }
           readinessProbe:
