@@ -53,6 +53,18 @@ export function BusList({
   }, [design.buses]);
   const allBusIds = useMemo(() => new Set(buses.map((b) => b.id)), [buses]);
 
+  // ⚡ Bolt: avoid O(N²) array allocations inside the render loop below
+  const warningsByBusId = useMemo(() => {
+    const map = new Map<string, CompatibilityWarning[]>();
+    for (const w of compatibilityWarnings) {
+      if (!w.component_id) continue;
+      const list = map.get(w.component_id);
+      if (list) list.push(w);
+      else map.set(w.component_id, [w]);
+    }
+    return map;
+  }, [compatibilityWarnings]);
+
   const [pickedType, setPickedType] = useState<BusType>("i2c");
 
   return (
@@ -67,8 +79,8 @@ export function BusList({
                 bus={b.raw}
                 type={b.type}
                 gpioPins={gpioPins}
-                warnings={compatibilityWarnings.filter((w) => w.component_id === b.id)}
-                otherBusIds={new Set([...allBusIds].filter((x) => x !== b.id))}
+                warnings={warningsByBusId.get(b.id) ?? []}
+                allBusIds={allBusIds}
                 onRename={(newId) => onChange((d) => renameBus(d, b.id, newId))}
                 onChange={(patch) => onChange((d) => updateBus(d, b.id, patch))}
                 onRemove={() => onChange((d) => removeBus(d, b.id))}
@@ -101,15 +113,15 @@ export function BusList({
 }
 
 function BusCard({
-  bus, type, gpioPins, warnings, otherBusIds, onRename, onChange, onRemove,
+  bus, type, gpioPins, warnings, allBusIds, onRename, onChange, onRemove,
 }: {
   bus: Record<string, unknown>;
   type: BusType;
   gpioPins: string[];
   warnings: CompatibilityWarning[];
-  /** Ids of every other bus in the design; used to refuse a rename that
+  /** Ids of every bus in the design; used to refuse a rename that
    *  would collide. */
-  otherBusIds: Set<string>;
+  allBusIds: Set<string>;
   onRename: (newId: string) => void;
   onChange: (patch: Partial<Record<string, unknown>>) => void;
   onRemove: () => void;
@@ -128,7 +140,7 @@ function BusCard({
 
   function commitRename() {
     const next = draftId.trim();
-    if (next === "" || next === id || otherBusIds.has(next)) {
+    if (next === "" || next === id || allBusIds.has(next)) {
       // Reject and revert -- the caller's onRename guards against the
       // collision case anyway, but we want to clear the visual drift.
       setDraftId(id);
@@ -138,7 +150,7 @@ function BusCard({
   }
 
   const draftDirty = draftId.trim() !== id;
-  const draftCollides = otherBusIds.has(draftId.trim());
+  const draftCollides = draftId.trim() !== id && allBusIds.has(draftId.trim());
 
   return (
     <div className="rounded-md border border-zinc-800 bg-zinc-900/30 p-2">
