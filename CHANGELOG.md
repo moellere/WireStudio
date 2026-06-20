@@ -7,8 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.1] — 2026-06-20
+
 ### Fixed
 
+- **Inspector: editable JSON for object/array params.** The Inspector's
+  `ParamForm` rendered scalar params (string/int/number/bool/enum)
+  inline, but for `object` and `array` schemas it just stringified the
+  value as read-only and showed "structured editing not yet supported."
+  That left whole classes of params un-editable through the UI --
+  `uart_gps.sensors` (the visible LoRaWAN-external-component blocker --
+  sub-sensor IDs need to live here so `lorawan.payload` bindings can
+  reference them), `pulse_counter.filters` / `count_mode`,
+  `gpio_input.on_press` and the other `on_*` action lists. Now a JSON
+  textarea per object/array param: parses on every keystroke and
+  commits to the design only when the buffer is valid; kind-mismatched
+  input (`[1,2]` on an `object` schema, `{"a":1}` on `array`) shows an
+  inline parse error and doesn't commit; textarea auto-sizes 3-12 rows.
+- **DesignPane: visible "stale" signal when render fails.** When the
+  auto-debounced `/design/render` fails, the YAML/ASCII pane kept
+  showing the prior successful render -- intentional context, but
+  nothing visually flagged that the content was no longer current.
+  Three coordinated signals: a rose dot on the ASCII / YAML tab labels
+  (JSON stays clean since it reads design state directly), a sub-line
+  on the "Render failed" banner naming the stale tab and pointing at
+  the JSON tab for live state, and an `opacity-50` transition on the
+  stale content itself. Surfaced during the LoRaWAN walkthrough: user
+  edits weren't visibly ignored, but a series of small renderer
+  rejections made it look that way.
 - **`uart_gps` template: optional `params.sensors` guard.** The template
   referenced `(params.sensors or {}).items()` to default-empty when the
   user hadn't set the optional sensors map -- but that defense doesn't
