@@ -370,7 +370,10 @@ def _secret_name(ref: str) -> str:
 # the component repo cuts its first stable release post hardware-join
 # validation (decision logged in docs/lorawan/workflow-integration.md).
 _LORAWAN_FOR_ESPHOME_REPO = "moellere/lorawan-for-esphome"
-_LORAWAN_FOR_ESPHOME_REF = "main"  # TODO(lorawan): pin to a commit SHA after the join test runs
+# Pinned to the SPI-pin schema PR's merge (lorawan-for-esphome#2). Required
+# for the rendered radio: block's sck_pin / miso_pin / mosi_pin keys to
+# validate; `main` doesn't carry those fields until this commit.
+_LORAWAN_FOR_ESPHOME_REF = "1f7ee9a011c09502240fcd77e99afb6c35db375a"
 
 
 def _emit_lorawan_blocks(
@@ -417,6 +420,23 @@ def _emit_lorawan_blocks(
         "cs_pin":  radio.pins.cs,
         "rst_pin": radio.pins.rst,
     }
+    # lorawan-for-esphome v0 constructed RadioLib's Module without calling
+    # SPI.begin(sck, miso, mosi, cs), so it relied on Arduino's default SPI
+    # bus -- which on arduino-esp32 is VSPI (18/19/23/5). TTGO LoRa32 v1 and
+    # most LoRa boards wire the radio to non-VSPI pins (e.g. 5/19/27/18), so
+    # the component returned ERR_CHIP_NOT_FOUND on real hardware. Once
+    # upstream merges the patch that takes sck_pin/miso_pin/mosi_pin in the
+    # radio schema and calls SPI.begin() before constructing the Module, we
+    # emit them from the board library's `default_buses.spi` so the YAML
+    # works on any board the studio supports.
+    spi_default = board.default_buses.get("spi") if board.default_buses else None
+    if spi_default:
+        if spi_default.get("clk"):
+            radio_block["sck_pin"] = spi_default["clk"]
+        if spi_default.get("miso"):
+            radio_block["miso_pin"] = spi_default["miso"]
+        if spi_default.get("mosi"):
+            radio_block["mosi_pin"] = spi_default["mosi"]
     if radio.pins.dio0:
         radio_block["dio0_pin"] = radio.pins.dio0
     if radio.pins.dio1:
@@ -481,7 +501,15 @@ def build_yaml_dict(
     extras = dict(design.esphome_extras or {})
     out["logger"] = extras.pop("logger", {})
 
-    if design.fleet and design.fleet.secrets_ref:
+    # The external-component LoRaWAN path is *headless*. Field nodes are
+    # typically out of WiFi range and on battery, and `wifi:` / `api:` /
+    # network `ota:` default to `reboot_timeout: 15min` -- an unreachable
+    # network reboot-loops the device, each reboot burns a fresh DevNonce
+    # in the OTAA flow, and the device stops joining cleanly.
+    # `captive_portal:` depends on `wifi:`. See lorawan-for-esphome README.
+    lorawan_external = bool(design.lorawan and design.lorawan.payload)
+
+    if design.fleet and design.fleet.secrets_ref and not lorawan_external:
         secrets = design.fleet.secrets_ref
         api_block: dict[str, Any] = {}
         if "api_key" in secrets:
@@ -495,7 +523,15 @@ def build_yaml_dict(
 
     if "captive_portal" in extras:
         cp = extras.pop("captive_portal")
-        out["captive_portal"] = cp if cp else {}
+        if not lorawan_external:
+            out["captive_portal"] = cp if cp else {}
+    # captive_portal entries silently dropped when LoRaWAN is active so an
+    # example author who left it in esphome_extras doesn't have to scrub
+    # it per-target. Also drop any wifi/api/ota the user might have set
+    # via esphome_extras (header-level overrides).
+    if lorawan_external:
+        for k in ("wifi", "api", "ota", "captive_portal"):
+            extras.pop(k, None)
 
     for bus in design.buses:
         if bus.type == "i2c":
