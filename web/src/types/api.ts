@@ -346,6 +346,15 @@ export interface LorawanProvisionResponse {
   device_profile_id: string;
 }
 
+/** Response shape of GET /lorawan/chirpstack/status. `available` is the
+ *  headline the UI keys off (matches the other feature-gate status
+ *  endpoints). `reason` carries the gRPC status when unavailable. */
+export interface ChirpstackStatus {
+  available: boolean;
+  url: string | null;
+  reason: string | null;
+}
+
 /** Response shape of POST /lorawan/provision-esphome (W3 — external-component
  *  path). The `secrets` block is formatted for the `secrets.yaml` that rides
  *  next to the rendered ESPHome config. The AppKey is ephemeral and only

@@ -25,6 +25,7 @@ vi.mock("../api/client", async () => {
     ...actual,
     api: {
       ...actual.api,
+      lorawanChirpstackStatus: vi.fn(),
       lorawanProvisionEsphome: vi.fn(),
       lorawanActivation: vi.fn(),
       fleetPush: vi.fn(),
@@ -44,6 +45,7 @@ const mockDetectChip = detectChip as unknown as ReturnType<typeof vi.fn>;
 const mockSupported = isWebSerialSupported as unknown as ReturnType<typeof vi.fn>;
 
 const mockApi = api as unknown as {
+  lorawanChirpstackStatus: ReturnType<typeof vi.fn>;
   lorawanProvisionEsphome: ReturnType<typeof vi.fn>;
   lorawanActivation: ReturnType<typeof vi.fn>;
   fleetPush: ReturnType<typeof vi.fn>;
@@ -71,6 +73,13 @@ function design(overrides: Partial<Design> = {}): Design {
 }
 
 beforeEach(() => {
+  mockApi.lorawanChirpstackStatus.mockReset();
+  // Default to a reachable ChirpStack; the unavailable case is its own test.
+  mockApi.lorawanChirpstackStatus.mockResolvedValue({
+    available: true,
+    url: "chirpstack:8080",
+    reason: null,
+  });
   mockApi.lorawanProvisionEsphome.mockReset();
   mockApi.lorawanActivation.mockReset();
   mockApi.fleetPush.mockReset();
@@ -213,6 +222,30 @@ describe("successful provision flow", () => {
       expect(screen.queryByRole("button", { name: /Provision →/i })).toBeNull(),
     );
     expect(screen.getByRole("button", { name: /^Done$/i })).toBeTruthy();
+  });
+});
+
+describe("chirpstack reachability gating", () => {
+  it("disables Provision and renders the reason when /lorawan/chirpstack/status reports unavailable", async () => {
+    mockApi.lorawanChirpstackStatus.mockResolvedValue({
+      available: false,
+      url: "chirpstack:8080",
+      reason: "ChirpStack unreachable: UNAUTHENTICATED: ",
+    });
+
+    render(<LorawanProvisionEsphomeDialog design={design()} onClose={() => {}} />);
+    // Banner with the gRPC reason renders.
+    await waitFor(() =>
+      expect(screen.getByText(/ChirpStack unavailable/i)).toBeTruthy(),
+    );
+    expect(screen.getByText(/UNAUTHENTICATED/i)).toBeTruthy();
+    // Provision stays disabled even with a valid DevEUI typed -- there's
+    // nothing useful to do when the server can't be reached.
+    const user = userEvent.setup();
+    await user.type(screen.getByPlaceholderText(/70b3d57ed0001234/i), "70b3d57ed0001234");
+    const provisionBtn = screen.getByRole("button", { name: /Provision →/i });
+    expect((provisionBtn as HTMLButtonElement).disabled).toBe(true);
+    expect(mockApi.lorawanProvisionEsphome).not.toHaveBeenCalled();
   });
 });
 
