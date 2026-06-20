@@ -13,14 +13,15 @@ from wirestudio.targets.lorawan import chirpstack as cs  # noqa: E402
 
 
 class _RpcError(grpc.RpcError):
-    def __init__(self, code: "grpc.StatusCode") -> None:
+    def __init__(self, code: "grpc.StatusCode", details: str = "simulated") -> None:
         self._code = code
+        self._details = details
 
     def code(self):
         return self._code
 
     def details(self):
-        return "simulated"
+        return self._details
 
 
 def _stubs() -> cs.ChirpStackStubs:
@@ -124,9 +125,13 @@ def test_ensure_device_profile_pins_us915_subband2():
 
 
 def test_create_device_swallows_already_exists():
+    # ALREADY_EXISTS in the same application is the documented idempotent
+    # no-op. Mock Get so the cross-app guard can confirm "same app".
     stubs = _stubs()
     stubs.device.Create.side_effect = _RpcError(grpc.StatusCode.ALREADY_EXISTS)
-    # Must not raise.
+    stubs.device.Get.return_value = SimpleNamespace(
+        device=SimpleNamespace(application_id="app", device_profile_id="dp"),
+    )
     _client(stubs).create_device("0011223344556677", "dev", "app", "dp")
 
 
@@ -138,6 +143,54 @@ def test_create_device_wraps_other_errors_as_chirpstack_unavailable():
     stubs.device.Create.side_effect = _RpcError(grpc.StatusCode.PERMISSION_DENIED)
     with pytest.raises(cs.ChirpStackUnavailable, match="PERMISSION_DENIED"):
         _client(stubs).create_device("0011223344556677", "dev", "app", "dp")
+
+
+def test_create_device_same_app_unique_constraint_is_idempotent_noop():
+    # ChirpStack v4 quirk: re-Create with the same dev_eui returns INTERNAL
+    # carrying the raw SQLite "UNIQUE constraint failed: device.dev_eui"
+    # message rather than ALREADY_EXISTS. When the existing device is in the
+    # SAME application we're targeting, this is the documented idempotent
+    # no-op (the next call -- set_device_keys -- updates the key in place).
+    stubs = _stubs()
+    stubs.device.Create.side_effect = _RpcError(
+        grpc.StatusCode.INTERNAL,
+        details="UNIQUE constraint failed: device.dev_eui",
+    )
+    stubs.device.Get.return_value = SimpleNamespace(
+        device=SimpleNamespace(application_id="app", device_profile_id="dp"),
+    )
+    # Must not raise -- the rest of provision_device proceeds to re-key.
+    _client(stubs).create_device("0011223344556677", "dev", "app", "dp")
+
+
+def test_create_device_cross_app_unique_constraint_raises_with_conflict_info():
+    # dev_eui is scoped per tenant in ChirpStack, not per application. A
+    # device created earlier under a different path (standalone vs esphome)
+    # collides here. Don't silently re-home: surface the conflicting
+    # application_id so the operator can delete the device there first.
+    stubs = _stubs()
+    stubs.device.Create.side_effect = _RpcError(
+        grpc.StatusCode.INTERNAL,
+        details="UNIQUE constraint failed: device.dev_eui",
+    )
+    stubs.device.Get.return_value = SimpleNamespace(
+        device=SimpleNamespace(application_id="standalone-app", device_profile_id="dp"),
+    )
+    with pytest.raises(cs.ChirpStackUnavailable, match="standalone-app"):
+        _client(stubs).create_device("0011223344556677", "dev", "app", "dp")
+
+
+def test_set_device_keys_treats_internal_unique_constraint_as_already_exists():
+    # Same ChirpStack quirk for CreateKeys: a re-key returns INTERNAL with the
+    # device_keys SQLite unique violation, not ALREADY_EXISTS. We fall through
+    # to UpdateKeys the same way we do for the ALREADY_EXISTS path.
+    stubs = _stubs()
+    stubs.device.CreateKeys.side_effect = _RpcError(
+        grpc.StatusCode.INTERNAL,
+        details="UNIQUE constraint failed: device_keys.dev_eui",
+    )
+    _client(stubs).set_device_keys("0011223344556677", "cd" * 16)
+    stubs.device.UpdateKeys.assert_called_once()
 
 
 def test_set_device_keys_writes_appkey_into_nwk_key():
