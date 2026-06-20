@@ -370,7 +370,10 @@ def _secret_name(ref: str) -> str:
 # the component repo cuts its first stable release post hardware-join
 # validation (decision logged in docs/lorawan/workflow-integration.md).
 _LORAWAN_FOR_ESPHOME_REPO = "moellere/lorawan-for-esphome"
-_LORAWAN_FOR_ESPHOME_REF = "main"  # TODO(lorawan): pin to a commit SHA after the join test runs
+# Pinned to the SPI-pin schema PR's merge (lorawan-for-esphome#2). Required
+# for the rendered radio: block's sck_pin / miso_pin / mosi_pin keys to
+# validate; `main` doesn't carry those fields until this commit.
+_LORAWAN_FOR_ESPHOME_REF = "1f7ee9a011c09502240fcd77e99afb6c35db375a"
 
 
 def _emit_lorawan_blocks(
