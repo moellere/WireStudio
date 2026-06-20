@@ -417,6 +417,23 @@ def _emit_lorawan_blocks(
         "cs_pin":  radio.pins.cs,
         "rst_pin": radio.pins.rst,
     }
+    # lorawan-for-esphome v0 constructed RadioLib's Module without calling
+    # SPI.begin(sck, miso, mosi, cs), so it relied on Arduino's default SPI
+    # bus -- which on arduino-esp32 is VSPI (18/19/23/5). TTGO LoRa32 v1 and
+    # most LoRa boards wire the radio to non-VSPI pins (e.g. 5/19/27/18), so
+    # the component returned ERR_CHIP_NOT_FOUND on real hardware. Once
+    # upstream merges the patch that takes sck_pin/miso_pin/mosi_pin in the
+    # radio schema and calls SPI.begin() before constructing the Module, we
+    # emit them from the board library's `default_buses.spi` so the YAML
+    # works on any board the studio supports.
+    spi_default = board.default_buses.get("spi") if board.default_buses else None
+    if spi_default:
+        if spi_default.get("clk"):
+            radio_block["sck_pin"] = spi_default["clk"]
+        if spi_default.get("miso"):
+            radio_block["miso_pin"] = spi_default["miso"]
+        if spi_default.get("mosi"):
+            radio_block["mosi_pin"] = spi_default["mosi"]
     if radio.pins.dio0:
         radio_block["dio0_pin"] = radio.pins.dio0
     if radio.pins.dio1:

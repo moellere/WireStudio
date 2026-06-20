@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **LoRaWAN: render passes SCK / MISO / MOSI to lorawan-for-esphome.**
+  v0 of the upstream component constructed RadioLib's `Module` without
+  calling `SPI.begin(sck, miso, mosi, cs)`, so it used arduino-esp32's
+  VSPI defaults (18/19/23/5). TTGO LoRa32 v1 (and most LoRa boards)
+  wire the radio to non-VSPI pins (5/19/27/18) -- the SX1276
+  chip-version readback returned garbage and the join failed with
+  `ERR_CHIP_NOT_FOUND (-2)`. Renderer now emits `sck_pin` / `miso_pin`
+  / `mosi_pin` in the radio block, sourced from the board library's
+  `default_buses.spi`. Requires the matching upstream lorawan-for-esphome
+  patch that accepts the three fields and calls `SPI.begin()` before
+  constructing the RadioLib Module -- the ref pin will be bumped to the
+  SHA carrying that change before this PR merges. User-reported during
+  the first hardware join attempt on a freshly flashed TTGO LoRa32 v1.
+
 - **LoRaWAN: `create_device` is actually idempotent now.** ChirpStack v4
   scopes `dev_eui` uniquely per tenant (not per application) and leaks
   the SQLite UNIQUE constraint as `INTERNAL` rather than `ALREADY_EXISTS`
