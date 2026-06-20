@@ -11,7 +11,7 @@ FastAPI serves the API and the built SPA from one process.
 docker run --rm -p 8765:8765 \
   -e ANTHROPIC_API_KEY=sk-ant-... \
   -v wirestudio-data:/data \
-  ghcr.io/moellere/wirestudio:v0.16.0
+  ghcr.io/moellere/wirestudio:v0.17.1
 ```
 
 Open <http://localhost:8765>. The image bundles the FastAPI server +
@@ -23,7 +23,7 @@ Available tags:
 
 | Tag | What it tracks |
 |---|---|
-| `:0.16.0` / `:0.16` / `:latest` | the v0.16.0 release |
+| `:0.17.1` / `:0.17` / `:latest` | the v0.17.1 release |
 | `:main` | latest commit on `main` (rolling) |
 | `:dev` | latest commit on `dev` (rolling, pre-release) |
 | `:sha-<short>` | a specific commit |
@@ -83,24 +83,34 @@ run in their own namespaces:
 
 | App | Tracks | Image | Moves when |
 |---|---|---|---|
-| `wirestudio-prod` | branch `main`, path `deploy/overlays/prod` | pinned `:0.12.0` | you bump `newTag` in git |
-| `wirestudio-dev` | branch `dev`, path `deploy/overlays/dev` | rolling `:sha-<short>` | every `dev` merge (CI commits the bump) |
+| `wirestudio-prod` | branch `main`, path `deploy/overlays/prod` | pinned `:0.17.1` | a release tag opens a `newTag` bump PR (you merge it) |
+| `wirestudio-dev` | branch `dev`, path `deploy/overlays/dev` | rolling `:sha-<short>-lorawan` | every `dev` merge (CI commits the bump) |
 
 ```sh
 kubectl apply -f deploy/argocd/wirestudio-prod.yaml
 kubectl apply -f deploy/argocd/wirestudio-dev.yaml
 ```
 
-How the image tag gets into git (no extra controller — pure GitOps):
+How the image tag gets into git (no extra controller — pure GitOps).
+All three bumps are jobs in the `docker` workflow:
 
-- **dev** rolls itself. On every push to `dev`, the `docker` workflow's
-  `bump-dev` job rewrites `deploy/overlays/dev/kustomization.yaml`'s
-  `newTag` to the just-built `sha-<short>` and commits it back to `dev`
-  (with `[skip ci]`). ArgoCD's automated sync deploys it.
-- **prod** is promoted by hand. On release, bump `newTag` in
-  `deploy/overlays/prod/kustomization.yaml` to the new version — do it in
-  the `dev → main` release PR alongside `wirestudio/__init__.py` and
-  `CHANGELOG.md`. ArgoCD rolls it out; rollback is a one-commit revert.
+- **dev** rolls itself. On every push to `dev`, the `bump-dev` job
+  rewrites `deploy/overlays/dev/kustomization.yaml`'s `newTag` to the
+  just-built `sha-<short>-lorawan` and commits it back to `dev` (with
+  `[skip ci]`). ArgoCD's automated sync deploys it.
+- **prod** is bumped on the release tag. When a `v*` tag is pushed,
+  `bump-prod` rewrites `deploy/overlays/prod/kustomization.yaml`'s
+  `newTag` to the bare semver and opens a PR against `main` (branch
+  `deploy/prod-<version>`). `main` is protected — PR + required checks —
+  so the job can't push directly; merging the PR rolls prod. ArgoCD
+  rolls it out; rollback is a one-commit revert.
+- **dev, on a release tag too.** `bump-dev-on-tag` points the dev
+  overlay at the released `:<version>-lorawan` image so the dev cluster
+  can briefly smoke-test the release build. It no-ops when no `dev`
+  branch exists.
+
+The release tag also drives `github-release`, which cuts the GitHub
+Release from the matching `CHANGELOG.md` section.
 
 Each overlay sets its own namespace, so the two apps get independent
 PVCs and never share `/data`.
