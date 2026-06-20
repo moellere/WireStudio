@@ -54,7 +54,7 @@ docker compose up -d
 
 `k8s.yaml` is a minimal manifest covering the single-image pattern:
 one Deployment, a 1 Gi PVC mounted at `/data`, a ClusterIP Service
-on `:80 -> :8765`. Optional `wirestudio-secrets` for the four feature-
+on `:80 -> :8765`. Optional `wirestudio-secrets` for the feature-
 gating env vars (none required to boot).
 
 ```sh
@@ -64,8 +64,14 @@ kubectl create secret generic wirestudio-secrets \
   --from-literal=anthropic-api-key=sk-ant-... \
   --from-literal=fleet-url=http://homeassistant.local:8765 \
   --from-literal=fleet-token=xxx \
-  --from-literal=thingiverse-api-key=xxx
+  --from-literal=thingiverse-api-key=xxx \
+  --from-literal=chirpstack-api-token=xxx
 ```
+
+The manifest pre-wires `CHIRPSTACK_API_URL` to `chirpstack:8080`
+(typical in-cluster Service name). Override on the Deployment if
+ChirpStack lives elsewhere; set `CHIRPSTACK_API_TLS=true` for a TLS
+channel.
 
 **Constraints to be aware of**:
 
