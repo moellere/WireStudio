@@ -198,3 +198,39 @@ jobs:
           git add "$file"
           git commit -m "deploy(prod): roll to ${version} [skip ci]"
           git push origin main
+
+  bump-dev-on-tag:
+    # On tag push, also roll the dev overlay to the released -lorawan
+    # variant (`0.17.0-lorawan` for `v0.17.0`). Complements bump-dev, which
+    # tracks dev-branch HEAD via the rolling sha tag: a release moves dev
+    # to the released image; the next dev-branch push rolls it forward to
+    # the next sha. Lets the dev cluster briefly serve the release version
+    # for smoke-testing without a manual edit.
+    #
+    # Dev runs the -lorawan variant, so this needs lorawan-image too --
+    # the same gating as bump-dev avoids ArgoCD ImagePullBackOff.
+    needs: [build, lorawan-image]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: dev
+      - name: Pin dev overlay to the freshly tagged release
+        run: |
+          # refs/tags/v0.17.0 -> 0.17.0-lorawan
+          version="${GITHUB_REF#refs/tags/v}"
+          tag="${version}-lorawan"
+          file=deploy/overlays/dev/kustomization.yaml
+          sed -i -E "s|^( *newTag: ).*|\1${tag}|" "$file"
+          if git diff --quiet -- "$file"; then
+            echo "dev overlay already at ${tag}"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$file"
+          git commit -m "deploy(dev): roll to ${tag} [skip ci]"
+          git push origin dev
