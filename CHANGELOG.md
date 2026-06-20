@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **LoRaWAN: `create_device` is actually idempotent now.** ChirpStack v4
+  scopes `dev_eui` uniquely per tenant (not per application) and leaks
+  the SQLite UNIQUE constraint as `INTERNAL` rather than `ALREADY_EXISTS`
+  on a duplicate. `create_device` now resolves the conflict via a
+  follow-up `Device.Get`: same application -> the documented idempotent
+  no-op (the rest of `provision_device` re-keys and flushes nonces);
+  different application -> raise with the conflicting `application_id`
+  so the operator removes the device there instead of silently re-homing
+  across paths (standalone vs esphome). `set_device_keys` gets the
+  same INTERNAL/UNIQUE handling for the `device_keys.dev_eui` row, so a
+  re-provision falls through to `UpdateKeys` the same way ALREADY_EXISTS
+  did.
 - **LoRaWAN: gRPC errors no longer hide behind a bare 500.** Every
   `ChirpStackClient` helper now wraps `grpc.RpcError` ->
   `ChirpStackUnavailable(_rpc_msg(exc))`, the same convention `ping()`
