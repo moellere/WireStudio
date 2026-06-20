@@ -27,6 +27,13 @@ export function DesignPane({ design, render, renderError }: Props) {
         : render?.ascii ?? "";
   }, [tab, design, render]);
 
+  // When a render error is up, the YAML/ASCII tabs are stale (showing the
+  // last successful render). The JSON tab reads design state directly so
+  // it stays live regardless of render errors. Treat staleness as
+  // "renderError is set AND the visible content was produced by the render
+  // endpoint (i.e. not JSON tab)".
+  const tabStale = renderError !== null && tab !== "json" && content !== "";
+
   async function copy() {
     if (!content) return;
     try {
@@ -66,19 +73,34 @@ export function DesignPane({ design, render, renderError }: Props) {
 
       <div className="flex items-center justify-between border-b border-zinc-800 pr-2 text-xs">
         <div className="flex">
-          {(["ascii", "yaml", "json"] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`px-3 py-2 uppercase tracking-wide transition-colors ${
-                tab === t
-                  ? "border-b-2 border-blue-400 text-zinc-100"
-                  : "border-b-2 border-transparent text-zinc-500 hover:text-zinc-300"
-              }`}
-            >
-              {t}
-            </button>
-          ))}
+          {(["ascii", "yaml", "json"] as const).map((t) => {
+            // Mark ascii/yaml as stale when there's a render error -- those
+            // two come from the render endpoint, which is failing. json is
+            // direct design state, so it stays live.
+            const stale = renderError !== null && t !== "json";
+            return (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={`px-3 py-2 uppercase tracking-wide transition-colors ${
+                  tab === t
+                    ? "border-b-2 border-blue-400 text-zinc-100"
+                    : "border-b-2 border-transparent text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                <span className="inline-flex items-center gap-1.5">
+                  {t}
+                  {stale && (
+                    <span
+                      title="Render failed -- this view is from the prior successful render"
+                      className="h-1.5 w-1.5 rounded-full bg-rose-400"
+                      aria-label="stale"
+                    />
+                  )}
+                </span>
+              </button>
+            );
+          })}
         </div>
         <button
           onClick={copy}
@@ -96,6 +118,13 @@ export function DesignPane({ design, render, renderError }: Props) {
           <div className="mb-3 rounded-md border border-rose-500/40 bg-rose-500/10 p-3 text-sm text-rose-200">
             <div className="font-semibold">Render failed</div>
             <div className="mt-1 whitespace-pre-wrap text-xs">{renderError}</div>
+            {tabStale && (
+              <div className="mt-2 border-t border-rose-500/30 pt-2 text-[11px] text-rose-200/80">
+                The {tab.toUpperCase()} view below is from the last successful render
+                — it does not reflect your current edits. Switch to the JSON tab to see
+                the live design state, or fix the error above to refresh this view.
+              </div>
+            )}
           </div>
         )}
 
@@ -104,7 +133,16 @@ export function DesignPane({ design, render, renderError }: Props) {
             Pick an example or board to start a design.
           </div>
         ) : content ? (
-          <pre className="whitespace-pre text-zinc-200">{content}</pre>
+          // Visual de-emphasis on stale content: lower opacity makes the
+          // "this isn't current" state obvious without hiding the content
+          // (it's still useful context for what the prior render produced).
+          <pre
+            className={`whitespace-pre text-zinc-200 transition-opacity ${
+              tabStale ? "opacity-50" : ""
+            }`}
+          >
+            {content}
+          </pre>
         ) : (
           <Loading />
         )}
