@@ -76,9 +76,11 @@ esphome:
   yaml_template: |
     gps:
       uart_id: {{ bus.id }}
-    {%- for sensor_key, sensor_cfg in (params.sensors or {}).items() %}
+    {%- if params.sensors is defined and params.sensors %}
+    {%- for sensor_key, sensor_cfg in params.sensors.items() %}
       {{ sensor_key }}: {{ sensor_cfg | tojson }}
     {%- endfor %}
+    {%- endif %}
 
 params_schema:
   sensors:

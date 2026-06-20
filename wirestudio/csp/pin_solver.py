@@ -133,6 +133,22 @@ def _used_gpio_pins(design: dict) -> set[str]:
         t = c.get("target", {})
         if t.get("kind") == "gpio" and t.get("pin"):
             used.add(t["pin"])
+    # Bus pins are owned by the bus object, not by individual connections --
+    # a component connection target {kind: "bus", bus_id: "uart0"} doesn't
+    # carry the GPIO pin. So harvest bus pin slots directly. Every field
+    # listed in PIN_SLOTS_BY_TYPE on the JS side (Bus model in model.py)
+    # may carry a GPIO -- enumerate them here so the solver treats a UART
+    # tx/rx, I2C sda/scl, SPI clk/miso/mosi/cs, I2S lrclk/bclk, and 1-wire
+    # pin as occupied.
+    _BUS_PIN_SLOTS = (
+        "sda", "scl", "miso", "mosi", "clk", "cs",
+        "rx", "tx", "lrclk", "bclk", "pin",
+    )
+    for b in design.get("buses", []):
+        for slot in _BUS_PIN_SLOTS:
+            v = b.get(slot)
+            if v:
+                used.add(v)
     return used
 
 
