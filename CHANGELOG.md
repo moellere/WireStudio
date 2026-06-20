@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.0] — 2026-06-20
+
 ### Added
 
 - **LoRaWAN: fleet push inlines per-device secrets.** `POST /fleet/push`
