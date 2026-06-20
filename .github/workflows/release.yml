@@ -83,3 +83,45 @@ jobs:
           path: dist/
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+
+  github-release:
+    # Auto-create the GitHub Release sidebar object on tag push, with the
+    # CHANGELOG section for this version as the body. Without this the
+    # tag publishes to PyPI but the repo page keeps highlighting the
+    # previous release as "Latest" -- mirroring the prod overlay gap that
+    # bump-prod (#121) closed for the deploy side.
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # required to create the Release
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract CHANGELOG section for this version
+        id: notes
+        run: |
+          # GITHUB_REF_NAME is v0.17.0; strip the leading v to match the
+          # CHANGELOG heading shape ("## [0.17.0] — ...").
+          version="${GITHUB_REF_NAME#v}"
+          awk -v ver="$version" '
+            $0 ~ "^## \\[" ver "\\]" { found=1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md > release-notes.md
+          # If the CHANGELOG drifted from the tag (e.g. forgot to date the
+          # section, or the heading shape changed), still create the Release
+          # so the sidebar updates -- with an obvious sentinel body so the
+          # gap is loud.
+          if ! [ -s release-notes.md ]; then
+            printf 'Release %s\n\n(no matching CHANGELOG section found at tag time)\n' "$version" > release-notes.md
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: v${{ steps.notes.outputs.version }}
+          body_path: release-notes.md
+          # Pre-release detection: pep440-style pre-release suffixes
+          # (rc, a, b, dev) on the version make this true. We don't ship
+          # those today; the flag is here so we don't accidentally promote
+          # a future v0.18.0-rc1 to "Latest".
+          prerelease: ${{ contains(steps.notes.outputs.version, '-') || contains(steps.notes.outputs.version, 'rc') || contains(steps.notes.outputs.version, 'a') || contains(steps.notes.outputs.version, 'b') || contains(steps.notes.outputs.version, 'dev') }}
