@@ -170,6 +170,12 @@ jobs:
     # the prod-bump-during-release step was documented as a comment in the
     # file but never automated, so it got missed every release.
     #
+    # Opens a PR rather than pushing direct: main is protected (5 required
+    # checks + PR required). The PR is auto-titled and waits on the
+    # required checks before a human merges. GITHUB_TOKEN-created PRs do
+    # not retrigger workflows, which is fine here since the merge commit
+    # will run docker.yml on main as usual.
+    #
     # Prod runs the LEAN image (no PlatformIO), so we only need the build
     # job here -- not lorawan-image. ArgoCD prod doesn't need the LoRaWAN
     # compile worker; the external-component LoRaWAN path uses
@@ -179,11 +185,14 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with:
           ref: main
-      - name: Pin prod overlay to the freshly tagged release
+      - name: Open PR to pin prod overlay to the freshly tagged release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # refs/tags/v0.17.0 -> 0.17.0
           version="${GITHUB_REF#refs/tags/v}"
@@ -193,11 +202,18 @@ jobs:
             echo "prod overlay already at ${version}"
             exit 0
           fi
+          branch="deploy/prod-${version}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
           git add "$file"
-          git commit -m "deploy(prod): roll to ${version} [skip ci]"
-          git push origin main
+          git commit -m "deploy(prod): roll to ${version}"
+          git push -u origin "$branch"
+          gh pr create \
+            --base main \
+            --head "$branch" \
+            --title "deploy(prod): roll to ${version}" \
+            --body "Automated prod overlay bump for \`v${version}\`. Merge once required checks pass; ArgoCD will sync prod to \`ghcr.io/${{ github.repository_owner }}/wirestudio:${version}\`."
 
   bump-dev-on-tag:
     # On tag push, also roll the dev overlay to the released -lorawan
@@ -209,16 +225,33 @@ jobs:
     #
     # Dev runs the -lorawan variant, so this needs lorawan-image too --
     # the same gating as bump-dev avoids ArgoCD ImagePullBackOff.
+    #
+    # The dev branch is optional: if it doesn't exist (no dev-track work
+    # in flight), the job no-ops rather than failing the release run.
     needs: [build, lorawan-image]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
+      - name: Check whether dev branch exists
+        id: dev_exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if git ls-remote --exit-code --heads \
+              "https://github.com/${{ github.repository }}.git" dev >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "dev branch missing -- skipping dev overlay bump"
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/checkout@v4
+        if: steps.dev_exists.outputs.exists == 'true'
         with:
           ref: dev
       - name: Pin dev overlay to the freshly tagged release
+        if: steps.dev_exists.outputs.exists == 'true'
         run: |
           # refs/tags/v0.17.0 -> 0.17.0-lorawan
           version="${GITHUB_REF#refs/tags/v}"
