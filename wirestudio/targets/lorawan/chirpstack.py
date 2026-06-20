@@ -133,9 +133,12 @@ class ChirpStackClient:
 
     def default_tenant_id(self) -> str:
         grpc, m = _load()
-        resp = self._get_stubs().tenant.List(
-            m.tenant.ListTenantsRequest(limit=1), metadata=self._auth
-        )
+        try:
+            resp = self._get_stubs().tenant.List(
+                m.tenant.ListTenantsRequest(limit=1), metadata=self._auth
+            )
+        except grpc.RpcError as exc:
+            raise ChirpStackUnavailable(_rpc_msg(exc)) from exc
         if not resp.result:
             raise ChirpStackUnavailable("ChirpStack has no tenant to provision under")
         return resp.result[0].id
@@ -151,7 +154,7 @@ class ChirpStackClient:
         except grpc.RpcError as exc:
             if exc.code() == grpc.StatusCode.NOT_FOUND:
                 return None
-            raise
+            raise ChirpStackUnavailable(_rpc_msg(exc)) from exc
         act = resp.device_activation
         if not act.dev_addr:
             return None
@@ -162,19 +165,22 @@ class ChirpStackClient:
     def ensure_application(self, name: str, *, tenant_id: str) -> str:
         grpc, m = _load()
         stubs = self._get_stubs()
-        resp = stubs.application.List(
-            m.app.ListApplicationsRequest(limit=100, tenant_id=tenant_id, search=name),
-            metadata=self._auth,
-        )
-        for item in resp.result:
-            if item.name == name:
-                return item.id
-        created = stubs.application.Create(
-            m.app.CreateApplicationRequest(
-                application=m.app.Application(name=name, tenant_id=tenant_id)
-            ),
-            metadata=self._auth,
-        )
+        try:
+            resp = stubs.application.List(
+                m.app.ListApplicationsRequest(limit=100, tenant_id=tenant_id, search=name),
+                metadata=self._auth,
+            )
+            for item in resp.result:
+                if item.name == name:
+                    return item.id
+            created = stubs.application.Create(
+                m.app.CreateApplicationRequest(
+                    application=m.app.Application(name=name, tenant_id=tenant_id)
+                ),
+                metadata=self._auth,
+            )
+        except grpc.RpcError as exc:
+            raise ChirpStackUnavailable(_rpc_msg(exc)) from exc
         return created.id
 
     def ensure_device_profile(
@@ -189,40 +195,43 @@ class ChirpStackClient:
         """
         grpc, m = _load()
         stubs = self._get_stubs()
-        resp = stubs.device_profile.List(
-            m.dp.ListDeviceProfilesRequest(limit=100, tenant_id=tenant_id, search=name),
-            metadata=self._auth,
-        )
-        for item in resp.result:
-            if item.name == name and item.region == m.common.Region.US915:
-                if codec is not None:
-                    existing = stubs.device_profile.Get(
-                        m.dp.GetDeviceProfileRequest(id=item.id), metadata=self._auth
-                    ).device_profile
-                    existing.payload_codec_runtime = m.dp.CodecRuntime.JS
-                    existing.payload_codec_script = codec
-                    stubs.device_profile.Update(
-                        m.dp.UpdateDeviceProfileRequest(device_profile=existing),
-                        metadata=self._auth,
-                    )
-                return item.id
-        profile = m.dp.DeviceProfile(
-            name=name,
-            tenant_id=tenant_id,
-            region=m.common.Region.US915,
-            region_config_id="us915_1",
-            mac_version=m.common.MacVersion.LORAWAN_1_0_4,
-            reg_params_revision=m.common.RegParamsRevision.RP002_1_0_0,
-            adr_algorithm_id="default",
-            supports_otaa=True,
-            uplink_interval=3600,
-        )
-        if codec is not None:
-            profile.payload_codec_runtime = m.dp.CodecRuntime.JS
-            profile.payload_codec_script = codec
-        created = stubs.device_profile.Create(
-            m.dp.CreateDeviceProfileRequest(device_profile=profile), metadata=self._auth
-        )
+        try:
+            resp = stubs.device_profile.List(
+                m.dp.ListDeviceProfilesRequest(limit=100, tenant_id=tenant_id, search=name),
+                metadata=self._auth,
+            )
+            for item in resp.result:
+                if item.name == name and item.region == m.common.Region.US915:
+                    if codec is not None:
+                        existing = stubs.device_profile.Get(
+                            m.dp.GetDeviceProfileRequest(id=item.id), metadata=self._auth
+                        ).device_profile
+                        existing.payload_codec_runtime = m.dp.CodecRuntime.JS
+                        existing.payload_codec_script = codec
+                        stubs.device_profile.Update(
+                            m.dp.UpdateDeviceProfileRequest(device_profile=existing),
+                            metadata=self._auth,
+                        )
+                    return item.id
+            profile = m.dp.DeviceProfile(
+                name=name,
+                tenant_id=tenant_id,
+                region=m.common.Region.US915,
+                region_config_id="us915_1",
+                mac_version=m.common.MacVersion.LORAWAN_1_0_4,
+                reg_params_revision=m.common.RegParamsRevision.RP002_1_0_0,
+                adr_algorithm_id="default",
+                supports_otaa=True,
+                uplink_interval=3600,
+            )
+            if codec is not None:
+                profile.payload_codec_runtime = m.dp.CodecRuntime.JS
+                profile.payload_codec_script = codec
+            created = stubs.device_profile.Create(
+                m.dp.CreateDeviceProfileRequest(device_profile=profile), metadata=self._auth
+            )
+        except grpc.RpcError as exc:
+            raise ChirpStackUnavailable(_rpc_msg(exc)) from exc
         return created.id
 
     def create_device(
@@ -250,7 +259,7 @@ class ChirpStackClient:
             )
         except grpc.RpcError as exc:
             if exc.code() != grpc.StatusCode.ALREADY_EXISTS:
-                raise
+                raise ChirpStackUnavailable(_rpc_msg(exc)) from exc
 
     def set_device_keys(self, dev_eui: str, app_key: str) -> None:
         """Set the device's root key. For our pinned LoRaWAN 1.0.4 devices the
@@ -265,11 +274,14 @@ class ChirpStackClient:
             )
         except grpc.RpcError as exc:
             if exc.code() == grpc.StatusCode.ALREADY_EXISTS:
-                stubs.device.UpdateKeys(
-                    m.dev.UpdateDeviceKeysRequest(device_keys=keys), metadata=self._auth
-                )
+                try:
+                    stubs.device.UpdateKeys(
+                        m.dev.UpdateDeviceKeysRequest(device_keys=keys), metadata=self._auth
+                    )
+                except grpc.RpcError as upd_exc:
+                    raise ChirpStackUnavailable(_rpc_msg(upd_exc)) from upd_exc
             else:
-                raise
+                raise ChirpStackUnavailable(_rpc_msg(exc)) from exc
 
     def delete_device(self, dev_eui: str) -> None:
         """Delete a device. Idempotent: a missing DevEUI is a no-op. Used to
@@ -281,7 +293,7 @@ class ChirpStackClient:
             )
         except grpc.RpcError as exc:
             if exc.code() != grpc.StatusCode.NOT_FOUND:
-                raise
+                raise ChirpStackUnavailable(_rpc_msg(exc)) from exc
 
     def set_device_codec(self, dev_eui: str, codec: str) -> str:
         """Set the JS decodeUplink codec on the device's profile so ChirpStack
@@ -289,19 +301,22 @@ class ChirpStackClient:
         whatever profile it's on. Returns the device_profile_id."""
         grpc, m = _load()
         stubs = self._get_stubs()
-        dev = stubs.device.Get(
-            m.dev.GetDeviceRequest(dev_eui=dev_eui), metadata=self._auth
-        )
-        profile_id = dev.device.device_profile_id
-        resp = stubs.device_profile.Get(
-            m.dp.GetDeviceProfileRequest(id=profile_id), metadata=self._auth
-        )
-        profile = resp.device_profile
-        profile.payload_codec_runtime = m.dp.CodecRuntime.JS
-        profile.payload_codec_script = codec
-        stubs.device_profile.Update(
-            m.dp.UpdateDeviceProfileRequest(device_profile=profile), metadata=self._auth
-        )
+        try:
+            dev = stubs.device.Get(
+                m.dev.GetDeviceRequest(dev_eui=dev_eui), metadata=self._auth
+            )
+            profile_id = dev.device.device_profile_id
+            resp = stubs.device_profile.Get(
+                m.dp.GetDeviceProfileRequest(id=profile_id), metadata=self._auth
+            )
+            profile = resp.device_profile
+            profile.payload_codec_runtime = m.dp.CodecRuntime.JS
+            profile.payload_codec_script = codec
+            stubs.device_profile.Update(
+                m.dp.UpdateDeviceProfileRequest(device_profile=profile), metadata=self._auth
+            )
+        except grpc.RpcError as exc:
+            raise ChirpStackUnavailable(_rpc_msg(exc)) from exc
         return profile_id
 
     def get_device_codec(self, dev_eui: str) -> dict:
@@ -309,13 +324,16 @@ class ChirpStackClient:
         whether ``object`` decoding will happen."""
         grpc, m = _load()
         stubs = self._get_stubs()
-        dev = stubs.device.Get(
-            m.dev.GetDeviceRequest(dev_eui=dev_eui), metadata=self._auth
-        )
-        profile_id = dev.device.device_profile_id
-        profile = stubs.device_profile.Get(
-            m.dp.GetDeviceProfileRequest(id=profile_id), metadata=self._auth
-        ).device_profile
+        try:
+            dev = stubs.device.Get(
+                m.dev.GetDeviceRequest(dev_eui=dev_eui), metadata=self._auth
+            )
+            profile_id = dev.device.device_profile_id
+            profile = stubs.device_profile.Get(
+                m.dp.GetDeviceProfileRequest(id=profile_id), metadata=self._auth
+            ).device_profile
+        except grpc.RpcError as exc:
+            raise ChirpStackUnavailable(_rpc_msg(exc)) from exc
         script = profile.payload_codec_script or ""
         return {
             "device_profile_id": profile_id,
@@ -331,9 +349,12 @@ class ChirpStackClient:
         whose nonce counter reset, joins cleanly instead of being dropped as a
         replay."""
         grpc, m = _load()
-        self._get_stubs().device.FlushDevNonces(
-            m.dev.FlushDevNoncesRequest(dev_eui=dev_eui), metadata=self._auth
-        )
+        try:
+            self._get_stubs().device.FlushDevNonces(
+                m.dev.FlushDevNoncesRequest(dev_eui=dev_eui), metadata=self._auth
+            )
+        except grpc.RpcError as exc:
+            raise ChirpStackUnavailable(_rpc_msg(exc)) from exc
 
     def provision_device(
         self,

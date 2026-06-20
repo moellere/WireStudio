@@ -130,10 +130,13 @@ def test_create_device_swallows_already_exists():
     _client(stubs).create_device("0011223344556677", "dev", "app", "dp")
 
 
-def test_create_device_reraises_other_errors():
+def test_create_device_wraps_other_errors_as_chirpstack_unavailable():
+    # Transport / auth / permission errors get converted to ChirpStackUnavailable
+    # so the FastAPI handlers (which only catch ChirpStackUnavailable) turn them
+    # into a 502 with the gRPC status + details, not a bare unhandled 500.
     stubs = _stubs()
     stubs.device.Create.side_effect = _RpcError(grpc.StatusCode.PERMISSION_DENIED)
-    with pytest.raises(grpc.RpcError):
+    with pytest.raises(cs.ChirpStackUnavailable, match="PERMISSION_DENIED"):
         _client(stubs).create_device("0011223344556677", "dev", "app", "dp")
 
 
@@ -158,6 +161,23 @@ def test_flush_dev_nonces_calls_rpc_with_dev_eui():
     _client(stubs).flush_dev_nonces("0011223344556677")
     req = stubs.device.FlushDevNonces.call_args.args[0]
     assert req.dev_eui == "0011223344556677"
+
+
+def test_default_tenant_id_wraps_rpc_error_as_chirpstack_unavailable():
+    # The first call of every provisioning chain. A bad token surfaces here
+    # (UNAUTHENTICATED), and the wrap is what turns the otherwise-unhandled
+    # 500 the user saw into a 502 with "UNAUTHENTICATED:" in the body.
+    stubs = _stubs()
+    stubs.tenant.List.side_effect = _RpcError(grpc.StatusCode.UNAUTHENTICATED)
+    with pytest.raises(cs.ChirpStackUnavailable, match="UNAUTHENTICATED"):
+        _client(stubs).default_tenant_id()
+
+
+def test_flush_dev_nonces_wraps_rpc_error_as_chirpstack_unavailable():
+    stubs = _stubs()
+    stubs.device.FlushDevNonces.side_effect = _RpcError(grpc.StatusCode.UNAVAILABLE)
+    with pytest.raises(cs.ChirpStackUnavailable, match="UNAVAILABLE"):
+        _client(stubs).flush_dev_nonces("0011223344556677")
 
 
 def test_delete_device_calls_rpc():
