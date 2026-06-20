@@ -17,6 +17,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../api/client";
 import type {
+  ChirpstackStatus,
   Design,
   LorawanActivationResponse,
   LorawanProvisionEsphomeResponse,
@@ -75,8 +76,36 @@ export function LorawanProvisionEsphomeDialog({ design, onClose }: Props) {
   const [detecting, setDetecting] = useState(false);
   const [detected, setDetected] = useState<{ chipName: string; mac: string } | null>(null);
   const [detectErr, setDetectErr] = useState<string | null>(null);
+  const [chirpStatus, setChirpStatus] = useState<ChirpstackStatus | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const webSerial = isWebSerialSupported() === "yes";
+
+  // Probe ChirpStack reachability + auth on mount so a misconfigured server
+  // (bad token, unreachable, no tenant) is flagged inline instead of after a
+  // Provision click that 502s. Failure here disables the Provision button --
+  // there's nothing useful to do when ChirpStack is unreachable, and prior
+  // behaviour was to let the click through and surface a bare 500.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const s = await api.lorawanChirpstackStatus();
+        if (!cancelled) setChirpStatus(s);
+      } catch (e) {
+        if (cancelled) return;
+        // The endpoint itself failed (network, not configured). Surface as
+        // unavailable so the Provision button stays disabled.
+        setChirpStatus({
+          available: false,
+          url: null,
+          reason: e instanceof Error ? e.message : String(e),
+        });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Reset the copy-feedback flag a couple seconds after the user copies, so
   // the button doesn't stay green forever on a multi-paste workflow.
@@ -227,7 +256,12 @@ export function LorawanProvisionEsphomeDialog({ design, onClose }: Props) {
   }
 
   const devEuiValid = DEV_EUI_RE.test(devEui);
-  const canProvision = eligible && devEuiValid && !provisioning && !result;
+  // ChirpStack-not-available gates the Provision button. Status is null while
+  // the initial probe is in flight; treat that as "not yet". When the probe
+  // settles to available=true we let provisioning proceed.
+  const chirpReady = chirpStatus?.available === true;
+  const canProvision =
+    eligible && devEuiValid && chirpReady && !provisioning && !result;
 
   return (
     <div
@@ -338,6 +372,30 @@ export function LorawanProvisionEsphomeDialog({ design, onClose }: Props) {
                   Expected 16 hex characters; got {devEui.length}.
                 </div>
               )}
+            </div>
+          )}
+
+          {/* ChirpStack reachability/auth -- gates the Provision button. The
+              endpoint is the same `chirpstack_status()` the CLI smoke uses;
+              when it returns available=false, the reason is the gRPC status
+              from the helper that wraps RpcError -> ChirpStackUnavailable. */}
+          {eligible && chirpStatus && !chirpStatus.available && (
+            <div className="rounded-md border border-amber-700/50 bg-amber-900/20 px-3 py-2 text-xs text-amber-200">
+              <div className="font-semibold">ChirpStack unavailable</div>
+              <div className="mt-1 text-amber-200/80">
+                {chirpStatus.reason ?? "unknown reason"}
+                {chirpStatus.url && (
+                  <>
+                    {" "}
+                    (server <code>{chirpStatus.url}</code>)
+                  </>
+                )}
+              </div>
+              <div className="mt-1 text-amber-300/70">
+                Check <code>CHIRPSTACK_API_URL</code> / <code>CHIRPSTACK_API_TOKEN</code>
+                {" "}on the server; the Bearer token comes from the ChirpStack UI under
+                {" "}<strong>API Keys</strong>, not the JWT signing secret.
+              </div>
             </div>
           )}
 
@@ -464,6 +522,15 @@ export function LorawanProvisionEsphomeDialog({ design, onClose }: Props) {
               <button
                 disabled={!canProvision}
                 onClick={handleProvision}
+                title={
+                  !chirpStatus
+                    ? "Probing ChirpStack…"
+                    : !chirpStatus.available
+                      ? `ChirpStack unavailable: ${chirpStatus.reason ?? "unknown"}`
+                      : !devEuiValid
+                        ? "Enter a 16-hex-char DevEUI"
+                        : undefined
+                }
                 className="rounded-md bg-blue-500/20 px-3 py-1.5 text-sm text-blue-100 ring-1 ring-blue-400/40 enabled:hover:bg-blue-500/30 disabled:opacity-40"
               >
                 {provisioning ? "Provisioning…" : "Provision →"}

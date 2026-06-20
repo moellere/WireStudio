@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **LoRaWAN: gRPC errors no longer hide behind a bare 500.** Every
+  `ChirpStackClient` helper now wraps `grpc.RpcError` ->
+  `ChirpStackUnavailable(_rpc_msg(exc))`, the same convention `ping()`
+  already used. `/lorawan/provision-esphome`, `/lorawan/provision`,
+  `/lorawan/activation`, and the codec endpoints already caught
+  `ChirpStackUnavailable` -> 502; now they actually receive it, so a bad
+  Bearer token surfaces as `502 "UNAUTHENTICATED:"` with the gRPC
+  details visible in the response body instead of an unhandled 500 the
+  UI couldn't explain. Triggered by a user-side debugging session: the
+  pod had a stale token, the provisioning click 500'd silently, and
+  reproducing it took digging through container logs to find the
+  `_InactiveRpcError` the stack swallowed.
+
 ### Added
 
 - **k8s manifest: ChirpStack provisioning envs.** `deploy/k8s.yaml` now
@@ -15,6 +30,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   secretKeyRef on `wirestudio-secrets`). A commented `CHIRPSTACK_API_TLS`
   entry covers the TLS-channel case. Closes the gap where `/lorawan/provision*`
   needed the operator to hand-add envs after every `kubectl apply`.
+- **Provision dialog gates on `/lorawan/chirpstack/status`.** The
+  external-component path's `LorawanProvisionEsphomeDialog` now probes
+  ChirpStack reachability + auth on mount. When the probe returns
+  `available: false`, the dialog renders an inline banner with the gRPC
+  reason (plus a nudge that the Bearer token comes from the ChirpStack
+  UI's **API Keys**, not the JWT signing secret -- the §11 footgun the
+  setup doc warns about) and the Provision button stays disabled. Pairs
+  with the wrap above: the banner shows the same `UNAUTHENTICATED:`
+  string the click would otherwise have produced, but at dialog-open
+  time, so the operator catches the misconfiguration before clicking.
 
 ### Changed
 

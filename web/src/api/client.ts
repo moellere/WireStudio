@@ -4,6 +4,7 @@ import type {
   AgentStreamEvent,
   AgentTurnResponse,
   BoardSummary,
+  ChirpstackStatus,
   ComponentSummary,
   EnclosureSearchResponse,
   EnclosureSearchStatus,
@@ -238,6 +239,11 @@ export const api = {
     request<FleetRunStatus>(`/fleet/jobs/${encodeURIComponent(runId)}`),
 
   lorawanCompileStatus: () => request<LorawanCompileStatus>("/lorawan/compile/status"),
+  /** Probe ChirpStack: reachability + token auth. The provision dialog calls
+   *  this on mount so a misconfigured server is flagged inline rather than
+   *  after a Provision click. */
+  lorawanChirpstackStatus: () =>
+    request<ChirpstackStatus>("/lorawan/chirpstack/status"),
   /** Register the device in ChirpStack and get back the band/EUIs/AppKey to
    *  write into its serial provisioning prompt. */
   lorawanProvision: (body: { dev_eui: string; design: Design }) =>
