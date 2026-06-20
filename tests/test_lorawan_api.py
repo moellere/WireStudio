@@ -363,3 +363,24 @@ def test_provision_esphome_503_when_chirpstack_unconfigured(client, monkeypatch)
         json={"dev_eui": "70b3d57ed0001234", "design": _esphome_lorawan_design()},
     )
     assert r.status_code == 503
+
+
+def test_provision_esphome_502_surfaces_grpc_status_on_chirpstack_unavailable(
+    client, monkeypatch
+):
+    """Regression: a UNAUTHENTICATED (bad API token) from any helper used to bubble
+    as a bare 500 with no body because only ChirpStackUnavailable was caught. The
+    helpers now wrap grpc.RpcError -> ChirpStackUnavailable, so the endpoint
+    returns 502 with the gRPC status + details and the dialog can render it."""
+
+    class _Boom(_FakeChirp):
+        def provision_device(self, **_kwargs):
+            raise cs.ChirpStackUnavailable("UNAUTHENTICATED: ")
+
+    monkeypatch.setattr(cs, "ChirpStackClient", lambda: _Boom())
+    r = client.post(
+        "/lorawan/provision-esphome",
+        json={"dev_eui": "70b3d57ed0001234", "design": _esphome_lorawan_design()},
+    )
+    assert r.status_code == 502
+    assert "UNAUTHENTICATED" in r.json()["detail"]
