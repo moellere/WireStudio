@@ -276,6 +276,24 @@ def test_lorawan_external_path_drops_esphome_extras_wifi_api_ota():
         assert f"\n{block}" not in yaml
 
 
+def test_lorawan_emission_passes_spi_pins_from_board_default_bus():
+    """`lorawan-for-esphome` v0 constructed RadioLib's Module without calling
+    SPI.begin(sck, miso, mosi, cs), so it used arduino-esp32's VSPI defaults
+    (18/19/23/5). TTGO LoRa32 v1 wires its SX1276 to 5/19/27/18 -- the
+    chip-version readback returned garbage and join failed with
+    ERR_CHIP_NOT_FOUND (-2). The renderer now emits sck_pin / miso_pin /
+    mosi_pin into the radio: block, sourced from the board library's
+    default SPI bus, so the component can call SPI.begin() with the right
+    pins before constructing the RadioLib Module. Paired with the upstream
+    schema addition in lorawan-for-esphome that accepts these fields."""
+    d = Design.model_validate(json.loads(LORAWAN_EXAMPLE.read_text()))
+    yaml = render_yaml(d, default_library())
+    # TTGO LoRa32 v1 SPI pinout (matches ttgo-lora32-v1.yaml:17).
+    assert "sck_pin: GPIO5" in yaml
+    assert "miso_pin: GPIO19" in yaml
+    assert "mosi_pin: GPIO27" in yaml
+
+
 def test_lorawan_emission_reads_radio_config_from_board_library():
     """The radio block (chip, pins, optional tcxo/dio2-rf-switch) comes from
     the board library's `radio:` metadata -- not duplicated in design.json.
