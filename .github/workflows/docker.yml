@@ -161,3 +161,40 @@ jobs:
           git add "$file"
           git commit -m "deploy(dev): roll to ${tag} [skip ci]"
           git push origin dev
+
+  bump-prod:
+    # Mirrors bump-dev but keyed on tag push, not dev-branch push. Rolls
+    # deploy/overlays/prod/kustomization.yaml's newTag to the bare semver
+    # extracted from the tag (refs/tags/v0.17.0 -> 0.17.0). Closes the
+    # process gap that left prod pinned at 0.12.0 across v0.13..v0.17:
+    # the prod-bump-during-release step was documented as a comment in the
+    # file but never automated, so it got missed every release.
+    #
+    # Prod runs the LEAN image (no PlatformIO), so we only need the build
+    # job here -- not lorawan-image. ArgoCD prod doesn't need the LoRaWAN
+    # compile worker; the external-component LoRaWAN path uses
+    # fleet-for-esphome for the build.
+    needs: [build]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Pin prod overlay to the freshly tagged release
+        run: |
+          # refs/tags/v0.17.0 -> 0.17.0
+          version="${GITHUB_REF#refs/tags/v}"
+          file=deploy/overlays/prod/kustomization.yaml
+          sed -i -E "s|^( *newTag: ).*|\1\"${version}\"|" "$file"
+          if git diff --quiet -- "$file"; then
+            echo "prod overlay already at ${version}"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$file"
+          git commit -m "deploy(prod): roll to ${version} [skip ci]"
+          git push origin main
