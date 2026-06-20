@@ -253,13 +253,34 @@ class ChirpStackClient:
         )
         if join_eui:
             device.join_eui = join_eui
+        stubs = self._get_stubs()
         try:
-            self._get_stubs().device.Create(
+            stubs.device.Create(
                 m.dev.CreateDeviceRequest(device=device), metadata=self._auth
             )
         except grpc.RpcError as exc:
-            if exc.code() != grpc.StatusCode.ALREADY_EXISTS:
+            if not _is_already_exists(exc, "device"):
                 raise ChirpStackUnavailable(_rpc_msg(exc)) from exc
+            # The dev_eui is registered somewhere in this tenant -- ChirpStack
+            # scopes dev_eui uniquely per tenant, NOT per application, so a
+            # device created earlier under a different path (standalone vs
+            # esphome) collides here even though the application differs.
+            # Resolve the existing device's application: same as ours -> the
+            # documented idempotent no-op; different -> raise with the
+            # conflicting application_id so the operator can remove the device
+            # there (we don't silently re-home devices across apps).
+            try:
+                existing = stubs.device.Get(
+                    m.dev.GetDeviceRequest(dev_eui=dev_eui), metadata=self._auth
+                ).device
+            except grpc.RpcError as get_exc:
+                raise ChirpStackUnavailable(_rpc_msg(get_exc)) from get_exc
+            if existing.application_id != application_id:
+                raise ChirpStackUnavailable(
+                    f"dev_eui {dev_eui} is already registered in a different "
+                    f"application ({existing.application_id}); remove it from "
+                    "that application before re-provisioning here."
+                )
 
     def set_device_keys(self, dev_eui: str, app_key: str) -> None:
         """Set the device's root key. For our pinned LoRaWAN 1.0.4 devices the
@@ -273,7 +294,10 @@ class ChirpStackClient:
                 m.dev.CreateDeviceKeysRequest(device_keys=keys), metadata=self._auth
             )
         except grpc.RpcError as exc:
-            if exc.code() == grpc.StatusCode.ALREADY_EXISTS:
+            # ChirpStack v4 leaks the raw SQLite UNIQUE constraint as INTERNAL
+            # instead of ALREADY_EXISTS for CreateKeys -- treat both as
+            # "keys row already there, update it."
+            if _is_already_exists(exc, "device_keys"):
                 try:
                     stubs.device.UpdateKeys(
                         m.dev.UpdateDeviceKeysRequest(device_keys=keys), metadata=self._auth
@@ -396,6 +420,25 @@ def _rpc_msg(exc) -> str:
         return f"{exc.code().name}: {exc.details()}"
     except Exception:  # pragma: no cover - defensive
         return str(exc)
+
+
+def _is_already_exists(exc, table: str) -> bool:
+    """ChirpStack v4 *should* return ALREADY_EXISTS on a duplicate row, but
+    the SQLite backend's UNIQUE-constraint error leaks straight through as
+    INTERNAL with the raw SQLite message. Detect both so Create RPCs that are
+    documented as idempotent (device, device_keys) actually are."""
+    import grpc as _grpc  # local: chirpstack.py's other helpers already _load()
+
+    try:
+        code = exc.code()
+    except Exception:  # pragma: no cover - defensive
+        return False
+    if code == _grpc.StatusCode.ALREADY_EXISTS:
+        return True
+    if code == _grpc.StatusCode.INTERNAL:
+        details = exc.details() or ""
+        return f"UNIQUE constraint failed: {table}" in details
+    return False
 
 
 def chirpstack_status(client: Optional[ChirpStackClient] = None) -> dict:
