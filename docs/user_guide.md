@@ -27,11 +27,18 @@
   parametric OpenSCAD enclosure (`.scad`), and a SKiDL Python script
   the user runs locally to produce a `.kicad_sch`. Bundled examples
   pinned as goldens.
-- **LoRaWAN (radio boards).** Build RadioLib + LoRaWAN_ESP32 firmware
-  for a US915 radio board (TTGO LoRa32 / T-Beam, Heltec WiFi LoRa 32
-  V2/V3), flash it over WebSerial, and provision the device against
-  ChirpStack — from the **Flash LoRaWAN firmware** header button. See
-  [Integrations](integrations.md#lorawan--chirpstack).
+- **LoRaWAN (radio boards).** Two flows for US915 radio boards (TTGO
+  LoRa32 / T-Beam, Heltec WiFi LoRa 32 V2 / V3):
+  - **Flash LoRaWAN firmware** (radio icon, advanced mode) builds the
+    standalone RadioLib + LoRaWAN_ESP32 path and flashes over WebSerial
+    with runtime serial provisioning. Hardware-validated.
+  - **Provision LoRaWAN device** (key icon) drives the
+    `lorawan-for-esphome` external-component path: detect the chip's
+    eFuse MAC, mint keys against ChirpStack, push to fleet with the
+    secrets inlined, watch the OTAA join land. The device joins the
+    same ESPHome / fleet-for-esphome compile path as every other
+    design.
+  See [Integrations](integrations.md#lorawan--chirpstack).
 
 For driving the studio over MCP, the fleet handoff, and enclosure
 search, see [Integrations](integrations.md).

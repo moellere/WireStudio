@@ -4,10 +4,15 @@ Agent-driven IoT device design tool. Describe a goal (or pick parts);
 get ESPHome YAML, an ASCII wiring diagram, and a BOM that compile
 under upstream ESPHome.
 
-A second generation target builds and flashes **LoRaWAN** firmware
-(RadioLib + LoRaWAN_ESP32) for US915 radio boards — TTGO T-Beam /
-LoRa32, Heltec WiFi LoRa 32 V2/V3 — over WebSerial from the browser, and
-provisions the device against ChirpStack.
+Two LoRaWAN paths share the studio. The standalone target builds and
+flashes RadioLib + LoRaWAN_ESP32 firmware over WebSerial. The newer
+external-component path emits ESPHome YAML referencing
+[`lorawan-for-esphome`](https://github.com/moellere/lorawan-for-esphome),
+so the LoRaWAN device joins the same ESPHome / fleet-for-esphome build
+pipeline as every other device — provisioning, key handling, and
+join-status polling all from the web UI. Both paths target US915 radio
+boards (TTGO T-Beam / LoRa32, Heltec WiFi LoRa 32 V2 / V3) and
+provision against ChirpStack.
 
 Produces ESPHome configs but is not affiliated with the ESPHome
 project — see [`weirded/fleet-for-esphome`](https://github.com/weirded/fleet-for-esphome)
@@ -28,10 +33,12 @@ Detailed docs live in [`docs/`](docs/):
 
 ## Status
 
-`v0.13.0` — on PyPI (`pip install wirestudio`). The studio has wide
+`v0.16.0` — on PyPI (`pip install wirestudio`). The studio has wide
 surface area (YAML, schematic, enclosure, agent, MCP server, fleet
-handoff, web UI, a LoRaWAN flash/provision target) and a set of things
-actually verified against upstream tools. Three of the four priority
+handoff, web UI, two LoRaWAN flash/provision paths — standalone Arduino
+and an external-component path that emits ESPHome YAML referencing
+`lorawan-for-esphome`) and a set of things actually verified against
+upstream tools. Three of the four priority
 tiers (YAML, wiring schema, enclosure) are now gated in CI, and **every
 library component and board is exercised by a bundled example** that
 passes those gates. This section is honest about which is which, ordered
@@ -72,7 +79,7 @@ that pin moves, this line moves with it.
 docker run --rm -p 8765:8765 \
   -e ANTHROPIC_API_KEY=sk-ant-... \
   -v wirestudio-data:/data \
-  ghcr.io/moellere/wirestudio:v0.13.0
+  ghcr.io/moellere/wirestudio:v0.16.0
 ```
 
 Open <http://localhost:8765>. The image bundles the FastAPI server +

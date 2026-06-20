@@ -118,17 +118,36 @@ gate (every component + board names a real KiCad footprint that resolves
 in the pinned libraries) landed as step 1 — the foundation a `.kicad_pcb`
 emit builds on — but the layout itself is not yet in flight.
 
-**LoRaWAN target (0.13).** *Works — hardware-validated.* A second
-generation target alongside ESPHome, on a `wirestudio.targets` plugin
-seam (the `esphome` target wraps the existing generators in place).
-Builds RadioLib + LoRaWAN_ESP32 firmware for US915 radio boards (TTGO
-LoRa32 / T-Beam, Heltec WiFi LoRa 32 V2/V3), flashes it over WebSerial
-from the browser, and provisions the device against ChirpStack — the
-uplink payload and the ChirpStack `decodeUplink` codec are generated
-from one field spec so they stay in lockstep. Every radio board's
-firmware builds in CI ([`lorawan-firmware`](../.github/workflows/lorawan-firmware.yml));
-validated end-to-end on a TTGO T-Beam against live ChirpStack 4.17.
-Behind a `[lorawan]` install extra. See the [LoRaWAN docs](lorawan/).
+**LoRaWAN target (0.13 standalone, 0.16+ external-component).** *Works —
+hardware-validated on the standalone path; external-component path
+shipped, hardware join verification in progress.* Two paths share the
+`wirestudio.targets` plugin seam:
+
+- **Standalone Arduino path** (`target: "lorawan"`). Builds RadioLib +
+  LoRaWAN_ESP32 firmware for US915 radio boards (TTGO LoRa32 / T-Beam,
+  Heltec WiFi LoRa 32 V2/V3), flashes it over WebSerial from the
+  browser, and provisions the device against ChirpStack. Every radio
+  board's firmware builds in CI
+  ([`lorawan-firmware`](../.github/workflows/lorawan-firmware.yml));
+  validated end-to-end on a TTGO T-Beam against live ChirpStack 4.17.
+- **External-component path** (`target: "esphome"` + `lorawan.payload`).
+  When `design.lorawan.payload` is set, the YAML generator emits an
+  `external_components: github://moellere/lorawan-for-esphome@<ref>`
+  block plus a `lorawan:` config (radio block, region, keys via
+  `!secret`, payload sensor bindings). The device joins the same
+  ESPHome / fleet-for-esphome pipeline as every other device.
+  Provisioning is one endpoint
+  (`POST /lorawan/provision-esphome`) that mints an AppKey, registers
+  the device in ChirpStack, flushes its DevNonces, and returns the
+  three secrets ready for `secrets.yaml`. The web flasher has a
+  one-click flow: detect chip → derive DevEUI from eFuse MAC → provision
+  → push to fleet (secrets inlined) → poll activation. See the
+  [LoRaWAN docs](lorawan/) — `esphome-component-pivot.md` for the
+  architecture, `workflow-integration.md` for the orchestration.
+
+Both paths sit behind a `[lorawan]` install extra. The uplink payload
+and the ChirpStack `decodeUplink` codec are generated from one field
+spec so they stay in lockstep.
 
 **Plumbing — already shipped.** API (`0.2`), web UI (`0.3` +
 `0.6+`), USB bootstrap (`0.4`), agent (`0.5` + streaming), CSP
