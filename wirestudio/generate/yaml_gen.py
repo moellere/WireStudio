@@ -305,12 +305,33 @@ def _render_component(
     try:
         rendered = _jinja.from_string(template_str).render(**ctx)
     except UndefinedError as e:
-        # Almost always: template references {{ bus.id }} but the component
-        # has no `kind: bus` connection (or the bus_id doesn't match any
-        # design.buses entry). Surface a cleaner error so the API can 422.
+        # Two common shapes:
+        #  - `bus.id` referenced but the component has no kind:bus connection
+        #    (or the bus_id doesn't match any design.buses entry)
+        #  - `params.<key>` referenced without an `is defined` guard for an
+        #    optional param the user hasn't set
+        # Tailor the hint to the message so we don't suggest a bus fix when
+        # the actual error is a missing optional param.
+        msg = e.message or ""
+        # 'dict object' has no attribute 'x' -> the template walked into a
+        # params dict that didn't have key 'x' (optional param without an
+        # is-defined guard). 'None' has no attribute 'x' or any other shape
+        # -> almost always a missing kind:bus connection (template referenced
+        # bus.<...> and bus came back None).
+        if "'dict object'" in msg:
+            hint = (
+                "Likely an optional param the template references without an "
+                "`is defined` guard. Set the param under the component, or "
+                "fix the template to guard the access."
+            )
+        else:
+            hint = (
+                "Likely a missing bus connection; add a matching bus to the "
+                "design or fix the connection target."
+            )
         raise ValueError(
-            f"component '{comp.id}' (library_id={comp.library_id}) cannot be rendered: {e.message}. "
-            f"Likely a missing bus connection; add a matching bus to the design or fix the connection target."
+            f"component '{comp.id}' (library_id={comp.library_id}) cannot be "
+            f"rendered: {msg}. {hint}"
         ) from e
     except TypeError as e:
         # Jinja's StrictUndefined leaks past `tojson` because json.dumps gets
