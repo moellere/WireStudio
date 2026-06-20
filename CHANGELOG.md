@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`uart_gps` template: optional `params.sensors` guard.** The template
+  referenced `(params.sensors or {}).items()` to default-empty when the
+  user hadn't set the optional sensors map -- but that defense doesn't
+  work under our `StrictUndefined` Jinja env: accessing
+  `params.sensors` on a params dict without that key raises
+  `UndefinedError` BEFORE the `or {}` evaluates, so the fallback never
+  gets a chance. Symptom: adding `uart_gps` via the Inspector (which
+  leaves `params: {}`) failed `/design/render` with 422
+  `'dict object' has no attribute 'sensors'`. Switches to the standard
+  `{%- if params.sensors is defined and params.sensors %}` guard used
+  by `bme280` / `dht` / `sht3xd` / the phase-3 multi-channel sensors.
+- **Pin solver: respect bus pin assignments.** `_used_gpio_pins` walked
+  only `design.connections` for `kind: gpio` targets, but UART tx/rx,
+  I2C sda/scl, SPI clk/miso/mosi/cs, I2S lrclk/bclk, and 1-wire pin
+  live on the bus object itself (a component's bus connection target
+  is `{kind: "bus", bus_id: "uart0"}` and doesn't carry the GPIO). So
+  the solver treated bus pins as free. Symptom: design has UART on
+  `tx=GPIO13`, user adds an HC-SR501 PIR with `OUT` unbound, solver
+  picks `GPIO13` for `OUT` -- the same pin as UART tx. Now harvests
+  bus pin slots into the used set.
+- **Generator error hint: don't suggest "missing bus" for params
+  errors.** The `UndefinedError` -> 422 converter blindly appended
+  "Likely a missing bus connection" to every error message. That was
+  a false friend when the actual error was a missing optional param
+  (the `uart_gps.sensors` case above). Now differentiates: a
+  `'dict object' has no attribute ...` error suggests the optional
+  param / is-defined-guard fix; everything else still suggests the
+  bus connection check.
+
 ## [0.17.0] — 2026-06-20
 
 ### Added
