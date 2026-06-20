@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **k8s manifest: ChirpStack provisioning envs.** `deploy/k8s.yaml` now
+  wires `CHIRPSTACK_API_URL` (plain env, defaults to the in-cluster
+  Service name `chirpstack:8080`) and `CHIRPSTACK_API_TOKEN` (optional
+  secretKeyRef on `wirestudio-secrets`). A commented `CHIRPSTACK_API_TLS`
+  entry covers the TLS-channel case. Closes the gap where `/lorawan/provision*`
+  needed the operator to hand-add envs after every `kubectl apply`.
+
+### Changed
+
+- **`deploy/k8s.yaml` image pin bumped `v0.12.0` → `v0.17.1`.** The
+  standalone manifest's hardcoded image tag was five releases stale (the
+  kustomize overlays roll forward, but the plain manifest doesn't).
+- **`CHIRPSTACK_API_URL` default is now `chirpstack:8080`.** Was a
+  specific LAN IP that meant something only on the original author's
+  network; the new default is the typical in-cluster Service name and
+  works out of the box for the k8s manifest. Non-k8s deploys still set
+  the env explicitly.
+- **Scrubbed local-environment specifics from `docs/lorawan/`.** Replaced
+  real gateway hostname, private IP addresses, gateway silicon ID, and
+  personal DNS names with documentation placeholders (`mygw`, `10.0.x.x`,
+  `*.example.com`, `0000000000000000`). The setup snapshot keeps its
+  structure but no longer leaks a single operator's network into a public
+  repo.
+
 ## [0.17.1] — 2026-06-20
 
 ### Fixed

@@ -10,7 +10,8 @@ the gRPC writes against the 4.17 server.
     CHIRPSTACK_API_TOKEN=<token> python scripts/chirpstack_provision_smoke.py provision
     CHIRPSTACK_API_TOKEN=<token> python scripts/chirpstack_provision_smoke.py cleanup
 
-CHIRPSTACK_API_URL defaults to 10.254.0.11:8080. Run `cleanup` when done.
+CHIRPSTACK_API_URL defaults to chirpstack:8080 (typical in-cluster Service
+name). Set the env var to point at your own server. Run `cleanup` when done.
 """
 from __future__ import annotations
 

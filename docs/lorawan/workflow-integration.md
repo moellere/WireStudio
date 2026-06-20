@@ -199,7 +199,7 @@ gateway and the WireStudio integration is correct end-to-end.
    `github://moellere/lorawan-for-esphome@<sha>`.
 4. Flash: WebSerial flash succeeds; device boots.
 5. Join: serial monitor shows the component's join log; ChirpStack `event/join`
-   fires (on the HA broker at `10.250.0.41:1883`, app topic).
+   fires (on the HA MQTT broker, app topic).
 6. Uplink: first `event/up` decodes through the codec, fields appear under
    `object`; HA chirp integration creates the entity.
 7. **Power-cycle re-joins without nonce flush** — proves nonce persistence

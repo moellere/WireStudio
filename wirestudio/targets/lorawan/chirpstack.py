@@ -19,7 +19,8 @@ Heavy deps (grpcio, chirpstack-api) are the ``lorawan`` extra and imported
 lazily; without them every call raises ``ChirpStackUnavailable``. Credentials
 come from the environment, never ``design.json``:
 
-* ``CHIRPSTACK_API_URL``   gRPC host:port (default ``10.254.0.11:8080``)
+* ``CHIRPSTACK_API_URL``   gRPC host:port (default ``chirpstack:8080``,
+  the typical in-cluster Service name; override for non-k8s deploys)
 * ``CHIRPSTACK_API_TOKEN`` Bearer token generated in the ChirpStack UI
 * ``CHIRPSTACK_API_TLS``   ``true`` for a TLS channel (default plaintext)
 """
@@ -30,7 +31,7 @@ from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Optional
 
-DEFAULT_URL = "10.254.0.11:8080"
+DEFAULT_URL = "chirpstack:8080"
 
 
 class ChirpStackUnavailable(RuntimeError):
