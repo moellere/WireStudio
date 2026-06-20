@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **LoRaWAN external-component path now renders headless.** The renderer
+  emitted `wifi:` / `api:` / network `ota:` / `captive_portal:` whenever
+  the design carried a `fleet.secrets_ref`, including on
+  `lorawan-for-esphome` designs. Per the upstream README, all four
+  blocks reboot-loop the device when the network is unreachable
+  (`wifi:` and `api:` default to `reboot_timeout: 15min`), and every
+  reboot burns a DevNonce in the OTAA flow -- the device eventually
+  stops joining. The fleet/HA addon path's headless field nodes need
+  *no* network stack. The renderer now drops the four blocks (including
+  any set via `esphome_extras`) whenever `design.lorawan.payload` is
+  non-empty. The `lorawan-battery-uplink` golden was regenerated to
+  match. User-reported during a Push-to-fleet flow that produced YAML
+  the fleet wouldn't compile cleanly.
 - **LoRaWAN: `create_device` is actually idempotent now.** ChirpStack v4
   scopes `dev_eui` uniquely per tenant (not per application) and leaks
   the SQLite UNIQUE constraint as `INTERNAL` rather than `ALREADY_EXISTS`

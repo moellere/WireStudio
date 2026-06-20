@@ -244,6 +244,38 @@ def test_lorawan_secrets_partial_override_keeps_secret_refs_for_missing_keys():
     assert "app_key: !secret app_key" not in yaml
 
 
+def test_lorawan_external_path_is_headless_no_wifi_api_ota():
+    """`lorawan-for-esphome` README: field nodes are out of WiFi range and on
+    battery, so `wifi:` / `api:` / network `ota:` reboot-loop the device when
+    unreachable, and every reboot burns a DevNonce in OTAA. The renderer
+    drops them whenever `design.lorawan.payload` is set, even if the design
+    has a `fleet.secrets_ref` (which is the trigger for wifi/api/ota on the
+    non-LoRaWAN path)."""
+    d = Design.model_validate(json.loads(LORAWAN_EXAMPLE.read_text()))
+    yaml = render_yaml(d, default_library())
+    for block in ("wifi:", "api:", "ota:", "captive_portal:"):
+        assert f"\n{block}" not in yaml, f"{block} must be omitted on the external-component LoRaWAN path"
+    # The lorawan: block itself is still there -- this isn't a "no LoRaWAN" check.
+    assert "lorawan:" in yaml
+
+
+def test_lorawan_external_path_drops_esphome_extras_wifi_api_ota():
+    """An esphome_extras override that sets `wifi:` / `api:` / `ota:` /
+    `captive_portal:` is silently dropped on the LoRaWAN path so an example
+    author who shares extras across targets doesn't have to scrub them."""
+    raw = json.loads(LORAWAN_EXAMPLE.read_text())
+    raw["esphome_extras"] = {
+        "wifi": {"ssid": "test"},
+        "api": {"encryption": {"key": "x"}},
+        "ota": [{"platform": "esphome"}],
+        "captive_portal": {},
+    }
+    d = Design.model_validate(raw)
+    yaml = render_yaml(d, default_library())
+    for block in ("wifi:", "api:", "ota:", "captive_portal:"):
+        assert f"\n{block}" not in yaml
+
+
 def test_lorawan_emission_reads_radio_config_from_board_library():
     """The radio block (chip, pins, optional tcxo/dio2-rf-switch) comes from
     the board library's `radio:` metadata -- not duplicated in design.json.

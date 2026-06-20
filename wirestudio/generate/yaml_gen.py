@@ -481,7 +481,15 @@ def build_yaml_dict(
     extras = dict(design.esphome_extras or {})
     out["logger"] = extras.pop("logger", {})
 
-    if design.fleet and design.fleet.secrets_ref:
+    # The external-component LoRaWAN path is *headless*. Field nodes are
+    # typically out of WiFi range and on battery, and `wifi:` / `api:` /
+    # network `ota:` default to `reboot_timeout: 15min` -- an unreachable
+    # network reboot-loops the device, each reboot burns a fresh DevNonce
+    # in the OTAA flow, and the device stops joining cleanly.
+    # `captive_portal:` depends on `wifi:`. See lorawan-for-esphome README.
+    lorawan_external = bool(design.lorawan and design.lorawan.payload)
+
+    if design.fleet and design.fleet.secrets_ref and not lorawan_external:
         secrets = design.fleet.secrets_ref
         api_block: dict[str, Any] = {}
         if "api_key" in secrets:
@@ -495,7 +503,15 @@ def build_yaml_dict(
 
     if "captive_portal" in extras:
         cp = extras.pop("captive_portal")
-        out["captive_portal"] = cp if cp else {}
+        if not lorawan_external:
+            out["captive_portal"] = cp if cp else {}
+    # captive_portal entries silently dropped when LoRaWAN is active so an
+    # example author who left it in esphome_extras doesn't have to scrub
+    # it per-target. Also drop any wifi/api/ota the user might have set
+    # via esphome_extras (header-level overrides).
+    if lorawan_external:
+        for k in ("wifi", "api", "ota", "captive_portal"):
+            extras.pop(k, None)
 
     for bus in design.buses:
         if bus.type == "i2c":
