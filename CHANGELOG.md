@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`deploy/k8s.yaml` image pin bumped `v0.12.0` → `v0.17.1`.** The
+  standalone manifest's hardcoded image tag was five releases stale (the
+  kustomize overlays roll forward, but the plain manifest doesn't).
 - **`CHIRPSTACK_API_URL` default is now `chirpstack:8080`.** Was a
   specific LAN IP that meant something only on the original author's
   network; the new default is the typical in-cluster Service name and
