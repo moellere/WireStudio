@@ -2,9 +2,12 @@
  * Form generated from a component's `params_schema`. v1 supports the
  * scalar param types (string, integer, number, boolean) plus enums.
  *
- * Object/array params (filters, on_press, etc.) fall through to a
- * read-only JSON view -- editing those needs a richer UI that can wait.
+ * Object/array params (filters, on_press, sensors, etc.) edit as a
+ * JSON textarea -- structured per-key UI is component-specific so
+ * the generic editor stays JSON-text-with-validation.
  */
+
+import { useState } from "react";
 
 interface SchemaEntry {
   type?: "string" | "integer" | "number" | "boolean" | "object" | "array";
@@ -138,10 +141,12 @@ function renderControl(
 
   if (entry.type === "object" || entry.type === "array") {
     return (
-      <pre className="overflow-auto rounded-md border border-zinc-800 bg-zinc-950 p-2 text-[11px] text-zinc-400">
-        {JSON.stringify(current, null, 2)}
-        <div className="mt-2 italic text-zinc-500">structured editing not yet supported</div>
-      </pre>
+      <StructuredParamEditor
+        paramKey={k}
+        value={current}
+        kind={entry.type}
+        onChange={onChange}
+      />
     );
   }
 
@@ -154,6 +159,89 @@ function renderControl(
       onChange={(e) => onChange(k, e.target.value)}
       className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
     />
+  );
+}
+
+/**
+ * JSON textarea for object/array params -- the generic editor used when a
+ * component's params_schema declares a nested shape (e.g. uart_gps.sensors,
+ * pulse_counter.filters). Keeps the in-progress text in local state so a
+ * mid-edit (`{"a":1`) doesn't get clobbered as invalid JSON; only commits
+ * to the design when the buffer parses cleanly.
+ *
+ * Tradeoff: it's "edit raw JSON", not a structured per-key UI. For
+ * complex shapes (e.g. uart_gps sub-sensor toggles) a follow-up can add
+ * a component-specific editor; this unblocks the general case today.
+ */
+function StructuredParamEditor({
+  paramKey,
+  value,
+  kind,
+  onChange,
+}: {
+  paramKey: string;
+  value: unknown;
+  kind: "object" | "array";
+  onChange: (k: string, v: unknown) => void;
+}) {
+  const initial =
+    value === undefined || value === null
+      ? kind === "array" ? "[]" : "{}"
+      : JSON.stringify(value, null, 2);
+  const [text, setText] = useState(initial);
+  const [error, setError] = useState<string | null>(null);
+
+  // Local edit state is intentionally not synced from `value` on every
+  // render: a mid-edit ('{"a":1') would get blown away by the parent's
+  // re-render. The buffer initialises from `value` on mount; if the
+  // parent design switches under the editor, the user re-selects the
+  // component to remount the row. Rare enough for a spike-grade fix.
+
+  function handleChange(next: string) {
+    setText(next);
+    if (next.trim() === "") {
+      setError(null);
+      onChange(paramKey, undefined);
+      return;
+    }
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(next);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      return;
+    }
+    const expectedArray = kind === "array";
+    const isArray = Array.isArray(parsed);
+    if (expectedArray && !isArray) {
+      setError("expected a JSON array");
+      return;
+    }
+    if (!expectedArray && (isArray || typeof parsed !== "object" || parsed === null)) {
+      setError("expected a JSON object");
+      return;
+    }
+    setError(null);
+    onChange(paramKey, parsed);
+  }
+
+  return (
+    <div className="space-y-1">
+      <textarea
+        value={text}
+        onChange={(e) => handleChange(e.target.value)}
+        spellCheck={false}
+        rows={Math.min(12, Math.max(3, text.split("\n").length))}
+        className={`w-full rounded-md border bg-zinc-950 p-2 font-mono text-[11px] text-zinc-100 focus:outline-none ${
+          error ? "border-rose-700/60" : "border-zinc-800 focus:border-zinc-600"
+        }`}
+      />
+      {error && (
+        <div className="text-[11px] text-rose-400">
+          JSON parse error: {error}
+        </div>
+      )}
+    </div>
   );
 }
 
