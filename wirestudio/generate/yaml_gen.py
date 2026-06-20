@@ -352,13 +352,27 @@ _LORAWAN_FOR_ESPHOME_REPO = "moellere/lorawan-for-esphome"
 _LORAWAN_FOR_ESPHOME_REF = "main"  # TODO(lorawan): pin to a commit SHA after the join test runs
 
 
-def _emit_lorawan_blocks(out: dict[str, Any], design: Design, library: Library) -> None:
+def _emit_lorawan_blocks(
+    out: dict[str, Any],
+    design: Design,
+    library: Library,
+    lorawan_secrets: dict[str, str] | None = None,
+) -> None:
     """Emit the ESPHome external-component path for `lorawan-for-esphome`:
     `external_components:`, the `lorawan:` block (radio config from the board
     library, keys via !secret), and one `sensor: - platform: lorawan` binding
     per `design.lorawan.payload` entry. No-op unless `design.lorawan.payload`
     is non-empty -- the standalone Arduino path (target="lorawan") is rendered
     elsewhere and unaffected.
+
+    `lorawan_secrets` is an optional mapping with the three literal keys
+    (`dev_eui` / `join_eui` / `app_key`); when present, each key replaces the
+    matching `!secret <name>` reference with a literal string in the rendered
+    YAML. Used by the fleet push path so the rendered config carries the keys
+    the provisioning step minted, without requiring a separate write to the
+    fleet's secrets.yaml. Falls back to `!secret <name>` references for any
+    key not in the override -- the dev-loop / `esphome config` gate keeps
+    working.
     """
     lw = design.lorawan
     if lw is None or not lw.payload:
@@ -393,13 +407,19 @@ def _emit_lorawan_blocks(out: dict[str, Any], design: Design, library: Library) 
     if radio.dio2_as_rf_switch:
         radio_block["dio2_as_rf_switch"] = radio.dio2_as_rf_switch
 
+    overrides = lorawan_secrets or {}
+
+    def _secret_or_literal(name: str) -> Any:
+        value = overrides.get(name)
+        return value if value else Secret(name)
+
     lorawan_block: dict[str, Any] = {
         "id": "lw",
         "region": lw.region,
         "sub_band": lw.sub_band,
-        "dev_eui":  Secret("dev_eui"),
-        "join_eui": Secret("join_eui"),
-        "app_key":  Secret("app_key"),
+        "dev_eui":  _secret_or_literal("dev_eui"),
+        "join_eui": _secret_or_literal("join_eui"),
+        "app_key":  _secret_or_literal("app_key"),
         "radio": radio_block,
     }
     out["lorawan"] = lorawan_block
@@ -412,7 +432,12 @@ def _emit_lorawan_blocks(out: dict[str, Any], design: Design, library: Library) 
         })
 
 
-def build_yaml_dict(design: Design, library: Library) -> dict[str, Any]:
+def build_yaml_dict(
+    design: Design,
+    library: Library,
+    *,
+    lorawan_secrets: dict[str, str] | None = None,
+) -> dict[str, Any]:
     board = library.board(design.board.library_id)
     out: dict[str, Any] = {}
 
@@ -500,7 +525,7 @@ def build_yaml_dict(design: Design, library: Library) -> dict[str, Any]:
     for comp in design.components:
         _deep_merge(out, _render_component(comp, design, library, auto_params))
 
-    _emit_lorawan_blocks(out, design, library)
+    _emit_lorawan_blocks(out, design, library, lorawan_secrets=lorawan_secrets)
 
     if extras:
         _deep_merge(out, extras)
@@ -541,8 +566,13 @@ def _unquote_quoted_tag(match: re.Match[str]) -> str:
     return match.group(0)
 
 
-def render_yaml(design: Design, library: Library) -> str:
-    data = build_yaml_dict(design, library)
+def render_yaml(
+    design: Design,
+    library: Library,
+    *,
+    lorawan_secrets: dict[str, str] | None = None,
+) -> str:
+    data = build_yaml_dict(design, library, lorawan_secrets=lorawan_secrets)
     text = yaml.dump(
         data,
         sort_keys=False,

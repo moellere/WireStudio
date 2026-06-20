@@ -544,3 +544,78 @@ async def test_fleet_job_log_stream_unknown_run_id_emits_error_event(monkeypatch
     assert any(e["event"] == "error" for e in events), events
     err = next(e for e in events if e["event"] == "error")
     assert "nope" in err["data"]["message"]
+
+
+# --- fleet push with lorawan_secrets (W3 follow-up) ----------------------------
+
+import json as _json  # noqa: E402
+from pathlib import Path as _Path  # noqa: E402
+
+_LORAWAN_EXAMPLE = _Path(__file__).resolve().parent.parent / "wirestudio" / "examples" / "lorawan-battery-uplink.json"
+
+
+def _lorawan_design() -> dict:
+    return _json.loads(_LORAWAN_EXAMPLE.read_text())
+
+
+async def test_fleet_push_lorawan_secrets_inlines_literals_in_pushed_yaml(
+    monkeypatch, tmp_path,
+):
+    """The lorawan_secrets body field replaces !secret references with
+    literal values in the YAML written to the fleet. Removes the manual
+    'edit fleet's secrets.yaml after provisioning' step for the
+    external-component path."""
+    addon = FakeFleetAddon()
+    client = _make_client(monkeypatch, tmp_path, addon=addon)
+    r = client.post("/fleet/push", json={
+        "design": _lorawan_design(),
+        "lorawan_secrets": {
+            "dev_eui": "70b3d57ed0001234",
+            "join_eui": "70b3d57ed0000000",
+            "app_key": "00112233445566778899aabbccddeeff",
+        },
+    })
+    assert r.status_code == 200, r.json()
+    body = r.json()
+    pushed = addon.files[body["filename"]]
+    assert "dev_eui: 70b3d57ed0001234" in pushed
+    assert "join_eui: 70b3d57ed0000000" in pushed
+    assert "app_key: 00112233445566778899aabbccddeeff" in pushed
+    # No !secret references for the three LoRaWAN keys in the pushed YAML.
+    assert "!secret dev_eui" not in pushed
+    assert "!secret join_eui" not in pushed
+    assert "!secret app_key" not in pushed
+
+
+async def test_fleet_push_without_lorawan_secrets_keeps_secret_refs(
+    monkeypatch, tmp_path,
+):
+    """The default push (no lorawan_secrets) still emits !secret references --
+    backward-compatible with the current operator flow that edits fleet's
+    secrets.yaml separately."""
+    addon = FakeFleetAddon()
+    client = _make_client(monkeypatch, tmp_path, addon=addon)
+    r = client.post("/fleet/push", json={"design": _lorawan_design()})
+    assert r.status_code == 200, r.json()
+    pushed = addon.files[r.json()["filename"]]
+    assert "dev_eui: !secret dev_eui" in pushed
+    assert "join_eui: !secret join_eui" in pushed
+    assert "app_key: !secret app_key" in pushed
+
+
+async def test_fleet_push_lorawan_secrets_no_op_for_non_lorawan_designs(
+    monkeypatch, tmp_path, garage_motion_design,
+):
+    """A garage-motion design has no lorawan: block, so a stray
+    lorawan_secrets in the request is harmless -- no error, no churn."""
+    addon = FakeFleetAddon()
+    client = _make_client(monkeypatch, tmp_path, addon=addon)
+    r = client.post("/fleet/push", json={
+        "design": garage_motion_design,
+        "lorawan_secrets": {"dev_eui": "f" * 16, "join_eui": "0" * 16, "app_key": "0" * 32},
+    })
+    assert r.status_code == 200, r.json()
+    pushed = addon.files[r.json()["filename"]]
+    # The pushed YAML has no lorawan block at all; the secrets are ignored.
+    assert "lorawan:" not in pushed
+    assert "dev_eui" not in pushed

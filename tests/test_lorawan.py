@@ -196,6 +196,54 @@ def test_lorawan_emission_uses_secret_references_for_keys():
         assert f"{key}: !secret {key}" in yaml
 
 
+def test_lorawan_secrets_override_emits_literal_values():
+    """The fleet-push path supplies the secrets minted by /lorawan/provision-
+    esphome so the rendered YAML carries them inline -- one less manual step
+    on the operator side. Override replaces !secret refs with literals."""
+    d = Design.model_validate(json.loads(LORAWAN_EXAMPLE.read_text()))
+    secrets = {
+        "dev_eui": "70b3d57ed0001234",
+        "join_eui": "70b3d57ed0000000",
+        "app_key": "00112233445566778899aabbccddeeff",
+    }
+    yaml = render_yaml(d, default_library(), lorawan_secrets=secrets)
+    for key, value in secrets.items():
+        assert f"{key}: {value}" in yaml
+        # And no !secret reference for these keys anymore.
+        assert f"{key}: !secret {key}" not in yaml
+
+
+def test_lorawan_secrets_override_quotes_all_digit_join_eui():
+    """An all-digit JoinEUI (e.g. the zero-EUI default used when the design
+    didn't pin a JoinEUI) must be emitted as a string, not as an integer --
+    PyYAML auto-quotes it; this pins the behaviour so a regression is loud."""
+    d = Design.model_validate(json.loads(LORAWAN_EXAMPLE.read_text()))
+    yaml = render_yaml(
+        d, default_library(),
+        lorawan_secrets={
+            "dev_eui": "70b3d57ed0001234",
+            "join_eui": "0000000000000000",
+            "app_key": "ff" * 16,
+        },
+    )
+    assert "join_eui: '0000000000000000'" in yaml  # quoted -> string
+
+
+def test_lorawan_secrets_partial_override_keeps_secret_refs_for_missing_keys():
+    """Any key not in the override keeps its !secret reference. Lets the
+    operator inject just one key (e.g. a manually-rotated AppKey) without
+    losing the other two."""
+    d = Design.model_validate(json.loads(LORAWAN_EXAMPLE.read_text()))
+    yaml = render_yaml(
+        d, default_library(),
+        lorawan_secrets={"app_key": "ff" * 16},
+    )
+    assert "dev_eui: !secret dev_eui" in yaml
+    assert "join_eui: !secret join_eui" in yaml
+    assert "app_key: " + "ff" * 16 in yaml
+    assert "app_key: !secret app_key" not in yaml
+
+
 def test_lorawan_emission_reads_radio_config_from_board_library():
     """The radio block (chip, pins, optional tcxo/dio2-rf-switch) comes from
     the board library's `radio:` metadata -- not duplicated in design.json.
