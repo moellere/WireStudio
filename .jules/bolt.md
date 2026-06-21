@@ -24,3 +24,7 @@
 ## 2025-02-18 - React O(N²) array allocations in derived state lists
 **Learning:** Calling `.filter()` on a list inside the `.map()` of the very same list (like finding alternatives) creates O(N²) intermediate arrays on every render. This forces unnecessary garbage collection and degrades render performance, especially as lists grow.
 **Action:** Replace nested derived arrays inside render loops with lightweight logic. E.g. counting alternatives can just be `list.length - 1`, and rendering them can just map over the list and conditionally return `null`.
+
+## 2025-02-18 - React O(N²) array allocations in derived state lists
+**Learning:** Calling `.filter()` on a list inside the `.map()` of the very same list (like creating derived Sets for collisions) creates O(N²) intermediate arrays on every render. This forces unnecessary garbage collection and degrades render performance.
+**Action:** Replace nested derived arrays inside render loops with pre-computed dictionaries or reusing existing sets. E.g. pass an `allIds` Set directly to list items and resolve collisions with `allIds.has(nextId) && nextId !== id` instead of making a new `.filter(id !== x)` subset per item.
