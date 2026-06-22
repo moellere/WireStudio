@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **LoRaWAN: flash fleet-built firmware via WebSerial from the provision
+  dialog.** Closes the workflow gap where the external-component LoRaWAN
+  path built firmware on the fleet but had no way to land it on a headless
+  device (no network OTA, no fleet flasher). New
+  `FleetClient.get_firmware(run_id, *, factory=)` + `GET
+  /fleet/jobs/{run_id}/firmware[?factory=true]` route ferry the addon's
+  build artifact through the studio (browser never holds `FLEET_TOKEN`),
+  mirroring the standalone path's `/lorawan/firmware/{cache_key}` so the
+  existing `lib/flash.ts` consumes both paths identically. The provision
+  dialog gains a **Flash via WebSerial →** step after a successful Push to
+  fleet: polls the run-status endpoint until the verdict is `passed`,
+  pulls the factory image, then writes it to a blank board at 0x0 with
+  `eraseAll: true` (NVS is empty, `/lorawan/provision-esphome` re-flushed
+  DevNonces, so the wipe is safe per §2.1). Scoped in
+  `docs/lorawan/fleet-firmware-flash.md`. The upstream addon endpoint is
+  still being implemented; until it ships, the button stays available but
+  the call resolves to 404 with a clear "firmware artifact not available"
+  message rather than a silent hang.
+
 ## [0.17.2] — 2026-06-20
 
 ### Fixed

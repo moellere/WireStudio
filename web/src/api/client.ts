@@ -237,6 +237,27 @@ export const api = {
     ),
   fleetRunStatus: (runId: string) =>
     request<FleetRunStatus>(`/fleet/jobs/${encodeURIComponent(runId)}`),
+  /** Download the fleet-built firmware artifact for a finished compile run.
+   *  Mirrors `lorawanFirmware` (standalone path) so the existing WebSerial
+   *  flasher in `lib/flash.ts` consumes both paths identically. `factory=true`
+   *  fetches the merged bootloader+partitions+app image for flashing a blank
+   *  board at 0x0. 404 means the run hasn't finished yet (or the build didn't
+   *  produce the requested image); 502 means the fleet itself is unreachable. */
+  fleetFirmware: async (
+    runId: string,
+    opts: { factory?: boolean } = {},
+  ): Promise<Uint8Array> => {
+    const path = `/fleet/jobs/${encodeURIComponent(runId)}/firmware${
+      opts.factory ? "?factory=true" : ""
+    }`;
+    const res = await fetch(`${API_BASE}${path}`);
+    if (!res.ok) {
+      let body: unknown = undefined;
+      try { body = await res.json(); } catch { /* not json */ }
+      throw new ApiError(res.status, `GET ${path} -> ${res.status}`, body);
+    }
+    return new Uint8Array(await res.arrayBuffer());
+  },
 
   lorawanCompileStatus: () => request<LorawanCompileStatus>("/lorawan/compile/status"),
   /** Probe ChirpStack: reachability + token auth. The provision dialog calls

@@ -255,6 +255,78 @@ export function LorawanProvisionEsphomeDialog({ design, onClose }: Props) {
     }
   }
 
+  // "Flash via WebSerial" picks up the fleet-built factory image (via the
+  // studio's /fleet/jobs/{run_id}/firmware passthrough -- browser never sees
+  // FLEET_TOKEN) and writes it to a blank board via lib/flash.ts. Gated on a
+  // successful fleet compile because the artifact doesn't exist before then.
+  // State machine: idle -> waiting (poll fleet status) -> flashing -> flashed
+  // | error. See docs/lorawan/fleet-firmware-flash.md for the contract.
+  type FlashState =
+    | { kind: "idle" }
+    | { kind: "waiting"; verdict: string }
+    | { kind: "fetching" }
+    | { kind: "flashing"; written: number; total: number }
+    | { kind: "flashed"; bytes: number }
+    | { kind: "error"; message: string };
+  const [flashState, setFlashState] = useState<FlashState>({ kind: "idle" });
+  const [serialLog, setSerialLog] = useState<string>("");
+  const flashSessionRef = useRef<{ close: () => Promise<void> } | null>(null);
+
+  // Release the WebSerial port when the dialog unmounts so a left-open monitor
+  // doesn't hold the OS handle for the next provisioning attempt.
+  useEffect(() => () => {
+    void flashSessionRef.current?.close();
+  }, []);
+
+  async function handleFlash() {
+    if (pushState.kind !== "pushed" || !pushState.run_id) return;
+    const runId = pushState.run_id;
+    setFlashState({ kind: "waiting", verdict: "running" });
+    setSerialLog("");
+    try {
+      // 1. Wait for the compile to land. The fleet artifact endpoint 404s
+      //    until the run finishes; polling the run-status endpoint is the
+      //    canonical "is it ready" signal (reused from the push flow).
+      while (true) {
+        const status = await api.fleetRunStatus(runId);
+        if (status.verdict === "passed") break;
+        if (status.verdict === "failed" || status.verdict === "cancelled") {
+          throw new Error(`compile ${status.verdict}`);
+        }
+        setFlashState({ kind: "waiting", verdict: status.verdict });
+        await new Promise((r) => setTimeout(r, 2000));
+      }
+      // 2. Fetch the factory image -- blank-board flash at 0x0 + full erase.
+      //    The provision step re-flushed DevNonces, so wiping NVS is safe
+      //    (the §2.1 reasoning baked into flash.ts's docstring).
+      setFlashState({ kind: "fetching" });
+      const data = await api.fleetFirmware(runId, { factory: true });
+      // 3. Dynamic-import the flasher so esptool-js stays out of the bundle
+      //    until the user clicks (matches usb-detect's pattern).
+      const { flashFirmware } = await import("../lib/flash");
+      setFlashState({ kind: "flashing", written: 0, total: data.byteLength });
+      const session = await flashFirmware({
+        images: [{ data, address: 0x0 }],
+        eraseAll: true,
+        onProgress: (written, total) =>
+          setFlashState({ kind: "flashing", written, total }),
+        onSerial: (text) =>
+          setSerialLog((s) => (s + text).slice(-8000)),
+      });
+      flashSessionRef.current = session;
+      setFlashState({ kind: "flashed", bytes: data.byteLength });
+    } catch (e) {
+      let msg: string;
+      if (e instanceof ApiError) {
+        const detail = (e.body as { detail?: unknown } | undefined)?.detail;
+        msg = `${e.status}: ${typeof detail === "string" ? detail : e.message}`;
+      } else {
+        msg = e instanceof Error ? e.message : String(e);
+      }
+      setFlashState({ kind: "error", message: msg });
+    }
+  }
+
   const devEuiValid = DEV_EUI_RE.test(devEui);
   // ChirpStack-not-available gates the Provision button. Status is null while
   // the initial probe is in flight; treat that as "not yet". When the probe
@@ -480,6 +552,67 @@ export function LorawanProvisionEsphomeDialog({ design, onClose }: Props) {
                 <div className="mt-2 text-xs text-rose-400">
                   push failed: {pushState.message}
                 </div>
+              )}
+            </div>
+          )}
+
+          {/* Flash via WebSerial -- pulls the fleet-built factory image
+              through the studio (browser never holds FLEET_TOKEN) and
+              writes it to a blank board. Appears only after a successful
+              fleet push, since the artifact doesn't exist before then. */}
+          {result && pushState.kind === "pushed" && pushState.run_id && (
+            <div className="rounded-md border border-zinc-800 bg-zinc-900/40 p-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-[11px] uppercase tracking-wide text-zinc-500">
+                    flash via WebSerial
+                  </div>
+                  <div className="mt-1 text-xs text-zinc-400">
+                    Pull the fleet-built factory image and flash a blank board.
+                    Waits for the compile to finish, then erase + write at 0x0.
+                  </div>
+                </div>
+                <button
+                  onClick={handleFlash}
+                  disabled={
+                    flashState.kind === "waiting" ||
+                    flashState.kind === "fetching" ||
+                    flashState.kind === "flashing" ||
+                    flashState.kind === "flashed"
+                  }
+                  title={
+                    flashState.kind === "flashed"
+                      ? "Already flashed in this session"
+                      : undefined
+                  }
+                  className="rounded-md bg-blue-500/20 px-3 py-1.5 text-sm text-blue-100 ring-1 ring-blue-400/40 enabled:hover:bg-blue-500/30 disabled:opacity-40"
+                >
+                  {flashState.kind === "waiting"
+                    ? `Waiting (${flashState.verdict})…`
+                    : flashState.kind === "fetching"
+                      ? "Fetching image…"
+                      : flashState.kind === "flashing"
+                        ? `Flashing ${Math.round((flashState.written / Math.max(flashState.total, 1)) * 100)}%`
+                        : flashState.kind === "flashed"
+                          ? "Flashed"
+                          : "Flash via WebSerial →"}
+                </button>
+              </div>
+              {flashState.kind === "flashed" && (
+                <div className="mt-2 text-xs text-emerald-300">
+                  Wrote {flashState.bytes.toLocaleString()} bytes. Watch the
+                  serial log below for the LoRaWAN join.
+                </div>
+              )}
+              {flashState.kind === "error" && (
+                <div className="mt-2 text-xs text-rose-400">
+                  flash failed: {flashState.message}
+                </div>
+              )}
+              {serialLog && (
+                <pre className="mt-2 max-h-40 overflow-auto rounded-md border border-zinc-800 bg-black/60 p-2 font-mono text-[11px] leading-relaxed text-zinc-300">
+                  {serialLog}
+                </pre>
               )}
             </div>
           )}
