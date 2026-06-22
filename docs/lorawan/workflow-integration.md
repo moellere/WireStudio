@@ -12,6 +12,10 @@ The standalone Arduino path (`docs/lorawan/LORAWAN_TARGET_PLAN.md`) keeps
 shipping behind the `[lorawan]` install extra until the new path joins on real
 hardware. No flag day.
 
+Step 4's browser-flash for the external-component path (fetching the
+fleet-built artifact through the studio to WebSerial) is scoped separately in
+[`fleet-firmware-flash.md`](fleet-firmware-flash.md).
+
 ## Goal
 
 A user picks a LoRaWAN-capable design in the studio, clicks "Flash LoRaWAN
