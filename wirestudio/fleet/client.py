@@ -283,6 +283,50 @@ class FleetClient:
         return RunStatus(run_id=run_id, verdict=_verdict(jobs), jobs=jobs)
 
     # ------------------------------------------------------------------
+    # Build-artifact fetch
+    # ------------------------------------------------------------------
+
+    async def get_firmware(
+        self, run_id: str, *, factory: bool = False
+    ) -> bytes:
+        """Fetch the compiled firmware bytes for a finished build.
+
+        Mirrors the addon's artifact endpoint at
+        ``GET /ui/api/jobs/{run_id}/firmware[/factory]`` (the upstream
+        half of the headless-device flash story -- see
+        ``docs/lorawan/fleet-firmware-flash.md``). The browser never holds
+        ``FLEET_TOKEN``; this is the studio-side passthrough that fetches
+        with the server token and re-streams the bytes to the WebSerial
+        flasher via the matching studio route.
+
+        ``factory=False`` (default) fetches the app image (re-flash that
+        preserves NVS); ``factory=True`` fetches the merged factory image
+        for blank-board flashing at offset 0x0. 404 -> ``FleetUnavailable``
+        the same way ``get_job_log`` handles unknown run_ids, so the UI
+        can stop polling.
+
+        The upstream endpoint does not exist yet at the time of writing
+        (it's the scoped fleet half); calls will 502 via the matching
+        studio route until the addon ships it. That gates the dialog's
+        "Flash via WebSerial" button on the upstream rollout without
+        changing this client surface later.
+        """
+        if not self.is_configured():
+            raise FleetUnavailable("FLEET_URL or FLEET_TOKEN missing")
+        suffix = "/factory" if factory else ""
+        async with self._client() as c:
+            resp = await c.get(f"/ui/api/jobs/{run_id}/firmware{suffix}")
+        if resp.status_code == 404:
+            raise FleetUnavailable(
+                f"firmware artifact not available for run_id {run_id!r}"
+            )
+        if resp.status_code >= 400:
+            raise FleetUnavailable(
+                f"firmware fetch failed: http {resp.status_code} {resp.text}"
+            )
+        return resp.content
+
+    # ------------------------------------------------------------------
     # Internals
     # ------------------------------------------------------------------
 

@@ -1212,6 +1212,53 @@ def create_app(
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
 
+    @app.get("/fleet/jobs/{run_id}/firmware", tags=["fleet"])
+    async def fleet_job_firmware(run_id: str, factory: bool = False) -> Response:
+        """Passthrough for the fleet's compiled-firmware artifact -- the
+        studio fetches it server-side with FLEET_TOKEN and streams the
+        bytes to the browser's WebSerial flasher (no token in the browser).
+
+        ``?factory=true`` returns the merged bootloader+partitions+app
+        image for flashing a blank board at offset 0x0 (paired with
+        ``eraseAll: true`` on the browser side); default is the app image
+        for an NVS-preserving re-flash. Mirrors the standalone path's
+        ``/lorawan/firmware/{cache_key}[/factory]`` so the WebSerial flow
+        on the external-component path can reuse ``lib/flash.ts`` unchanged.
+
+        Returns 404 when the run hasn't finished, has aged out of the
+        addon's tracking, or the build didn't produce the requested image
+        type; 503 when fleet credentials are missing; 502 when the addon
+        is reachable but the call failed (e.g. the upstream artifact
+        endpoint isn't implemented yet -- see
+        ``docs/lorawan/fleet-firmware-flash.md``).
+        """
+        fc = make_fleet()
+        if not fc.is_configured():
+            raise HTTPException(
+                status_code=503,
+                detail="fleet not configured (set FLEET_URL and FLEET_TOKEN)",
+            )
+        try:
+            data = await fc.get_firmware(run_id, factory=factory)
+        except FleetUnavailable as e:
+            # The client raises FleetUnavailable on both 404 (firmware not
+            # available -> the dialog stops the flash flow with a clear
+            # message) and transport failures (the addon being down).
+            # Preserve the 404 vs 502 distinction the addon emitted so the
+            # browser can tell "not ready yet" from "fleet is down".
+            msg = str(e)
+            if "not available" in msg:
+                raise HTTPException(status_code=404, detail=msg) from e
+            raise HTTPException(status_code=502, detail=msg) from e
+        suffix = "-factory" if factory else ""
+        return Response(
+            content=data,
+            media_type="application/octet-stream",
+            headers={
+                "Content-Disposition": f'attachment; filename="{run_id}{suffix}.bin"',
+            },
+        )
+
     @app.get("/agent/status", tags=["agent"])
     def agent_status() -> dict:
         ok, reason = agent_available()
