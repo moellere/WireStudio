@@ -43,6 +43,11 @@ class FakeFleetAddon:
         # ({"id", "run_id", "state", "target", "finished_at"}) to drive the
         # run-status verdict tests.
         self.queue_jobs: list[dict] = []
+        # run_id -> {"app": bytes | None, "factory": bytes | None}; tests
+        # populate this to drive the firmware-artifact passthrough tests.
+        # None means "not built" -> the addon 404s (matches the fleet-side
+        # contract that 404 = not ready or unavailable).
+        self.firmware: dict[str, dict[str, bytes | None]] = {}
 
     def transport(self) -> httpx.MockTransport:
         def handler(req: httpx.Request) -> httpx.Response:
@@ -109,6 +114,26 @@ class FakeFleetAddon:
                     "offset": len(full),
                     "finished": bool(self.job_logs[run_id]["finished"]),
                 })
+
+            # GET /ui/api/jobs/{run_id}/firmware            -> app image
+            # GET /ui/api/jobs/{run_id}/firmware/factory    -> factory image
+            if method == "GET" and path.startswith("/ui/api/jobs/") and (
+                path.endswith("/firmware") or path.endswith("/firmware/factory")
+            ):
+                kind = "factory" if path.endswith("/factory") else "app"
+                trim = "/firmware/factory" if kind == "factory" else "/firmware"
+                run_id = path[len("/ui/api/jobs/"):-len(trim)]
+                slot = self.firmware.get(run_id)
+                if slot is None:
+                    return httpx.Response(404, json={"error": "unknown run_id"})
+                data = slot.get(kind)
+                if data is None:
+                    return httpx.Response(404, json={"error": f"no {kind} image"})
+                return httpx.Response(
+                    200,
+                    content=data,
+                    headers={"content-type": "application/octet-stream"},
+                )
 
             return httpx.Response(404, json={"error": "not found"})
 
@@ -485,6 +510,115 @@ async def test_fleet_job_log_unknown_run_id_returns_502(monkeypatch, tmp_path):
     addon = FakeFleetAddon()
     client = _make_client(monkeypatch, tmp_path, addon=addon)
     r = client.get("/fleet/jobs/nope/log")
+    assert r.status_code == 502
+
+
+# ---------------------------------------------------------------------------
+# Build-artifact passthrough (fleet -> studio -> browser WebSerial)
+# ---------------------------------------------------------------------------
+
+async def test_get_firmware_returns_app_image_bytes():
+    addon = FakeFleetAddon()
+    addon.firmware["run-1"] = {"app": b"FAKE-APP-IMAGE", "factory": None}
+    fc = addon.make_client()
+    data = await fc.get_firmware("run-1")
+    assert data == b"FAKE-APP-IMAGE"
+
+
+async def test_get_firmware_factory_uses_factory_subpath():
+    addon = FakeFleetAddon()
+    addon.firmware["run-1"] = {
+        "app": b"APP",
+        "factory": b"BOOT+PART+APP",
+    }
+    fc = addon.make_client()
+    data = await fc.get_firmware("run-1", factory=True)
+    assert data == b"BOOT+PART+APP"
+
+
+async def test_get_firmware_unknown_run_id_raises():
+    addon = FakeFleetAddon()
+    fc = addon.make_client()
+    with pytest.raises(FleetUnavailable, match="not available"):
+        await fc.get_firmware("nope")
+
+
+async def test_get_firmware_factory_missing_raises():
+    # The build produced an app image but the older ESPHome on the fleet
+    # didn't emit firmware-factory.bin -- the addon 404s factory while the
+    # app image is fine. The dialog falls back / surfaces the message.
+    addon = FakeFleetAddon()
+    addon.firmware["run-1"] = {"app": b"APP", "factory": None}
+    fc = addon.make_client()
+    with pytest.raises(FleetUnavailable, match="not available"):
+        await fc.get_firmware("run-1", factory=True)
+
+
+async def test_get_firmware_unconfigured_raises():
+    fc = FleetClient(base_url=None, token=None)
+    with pytest.raises(FleetUnavailable, match="missing"):
+        await fc.get_firmware("run-1")
+
+
+async def test_fleet_firmware_endpoint_unconfigured_returns_503(monkeypatch, tmp_path):
+    client = _make_client(monkeypatch, tmp_path, addon=None)
+    r = client.get("/fleet/jobs/run-1/firmware")
+    assert r.status_code == 503
+
+
+async def test_fleet_firmware_endpoint_round_trips_app_image(monkeypatch, tmp_path):
+    addon = FakeFleetAddon()
+    addon.firmware["run-7"] = {"app": b"\x01\x02APP", "factory": None}
+    client = _make_client(monkeypatch, tmp_path, addon=addon)
+    r = client.get("/fleet/jobs/run-7/firmware")
+    assert r.status_code == 200
+    assert r.headers["content-type"] == "application/octet-stream"
+    assert r.headers["content-disposition"] == 'attachment; filename="run-7.bin"'
+    assert r.content == b"\x01\x02APP"
+
+
+async def test_fleet_firmware_endpoint_round_trips_factory_image(monkeypatch, tmp_path):
+    addon = FakeFleetAddon()
+    addon.firmware["run-7"] = {"app": b"app", "factory": b"\xe9\x00\x00FACTORY"}
+    client = _make_client(monkeypatch, tmp_path, addon=addon)
+    r = client.get("/fleet/jobs/run-7/firmware?factory=true")
+    assert r.status_code == 200
+    assert r.headers["content-disposition"] == 'attachment; filename="run-7-factory.bin"'
+    assert r.content == b"\xe9\x00\x00FACTORY"
+
+
+async def test_fleet_firmware_endpoint_unknown_run_id_returns_404(monkeypatch, tmp_path):
+    # 404 means "not ready yet / not built" -- the dialog uses this to keep
+    # waiting on the compile rather than treating it as a fleet outage (which
+    # would be 502).
+    addon = FakeFleetAddon()
+    client = _make_client(monkeypatch, tmp_path, addon=addon)
+    r = client.get("/fleet/jobs/ghost/firmware")
+    assert r.status_code == 404
+
+
+async def test_fleet_firmware_endpoint_addon_unreachable_returns_502(monkeypatch, tmp_path):
+    # Addon returns a 5xx (here, simulated via missing handler -> 404 then
+    # mapped to "not available"). For a transport-level failure we'd return
+    # 502; cover that explicitly by pointing the client at a transport that
+    # always 500s.
+    def boom_handler(req: httpx.Request) -> httpx.Response:
+        if req.url.path.startswith("/ui/api/jobs/") and req.url.path.endswith(
+            "/firmware"
+        ):
+            return httpx.Response(500, json={"error": "internal"})
+        return httpx.Response(404)
+
+    transport = httpx.MockTransport(boom_handler)
+    fc = FleetClient(
+        base_url="http://broken-fleet.local", token="tok-123", transport=transport,
+    )
+
+    class _BrokenAddon:
+        def make_client(self): return fc
+
+    client = _make_client(monkeypatch, tmp_path, addon=_BrokenAddon())
+    r = client.get("/fleet/jobs/run-1/firmware")
     assert r.status_code == 502
 
 

@@ -29,6 +29,8 @@ vi.mock("../api/client", async () => {
       lorawanProvisionEsphome: vi.fn(),
       lorawanActivation: vi.fn(),
       fleetPush: vi.fn(),
+      fleetRunStatus: vi.fn(),
+      fleetFirmware: vi.fn(),
     },
   };
 });
@@ -40,15 +42,27 @@ vi.mock("../lib/usb-detect", () => ({
   isWebSerialSupported: vi.fn(() => "yes"),
 }));
 
+// flash.ts is also browser-only (esptool-js for the actual write); the dialog
+// dynamic-imports it from the Flash button. Mock at the module boundary so
+// jsdom doesn't try to load esptool-js, and the flash flow can be unit-tested
+// without a real WebSerial port. lib/flash.ts has its own unit tests.
+vi.mock("../lib/flash", () => ({
+  flashFirmware: vi.fn(),
+}));
+
 import { detectChip, isWebSerialSupported } from "../lib/usb-detect";
+import { flashFirmware } from "../lib/flash";
 const mockDetectChip = detectChip as unknown as ReturnType<typeof vi.fn>;
 const mockSupported = isWebSerialSupported as unknown as ReturnType<typeof vi.fn>;
+const mockFlash = flashFirmware as unknown as ReturnType<typeof vi.fn>;
 
 const mockApi = api as unknown as {
   lorawanChirpstackStatus: ReturnType<typeof vi.fn>;
   lorawanProvisionEsphome: ReturnType<typeof vi.fn>;
   lorawanActivation: ReturnType<typeof vi.fn>;
   fleetPush: ReturnType<typeof vi.fn>;
+  fleetRunStatus: ReturnType<typeof vi.fn>;
+  fleetFirmware: ReturnType<typeof vi.fn>;
 };
 
 function design(overrides: Partial<Design> = {}): Design {
@@ -83,8 +97,11 @@ beforeEach(() => {
   mockApi.lorawanProvisionEsphome.mockReset();
   mockApi.lorawanActivation.mockReset();
   mockApi.fleetPush.mockReset();
+  mockApi.fleetRunStatus.mockReset();
+  mockApi.fleetFirmware.mockReset();
   mockDetectChip.mockReset();
   mockSupported.mockReturnValue("yes");
+  mockFlash.mockReset();
 });
 
 afterEach(() => {
@@ -414,5 +431,93 @@ describe("push to fleet", () => {
     expect(await screen.findByText(/push failed: 503: fleet not configured/i)).toBeTruthy();
     // Pre-failed state — Push to fleet stays available for a retry.
     expect(screen.getByRole("button", { name: /Push to fleet →/i })).toBeEnabled();
+  });
+});
+
+describe("flash via WebSerial (fleet-built artifact)", () => {
+  async function pushFirst(user: ReturnType<typeof userEvent.setup>) {
+    mockApi.lorawanProvisionEsphome.mockResolvedValue({
+      secrets: {
+        dev_eui: "70b3d57ed0001234",
+        join_eui: "0000000000000000",
+        app_key: "00112233445566778899aabbccddeeff",
+      },
+      chirpstack: { application_id: "app-1", device_profile_id: "dp-1" },
+      band: "US915",
+      sub_band: 2,
+    });
+    mockApi.lorawanActivation.mockResolvedValue({ dev_eui: "70b3d57ed0001234", joined: false });
+    mockApi.fleetPush.mockResolvedValue({
+      filename: "lw-spike.yaml",
+      created: true,
+      run_id: "run-1",
+      enqueued: 1,
+    });
+
+    await user.type(screen.getByPlaceholderText(/70b3d57ed0001234/i), "70b3d57ed0001234");
+    await user.click(screen.getByRole("button", { name: /Provision →/i }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /Push to fleet →/i })).toBeTruthy());
+    await user.click(screen.getByRole("button", { name: /Push to fleet →/i }));
+    // Wait for the flash button to render once push succeeded.
+    await waitFor(() => expect(screen.getByRole("button", { name: /Flash via WebSerial →/i })).toBeTruthy());
+  }
+
+  it("waits for compile, fetches the factory image, and writes it with eraseAll", async () => {
+    const user = userEvent.setup();
+    mockApi.fleetRunStatus.mockResolvedValue({
+      run_id: "run-1", verdict: "passed", jobs: [],
+    });
+    const bin = new Uint8Array([0xe9, 0x00, 0x00, 0x42]);
+    mockApi.fleetFirmware.mockResolvedValue(bin);
+    mockFlash.mockResolvedValue({
+      chipName: "ESP32", mac: undefined,
+      write: vi.fn(), close: vi.fn(),
+    });
+
+    render(<LorawanProvisionEsphomeDialog design={design()} onClose={() => {}} />);
+    await pushFirst(user);
+    await user.click(screen.getByRole("button", { name: /Flash via WebSerial →/i }));
+
+    await waitFor(() => expect(mockFlash).toHaveBeenCalled());
+    expect(mockApi.fleetRunStatus).toHaveBeenCalledWith("run-1");
+    expect(mockApi.fleetFirmware).toHaveBeenCalledWith("run-1", { factory: true });
+    const args = mockFlash.mock.calls[0][0];
+    expect(args.images).toEqual([{ data: bin, address: 0x0 }]);
+    expect(args.eraseAll).toBe(true);
+    await waitFor(() => expect(screen.getByRole("button", { name: /^Flashed$/i })).toBeDisabled());
+  });
+
+  it("surfaces a compile-failed verdict and refuses to fetch the firmware", async () => {
+    const user = userEvent.setup();
+    mockApi.fleetRunStatus.mockResolvedValue({
+      run_id: "run-1", verdict: "failed", jobs: [],
+    });
+
+    render(<LorawanProvisionEsphomeDialog design={design()} onClose={() => {}} />);
+    await pushFirst(user);
+    await user.click(screen.getByRole("button", { name: /Flash via WebSerial →/i }));
+
+    expect(await screen.findByText(/flash failed: compile failed/i)).toBeTruthy();
+    expect(mockApi.fleetFirmware).not.toHaveBeenCalled();
+    expect(mockFlash).not.toHaveBeenCalled();
+  });
+
+  it("surfaces 404 from /fleet/jobs/.../firmware as the flash error (artifact not ready)", async () => {
+    const user = userEvent.setup();
+    mockApi.fleetRunStatus.mockResolvedValue({
+      run_id: "run-1", verdict: "passed", jobs: [],
+    });
+    mockApi.fleetFirmware.mockRejectedValue(
+      new ApiError(404, "GET /fleet/jobs/run-1/firmware?factory=true -> 404", {
+        detail: "firmware artifact not available for run_id 'run-1'",
+      }),
+    );
+
+    render(<LorawanProvisionEsphomeDialog design={design()} onClose={() => {}} />);
+    await pushFirst(user);
+    await user.click(screen.getByRole("button", { name: /Flash via WebSerial →/i }));
+
+    expect(await screen.findByText(/flash failed: 404: firmware artifact not available/i)).toBeTruthy();
+    expect(mockFlash).not.toHaveBeenCalled();
   });
 });
