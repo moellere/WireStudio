@@ -24,3 +24,7 @@
 ## 2025-02-18 - React O(N²) array allocations in derived state lists
 **Learning:** Calling `.filter()` on a list inside the `.map()` of the very same list (like finding alternatives) creates O(N²) intermediate arrays on every render. This forces unnecessary garbage collection and degrades render performance, especially as lists grow.
 **Action:** Replace nested derived arrays inside render loops with lightweight logic. E.g. counting alternatives can just be `list.length - 1`, and rendering them can just map over the list and conditionally return `null`.
+
+## 2025-02-18 - O(N²) array allocations inside render loops
+**Learning:** Computing derived state, like filtering a list of compatibility warnings for every item in a list using `.filter()` inside the `.map()` loop (e.g., `warnings={compatibilityWarnings.filter((w) => w.component_id === b.id)}` in `BusList.tsx`), creates O(N²) intermediate arrays on every render. This forces unnecessary garbage collection and degrades render performance, especially as lists grow. A similar anti-pattern is creating a new filtered `Set` for every item in a loop.
+**Action:** Lift the grouping of data out of the render loop into a `useMemo` map (e.g., computing a `Map<string, CompatibilityWarning[]>` where keys are component IDs). When checking for collisions, pass the entire Set to the child component and perform an `allBusIds.has(draftId)` check instead of pre-filtering the Set for each item.
