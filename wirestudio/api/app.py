@@ -22,7 +22,12 @@ from slowapi.errors import RateLimitExceeded
 import os
 from pydantic import ValidationError
 
-from wirestudio.mcp import BearerTokenMiddleware, build_mcp_server, resolve_token
+from wirestudio.mcp import (
+    BearerTokenMiddleware,
+    TokenManagedError,
+    build_mcp_server,
+    load_token_store,
+)
 
 from wirestudio import __version__
 from wirestudio.agent.agent import is_available as agent_available, run_turn, stream_turn_events
@@ -42,6 +47,7 @@ from wirestudio.api.schemas import (
     InventoryCheckRequest,
     InventoryCheckResponse,
     InventoryEntryModel,
+    McpTokenResponse,
     ModuleSummary,
     FleetJobLogResponse,
     FleetJobStatus,
@@ -1354,11 +1360,32 @@ def create_app(
                 h.strip() for h in allowed_hosts.split(",") if h.strip()
             ]
         token_path_env = os.environ.get("WIRESTUDIO_MCP_TOKEN_PATH")
-        token = resolve_token(
+        token_store = load_token_store(
             token_path=Path(token_path_env) if token_path_env else None,
         )
+
+        # Token-management endpoints for the web UI. Registered before the
+        # catch-all mount below so FastAPI serves them directly -- they sit on
+        # the unauthenticated API surface (the bearer token only gates /mcp),
+        # which is required so the UI can show the token to a user who doesn't
+        # have it yet.
+        @app.get("/mcp/token", response_model=McpTokenResponse, tags=["mcp"])
+        def get_mcp_token() -> McpTokenResponse:
+            return McpTokenResponse(
+                token=token_store.token,
+                managed="env" if token_store.env_managed else "file",
+            )
+
+        @app.post("/mcp/token/rotate", response_model=McpTokenResponse, tags=["mcp"])
+        def rotate_mcp_token() -> McpTokenResponse:
+            try:
+                new_token = token_store.rotate()
+            except TokenManagedError as e:
+                raise HTTPException(status_code=409, detail=str(e)) from e
+            return McpTokenResponse(token=new_token, managed="file")
+
         mcp_app = mcp_server.streamable_http_app()
-        mcp_app.add_middleware(BearerTokenMiddleware, token=token)
+        mcp_app.add_middleware(BearerTokenMiddleware, store=token_store)
         app.mount("/", mcp_app)
 
     return app

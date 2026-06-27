@@ -21,32 +21,83 @@ DEFAULT_TOKEN_PATH = Path(os.path.expanduser("~/.config/wirestudio/mcp-token"))
 ENV_VAR = "WIRESTUDIO_MCP_TOKEN"
 
 
-def resolve_token(
+class TokenManagedError(RuntimeError):
+    """Raised when rotation is attempted on an externally-managed token.
+
+    When the token comes from `WIRESTUDIO_MCP_TOKEN` we can't rewrite it -- the
+    operator owns it (k8s Secret / sops). Rotating would only diverge the live
+    value from the secret, so we refuse.
+    """
+
+
+def _generate_and_persist(path: Path) -> str:
+    token = secrets.token_urlsafe(32)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(token)
+    path.chmod(0o600)
+    return token
+
+
+class TokenStore:
+    """Holds the live MCP bearer token so rotation takes effect without a restart.
+
+    `BearerTokenMiddleware` reads `.token` on every request rather than
+    capturing the value at construction time. `env_managed` is True when the
+    token came from the env var, in which case `rotate()` raises.
+    """
+
+    def __init__(self, *, token: str, path: Path, env_managed: bool) -> None:
+        self._token = token
+        self._path = path
+        self.env_managed = env_managed
+
+    @property
+    def token(self) -> str:
+        return self._token
+
+    def rotate(self) -> str:
+        if self.env_managed:
+            raise TokenManagedError(
+                f"token is set via {ENV_VAR}; rotate it by updating that secret, not here"
+            )
+        self._token = _generate_and_persist(self._path)
+        logger.info("Rotated MCP token; persisted to %s", self._path)
+        return self._token
+
+
+def load_token_store(
     *,
     env_var: str = ENV_VAR,
     token_path: Path | None = None,
-) -> str:
-    """Return the MCP bearer token, generating + persisting one on first call.
+) -> TokenStore:
+    """Resolve the MCP bearer token into a mutable store.
 
     The env var wins if set (operators using k8s Secrets / sops set this and
     the token-file path is ignored). Otherwise the persisted file is read.
     Otherwise a fresh token is generated, persisted with mode 0600, and the
     path is logged at INFO so the operator knows where to copy it from.
     """
+    path = token_path or DEFAULT_TOKEN_PATH
+
     env_token = os.environ.get(env_var)
     if env_token:
-        return env_token.strip()
+        return TokenStore(token=env_token.strip(), path=path, env_managed=True)
 
-    path = token_path or DEFAULT_TOKEN_PATH
     if path.exists():
-        return path.read_text().strip()
+        return TokenStore(token=path.read_text().strip(), path=path, env_managed=False)
 
-    token = secrets.token_urlsafe(32)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(token)
-    path.chmod(0o600)
+    token = _generate_and_persist(path)
     logger.info("Generated MCP token; copy it from %s", path)
-    return token
+    return TokenStore(token=token, path=path, env_managed=False)
+
+
+def resolve_token(
+    *,
+    env_var: str = ENV_VAR,
+    token_path: Path | None = None,
+) -> str:
+    """Return the current MCP bearer token. See `load_token_store`."""
+    return load_token_store(env_var=env_var, token_path=token_path).token
 
 
 class BearerTokenMiddleware:
@@ -59,9 +110,9 @@ class BearerTokenMiddleware:
     only gates the MCP endpoint, not the rest of the API.
     """
 
-    def __init__(self, app: ASGIApp, *, token: str, path_prefix: str = "/mcp") -> None:
+    def __init__(self, app: ASGIApp, *, store: TokenStore, path_prefix: str = "/mcp") -> None:
         self.app = app
-        self._token = token
+        self._store = store
         # Regex match: prefix as a path component (preceded by "/" or start,
         # followed by "/" or end). We can't compare scope[path] literally
         # because Starlette's nested Mount('/') doesn't strip path
@@ -88,7 +139,7 @@ class BearerTokenMiddleware:
         auth = headers.get(b"authorization", b"").decode("latin-1", errors="ignore")
         prefix = "Bearer "
         if not auth.startswith(prefix) or not secrets.compare_digest(
-            auth[len(prefix):], self._token
+            auth[len(prefix):], self._store.token
         ):
             await _send_401(send)
             return

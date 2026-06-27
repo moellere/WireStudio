@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **MCP bearer token: view and rotate from the web UI.** The token was only
+  discoverable by reading `~/.config/wirestudio/mcp-token` or grepping server
+  logs. A Settings dialog (header gear icon) now shows it masked with a reveal
+  toggle, a copy button, and a regenerate action. Two routes back it on the
+  unauthenticated API surface (a client must see the token before it can
+  present it): `GET /mcp/token` -> `{ token, managed }` and `POST
+  /mcp/token/rotate`. Rotation takes effect without a restart -- the bearer
+  middleware now reads the live token from a `TokenStore` on each request
+  instead of capturing it at mount time; `resolve_token()` stays as a thin
+  delegate. When the token is set via `WIRESTUDIO_MCP_TOKEN` it is shown
+  read-only and rotation returns 409 (the operator owns the secret).
+
 - **LoRaWAN: flash fleet-built firmware via WebSerial from the provision
   dialog.** Closes the workflow gap where the external-component LoRaWAN
   path built firmware on the fleet but had no way to land it on a headless
