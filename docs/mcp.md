@@ -32,6 +32,12 @@ INFO  Generated MCP token; copy it from /home/<user>/.config/wirestudio/mcp-toke
 
 ### 2. Copy the token
 
+Easiest from the web UI: open the **Settings** (gear) icon in the header,
+reveal the token, and copy it. You can also regenerate it there — see
+[Viewing and rotating the token](#viewing-and-rotating-the-token).
+
+From the shell instead:
+
 ```bash
 cat ~/.config/wirestudio/mcp-token
 ```
