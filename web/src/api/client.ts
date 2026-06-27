@@ -320,7 +320,16 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+
+  /** Current MCP bearer token. `managed: "env"` means it's set via an env var
+   *  and can't be rotated here. 404 if the server was built without MCP. */
+  mcpToken: () => request<McpTokenInfo>("/mcp/token"),
+  /** Generate a new MCP token, persist it, and switch the live server over to
+   *  it. Existing MCP clients must update. 409 if the token is env-managed. */
+  mcpTokenRotate: () => request<McpTokenInfo>("/mcp/token/rotate", { method: "POST" }),
 };
+
+export type McpTokenInfo = { token: string; managed: "file" | "env" };
 
 /**
  * Stream an agent turn over SSE. Yields each event as it arrives. Throws
