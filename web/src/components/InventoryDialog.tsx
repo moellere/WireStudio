@@ -43,7 +43,14 @@ export function InventoryDialog({ design, onClose }: { design?: Design | null; o
   }, []);
 
   const inInventory = useMemo(() => new Set(entries.map((e) => e.library_id)), [entries]);
-  const nameOf = (id: string) => parts.find((p) => p.id === id)?.name ?? id;
+
+  // ⚡ Bolt: memoize parts lookup map to avoid O(N²) array traversals inside the render loop
+  const partsMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const p of parts) map.set(p.id, p.name);
+    return map;
+  }, [parts]);
+  const nameOf = (id: string) => partsMap.get(id) ?? id;
 
   const matches = useMemo(() => {
     const q = search.trim().toLowerCase();
