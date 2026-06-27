@@ -12,6 +12,9 @@ from starlette.routing import Route
 from wirestudio.mcp.auth import (
     DEFAULT_TOKEN_PATH,
     BearerTokenMiddleware,
+    TokenManagedError,
+    TokenStore,
+    load_token_store,
     resolve_token,
 )
 
@@ -34,7 +37,8 @@ def _build_app(token: str) -> Starlette:
             Route("/public", _ok),
         ]
     )
-    app.add_middleware(BearerTokenMiddleware, token=token)
+    store = TokenStore(token=token, path=Path("/unused"), env_managed=True)
+    app.add_middleware(BearerTokenMiddleware, store=store)
     return app
 
 
@@ -113,6 +117,43 @@ def test_resolve_token_generates_and_persists(monkeypatch, tmp_path: Path):
     assert mode == 0o600
     # Subsequent calls return the same value.
     assert resolve_token(token_path=file_path) == token
+
+
+async def test_middleware_reads_rotated_token_without_restart(tmp_path: Path):
+    # Rotation updates the live store; the already-mounted middleware must
+    # validate against the new token, not the one captured at startup.
+    file_path = tmp_path / "mcp-token"
+    file_path.write_text("original")
+    store = TokenStore(token="original", path=file_path, env_managed=False)
+
+    app = Starlette(routes=[Route("/mcp", _ok)])
+    app.add_middleware(BearerTokenMiddleware, store=store)
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://t") as c:
+        new_token = store.rotate()
+        r_old = await c.get("/mcp", headers={"Authorization": "Bearer original"})
+        r_new = await c.get("/mcp", headers={"Authorization": f"Bearer {new_token}"})
+    assert r_old.status_code == 401
+    assert r_new.status_code == 200
+
+
+def test_token_store_rotate_persists_new_token(tmp_path: Path):
+    file_path = tmp_path / "mcp-token"
+    store = load_token_store(token_path=file_path)
+    first = store.token
+    rotated = store.rotate()
+    assert rotated != first
+    assert store.token == rotated
+    assert file_path.read_text() == rotated
+    assert file_path.stat().st_mode & 0o777 == 0o600
+
+
+def test_token_store_rotate_refuses_env_managed(monkeypatch, tmp_path: Path):
+    monkeypatch.setenv("WIRESTUDIO_MCP_TOKEN", "from-env")
+    store = load_token_store(token_path=tmp_path / "mcp-token")
+    assert store.env_managed is True
+    with pytest.raises(TokenManagedError):
+        store.rotate()
 
 
 def test_default_token_path_is_under_user_config():

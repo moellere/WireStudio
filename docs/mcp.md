@@ -142,6 +142,20 @@ CORS-gated, rate-limited model — hardening those is a separate effort.
 The header comparison uses `secrets.compare_digest`, so a bad token
 can't be brute-forced by timing.
 
+### Viewing and rotating the token
+
+The web UI surfaces the token under the header **Settings** (gear) icon:
+reveal, copy, and regenerate. Two endpoints back it, both on the
+unauthenticated API surface (a client needs to *see* the token before it
+can present it):
+
+- `GET /mcp/token` → `{ token, managed }`. `managed` is `"file"`
+  (rotatable) or `"env"` (set via `WIRESTUDIO_MCP_TOKEN`, read-only).
+- `POST /mcp/token/rotate` → generates a new token, rewrites the
+  persisted file (mode 0600), and switches the running server over to it
+  with no restart. Returns `409` when the token is env-managed. Rotating
+  immediately 401s any client still holding the old token.
+
 ## Remote deployment
 
 For a homelab deployment behind a real hostname, swap the URL for
