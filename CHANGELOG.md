@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+
+- **MCP token UI documented.** The MCP guide's "Copy the token" step and the
+  user guide's Web UI section now point at the header **Settings** (gear)
+  dialog for viewing, copying, and regenerating the MCP bearer token.
+
 ### Added
 
 - **MCP bearer token: view and rotate from the web UI.** The token was only

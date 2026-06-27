@@ -65,7 +65,11 @@ Header buttons: **New design**, **Reset**, **Save**, **Download JSON**,
 **Solve pins**, **strict** (toggle), **Connect device** (USB
 bootstrap), **Add by function** (capability picker), **Schematic**
 (KiCad export), **Enclosure** (parametric `.scad` + Thingiverse
-search), **Push to fleet**.
+search), **Push to fleet**, **Settings** (gear).
+
+The **Settings** dialog surfaces the MCP bearer token: reveal, copy, or
+regenerate it without leaving the browser (read-only when the token is
+pinned via `WIRESTUDIO_MCP_TOKEN`). See [the MCP guide](mcp.md#auth).
 
 ## HTTP API endpoints
 
