@@ -25,6 +25,7 @@ import { SchematicDialog } from "./components/SchematicDialog";
 import { LorawanFlashDialog } from "./components/LorawanFlashDialog";
 import { LorawanProvisionEsphomeDialog } from "./components/LorawanProvisionEsphomeDialog";
 import { InventoryDialog } from "./components/InventoryDialog";
+import { SettingsDialog } from "./components/SettingsDialog";
 import { useDebouncedValue } from "./lib/debounce";
 import { useAdvancedMode } from "./lib/uiMode";
 import {
@@ -40,6 +41,7 @@ import {
   RotateCcw,
   Download,
   ExternalLink,
+  Settings,
   Radio,
   Boxes,
   KeyRound,
@@ -106,6 +108,7 @@ export default function App() {
   const [showFlashDialog, setShowFlashDialog] = useState(false);
   const [showProvisionEsphomeDialog, setShowProvisionEsphomeDialog] = useState(false);
   const [showInventoryDialog, setShowInventoryDialog] = useState(false);
+  const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [savingState, setSavingState] = useState<"idle" | "saving" | "saved">("idle");
 
   const dirty = useMemo(() => isDirty(originalDesign, design), [originalDesign, design]);
@@ -676,9 +679,18 @@ export default function App() {
               </label>
             </div>
 
+            <button
+              onClick={() => setShowSettingsDialog(true)}
+              className="ml-1 flex items-center gap-1 rounded-md p-1.5 text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-300"
+              title="Settings"
+              aria-label="Settings"
+            >
+              <Settings className="h-4 w-4" />
+            </button>
+
             <a
               href="/api/docs" target="_blank" rel="noreferrer"
-              className="ml-1 flex items-center gap-1 rounded-md p-1.5 text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-300"
+              className="flex items-center gap-1 rounded-md p-1.5 text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-300"
               title="OpenAPI documentation"
               aria-label="OpenAPI documentation"
             >
@@ -789,6 +801,7 @@ export default function App() {
       {showInventoryDialog && (
         <InventoryDialog design={design} onClose={() => setShowInventoryDialog(false)} />
       )}
+      {showSettingsDialog && <SettingsDialog onClose={() => setShowSettingsDialog(false)} />}
       <AgentSidebar
         open={showAgent}
         design={design}
