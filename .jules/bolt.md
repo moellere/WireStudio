@@ -29,6 +29,6 @@
 **Learning:** Computing derived state, like filtering a list of compatibility warnings for every item in a list using `.filter()` inside the `.map()` loop (e.g., `warnings={compatibilityWarnings.filter((w) => w.component_id === b.id)}` in `BusList.tsx`), creates O(N²) intermediate arrays on every render. This forces unnecessary garbage collection and degrades render performance, especially as lists grow. A similar anti-pattern is creating a new filtered `Set` for every item in a loop.
 **Action:** Lift the grouping of data out of the render loop into a `useMemo` map (e.g., computing a `Map<string, CompatibilityWarning[]>` where keys are component IDs). When checking for collisions, pass the entire Set to the child component and perform an `allBusIds.has(draftId)` check instead of pre-filtering the Set for each item.
 
-## 2025-02-18 - Avoid O(N*M) lookups inside closures used in render loops
-**Learning:** In `web/src/components/InventoryDialog.tsx`, `nameOf` helper function performed a `.find` operation over the entire `parts` array for every iteration inside a `.map` loop causing an O(N*M) iteration count rendering list items.
-**Action:** Replace `.find` inside render helper functions with a `Map` populated outside of render loops using `useMemo` for an O(1) performance lookup inside the closure.
+## 2025-02-18 - React O(N) array lookups inside Select options map loop
+**Learning:** Performing a `.find()` operation inside the `.map()` loop that renders `<option>` elements or custom labels for a `SelectInput` results in an O(N²) traversal on every render. If the array is rebuilt on every render (e.g. from `readComponents`), it adds significant garbage collection pressure on top of the CPU overhead.
+**Action:** Lift the array mapping and dictionary (Map) creation out of the render loop into `useMemo` hooks. Pass the resulting O(1) lookup dictionary to the child components to avoid repetitive `.find()` lookups during render.

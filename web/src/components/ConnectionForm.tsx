@@ -44,6 +44,14 @@ export function ConnectionForm({
   }, [board.gpio_capabilities]);
 
   const buses = useMemo(() => (design ? readBuses(design) : []), [design]);
+  const busIds = useMemo(() => buses.map((b) => b.id), [buses]);
+  const busDict = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const b of buses) {
+      map.set(b.id, `${b.id} (${b.type})`);
+    }
+    return map;
+  }, [buses]);
 
   const expanderLibIds = useMemo(() => {
     if (!libraryComponents) return new Set<string>();
@@ -53,12 +61,28 @@ export function ConnectionForm({
   const expanders = useMemo(() => {
     return design ? readComponents(design).filter((c) => expanderLibIds.has(c.library_id)) : [];
   }, [design, expanderLibIds]);
+  const expanderIds = useMemo(() => expanders.map((e) => e.id), [expanders]);
+  const expanderDict = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const e of expanders) {
+      map.set(e.id, `${e.id} (${e.library_id})`);
+    }
+    return map;
+  }, [expanders]);
 
   const componentInstances = useMemo(() => {
     return (design ? readComponents(design) : []).map((c) => ({
       id: c.id, library_id: c.library_id,
     }));
   }, [design]);
+  const componentIds = useMemo(() => componentInstances.map((c) => c.id), [componentInstances]);
+  const componentDict = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of componentInstances) {
+      map.set(c.id, `${c.id} (${c.library_id})`);
+    }
+    return map;
+  }, [componentInstances]);
 
   if (rows.length === 0) {
     return <div className="text-xs text-zinc-500">No connections.</div>;
@@ -72,9 +96,12 @@ export function ConnectionForm({
           row={row}
           railNames={railNames}
           gpioPins={gpioPins}
-          buses={buses}
-          expanders={expanders}
-          componentInstances={componentInstances}
+          busIds={busIds}
+          busDict={busDict}
+          expanderIds={expanderIds}
+          expanderDict={expanderDict}
+          componentIds={componentIds}
+          componentDict={componentDict}
           onChange={(t) => onChange(row.index, t)}
           onLockedPinChange={(pin) => onLockedPinChange(row.component_id, row.pin_role, pin)}
         />
@@ -84,15 +111,18 @@ export function ConnectionForm({
 }
 
 function Row({
-  row, railNames, gpioPins, buses, expanders, componentInstances,
+  row, railNames, gpioPins, busIds, busDict, expanderIds, expanderDict, componentIds, componentDict,
   onChange, onLockedPinChange,
 }: {
   row: ConnectionRow;
   railNames: string[];
   gpioPins: string[];
-  buses: { id: string; type: string }[];
-  expanders: { id: string; library_id: string }[];
-  componentInstances: { id: string; library_id: string }[];
+  busIds: string[];
+  busDict: Map<string, string>;
+  expanderIds: string[];
+  expanderDict: Map<string, string>;
+  componentIds: string[];
+  componentDict: Map<string, string>;
   onChange: (t: ConnectionTarget) => void;
   onLockedPinChange: (pin: string | null) => void;
 }) {
@@ -100,8 +130,13 @@ function Row({
 
   const onKindChange = (k: Kind) => {
     if (k === t.kind) return;
-    onChange(defaultTargetForKind(k, { railNames, gpioPins, buses, expanders, componentInstances }));
+    onChange(defaultTargetForKind(k, { railNames, gpioPins, busIds, expanderIds, componentIds }));
   };
+
+  // ⚡ Bolt: compute filtered hub options here once to avoid N allocations per render inside SelectInput map
+  const availableComponentIds = useMemo(() => {
+    return componentIds.filter((id) => id !== row.component_id);
+  }, [componentIds, row.component_id]);
 
   return (
     <div className="rounded-md border border-zinc-800 bg-zinc-900/30 p-2">
@@ -157,11 +192,8 @@ function Row({
         <SelectInput
           label="bus"
           value={t.bus_id}
-          options={buses.map((b) => b.id)}
-          renderLabel={(id) => {
-            const b = buses.find((x) => x.id === id);
-            return b ? `${b.id} (${b.type})` : id;
-          }}
+          options={busIds}
+          renderLabel={(id) => busDict.get(id) || id}
           onChange={(v) => onChange({ kind: "bus", bus_id: v })}
         />
       )}
@@ -169,7 +201,8 @@ function Row({
       {t.kind === "expander_pin" && (
         <ExpanderControls
           target={t}
-          expanders={expanders}
+          expanderIds={expanderIds}
+          expanderDict={expanderDict}
           onChange={onChange}
         />
       )}
@@ -178,13 +211,8 @@ function Row({
         <SelectInput
           label="hub"
           value={t.component_id}
-          options={componentInstances
-            .filter((c) => c.id !== row.component_id)
-            .map((c) => c.id)}
-          renderLabel={(id) => {
-            const c = componentInstances.find((x) => x.id === id);
-            return c ? `${c.id} (${c.library_id})` : id;
-          }}
+          options={availableComponentIds}
+          renderLabel={(id) => componentDict.get(id) || id}
           onChange={(v) => onChange({ kind: "component", component_id: v })}
         />
       )}
@@ -252,10 +280,11 @@ function LockToggle({
 }
 
 function ExpanderControls({
-  target, expanders, onChange,
+  target, expanderIds, expanderDict, onChange,
 }: {
   target: Extract<ConnectionTarget, { kind: "expander_pin" }>;
-  expanders: { id: string; library_id: string }[];
+  expanderIds: string[];
+  expanderDict: Map<string, string>;
   onChange: (t: ConnectionTarget) => void;
 }) {
   return (
@@ -263,11 +292,8 @@ function ExpanderControls({
       <SelectInput
         label="expander"
         value={target.expander_id}
-        options={expanders.map((e) => e.id)}
-        renderLabel={(id) => {
-          const e = expanders.find((x) => x.id === id);
-          return e ? `${e.id} (${e.library_id})` : id;
-        }}
+        options={expanderIds}
+        renderLabel={(id) => expanderDict.get(id) || id}
         onChange={(v) => onChange({ ...target, expander_id: v })}
       />
       <div className="flex items-center gap-2">
@@ -355,9 +381,9 @@ function defaultTargetForKind(
   ctx: {
     railNames: string[];
     gpioPins: string[];
-    buses: { id: string; type: string }[];
-    expanders: { id: string; library_id: string }[];
-    componentInstances: { id: string; library_id: string }[];
+    busIds: string[];
+    expanderIds: string[];
+    componentIds: string[];
   },
 ): ConnectionTarget {
   switch (k) {
@@ -366,16 +392,16 @@ function defaultTargetForKind(
     case "gpio":
       return { kind: "gpio", pin: ctx.gpioPins[0] ?? "" };
     case "bus":
-      return { kind: "bus", bus_id: ctx.buses[0]?.id ?? "" };
+      return { kind: "bus", bus_id: ctx.busIds[0] ?? "" };
     case "expander_pin":
       return {
         kind: "expander_pin",
-        expander_id: ctx.expanders[0]?.id ?? "",
+        expander_id: ctx.expanderIds[0] ?? "",
         number: 0,
         mode: "INPUT_PULLUP",
         inverted: false,
       };
     case "component":
-      return { kind: "component", component_id: ctx.componentInstances[0]?.id ?? "" };
+      return { kind: "component", component_id: ctx.componentIds[0] ?? "" };
   }
 }
