@@ -97,6 +97,7 @@ ENV PYTHONUNBUFFERED=1 \
     WIRESTUDIO_STATIC_DIR=/app/web-dist \
     SESSIONS_DIR=/data/sessions \
     DESIGNS_DIR=/data/designs \
+    INVENTORY_PATH=/data/inventory.json \
     WIRESTUDIO_FW_CACHE=/data/firmware-cache
 
 EXPOSE 8765
