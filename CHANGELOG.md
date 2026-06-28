@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Component inventory now persists across redeploys.** `INVENTORY_PATH` was
+  never set, so `inventory.json` fell back to a package-relative path on the
+  container's ephemeral root filesystem and was lost on every pod restart. The
+  Dockerfile now sets `INVENTORY_PATH=/data/inventory.json`, putting it on the
+  `wirestudio-data` PVC alongside designs and sessions.
+
 ### Documentation
 
 - **MCP token UI documented.** The MCP guide's "Copy the token" step and the
