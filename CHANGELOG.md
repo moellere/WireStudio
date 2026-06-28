@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.3] — 2026-06-28
+
 ### Fixed
 
 - **Component inventory now persists across redeploys.** `INVENTORY_PATH` was
