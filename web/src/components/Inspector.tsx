@@ -574,6 +574,12 @@ function ComponentInstanceInspector({
   const inst = components.find((c) => c.id === instanceId) as ComponentInstance | undefined;
   const comp = useFetched(() => (inst ? api.getComponent(inst.library_id) : Promise.resolve(null)), [inst?.library_id]);
 
+  // ⚡ Bolt: memoize component-specific warnings to avoid O(N) array allocation on every render
+  const mineWarnings = useMemo(() => {
+    if (!inst) return [];
+    return compatibilityWarnings.filter((w) => w.component_id === inst.id);
+  }, [compatibilityWarnings, inst]);
+
   if (!inst) return <div className="text-xs text-zinc-500">Component not found in design.</div>;
   if (!comp) return <Loading />;
 
@@ -615,14 +621,11 @@ function ComponentInstanceInspector({
         ) : null}
       </Section>
 
-      {(() => {
-        const mine = compatibilityWarnings.filter((w) => w.component_id === inst.id);
-        return mine.length > 0 ? (
-          <Section title={`Compatibility (${mine.length})`}>
-            <CompatibilityList warnings={mine} />
-          </Section>
-        ) : null;
-      })()}
+      {mineWarnings.length > 0 ? (
+        <Section title={`Compatibility (${mineWarnings.length})`}>
+          <CompatibilityList warnings={mineWarnings} />
+        </Section>
+      ) : null}
 
       <Section title={`From the library (${inst.library_id})`}>
         <FullComponentView comp={comp} compact />
