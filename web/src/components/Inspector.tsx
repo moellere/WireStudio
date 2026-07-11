@@ -236,13 +236,19 @@ function AddComponentControl({
   onAdd: (libraryId: string) => void;
 }) {
   const [picked, setPicked] = useState<string>("");
-  const options = libraryComponents ?? [];
-  // Group by category for the optgroups.
-  const byCategory: Record<string, ComponentSummary[]> = {};
-  for (const c of options) {
-    (byCategory[c.category] ||= []).push(c);
-  }
-  const categories = Object.keys(byCategory).sort();
+
+  // ⚡ Bolt: memoize category grouping to avoid O(N) allocations and sorting on every render
+  const { byCategory, categories } = useMemo(() => {
+    const options = libraryComponents ?? [];
+    const grouped: Record<string, ComponentSummary[]> = {};
+    for (const c of options) {
+      (grouped[c.category] ||= []).push(c);
+    }
+    return {
+      byCategory: grouped,
+      categories: Object.keys(grouped).sort(),
+    };
+  }, [libraryComponents]);
 
   return (
     <div className="flex items-center gap-1">
