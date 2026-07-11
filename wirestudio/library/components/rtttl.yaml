@@ -17,6 +17,7 @@ electrical:
   - role: OUT
     kind: digital_out
     voltage: 3.3
+    requires_pwm: true
   - role: GND
     kind: ground
   passives: []

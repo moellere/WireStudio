@@ -1,0 +1,41 @@
+{
+  "schema_version": "0.1",
+  "id": "solder-fan",
+  "name": "Solder exhaust fan controller",
+  "description": "Wemos D1 Mini driving a 12V 4-wire PWM fan from a panel potentiometer: the knob sets the exhaust speed and the fan's tachometer reports RPM. The fan's +12V comes from a separate supply sharing ground with the board; only the 25kHz PWM (D5) and open-collector tach (D2) touch the ESP. A wirestudio port of the classic ESPHome solder-fan config.",
+  "created_at": "2026-07-03T00:00:00Z",
+  "updated_at": "2026-07-03T00:00:00Z",
+
+  "board": { "library_id": "wemos-d1-mini", "mcu": "esp8266", "framework": "arduino" },
+  "power": { "supply": "usb-5v", "rail_voltage_v": 5.0, "budget_ma": 500 },
+
+  "requirements": [
+    { "id": "r1", "kind": "capability", "text": "set exhaust fan speed from a panel potentiometer" },
+    { "id": "r2", "kind": "capability", "text": "drive a 12V 4-wire fan at 25kHz PWM and report its RPM" },
+    { "id": "r3", "kind": "constraint", "text": "fan runs off an external 12V supply; only logic-level signals reach the ESP" }
+  ],
+
+  "components": [
+    { "id": "pot", "library_id": "potentiometer", "label": "Speed knob",
+      "params": { "unit_of_measurement": "%", "filters": [ { "multiply": 100.0 } ] } },
+    { "id": "fan", "library_id": "pwm_fan", "label": "Solder Exhaust Fan", "params": {} }
+  ],
+
+  "buses": [],
+
+  "connections": [
+    { "component_id": "pot", "pin_role": "VCC",   "target": { "kind": "rail", "rail": "3V3" } },
+    { "component_id": "pot", "pin_role": "WIPER", "target": { "kind": "gpio", "pin": "A0" } },
+    { "component_id": "pot", "pin_role": "GND",   "target": { "kind": "rail", "rail": "GND" } },
+
+    { "component_id": "fan", "pin_role": "PWM",  "target": { "kind": "gpio", "pin": "D5" } },
+    { "component_id": "fan", "pin_role": "TACH", "target": { "kind": "gpio", "pin": "D2" } },
+    { "component_id": "fan", "pin_role": "GND",  "target": { "kind": "rail", "rail": "GND" } }
+  ],
+
+  "passives": [],
+  "warnings": [],
+  "esphome_extras": { "captive_portal": {}, "logger": {} },
+  "fleet": { "device_name": "solder-fan", "tags": ["workshop", "fan"],
+    "secrets_ref": { "wifi_ssid": "!secret wifi_ssid", "wifi_password": "!secret wifi_password", "api_key": "!secret api_key" } }
+}

@@ -22,6 +22,14 @@ class Pin(_Strict):
     kind: str
     voltage: Optional[float] = None
     pull_up: Optional[PullUp] = None
+    # A digital_out that carries a PWM/analog output (ledc, esp8266_pwm) rather
+    # than a plain level. The pin solver hard-excludes pins tagged `no_pwm`
+    # (e.g. ESP8266 GPIO16) for these and prefers pins tagged `pwm`.
+    requires_pwm: bool = False
+    # A digital_in read via edge interrupts (pulse_counter tach/flow). The pin
+    # solver hard-excludes pins tagged `no_interrupt` (ESP8266 GPIO16 can't
+    # attachInterrupt). Polled inputs (plain gpio binary_sensor) leave it off.
+    requires_interrupt: bool = False
     # When kind == "hub_ref", names the library_id of the parent component
     # this pin must connect to (e.g., ads1115_channel.HUB has
     # parent_library_id: ads1115). The pin solver uses this to filter

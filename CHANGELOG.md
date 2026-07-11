@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Potentiometer and 12V PWM fan components.** `potentiometer` models a
+  three-terminal analog knob (VCC / wiper / GND) read via the ADC; `pwm_fan`
+  models a 4-wire 12V fan, emitting the 25kHz PWM output, the `speed` fan
+  entity, and the tachometer `pulse_counter` in one part. The PWM platform
+  auto-selects `ledc` on ESP32 and `esp8266_pwm` on ESP8266. New
+  `solder-fan` example wires the two together on a Wemos D1 Mini.
+
+### Fixed
+
+- **Pin solver respects PWM and interrupt pin limits.** New `requires_pwm` /
+  `requires_interrupt` flags on library pins let the solver hard-exclude pins
+  that can't do the job -- e.g. ESP8266 GPIO16 (D0), which has neither timer
+  PWM nor edge interrupts -- and prefer `pwm`-tagged pins for PWM outputs.
+  Applied to `pwm_fan` (PWM/tach), `rtttl` (PWM), and `pulse_counter` (tach);
+  previously a PWM output or pulse counter could be auto-assigned to D0 and
+  silently fail on hardware.
+
 ## [0.17.3] — 2026-06-28
 
 ### Fixed
