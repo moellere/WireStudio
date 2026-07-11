@@ -18,7 +18,7 @@
   "components": [
     { "id": "pot", "library_id": "potentiometer", "label": "Speed knob",
       "params": { "unit_of_measurement": "%", "filters": [ { "multiply": 100.0 } ] } },
-    { "id": "fan", "library_id": "pwm_fan", "label": "Solder Exhaust Fan", "params": {} }
+    { "id": "exhaust", "library_id": "pwm_fan", "label": "Solder Exhaust Fan", "params": {} }
   ],
 
   "buses": [],
@@ -28,9 +28,9 @@
     { "component_id": "pot", "pin_role": "WIPER", "target": { "kind": "gpio", "pin": "A0" } },
     { "component_id": "pot", "pin_role": "GND",   "target": { "kind": "rail", "rail": "GND" } },
 
-    { "component_id": "fan", "pin_role": "PWM",  "target": { "kind": "gpio", "pin": "D5" } },
-    { "component_id": "fan", "pin_role": "TACH", "target": { "kind": "gpio", "pin": "D2" } },
-    { "component_id": "fan", "pin_role": "GND",  "target": { "kind": "rail", "rail": "GND" } }
+    { "component_id": "exhaust", "pin_role": "PWM",  "target": { "kind": "gpio", "pin": "D5" } },
+    { "component_id": "exhaust", "pin_role": "TACH", "target": { "kind": "gpio", "pin": "D2" } },
+    { "component_id": "exhaust", "pin_role": "GND",  "target": { "kind": "rail", "rail": "GND" } }
   ],
 
   "passives": [],

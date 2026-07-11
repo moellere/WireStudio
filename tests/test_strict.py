@@ -39,7 +39,7 @@ def _dirty_compat() -> dict:
     """Reroute the fan's PWM to D0 (no_pwm) -> a function_unsupported error."""
     d = _clean()
     for c in d["connections"]:
-        if c["component_id"] == "fan" and c["pin_role"] == "PWM":
+        if c["component_id"] == "exhaust" and c["pin_role"] == "PWM":
             c["target"] = {"kind": "gpio", "pin": "D0"}
     return d
 

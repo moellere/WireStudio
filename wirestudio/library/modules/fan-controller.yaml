@@ -9,7 +9,7 @@ description: >-
 use_cases: [fan, cooling, exhaust, speed_control, workshop]
 aliases: [solder-fan, fan-speed-controller, exhaust-controller]
 components:
-  - id_hint: fan
+  - id_hint: exhaust
     library_id: pwm_fan
     label: Fan
   - id_hint: knob

@@ -145,7 +145,7 @@ def test_pwm_output_on_no_pwm_pin_is_an_error(lib):
     auto-assign it, but a manual bind must still be caught."""
     d = _load("solder-fan")
     for c in d["connections"]:
-        if c["component_id"] == "fan" and c["pin_role"] == "PWM":
+        if c["component_id"] == "exhaust" and c["pin_role"] == "PWM":
             c["target"] = {"kind": "gpio", "pin": "D0"}
     warnings = check_pin_compatibility(d, lib)
     errs = [w for w in _by_code(warnings, "function_unsupported")
@@ -161,7 +161,7 @@ def test_interrupt_input_on_no_interrupt_pin_is_an_error(lib):
     hard error."""
     d = _load("solder-fan")
     for c in d["connections"]:
-        if c["component_id"] == "fan" and c["pin_role"] == "TACH":
+        if c["component_id"] == "exhaust" and c["pin_role"] == "TACH":
             c["target"] = {"kind": "gpio", "pin": "D0"}
     warnings = check_pin_compatibility(d, lib)
     errs = [w for w in _by_code(warnings, "function_unsupported")

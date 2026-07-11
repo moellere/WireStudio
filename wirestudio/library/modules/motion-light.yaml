@@ -11,7 +11,7 @@ components:
   - id_hint: pir
     library_id: hc-sr501
     label: Motion
-  - id_hint: light
+  - id_hint: lamp
     library_id: ws2812b
     label: Status light
     params: { method: BIT_BANG, num_leds: 1 }
