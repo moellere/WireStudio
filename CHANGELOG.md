@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Strict mode.** A design-level `strict: true` toggle flips the permissive
+  default: instead of surfacing electrical/CSP violations as non-blocking
+  warnings, any warn/error compatibility entry or design warning now blocks
+  generation. Enforced uniformly across the render + validate MCP/agent tools,
+  the `/design/render` and `/fleet/push` HTTP endpoints (design field or
+  `?strict=true` override), and the `wirestudio.generate` CLI (`--strict`).
+  The shared `strict_blockers()` helper is the single source of truth for what
+  blocks. Living on the design keeps generation a pure function of design.json.
 - **Potentiometer and 12V PWM fan components.** `potentiometer` models a
   three-terminal analog knob (VCC / wiper / GND) read via the ADC; `pwm_fan`
   models a 4-wire 12V fan, emitting the 25kHz PWM output, the `speed` fan

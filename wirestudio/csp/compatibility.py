@@ -429,3 +429,46 @@ def _bus_pin_warnings(design: dict, board) -> list[CompatibilityWarning]:
                 ))
 
     return out
+
+
+@dataclass
+class StrictBlock:
+    """One issue that blocks generation when a design has `strict: true`.
+
+    `kind` is "compatibility" (a pin/electrical warning) or "design" (a
+    warning carried in design.warnings). `severity` mirrors the source
+    level ("warn" | "error"); `detail` is a rendered one-liner for the
+    caller's error message.
+    """
+    kind: str
+    severity: str
+    code: str
+    detail: str
+
+
+def strict_blockers(design: dict, library: Library) -> list[StrictBlock]:
+    """Issues that block generation under strict mode.
+
+    Strict mode flips the permissive default (CLAUDE.md: violations surface
+    in warnings but don't block). It blocks on any compatibility entry of
+    severity warn/error plus any design warning of level warn/error. Info
+    entries never block. Pure: reads the design, never mutates it.
+    """
+    blockers: list[StrictBlock] = []
+    for w in check_pin_compatibility(design, library):
+        if w.severity in ("warn", "error"):
+            blockers.append(StrictBlock(
+                kind="compatibility",
+                severity=w.severity,
+                code=w.code,
+                detail=f"{w.component_id}.{w.pin_role} ({w.pin}): {w.message}",
+            ))
+    for w in design.get("warnings") or []:
+        level = w.get("level") if isinstance(w, dict) else getattr(w, "level", None)
+        if level in ("warn", "error"):
+            code = w.get("code") if isinstance(w, dict) else getattr(w, "code", "")
+            text = w.get("text") if isinstance(w, dict) else getattr(w, "text", "")
+            blockers.append(StrictBlock(
+                kind="design", severity=level, code=code or "", detail=text or "",
+            ))
+    return blockers

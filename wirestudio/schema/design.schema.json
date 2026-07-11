@@ -285,6 +285,8 @@
 
     "target": { "type": "string", "enum": ["esphome", "lorawan"], "default": "esphome" },
 
+    "strict": { "type": "boolean", "default": false, "description": "When true, warn/error compatibility entries and design warnings block generation instead of surfacing permissively." },
+
     "lorawan": {
       "type": "object",
       "additionalProperties": false,
