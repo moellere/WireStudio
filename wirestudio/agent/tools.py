@@ -148,6 +148,24 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
         },
     },
     {
+        "name": "set_strict",
+        "description": (
+            "Toggle the design's strict mode. When enabled, render and "
+            "validate refuse a design that still has warn/error compatibility "
+            "entries or design warnings, instead of surfacing them as "
+            "non-blocking guidance. Permissive (the default) always generates. "
+            "The setting persists on the design."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "enabled": {"type": "boolean", "description": "True for strict, false for permissive."},
+            },
+            "required": ["enabled"],
+            "additionalProperties": False,
+        },
+    },
+    {
         "name": "add_bus",
         "description": (
             "Add a bus to the design. `type` must be one of i2c / spi / uart "
@@ -431,6 +449,11 @@ def _run_set_connection(
     return {"ok": True, "created": True}
 
 
+def _run_set_strict(design: dict, library: Library, *, enabled: bool) -> dict:
+    design["strict"] = enabled
+    return {"ok": True, "strict": enabled}
+
+
 def _run_add_bus(design: dict, library: Library, **fields: Any) -> dict:
     buses = design.setdefault("buses", [])
     if any(b.get("id") == fields["id"] for b in buses):
@@ -660,6 +683,7 @@ TOOL_HANDLERS: dict[str, Callable[..., Any]] = {
     "remove_component": _run_remove_component,
     "set_param": _run_set_param,
     "set_connection": _run_set_connection,
+    "set_strict": _run_set_strict,
     "add_bus": _run_add_bus,
     "render": _run_render,
     "validate": _run_validate,

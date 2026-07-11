@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `?strict=true` override), and the `wirestudio.generate` CLI (`--strict`).
   The shared `strict_blockers()` helper is the single source of truth for what
   blocks. Living on the design keeps generation a pure function of design.json.
+  Set it via the new `set_strict` MCP/agent tool or the Web UI's STRICT toggle
+  (which now persists into `design.strict` instead of a transient request flag).
 - **Potentiometer and 12V PWM fan components.** `potentiometer` models a
   three-terminal analog knob (VCC / wiper / GND) read via the ADC; `pwm_fan`
   models a 4-wire 12V fan, emitting the 25kHz PWM output, the `speed` fan
