@@ -4,7 +4,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 from wirestudio.api.app import create_app
+from wirestudio.csp.pin_solver import solve_pins
 from wirestudio.designs.seed import insert_module
+from wirestudio.generate import render_yaml
 from wirestudio.generate.ascii_gen import render_ascii
 from wirestudio.library import default_library
 from wirestudio.model import Design
@@ -34,6 +36,28 @@ def test_list_modules_includes_oled_knob():
 def test_unknown_module_raises():
     with pytest.raises(FileNotFoundError):
         default_library().module("nope")
+
+
+@pytest.mark.parametrize("module_id", [m.id for m in default_library().list_modules()])
+@pytest.mark.parametrize("board_id,mcu", [
+    ("esp32-devkitc-v4", "esp32"),
+    ("wemos-d1-mini", "esp8266"),
+])
+def test_module_inserts_solves_and_renders(module_id, board_id, mcu):
+    """Every bundled module must expand into real components that auto-wire,
+    solve to concrete pins with no unresolved connections, and render valid
+    ESPHome YAML -- on both an ESP32 and an ESP8266 host."""
+    lib = default_library()
+    m = lib.module(module_id)
+    d = _base_design()
+    d["board"] = {"library_id": board_id, "mcu": mcu, "framework": "arduino"}
+    d["power"]["budget_ma"] = 1000
+    _, d = insert_module(d, lib, m)
+    assert len(d["components"]) == len(m.components)
+    result = solve_pins(d, lib)
+    assert result.unresolved == [], f"{module_id}/{board_id}: {result.unresolved}"
+    yaml_out = render_yaml(Design.model_validate(result.design), lib)
+    assert yaml_out.strip()
 
 
 # --- insert_module ----------------------------------------------------------

@@ -367,8 +367,8 @@ async def test_fleet_push_strict_blocks_on_compat_warning(monkeypatch, tmp_path)
     assert strict.status_code == 422
     detail = strict.json()["detail"]
     assert detail["error"] == "strict_mode_blocked"
-    assert "compatibility issue" in detail["message"]
-    assert all(w["severity"] in ("warn", "error") for w in detail["warnings"])
+    assert "need attention" in detail["message"]
+    assert all(b["severity"] in ("warn", "error") for b in detail["blockers"])
     # The push must NOT have hit the addon when strict refuses.
     assert len(addon.compile_runs) == 0
 
