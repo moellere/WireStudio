@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.0] — 2026-07-11
+
+### Added
+
+- **Strict mode.** A design-level `strict: true` toggle flips the permissive
+  default: instead of surfacing electrical/CSP violations as non-blocking
+  warnings, any warn/error compatibility entry or design warning now blocks
+  generation. Enforced uniformly across the render + validate MCP/agent tools,
+  the `/design/render` and `/fleet/push` HTTP endpoints (design field or
+  `?strict=true` override), and the `wirestudio.generate` CLI (`--strict`).
+  The shared `strict_blockers()` helper is the single source of truth for what
+  blocks. Living on the design keeps generation a pure function of design.json.
+  Set it via the new `set_strict` MCP/agent tool or the Web UI's STRICT toggle
+  (which now persists into `design.strict` instead of a transient request flag).
+- **Potentiometer and 12V PWM fan components.** `potentiometer` models a
+  three-terminal analog knob (VCC / wiper / GND) read via the ADC; `pwm_fan`
+  models a 4-wire 12V fan, emitting the 25kHz PWM output, the `speed` fan
+  entity, and the tachometer `pulse_counter` in one part. The PWM platform
+  auto-selects `ledc` on ESP32 and `esp8266_pwm` on ESP8266. New
+  `solder-fan` example wires the two together on a Wemos D1 Mini.
+- **Module library batch.** Four composite modules that drop in pre-wired:
+  `fan-controller` (pwm_fan + potentiometer + status LED -- the solder-fan
+  as one selection), `relay-4ch` (four gpio switch outputs), `motion-light`
+  (HC-SR501 PIR + addressable LED), and `env-display` (BME280 + OLED sharing
+  one I2C bus). Brings the module count from 1 to 5.
+
+### Fixed
+
+- **Pin solver respects PWM and interrupt pin limits.** New `requires_pwm` /
+  `requires_interrupt` flags on library pins let the solver hard-exclude pins
+  that can't do the job -- e.g. ESP8266 GPIO16 (D0), which has neither timer
+  PWM nor edge interrupts -- and prefer `pwm`-tagged pins for PWM outputs.
+  Applied to `pwm_fan` (PWM/tach), `rtttl` (PWM), and `pulse_counter` (tach);
+  previously a PWM output or pulse counter could be auto-assigned to D0 and
+  silently fail on hardware.
+- **Validator catches PWM/interrupt pins bound by hand.** The compatibility
+  checker now emits a `function_unsupported` error when a `requires_pwm`
+  output or `requires_interrupt` input is wired to a `no_pwm` / `no_interrupt`
+  board pin, closing the gap for locked or hand-edited designs the solver
+  never touches.
+
 ## [0.17.3] — 2026-06-28
 
 ### Fixed

@@ -1,0 +1,17 @@
+id: motion-light
+name: PIR motion + status light
+category: module
+description: >-
+  Occupancy node: an HC-SR501 PIR sensor paired with an addressable status
+  LED. Wire the PIR's motion event to the light in an automation for a
+  presence-triggered lamp, or just report occupancy to Home Assistant.
+use_cases: [motion, occupancy, presence, security, lighting]
+aliases: [pir-light, motion-sensor-light, occupancy-node]
+components:
+  - id_hint: pir
+    library_id: hc-sr501
+    label: Motion
+  - id_hint: lamp
+    library_id: ws2812b
+    label: Status light
+    params: { method: BIT_BANG, num_leds: 1 }

@@ -8,9 +8,10 @@ from __future__ import annotations
 
 import json
 import re
+from dataclasses import asdict
 from typing import Any, Callable
 
-from wirestudio.csp.compatibility import check_pin_compatibility
+from wirestudio.csp.compatibility import check_pin_compatibility, strict_blockers
 from wirestudio.csp.pin_solver import solve_pins as _solve_pins
 from wirestudio.designs.seed import add_component_with_connections
 from wirestudio.generate.ascii_gen import render_ascii
@@ -143,6 +144,24 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                 "target": {"type": "object"},
             },
             "required": ["component_id", "pin_role", "target"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "set_strict",
+        "description": (
+            "Toggle the design's strict mode. When enabled, render and "
+            "validate refuse a design that still has warn/error compatibility "
+            "entries or design warnings, instead of surfacing them as "
+            "non-blocking guidance. Permissive (the default) always generates. "
+            "The setting persists on the design."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "enabled": {"type": "boolean", "description": "True for strict, false for permissive."},
+            },
+            "required": ["enabled"],
             "additionalProperties": False,
         },
     },
@@ -430,6 +449,11 @@ def _run_set_connection(
     return {"ok": True, "created": True}
 
 
+def _run_set_strict(design: dict, library: Library, *, enabled: bool) -> dict:
+    design["strict"] = enabled
+    return {"ok": True, "strict": enabled}
+
+
 def _run_add_bus(design: dict, library: Library, **fields: Any) -> dict:
     buses = design.setdefault("buses", [])
     if any(b.get("id") == fields["id"] for b in buses):
@@ -470,6 +494,18 @@ def _run_render(design: dict, library: Library) -> dict:
         d = Design.model_validate(design)
     except Exception as e:
         return {"ok": False, "error": f"design failed validation: {e}"}
+    if d.strict:
+        blockers = strict_blockers(design, library)
+        if blockers:
+            return {
+                "ok": False,
+                "error": (
+                    f"strict mode blocked the render: {len(blockers)} issue"
+                    f"{'s' if len(blockers) != 1 else ''} need attention"
+                ),
+                "strict_blocked": True,
+                "blockers": [asdict(b) for b in blockers],
+            }
     try:
         return {"ok": True, "yaml": render_yaml(d, library), "ascii": render_ascii(d, library)}
     except (FileNotFoundError, ValueError) as e:
@@ -540,8 +576,12 @@ def _run_validate(design: dict, library: Library) -> dict:
     except (FileNotFoundError, ValueError) as e:
         return {"ok": False, "error": str(e), "schema_ok": True}
     compat = check_pin_compatibility(design, library)
+    # Strict blockers are surfaced regardless of mode so the caller can see
+    # what *would* block; in strict mode their presence also flips ok=False.
+    blockers = strict_blockers(design, library)
     return {
-        "ok": True,
+        "ok": not (d.strict and blockers),
+        "strict": d.strict,
         "design_id": d.id,
         "name": d.name,
         "components": len(d.components),
@@ -556,6 +596,7 @@ def _run_validate(design: dict, library: Library) -> dict:
             }
             for w in compat
         ],
+        "blockers": [asdict(b) for b in blockers],
     }
 
 
@@ -642,6 +683,7 @@ TOOL_HANDLERS: dict[str, Callable[..., Any]] = {
     "remove_component": _run_remove_component,
     "set_param": _run_set_param,
     "set_connection": _run_set_connection,
+    "set_strict": _run_set_strict,
     "add_bus": _run_add_bus,
     "render": _run_render,
     "validate": _run_validate,

@@ -55,9 +55,10 @@ class SolveResult:
 # ---------------------------------------------------------------------------
 
 # Map a library pin kind to the set of board capabilities that satisfy it.
-# Most digital pins just need `gpio`; analog needs `adc`. Special-purpose
-# capabilities (i2s_dout, dac, pwm) are nice-to-have hints but not required
-# in v1 -- we don't filter on them.
+# Most digital pins just need `gpio`; analog needs `adc`. Other special-purpose
+# capabilities (i2s_dout, dac) are hints we don't filter on. The exception is
+# PWM: a digital_out pin flagged `requires_pwm` hard-excludes `no_pwm` pins and
+# prefers `pwm`-tagged ones (see _gpio_candidates_for_pin).
 _PIN_KIND_TO_REQUIRED_CAPS: dict[str, set[str]] = {
     "digital_in": {"gpio"},
     "digital_out": {"gpio"},
@@ -84,12 +85,24 @@ def _gpio_candidates_for_pin(
     is_output = lib_pin.kind in ("digital_out", "i2s_dout")
     is_analog_in = lib_pin.kind == "analog_in"
     is_classic_esp32 = getattr(board, "chip_variant", None) == "esp32"
-    candidates: list[tuple[int, int, str]] = []
+    requires_pwm = getattr(lib_pin, "requires_pwm", False)
+    requires_interrupt = getattr(lib_pin, "requires_interrupt", False)
+    candidates: list[tuple[int, int, int, str]] = []
     for name, caps in board.gpio_capabilities.items():
         cap_set = set(caps)
         if not required.issubset(cap_set):
             continue
         if is_output and _AVOID_FOR_OUTPUTS & cap_set:
+            continue
+        # A PWM output can't live on a pin the chip can't PWM (ESP8266 GPIO16
+        # has no timer PWM). Plain gpio pins without an explicit `pwm` tag are
+        # still fine on ESP8266 (esp8266_pwm is software-timed) -- only `no_pwm`
+        # is a hard block.
+        if requires_pwm and "no_pwm" in cap_set:
+            continue
+        # An interrupt-driven input (pulse_counter) can't live on a pin that
+        # can't fire edge interrupts (ESP8266 GPIO16).
+        if requires_interrupt and "no_interrupt" in cap_set:
             continue
         # Prefer non-special pins. Boot strap pins (boot_high / boot_low) and
         # the legacy `boot` / `strap` / `builtin_led` tags all count as
@@ -99,13 +112,17 @@ def _gpio_candidates_for_pin(
             "boot_high", "boot_low",
             "serial_tx", "serial_rx",
         })
+        # For a PWM output, prefer pins the board explicitly tags `pwm` (a
+        # hardware LEDC/timer channel) over untagged-but-usable gpio pins. Kept
+        # below `special` so we never pick a strap pin just because it's PWM.
+        non_pwm_penalty = 1 if (requires_pwm and "pwm" not in cap_set) else 0
         # Secondary preference: for analog_in on a classic ESP32, prefer ADC1
         # pins (GPIO32-39) over ADC2 pins. ADC2 conflicts with WiFi -- see
         # the adc2_wifi_conflict check in compatibility.py.
         adc2_penalty = 0
         if is_analog_in and is_classic_esp32 and "adc2" in cap_set:
             adc2_penalty = 1
-        candidates.append((1 if special else 0, adc2_penalty, name))
+        candidates.append((1 if special else 0, non_pwm_penalty, adc2_penalty, name))
     candidates.sort()
     return [name for *_, name in candidates]
 

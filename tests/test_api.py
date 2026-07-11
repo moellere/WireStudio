@@ -160,11 +160,24 @@ def test_render_strict_mode_blocks_on_compat_warning(client):
     assert strict.status_code == 422
     detail = strict.json()["detail"]
     assert detail["error"] == "strict_mode_blocked"
-    assert "compatibility issue" in detail["message"]
-    assert len(detail["warnings"]) >= 1
+    assert "need attention" in detail["message"]
+    assert len(detail["blockers"]) >= 1
     assert all(
-        w["severity"] in ("warn", "error") for w in detail["warnings"]
+        b["severity"] in ("warn", "error") for b in detail["blockers"]
     )
+
+
+def test_render_strict_via_design_field_blocks(client):
+    """`strict: true` on the design blocks generation with no ?strict query --
+    the toggle lives in design.json so generation stays a pure function of it."""
+    design = json.loads((EXAMPLES_DIR / "ttgo-lora32.json").read_text())
+    design["strict"] = True
+    blocked = client.post("/design/render", json=design)
+    assert blocked.status_code == 422
+    assert blocked.json()["detail"]["error"] == "strict_mode_blocked"
+
+    design["strict"] = False
+    assert client.post("/design/render", json=design).status_code == 200
 
 
 def test_render_strict_mode_ignores_info_severity(client):
