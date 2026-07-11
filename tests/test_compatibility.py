@@ -139,6 +139,38 @@ def test_a0_voltage_limit_emits_info(lib):
     assert "input_only" in set(lib_d1.gpio_capabilities["A0"])
 
 
+def test_pwm_output_on_no_pwm_pin_is_an_error(lib):
+    """D1 Mini's D0 (GPIO16) has no timer PWM. Hand-wiring pwm_fan.PWM (a
+    requires_pwm output) there should emit a hard error -- the solver won't
+    auto-assign it, but a manual bind must still be caught."""
+    d = _load("solder-fan")
+    for c in d["connections"]:
+        if c["component_id"] == "fan" and c["pin_role"] == "PWM":
+            c["target"] = {"kind": "gpio", "pin": "D0"}
+    warnings = check_pin_compatibility(d, lib)
+    errs = [w for w in _by_code(warnings, "function_unsupported")
+            if w.pin == "D0" and w.pin_role == "PWM"]
+    assert len(errs) == 1
+    assert errs[0].severity == "error"
+    assert "PWM" in errs[0].message
+
+
+def test_interrupt_input_on_no_interrupt_pin_is_an_error(lib):
+    """D1 Mini's D0 (GPIO16) can't fire edge interrupts. Hand-wiring the fan's
+    tachometer (pulse_counter, a requires_interrupt input) there should emit a
+    hard error."""
+    d = _load("solder-fan")
+    for c in d["connections"]:
+        if c["component_id"] == "fan" and c["pin_role"] == "TACH":
+            c["target"] = {"kind": "gpio", "pin": "D0"}
+    warnings = check_pin_compatibility(d, lib)
+    errs = [w for w in _by_code(warnings, "function_unsupported")
+            if w.pin == "D0" and w.pin_role == "TACH"]
+    assert len(errs) == 1
+    assert errs[0].severity == "error"
+    assert "interrupt" in errs[0].message
+
+
 def test_no_i2c_pin_used_as_i2c_bus_warns(lib):
     """D1 Mini's D0 is tagged no_i2c. If the user routes an I2C bus's SDA or
     SCL through D0, the validator should warn."""
