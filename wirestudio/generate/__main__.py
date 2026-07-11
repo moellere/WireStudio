@@ -5,6 +5,7 @@ import json
 import sys
 from pathlib import Path
 
+from wirestudio.csp.compatibility import strict_blockers
 from wirestudio.generate.ascii_gen import render_ascii
 from wirestudio.generate.yaml_gen import render_yaml
 from wirestudio.library import default_library
@@ -19,12 +20,28 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("design", type=Path, help="path to design.json")
     parser.add_argument("--out-yaml", type=Path, default=None, help="write YAML to this path")
     parser.add_argument("--out-ascii", type=Path, default=None, help="write ASCII diagram to this path")
+    parser.add_argument(
+        "--strict", action="store_true",
+        help="refuse to generate when warn/error compatibility or design "
+             "warnings remain (overrides the design's own strict flag)",
+    )
     args = parser.parse_args(argv)
 
     with args.design.open() as f:
         data = json.load(f)
     design = Design.model_validate(data)
     library = default_library()
+
+    if args.strict or design.strict:
+        blockers = strict_blockers(data, library)
+        if blockers:
+            sys.stderr.write(
+                f"strict mode blocked generation: {len(blockers)} issue"
+                f"{'s' if len(blockers) != 1 else ''} need attention\n"
+            )
+            for b in blockers:
+                sys.stderr.write(f"  [{b.severity}] {b.code}: {b.detail}\n")
+            return 1
 
     yaml_text = render_yaml(design, library)
     ascii_text = render_ascii(design, library)

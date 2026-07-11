@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 from contextlib import AsyncExitStack, asynccontextmanager
+from dataclasses import asdict
 from pathlib import Path
 from typing import Optional
 
@@ -79,7 +80,7 @@ from wirestudio.inventory.store import InventoryStore, default_inventory_store
 from wirestudio.designs.active import ActiveDesignTracker
 from wirestudio.designs.events import DesignEventBus, EventEmittingDesignStore
 from wirestudio.fleet.client import FleetClient, FleetUnavailable
-from wirestudio.csp.compatibility import check_pin_compatibility
+from wirestudio.csp.compatibility import check_pin_compatibility, strict_blockers
 from wirestudio.csp.pin_solver import solve_pins as run_solve_pins
 from wirestudio.intent import validate_automations
 from wirestudio.enclosure import (
@@ -406,8 +407,12 @@ def create_app(
         # (warnings, not blocks) so a half-authored automation can render.
         target_warnings = get_target(d.target).validate(d, lib)
         automation_warnings = validate_automations(d, lib)
+        # In strict mode, warn/error compatibility entries and design warnings
+        # flip ok to false (the render/push gates refuse the same design).
+        # Permissive mode always reports ok -- warnings are guidance, not blocks.
+        ok = not (d.strict and strict_blockers(design, lib))
         return ValidateResponse(
-            ok=True,
+            ok=ok,
             design_id=d.id,
             name=d.name,
             component_count=len(d.components),
@@ -447,10 +452,11 @@ def create_app(
 
         Permissive by default: compatibility warnings travel back in the
         `compatibility_warnings` field for the UI to surface non-blocking
-        guidance. With `?strict=true`, any compatibility entry of severity
-        `warn` or `error` instead 422s -- the same gate the
-        fleet-for-esphome push path can use to refuse to ship a design
-        with unresolved hardware risks.
+        guidance. Strict mode -- set either via the design's `strict: true`
+        field or the `?strict=true` override -- instead 422s when any
+        compatibility entry of severity `warn`/`error` or any warn/error
+        design warning remains. The same gate the fleet-for-esphome push
+        path uses to refuse to ship a design with unresolved hardware risks.
         """
         d = _validate_design(design)
         try:
@@ -466,22 +472,19 @@ def create_app(
             # missing bus matching a `kind: bus` connection, etc.
             raise HTTPException(status_code=422, detail=str(e)) from e
         compat = check_pin_compatibility(design, lib)
-        if strict:
-            blocking = [w for w in compat if w.severity in ("warn", "error")]
-            if blocking:
+        if strict or d.strict:
+            blockers = strict_blockers(design, lib)
+            if blockers:
                 raise HTTPException(
                     status_code=422,
                     detail={
                         "error": "strict_mode_blocked",
                         "message": (
                             f"strict mode rejected the render: "
-                            f"{len(blocking)} compatibility issue"
-                            f"{'s' if len(blocking) != 1 else ''} need attention"
+                            f"{len(blockers)} issue"
+                            f"{'s' if len(blockers) != 1 else ''} need attention"
                         ),
-                        # HTTPException JSON-encodes its detail with the
-                        # standard json module, which doesn't know about
-                        # Pydantic models -- pre-dump.
-                        "warnings": [w.model_dump() for w in _wire_compat(blocking)],
+                        "blockers": [asdict(b) for b in blockers],
                     },
                 )
         return RenderResponse(
@@ -1065,25 +1068,23 @@ def create_app(
         except (FileNotFoundError, ValueError, KeyError) as e:
             raise HTTPException(status_code=422, detail=str(e)) from e
 
-        # Strict-only push: refuse to ship when any warn/error compatibility
-        # entry remains. Mirrors the /design/render?strict=true gate so a
-        # client can use the same envelope to surface the same warnings.
-        if req.strict:
-            blocking = [
-                w for w in check_pin_compatibility(req.design, lib)
-                if w.severity in ("warn", "error")
-            ]
-            if blocking:
+        # Strict push: refuse to ship when any warn/error issue remains.
+        # Triggered by the design's own `strict: true` or the request flag.
+        # Mirrors the /design/render strict gate so a client sees the same
+        # envelope and the same blockers.
+        if req.strict or d.strict:
+            blockers = strict_blockers(req.design, lib)
+            if blockers:
                 raise HTTPException(
                     status_code=422,
                     detail={
                         "error": "strict_mode_blocked",
                         "message": (
                             f"strict mode refused the push: "
-                            f"{len(blocking)} compatibility issue"
-                            f"{'s' if len(blocking) != 1 else ''} need attention"
+                            f"{len(blockers)} issue"
+                            f"{'s' if len(blockers) != 1 else ''} need attention"
                         ),
-                        "warnings": [w.model_dump() for w in _wire_compat(blocking)],
+                        "blockers": [asdict(b) for b in blockers],
                     },
                 )
 

@@ -37,6 +37,7 @@ from wirestudio.agent.tools import (
     _run_set_board,
     _run_set_connection,
     _run_set_param,
+    _run_set_strict,
     _run_solve_pins,
     _run_validate,
 )
@@ -298,6 +299,23 @@ def _register_design_tools(
             pin_role=pin_role,
             target=target,
         )
+        _save(rid, design)
+        return result
+
+    @mcp.tool(
+        name="set_strict",
+        description=(
+            "Toggle the design's strict mode. When enabled, render and "
+            "validate refuse a design with warn/error compatibility entries "
+            "or design warnings; permissive (default) always generates. "
+            "Persists on the design." + _DESIGN_ID_HINT
+        ),
+    )
+    def set_strict(enabled: bool, design_id: Optional[str] = None) -> dict:
+        rid, design = _load(design_id)
+        if design is None:
+            return _NO_DESIGN_ERROR
+        result = _run_set_strict(design, library, enabled=enabled)
         _save(rid, design)
         return result
 

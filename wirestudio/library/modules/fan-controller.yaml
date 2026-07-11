@@ -1,0 +1,22 @@
+id: fan-controller
+name: PWM fan speed controller
+category: module
+description: >-
+  Manual 12V fan controller: a panel potentiometer sets the speed of a
+  4-wire PWM fan while its tachometer reports RPM, alongside a single status
+  LED. One selection drops in all three parts, pre-wired -- the wirestudio
+  port of the classic ESPHome solder-fan build.
+use_cases: [fan, cooling, exhaust, speed_control, workshop]
+aliases: [solder-fan, fan-speed-controller, exhaust-controller]
+components:
+  - id_hint: exhaust
+    library_id: pwm_fan
+    label: Fan
+  - id_hint: knob
+    library_id: potentiometer
+    label: Speed knob
+    params: { unit_of_measurement: "%", filters: [ { multiply: 100.0 } ] }
+  - id_hint: statusled
+    library_id: ws2812b
+    label: Status LED
+    params: { method: BIT_BANG, num_leds: 1 }

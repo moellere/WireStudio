@@ -6,15 +6,22 @@ kind=expander_pin with empty expander_id) using the board's available
 GPIOs and the design's existing buses.
 
 In future phases this is the natural home for richer reasoning:
-recommendation mode, voltage/level-shifter checks, deterministic strict
-mode, multi-objective optimization. v1 is intentionally a single-pass
-greedy backtracker -- the search space is tiny (a few dozen pins).
+recommendation mode, voltage/level-shifter checks, multi-objective
+optimization. v1 is intentionally a single-pass greedy backtracker --
+the search space is tiny (a few dozen pins). Strict mode (a design-level
+toggle that makes warnings block generation) lives in `strict_blockers`.
 """
 
-from wirestudio.csp.compatibility import CompatibilityWarning, check_pin_compatibility
+from wirestudio.csp.compatibility import (
+    CompatibilityWarning,
+    StrictBlock,
+    check_pin_compatibility,
+    strict_blockers,
+)
 from wirestudio.csp.pin_solver import SolveResult, solve_pins
 
 __all__ = [
     "solve_pins", "SolveResult",
     "check_pin_compatibility", "CompatibilityWarning",
+    "strict_blockers", "StrictBlock",
 ]

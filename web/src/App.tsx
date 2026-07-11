@@ -79,7 +79,9 @@ export default function App() {
    *  remain. Useful as a pre-deploy gate -- the design has to be clean
    *  before push-to-fleet. Default permissive so the user isn't blocked
    *  while editing. */
-  const [strictMode, setStrictMode] = useState<boolean>(false);
+  // Strict mode lives on the design (design.strict) so it persists and every
+  // surface honors the same value; the checkbox writes it via setDesign.
+  const strictMode = design?.strict === true;
   /** Advanced mode reveals the schematic / enclosure / push-to-fleet /
    *  agent surfaces. Default basic so the front door is the verified-tier
    *  flow (board + components + buses + YAML preview). Persists to
@@ -256,7 +258,7 @@ export default function App() {
     setRendering(true);
     (async () => {
       try {
-        const r = await api.render(debouncedDesign, { strict: strictMode });
+        const r = await api.render(debouncedDesign);
         if (cancelled) return;
         setRender(r);
         setRenderError(null);
@@ -284,7 +286,7 @@ export default function App() {
       }
     })();
     return () => { cancelled = true; };
-  }, [debouncedDesign, strictMode]);
+  }, [debouncedDesign]);
 
   function handleReset() {
     if (!originalDesign) return;
@@ -655,12 +657,14 @@ export default function App() {
             <div className="flex flex-col gap-1">
               <label
                 className="flex cursor-pointer items-center gap-1.5 text-[10px] font-medium text-zinc-400 transition-colors hover:text-zinc-200"
-                title="Strict mode: render fails when compatibility warnings of severity warn or error remain"
+                title="Strict mode: generation fails when warn/error compatibility entries or design warnings remain. Saved on the design."
               >
                 <input
                   type="checkbox"
                   checked={strictMode}
-                  onChange={(e) => setStrictMode(e.target.checked)}
+                  onChange={(e) =>
+                    setDesign((d) => (d ? { ...d, strict: e.target.checked } : d))
+                  }
                   className="h-3 w-3 rounded-sm border-zinc-700 bg-zinc-900 accent-blue-500"
                 />
                 STRICT

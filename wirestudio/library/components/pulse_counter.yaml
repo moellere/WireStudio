@@ -16,6 +16,7 @@ electrical:
     - role: PULSE
       kind: digital_in
       voltage: 3.3
+      requires_interrupt: true
       pull_up: {required: false, value: "10k", to: VCC}
   passives: []
 

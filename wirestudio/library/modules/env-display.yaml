@@ -1,0 +1,18 @@
+id: env-display
+name: BME280 + OLED environment display
+category: module
+description: >-
+  Self-contained environment node: a BME280 temperature / humidity / pressure
+  sensor and a 128x64 OLED sharing one I2C bus. The bus is auto-seeded; add a
+  display page after insertion to show the readings locally.
+use_cases: [weather, environment, temperature, humidity, display, oled]
+aliases: [weather-display, env-node, bme-oled]
+components:
+  - id_hint: env
+    library_id: bme280
+    label: Environment
+    params: { address: "0x76" }
+  - id_hint: disp
+    library_id: ssd1306
+    label: Display
+    params: { model: "SSD1306 128x64", address: "0x3C" }

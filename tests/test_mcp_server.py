@@ -28,6 +28,7 @@ EXPECTED_TOOLS = {
     "remove_component",
     "set_param",
     "set_connection",
+    "set_strict",
     "add_bus",
     "solve_pins",
     "kicad_schematic",
@@ -120,6 +121,20 @@ async def test_add_component_persists_to_store(mcp_server):
     assert len(saved["components"]) == 1
     assert saved["components"][0]["library_id"] == "bme280"
     assert saved["components"][0]["id"] == payload["instance_id"]
+
+
+async def test_set_strict_persists_and_validate_honors_it(mcp_server):
+    server, store = mcp_server
+    design_id = _seed_design(store)
+
+    out = await server.call_tool("set_strict", {"design_id": design_id, "enabled": True})
+    assert _content_to_dict(out)["strict"] is True
+    # Persisted so every later tool call (and the browser) sees strict on.
+    assert store.load(design_id)["strict"] is True
+
+    out = await server.call_tool("set_strict", {"design_id": design_id, "enabled": False})
+    assert _content_to_dict(out)["strict"] is False
+    assert store.load(design_id)["strict"] is False
 
 
 async def test_validate_against_stored_design(mcp_server):

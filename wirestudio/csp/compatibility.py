@@ -210,21 +210,38 @@ def check_pin_compatibility(design: dict, library: Library) -> list[Compatibilit
                 ),
             ))
 
-        # 5. Functional restrictions (no_pwm, no_i2c, no_interrupt) on the pin
-        # itself. We can only check these against the library pin kind today;
-        # finer checks (this pin is on an I2C bus, but no_i2c-tagged) live at
-        # the bus layer below.
-        if direction == "out" and "no_pwm" in caps and lib_pin.kind == "i2s_dout":
+        # 5. Functional restrictions on the pin itself: a PWM output or an
+        # interrupt-driven input landed on a pin that physically can't do it
+        # (ESP8266 GPIO16 has neither timer PWM nor edge interrupts). The
+        # library pin declares the need via requires_pwm / requires_interrupt;
+        # the pin solver already excludes these for auto-assignment, so this
+        # catches hand-bound / locked designs. Finer bus checks (a no_i2c pin
+        # carrying an I2C bus) live at the bus layer below.
+        if getattr(lib_pin, "requires_pwm", False) and "no_pwm" in caps:
             out.append(CompatibilityWarning(
-                severity="warn",
+                severity="error",
                 code="function_unsupported",
                 pin=pin_name,
                 component_id=component_id,
                 pin_role=pin_role,
                 message=(
-                    f"{pin_name} doesn't support PWM/timer outputs, which the "
-                    f"high-speed signal on {component_id}.{pin_role} typically "
-                    f"requires. Pick a PWM-capable pin."
+                    f"{pin_name} has no timer PWM. {component_id}.{pin_role} "
+                    f"drives a PWM output and won't work here. Pick a "
+                    f"PWM-capable pin."
+                ),
+            ))
+        if getattr(lib_pin, "requires_interrupt", False) and "no_interrupt" in caps:
+            out.append(CompatibilityWarning(
+                severity="error",
+                code="function_unsupported",
+                pin=pin_name,
+                component_id=component_id,
+                pin_role=pin_role,
+                message=(
+                    f"{pin_name} can't fire edge interrupts. "
+                    f"{component_id}.{pin_role} is an interrupt-driven input "
+                    f"(pulse counter) and won't register here. Pick an "
+                    f"interrupt-capable pin."
                 ),
             ))
 
@@ -412,3 +429,46 @@ def _bus_pin_warnings(design: dict, board) -> list[CompatibilityWarning]:
                 ))
 
     return out
+
+
+@dataclass
+class StrictBlock:
+    """One issue that blocks generation when a design has `strict: true`.
+
+    `kind` is "compatibility" (a pin/electrical warning) or "design" (a
+    warning carried in design.warnings). `severity` mirrors the source
+    level ("warn" | "error"); `detail` is a rendered one-liner for the
+    caller's error message.
+    """
+    kind: str
+    severity: str
+    code: str
+    detail: str
+
+
+def strict_blockers(design: dict, library: Library) -> list[StrictBlock]:
+    """Issues that block generation under strict mode.
+
+    Strict mode flips the permissive default (CLAUDE.md: violations surface
+    in warnings but don't block). It blocks on any compatibility entry of
+    severity warn/error plus any design warning of level warn/error. Info
+    entries never block. Pure: reads the design, never mutates it.
+    """
+    blockers: list[StrictBlock] = []
+    for w in check_pin_compatibility(design, library):
+        if w.severity in ("warn", "error"):
+            blockers.append(StrictBlock(
+                kind="compatibility",
+                severity=w.severity,
+                code=w.code,
+                detail=f"{w.component_id}.{w.pin_role} ({w.pin}): {w.message}",
+            ))
+    for w in design.get("warnings") or []:
+        level = w.get("level") if isinstance(w, dict) else getattr(w, "level", None)
+        if level in ("warn", "error"):
+            code = w.get("code") if isinstance(w, dict) else getattr(w, "code", "")
+            text = w.get("text") if isinstance(w, dict) else getattr(w, "text", "")
+            blockers.append(StrictBlock(
+                kind="design", severity=level, code=code or "", detail=text or "",
+            ))
+    return blockers

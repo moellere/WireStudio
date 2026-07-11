@@ -313,3 +313,8 @@ class Design(_Strict):
     # keeps its current behavior without a schema bump.
     target: Literal["esphome", "lorawan"] = "esphome"
     lorawan: Optional[LoRaWAN] = None
+    # Strict mode. Permissive (default): electrical/CSP violations surface in
+    # warnings but generation proceeds. Strict: any warn/error compatibility
+    # entry or design warning blocks generation. Lives on the design so
+    # generation stays a pure function of design.json.
+    strict: bool = False

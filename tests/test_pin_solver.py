@@ -281,3 +281,41 @@ def test_solver_prefers_adc1_over_adc2_for_analog_in(library):
     # shift as the board YAML evolves; the invariant is "not on ADC2".
     adc1_pins = {"GPIO32", "GPIO33", "GPIO34", "GPIO35", "GPIO36", "GPIO39"}
     assert chosen in adc1_pins, f"expected ADC1 pin, got {chosen}"
+
+
+def _d1_mini_design(components: list[dict], connections: list[dict]) -> dict:
+    return {
+        "schema_version": "0.1",
+        "id": "pwm-pref",
+        "name": "PWM pref",
+        "board": {"library_id": "wemos-d1-mini", "mcu": "esp8266"},
+        "components": components,
+        "buses": [],
+        "connections": connections,
+    }
+
+
+def test_pwm_output_avoids_no_pwm_pin_and_prefers_pwm(library):
+    """A requires_pwm output (pwm_fan.PWM) must never land on ESP8266's D0
+    (tagged no_pwm -- GPIO16 has no timer PWM), and should prefer a
+    pwm-tagged pin (D5/D6/D7) over an untagged-but-usable gpio."""
+    d = _d1_mini_design(
+        [{"id": "fan", "library_id": "pwm_fan", "params": {}}],
+        [{"component_id": "fan", "pin_role": "PWM", "target": {"kind": "gpio", "pin": ""}}],
+    )
+    result = solve_pins(d, library)
+    chosen = next(a for a in result.assigned if a.pin_role == "PWM").new_target["pin"]
+    assert chosen != "D0"
+    assert chosen in ("D5", "D6", "D7")  # pwm-tagged pins on wemos-d1-mini
+
+
+def test_interrupt_input_avoids_no_interrupt_pin(library):
+    """A requires_interrupt input (pulse_counter.PULSE) must never land on
+    ESP8266's D0 (tagged no_interrupt -- GPIO16 can't attachInterrupt)."""
+    d = _d1_mini_design(
+        [{"id": "flow", "library_id": "pulse_counter", "params": {}}],
+        [{"component_id": "flow", "pin_role": "PULSE", "target": {"kind": "gpio", "pin": ""}}],
+    )
+    result = solve_pins(d, library)
+    chosen = next(a for a in result.assigned if a.pin_role == "PULSE").new_target["pin"]
+    assert chosen != "D0"

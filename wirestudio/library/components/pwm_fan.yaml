@@ -1,0 +1,132 @@
+id: pwm_fan
+name: 12V PWM fan with tachometer (4-wire)
+category: fan
+use_cases: [pwm_fan, cooling_fan, exhaust_fan, speed_control, rpm]
+aliases: [4wire_fan, pc_fan, pwm_cooling_fan, tach_fan]
+
+electrical:
+  vcc_min: 0.0
+  vcc_max: 0.0
+  # The fan draws its motor current from the external 12V supply, not the
+  # board -- from the MCU's side this is two logic-level signals, so the
+  # board-rail budget sees ~0mA. Wire +12V from a separate supply and tie
+  # its ground to the board's GND (the GND pin below).
+  current_ma_typical: 0
+  current_ma_peak: 0
+  pins:
+    - {role: PWM, kind: digital_out, voltage: 3.3, requires_pwm: true}
+    - role: TACH
+      kind: digital_in
+      voltage: 3.3
+      requires_interrupt: true
+      pull_up: {required: false, value: "10k", to: VCC}
+    - {role: GND, kind: ground}
+  passives: []
+
+esphome:
+  required_components: []
+  yaml_template: |
+    output:
+      - platform: {{ params.output_platform | default(('ledc' if board and board.chip_variant.startswith('esp32') else 'esp8266_pwm')) }}
+        pin: {{ pins.PWM | tojson }}
+        frequency: {{ params.frequency | default('25000 Hz') }}
+        id: {{ id }}_pwm
+        min_power: {{ params.min_power | default('10%') }}
+        max_power: {{ params.max_power | default('100%') }}
+        zero_means_zero: {{ params.zero_means_zero | default(true) | tojson }}
+    fan:
+      - platform: speed
+        output: {{ id }}_pwm
+        name: "{{ label }}"
+        id: {{ id }}
+    sensor:
+      - platform: pulse_counter
+        pin:
+          number: {{ pins.TACH | tojson }}
+          mode: {{ params.tach_input_mode | default('INPUT_PULLUP') }}
+        unit_of_measurement: RPM
+        name: "{{ label }} RPM"
+        id: {{ id }}_rpm
+        update_interval: {{ params.tach_update_interval | default('0.5s') }}
+        accuracy_decimals: 0
+        filters:
+          - multiply: {{ 1.0 / (params.tach_pulses_per_rev | default(2)) }}
+    {%- if params.on_value is defined %}
+        on_value: {{ params.on_value | tojson }}
+    {%- endif %}
+    {%- if params.on_value_range is defined %}
+        on_value_range: {{ params.on_value_range | tojson }}
+    {%- endif %}
+
+capability:
+  # A speed-controlled fan is a switchable output; automations lower to
+  # ESPHome's fan.turn_on / turn_off / toggle. The tach RPM is exposed as a
+  # sensor value via on_value (stall detection, closed-loop control).
+  role: output
+  provides:
+    - {event: on_value, kind: value}
+    - {event: on_value_range, kind: event}
+  accepts:
+    - {action: turn_on,  esphome: fan.turn_on}
+    - {action: turn_off, esphome: fan.turn_off}
+    - {action: toggle,   esphome: fan.toggle}
+
+params_schema:
+  output_platform:
+    type: string
+    enum: [esp8266_pwm, ledc]
+    description: "Defaults to `ledc` on ESP32 family boards, `esp8266_pwm` on ESP8266. Override only if
+      you have a specific reason."
+  frequency:
+    type: string
+    default: "25000 Hz"
+    description: "PWM carrier. 4-wire fans expect 25kHz per the Intel spec; audible whine below ~20kHz."
+  min_power:
+    type: string
+    default: "10%"
+    description: "Duty floor. Many fans stall below ~10-20%; raise if yours won't spin up reliably."
+  max_power:
+    type: string
+    default: "100%"
+  zero_means_zero:
+    type: boolean
+    default: true
+    description: "At speed 0, actually stop the PWM output rather than holding min_power."
+  tach_input_mode:
+    type: string
+    enum: [INPUT, INPUT_PULLUP, INPUT_PULLDOWN]
+    default: INPUT_PULLUP
+  tach_update_interval:
+    type: string
+    default: "0.5s"
+  tach_pulses_per_rev:
+    type: integer
+    default: 2
+    description: "Tach pulses per revolution. Standard PC fans emit 2 (the default multiply: 0.5 yields RPM);
+      set 1 or 4 to match an odd fan."
+
+notes: |
+  Standard 4-wire PC / server fan. Only two lines touch the MCU: PWM (a
+  25kHz control signal on a PWM-capable GPIO -- ledc on ESP32, esp8266_pwm on
+  ESP8266) and TACH (an open-collector pulse output read by pulse_counter). The
+  fan's +12V comes from a SEPARATE supply, not the board; its ground MUST be
+  common with the board's GND (the modelled GND pin) or the tach reads garbage.
+  The tach line is open-collector and needs a pull-up to 3.3V -- the internal
+  INPUT_PULLUP (default) is usually enough; add an external 10k to 3V3 if the
+  edges are dirty. NEVER pull the tach to +12V, it will destroy the GPIO. Two
+  pulses per revolution is the norm, so the default `multiply: 0.5` filter turns
+  the count into RPM; adjust tach_pulses_per_rev for other fans. On ESP8266 the
+  pulse counter is software-driven (~10kHz ceiling, plenty for a fan); ESP32
+  uses the hardware PCNT peripheral.
+# KiCad symbol mapping (0.9). A 4-wire fan lands on a 4-pin header;
+# pinout follows the Intel spec: 1=GND, 2=+12V, 3=TACH, 4=PWM. Pin 2
+# (+12V) is fed from the external supply and stays unmapped here.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x04
+  footprint: Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical
+  value: PWM Fan
+  pin_map:
+    GND: '1'
+    TACH: '3'
+    PWM: '4'

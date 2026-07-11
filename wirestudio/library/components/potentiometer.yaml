@@ -1,0 +1,92 @@
+id: potentiometer
+name: Potentiometer (analog knob / slider)
+category: sensor
+use_cases: [potentiometer, knob, slider, analog_setpoint, dimmer_input]
+aliases: [pot, analog_knob, trimpot, fader]
+
+electrical:
+  vcc_min: 3.0
+  vcc_max: 3.6
+  # A 10k pot across 3.3V sinks ~0.33mA; the wiper itself draws nothing.
+  current_ma_typical: 0.3
+  current_ma_peak: 0.5
+  pins:
+    - {role: VCC, kind: power}
+    - {role: WIPER, kind: analog_in, voltage: 3.3}
+    - {role: GND, kind: ground}
+  passives: []
+
+esphome:
+  required_components: []
+  yaml_template: |
+    sensor:
+      - platform: adc
+        pin: {{ pins.WIPER | tojson }}
+        name: "{{ label }}"
+        id: {{ id }}
+        update_interval: {{ params.update_interval | default('0.5s') }}
+    {%- if params.attenuation is defined %}
+        attenuation: {{ params.attenuation }}
+    {%- endif %}
+    {%- if params.unit_of_measurement is defined %}
+        unit_of_measurement: "{{ params.unit_of_measurement }}"
+    {%- endif %}
+    {%- if params.accuracy_decimals is defined %}
+        accuracy_decimals: {{ params.accuracy_decimals }}
+    {%- endif %}
+    {%- if params.filters is defined %}
+        filters: {{ params.filters | tojson }}
+    {%- endif %}
+    {%- if params.on_value is defined %}
+        on_value: {{ params.on_value | tojson }}
+    {%- endif %}
+    {%- if params.on_value_range is defined %}
+        on_value_range: {{ params.on_value_range | tojson }}
+    {%- endif %}
+
+capability:
+  # A knob is an analog sensor: on_value (kind=value: yields the float x) drives
+  # continuous setpoints (e.g. fan speed), on_value_range (kind=event) fires
+  # crossing a threshold. Both pass through the template.
+  role: sensor
+  provides:
+    - {event: on_value, kind: value}
+    - {event: on_value_range, kind: event}
+
+params_schema:
+  update_interval:
+    type: string
+    default: "0.5s"
+  attenuation:
+    type: string
+    enum: ["0db", "2.5db", "6db", "12db", auto]
+    default: "12db"
+    description: "ESP32 only. 12db reads the full 0-3.3V wiper swing; auto picks per-sample."
+  unit_of_measurement:
+    type: string
+  accuracy_decimals:
+    type: integer
+  filters:
+    type: array
+    description: "Standard ESPHome sensor filters; e.g. `- multiply: 100.0` to read the wiper as 0-100%."
+
+notes: |
+  Three-terminal pot wired as a voltage divider: the two ends to VCC and GND,
+  the wiper to an analog-in pin. On ESP8266 the only ADC is A0 (0-1.0V at the
+  chip, 0-3.2V at the D1 Mini / NodeMCU screw terminal via the onboard divider),
+  so wire the ends across the board's 3V3 and GND rather than 5V. On ESP32 use
+  an ADC1 pin (ADC2 conflicts with WiFi; the pin solver prefers ADC1) and leave
+  attenuation at 12db for the full range. To drive a PWM output directly from
+  the knob, use an on_value automation with `output.set_level`, or read the pot
+  as 0-100% via a `- multiply: 100.0` filter.
+# KiCad symbol mapping (0.9). Device:R_Potentiometer is the standard
+# 3-terminal pot; pins 1/3 are the ends, 2 is the wiper.
+kicad:
+  symbol_lib: Device
+  symbol: R_Potentiometer
+  footprint: Potentiometer_THT:Potentiometer_Bourns_3339P_Vertical
+  value: Potentiometer
+  pin_map:
+    VCC: '1'
+    WIPER: '2'
+    GND: '3'

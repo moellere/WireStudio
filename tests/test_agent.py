@@ -145,6 +145,19 @@ def test_set_param_set_and_delete(lib, garage_motion_design):
     assert "address" not in bme1["params"]
 
 
+def test_set_strict_toggles_design_field(lib, garage_motion_design):
+    assert garage_motion_design.get("strict", False) is False
+    out, is_error = execute_tool(
+        "set_strict", {"enabled": True}, garage_motion_design, lib,
+    )
+    assert is_error is False
+    assert garage_motion_design["strict"] is True
+    assert json.loads(out)["strict"] is True
+
+    execute_tool("set_strict", {"enabled": False}, garage_motion_design, lib)
+    assert garage_motion_design["strict"] is False
+
+
 def test_set_connection_updates_existing(lib, garage_motion_design):
     out, is_error = execute_tool(
         "set_connection",

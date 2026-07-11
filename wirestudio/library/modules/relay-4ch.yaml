@@ -1,0 +1,22 @@
+id: relay-4ch
+name: 4-channel relay board
+category: module
+description: >-
+  Four independently switched GPIO relay / MOSFET outputs on one board for
+  driving lights, pumps, or other low-voltage loads. Drops in four gpio
+  switches, each auto-wired to its own output pin.
+use_cases: [relay, switch, load_control, automation, mains_switching]
+aliases: [4-relay, quad-relay, relay-board]
+components:
+  - id_hint: relay1
+    library_id: gpio_output
+    label: Relay 1
+  - id_hint: relay2
+    library_id: gpio_output
+    label: Relay 2
+  - id_hint: relay3
+    library_id: gpio_output
+    label: Relay 3
+  - id_hint: relay4
+    library_id: gpio_output
+    label: Relay 4
