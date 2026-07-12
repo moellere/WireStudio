@@ -2,9 +2,9 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 # Production overlay. Stable: the image is a pinned, immutable release
-# tag. To promote a release to prod, bump newTag below (in the same PR
-# that bumps wirestudio/__init__.py + CHANGELOG, or right after the tag
-# is cut) and let ArgoCD roll it out. One-line diff, one-commit rollback.
+# tag. To promote a release to prod, change newTag below and let ArgoCD
+# roll it out (one-line diff, one-commit rollback), or let
+# argocd-image-updater bump it automatically (see docs/deployment.md).
 namespace: wirestudio-prod
 
 resources:

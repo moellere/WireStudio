@@ -7,14 +7,17 @@ spec:
   project: default
   source:
     repoURL: https://github.com/moellere/WireStudio.git
-    targetRevision: dev             # integration branch
+    targetRevision: main
     path: deploy/overlays/dev
   destination:
     server: https://kubernetes.default.svc
     namespace: wirestudio-dev
   syncPolicy:
-    # Rolls forward automatically: CI commits the new sha-<short> to
-    # deploy/overlays/dev on every dev merge, ArgoCD syncs it.
+    # Staging: the overlay tracks the rolling :main-lorawan tag. To roll
+    # forward on every push to main, pair with argocd-image-updater (it
+    # digest-pins :main-lorawan and writes the new digest back to git);
+    # without it, this is a static pin like prod. selfHeal reverts manual
+    # cluster edits; prune removes orphans.
     automated:
       prune: true
       selfHeal: true
