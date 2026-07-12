@@ -14,8 +14,10 @@ spec:
     namespace: wirestudio-prod
   syncPolicy:
     # Automated, but the image tag in deploy/overlays/prod is a pinned
-    # release version, so prod only moves when you bump it in git on
-    # main. selfHeal reverts manual cluster edits; prune removes orphans.
+    # release version, so prod only moves when the tag changes in git --
+    # either you bump newTag by hand, or argocd-image-updater bumps it for
+    # you (see docs/deployment.md). selfHeal reverts manual cluster edits;
+    # prune removes orphans.
     automated:
       prune: true
       selfHeal: true

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+
+- **Deployment docs reconciled with the actual GitOps flow.** `docs/deployment.md`
+  and the `deploy/` reference manifests no longer describe the removed
+  `bump-dev`/`bump-prod` CI jobs or a `dev` branch (the project is trunk-based).
+  They now present the argocd-image-updater flow the upstream cluster runs
+  (staging tracks `:main-lorawan` by digest; prod follows the newest
+  `:X.Y.Z-lorawan` release tag), plus the manual `newTag` option. Also fixed a
+  broken image tag in `deploy/k8s.yaml` (`:v0.17.1`, which never existed in the
+  registry) — now `:0.18.0`.
+
 ## [0.18.0] — 2026-07-11
 
 ### Added

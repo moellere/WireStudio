@@ -11,7 +11,7 @@ FastAPI serves the API and the built SPA from one process.
 docker run --rm -p 8765:8765 \
   -e ANTHROPIC_API_KEY=sk-ant-... \
   -v wirestudio-data:/data \
-  ghcr.io/moellere/wirestudio:v0.17.1
+  ghcr.io/moellere/wirestudio:0.18.0
 ```
 
 Open <http://localhost:8765>. The image bundles the FastAPI server +
@@ -23,11 +23,10 @@ Available tags:
 
 | Tag | What it tracks |
 |---|---|
-| `:0.17.1` / `:0.17` / `:latest` | the v0.17.1 release |
+| `:0.18.0` / `:0.18` / `:latest` | the v0.18.0 release |
 | `:main` | latest commit on `main` (rolling) |
-| `:dev` | latest commit on `dev` (rolling, pre-release) |
 | `:sha-<short>` | a specific commit |
-| `:<tag>-lorawan` (e.g. `:dev-lorawan`) | same image **plus** the LoRaWAN compile worker (PlatformIO baked in) — see below |
+| `:<tag>-lorawan` (e.g. `:main-lorawan`, `:0.18.0-lorawan`) | same image **plus** the LoRaWAN compile worker (PlatformIO baked in) — see below |
 
 All feature-gating env vars are optional — the studio runs without any
 of them, just with the corresponding feature turned off. See
@@ -76,50 +75,61 @@ is file-on-disk and not multi-writer safe.
 kubectl apply -f deploy/k8s.yaml
 ```
 
-## ArgoCD: side-by-side prod + dev
+## ArgoCD: side-by-side prod + staging
 
-Two Argo apps off one source tree, so a stable prod and a rolling dev
-run in their own namespaces:
+`deploy/argocd/` has two example `Application` manifests — a stable prod
+app and a rolling staging app. Each layers a namespace + image tag over
+the base manifest through a kustomize overlay (`deploy/overlays/{prod,dev}`),
+so both run side by side from one source tree with independent PVCs.
 
-| App | Tracks | Image | Moves when |
+| App | Overlay | Image | Upgrades when |
 |---|---|---|---|
-| `wirestudio-prod` | branch `main`, path `deploy/overlays/prod` | pinned `:0.17.1` | a release tag opens a `newTag` bump PR (you merge it) |
-| `wirestudio-dev` | branch `dev`, path `deploy/overlays/dev` | rolling `:sha-<short>-lorawan` | every `dev` merge (CI commits the bump) |
+| `wirestudio-prod` | `deploy/overlays/prod` | pinned release, e.g. `:0.18.0` | the tag changes in git (bump by hand or via image-updater) |
+| `wirestudio-dev` | `deploy/overlays/dev` | rolling `:main-lorawan` | image-updater digest-pins a new `main` build |
 
 ```sh
 kubectl apply -f deploy/argocd/wirestudio-prod.yaml
 kubectl apply -f deploy/argocd/wirestudio-dev.yaml
 ```
 
-How the image tag gets into git (no extra controller — pure GitOps).
-All three bumps are jobs in the `docker` workflow:
+Both apps run `automated: { prune, selfHeal }`, so ArgoCD applies git
+changes and reverts manual cluster edits on its own. Staging tracks the
+`:main-lorawan` tag (the LoRaWAN worker variant, so the compile/flash
+flow works on staging); prod pins an immutable release tag and stays
+lean. Each overlay sets its own namespace, so the apps never share
+`/data`.
 
-- **dev** rolls itself. On every push to `dev`, the `bump-dev` job
-  rewrites `deploy/overlays/dev/kustomization.yaml`'s `newTag` to the
-  just-built `sha-<short>-lorawan` and commits it back to `dev` (with
-  `[skip ci]`). ArgoCD's automated sync deploys it.
-- **prod** is bumped on the release tag. When a `v*` tag is pushed,
-  `bump-prod` rewrites `deploy/overlays/prod/kustomization.yaml`'s
-  `newTag` to the bare semver and opens a PR against `main` (branch
-  `deploy/prod-<version>`). `main` is protected — PR + required checks —
-  so the job can't push directly; merging the PR rolls prod. ArgoCD
-  rolls it out; rollback is a one-commit revert.
-- **dev, on a release tag too.** `bump-dev-on-tag` points the dev
-  overlay at the released `:<version>-lorawan` image so the dev cluster
-  can briefly smoke-test the release build. It no-ops when no `dev`
-  branch exists.
+### Keeping the image current
 
-The release tag also drives `github-release`, which cuts the GitHub
-Release from the matching `CHANGELOG.md` section.
+A kustomize `newTag` is static — ArgoCD only redeploys when that value
+changes in git. Two ways to move it forward:
 
-Each overlay sets its own namespace, so the two apps get independent
-PVCs and never share `/data`.
+- **By hand.** Edit `newTag` in the overlay and commit; ArgoCD rolls it
+  out. Explicit and auditable, and a rollback is a one-commit revert.
+- **Automatically — [argocd-image-updater](https://argocd-image-updater.readthedocs.io/)
+  (recommended).** Point it at `ghcr.io/moellere/wirestudio` and it
+  writes the newest matching tag (with digest) back to git, so a pushed
+  image deploys itself with no manual step. This is how the upstream
+  cluster runs both apps:
+  - **staging** tracks `:main-lorawan` with `updateStrategy: digest` —
+    every merge to `main` redeploys.
+  - **prod** follows the newest release with `updateStrategy: newest-build`
+    and `allowTags: "regexp:^[0-9]+\.[0-9]+\.[0-9]+-lorawan$"` — a pushed
+    `vX.Y.Z` tag rolls prod on its own.
 
-> Branch protection note: the `bump-dev` job pushes to `dev` as
-> `github-actions[bot]`. If you protect `dev`, add that bot to the
-> "allow to bypass" list (or keep `dev` protection to required status
-> checks on PRs only). Protect `main` strictly — PRs + green checks, no
-> direct pushes — since releases land there via PR.
+  > The `regexp:` prefix on `allowTags` is required. A bare pattern is
+  > treated as a literal tag name and silently matches nothing, so the
+  > app never updates.
+
+Pushing a `v*` tag builds + publishes the release image (the `docker`
+workflow), publishes to PyPI, and cuts a GitHub Release from the matching
+`CHANGELOG.md` section (the `release` workflow). Deployment itself is
+decoupled from CI: the image lands in the registry, and whichever
+mechanism above owns the tag picks it up.
+
+> If image-updater does the git write-back, give its commit identity push
+> access to the repo/branch it targets, and keep `main` protection to
+> required checks on PRs (image-updater commits tag bumps directly).
 
 ## nginx-front compose recipe
 
