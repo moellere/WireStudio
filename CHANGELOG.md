@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `:X.Y.Z-lorawan` release tag), plus the manual `newTag` option. Also fixed a
   broken image tag in `deploy/k8s.yaml` (`:v0.17.1`, which never existed in the
   registry) — now `:0.18.0`.
+- **Docs roadmap: PCB layout marked Verified (unrouted).** `docs/index.md`
+  Priority 4 no longer claims the layout is "not yet in flight" — it now
+  records the shipped `.kicad_pcb` emit (0.14.0) and fab outputs (0.15.0)
+  with their CI gates, leaving Freerouting autorouting as the open step.
 - **README leads with the hardware design angle.** The intro now frames the
   studio around what stock ESPHome's Device Builder doesn't do — electrical
   metadata, CSP pin solving, electrical validation, and the physical artifacts

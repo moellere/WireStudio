@@ -113,10 +113,19 @@ e.g. [YAPP_Box](https://github.com/mrWheel/YAPP_Box) and integrate
 instead of reimplementing? Next: more boards' `enclosure:` metadata
 (only 5 carry it today); a lid + snap-fit; slicer-side print validation.
 
-**Priority 4 — PCB layout.** *Deferred to 1.0+.* The footprint-coverage
-gate (every component + board names a real KiCad footprint that resolves
-in the pinned libraries) landed as step 1 — the foundation a `.kicad_pcb`
-emit builds on — but the layout itself is not yet in flight.
+**Priority 4 — PCB layout.** *Verified (unrouted).* Shipped in three
+steps: the footprint-coverage gate (every component + board names a
+real KiCad footprint that resolves in the pinned libraries, 0.13), the
+`.kicad_pcb` emit (footprints placed, pads bound to nets, `Edge.Cuts`
+outline, 0.14), and the fab outputs (BOM / CPL / Gerber + drill via
+`/design/fab/*`, packaged for JLCPCB upload, 0.15). The
+[`pcb-layout`](../.github/workflows/pcb-layout.yml) gate proves every
+bundled example emits a structurally sound board, and
+[`pcb-drc`](../.github/workflows/pcb-drc.yml) opens each board in real
+KiCad and runs DRC (unrouted airwires expected). Boards are unrouted —
+Gerbers carry pads but no traces, flagged via `is_routed`. Next:
+Freerouting autorouting, closing the gap to a genuinely fab-ready
+routed board.
 
 **LoRaWAN target (0.13 standalone, 0.16+ external-component).** *Works —
 hardware-validated on the standalone path; external-component path
