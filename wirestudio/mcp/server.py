@@ -33,6 +33,7 @@ from wirestudio.agent.tools import (
     _run_recommend,
     _run_remove_component,
     _run_render,
+    _run_route_pcb,
     _run_search_components,
     _run_set_board,
     _run_set_connection,
@@ -417,10 +418,28 @@ def _register_design_tools(
         return _run_kicad_pcb(design, library)
 
     @mcp.tool(
+        name="route_pcb",
+        description=(
+            "Autoroute the named design's .kicad_pcb with Freerouting and "
+            "return a summary (routed, segments, vias, cache_key). The routed "
+            "board file is downloaded via GET /design/kicad/route/{cache_key}. "
+            "Cached, so re-routing an unchanged design is instant; a fresh "
+            "route can take a minute or two. Needs the route toolchain on the "
+            "server. Read-only." + _DESIGN_ID_HINT
+        ),
+    )
+    def route_pcb(design_id: Optional[str] = None) -> dict:
+        rid, design = _load(design_id)
+        if design is None:
+            return _NO_DESIGN_ERROR
+        return _run_route_pcb(design, library)
+
+    @mcp.tool(
         name="fab_status",
         description=(
             "What fab outputs the server can produce: BOM always; CPL needs "
-            "the footprint libraries; Gerbers need kicad-cli. Read-only."
+            "the footprint libraries; Gerbers need kicad-cli; routed Gerbers "
+            "also need the Freerouting toolchain. Read-only."
         ),
     )
     def fab_status_tool() -> dict:

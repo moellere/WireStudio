@@ -8,8 +8,15 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { SchematicDialog } from "./SchematicDialog";
-import { api } from "../api/client";
-import type { Design, FabStatus, KicadPcbStatus, KicadRenderStatus } from "../types/api";
+import { api, kicadRoute } from "../api/client";
+import type {
+  Design,
+  FabStatus,
+  KicadPcbStatus,
+  KicadRenderStatus,
+  KicadRouteEvent,
+  KicadRouteStatus,
+} from "../types/api";
 
 vi.mock("../api/client", async () => {
   const actual = await vi.importActual<typeof import("../api/client")>("../api/client");
@@ -26,7 +33,10 @@ vi.mock("../api/client", async () => {
       fabBom: vi.fn(),
       fabCpl: vi.fn(),
       fabPackage: vi.fn(),
+      kicadRouteStatus: vi.fn(),
+      kicadRoutedBoard: vi.fn(),
     },
+    kicadRoute: vi.fn(),
   };
 });
 
@@ -40,7 +50,10 @@ const mockApi = api as unknown as {
   fabBom: ReturnType<typeof vi.fn>;
   fabCpl: ReturnType<typeof vi.fn>;
   fabPackage: ReturnType<typeof vi.fn>;
+  kicadRouteStatus: ReturnType<typeof vi.fn>;
+  kicadRoutedBoard: ReturnType<typeof vi.fn>;
 };
+const mockKicadRoute = kicadRoute as unknown as ReturnType<typeof vi.fn>;
 
 const UNAVAILABLE: KicadRenderStatus = {
   available: false, kicad_cli: false, skidl: false, png: false,
@@ -57,11 +70,22 @@ const PCB_AVAILABLE: KicadPcbStatus = {
   available: true, footprints: true, symbols: true, reason: null,
 };
 const FAB_BOM_ONLY: FabStatus = {
-  bom: true, cpl: false, gerbers: false, kicad_cli: false, footprints: false,
+  bom: true, cpl: false, gerbers: false, route: false, route_reason: null,
+  kicad_cli: false, footprints: false,
   reason: "kicad-cli not on PATH (needed for Gerbers)",
 };
 const FAB_FULL: FabStatus = {
-  bom: true, cpl: true, gerbers: true, kicad_cli: true, footprints: true, reason: null,
+  bom: true, cpl: true, gerbers: true, route: false, route_reason: null,
+  kicad_cli: true, footprints: true, reason: null,
+};
+const FAB_ROUTED: FabStatus = { ...FAB_FULL, route: true };
+const ROUTE_UNAVAILABLE: KicadRouteStatus = {
+  available: false, pcbnew: null, java: null, freerouting_jar: null,
+  reason: "Freerouting jar not found",
+};
+const ROUTE_AVAILABLE: KicadRouteStatus = {
+  available: true, pcbnew: "8.0.9", java: "/usr/bin/java",
+  freerouting_jar: "/opt/freerouting.jar", reason: null,
 };
 
 const design: Design = {
@@ -86,9 +110,13 @@ beforeEach(() => {
   mockApi.fabBom.mockReset();
   mockApi.fabCpl.mockReset();
   mockApi.fabPackage.mockReset();
+  mockApi.kicadRouteStatus.mockReset();
+  mockApi.kicadRoutedBoard.mockReset();
+  mockKicadRoute.mockReset();
   mockApi.kicadRenderStatus.mockResolvedValue(UNAVAILABLE);
   mockApi.kicadPcbStatus.mockResolvedValue(PCB_UNAVAILABLE);
   mockApi.fabStatus.mockResolvedValue(FAB_BOM_ONLY);
+  mockApi.kicadRouteStatus.mockResolvedValue(ROUTE_UNAVAILABLE);
   (URL as unknown as { createObjectURL: () => string }).createObjectURL = vi.fn(() => "blob:fake");
   (URL as unknown as { revokeObjectURL: () => void }).revokeObjectURL = vi.fn();
 });
@@ -215,6 +243,55 @@ describe("SchematicDialog — fab outputs", () => {
     const pkg = await screen.findByRole("button", { name: /Fab package/ });
     await waitFor(() => expect(pkg).toBeEnabled());
     await userEvent.click(pkg);
-    await waitFor(() => expect(mockApi.fabPackage).toHaveBeenCalledWith(design));
+    await waitFor(() => expect(mockApi.fabPackage).toHaveBeenCalledWith(design, false));
+  });
+
+  it("gates the Routed checkbox on the route toolchain and passes route=true", async () => {
+    mockApi.fabStatus.mockResolvedValue(FAB_ROUTED);
+    mockApi.fabPackage.mockResolvedValue(new Blob(["zip"]));
+    render(<SchematicDialog design={design} onClose={() => {}} />);
+    const routed = await screen.findByRole("checkbox", { name: /Routed/ });
+    await waitFor(() => expect(routed).toBeEnabled());
+    await userEvent.click(routed);
+    await userEvent.click(screen.getByRole("button", { name: /Fab package/ }));
+    await waitFor(() => expect(mockApi.fabPackage).toHaveBeenCalledWith(design, true));
+  });
+});
+
+describe("SchematicDialog — autoroute", () => {
+  it("shows the toolchain notice when routing is unavailable", async () => {
+    render(<SchematicDialog design={design} onClose={() => {}} />);
+    expect(await screen.findByText(/route toolchain/)).toBeInTheDocument();
+    expect(screen.getByText(/Freerouting jar not found/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Route board/ })).toBeNull();
+  });
+
+  it("routes, streams the log, and offers the routed board download", async () => {
+    mockApi.kicadRouteStatus.mockResolvedValue(ROUTE_AVAILABLE);
+    mockApi.kicadRoutedBoard.mockResolvedValue("(kicad_pcb (segment))");
+    mockKicadRoute.mockImplementation(async function* (): AsyncGenerator<KicadRouteEvent> {
+      yield { type: "log", data: "pass 1: 12 of 12 routed\n" };
+      yield { type: "done", ok: true, routed: true, cache_key: "0123456789abcdef", cache_hit: false };
+    });
+    render(<SchematicDialog design={design} onClose={() => {}} />);
+    await userEvent.click(await screen.findByRole("button", { name: /Route board/ }));
+    expect(await screen.findByText(/12 of 12 routed/)).toBeInTheDocument();
+    const download = await screen.findByRole("button", { name: /Download routed/ });
+    await userEvent.click(download);
+    await waitFor(() =>
+      expect(mockApi.kicadRoutedBoard).toHaveBeenCalledWith("0123456789abcdef"),
+    );
+  });
+
+  it("surfaces a failed route as an error banner", async () => {
+    mockApi.kicadRouteStatus.mockResolvedValue(ROUTE_AVAILABLE);
+    mockKicadRoute.mockImplementation(async function* (): AsyncGenerator<KicadRouteEvent> {
+      yield { type: "log", data: "could not route\n" };
+      yield { type: "done", ok: false, routed: false, cache_key: "0123456789abcdef", cache_hit: false };
+    });
+    render(<SchematicDialog design={design} onClose={() => {}} />);
+    await userEvent.click(await screen.findByRole("button", { name: /Route board/ }));
+    expect(await screen.findByText(/without a routed board/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Download routed/ })).toBeNull();
   });
 });

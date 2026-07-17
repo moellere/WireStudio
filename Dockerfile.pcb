@@ -1,0 +1,92 @@
+# syntax=docker/dockerfile:1.7
+#
+# PCB-toolchain variant: the default image plus everything the autoroute and
+# fab pipeline needs baked in. Published as the `-pcb` tag suffix.
+#
+# Based on the official KiCad 8 image because the route step needs pcbnew's
+# python bindings (kicad-cli has no Specctra support) and they only exist
+# inside a full KiCad install. KiCad 8/9 only: KiCad 10 removes the SWIG
+# bindings the DSN/SES bridge depends on. On top of that:
+#   - the pinned KiCad symbol/footprint libraries from gitlab (the image's
+#     bundled libs differ from the pin -- e.g. no Module:WEMOS_D1_mini_light)
+#   - a Temurin 25 JRE + the pinned Freerouting jar (GPL-3, fetched from the
+#     upstream release and invoked as a subprocess at arm's length)
+#
+# Run it exactly like the default image; /data persists designs, sessions,
+# and the route cache.
+
+# ---------------------------------------------------------------------------
+# Stage 1: build the SPA bundle (same as the default Dockerfile).
+# ---------------------------------------------------------------------------
+FROM node:20-alpine AS web-builder
+WORKDIR /web
+
+COPY web/package.json web/package-lock.json* ./
+RUN npm ci --no-audit --no-fund
+
+COPY web/ ./
+RUN npm run build
+
+# ---------------------------------------------------------------------------
+# Stage 2: runtime on the official KiCad 8 image.
+# ---------------------------------------------------------------------------
+FROM kicad/kicad:8.0 AS runtime
+USER root
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates curl git python3-pip python3-venv tini \
+    && rm -rf /var/lib/apt/lists/*
+
+# Pinned KiCad libraries -- the same refs the CI gates emit against.
+ARG KICAD_LIBS_REF=8.0.0
+RUN git clone --depth 1 --branch "$KICAD_LIBS_REF" \
+        https://gitlab.com/kicad/libraries/kicad-footprints.git /opt/kicad-libs/footprints \
+    && git clone --depth 1 --branch "$KICAD_LIBS_REF" \
+        https://gitlab.com/kicad/libraries/kicad-symbols.git /opt/kicad-libs/symbols \
+    && rm -rf /opt/kicad-libs/footprints/.git /opt/kicad-libs/symbols/.git
+
+COPY --from=eclipse-temurin:25-jre /opt/java/openjdk /opt/java/openjdk
+
+ARG FREEROUTING_VERSION=2.2.4
+ARG FREEROUTING_SHA256=f5ed374182900ccc78e473518bbb9f6b869f4a07159495f663a76f52bb10523b
+RUN curl -sSL -o /opt/freerouting.jar \
+        "https://github.com/freerouting/freerouting/releases/download/v${FREEROUTING_VERSION}/freerouting-${FREEROUTING_VERSION}.jar" \
+    && echo "${FREEROUTING_SHA256}  /opt/freerouting.jar" | sha256sum --check
+
+WORKDIR /app
+
+# The app lives in a venv; the pcbnew bridge runs under the system python
+# (WIRESTUDIO_PCBNEW_PYTHON), which is where KiCad's bindings are.
+COPY pyproject.toml ./
+COPY wirestudio/ ./wirestudio/
+COPY README.md ./
+
+RUN python3 -m venv /opt/venv && /opt/venv/bin/pip install --no-cache-dir .
+
+COPY --from=web-builder /web/dist /app/web-dist
+
+RUN mkdir -p /data/sessions /data/designs && \
+    useradd -m -s /bin/bash appuser && \
+    chown -R appuser:appuser /app /data
+
+ENV PYTHONUNBUFFERED=1 \
+    PATH=/opt/venv/bin:$PATH \
+    WIRESTUDIO_STATIC_DIR=/app/web-dist \
+    SESSIONS_DIR=/data/sessions \
+    DESIGNS_DIR=/data/designs \
+    INVENTORY_PATH=/data/inventory.json \
+    WIRESTUDIO_FW_CACHE=/data/firmware-cache \
+    WIRESTUDIO_ROUTE_CACHE=/data/route-cache \
+    WIRESTUDIO_PCBNEW_PYTHON=/usr/bin/python3 \
+    WIRESTUDIO_JAVA=/opt/java/openjdk/bin/java \
+    WIRESTUDIO_FREEROUTING_JAR=/opt/freerouting.jar \
+    KICAD8_FOOTPRINT_DIR=/opt/kicad-libs/footprints \
+    KICAD8_SYMBOL_DIR=/opt/kicad-libs/symbols
+
+EXPOSE 8765
+VOLUME ["/data"]
+
+USER appuser
+
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["python", "-m", "wirestudio.api", "--host", "0.0.0.0", "--port", "8765", "--static-dir", "/app/web-dist"]

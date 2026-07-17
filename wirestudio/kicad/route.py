@@ -115,6 +115,12 @@ def route_status() -> dict:
     }
 
 
+def cached_routed_board(key: str, *, cache_dir: Optional[Path] = None) -> Optional[str]:
+    """The routed board a prior run stored under ``key``, or None."""
+    path = Path(cache_dir or _default_cache_dir()) / key / "routed.kicad_pcb"
+    return path.read_text() if path.is_file() else None
+
+
 def route_cache_key(board_text: str, *, max_passes: int = _DEFAULT_PASSES) -> str:
     h = hashlib.sha256()
     h.update(_CACHE_VERSION.encode())

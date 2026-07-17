@@ -27,6 +27,7 @@ Available tags:
 | `:main` | latest commit on `main` (rolling) |
 | `:sha-<short>` | a specific commit |
 | `:<tag>-lorawan` (e.g. `:main-lorawan`, `:0.18.0-lorawan`) | same image **plus** the LoRaWAN compile worker (PlatformIO baked in) — see below |
+| `:<tag>-pcb` (e.g. `:main-pcb`, `:0.19.0-pcb`) | the PCB toolchain variant: KiCad 8 (kicad-cli + pcbnew), the pinned symbol/footprint libraries, a JRE, and Freerouting — everything the board/fab/autoroute endpoints gate on — see below |
 
 All feature-gating env vars are optional — the studio runs without any
 of them, just with the corresponding feature turned off. See
@@ -39,6 +40,17 @@ of them, just with the corresponding feature turned off. See
 | `THINGIVERSE_API_KEY` | enclosure search (`/enclosure/search`) |
 | `WIRESTUDIO_MCP_TOKEN` | bearer token for the `/mcp` endpoint (auto-generated if unset) |
 | `CHIRPSTACK_API_URL` + `CHIRPSTACK_API_TOKEN` | LoRaWAN device provisioning against ChirpStack (`/lorawan/provision`, `/lorawan/provision-esphome`) |
+
+### PCB toolchain (`-pcb` variant)
+
+The default image can't emit boards, Gerbers, or routed boards — those
+endpoints gate on KiCad tooling and report `available: false`. The
+**`-pcb` variant** (`Dockerfile.pcb`, based on the official
+`kicad/kicad:8.0` image) bakes in kicad-cli, pcbnew, the pinned KiCad
+libraries, a Temurin JRE, and the pinned Freerouting jar, with all the
+`WIRESTUDIO_*` toolchain env vars preset. Autoroute results cache under
+`/data/route-cache`, so they survive restarts with the volume. amd64
+only, like `-lorawan`.
 
 ### LoRaWAN compile worker
 

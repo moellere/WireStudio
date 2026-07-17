@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import asdict
 from pathlib import Path
@@ -100,6 +101,13 @@ from wirestudio.kicad.fab import (
     generate_cpl,
 )
 from wirestudio.kicad.pcb import PcbUnavailable, generate_kicad_pcb, pcb_status
+from wirestudio.kicad.route import (
+    RouteError,
+    RouteUnavailable,
+    cached_routed_board,
+    route_events,
+    route_status,
+)
 from wirestudio.kicad.render import (
     RenderError,
     RenderUnavailable,
@@ -604,10 +612,64 @@ def create_app(
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
 
+    @app.get("/design/kicad/route/status", tags=["design"])
+    def design_kicad_route_status() -> dict:
+        """Probe the autoroute toolchain (pcbnew bridge + java + the
+        Freerouting jar). The web UI gates the Route action on `available`."""
+        return route_status()
+
+    @app.post("/design/kicad/route", tags=["design"])
+    def design_kicad_route(design: dict) -> StreamingResponse:
+        """Autoroute the design's board, streaming the Freerouting log as SSE.
+
+        Frames are `data: {"type": "log"|"done", ...}`; the done frame carries
+        `ok`, `routed`, and `cache_key` -- fetch the routed board from
+        `GET /design/kicad/route/{cache_key}`. Emits eagerly-validated errors
+        (422/503) before the stream opens; a toolchain that vanishes mid-run
+        surfaces as `event: error`.
+        """
+        d = _validate_design(design)
+        try:
+            board = generate_kicad_pcb(d, lib)
+        except PcbUnavailable as e:
+            raise HTTPException(status_code=503, detail=str(e)) from e
+        except (FileNotFoundError, ValueError) as e:
+            raise HTTPException(status_code=422, detail=str(e)) from e
+
+        def events():
+            try:
+                for event in route_events(board):
+                    if event["type"] == "done":
+                        # The routed board is fetched via cache_key, not SSE.
+                        event = {k: v for k, v in event.items() if k != "board"}
+                    yield f"data: {json.dumps(event)}\n\n"
+            except RouteUnavailable as e:
+                yield f"event: error\ndata: {json.dumps({'message': str(e)})}\n\n"
+
+        return StreamingResponse(
+            events(), media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
+
+    @app.get("/design/kicad/route/{cache_key}", tags=["design"])
+    def design_kicad_routed_board(cache_key: str) -> PlainTextResponse:
+        """The routed .kicad_pcb a prior route run stored under `cache_key`.
+        404 until a route for that board has completed."""
+        if not re.fullmatch(r"[0-9a-f]{16}", cache_key):
+            raise HTTPException(status_code=422, detail="bad cache key")
+        board = cached_routed_board(cache_key)
+        if board is None:
+            raise HTTPException(status_code=404, detail="no routed board under that key")
+        return PlainTextResponse(
+            content=board,
+            headers={"Content-Disposition": 'attachment; filename="routed.kicad_pcb"'},
+        )
+
     @app.get("/design/fab/status", tags=["design"])
     def design_fab_status() -> dict:
         """What fab outputs are available: BOM is always emittable, CPL needs
-        the footprint libraries, Gerbers also need kicad-cli."""
+        the footprint libraries, Gerbers also need kicad-cli, routed Gerbers
+        also need the Freerouting toolchain."""
         return fab_status()
 
     @app.post("/design/fab/bom", tags=["design"])
@@ -636,14 +698,17 @@ def create_app(
         )
 
     @app.post("/design/fab/gerbers", tags=["design"])
-    def design_fab_gerbers(design: dict) -> Response:
-        """Gerber + drill files as a zip. 503 when kicad-cli / the libraries
-        are missing."""
+    def design_fab_gerbers(design: dict, route: bool = False) -> Response:
+        """Gerber + drill files as a zip. `?route=true` autoroutes the board
+        first (cached, so a re-export after a route is instant). 503 when
+        kicad-cli / the libraries / the route toolchain are missing."""
         d = _validate_design(design)
         try:
-            data = export_gerbers(d, lib)
-        except (GerberUnavailable, PcbUnavailable) as e:
+            data = export_gerbers(d, lib, route=route)
+        except (GerberUnavailable, PcbUnavailable, RouteUnavailable) as e:
             raise HTTPException(status_code=503, detail=str(e)) from e
+        except RouteError as e:
+            raise HTTPException(status_code=409, detail=str(e)[-2000:]) from e
         except (FileNotFoundError, ValueError) as e:
             raise HTTPException(status_code=422, detail=str(e)) from e
         return Response(
@@ -652,15 +717,18 @@ def create_app(
         )
 
     @app.post("/design/fab/package", tags=["design"])
-    def design_fab_package(design: dict) -> Response:
+    def design_fab_package(design: dict, route: bool = False) -> Response:
         """The JLCPCB upload bundle: Gerbers + drill + CPL + BOM in one zip.
-        Boards are unrouted until the routing step lands, so the Gerbers carry
-        pads but no traces. 503 when kicad-cli / the libraries are missing."""
+        Without `?route=true` the board is unrouted, so the Gerbers carry pads
+        but no traces. 503 when kicad-cli / the libraries / the route
+        toolchain are missing; 409 when routing ran and failed."""
         d = _validate_design(design)
         try:
-            data = export_fab_package(d, lib)
-        except (GerberUnavailable, PcbUnavailable) as e:
+            data = export_fab_package(d, lib, route=route)
+        except (GerberUnavailable, PcbUnavailable, RouteUnavailable) as e:
             raise HTTPException(status_code=503, detail=str(e)) from e
+        except RouteError as e:
+            raise HTTPException(status_code=409, detail=str(e)[-2000:]) from e
         except (FileNotFoundError, ValueError) as e:
             raise HTTPException(status_code=422, detail=str(e)) from e
         return Response(
