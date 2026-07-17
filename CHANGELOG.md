@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **PCB autorouting (Freerouting).** `wirestudio/kicad/route.py` routes a
+  generated `.kicad_pcb`: Specctra DSN export via pcbnew (a dependency-free
+  `pcbnew_bridge.py` run under the system python — kicad-cli has no Specctra
+  support, and KiCad >= 8 is required for the headless SES import),
+  `freerouting.jar` in batch mode (`-mt 1`; multithreaded routing is a known
+  source of KiCad-DRC clearance violations), then SES import back into the
+  board. Subprocess-based throughout, watchdog-killed on stagnation, results
+  content-addressed like the firmware cache. Gated by `route_status()`
+  (pcbnew bridge + java + `WIRESTUDIO_FREEROUTING_JAR`); CLI at
+  `python -m wirestudio.kicad.route`. A new `pcb-route` CI gate routes
+  representative examples and holds them to the routed bar: copper present,
+  zero unconnected items, no non-waived error-severity DRC violations —
+  verified end-to-end against KiCad 8 + Freerouting 2.2.4 (four boards
+  route clean). HTTP/MCP/web-UI surfaces and a toolchain image are the
+  follow-up; this lands the pipeline and its gate.
+
 ### Documentation
 
 - **Deployment docs reconciled with the actual GitOps flow.** `docs/deployment.md`
