@@ -130,6 +130,47 @@ jobs:
           cache-from: type=gha,scope=lorawan
           cache-to: type=gha,mode=max,scope=lorawan
 
+  # The PCB-toolchain variant: Dockerfile.pcb on the official KiCad 8 image,
+  # with pcbnew, kicad-cli, the pinned gitlab libraries, a Temurin JRE, and
+  # the Freerouting jar -- the image that can autoroute and emit routed fab
+  # packages. amd64-only and push-only like the lorawan variant. Published as
+  # the `-pcb` tag suffix (e.g. :main-pcb).
+  pcb-image:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Compute image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/wirestudio
+          flavor: suffix=-pcb,latest=false
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=sha-
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.pcb
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=pcb
+          cache-to: type=gha,mode=max,scope=pcb
+
   # Deployment is NOT handled here. The k8s cluster is driven by the
   # moellere/argocd GitOps repo, where argocd-image-updater watches this
   # registry and rolls each environment automatically:

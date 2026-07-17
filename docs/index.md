@@ -128,9 +128,12 @@ autoroute step now closes the routing gap:
 bridge) → `freerouting.jar` → SES import, and the
 [`pcb-route`](../.github/workflows/pcb-route.yml) gate holds
 representative examples to the routed bar (copper present, zero
-unconnected items, routed DRC clean). Next: wire routing into the fab
-endpoints/MCP/web UI and ship a toolchain image so the default deploy
-can route.
+unconnected items, routed DRC clean). Routing is surfaced everywhere the
+board is: `POST /design/kicad/route` (SSE), the `route_pcb` MCP/agent
+tool, the web UI's Autoroute section, `?route=true` on the fab exports,
+and the `-pcb` image variant that carries the toolchain. Next: routed
+DRC feedback in the UI, via-cost/keepout tuning, and copper pours for
+power nets.
 
 **LoRaWAN target (0.13 standalone, 0.16+ external-component).** *Works —
 hardware-validated on the standalone path; external-component path

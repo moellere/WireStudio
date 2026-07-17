@@ -289,10 +289,24 @@ export interface KicadPcbStatus {
   reason: string | null;
 }
 
+export interface KicadRouteStatus {
+  available: boolean;
+  pcbnew: string | null;
+  java: string | null;
+  freerouting_jar: string | null;
+  reason: string | null;
+}
+
+export type KicadRouteEvent =
+  | { type: "log"; data: string }
+  | { type: "done"; ok: boolean; routed: boolean; cache_key: string; cache_hit: boolean };
+
 export interface FabStatus {
   bom: boolean;
   cpl: boolean;
   gerbers: boolean;
+  route: boolean;
+  route_reason: string | null;
   kicad_cli: boolean;
   footprints: boolean;
   reason: string | null;
