@@ -7,9 +7,15 @@
  *    fleet features are: probe `/design/kicad/render/status` and degrade
  *    to a notice when the tools are missing.
  */
-import { useEffect, useState } from "react";
-import { api, ApiError } from "../api/client";
-import type { Design, FabStatus, KicadPcbStatus, KicadRenderStatus } from "../types/api";
+import { useEffect, useRef, useState } from "react";
+import { api, ApiError, kicadRoute } from "../api/client";
+import type {
+  Design,
+  FabStatus,
+  KicadPcbStatus,
+  KicadRenderStatus,
+  KicadRouteStatus,
+} from "../types/api";
 
 interface Props {
   design: Design;
@@ -53,6 +59,14 @@ export function SchematicDialog({ design, onClose }: Props) {
   const [fabStatus, setFabStatus] = useState<FabStatus | null>(null);
   const [fabBusy, setFabBusy] = useState<string | null>(null);
   const [fabError, setFabError] = useState<string | null>(null);
+  const [fabRouted, setFabRouted] = useState(false);
+
+  const [routeStatus, setRouteStatus] = useState<KicadRouteStatus | null>(null);
+  const [routing, setRouting] = useState(false);
+  const [routeLog, setRouteLog] = useState("");
+  const [routeKey, setRouteKey] = useState<string | null>(null);
+  const [routeError, setRouteError] = useState<string | null>(null);
+  const routeLogRef = useRef<HTMLPreElement | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -74,13 +88,26 @@ export function SchematicDialog({ design, onClose }: Props) {
       .fabStatus()
       .then((s) => live && setFabStatus(s))
       .catch(() => live && setFabStatus({
-        bom: true, cpl: false, gerbers: false, kicad_cli: false,
-        footprints: false, reason: "fab status unavailable",
+        bom: true, cpl: false, gerbers: false, route: false, route_reason: null,
+        kicad_cli: false, footprints: false, reason: "fab status unavailable",
+      }));
+    api
+      .kicadRouteStatus()
+      .then((s) => live && setRouteStatus(s))
+      .catch(() => live && setRouteStatus({
+        available: false, pcbnew: null, java: null, freerouting_jar: null,
+        reason: "route status unavailable",
       }));
     return () => {
       live = false;
     };
   }, []);
+
+  // Keep the route log scrolled to the newest line.
+  useEffect(() => {
+    const el = routeLogRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [routeLog]);
 
   // Revoke the object URL when it's replaced or the dialog unmounts.
   useEffect(() => {
@@ -149,6 +176,44 @@ export function SchematicDialog({ design, onClose }: Props) {
   }
 
   const id = design.id ?? "design";
+
+  async function handleRoute() {
+    setRouting(true);
+    setRouteLog("");
+    setRouteKey(null);
+    setRouteError(null);
+    try {
+      for await (const event of kicadRoute(design)) {
+        if (event.type === "log") {
+          setRouteLog((prev) => prev + event.data);
+        } else if (event.type === "done") {
+          if (event.ok) {
+            setRouteKey(event.cache_key);
+          } else {
+            setRouteError("Routing completed without a routed board — see the log.");
+          }
+        }
+      }
+    } catch (e) {
+      setRouteError(formatError(e));
+    } finally {
+      setRouting(false);
+    }
+  }
+
+  async function handleDownloadRouted() {
+    if (!routeKey) return;
+    setRouteError(null);
+    try {
+      saveBlob(
+        await api.kicadRoutedBoard(routeKey),
+        `${id}-routed.kicad_pcb`,
+        "application/octet-stream",
+      );
+    } catch (e) {
+      setRouteError(formatError(e));
+    }
+  }
 
   async function handleFab(
     kind: string,
@@ -289,8 +354,8 @@ python ${design.id ?? "design"}.skidl.py
             <p className="text-xs leading-relaxed text-zinc-400">
               A <code className="text-zinc-200">.kicad_pcb</code> with every
               part placed on a grid and pads wired to nets — open it in KiCad's
-              PCB editor with a full ratsnest and route it. Autorouting and
-              Gerber/JLCPCB export are on the 1.0 roadmap.
+              PCB editor with a full ratsnest and route it yourself, or
+              autoroute it below.
             </p>
             {pcbStatus === null ? (
               <div className="text-xs text-zinc-500">Checking…</div>
@@ -322,6 +387,63 @@ python ${design.id ?? "design"}.skidl.py
             )}
           </section>
 
+          {/* --- Autoroute (Freerouting) ------------------------------- */}
+          <section className="space-y-2 border-t border-zinc-800 pt-3">
+            <div className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
+              Autoroute
+            </div>
+            <p className="text-xs leading-relaxed text-zinc-400">
+              Route the board with Freerouting on the server and download the
+              routed <code className="text-zinc-200">.kicad_pcb</code>. Results
+              are cached — re-routing an unchanged design is instant.
+            </p>
+            {routeStatus === null ? (
+              <div className="text-xs text-zinc-500">Checking…</div>
+            ) : routeStatus.available ? (
+              <>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={handleRoute}
+                    disabled={routing}
+                    className="rounded-md bg-blue-500/20 px-3 py-1.5 text-sm text-blue-100 ring-1 ring-blue-400/40 enabled:hover:bg-blue-500/30 disabled:opacity-40"
+                  >
+                    {routing ? "Routing…" : routeKey ? "Route again" : "Route board"}
+                  </button>
+                  {routeKey && (
+                    <button
+                      onClick={handleDownloadRouted}
+                      className="rounded-md bg-emerald-500/20 px-3 py-1.5 text-sm text-emerald-100 ring-1 ring-emerald-400/40 hover:bg-emerald-500/30"
+                    >
+                      Download routed .kicad_pcb →
+                    </button>
+                  )}
+                </div>
+                {(routing || routeLog) && (
+                  <pre
+                    ref={routeLogRef}
+                    className="max-h-40 overflow-y-auto rounded-md border border-zinc-800 bg-black/60 p-2 font-mono text-[11px] leading-relaxed text-zinc-300"
+                  >
+                    {routeLog || "Starting Freerouting…"}
+                  </pre>
+                )}
+              </>
+            ) : (
+              <div className="rounded-md border border-zinc-800 bg-zinc-900/40 px-2 py-1.5 text-xs text-zinc-400">
+                Autorouting needs the route toolchain on the server (pcbnew,
+                Java, and the Freerouting jar) — use the{" "}
+                <code className="text-zinc-200">-pcb</code> image variant.
+                {routeStatus.reason && (
+                  <span className="text-zinc-500"> ({routeStatus.reason})</span>
+                )}
+              </div>
+            )}
+            {routeError && (
+              <div className="rounded-md border border-rose-700/40 bg-rose-900/15 px-2 py-1.5 text-xs text-rose-200">
+                {routeError}
+              </div>
+            )}
+          </section>
+
           {/* --- Fab outputs (BOM / CPL / Gerbers) --------------------- */}
           <section className="space-y-2 border-t border-zinc-800 pt-3">
             <div className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
@@ -329,9 +451,28 @@ python ${design.id ?? "design"}.skidl.py
             </div>
             <p className="text-xs leading-relaxed text-zinc-400">
               BOM + pick-and-place (CPL) for assembly, and a Gerber/drill bundle
-              for a board house. The board isn't routed yet, so the Gerbers have
-              pads but no traces — useful once routing lands (1.0 roadmap).
+              for a board house. Check <em>Routed</em> to autoroute before
+              exporting; unrouted Gerbers carry pads but no traces.
             </p>
+            <label
+              className={`flex w-fit items-center gap-2 text-xs ${
+                fabStatus?.route ? "text-zinc-300" : "text-zinc-600"
+              }`}
+              title={
+                fabStatus && !fabStatus.route
+                  ? fabStatus.route_reason ?? "Needs the route toolchain on the server"
+                  : undefined
+              }
+            >
+              <input
+                type="checkbox"
+                checked={fabRouted}
+                disabled={!fabStatus?.route}
+                onChange={(e) => setFabRouted(e.target.checked)}
+                className="accent-blue-500"
+              />
+              Routed (autoroute before export)
+            </label>
             <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => handleFab("bom", () => api.fabBom(design), `${id}-bom.csv`, "text/csv")}
@@ -349,12 +490,14 @@ python ${design.id ?? "design"}.skidl.py
                 {fabBusy === "cpl" ? "…" : "CPL .csv"}
               </button>
               <button
-                onClick={() => handleFab("package", () => api.fabPackage(design), `${id}-fab.zip`, "application/zip")}
+                onClick={() => handleFab("package", () => api.fabPackage(design, fabRouted), `${id}-fab.zip`, "application/zip")}
                 disabled={fabBusy !== null || !fabStatus?.gerbers}
                 title={fabStatus && !fabStatus.gerbers ? "Needs kicad-cli + the libraries on the server" : undefined}
                 className="rounded-md bg-blue-500/20 px-3 py-1.5 text-sm text-blue-100 ring-1 ring-blue-400/40 enabled:hover:bg-blue-500/30 disabled:opacity-40"
               >
-                {fabBusy === "package" ? "Generating…" : "Fab package .zip →"}
+                {fabBusy === "package"
+                  ? fabRouted ? "Routing + generating…" : "Generating…"
+                  : "Fab package .zip →"}
               </button>
             </div>
             {fabStatus && !fabStatus.gerbers && (

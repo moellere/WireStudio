@@ -18,6 +18,8 @@ import type {
   FabStatus,
   KicadPcbStatus,
   KicadRenderStatus,
+  KicadRouteEvent,
+  KicadRouteStatus,
   LorawanCompileEvent,
   LorawanCompileStatus,
   LorawanProvisionResponse,
@@ -170,14 +172,21 @@ export const api = {
     request<KicadPcbStatus>("/design/kicad/pcb/status"),
   kicadPcb: (design: Design) =>
     requestText("/design/kicad/pcb", { method: "POST", body: JSON.stringify(design) }),
+  kicadRouteStatus: () =>
+    request<KicadRouteStatus>("/design/kicad/route/status"),
+  kicadRoutedBoard: (cacheKey: string) =>
+    requestText(`/design/kicad/route/${cacheKey}`),
   fabStatus: () =>
     request<FabStatus>("/design/fab/status"),
   fabBom: (design: Design) =>
     requestText("/design/fab/bom", { method: "POST", body: JSON.stringify(design) }),
   fabCpl: (design: Design) =>
     requestText("/design/fab/cpl", { method: "POST", body: JSON.stringify(design) }),
-  fabPackage: (design: Design) =>
-    requestBlob("/design/fab/package", { method: "POST", body: JSON.stringify(design) }),
+  fabPackage: (design: Design, route = false) =>
+    requestBlob(`/design/fab/package${route ? "?route=true" : ""}`, {
+      method: "POST",
+      body: JSON.stringify(design),
+    }),
   enclosureSearchStatus: () =>
     request<EnclosureSearchStatus>("/enclosure/search/status"),
   enclosureSearch: (params: { library_id: string; query?: string; limit?: number }) => {
@@ -385,8 +394,13 @@ export async function* agentStream(body: {
  * ApiError on non-2xx (422 bad design / non-radio board) and Error on an
  * `event: error` frame (e.g. PlatformIO unavailable mid-build).
  */
-export async function* lorawanCompile(design: Design): AsyncGenerator<LorawanCompileEvent> {
-  const res = await fetch(`${API_BASE}/lorawan/compile`, {
+/**
+ * Stream a Freerouting autoroute over SSE. Yields `{type:"log"}` lines and a
+ * final `{type:"done"}` carrying the cache_key to fetch the routed board
+ * with. Throws ApiError on non-2xx and Error on an `event: error` frame.
+ */
+export async function* kicadRoute(design: Design): AsyncGenerator<KicadRouteEvent> {
+  const res = await fetch(`${API_BASE}/design/kicad/route`, {
     method: "POST",
     headers: { "content-type": "application/json", accept: "text/event-stream" },
     body: JSON.stringify(design),
@@ -394,12 +408,16 @@ export async function* lorawanCompile(design: Design): AsyncGenerator<LorawanCom
   if (!res.ok) {
     let errBody: unknown = undefined;
     try { errBody = await res.json(); } catch { /* not json */ }
-    throw new ApiError(res.status, `POST /lorawan/compile -> ${res.status}`, errBody);
+    throw new ApiError(res.status, `POST /design/kicad/route -> ${res.status}`, errBody);
   }
   if (!res.body) {
-    throw new Error("lorawan/compile: no response body");
+    throw new Error("design/kicad/route: no response body");
   }
-  const reader = res.body.getReader();
+  yield* parseSse<KicadRouteEvent>(res.body);
+}
+
+async function* parseSse<T>(body: ReadableStream<Uint8Array>): AsyncGenerator<T> {
+  const reader = body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
   while (true) {
@@ -422,7 +440,7 @@ export async function* lorawanCompile(design: Design): AsyncGenerator<LorawanCom
             throw new Error(message);
           }
           try {
-            yield JSON.parse(json) as LorawanCompileEvent;
+            yield JSON.parse(json) as T;
           } catch {
             // ignore malformed event line
           }
@@ -430,6 +448,23 @@ export async function* lorawanCompile(design: Design): AsyncGenerator<LorawanCom
       }
     }
   }
+}
+
+export async function* lorawanCompile(design: Design): AsyncGenerator<LorawanCompileEvent> {
+  const res = await fetch(`${API_BASE}/lorawan/compile`, {
+    method: "POST",
+    headers: { "content-type": "application/json", accept: "text/event-stream" },
+    body: JSON.stringify(design),
+  });
+  if (!res.ok) {
+    let errBody: unknown = undefined;
+    try { errBody = await res.json(); } catch { /* not json */ }
+    throw new ApiError(res.status, `POST /lorawan/compile -> ${res.status}`, errBody);
+  }
+  if (!res.body) {
+    throw new Error("lorawan/compile: no response body");
+  }
+  yield* parseSse<LorawanCompileEvent>(res.body);
 }
 
 export { ApiError };

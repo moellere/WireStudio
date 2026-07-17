@@ -54,9 +54,13 @@ def is_routed(board_text: str) -> bool:
 
 def fab_status(*, footprint_dir: Optional[Path] = None) -> dict:
     """What fab outputs are available here. BOM is always pure; CPL needs the
-    footprint libraries (for placement); Gerbers also need kicad-cli."""
+    footprint libraries (for placement); Gerbers also need kicad-cli; routed
+    Gerbers additionally need the Freerouting toolchain."""
+    from wirestudio.kicad.route import route_status
+
     fp = Path(footprint_dir) if footprint_dir else _resolve_footprint_dir()
     cli = _kicad_cli()
+    route = route_status()
     reason = None
     if fp is None or cli is None:
         missing = []
@@ -69,6 +73,8 @@ def fab_status(*, footprint_dir: Optional[Path] = None) -> dict:
         "bom": True,
         "cpl": fp is not None,
         "gerbers": fp is not None and cli is not None,
+        "route": fp is not None and cli is not None and route["available"],
+        "route_reason": route["reason"],
         "kicad_cli": cli is not None,
         "footprints": fp is not None,
         "reason": reason,
@@ -145,13 +151,23 @@ def _zip(files: dict[str, bytes]) -> bytes:
     return buf.getvalue()
 
 
+def _maybe_route(board: str, route: bool) -> str:
+    if not route:
+        return board
+    from wirestudio.kicad.route import route_board
+
+    return route_board(board)
+
+
 def export_gerbers(design: Design, library: Library, *,
                    footprint_dir: Optional[Path] = None,
-                   symbol_dir: Optional[Path] = None) -> bytes:
-    """Zip of Gerber + drill files. Needs kicad-cli + the libraries."""
-    board = generate_kicad_pcb(
+                   symbol_dir: Optional[Path] = None,
+                   route: bool = False) -> bytes:
+    """Zip of Gerber + drill files. Needs kicad-cli + the libraries; with
+    ``route=True`` the board is autorouted first (Freerouting toolchain)."""
+    board = _maybe_route(generate_kicad_pcb(
         design, library, footprint_dir=footprint_dir, symbol_dir=symbol_dir,
-    )
+    ), route)
     with tempfile.TemporaryDirectory(prefix="wirestudio-fab-") as td:
         out = Path(td)
         _gerbers_into(out, board)
@@ -160,11 +176,12 @@ def export_gerbers(design: Design, library: Library, *,
 
 def export_fab_package(design: Design, library: Library, *,
                        footprint_dir: Optional[Path] = None,
-                       symbol_dir: Optional[Path] = None) -> bytes:
+                       symbol_dir: Optional[Path] = None,
+                       route: bool = False) -> bytes:
     """The JLCPCB upload bundle: Gerbers + drill + CPL + BOM in one zip."""
-    board = generate_kicad_pcb(
+    board = _maybe_route(generate_kicad_pcb(
         design, library, footprint_dir=footprint_dir, symbol_dir=symbol_dir,
-    )
+    ), route)
     with tempfile.TemporaryDirectory(prefix="wirestudio-fab-") as td:
         out = Path(td)
         _gerbers_into(out, board)

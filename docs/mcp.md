@@ -181,7 +181,7 @@ bind flag.
 
 ## Tools
 
-The same 12 tools the embedded `/agent/turn` flow uses, plus the two
+The same tools the embedded `/agent/turn` flow uses, plus the two
 active-design tools. Mutating tools load the design, apply the change,
 and persist back to `designs/<id>.json`.
 
@@ -189,6 +189,7 @@ and persist back to `designs/<id>.json`.
 |------|---------|-------|
 | `search_components` | no | fuzzy library lookup by name/category/use_case/alias |
 | `list_boards` | no | every board with mcu / framework / platformio_board |
+| `library_detail` | no | full component/board card on demand |
 | `recommend` | no | ranked capability search with rationale + constraints |
 | `render` | no | YAML + ASCII for a stored design |
 | `validate` | no | schema + library check |
@@ -197,8 +198,15 @@ and persist back to `designs/<id>.json`.
 | `remove_component` | yes | drop component + its originating connections |
 | `set_param` | yes | per-instance param set (`value: null` deletes) |
 | `set_connection` | yes | retarget a single connection |
+| `set_strict` | yes | toggle `design.strict` (violations block generation) |
 | `add_bus` | yes | append an i2c / spi / uart / 1wire / i2s bus |
 | `solve_pins` | yes | auto-assign unbound connections |
+| `kicad_schematic` | no | SKiDL script summary |
+| `kicad_pcb` | no | board emit summary (size, footprints, nets, routed) |
+| `route_pcb` | no | Freerouting autoroute; returns segments/vias/cache_key, board via `GET /design/kicad/route/{cache_key}` |
+| `fab_status` | no | server fab capabilities (BOM/CPL/Gerbers/route) |
+| `fab_bom` | no | JLCPCB BOM CSV |
+| `fab_cpl` | no | JLCPCB CPL CSV |
 | `set_active_design` | — | set the active-design pointer (validates the id exists) |
 | `get_active_design` | — | read the active-design pointer |
 

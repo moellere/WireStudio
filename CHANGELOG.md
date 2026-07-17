@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Autoroute surfaces: HTTP, MCP/agent, web UI, and a `-pcb` image.**
+  `POST /design/kicad/route` streams the Freerouting log as SSE and the
+  routed board downloads from `GET /design/kicad/route/{cache_key}`;
+  `GET /design/kicad/route/status` gates the feature. The fab Gerber/package
+  endpoints accept `?route=true` (503 toolchain missing, 409 routing failed),
+  and `fab_status` reports `route`/`route_reason`. New `route_pcb` MCP/agent
+  tool returns a routed summary (segments, vias, cache_key). The KiCad export
+  dialog gains an **Autoroute** section (route button, live log, routed-board
+  download) and a **Routed** checkbox on the fab package. A new
+  `Dockerfile.pcb` variant (published as the `-pcb` tag suffix) bakes in
+  KiCad 8 + pcbnew, the pinned libraries, a Temurin JRE, and the pinned
+  Freerouting jar so a deployment can route out of the box; route results
+  cache under `/data/route-cache`.
+
 - **PCB autorouting (Freerouting).** `wirestudio/kicad/route.py` routes a
   generated `.kicad_pcb`: Specctra DSN export via pcbnew (a dependency-free
   `pcbnew_bridge.py` run under the system python — kicad-cli has no Specctra
