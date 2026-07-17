@@ -17,6 +17,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `:X.Y.Z-lorawan` release tag), plus the manual `newTag` option. Also fixed a
   broken image tag in `deploy/k8s.yaml` (`:v0.17.1`, which never existed in the
   registry) — now `:0.18.0`.
+- **README leads with the hardware design angle.** The intro now frames the
+  studio around what stock ESPHome's Device Builder doesn't do — electrical
+  metadata, CSP pin solving, electrical validation, and the physical artifacts
+  (wiring, schematic, PCB, fab bundle, enclosure) — instead of board/component
+  selection. Also reconciled the status table with reality: KiCad PCB layout
+  (0.14.0) and fab outputs (0.15.0) move from Deferred to Verified with their
+  CI gates linked, only Freerouting autorouting stays deferred; version
+  references and the Docker quickstart tag move to `0.18.0` (the `v0.17.1`
+  tag never existed in the registry).
 
 ## [0.18.0] — 2026-07-11
 
