@@ -11,7 +11,7 @@ FastAPI serves the API and the built SPA from one process.
 docker run --rm -p 8765:8765 \
   -e ANTHROPIC_API_KEY=sk-ant-... \
   -v wirestudio-data:/data \
-  ghcr.io/moellere/wirestudio:0.18.0
+  ghcr.io/moellere/wirestudio:0.19.0
 ```
 
 Open <http://localhost:8765>. The image bundles the FastAPI server +
@@ -23,10 +23,10 @@ Available tags:
 
 | Tag | What it tracks |
 |---|---|
-| `:0.18.0` / `:0.18` / `:latest` | the v0.18.0 release |
+| `:0.19.0` / `:0.19` / `:latest` | the v0.19.0 release |
 | `:main` | latest commit on `main` (rolling) |
 | `:sha-<short>` | a specific commit |
-| `:<tag>-lorawan` (e.g. `:main-lorawan`, `:0.18.0-lorawan`) | same image **plus** the LoRaWAN compile worker (PlatformIO baked in) — see below |
+| `:<tag>-lorawan` (e.g. `:main-lorawan`, `:0.19.0-lorawan`) | same image **plus** the LoRaWAN compile worker (PlatformIO baked in) — see below |
 | `:<tag>-pcb` (e.g. `:main-pcb`, `:0.19.0-pcb`) | the PCB toolchain variant: KiCad 8 (kicad-cli + pcbnew), the pinned symbol/footprint libraries, a JRE, and Freerouting — everything the board/fab/autoroute endpoints gate on — see below |
 
 All feature-gating env vars are optional — the studio runs without any
@@ -96,7 +96,7 @@ so both run side by side from one source tree with independent PVCs.
 
 | App | Overlay | Image | Upgrades when |
 |---|---|---|---|
-| `wirestudio-prod` | `deploy/overlays/prod` | pinned release, e.g. `:0.18.0` | the tag changes in git (bump by hand or via image-updater) |
+| `wirestudio-prod` | `deploy/overlays/prod` | pinned release, e.g. `:0.19.0` | the tag changes in git (bump by hand or via image-updater) |
 | `wirestudio-dev` | `deploy/overlays/dev` | rolling `:main-lorawan` | image-updater digest-pins a new `main` build |
 
 ```sh
