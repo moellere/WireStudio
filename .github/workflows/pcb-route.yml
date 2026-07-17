@@ -1,0 +1,102 @@
+name: pcb-route
+
+# The routed tier above pcb-drc: run the full Freerouting roundtrip
+# (board -> Specctra DSN via pcbnew -> freerouting.jar -> SES import) on
+# representative examples and hold the result to the routed bar -- zero
+# unconnected items, copper present, no non-waived error-severity DRC
+# violations. Proves the autoroute pipeline itself, not the whole catalog.
+#
+# Heavier than pcb-drc (KiCad + a JRE + the jar), so same cadence: PRs that
+# touch the pipeline, weekly, and on demand.
+
+on:
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - 'wirestudio/kicad/**'
+      - 'wirestudio/library/**'
+      - 'scripts/check_pcb_route.py'
+      - '.github/workflows/pcb-route.yml'
+  schedule:
+    - cron: '0 12 * * 1'   # 12:00 UTC every Monday, after pcb-drc
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pcb-route-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  KICAD_FOOTPRINTS_REF: "8.0.0"
+  KICAD_SYMBOLS_REF: "8.0.0"
+  FREEROUTING_VERSION: "2.2.4"
+  FREEROUTING_SHA256: "f5ed374182900ccc78e473518bbb9f6b869f4a07159495f663a76f52bb10523b"
+
+jobs:
+  pcb-route:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Cache KiCad footprint libraries
+        id: cache-footprints
+        uses: actions/cache@v4
+        with:
+          path: kicad-footprints
+          key: kicad-footprints-${{ env.KICAD_FOOTPRINTS_REF }}
+      - name: Fetch KiCad footprint libraries
+        if: steps.cache-footprints.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch "$KICAD_FOOTPRINTS_REF" \
+            https://gitlab.com/kicad/libraries/kicad-footprints.git kicad-footprints
+
+      - name: Cache KiCad symbol libraries
+        id: cache-symbols
+        uses: actions/cache@v4
+        with:
+          path: kicad-symbols
+          key: kicad-symbols-${{ env.KICAD_SYMBOLS_REF }}
+      - name: Fetch KiCad symbol libraries
+        if: steps.cache-symbols.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch "$KICAD_SYMBOLS_REF" \
+            https://gitlab.com/kicad/libraries/kicad-symbols.git kicad-symbols
+
+      # KiCad 8 for kicad-cli AND the system-python pcbnew bindings the
+      # DSN/SES bridge runs under (KiCad >= 8: headless ImportSpecctraSES).
+      - name: Install KiCad 8 (kicad-cli + pcbnew)
+        run: |
+          sudo add-apt-repository --yes ppa:kicad/kicad-8.0-releases
+          sudo apt-get update
+          sudo apt-get install --yes kicad
+          kicad-cli version
+          /usr/bin/python3 -c "import pcbnew; print(pcbnew.GetBuildVersion())"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Fetch Freerouting ${{ env.FREEROUTING_VERSION }}
+        run: |
+          curl -sSL -o freerouting.jar \
+            "https://github.com/freerouting/freerouting/releases/download/v${FREEROUTING_VERSION}/freerouting-${FREEROUTING_VERSION}.jar"
+          echo "${FREEROUTING_SHA256}  freerouting.jar" | sha256sum --check
+
+      - name: Install studio
+        run: pip install -e .
+
+      - name: Route representative boards + routed DRC
+        env:
+          KICAD8_FOOTPRINT_DIR: ${{ github.workspace }}/kicad-footprints
+          KICAD8_SYMBOL_DIR: ${{ github.workspace }}/kicad-symbols
+          WIRESTUDIO_PCBNEW_PYTHON: /usr/bin/python3
+          WIRESTUDIO_FREEROUTING_JAR: ${{ github.workspace }}/freerouting.jar
+        run: python scripts/check_pcb_route.py

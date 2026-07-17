@@ -122,10 +122,15 @@ outline, 0.14), and the fab outputs (BOM / CPL / Gerber + drill via
 [`pcb-layout`](../.github/workflows/pcb-layout.yml) gate proves every
 bundled example emits a structurally sound board, and
 [`pcb-drc`](../.github/workflows/pcb-drc.yml) opens each board in real
-KiCad and runs DRC (unrouted airwires expected). Boards are unrouted —
-Gerbers carry pads but no traces, flagged via `is_routed`. Next:
-Freerouting autorouting, closing the gap to a genuinely fab-ready
-routed board.
+KiCad and runs DRC (unrouted airwires expected). The Freerouting
+autoroute step now closes the routing gap:
+`python -m wirestudio.kicad.route` runs board → Specctra DSN (pcbnew
+bridge) → `freerouting.jar` → SES import, and the
+[`pcb-route`](../.github/workflows/pcb-route.yml) gate holds
+representative examples to the routed bar (copper present, zero
+unconnected items, routed DRC clean). Next: wire routing into the fab
+endpoints/MCP/web UI and ship a toolchain image so the default deploy
+can route.
 
 **LoRaWAN target (0.13 standalone, 0.16+ external-component).** *Works —
 hardware-validated on the standalone path; external-component path

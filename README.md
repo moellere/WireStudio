@@ -70,7 +70,7 @@ Tiers, in priority order:
 | **Works (lighter checks)** | MCP server | drive the design tools from Claude Code / Desktop over the Model Context Protocol | tool / auth / resource tests in `tests/test_mcp_*.py`; not exercised against a live MCP client in CI |
 | **Experimental** | Thingiverse search relay | rank community models for a board | smoke-tested; depends on a third-party search API that ranks unevenly |
 | **Experimental** | Agent (Claude tool-using) | natural-language design driving | works in practice; tool surface is small; no auto-eval against task list yet |
-| **Deferred** | PCB autorouting | Freerouting traces → routed Gerbers | 1.0+, not started |
+| **Verified** | PCB autorouting | Freerouting roundtrip — board → Specctra DSN → routed → SES import (`python -m wirestudio.kicad.route`) | representative examples route with zero unconnected items and pass routed DRC ([gate](.github/workflows/pcb-route.yml)); HTTP/MCP/UI surfaces and a toolchain image are follow-ups |
 
 The **Verified** tier is the bar the project is asking to be judged
 on. Everything else is offered with the caveat that's spelled out in
