@@ -28,6 +28,7 @@ Available tags:
 | `:sha-<short>` | a specific commit |
 | `:<tag>-lorawan` (e.g. `:main-lorawan`, `:0.19.0-lorawan`) | same image **plus** the LoRaWAN compile worker (PlatformIO baked in) — see below |
 | `:<tag>-pcb` (e.g. `:main-pcb`, `:0.19.0-pcb`) | the PCB toolchain variant: KiCad 8 (kicad-cli + pcbnew), the pinned symbol/footprint libraries, a JRE, and Freerouting — everything the board/fab/autoroute endpoints gate on — see below |
+| `:<tag>-full` (e.g. `:main-full`, `:0.19.0-full`) | the every-feature image prod runs: `-pcb` **plus** the LoRaWAN compile worker (PlatformIO + prewarmed espressif32) |
 
 All feature-gating env vars are optional — the studio runs without any
 of them, just with the corresponding feature turned off. See
@@ -105,11 +106,13 @@ kubectl apply -f deploy/argocd/wirestudio-dev.yaml
 ```
 
 Both apps run `automated: { prune, selfHeal }`, so ArgoCD applies git
-changes and reverts manual cluster edits on its own. Staging tracks the
-`:main-lorawan` tag (the LoRaWAN worker variant, so the compile/flash
-flow works on staging); prod pins an immutable release tag and stays
-lean. Each overlay sets its own namespace, so the apps never share
-`/data`.
+changes and reverts manual cluster edits on its own. Track the variant
+that carries the features the environment needs — the upstream cluster
+runs `-full` on both (staging `:main-full` by digest, prod the newest
+`:X.Y.Z-full` release tag), so the LoRaWAN compile/flash flow AND the
+PCB autoroute/fab endpoints work everywhere. Prod pins an immutable
+release tag. Each overlay sets its own namespace, so the apps never
+share `/data`.
 
 ### Keeping the image current
 

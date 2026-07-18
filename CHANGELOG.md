@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`-full` image variant: PCB toolchain + LoRaWAN worker in one image.**
+  `Dockerfile.pcb` gains the same `WITH_LORAWAN` build-arg as the default
+  Dockerfile (PlatformIO + the `[lorawan]` extra + espressif32 prewarm,
+  installed into the app venv); a new `full-image` CI job publishes it as
+  the `-full` tag suffix. This is the every-feature image prod runs —
+  autoroute/fab AND LoRaWAN compile/flash from one deployment — replacing
+  `-lorawan` as the prod-tracked variant.
+
 ## [0.19.0] — 2026-07-17
 
 ### Added
