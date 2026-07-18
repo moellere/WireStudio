@@ -1,7 +1,10 @@
 # syntax=docker/dockerfile:1.7
 #
 # PCB-toolchain variant: the default image plus everything the autoroute and
-# fab pipeline needs baked in. Published as the `-pcb` tag suffix.
+# fab pipeline needs baked in. Published as the `-pcb` tag suffix; with
+# WITH_LORAWAN=true it also carries the LoRaWAN compile worker (PlatformIO +
+# prewarmed espressif32 toolchain) and is published as `-full` -- the
+# every-feature image prod runs.
 #
 # Based on the official KiCad 8 image because the route step needs pcbnew's
 # python bindings (kicad-cli has no Specctra support) and they only exist
@@ -68,6 +71,20 @@ COPY --from=web-builder /web/dist /app/web-dist
 RUN mkdir -p /data/sessions /data/designs && \
     useradd -m -s /bin/bash appuser && \
     chown -R appuser:appuser /app /data
+
+# Optional LoRaWAN compile worker, same shape as the default Dockerfile's
+# WITH_LORAWAN block but against the /opt/venv interpreter.
+ARG WITH_LORAWAN=false
+ENV PLATFORMIO_CORE_DIR=/opt/pio
+RUN <<'EOF'
+set -eu
+if [ "$WITH_LORAWAN" = "true" ]; then
+    /opt/venv/bin/pip install --no-cache-dir platformio ".[lorawan]"
+    mkdir -p "$PLATFORMIO_CORE_DIR"
+    /opt/venv/bin/python -c "from wirestudio.library import default_library; from wirestudio.model import Design; from wirestudio.targets import get_target; from wirestudio.targets.lorawan.compile import compile_firmware; lib=default_library(); [compile_firmware(Design(schema_version='0.1', id='prewarm-'+b, name=b, target='lorawan', lorawan={}, board={'library_id': b, 'mcu': 'esp32'}, power={'supply':'usb','rail_voltage_v':3.3}), lib, use_cache=False) for b in get_target('lorawan').board_ids(lib)]"
+    chown -R appuser:appuser "$PLATFORMIO_CORE_DIR"
+fi
+EOF
 
 ENV PYTHONUNBUFFERED=1 \
     PATH=/opt/venv/bin:$PATH \
