@@ -5,3 +5,7 @@
 ## 2025-07-06 - Avoid sorting and O(N) grouping in unmemoized component closures
 **Learning:** In interactive components like `AddComponentControl`, placing array `.push()` groupings into dictionaries and `.sort()` operations directly in the render body creates new objects and arrays on every keystroke or local state change (e.g. `setPicked`), severely impacting performance in lists.
 **Action:** Always wrap grouping (e.g., `byCategory` dictionaries) and sorting (e.g., `categories.sort()`) of mostly-static library data inside a `useMemo` hook to avoid O(N) allocation and re-sorting during local state interactions.
+
+## 2025-07-07 - Avoid allocating intermediate arrays when initializing Sets from Arrays
+**Learning:** In React components like `ConnectionForm`, initializing a `Set` directly from a chained `.filter().map()` array operation creates two unnecessary intermediate array allocations every time the `useMemo` dependency changes or re-evaluates.
+**Action:** When extracting a subset of identifiers from a larger array into a `Set` inside a `useMemo` block, use a single-pass `for...of` loop to conditionally `add()` items directly to the Set, avoiding intermediate array garbage entirely.
