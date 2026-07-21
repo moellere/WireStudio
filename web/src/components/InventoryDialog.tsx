@@ -42,7 +42,12 @@ export function InventoryDialog({ design, onClose }: { design?: Design | null; o
     })();
   }, []);
 
-  const inInventory = useMemo(() => new Set(entries.map((e) => e.library_id)), [entries]);
+  const inInventory = useMemo(() => {
+    // ⚡ Bolt: Use a single pass loop to avoid creating an intermediate array
+    const set = new Set<string>();
+    for (const e of entries) set.add(e.library_id);
+    return set;
+  }, [entries]);
 
   // ⚡ Bolt: memoize parts lookup map to avoid O(N²) array traversals inside the render loop
   const partsMap = useMemo(() => {
@@ -55,9 +60,17 @@ export function InventoryDialog({ design, onClose }: { design?: Design | null; o
   const matches = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return [];
-    return parts
-      .filter((p) => !inInventory.has(p.id) && (p.name.toLowerCase().includes(q) || p.id.includes(q)))
-      .slice(0, 8);
+
+    // ⚡ Bolt: Optimize matching with a single-pass loop that exits early.
+    // This avoids traversing the entire parts array and allocating intermediate arrays via .filter().slice()
+    const result: Part[] = [];
+    for (const p of parts) {
+      if (result.length >= 8) break;
+      if (!inInventory.has(p.id) && (p.name.toLowerCase().includes(q) || p.id.includes(q))) {
+        result.push(p);
+      }
+    }
+    return result;
   }, [search, parts, inInventory]);
 
   function fail(e: unknown) {

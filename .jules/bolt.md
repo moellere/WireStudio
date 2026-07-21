@@ -5,3 +5,7 @@
 ## 2025-07-06 - Avoid sorting and O(N) grouping in unmemoized component closures
 **Learning:** In interactive components like `AddComponentControl`, placing array `.push()` groupings into dictionaries and `.sort()` operations directly in the render body creates new objects and arrays on every keystroke or local state change (e.g. `setPicked`), severely impacting performance in lists.
 **Action:** Always wrap grouping (e.g., `byCategory` dictionaries) and sorting (e.g., `categories.sort()`) of mostly-static library data inside a `useMemo` hook to avoid O(N) allocation and re-sorting during local state interactions.
+
+## 2025-07-07 - Avoid array allocation via filter().map() or chained loops in render dependencies
+**Learning:** Chaining array operations like `.map()` and `.filter()` or `.filter().slice()` allocates an intermediate array at each step. This increases memory churn, especially inside React component bodies or `useMemo` hooks dependent on frequent updates (e.g. search queries or user input).
+**Action:** When filtering and extracting properties or taking a limited slice from arrays, combine the logic into a single-pass `for...of` loop. Early exit if taking a slice, and conditionally add mapped elements to sets or arrays directly to avoid intermediate array allocations entirely.
