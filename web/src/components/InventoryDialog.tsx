@@ -55,9 +55,17 @@ export function InventoryDialog({ design, onClose }: { design?: Design | null; o
   const matches = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return [];
-    return parts
-      .filter((p) => !inInventory.has(p.id) && (p.name.toLowerCase().includes(q) || p.id.includes(q)))
-      .slice(0, 8);
+
+    // ⚡ Bolt: Use single-pass for...of loop with early break instead of chained .filter().slice()
+    // This avoids traversing the entire parts array (O(N)) and allocating an intermediate array
+    const result = [];
+    for (const p of parts) {
+      if (!inInventory.has(p.id) && (p.name.toLowerCase().includes(q) || p.id.includes(q))) {
+        result.push(p);
+        if (result.length >= 8) break;
+      }
+    }
+    return result;
   }, [search, parts, inInventory]);
 
   function fail(e: unknown) {
