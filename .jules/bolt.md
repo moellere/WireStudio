@@ -5,3 +5,6 @@
 ## 2025-07-06 - Avoid sorting and O(N) grouping in unmemoized component closures
 **Learning:** In interactive components like `AddComponentControl`, placing array `.push()` groupings into dictionaries and `.sort()` operations directly in the render body creates new objects and arrays on every keystroke or local state change (e.g. `setPicked`), severely impacting performance in lists.
 **Action:** Always wrap grouping (e.g., `byCategory` dictionaries) and sorting (e.g., `categories.sort()`) of mostly-static library data inside a `useMemo` hook to avoid O(N) allocation and re-sorting during local state interactions.
+## 2023-10-27 - [Avoid chained array operations for limited slices]
+**Learning:** [When deriving a limited array slice from a larger filtered collection, chaining `.filter().slice()` causes an unnecessary O(N) traversal of the entire array, creating intermediate arrays that are immediately thrown away. A single-pass `for...of` loop with an early `break` is much more efficient, especially for unbounded lists like inventory search results.]
+**Action:** [Always replace `.filter().slice()` chains with a single `for...of` loop and a `break` when returning a bounded array subset, keeping the code clean but performant.]
