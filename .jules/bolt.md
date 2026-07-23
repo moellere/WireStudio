@@ -5,3 +5,7 @@
 ## 2025-07-06 - Avoid sorting and O(N) grouping in unmemoized component closures
 **Learning:** In interactive components like `AddComponentControl`, placing array `.push()` groupings into dictionaries and `.sort()` operations directly in the render body creates new objects and arrays on every keystroke or local state change (e.g. `setPicked`), severely impacting performance in lists.
 **Action:** Always wrap grouping (e.g., `byCategory` dictionaries) and sorting (e.g., `categories.sort()`) of mostly-static library data inside a `useMemo` hook to avoid O(N) allocation and re-sorting during local state interactions.
+
+## 2025-07-23 - Single-pass loops over chained array methods
+**Learning:** Chaining `.filter().map()` or similar methods on large arrays (like `libraryComponents`) allocates multiple intermediate arrays. Even when wrapped in `useMemo`, this creates unnecessary garbage collection pressure when the dependencies change.
+**Action:** When deriving Collections (like `Set`, `Map`, or simply returning a flattened/filtered Array) from large data structures, prefer a single-pass `for...of` loop instead of chained array methods to avoid intermediate allocations.
