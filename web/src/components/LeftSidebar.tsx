@@ -32,8 +32,8 @@ export function LeftSidebar(props: Props) {
   const [search, setSearch] = useState("");
 
   return (
-    <aside className="flex min-h-0 flex-col border-r border-zinc-800 bg-zinc-950">
-      <div className="flex border-b border-zinc-800 p-2 gap-1 bg-zinc-950">
+    <aside className="flex min-h-0 flex-col border-r border-line bg-surface-0">
+      <div className="flex border-b border-line p-2 gap-1 bg-surface-0">
         {(["examples", "saved", "boards", "components", "modules"] as const).map((t) => {
           const Icon =
             t === "examples" ? FolderOpen
@@ -47,8 +47,8 @@ export function LeftSidebar(props: Props) {
               onClick={() => setTab(t)}
               className={`flex flex-1 flex-col items-center gap-1 rounded-md py-2 transition-colors ${
                 tab === t
-                  ? "bg-zinc-800/80 text-zinc-100 ring-1 ring-zinc-700/50"
-                  : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
+                  ? "bg-surface-2 text-ink ring-1 ring-line-strong/50"
+                  : "text-ink-dim hover:bg-surface-1 hover:text-ink"
               }`}
               title={t.charAt(0).toUpperCase() + t.slice(1)}
             >
@@ -71,7 +71,7 @@ export function LeftSidebar(props: Props) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={`Filter ${tab}...`}
-            className="w-full rounded-md border border-zinc-800 bg-zinc-900/50 px-3 py-1.5 text-xs text-zinc-200 placeholder:text-zinc-500 focus:border-zinc-600 focus:bg-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-600 transition-all"
+            className="w-full rounded-md border border-line bg-surface-2/40 px-3 py-1.5 text-xs text-ink placeholder:text-ink-ghost focus:border-accent-500/60 focus:bg-surface-1 focus:outline-none transition-all"
           />
         </div>
       </div>
@@ -127,10 +127,10 @@ function SavedList({
   if (filtered.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-8 text-center px-4">
-        <FolderHeart className="h-8 w-8 text-zinc-800 mb-3" />
-        <p className="text-xs text-zinc-500">No saved designs yet.</p>
-        <p className="text-xs text-zinc-600 mt-1">
-          Click <span className="font-medium text-zinc-400 bg-zinc-900 px-1 py-0.5 rounded-md">Save</span> in the header to persist the current design here.
+        <FolderHeart className="h-8 w-8 text-ink-ghost mb-3" />
+        <p className="text-xs text-ink-faint">No saved designs yet.</p>
+        <p className="text-xs text-ink-ghost mt-1">
+          Click <span className="font-medium text-ink-dim bg-surface-1 px-1 py-0.5 rounded-md">Save</span> in the header to persist the current design here.
         </p>
       </div>
     );
@@ -146,23 +146,23 @@ function SavedList({
               onClick={() => onSelect(s.id)}
               className={`flex-1 rounded-md px-3 py-2 text-left transition-all ${
                 active
-                  ? "bg-blue-500/15 text-blue-100 ring-1 ring-inset ring-blue-500/30"
-                  : "bg-zinc-900/30 hover:bg-zinc-800/80"
+                  ? "bg-accent-500/5 text-ink ring-1 ring-inset ring-accent-500/50"
+                  : "bg-surface-2/40 hover:bg-surface-2"
               }`}
             >
               <div className="flex items-baseline justify-between gap-2">
-                <div className={`truncate font-medium ${active ? "text-blue-100" : "text-zinc-200"}`}>
+                <div className="truncate font-medium text-ink">
                   {s.name || s.id}
                 </div>
-                <div className="shrink-0 text-[10px] font-medium text-zinc-500">
+                <div className="shrink-0 text-[10px] font-medium text-ink-faint">
                   {relativeTime(s.saved_at)}
                 </div>
               </div>
-              <div className="mt-1 flex items-center gap-2 truncate text-xs text-zinc-500">
-                <span className="shrink-0 font-medium text-zinc-400">{s.chip_family}</span>
-                <span className="h-1 w-1 shrink-0 rounded-full bg-zinc-700"></span>
-                <span className="truncate">{s.board_library_id}</span>
-                <span className="h-1 w-1 shrink-0 rounded-full bg-zinc-700"></span>
+              <div className="mt-1 flex items-center gap-2 truncate text-xs text-ink-faint">
+                <span className="shrink-0 font-medium text-ink-dim">{s.chip_family}</span>
+                <span className="h-1 w-1 shrink-0 rounded-full bg-line-strong"></span>
+                <span className="truncate font-mono">{s.board_library_id}</span>
+                <span className="h-1 w-1 shrink-0 rounded-full bg-line-strong"></span>
                 <span className="shrink-0">{s.component_count} comp</span>
               </div>
             </button>
@@ -171,8 +171,8 @@ function SavedList({
                 if (confirm(`Delete saved design "${s.name || s.id}"?`)) onDelete(s.id);
               }}
               title={`Delete ${s.id}`}
-              className={`flex items-center justify-center rounded-md px-2 text-zinc-500 transition-colors hover:bg-rose-500/15 hover:text-rose-400 ${
-                active ? "bg-blue-500/5 hover:bg-rose-500/15" : "bg-zinc-900/30"
+              className={`flex items-center justify-center rounded-md px-2 text-ink-faint transition-colors hover:bg-rose-500/15 hover:text-rose-400 ${
+                active ? "bg-accent-500/5 hover:bg-rose-500/15" : "bg-surface-2/40"
               }`}
             >
               ✕
@@ -221,17 +221,17 @@ function ExamplesList({
               onClick={() => onSelect(e.id)}
               className={`w-full rounded-md px-3 py-2 text-left transition-all ${
                 active
-                  ? "bg-blue-500/15 text-blue-100 ring-1 ring-inset ring-blue-500/30"
-                  : "bg-zinc-900/30 hover:bg-zinc-800/80"
+                  ? "bg-accent-500/5 text-ink ring-1 ring-inset ring-accent-500/50"
+                  : "bg-surface-2/40 hover:bg-surface-2"
               }`}
             >
-              <div className={`truncate font-medium ${active ? "text-blue-100" : "text-zinc-200"}`}>
+              <div className="truncate font-medium text-ink">
                 {e.name}
               </div>
-              <div className="mt-1 flex items-center gap-2 truncate text-xs text-zinc-500">
-                <span className="shrink-0 font-medium text-zinc-400">{e.chip_family}</span>
-                <span className="h-1 w-1 shrink-0 rounded-full bg-zinc-700"></span>
-                <span className="truncate">{e.board_library_id}</span>
+              <div className="mt-1 flex items-center gap-2 truncate text-xs text-ink-faint">
+                <span className="shrink-0 font-medium text-ink-dim">{e.chip_family}</span>
+                <span className="h-1 w-1 shrink-0 rounded-full bg-line-strong"></span>
+                <span className="truncate font-mono">{e.board_library_id}</span>
               </div>
             </button>
           </li>
@@ -263,16 +263,16 @@ function BoardsList({
         <li key={b.id}>
           <button
             onClick={() => onSelect(b.id)}
-            className="w-full rounded-md bg-zinc-900/30 px-3 py-2 text-left transition-colors hover:bg-zinc-800/80"
+            className="w-full rounded-md bg-surface-2/40 px-3 py-2 text-left transition-colors hover:bg-surface-2"
           >
-            <div className="truncate font-medium text-zinc-200">{b.name}</div>
-            <div className="mt-1 flex items-center gap-1.5 truncate text-xs text-zinc-500">
-              <span className="rounded-md bg-zinc-800 px-1 py-0.5 font-medium text-zinc-400">{b.chip_variant}</span>
-              <span className="text-zinc-600">·</span>
+            <div className="truncate font-medium text-ink">{b.name}</div>
+            <div className="mt-1 flex items-center gap-1.5 truncate text-xs text-ink-faint">
+              <span className="rounded-md bg-surface-2 px-1 py-0.5 font-mono font-medium text-ink-dim">{b.chip_variant}</span>
+              <span className="text-ink-ghost">·</span>
               <span>{b.framework}</span>
               {b.flash_size_mb && (
                 <>
-                  <span className="text-zinc-600">·</span>
+                  <span className="text-ink-ghost">·</span>
                   <span>{b.flash_size_mb}MB</span>
                 </>
               )}
@@ -314,17 +314,17 @@ function ComponentsList({
         <li key={c.id}>
           <button
             onClick={() => onSelect(c.id)}
-            className="w-full rounded-md bg-zinc-900/30 px-3 py-2 text-left transition-colors hover:bg-zinc-800/80"
+            className="w-full rounded-md bg-surface-2/40 px-3 py-2 text-left transition-colors hover:bg-surface-2"
           >
             <div className="flex items-baseline justify-between gap-2">
-              <div className="truncate font-medium text-zinc-200">{c.name}</div>
-              <div className="shrink-0 text-[10px] font-medium uppercase tracking-wider text-zinc-500">
+              <div className="truncate font-medium text-ink">{c.name}</div>
+              <div className="shrink-0 text-[10px] font-medium uppercase tracking-wider text-ink-faint">
                 {c.category}
               </div>
             </div>
             {c.required_components.length > 0 && (
-              <div className="mt-1 truncate text-xs text-zinc-500">
-                <span className="text-zinc-600 mr-1">Requires:</span>
+              <div className="mt-1 truncate text-xs text-ink-faint">
+                <span className="text-ink-ghost mr-1">Requires:</span>
                 {c.required_components.join(", ")}
               </div>
             )}
@@ -365,16 +365,16 @@ function ModulesList({
           <button
             onClick={() => onInsert(m.id)}
             title={`Insert all ${m.component_count} components of this module`}
-            className="w-full rounded-md bg-zinc-900/30 px-3 py-2 text-left transition-colors hover:bg-zinc-800/80"
+            className="w-full rounded-md bg-surface-2/40 px-3 py-2 text-left transition-colors hover:bg-surface-2"
           >
             <div className="flex items-baseline justify-between gap-2">
-              <div className="truncate font-medium text-zinc-200">{m.name}</div>
-              <div className="shrink-0 text-[10px] font-medium uppercase tracking-wider text-zinc-500">
+              <div className="truncate font-medium text-ink">{m.name}</div>
+              <div className="shrink-0 text-[10px] font-medium uppercase tracking-wider text-ink-faint">
                 {m.component_count} parts
               </div>
             </div>
             {m.description && (
-              <div className="mt-1 line-clamp-2 text-xs text-zinc-500">{m.description}</div>
+              <div className="mt-1 line-clamp-2 text-xs text-ink-faint">{m.description}</div>
             )}
           </button>
         </li>
