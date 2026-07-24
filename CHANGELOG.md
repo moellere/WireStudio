@@ -23,6 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Unassigned pins surface in red. Live under render errors (same as the
   JSON tab); no new dependencies.
 
+- **Schematic and PCB tabs.** Advanced mode adds two design-pane tabs
+  that render server-side previews on demand: the existing schematic
+  pipeline (SKiDL + kicad-cli), and a new placed-board preview via
+  `POST /design/kicad/pcb/render` (`kicad-cli pcb export svg`, cropped
+  to the board area) with a `/status` probe. Both gate on server tool
+  availability and surface the missing-tool reason inline.
+
 - **Light theme.** The web UI now ships light and dark themes: a header
   toggle persists the choice to localStorage, first visit follows the
   system `prefers-color-scheme`, and a pre-paint snippet in `index.html`

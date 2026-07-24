@@ -1,19 +1,25 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Copy, Check } from "lucide-react";
 import type { Design, RenderResponse } from "../types/api";
 import { Loading } from "./Status";
 import { WiringView } from "./WiringView";
+import { ServerRenderView } from "./ServerRenderView";
 
-type Tab = "wiring" | "ascii" | "yaml" | "json";
+type Tab = "wiring" | "ascii" | "yaml" | "json" | "schematic" | "pcb";
 
 interface Props {
   design: Design | null;
   render: RenderResponse | null;
   renderError: string | null;
+  advancedMode: boolean;
 }
 
-export function DesignPane({ design, render, renderError }: Props) {
+export function DesignPane({ design, render, renderError, advancedMode }: Props) {
   const [tab, setTab] = useState<Tab>("wiring");
+
+  useEffect(() => {
+    if (!advancedMode && (tab === "schematic" || tab === "pcb")) setTab("wiring");
+  }, [advancedMode, tab]);
   const [copied, setCopied] = useState(false);
 
   const meta = useMemo(() => (design ? readMeta(design) : null), [design]);
@@ -33,8 +39,7 @@ export function DesignPane({ design, render, renderError }: Props) {
   // directly so they stay live regardless of render errors. Treat staleness
   // as "renderError is set AND the visible content was produced by the
   // render endpoint (i.e. ascii or yaml)".
-  const liveTab = tab === "json" || tab === "wiring";
-  const tabStale = renderError !== null && !liveTab && content !== "";
+  const tabStale = renderError !== null && (tab === "ascii" || tab === "yaml") && content !== "";
 
   async function copy() {
     if (!content) return;
@@ -75,11 +80,14 @@ export function DesignPane({ design, render, renderError }: Props) {
 
       <div className="flex items-center justify-between border-b border-line pr-2 text-xs">
         <div className="flex">
-          {(["wiring", "ascii", "yaml", "json"] as const).map((t) => {
+          {([
+            "wiring", "ascii", "yaml", "json",
+            ...(advancedMode ? (["schematic", "pcb"] as const) : []),
+          ] as Tab[]).map((t) => {
             // Mark ascii/yaml as stale when there's a render error -- those
-            // two come from the render endpoint, which is failing. wiring
-            // and json are direct design state, so they stay live.
-            const stale = renderError !== null && t !== "json" && t !== "wiring";
+            // two come from the render endpoint, which is failing. The other
+            // tabs read design state directly or render on demand.
+            const stale = renderError !== null && (t === "ascii" || t === "yaml");
             return (
               <button
                 key={t}
@@ -136,6 +144,8 @@ export function DesignPane({ design, render, renderError }: Props) {
           </div>
         ) : tab === "wiring" ? (
           <WiringView design={design} />
+        ) : tab === "schematic" || tab === "pcb" ? (
+          <ServerRenderView design={design} kind={tab} />
         ) : content ? (
           // Visual de-emphasis on stale content: lower opacity makes the
           // "this isn't current" state obvious without hiding the content

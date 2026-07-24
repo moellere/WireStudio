@@ -17,6 +17,7 @@ import type {
   InventoryCheckResponse,
   FabStatus,
   KicadPcbStatus,
+  KicadPcbRenderStatus,
   KicadRenderStatus,
   KicadRouteEvent,
   KicadRouteStatus,
@@ -172,6 +173,10 @@ export const api = {
     request<KicadPcbStatus>("/design/kicad/pcb/status"),
   kicadPcb: (design: Design) =>
     requestText("/design/kicad/pcb", { method: "POST", body: JSON.stringify(design) }),
+  kicadPcbRenderStatus: () =>
+    request<KicadPcbRenderStatus>("/design/kicad/pcb/render/status"),
+  kicadPcbRender: (design: Design) =>
+    requestText("/design/kicad/pcb/render", { method: "POST", body: JSON.stringify(design) }),
   kicadRouteStatus: () =>
     request<KicadRouteStatus>("/design/kicad/route/status"),
   kicadRoutedBoard: (cacheKey: string) =>

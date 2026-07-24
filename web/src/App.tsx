@@ -742,7 +742,7 @@ export default function App() {
           onSelectComponent={(id) => setSelection({ kind: "component", id })}
           onInsertModule={handleInsertModule}
         />
-        <DesignPane design={design} render={render} renderError={renderError} />
+        <DesignPane design={design} render={render} renderError={renderError} advancedMode={advancedMode} />
         <Inspector
           selection={selection}
           design={design}
