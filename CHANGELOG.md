@@ -23,6 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Unassigned pins surface in red. Live under render errors (same as the
   JSON tab); no new dependencies.
 
+- **`[pcb]` extra.** `pip install wirestudio[pcb]` now pulls the
+  pip-installable half of the KiCad pipeline (skidl + cairosvg), and
+  `Dockerfile.pcb` installs it, fixing the schematic preview being
+  unavailable in the -pcb/-full images (skidl was never installed).
+  kicad-cli and the footprint/symbol libraries remain native installs.
+
 - **Schematic and PCB tabs.** Advanced mode adds two design-pane tabs
   that render server-side previews on demand: the existing schematic
   pipeline (SKiDL + kicad-cli), and a new placed-board preview via

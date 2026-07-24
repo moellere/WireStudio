@@ -41,6 +41,13 @@ lorawan = [
     "chirpstack-api>=4.7,<5",
     "paho-mqtt>=1.6",
 ]
+# Pip-installable half of the KiCad pipeline (schematic generation +
+# PNG rasterize). kicad-cli, pcbnew, and the footprint/symbol libraries
+# are native installs -- system KiCad or the -pcb/-full Docker images.
+pcb = [
+    "skidl>=1.2",
+    "cairosvg>=2.7",
+]
 
 [project.scripts]
 wirestudio-generate = "wirestudio.generate.__main__:main"
