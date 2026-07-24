@@ -1,8 +1,54 @@
 @import "tailwindcss";
+@import "@fontsource-variable/inter";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/500.css";
 
 @theme {
-  --font-sans: ui-sans-serif, system-ui, sans-serif;
-  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", monospace;
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", "Cascadia Code", monospace;
+
+  /* Layered surfaces, darkest (page) to lightest (raised controls). */
+  --color-surface-0: oklch(0.16 0.008 260);
+  --color-surface-1: oklch(0.185 0.008 260);
+  --color-surface-2: oklch(0.22 0.009 260);
+  --color-surface-3: oklch(0.26 0.01 260);
+
+  --color-line: oklch(0.28 0.01 260);
+  --color-line-strong: oklch(0.34 0.012 260);
+
+  --color-ink: oklch(0.93 0.005 260);
+  --color-ink-dim: oklch(0.72 0.01 260);
+  --color-ink-faint: oklch(0.55 0.012 260);
+  --color-ink-ghost: oklch(0.42 0.012 260);
+
+  /* Copper accent -- the wire. */
+  --color-accent-50: oklch(0.95 0.02 45);
+  --color-accent-200: oklch(0.85 0.07 45);
+  --color-accent-300: oklch(0.78 0.11 45);
+  --color-accent-400: oklch(0.72 0.14 42);
+  --color-accent-500: oklch(0.66 0.16 40);
+  --color-accent-600: oklch(0.58 0.15 38);
+  --color-accent-700: oklch(0.5 0.13 36);
+
+  /* Agent / AI surfaces. */
+  --color-agent-300: oklch(0.78 0.12 300);
+  --color-agent-400: oklch(0.7 0.16 300);
+  --color-agent-500: oklch(0.6 0.19 300);
+
+  --shadow-panel: 0 0 0 1px oklch(0.28 0.01 260 / 60%), 0 8px 32px oklch(0 0 0 / 45%);
+  --shadow-pop: 0 1px 2px oklch(0 0 0 / 30%);
+
+  --animate-dialog-in: dialog-in 160ms cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-overlay-in: overlay-in 160ms ease-out;
+
+  @keyframes dialog-in {
+    from { opacity: 0; transform: translateY(6px) scale(0.985); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes overlay-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
 }
 
 @layer base {
@@ -12,9 +58,37 @@
   body {
     margin: 0;
     color-scheme: dark;
-    background: #0c0d10;
-    color: #e6e7ea;
+    background: var(--color-surface-0);
+    color: var(--color-ink);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+    font-feature-settings: "cv05", "cv11", "ss01";
+  }
+  ::selection {
+    background: oklch(0.66 0.16 40 / 30%);
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line-strong) transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-line-strong);
+    border-radius: 8px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-accent-500);
+    outline-offset: 1px;
+  }
+  input[type="checkbox"], input[type="radio"] {
+    accent-color: var(--color-accent-500);
   }
 }

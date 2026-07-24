@@ -467,9 +467,9 @@ export default function App() {
       <div className="flex h-full items-center justify-center p-6 text-sm">
         <div className="max-w-lg rounded-md border border-rose-500/40 bg-rose-500/10 p-4">
           <div className="mb-2 font-semibold text-rose-300">Could not reach the studio API.</div>
-          <div className="text-zinc-300">{bootError}</div>
-          <div className="mt-3 text-xs text-zinc-400">
-            Start it with <code className="rounded-md bg-zinc-800 px-1.5 py-0.5">python -m wirestudio.api</code> and refresh.
+          <div className="text-ink-dim">{bootError}</div>
+          <div className="mt-3 text-xs text-ink-faint">
+            Start it with <code className="rounded-md bg-surface-2 px-1.5 py-0.5 font-mono">python -m wirestudio.api</code> and refresh.
           </div>
         </div>
       </div>
@@ -477,20 +477,22 @@ export default function App() {
   }
 
   return (
-    <div className="grid h-full grid-rows-[auto_auto_1fr] bg-zinc-950 text-zinc-200">
-      <header className="flex h-14 items-center justify-between border-b border-zinc-800 bg-zinc-950 px-4">
+    <div className="grid h-full grid-rows-[auto_auto_1fr] bg-surface-0 text-ink">
+      <header className="flex h-14 items-center justify-between border-b border-line bg-surface-0 px-4">
         <div className="flex items-center gap-4">
           <div className="flex items-baseline gap-2">
-            <h1 className="text-lg font-semibold tracking-tight text-zinc-100">wirestudio</h1>
-            <span className="text-xs font-medium text-zinc-500">{version ? `v${version}` : "..."}</span>
+            <h1 className="text-lg font-semibold tracking-tight text-ink">
+              wire<span className="text-accent-400">studio</span>
+            </h1>
+            <span className="font-mono text-xs font-medium text-ink-faint">{version ? `v${version}` : "..."}</span>
           </div>
 
-          <div className="flex items-center gap-2 border-l border-zinc-800 pl-4">
+          <div className="flex items-center gap-2 border-l border-line pl-4">
             {rendering && (
-              <span className="flex items-center gap-1.5 text-xs text-blue-400">
+              <span className="flex items-center gap-1.5 text-xs text-accent-300">
                 <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75"></span>
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-500"></span>
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent-400 opacity-75"></span>
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-accent-500"></span>
                 </span>
                 rendering
               </span>
@@ -504,10 +506,10 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1 rounded-md bg-zinc-900/50 p-1 ring-1 ring-inset ring-zinc-800">
+          <div className="flex items-center gap-1 rounded-lg bg-surface-1 p-1 ring-1 ring-inset ring-line">
             <button
               onClick={() => setShowNewDialog(true)}
-              className="flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-zinc-100"
+              className="flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium text-ink-dim transition-colors hover:bg-surface-2 hover:text-ink"
               title="Create a fresh design from a board"
             >
               <FilePlus className="h-4 w-4" />
@@ -520,7 +522,7 @@ export default function App() {
               className={`flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium transition-colors disabled:opacity-40 ${
                 savingState === "saved"
                   ? "bg-emerald-500/20 text-emerald-300"
-                  : "text-zinc-300 enabled:hover:bg-zinc-800 enabled:hover:text-zinc-100"
+                  : "text-ink-dim enabled:hover:bg-surface-2 enabled:hover:text-ink"
               }`}
               title="Persist the current design to designs/<id>.json on the server"
             >
@@ -530,12 +532,12 @@ export default function App() {
               </span>
             </button>
 
-            <div className="mx-1 h-4 w-px bg-zinc-700"></div>
+            <div className="mx-1 h-4 w-px bg-line-strong"></div>
 
             <button
               disabled={!dirty}
               onClick={handleReset}
-              className="flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium text-zinc-300 transition-colors enabled:hover:bg-zinc-800 enabled:hover:text-zinc-100 disabled:opacity-40"
+              className="flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium text-ink-dim transition-colors enabled:hover:bg-surface-2 enabled:hover:text-ink disabled:opacity-40"
               title="Reset to last saved state"
             >
               <RotateCcw className="h-4 w-4" />
@@ -545,7 +547,7 @@ export default function App() {
             <button
               disabled={!design}
               onClick={handleDownload}
-              className="flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium text-zinc-300 transition-colors enabled:hover:bg-zinc-800 enabled:hover:text-zinc-100 disabled:opacity-40"
+              className="flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium text-ink-dim transition-colors enabled:hover:bg-surface-2 enabled:hover:text-ink disabled:opacity-40"
               title="Download design as JSON"
               aria-label="Download design as JSON"
             >
@@ -556,36 +558,36 @@ export default function App() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowUsbDialog(true)}
-              className="flex items-center gap-1.5 rounded-md bg-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-200 transition-colors hover:bg-zinc-700"
+              className="flex items-center gap-1.5 rounded-md bg-surface-2 px-3 py-1.5 text-xs font-medium text-ink ring-1 ring-inset ring-line transition-colors hover:bg-surface-3 hover:ring-line-strong"
               title="Detect a connected ESP via WebSerial"
             >
-              <Usb className="h-4 w-4 text-zinc-400" />
+              <Usb className="h-4 w-4 text-ink-faint" />
               Connect Device
             </button>
 
             <button
               disabled={!design}
               onClick={() => setShowCapabilityDialog(true)}
-              className="flex items-center gap-1.5 rounded-md bg-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-200 transition-colors enabled:hover:bg-zinc-700 disabled:opacity-40"
+              className="flex items-center gap-1.5 rounded-md bg-surface-2 px-3 py-1.5 text-xs font-medium text-ink ring-1 ring-inset ring-line transition-colors enabled:hover:bg-surface-3 enabled:hover:ring-line-strong disabled:opacity-40"
               title="Pick a capability and add a matching component"
             >
-              <Plus className="h-4 w-4 text-zinc-400" />
+              <Plus className="h-4 w-4 text-ink-faint" />
               Add by Function
             </button>
 
             <button
               onClick={() => setShowInventoryDialog(true)}
-              className="flex items-center gap-1.5 rounded-md bg-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-200 transition-colors hover:bg-zinc-700"
+              className="flex items-center gap-1.5 rounded-md bg-surface-2 px-3 py-1.5 text-xs font-medium text-ink ring-1 ring-inset ring-line transition-colors hover:bg-surface-3 hover:ring-line-strong"
               title="View and edit your component inventory; check the open design against what's on hand"
             >
-              <Boxes className="h-4 w-4 text-zinc-400" />
+              <Boxes className="h-4 w-4 text-ink-faint" />
               Inventory
             </button>
 
             <button
               disabled={!design || solving}
               onClick={handleSolvePins}
-              className="flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition-colors enabled:hover:bg-blue-500 disabled:opacity-40"
+              className="flex items-center gap-1.5 rounded-md bg-accent-600 px-3 py-1.5 text-xs font-medium text-accent-50 shadow-pop transition-colors enabled:hover:bg-accent-500 disabled:opacity-40"
               title="Auto-assign every unbound connection"
             >
               <Wand2 className="h-4 w-4" />
@@ -594,11 +596,11 @@ export default function App() {
           </div>
 
           {advancedMode && (
-            <div className="flex items-center gap-1 border-l border-zinc-800 pl-3">
+            <div className="flex items-center gap-1 border-l border-line pl-3">
               <button
                 disabled={!design}
                 onClick={() => setShowSchematicDialog(true)}
-                className="flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium text-zinc-400 transition-colors enabled:hover:bg-zinc-800 enabled:hover:text-zinc-200 disabled:opacity-40"
+                className="flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium text-ink-faint transition-colors enabled:hover:bg-surface-2 enabled:hover:text-ink disabled:opacity-40"
                 title="Download a SKiDL Python script that produces a .kicad_sch when run locally"
                 aria-label="Schematic (KiCad export)"
               >
@@ -607,7 +609,7 @@ export default function App() {
               <button
                 disabled={!design}
                 onClick={() => setShowEnclosureDialog(true)}
-                className="flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium text-zinc-400 transition-colors enabled:hover:bg-zinc-800 enabled:hover:text-zinc-200 disabled:opacity-40"
+                className="flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium text-ink-faint transition-colors enabled:hover:bg-surface-2 enabled:hover:text-ink disabled:opacity-40"
                 title="Generate a parametric .scad enclosure shell or search community models"
                 aria-label="Enclosure"
               >
@@ -616,7 +618,7 @@ export default function App() {
               <button
                 disabled={!design}
                 onClick={() => setShowFleetDialog(true)}
-                className="flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium text-zinc-400 transition-colors enabled:hover:bg-zinc-800 enabled:hover:text-zinc-200 disabled:opacity-40"
+                className="flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium text-ink-faint transition-colors enabled:hover:bg-surface-2 enabled:hover:text-ink disabled:opacity-40"
                 title="Push the rendered YAML to the fleet-for-esphome add-on"
                 aria-label="Push to fleet"
               >
@@ -624,7 +626,7 @@ export default function App() {
               </button>
               <button
                 onClick={() => setShowFlashDialog(true)}
-                className="flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
+                className="flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium text-ink-faint transition-colors hover:bg-surface-2 hover:text-ink"
                 title="Build + flash LoRaWAN firmware over WebSerial"
                 aria-label="Flash LoRaWAN firmware"
               >
@@ -633,18 +635,18 @@ export default function App() {
               <button
                 disabled={!design}
                 onClick={() => setShowProvisionEsphomeDialog(true)}
-                className="flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium text-zinc-400 transition-colors enabled:hover:bg-zinc-800 enabled:hover:text-zinc-200 disabled:opacity-40"
+                className="flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium text-ink-faint transition-colors enabled:hover:bg-surface-2 enabled:hover:text-ink disabled:opacity-40"
                 title="Provision a LoRaWAN device for the lorawan-for-esphome external-component path"
                 aria-label="Provision LoRaWAN device"
               >
                 <KeyRound className="h-4 w-4" />
               </button>
 
-              <div className="mx-1 h-4 w-px bg-zinc-800"></div>
+              <div className="mx-1 h-4 w-px bg-line"></div>
 
               <button
                 onClick={() => setShowAgent(true)}
-                className="flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium text-blue-400 transition-colors hover:bg-blue-500/10 hover:text-blue-300"
+                className="flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium text-agent-300 transition-colors hover:bg-agent-500/10"
                 title="Open the design agent"
               >
                 <Bot className="h-4 w-4" />
@@ -653,10 +655,10 @@ export default function App() {
             </div>
           )}
 
-          <div className="flex items-center gap-2 border-l border-zinc-800 pl-3">
+          <div className="flex items-center gap-2 border-l border-line pl-3">
             <div className="flex flex-col gap-1">
               <label
-                className="flex cursor-pointer items-center gap-1.5 text-[10px] font-medium text-zinc-400 transition-colors hover:text-zinc-200"
+                className="flex cursor-pointer items-center gap-1.5 text-[10px] font-medium tracking-wider text-ink-faint transition-colors hover:text-ink"
                 title="Strict mode: generation fails when warn/error compatibility entries or design warnings remain. Saved on the design."
               >
                 <input
@@ -665,19 +667,19 @@ export default function App() {
                   onChange={(e) =>
                     setDesign((d) => (d ? { ...d, strict: e.target.checked } : d))
                   }
-                  className="h-3 w-3 rounded-sm border-zinc-700 bg-zinc-900 accent-blue-500"
+                  className="h-3 w-3 rounded-sm"
                 />
                 STRICT
               </label>
               <label
-                className="flex cursor-pointer items-center gap-1.5 text-[10px] font-medium text-zinc-400 transition-colors hover:text-zinc-200"
+                className="flex cursor-pointer items-center gap-1.5 text-[10px] font-medium tracking-wider text-ink-faint transition-colors hover:text-ink"
                 title="Advanced mode reveals Agent, Schematic, Enclosure, and Fleet options"
               >
                 <input
                   type="checkbox"
                   checked={advancedMode}
                   onChange={(e) => setAdvancedMode(e.target.checked)}
-                  className="h-3 w-3 rounded-sm border-zinc-700 bg-zinc-900 accent-violet-500"
+                  className="h-3 w-3 rounded-sm accent-agent-500"
                 />
                 ADVANCED
               </label>
@@ -685,7 +687,7 @@ export default function App() {
 
             <button
               onClick={() => setShowSettingsDialog(true)}
-              className="ml-1 flex items-center gap-1 rounded-md p-1.5 text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-300"
+              className="ml-1 flex items-center gap-1 rounded-md p-1.5 text-ink-faint transition-colors hover:bg-surface-2 hover:text-ink"
               title="Settings"
               aria-label="Settings"
             >
@@ -694,7 +696,7 @@ export default function App() {
 
             <a
               href="/api/docs" target="_blank" rel="noreferrer"
-              className="flex items-center gap-1 rounded-md p-1.5 text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-300"
+              className="flex items-center gap-1 rounded-md p-1.5 text-ink-faint transition-colors hover:bg-surface-2 hover:text-ink"
               title="OpenAPI documentation"
               aria-label="OpenAPI documentation"
             >
