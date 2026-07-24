@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import type { ReactNode, ButtonHTMLAttributes, InputHTMLAttributes } from "react";
 import { X } from "lucide-react";
 
@@ -61,6 +62,14 @@ interface DialogProps {
 }
 
 export function Dialog({ title, subtitle, onClose, children, footer, maxWidth = "max-w-xl" }: DialogProps) {
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   return (
     <div
       className="fixed inset-0 z-50 flex animate-overlay-in items-center justify-center bg-black/60 backdrop-blur-sm"

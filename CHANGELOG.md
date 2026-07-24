@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   enclosure, LoRaWAN), a submission-bundle manifest for commerce metadata,
   and the spec/reviewed/validated listing tiers.
 
+- **Light theme.** The web UI now ships light and dark themes: a header
+  toggle persists the choice to localStorage, first visit follows the
+  system `prefers-color-scheme`, and a pre-paint snippet in `index.html`
+  avoids the wrong-theme flash. Implemented entirely as token overrides
+  on `data-theme="light"` -- components are theme-agnostic. Dialogs
+  opened via the shared primitive now also close on Escape.
+
 ### Changed
 
 - **Web UI design system.** Token-based theme in `index.css` (Tailwind

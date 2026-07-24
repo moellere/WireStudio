@@ -28,6 +28,7 @@ import { InventoryDialog } from "./components/InventoryDialog";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { useDebouncedValue } from "./lib/debounce";
 import { useAdvancedMode } from "./lib/uiMode";
+import { useTheme } from "./lib/theme";
 import {
   Bot,
   FilePlus,
@@ -45,6 +46,8 @@ import {
   Radio,
   Boxes,
   KeyRound,
+  Sun,
+  Moon,
 } from "lucide-react";
 import {
   addComponent,
@@ -87,6 +90,7 @@ export default function App() {
    *  flow (board + components + buses + YAML preview). Persists to
    *  localStorage. */
   const [advancedMode, setAdvancedMode] = useAdvancedMode();
+  const [theme, setTheme] = useTheme();
 
   const [boardData, setBoardData] = useState<unknown | null>(null);
 
@@ -686,8 +690,17 @@ export default function App() {
             </div>
 
             <button
-              onClick={() => setShowSettingsDialog(true)}
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
               className="ml-1 flex items-center gap-1 rounded-md p-1.5 text-ink-faint transition-colors hover:bg-surface-2 hover:text-ink"
+              title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+              aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+            >
+              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </button>
+
+            <button
+              onClick={() => setShowSettingsDialog(true)}
+              className="flex items-center gap-1 rounded-md p-1.5 text-ink-faint transition-colors hover:bg-surface-2 hover:text-ink"
               title="Settings"
               aria-label="Settings"
             >
