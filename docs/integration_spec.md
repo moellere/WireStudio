@@ -145,7 +145,7 @@ Dev boards and modules that host the MCU.
 # --- identity + build (required) ---
 id: example-devkit
 name: Example Corp DevKit v1
-mcu: esp32                    # esp8266 | esp32
+mcu: esp32                    # esp8266 | esp32 today; any ESPHome-supported MCU family
 chip_variant: esp32c3         # PlatformIO chip variant
 framework: arduino            # arduino | esp-idf
 platformio_board: example_devkit

@@ -14,6 +14,8 @@ exercised by a bundled example, see
 - `nodemcu-32s` — NodeMCU-32S (ESP32-WROOM-32, marks I2S-capable pins)
 - `ttgo-lora32-v1` — LilyGO TTGO LoRa32 V1 (ESP32 + onboard SX1276 + onboard SSD1306)
 - `ttgo-t-beam` — LilyGO TTGO T-Beam v1.x (ESP32 + onboard SX1276 + NEO-6M GPS + AXP192 PMIC + 18650)
+- `heltec-wifi-lora32-v2` — Heltec WiFi LoRa 32 V2 (ESP32 + SX1276 + onboard SSD1306; LoRaWAN hardware-validated)
+- `heltec-wifi-lora32-v3` — Heltec WiFi LoRa 32 V3 (ESP32-S3 + SX1262 + onboard SSD1306; LoRaWAN hardware-validated)
 - `esp32-c3-devkitm-1` — ESP32-C3-DevKitM-1 (single-core RISC-V, USB-Serial-JTAG, onboard WS2812)
 - `esp32-s3-devkitc-1` — ESP32-S3-DevKitC-1 (dual-core Xtensa, native USB, onboard WS2812)
 - `esp32cam-ai-thinker` — AI-Thinker ESP32-CAM (ESP32-WROVER-B + OV2640 + microSD)
