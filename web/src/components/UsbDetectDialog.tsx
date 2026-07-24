@@ -7,6 +7,7 @@ import {
 } from "../lib/bootstrap";
 import { detectChip, isWebSerialSupported } from "../lib/usb-detect";
 import { api } from "../api/client";
+import { Button, Dialog } from "./ui";
 
 type Phase =
   | { kind: "idle" }
@@ -63,64 +64,54 @@ export function UsbDetectDialog({ boards, onCancel, onAdopt }: Props) {
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-      onClick={onCancel}
+    <Dialog
+      title="Connect device"
+      subtitle="Detect an ESP chip via WebSerial and bootstrap a fresh design."
+      onClose={onCancel}
+      maxWidth="max-w-2xl"
+      footer={
+        phase.kind === "detected" ? (
+          <>
+            <Button onClick={handleConnect}>Re-detect</Button>
+            <Button variant="primary" disabled={!pickedBoardId} onClick={handleAdopt}>
+              Bootstrap design →
+            </Button>
+          </>
+        ) : undefined
+      }
     >
-      <div
-        className="m-4 flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex shrink-0 items-center justify-between border-b border-zinc-800 px-4 py-3">
-          <div>
-            <div className="text-sm font-semibold text-zinc-100">Connect device</div>
-            <div className="text-xs text-zinc-500">
-              Detect an ESP chip via WebSerial and bootstrap a fresh design.
-            </div>
-          </div>
-          <button
-            onClick={onCancel}
-            className="rounded-md border border-zinc-800 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
-          >
-            Close
-          </button>
-        </div>
+      <div className="space-y-4 text-sm">
+        {supported === "no" && (
+          <UnsupportedNotice />
+        )}
 
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 text-sm">
-          {supported === "no" && (
-            <UnsupportedNotice />
-          )}
+        {supported === "yes" && phase.kind === "idle" && (
+          <IdlePanel onConnect={handleConnect} />
+        )}
 
-          {supported === "yes" && phase.kind === "idle" && (
-            <IdlePanel onConnect={handleConnect} />
-          )}
+        {phase.kind === "connecting" && <ConnectingPanel log={log} />}
 
-          {phase.kind === "connecting" && <ConnectingPanel log={log} />}
+        {phase.kind === "error" && (
+          <ErrorPanel message={phase.message} log={log} onRetry={handleConnect} />
+        )}
 
-          {phase.kind === "error" && (
-            <ErrorPanel message={phase.message} log={log} onRetry={handleConnect} />
-          )}
-
-          {phase.kind === "detected" && (
-            <DetectedPanel
-              chip={phase.chip}
-              boards={boards}
-              pickedBoardId={pickedBoardId}
-              onPick={setPickedBoardId}
-              onAdopt={handleAdopt}
-              onRetry={handleConnect}
-              log={log}
-            />
-          )}
-        </div>
+        {phase.kind === "detected" && (
+          <DetectedPanel
+            chip={phase.chip}
+            boards={boards}
+            pickedBoardId={pickedBoardId}
+            onPick={setPickedBoardId}
+            log={log}
+          />
+        )}
       </div>
-    </div>
+    </Dialog>
   );
 }
 
 function UnsupportedNotice() {
   return (
-    <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-100">
+    <div className="rounded-md bg-amber-500/10 p-3 text-xs text-amber-100 ring-1 ring-amber-500/30">
       <div className="mb-1 font-semibold">WebSerial isn't available in this browser.</div>
       <div>
         USB device detection uses the WebSerial API, which currently ships in
@@ -135,18 +126,15 @@ function UnsupportedNotice() {
 function IdlePanel({ onConnect }: { onConnect: () => void }) {
   return (
     <>
-      <ol className="space-y-1.5 list-decimal pl-5 text-xs text-zinc-300">
+      <ol className="space-y-1.5 list-decimal pl-5 text-xs text-ink-dim">
         <li>Plug your ESP board in via USB.</li>
         <li>Click <b>Connect</b> below; the browser will ask which serial port to use.</li>
         <li>esptool-js will sync with the bootloader and report the chip family.</li>
         <li>Pick a matching board from the studio library and we'll seed a fresh design.</li>
       </ol>
-      <button
-        onClick={onConnect}
-        className="rounded-md bg-blue-500/20 px-3 py-1.5 text-sm text-blue-100 ring-1 ring-blue-400/40 hover:bg-blue-500/30"
-      >
+      <Button variant="primary" onClick={onConnect}>
         Connect
-      </button>
+      </Button>
     </>
   );
 }
@@ -154,11 +142,11 @@ function IdlePanel({ onConnect }: { onConnect: () => void }) {
 function ConnectingPanel({ log }: { log: string[] }) {
   return (
     <div>
-      <div className="mb-2 flex items-center gap-2 text-sm text-blue-200">
-        <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-blue-400" />
+      <div className="mb-2 flex items-center gap-2 text-sm text-accent-300">
+        <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-accent-400" />
         Syncing with the bootloader...
       </div>
-      <p className="mb-2 text-xs text-zinc-500">
+      <p className="mb-2 text-xs text-ink-faint">
         If this hangs, hold the BOOT button while clicking Connect, or unplug and retry.
       </p>
       <LogBox log={log} />
@@ -175,30 +163,23 @@ function ErrorPanel({
 }) {
   return (
     <div className="space-y-3">
-      <div className="rounded-md border border-rose-500/40 bg-rose-500/10 p-3 text-xs text-rose-200">
+      <div className="rounded-md bg-rose-500/10 p-3 text-xs text-rose-200 ring-1 ring-rose-500/30">
         <div className="font-semibold">Detection failed</div>
         <div className="mt-1 whitespace-pre-wrap">{message}</div>
       </div>
       {log.length > 0 && <LogBox log={log} />}
-      <button
-        onClick={onRetry}
-        className="rounded-md border border-zinc-800 px-2 py-1 text-xs text-zinc-200 hover:bg-zinc-900"
-      >
-        Retry
-      </button>
+      <Button onClick={onRetry}>Retry</Button>
     </div>
   );
 }
 
 function DetectedPanel({
-  chip, boards, pickedBoardId, onPick, onAdopt, onRetry, log,
+  chip, boards, pickedBoardId, onPick, log,
 }: {
   chip: DetectedChip;
   boards: BoardSummary[] | null;
   pickedBoardId: string;
   onPick: (id: string) => void;
-  onAdopt: () => void;
-  onRetry: () => void;
   log: string[];
 }) {
   const candidates = boards ? candidateBoardsFor(boards, chip.chipName) : [];
@@ -207,26 +188,32 @@ function DetectedPanel({
 
   return (
     <div className="space-y-3">
-      <div className="rounded-md border border-emerald-500/40 bg-emerald-500/5 p-3 text-xs">
+      <div className="rounded-md bg-emerald-500/10 p-3 text-xs ring-1 ring-emerald-500/30">
         <div className="font-semibold text-emerald-200">Detected: {chip.chipName}</div>
-        {chip.mac && <div className="mt-0.5 font-mono text-zinc-400">MAC {chip.mac}</div>}
+        {chip.mac && <div className="mt-0.5 font-mono text-ink-dim">MAC {chip.mac}</div>}
       </div>
 
       {noMatch && (
-        <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-100">
+        <div className="rounded-md bg-amber-500/10 p-3 text-xs text-amber-100 ring-1 ring-amber-500/30">
           No board in the library matches this chip family yet. Pick the closest
           one — you can change the board afterwards from the inspector.
         </div>
       )}
 
       <div>
-        <div className="mb-2 text-xs uppercase tracking-wide text-zinc-500">
+        <div className="mb-2 text-xs uppercase tracking-wider text-ink-faint">
           {noMatch ? "All boards" : `Matching boards (${candidates.length})`}
         </div>
         <ul className="max-h-[45vh] space-y-1 overflow-y-auto pr-1">
           {(showAll ? boards : candidates).map((b) => (
             <li key={b.id}>
-              <label className="flex cursor-pointer items-center gap-2 rounded-md border border-zinc-800 bg-zinc-900/40 px-2 py-1.5 hover:bg-zinc-900">
+              <label
+                className={`flex cursor-pointer items-center gap-2 rounded-md border px-2 py-1.5 transition-colors ${
+                  pickedBoardId === b.id
+                    ? "border-accent-500/50 bg-accent-500/5"
+                    : "border-line bg-surface-2/40 hover:border-line-strong hover:bg-surface-2"
+                }`}
+              >
                 <input
                   type="radio"
                   name="board"
@@ -236,8 +223,8 @@ function DetectedPanel({
                   className="h-3.5 w-3.5"
                 />
                 <span className="flex-1 text-xs">
-                  <span className="text-zinc-100">{b.name}</span>
-                  <span className="ml-2 text-zinc-500">
+                  <span className="text-ink">{b.name}</span>
+                  <span className="ml-2 text-ink-faint">
                     {b.chip_variant} · {b.framework}
                     {b.flash_size_mb ? ` · ${b.flash_size_mb}MB` : ""}
                   </span>
@@ -249,27 +236,11 @@ function DetectedPanel({
       </div>
 
       {log.length > 0 && (
-        <details className="text-xs text-zinc-500">
-          <summary className="cursor-pointer hover:text-zinc-300">Show detection log</summary>
+        <details className="text-xs text-ink-faint">
+          <summary className="cursor-pointer hover:text-ink-dim">Show detection log</summary>
           <LogBox log={log} className="mt-2" />
         </details>
       )}
-
-      <div className="flex justify-end gap-2 pt-2">
-        <button
-          onClick={onRetry}
-          className="rounded-md border border-zinc-800 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
-        >
-          Re-detect
-        </button>
-        <button
-          disabled={!pickedBoardId}
-          onClick={onAdopt}
-          className="rounded-md bg-blue-500/20 px-3 py-1.5 text-sm text-blue-100 ring-1 ring-blue-400/40 enabled:hover:bg-blue-500/30 disabled:opacity-40"
-        >
-          Bootstrap design →
-        </button>
-      </div>
     </div>
   );
 }
@@ -277,7 +248,7 @@ function DetectedPanel({
 function LogBox({ log, className = "" }: { log: string[]; className?: string }) {
   return (
     <pre
-      className={`max-h-40 overflow-auto rounded-md border border-zinc-800 bg-zinc-900/50 p-2 font-mono text-[11px] text-zinc-400 ${className}`}
+      className={`max-h-40 overflow-auto rounded-md border border-line bg-surface-0/50 p-2 font-mono text-[11px] text-ink-dim ${className}`}
     >
       {log.join("\n")}
     </pre>
