@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   enclosure, LoRaWAN), a submission-bundle manifest for commerce metadata,
   and the spec/reviewed/validated listing tiers.
 
+- **Wiring view.** New default tab in the design pane: a read-only SVG
+  net graph built directly from `design.json` -- board rails/GPIOs on
+  the left, buses in a middle lane, components on the right, edges
+  colored by net class with hover highlighting of the whole net.
+  Unassigned pins surface in red. Live under render errors (same as the
+  JSON tab); no new dependencies.
+
 - **Light theme.** The web UI now ships light and dark themes: a header
   toggle persists the choice to localStorage, first visit follows the
   system `prefers-color-scheme`, and a pre-paint snippet in `index.html`
