@@ -56,24 +56,24 @@ export function Inspector({
   onAddComponent, onRemoveComponent,
 }: Props) {
   return (
-    <aside className="flex min-h-0 flex-col border-l border-zinc-800 bg-zinc-950">
-      <div className="flex items-center gap-3 border-b border-zinc-800 px-4 py-3.5 bg-zinc-950">
+    <aside className="flex min-h-0 flex-col border-l border-line bg-surface-0">
+      <div className="flex items-center gap-3 border-b border-line px-4 py-3.5 bg-surface-0">
         {selection.kind !== "design" && (
           <button
             onClick={() => onSelect({ kind: "design" })}
-            className="flex items-center justify-center rounded-md border border-zinc-800 p-1.5 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
+            className="flex items-center justify-center rounded-md border border-line p-1.5 text-ink-dim transition-colors hover:bg-surface-2 hover:text-ink"
             title="Back to design"
           >
             ←
           </button>
         )}
         <div className="flex-1">
-          <div className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Inspector</div>
-          <div className="mt-1 flex items-center gap-2 truncate text-sm font-medium text-zinc-200">
-            {selection.kind === "design" && <><LayoutGrid className="h-4 w-4 text-zinc-400" /> Design Overview</>}
-            {selection.kind === "board" && <><Cpu className="h-4 w-4 text-zinc-400" /> Board Details</>}
-            {selection.kind === "component" && <><ComponentIcon className="h-4 w-4 text-zinc-400" /> Library Component</>}
-            {selection.kind === "component_instance" && <><ComponentIcon className="h-4 w-4 text-zinc-400" /> Component Instance</>}
+          <div className="text-[10px] font-semibold uppercase tracking-widest text-ink-faint">Inspector</div>
+          <div className="mt-1 flex items-center gap-2 truncate text-sm font-medium text-ink">
+            {selection.kind === "design" && <><LayoutGrid className="h-4 w-4 text-ink-dim" /> Design Overview</>}
+            {selection.kind === "board" && <><Cpu className="h-4 w-4 text-ink-dim" /> Board Details</>}
+            {selection.kind === "component" && <><ComponentIcon className="h-4 w-4 text-ink-dim" /> Library Component</>}
+            {selection.kind === "component_instance" && <><ComponentIcon className="h-4 w-4 text-ink-dim" /> Component Instance</>}
           </div>
         </div>
       </div>
@@ -128,7 +128,7 @@ function DesignInspector({
   const requirements = useMemo(() => (design ? readRequirements(design) : []), [design]);
   const warnings = useMemo(() => (design ? readWarnings(design) : []), [design]);
 
-  if (!design) return <div className="text-xs text-zinc-500">No design loaded.</div>;
+  if (!design) return <div className="text-xs text-ink-faint">No design loaded.</div>;
 
   const board = (design.board as Record<string, unknown> | undefined) ?? {};
   const fleet = (design.fleet ?? null) as Record<string, unknown> | null;
@@ -138,7 +138,7 @@ function DesignInspector({
   const buses = (design.buses as unknown[] | undefined) ?? [];
 
   return (
-    <div className="space-y-5 text-sm text-zinc-300">
+    <div className="space-y-5 text-sm text-ink-dim">
       <Section title="Board">
         <BoardPicker
           currentLibraryId={String(board.library_id ?? "")}
@@ -155,25 +155,25 @@ function DesignInspector({
           />
         </div>
         {components.length === 0 ? (
-          <div className="text-xs text-zinc-500">no components</div>
+          <div className="text-xs text-ink-faint">no components</div>
         ) : (
           <ul className="space-y-1">
             {components.map((c) => (
               <li key={c.id} className="flex items-stretch gap-1">
                 <button
                   onClick={() => onSelect({ kind: "component_instance", id: c.id })}
-                  className="flex-1 rounded-md border border-zinc-800 bg-zinc-900/40 px-2 py-1.5 text-left transition-colors hover:bg-zinc-900"
+                  className="flex-1 rounded-md border border-line bg-surface-2/40 px-2 py-1.5 text-left transition-colors hover:bg-surface-2"
                 >
                   <div className="flex items-baseline justify-between gap-2">
-                    <span className="font-mono text-xs text-zinc-100">{c.id}</span>
-                    <span className="text-[11px] text-zinc-500">{c.library_id}</span>
+                    <span className="font-mono text-xs text-ink">{c.id}</span>
+                    <span className="font-mono text-[11px] text-ink-faint">{c.library_id}</span>
                   </div>
-                  <div className="mt-0.5 truncate text-xs text-zinc-400">{c.label}</div>
+                  <div className="mt-0.5 truncate text-xs text-ink-dim">{c.label}</div>
                 </button>
                 <button
                   onClick={() => onRemoveComponent(c.id)}
                   title={`Remove ${c.id}`}
-                  className="rounded-md border border-zinc-800 px-2 text-xs text-zinc-500 transition-colors hover:border-rose-500/40 hover:bg-rose-500/10 hover:text-rose-300"
+                  className="rounded-md border border-line px-2 text-xs text-ink-faint transition-colors hover:border-rose-500/40 hover:bg-rose-500/10 hover:text-rose-300"
                 >
                   ✕
                 </button>
@@ -255,7 +255,7 @@ function AddComponentControl({
       <select
         value={picked}
         onChange={(e) => setPicked(e.target.value)}
-        className="flex-1 rounded-md border border-dashed border-zinc-800 bg-zinc-950 px-2 py-1 text-xs text-zinc-300 focus:border-zinc-600 focus:outline-none"
+        className="flex-1 rounded-md border border-dashed border-line bg-surface-1 px-2 py-1 text-xs text-ink-dim focus:border-accent-500/60 focus:outline-none"
       >
         <option value="">+ Add component...</option>
         {categories.map((cat) => (
@@ -273,7 +273,7 @@ function AddComponentControl({
           onAdd(picked);
           setPicked("");
         }}
-        className="rounded-md border border-zinc-800 px-2 py-1 text-xs text-zinc-300 enabled:hover:bg-zinc-900 disabled:opacity-40"
+        className="rounded-md border border-line px-2 py-1 text-xs text-ink-dim enabled:hover:bg-surface-2 disabled:opacity-40"
       >
         Add
       </button>
@@ -296,7 +296,7 @@ function BoardPicker({
         const next = options.find((b) => b.id === e.target.value);
         if (next) onChange(next.id, next.mcu);
       }}
-      className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+      className="w-full rounded-md border border-line bg-surface-1 px-2 py-1 text-sm text-ink focus:border-accent-500/60 focus:outline-none"
     >
       {options.map((b) => (
         <option key={b.id} value={b.id}>{b.name} ({b.chip_variant})</option>
@@ -316,21 +316,21 @@ function RequirementList({
   return (
     <div className="space-y-2">
       {items.map((r, i) => (
-        <div key={i} className="rounded-md border border-zinc-800 bg-zinc-900/40 p-2">
+        <div key={i} className="rounded-md border border-line bg-surface-2/40 p-2">
           <div className="mb-1 flex items-center gap-2">
             <select
               value={r.kind}
               onChange={(e) => onUpdate(i, { kind: e.target.value as Requirement["kind"] })}
-              className="rounded-md border border-zinc-800 bg-zinc-950 px-1.5 py-0.5 text-[11px] text-zinc-200"
+              className="rounded-md border border-line bg-surface-1 px-1.5 py-0.5 text-[11px] text-ink"
             >
               {(["capability", "environment", "constraint"] as const).map((k) => (
                 <option key={k} value={k}>{k}</option>
               ))}
             </select>
-            <span className="font-mono text-[11px] text-zinc-500">{r.id}</span>
+            <span className="font-mono text-[11px] text-ink-faint">{r.id}</span>
             <button
               onClick={() => onRemove(i)}
-              className="ml-auto rounded-md border border-zinc-800 px-1.5 py-0.5 text-[11px] text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+              className="ml-auto rounded-md border border-line px-1.5 py-0.5 text-[11px] text-ink-dim hover:bg-surface-2 hover:text-ink"
               title="Remove requirement"
             >
               ✕
@@ -340,13 +340,13 @@ function RequirementList({
             type="text"
             value={r.text}
             onChange={(e) => onUpdate(i, { text: e.target.value })}
-            className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-xs text-zinc-100 focus:border-zinc-600 focus:outline-none"
+            className="w-full rounded-md border border-line bg-surface-1 px-2 py-1 text-xs text-ink focus:border-accent-500/60 focus:outline-none"
           />
         </div>
       ))}
       <button
         onClick={onAdd}
-        className="w-full rounded-md border border-dashed border-zinc-800 px-2 py-1 text-xs text-zinc-500 hover:border-zinc-700 hover:text-zinc-300"
+        className="w-full rounded-md border border-dashed border-line px-2 py-1 text-xs text-ink-faint hover:border-line-strong hover:text-ink-dim"
       >
         + Add requirement
       </button>
@@ -372,14 +372,14 @@ function WarningList({
               ? "border-amber-500/40 bg-amber-500/5"
               : w.level === "error"
                 ? "border-rose-500/40 bg-rose-500/10"
-                : "border-zinc-800 bg-zinc-900/40"
+                : "border-line bg-surface-2/40"
           }`}
         >
           <div className="mb-1 flex items-center gap-2">
             <select
               value={w.level}
               onChange={(e) => onUpdate(i, { level: e.target.value as DesignWarning["level"] })}
-              className="rounded-md border border-zinc-800 bg-zinc-950 px-1.5 py-0.5 text-[11px] text-zinc-200"
+              className="rounded-md border border-line bg-surface-1 px-1.5 py-0.5 text-[11px] text-ink"
             >
               {(["info", "warn", "error"] as const).map((k) => (
                 <option key={k} value={k}>{k}</option>
@@ -390,11 +390,11 @@ function WarningList({
               value={w.code}
               onChange={(e) => onUpdate(i, { code: e.target.value })}
               placeholder="code"
-              className="flex-1 rounded-md border border-zinc-800 bg-zinc-950 px-1.5 py-0.5 font-mono text-[11px] text-zinc-100"
+              className="flex-1 rounded-md border border-line bg-surface-1 px-1.5 py-0.5 font-mono text-[11px] text-ink"
             />
             <button
               onClick={() => onRemove(i)}
-              className="rounded-md border border-zinc-800 px-1.5 py-0.5 text-[11px] text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+              className="rounded-md border border-line px-1.5 py-0.5 text-[11px] text-ink-dim hover:bg-surface-2 hover:text-ink"
               title="Remove warning"
             >
               ✕
@@ -404,13 +404,13 @@ function WarningList({
             value={w.text}
             onChange={(e) => onUpdate(i, { text: e.target.value })}
             rows={2}
-            className="w-full resize-none rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-xs text-zinc-100 focus:border-zinc-600 focus:outline-none"
+            className="w-full resize-none rounded-md border border-line bg-surface-1 px-2 py-1 text-xs text-ink focus:border-accent-500/60 focus:outline-none"
           />
         </div>
       ))}
       <button
         onClick={onAdd}
-        className="w-full rounded-md border border-dashed border-zinc-800 px-2 py-1 text-xs text-zinc-500 hover:border-zinc-700 hover:text-zinc-300"
+        className="w-full rounded-md border border-dashed border-line px-2 py-1 text-xs text-ink-faint hover:border-line-strong hover:text-ink-dim"
       >
         + Add warning
       </button>
@@ -454,13 +454,13 @@ function Field({
 }) {
   return (
     <div>
-      <label className="block text-[11px] text-zinc-500">{label}</label>
+      <label className="block text-[11px] text-ink-faint">{label}</label>
       <input
         type="text"
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
-        className="mt-0.5 w-full rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-xs text-zinc-100 focus:border-zinc-600 focus:outline-none"
+        className="mt-0.5 w-full rounded-md border border-line bg-surface-1 px-2 py-1 text-xs text-ink focus:border-accent-500/60 focus:outline-none"
       />
     </div>
   );
@@ -475,9 +475,9 @@ function BoardInspector({ id }: { id: string }) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-base font-semibold text-zinc-100">{String(b.name)}</h2>
-        <div className="mt-1 flex items-center gap-2 text-xs text-zinc-500">
-          <span className="rounded-md bg-zinc-800 px-1.5 py-0.5 font-medium">{String(b.chip_variant)}</span>
+        <h2 className="text-base font-semibold text-ink">{String(b.name)}</h2>
+        <div className="mt-1 flex items-center gap-2 text-xs text-ink-faint">
+          <span className="rounded-md bg-surface-2 px-1.5 py-0.5 font-mono font-medium">{String(b.chip_variant)}</span>
           <span>·</span>
           <span>{String(b.framework)}</span>
           {Boolean(b.flash_size_mb) && (
@@ -489,25 +489,25 @@ function BoardInspector({ id }: { id: string }) {
         </div>
       </div>
 
-      <div className="space-y-3 rounded-md border border-zinc-800 bg-zinc-900/50 p-4 text-xs">
-        <div className="flex justify-between items-center border-b border-zinc-800/50 pb-2">
-          <span className="text-zinc-500 font-medium">PlatformIO ID</span>
-          <span className="font-mono text-zinc-300">{b.platformio_board ? String(b.platformio_board) : "Unknown"}</span>
+      <div className="space-y-3 rounded-md border border-line bg-surface-2/40 p-4 text-xs">
+        <div className="flex justify-between items-center border-b border-line/50 pb-2">
+          <span className="text-ink-faint font-medium">PlatformIO ID</span>
+          <span className="font-mono text-ink-dim">{b.platformio_board ? String(b.platformio_board) : "Unknown"}</span>
         </div>
-        <div className="flex justify-between items-center border-b border-zinc-800/50 pb-2">
-          <span className="text-zinc-500 font-medium">MCU Family</span>
-          <span className="font-mono text-zinc-300">{b.mcu ? String(b.mcu) : "Unknown"}</span>
+        <div className="flex justify-between items-center border-b border-line/50 pb-2">
+          <span className="text-ink-faint font-medium">MCU Family</span>
+          <span className="font-mono text-ink-dim">{b.mcu ? String(b.mcu) : "Unknown"}</span>
         </div>
       </div>
 
       {rails.length > 0 && (
         <Section title="Power Rails">
-          <div className="rounded-md border border-zinc-800 bg-zinc-900/30 overflow-hidden">
-            <ul className="divide-y divide-zinc-800/50 text-xs">
+          <div className="rounded-md border border-line bg-surface-2/40 overflow-hidden">
+            <ul className="divide-y divide-line/50 text-xs">
               {rails.map((r, i) => (
                 <li key={i} className="flex justify-between px-3 py-2">
-                  <span className="font-mono font-medium text-zinc-200">{String(r.name)}</span>
-                  <span className="text-zinc-400">{String(r.voltage)}V</span>
+                  <span className="font-mono font-medium text-ink">{String(r.name)}</span>
+                  <span className="text-ink-dim">{String(r.voltage)}V</span>
                 </li>
               ))}
             </ul>
@@ -519,9 +519,9 @@ function BoardInspector({ id }: { id: string }) {
         <Section title="GPIO Capabilities">
           <ul className="grid grid-cols-2 gap-x-3 gap-y-2 font-mono text-xs">
             {Object.entries(gpio).map(([pin, caps]) => (
-              <li key={pin} className="flex flex-col gap-1 rounded-md bg-zinc-900/50 p-2 border border-zinc-800/50">
-                <span className="font-medium text-zinc-200">{pin}</span>
-                <span className="text-[10px] text-zinc-500 leading-tight">{(caps as string[]).join(", ")}</span>
+              <li key={pin} className="flex flex-col gap-1 rounded-md bg-surface-2/40 p-2 border border-line/50">
+                <span className="font-medium text-ink">{pin}</span>
+                <span className="text-[10px] text-ink-faint leading-tight">{(caps as string[]).join(", ")}</span>
               </li>
             ))}
           </ul>
@@ -540,19 +540,19 @@ function LibraryComponentInspector({ id }: { id: string }) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-base font-semibold text-zinc-100">{String(c.name)}</h2>
-        <div className="mt-2 flex items-center gap-2 text-xs text-zinc-500">
-          <span className="rounded-md bg-zinc-800 px-2 py-0.5 uppercase tracking-wider text-[10px] font-medium text-zinc-300">
+        <h2 className="text-base font-semibold text-ink">{String(c.name)}</h2>
+        <div className="mt-2 flex items-center gap-2 text-xs text-ink-faint">
+          <span className="rounded-md bg-surface-2 px-2 py-0.5 uppercase tracking-wider text-[10px] font-medium text-ink-dim">
             {String(c.category)}
           </span>
         </div>
       </div>
 
-      <div className="rounded-md border border-zinc-800 bg-zinc-900/50 p-4 text-xs">
+      <div className="rounded-md border border-line bg-surface-2/40 p-4 text-xs">
         {c.notes ? (
-          <div className="text-zinc-300 leading-relaxed">{String(c.notes)}</div>
+          <div className="text-ink-dim leading-relaxed">{String(c.notes)}</div>
         ) : (
-          <div className="text-zinc-500 italic">No notes for this component.</div>
+          <div className="text-ink-faint italic">No notes for this component.</div>
         )}
       </div>
 
@@ -586,7 +586,7 @@ function ComponentInstanceInspector({
     return compatibilityWarnings.filter((w) => w.component_id === inst.id);
   }, [compatibilityWarnings, inst]);
 
-  if (!inst) return <div className="text-xs text-zinc-500">Component not found in design.</div>;
+  if (!inst) return <div className="text-xs text-ink-faint">Component not found in design.</div>;
   if (!comp) return <Loading />;
 
   const c = comp as Record<string, unknown>;
@@ -596,13 +596,13 @@ function ComponentInstanceInspector({
     <div className="space-y-5">
       <div>
         <div className="flex items-baseline justify-between gap-2">
-          <span className="font-mono text-sm text-zinc-100">{inst.id}</span>
-          <span className="rounded-md border border-zinc-800 px-1.5 py-0.5 text-[11px] text-zinc-400">
+          <span className="font-mono text-sm text-ink">{inst.id}</span>
+          <span className="rounded-md border border-line px-1.5 py-0.5 font-mono text-[11px] text-ink-dim">
             {inst.library_id}
           </span>
         </div>
-        <div className="mt-0.5 text-sm text-zinc-300">{inst.label}</div>
-        {inst.role && <div className="text-xs text-zinc-500">role: {inst.role}</div>}
+        <div className="mt-0.5 text-sm text-ink-dim">{inst.label}</div>
+        {inst.role && <div className="text-xs text-ink-faint">role: {inst.role}</div>}
       </div>
 
       <Section title="Parameters">
@@ -673,8 +673,8 @@ function ConnectionsPane({
             onClick={() => setView(v)}
             className={`rounded-md px-1.5 py-0.5 transition-colors ${
               view === v
-                ? "bg-zinc-800 text-zinc-100"
-                : "text-zinc-500 hover:text-zinc-200"
+                ? "bg-surface-2 text-ink"
+                : "text-ink-faint hover:text-ink"
             }`}
           >
             {v === "form" ? "Form" : "Pinout"}
@@ -718,8 +718,8 @@ function FullComponentView(
     <div className="space-y-3">
       {!compact && (
         <div>
-          <div className="text-base font-semibold text-zinc-100">{String(c.name)}</div>
-          <div className="text-xs text-zinc-500">{String(c.category)}</div>
+          <div className="text-base font-semibold text-ink">{String(c.name)}</div>
+          <div className="text-xs text-ink-faint">{String(c.category)}</div>
         </div>
       )}
       <div>
@@ -732,13 +732,13 @@ function FullComponentView(
       </div>
       {pins.length > 0 && (
         <div>
-          <div className="mb-1 text-[11px] uppercase tracking-wide text-zinc-500">pins</div>
+          <div className="mb-1 text-[11px] uppercase tracking-wider text-ink-faint">pins</div>
           <ul className="space-y-1 text-xs">
             {pins.map((p, i) => (
               <li key={i} className="font-mono">
-                <span className="text-zinc-100">{String(p.role)}</span>
-                <span className="text-zinc-500"> · {String(p.kind)}</span>
-                {p.voltage != null && <span className="text-zinc-500"> · {String(p.voltage)}V</span>}
+                <span className="text-ink">{String(p.role)}</span>
+                <span className="text-ink-faint"> · {String(p.kind)}</span>
+                {p.voltage != null && <span className="text-ink-faint"> · {String(p.voltage)}V</span>}
                 {Boolean(p.pull_up) && <span className="text-amber-300"> · pull-up</span>}
               </li>
             ))}
@@ -749,7 +749,7 @@ function FullComponentView(
         <KV k="required" v={required.join(", ")} />
       )}
       {!hideNotes && Boolean(c.notes) && (
-        <p className="text-[11px] text-zinc-400">{String(c.notes)}</p>
+        <p className="text-[11px] text-ink-dim">{String(c.notes)}</p>
       )}
     </div>
   );
@@ -764,7 +764,7 @@ function CompatibilityList({ warnings }: { warnings: CompatibilityWarning[] }) {
             ? "border-rose-500/40 bg-rose-500/10 text-rose-200"
             : w.severity === "warn"
               ? "border-amber-500/40 bg-amber-500/10 text-amber-100"
-              : "border-blue-500/40 bg-blue-500/5 text-blue-100";
+              : "border-accent-500/40 bg-accent-500/5 text-accent-200";
         return (
           <li key={i} className={`rounded-md border px-2 py-1.5 text-xs ${palette}`}>
             <div className="flex items-baseline justify-between gap-2 font-mono">
@@ -784,7 +784,7 @@ function CompatibilityList({ warnings }: { warnings: CompatibilityWarning[] }) {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section>
-      <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-zinc-500">{title}</h3>
+      <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-ink-faint">{title}</h3>
       <div>{children}</div>
     </section>
   );
@@ -793,8 +793,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function KV({ k, v }: { k: string; v: string }) {
   return (
     <div className="flex items-baseline justify-between gap-3 text-xs">
-      <span className="text-zinc-500">{k}</span>
-      <span className="font-mono text-zinc-200">{v}</span>
+      <span className="text-ink-faint">{k}</span>
+      <span className="font-mono text-ink">{v}</span>
     </div>
   );
 }

@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Vendor integration spec.** `docs/integration_spec.md` documents what a
+  manufacturer supplies to list a board or component in the library: the
+  exact component/board YAML schemas annotated by consuming phase (catalog,
+  pin solving, electrical validation, ESPHome generation, schematic/PCB,
+  enclosure, LoRaWAN), a submission-bundle manifest for commerce metadata,
+  and the spec/reviewed/validated listing tiers.
+
+### Changed
+
+- **Web UI design system.** Token-based theme in `index.css` (Tailwind
+  `@theme`): copper accent, layered surface scale, ink text scale, violet
+  reserved for agent surfaces, semantic emerald/amber/rose kept for
+  success/warn/error. Self-hosted Inter Variable + JetBrains Mono. New
+  `ui.tsx` Dialog/Button/Input/FieldLabel primitives replace the
+  hand-rolled overlay scaffolding in most dialogs; every component moved
+  off ad-hoc zinc/blue classes. Visual only — no behavior changes.
+
 ## [0.19.1] — 2026-07-18
 
 ### Added
