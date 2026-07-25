@@ -44,6 +44,14 @@ void setup() {
   Wire.setTimeOut(50);
 {% endif %}
 {{ component_setup | default('') }}
+{% if setup_high %}
+  // RF front-end enable: FEM power/chip-enable/mode pins held high (see the
+  // board library file's radio.setup_high for pin roles and tradeoffs).
+{% for p in setup_high %}
+  pinMode({{ p }}, OUTPUT);
+  digitalWrite({{ p }}, HIGH);
+{% endfor %}
+{% endif %}
 
   int16_t state = radio.begin();
   if (state != RADIOLIB_ERR_NONE) {

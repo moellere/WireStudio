@@ -27,6 +27,9 @@ import {
   updateRequirement,
   updateWarning,
   type LibraryComponentDetail,
+  pinCaveat,
+  readUsedPins,
+  suggestBusPins,
 } from "./design";
 import type { Design } from "../types/api";
 
@@ -531,5 +534,44 @@ describe("buses", () => {
     const before = clone(baseDesign);
     renameBus(baseDesign, "i2c0", "shared_i2c");
     expect(baseDesign).toEqual(before);
+  });
+});
+
+describe("pin suggestion", () => {
+  const caps = {
+    GPIO0: ["gpio", "strap", "boot_high", "button"],
+    GPIO16: ["gpio", "pwm"],
+    GPIO17: ["gpio", "pwm", "uart_tx"],
+    GPIO18: ["gpio", "uart_rx"],
+    GPIO43: ["gpio", "uart_tx", "serial_tx"],
+    GPIO44: ["gpio", "uart_rx", "serial_rx"],
+  };
+
+  it("pinCaveat flags console, strap, roles; passes plain pins", () => {
+    expect(pinCaveat(caps.GPIO43)).toBe("console UART");
+    expect(pinCaveat(caps.GPIO0)).toBe("strap pin");
+    expect(pinCaveat(["gpio", "led"])).toBe("led");
+    expect(pinCaveat(caps.GPIO16)).toBeNull();
+    expect(pinCaveat(caps.GPIO17)).toBeNull();
+  });
+
+  it("readUsedPins collects bus slots and gpio targets", () => {
+    const d = {
+      buses: [{ id: "i2c0", type: "i2c", sda: "GPIO21", scl: "GPIO22" }],
+      connections: [
+        { component_id: "x", pin_role: "IN", target: { kind: "gpio", pin: "GPIO34" } },
+        { component_id: "y", pin_role: "VCC", target: { kind: "rail", rail: "3V3" } },
+      ],
+    } as unknown as Design;
+    expect(readUsedPins(d)).toEqual(new Set(["GPIO21", "GPIO22", "GPIO34"]));
+  });
+
+  it("suggestBusPins prefers uart-tagged non-console pins and skips used", () => {
+    expect(suggestBusPins("uart", caps, new Set())).toEqual({ tx: "GPIO17", rx: "GPIO18" });
+    expect(suggestBusPins("uart", caps, new Set(["GPIO17"]))).toEqual({ tx: "GPIO16", rx: "GPIO18" });
+  });
+
+  it("suggestBusPins returns undefined when clean pins run out", () => {
+    expect(suggestBusPins("uart", caps, new Set(["GPIO16", "GPIO17", "GPIO18"]))).toBeUndefined();
   });
 });

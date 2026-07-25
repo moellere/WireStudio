@@ -268,6 +268,11 @@ class Radio(_Strict):
     pins: RadioPins
     tcxo_voltage: float = 0.0
     dio2_as_rf_switch: bool = False
+    # Pins the firmware drives HIGH before radio.begin(). Boards with an
+    # external RF front end (Heltec V4's GC1109/KCT8103L PA+LNA) are deaf
+    # until the FEM's power/enable/mode pins are up; the transceiver's SPI
+    # works regardless, so the failure presents as a join problem.
+    setup_high: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _require_family_pins(self) -> "Radio":

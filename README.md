@@ -26,7 +26,7 @@ external-component path emits ESPHome YAML referencing
 so the LoRaWAN device joins the same ESPHome / fleet-for-esphome build
 pipeline as every other device — provisioning, key handling, and
 join-status polling all from the web UI. Both paths target US915 radio
-boards (TTGO T-Beam / LoRa32, Heltec WiFi LoRa 32 V2 / V3) and
+boards (TTGO T-Beam / LoRa32, Heltec WiFi LoRa 32 V2 / V3 / V4) and
 provision against ChirpStack.
 
 Not affiliated with the ESPHome project — see

@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.0] — 2026-07-25
+
+### Added
+
+- **Heltec WiFi LoRa 32 V4.** Board library entry (ESP32-S3R2, SX1262
+  behind a GC1109/KCT8103L RF front end, 16MB flash, SSD1315 OLED, GNSS
+  and solar connectors), pinout from the Meshtastic heltec_v4 variant.
+  New `radio.setup_high` board field: pins the generated LoRaWAN
+  firmware drives HIGH before `radio.begin()` -- the V4's FEM
+  power/enable/mode pins, without which the radio is deaf. Rides the V3
+  PlatformIO board def until upstream ships a V4 one.
+
+### Fixed
+
+- **API errors show the server's detail.** The web client now surfaces
+  the response's `detail` string (tool stderr, validation text) instead
+  of a generic `POST /path -> 500`, so schematic/PCB render failures are
+  diagnosable from the UI.
+
+- **UART buses auto-select pins (#171).** Adding a bus without board
+  defaults now lands on auto-selected free pins: prefers pins whose
+  capability tags match the slot (non-console uart_tx/uart_rx), skips
+  pins already used by buses or connections and pins with caveats
+  (strap, console UART, USB, input-only, fixed onboard roles). Bus pin
+  dropdowns annotate every option -- safe, in use, or the specific
+  caveat -- so manual picks stop landing on warning-prone pins.
+
+- **Inspector add-component UX.** The add-component picker stacks
+  vertically (full-width dropdown, Add button below) instead of forcing
+  a horizontal scroll that pushed the button out of view, and the
+  library-component inspector gains an "Add to design" button so parts
+  picked from the left sidebar can be added directly.
+
 ## [0.20.1] — 2026-07-25
 
 ### Fixed

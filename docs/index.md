@@ -142,7 +142,7 @@ shipped, hardware join verification in progress.* Two paths share the
 
 - **Standalone Arduino path** (`target: "lorawan"`). Builds RadioLib +
   LoRaWAN_ESP32 firmware for US915 radio boards (TTGO LoRa32 / T-Beam,
-  Heltec WiFi LoRa 32 V2/V3), flashes it over WebSerial from the
+  Heltec WiFi LoRa 32 V2/V3/V4), flashes it over WebSerial from the
   browser, and provisions the device against ChirpStack. Every radio
   board's firmware builds in CI
   ([`lorawan-firmware`](../.github/workflows/lorawan-firmware.yml));

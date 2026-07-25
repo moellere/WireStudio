@@ -12,6 +12,7 @@ from wirestudio.targets.esphome import EsphomeTarget
 RADIO_BOARD_IDS = {
     "ttgo-lora32-v1", "ttgo-lora32-v2", "ttgo-t-beam",
     "heltec-wifi-lora32-v2", "heltec-wifi-lora32-v3",
+    "heltec-wifi-lora32-v4",
 }
 
 
