@@ -1,0 +1,79 @@
+{
+  "schema_version": "0.1",
+  "id": "xiao-grove-climate-v1",
+  "name": "XIAO Grove climate node",
+  "description": "Seeed XIAO ESP32C3 + Grove AHT20 over the Grove I2C connector, USB powered.",
+  "created_at": "2026-07-24T12:00:00Z",
+  "updated_at": "2026-07-24T12:00:00Z",
+  "board": {
+    "library_id": "seeed-xiao-esp32c3",
+    "mcu": "esp32",
+    "framework": "arduino",
+    "pinned_esphome_version": "2025.12.7"
+  },
+  "power": {
+    "supply": "usb-5v",
+    "rail_voltage_v": 5.0,
+    "regulator": "onboard",
+    "budget_ma": 500
+  },
+  "requirements": [
+    {
+      "id": "r1",
+      "kind": "capability",
+      "text": "measure temperature and humidity"
+    }
+  ],
+  "components": [
+    {
+      "id": "aht1",
+      "library_id": "grove-aht20",
+      "label": "Room climate",
+      "params": {}
+    }
+  ],
+  "buses": [
+    {
+      "id": "i2c0",
+      "type": "i2c",
+      "frequency_hz": 100000,
+      "sda": "GPIO6",
+      "scl": "GPIO7"
+    }
+  ],
+  "connections": [
+    {
+      "component_id": "aht1",
+      "pin_role": "VCC",
+      "target": {
+        "kind": "rail",
+        "rail": "3V3"
+      }
+    },
+    {
+      "component_id": "aht1",
+      "pin_role": "GND",
+      "target": {
+        "kind": "rail",
+        "rail": "GND"
+      }
+    },
+    {
+      "component_id": "aht1",
+      "pin_role": "SDA",
+      "target": {
+        "kind": "bus",
+        "bus_id": "i2c0"
+      }
+    },
+    {
+      "component_id": "aht1",
+      "pin_role": "SCL",
+      "target": {
+        "kind": "bus",
+        "bus_id": "i2c0"
+      }
+    }
+  ],
+  "passives": []
+}
