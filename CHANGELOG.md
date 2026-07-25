@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.0] — 2026-07-25
+
 ### Added
 
 - **Heltec WiFi LoRa 32 V4.** Board library entry (ESP32-S3R2, SX1262
