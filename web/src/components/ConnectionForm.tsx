@@ -55,7 +55,13 @@ export function ConnectionForm({
 
   const expanderLibIds = useMemo(() => {
     if (!libraryComponents) return new Set<string>();
-    return new Set(libraryComponents.filter((c) => c.category === "io_expander").map((c) => c.id));
+    const ids = new Set<string>();
+    for (const c of libraryComponents) {
+      if (c.category === "io_expander") {
+        ids.add(c.id);
+      }
+    }
+    return ids;
   }, [libraryComponents]);
 
   const expanders = useMemo(() => {
