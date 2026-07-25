@@ -49,7 +49,8 @@ export function SolveResultBanner({ assigned, unresolved, warnings, onDismiss }:
       </div>
       <button
         onClick={onDismiss}
-        className="rounded-md border border-current/30 px-1.5 py-0.5 text-[11px] opacity-80 hover:opacity-100"
+        aria-label="Dismiss"
+        className="rounded-md border border-current/30 px-1.5 py-0.5 text-[11px] opacity-80 transition-opacity hover:opacity-100"
       >
         ✕
       </button>

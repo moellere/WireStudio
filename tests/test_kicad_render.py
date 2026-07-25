@@ -13,6 +13,8 @@ from wirestudio.kicad import render as R
 from wirestudio.kicad.render import (
     RenderError,
     RenderUnavailable,
+    pcb_render_status,
+    render_pcb,
     render_schematic,
     render_status,
 )
@@ -129,6 +131,56 @@ def test_render_surfaces_kicad_cli_failure(monkeypatch, garage_motion_design, li
         render_schematic(garage_motion_design, library)
 
 
+# --- render_pcb -------------------------------------------------------------
+
+def test_pcb_render_status_needs_cli_and_libraries(monkeypatch):
+    monkeypatch.setattr(R.shutil, "which", lambda exe: None)
+    monkeypatch.setattr(R, "pcb_status", lambda: {"available": False, "reason": "no libs"})
+    s = pcb_render_status()
+    assert s["available"] is False
+    assert "kicad-cli" in s["reason"] and "no libs" in s["reason"]
+
+
+def test_pcb_render_status_available(monkeypatch):
+    monkeypatch.setattr(R.shutil, "which", lambda exe: "/usr/bin/" + exe)
+    monkeypatch.setattr(R, "pcb_status", lambda: {"available": True, "reason": None})
+    assert pcb_render_status() == {
+        "available": True, "kicad_cli": True, "libraries": True, "reason": None,
+    }
+
+
+def test_render_pcb_unavailable_without_tools(monkeypatch, garage_motion_design, library):
+    monkeypatch.setattr(R.shutil, "which", lambda exe: None)
+    monkeypatch.setattr(R, "pcb_status", lambda: {"available": False, "reason": "no libs"})
+    with pytest.raises(RenderUnavailable, match="kicad-cli"):
+        render_pcb(garage_motion_design, library)
+
+
+def test_render_pcb_happy_path(monkeypatch, garage_motion_design, library):
+    monkeypatch.setattr(R.shutil, "which", lambda exe: "/usr/bin/" + exe)
+    monkeypatch.setattr(R, "pcb_status", lambda: {"available": True, "reason": None})
+    monkeypatch.setattr(R, "generate_kicad_pcb", lambda d, lib: "(kicad_pcb)")
+
+    def run(cmd, **kw):
+        Path(cmd[cmd.index("--output") + 1]).write_bytes(b"<svg>pcb</svg>")
+        return _proc(cmd)
+
+    monkeypatch.setattr(R.subprocess, "run", run)
+    assert render_pcb(garage_motion_design, library) == b"<svg>pcb</svg>"
+
+
+def test_render_pcb_surfaces_cli_failure(monkeypatch, garage_motion_design, library):
+    monkeypatch.setattr(R.shutil, "which", lambda exe: "/usr/bin/" + exe)
+    monkeypatch.setattr(R, "pcb_status", lambda: {"available": True, "reason": None})
+    monkeypatch.setattr(R, "generate_kicad_pcb", lambda d, lib: "(kicad_pcb)")
+    monkeypatch.setattr(
+        R.subprocess, "run",
+        lambda cmd, **kw: _proc(cmd, returncode=1, stderr="bad layer"),
+    )
+    with pytest.raises(RenderError, match="kicad-cli failed"):
+        render_pcb(garage_motion_design, library)
+
+
 # --- CLI --------------------------------------------------------------------
 
 def test_main_status_prints_json(capsys):
@@ -182,3 +234,35 @@ def test_render_endpoint_returns_svg(monkeypatch):
     assert r.status_code == 200
     assert r.headers["content-type"] == "image/svg+xml"
     assert r.content == b"<svg/>"
+
+
+def test_pcb_render_status_endpoint():
+    client = TestClient(create_app())
+    r = client.get("/design/kicad/pcb/render/status")
+    assert r.status_code == 200
+    body = r.json()
+    assert set(body) == {"available", "kicad_cli", "libraries", "reason"}
+    assert isinstance(body["available"], bool)
+
+
+def test_pcb_render_endpoint_503_when_unavailable(monkeypatch):
+    import wirestudio.api.app as appmod
+
+    def unavailable(d, lib):
+        raise RenderUnavailable("kicad-cli not on PATH")
+
+    monkeypatch.setattr(appmod, "render_pcb", unavailable)
+    client = TestClient(create_app())
+    r = client.post("/design/kicad/pcb/render", json=json.loads(GARAGE.read_text()))
+    assert r.status_code == 503
+    assert "kicad-cli" in r.json()["detail"]
+
+
+def test_pcb_render_endpoint_returns_svg(monkeypatch):
+    import wirestudio.api.app as appmod
+    monkeypatch.setattr(appmod, "render_pcb", lambda d, lib: b"<svg>pcb</svg>")
+    client = TestClient(create_app())
+    r = client.post("/design/kicad/pcb/render", json=json.loads(GARAGE.read_text()))
+    assert r.status_code == 200
+    assert r.headers["content-type"] == "image/svg+xml"
+    assert r.content == b"<svg>pcb</svg>"

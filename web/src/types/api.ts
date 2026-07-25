@@ -289,6 +289,13 @@ export interface KicadPcbStatus {
   reason: string | null;
 }
 
+export interface KicadPcbRenderStatus {
+  available: boolean;
+  kicad_cli: boolean;
+  libraries: boolean;
+  reason: string | null;
+}
+
 export interface KicadRouteStatus {
   available: boolean;
   pcbnew: string | null;

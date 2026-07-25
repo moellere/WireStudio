@@ -4,6 +4,7 @@ import { api, lorawanCompile } from "../api/client";
 import { isWebSerialSupported } from "../lib/usb-detect";
 import { APP_PARTITION_OFFSET, flashFirmware, type FlashSession } from "../lib/flash";
 import { createSerialProvisioner, macToEui64 } from "../lib/provision";
+import { Button, Dialog } from "./ui";
 
 type Phase =
   | "loading"
@@ -301,33 +302,44 @@ export function LorawanFlashDialog({ onClose }: Props) {
     : null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-      onClick={onClose}
+    <Dialog
+      title="Flash LoRaWAN firmware"
+      subtitle="Build a radio board's firmware server-side, flash it over WebSerial, watch the join."
+      onClose={onClose}
+      maxWidth="max-w-2xl"
+      footer={
+        <>
+          {(phase === "idle" || phase === "built" || phase === "error") && (
+            <Button disabled={supported === "no" || !boardId} onClick={handleBuild}>
+              {phase === "built" ? "Rebuild" : "Build firmware"}
+            </Button>
+          )}
+          {phase === "built" && (
+            <Button
+              variant="primary"
+              disabled={supported === "no" || !cacheKey}
+              onClick={handleFlash}
+            >
+              Flash &amp; monitor →
+            </Button>
+          )}
+          {phase === "monitoring" && (
+            <button
+              onClick={handleWipe}
+              title="Clear stored LoRaWAN keys (e.g. throwaway offline-test keys) and reboot to re-provision"
+              className="rounded-md bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-200 ring-1 ring-amber-500/30 transition-colors hover:bg-amber-500/20"
+            >
+              Wipe keys
+            </button>
+          )}
+          {phase === "monitoring" && <Button onClick={handleStop}>Stop monitor</Button>}
+        </>
+      }
     >
-      <div
-        className="m-4 max-h-[85vh] w-full max-w-2xl overflow-auto rounded-lg border border-zinc-800 bg-zinc-950 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
-          <div>
-            <div className="text-sm font-semibold text-zinc-100">Flash LoRaWAN firmware</div>
-            <div className="text-xs text-zinc-500">
-              Build a radio board&apos;s firmware server-side, flash it over WebSerial, watch the join.
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="rounded-md border border-zinc-800 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
-          >
-            Close
-          </button>
-        </div>
-
-        <div className="space-y-4 p-4 text-sm">
+      <div className="space-y-4 text-sm">
           {supported === "no" && <UnsupportedNotice />}
 
-          {phase === "loading" && <div className="text-xs text-zinc-500">Loading radio boards…</div>}
+          {phase === "loading" && <div className="text-xs text-ink-faint">Loading radio boards…</div>}
 
           {(phase === "idle" || phase === "building" || phase === "built") && boards && (
             <BoardPicker
@@ -340,7 +352,7 @@ export function LorawanFlashDialog({ onClose }: Props) {
 
           {(phase === "idle" || phase === "building" || phase === "built") && (
             <section>
-              <label className="flex items-center gap-2 text-xs text-zinc-300">
+              <label className="flex items-center gap-2 text-xs text-ink-dim">
                 <input
                   type="checkbox"
                   checked={gpsEnabled}
@@ -354,27 +366,27 @@ export function LorawanFlashDialog({ onClose }: Props) {
                 <div className="mt-2 grid grid-cols-3 gap-2">
                   <PinField label="MCU RX (← GPS TX)" value={gpsRx} onChange={setGpsRx} disabled={phase === "building"} />
                   <PinField label="MCU TX (→ GPS RX)" value={gpsTx} onChange={setGpsTx} disabled={phase === "building"} />
-                  <label className="text-[11px] text-zinc-500">
+                  <label className="text-[11px] text-ink-faint">
                     Baud
                     <input
                       type="number"
                       value={gpsBaud}
                       disabled={phase === "building"}
                       onChange={(e) => setGpsBaud(Number(e.target.value) || 9600)}
-                      className="mt-0.5 w-full rounded border border-zinc-800 bg-zinc-900 px-1.5 py-1 font-mono text-xs text-zinc-200"
+                      className="mt-0.5 w-full rounded-md border border-line bg-surface-1 px-1.5 py-1 font-mono text-xs text-ink transition-colors focus:border-accent-500/60 focus:outline-none"
                     />
                   </label>
                 </div>
               )}
               {gpsEnabled && (
-                <p className="mt-1 text-[11px] text-zinc-600">
+                <p className="mt-1 text-[11px] text-ink-ghost">
                   For boards without an onboard GPS. Ignored if the board already has one.
                   Avoid GPIO1/GPIO3 on a classic ESP32 — they&apos;re the USB-serial console,
                   and a GPS there floods the provisioning prompt.
                 </p>
               )}
 
-              <label className="mt-2 flex items-center gap-2 text-xs text-zinc-300">
+              <label className="mt-2 flex items-center gap-2 text-xs text-ink-dim">
                 <input
                   type="checkbox"
                   checked={dhtEnabled}
@@ -390,7 +402,7 @@ export function LorawanFlashDialog({ onClose }: Props) {
                 </div>
               )}
 
-              <label className="mt-2 flex items-center gap-2 text-xs text-zinc-300">
+              <label className="mt-2 flex items-center gap-2 text-xs text-ink-dim">
                 <input
                   type="checkbox"
                   checked={oledEnabled}
@@ -412,13 +424,13 @@ export function LorawanFlashDialog({ onClose }: Props) {
                 Offline test — skip ChirpStack, write throwaway keys
               </label>
               {offlineTest && (
-                <p className="mt-1 text-[11px] text-zinc-600">
+                <p className="mt-1 text-[11px] text-ink-ghost">
                   Clears the provisioning prompt without a gateway so the device runs its
                   sensor/OLED loop. It won&apos;t actually join. Re-flash without this for real use.
                 </p>
               )}
 
-              <label className="mt-2 flex items-center gap-2 text-xs text-zinc-300">
+              <label className="mt-2 flex items-center gap-2 text-xs text-ink-dim">
                 <input
                   type="checkbox"
                   checked={fullFlash}
@@ -429,7 +441,7 @@ export function LorawanFlashDialog({ onClose }: Props) {
                 Blank board — full flash (bootloader + partitions + app)
               </label>
               {fullFlash && (
-                <p className="mt-1 text-[11px] text-zinc-600">
+                <p className="mt-1 text-[11px] text-ink-ghost">
                   Full-chip erase + a merged factory image at 0x0, for a board that has
                   never been flashed. Wipes NVS; leave off to re-flash a board that already
                   boots (preserves the bootloader + stored keys).
@@ -454,8 +466,8 @@ export function LorawanFlashDialog({ onClose }: Props) {
             <section className="space-y-2">
               <Heading>Flash</Heading>
               {pct !== null && (
-                <div className="h-2 w-full overflow-hidden rounded bg-zinc-800">
-                  <div className="h-full bg-blue-500 transition-all" style={{ width: `${pct}%` }} />
+                <div className="h-2 w-full overflow-hidden rounded bg-surface-2">
+                  <div className="h-full bg-accent-500 transition-all" style={{ width: `${pct}%` }} />
                 </div>
               )}
               <LogBox log={flashLog} />
@@ -465,13 +477,13 @@ export function LorawanFlashDialog({ onClose }: Props) {
           {phase === "monitoring" && (devEui || provisionStatus) && (
             <section className="space-y-1">
               <Heading>Provisioning</Heading>
-              <div className="rounded-md border border-zinc-800 bg-zinc-900/40 p-2 text-xs">
+              <div className="rounded-md border border-line bg-surface-2/40 p-2 text-xs">
                 {devEui && (
                   <div>
-                    DevEUI <span className="font-mono text-zinc-300">{devEui}</span>
+                    DevEUI <span className="font-mono text-ink-dim">{devEui}</span>
                   </div>
                 )}
-                {provisionStatus && <div className="mt-0.5 text-zinc-400">{provisionStatus}</div>}
+                {provisionStatus && <div className="mt-0.5 text-ink-dim">{provisionStatus}</div>}
               </div>
             </section>
           )}
@@ -479,60 +491,21 @@ export function LorawanFlashDialog({ onClose }: Props) {
           {(phase === "monitoring" || (phase === "built" && serial)) && (
             <section className="space-y-1">
               <Heading>Serial monitor</Heading>
-              <pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded-md border border-zinc-800 bg-zinc-900/50 p-2 font-mono text-[11px] text-emerald-200/90">
+              <pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded-lg bg-surface-0 p-2 font-mono text-[12px] text-emerald-200/90 ring-1 ring-line">
                 {serial || "(waiting for device output…)"}
               </pre>
             </section>
           )}
 
           {phase === "error" && (
-            <div className="rounded-md border border-rose-500/40 bg-rose-500/10 p-3 text-xs text-rose-200">
+            <div className="rounded-md bg-rose-500/10 p-3 text-xs text-rose-200 ring-1 ring-rose-500/30">
               <div className="font-semibold">Something went wrong</div>
               <div className="mt-1 whitespace-pre-wrap">{errorMsg}</div>
               {buildLog.length > 0 && <LogBox log={buildLog} className="mt-2" />}
             </div>
           )}
-
-          <div className="flex justify-end gap-2 border-t border-zinc-800 pt-3">
-            {(phase === "idle" || phase === "built" || phase === "error") && (
-              <button
-                disabled={supported === "no" || !boardId}
-                onClick={handleBuild}
-                className="rounded-md border border-zinc-800 px-3 py-1.5 text-xs text-zinc-200 enabled:hover:bg-zinc-900 disabled:opacity-40"
-              >
-                {phase === "built" ? "Rebuild" : "Build firmware"}
-              </button>
-            )}
-            {phase === "built" && (
-              <button
-                disabled={supported === "no" || !cacheKey}
-                onClick={handleFlash}
-                className="rounded-md bg-blue-500/20 px-3 py-1.5 text-xs text-blue-100 ring-1 ring-blue-400/40 enabled:hover:bg-blue-500/30 disabled:opacity-40"
-              >
-                Flash &amp; monitor →
-              </button>
-            )}
-            {phase === "monitoring" && (
-              <button
-                onClick={handleWipe}
-                title="Clear stored LoRaWAN keys (e.g. throwaway offline-test keys) and reboot to re-provision"
-                className="rounded-md border border-amber-500/40 px-3 py-1.5 text-xs text-amber-200 hover:bg-amber-500/10"
-              >
-                Wipe keys
-              </button>
-            )}
-            {phase === "monitoring" && (
-              <button
-                onClick={handleStop}
-                className="rounded-md border border-zinc-800 px-3 py-1.5 text-xs text-zinc-200 hover:bg-zinc-900"
-              >
-                Stop monitor
-              </button>
-            )}
-          </div>
-        </div>
       </div>
-    </div>
+    </Dialog>
   );
 }
 
@@ -545,14 +518,14 @@ function PinField({
   disabled: boolean;
 }) {
   return (
-    <label className="text-[11px] text-zinc-500">
+    <label className="text-[11px] text-ink-faint">
       {label}
       <input
         type="text"
         value={value}
         disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
-        className="mt-0.5 w-full rounded border border-zinc-800 bg-zinc-900 px-1.5 py-1 font-mono text-xs text-zinc-200"
+        className="mt-0.5 w-full rounded-md border border-line bg-surface-1 px-1.5 py-1 font-mono text-xs text-ink transition-colors focus:border-accent-500/60 focus:outline-none"
       />
     </label>
   );
@@ -572,7 +545,13 @@ function BoardPicker({
       <ul className="space-y-1">
         {boards.map((b) => (
           <li key={b.id}>
-            <label className="flex cursor-pointer items-center gap-2 rounded-md border border-zinc-800 bg-zinc-900/40 px-2 py-1.5 hover:bg-zinc-900">
+            <label
+              className={`flex cursor-pointer items-center gap-2 rounded-md border px-2 py-1.5 transition-colors ${
+                boardId === b.id
+                  ? "border-accent-500/50 bg-accent-500/5"
+                  : "border-line bg-surface-2/40 hover:border-line-strong hover:bg-surface-2"
+              }`}
+            >
               <input
                 type="radio"
                 name="lorawan-board"
@@ -583,8 +562,8 @@ function BoardPicker({
                 className="h-3.5 w-3.5"
               />
               <span className="flex-1 text-xs">
-                <span className="text-zinc-100">{b.name}</span>
-                <span className="ml-2 text-zinc-500">{b.chip_variant}</span>
+                <span className="text-ink">{b.name}</span>
+                <span className="ml-2 text-ink-faint">{b.chip_variant}</span>
               </span>
             </label>
           </li>
@@ -596,7 +575,7 @@ function BoardPicker({
 
 function UnsupportedNotice() {
   return (
-    <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-100">
+    <div className="rounded-md bg-amber-500/10 p-3 text-xs text-amber-100 ring-1 ring-amber-500/30">
       <div className="mb-1 font-semibold">WebSerial isn&apos;t available here.</div>
       <div>
         Flashing needs a Chromium browser (Chrome, Edge, Brave; not Firefox/Safari)
@@ -609,13 +588,13 @@ function UnsupportedNotice() {
 }
 
 function Heading({ children }: { children: React.ReactNode }) {
-  return <div className="mb-2 text-xs uppercase tracking-wide text-zinc-500">{children}</div>;
+  return <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">{children}</div>;
 }
 
 function LogBox({ log, className = "" }: { log: string[]; className?: string }) {
   return (
     <pre
-      className={`max-h-40 overflow-auto rounded-md border border-zinc-800 bg-zinc-900/50 p-2 font-mono text-[11px] text-zinc-400 ${className}`}
+      className={`max-h-40 overflow-auto rounded-lg bg-surface-0 p-2 font-mono text-[12px] text-ink-dim ring-1 ring-line ${className}`}
     >
       {log.join("\n")}
     </pre>
