@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **kicad-render CI gate.** New workflow runs the full schematic render
+  pipeline (SKiDL -> .kicad_sch -> `kicad-cli sch export svg`) on real
+  KiCad 8 for solved and unsolved example designs -- the pipeline the
+  netlist-level gate never exercised.
+
+### Fixed
+
+- Render errors now include kicad-cli stdout, where its parse detail
+  lands; stderr alone carried only "Failed to load schematic file".
+
 ## [0.21.1] — 2026-07-25
 
 ### Fixed
