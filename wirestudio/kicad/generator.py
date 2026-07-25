@@ -147,7 +147,9 @@ if __name__ == "__main__":
     # Default: emit a netlist (.net) + a schematic (.kicad_sch).
     # Comment out either if you only want one.
     generate_netlist()
-    generate_schematic()
+    # allow_routing_failure: SKiDL's schematic router is best-effort; a
+    # degraded render with stubbed nets beats no render at all.
+    generate_schematic(allow_routing_failure=True)
 '''
 
 
@@ -259,6 +261,15 @@ def _render_connections(
             except FileNotFoundError:
                 pass
         pin_name = _resolve_pin_role(conn.pin_role, lib_comp)
+        # Unbound targets (empty gpio pin / bus id -- the design hasn't been
+        # pin-solved yet) stay unconnected. Emitting a stub net for them
+        # gives SKiDL's schematic router a wire with nowhere to go, which
+        # fails routing on larger designs.
+        if (conn.target.kind == "gpio" and not conn.target.pin) or (
+            conn.target.kind == "bus" and not conn.target.bus_id
+        ):
+            lines.append(f'# {conn.component_id}.{conn.pin_role}: unassigned (run Solve Pins)')
+            continue
         net_expr = _net_handle_for(conn.target, design, ref_index)
         lines.append(f'{comp_var}[{_quote(pin_name)}] += {net_expr}')
     return "\n".join(lines)

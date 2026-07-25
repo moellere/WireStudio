@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.1] — 2026-07-25
+
+### Fixed
+
+- **Schematic render failed on designs with unassigned pins.** Unbound
+  connection targets (empty gpio pin / bus id) emitted stub
+  `GPIO_UNBOUND` nets that SKiDL's schematic router cannot route on
+  larger designs (`GlobalRoutingFailure`). Unassigned pins now stay
+  unconnected in the generated script (annotated `run Solve Pins`), and
+  `generate_schematic(allow_routing_failure=True)` degrades any other
+  routing failure to a stubbed-net render instead of a 500.
+
 ## [0.21.0] — 2026-07-25
 
 ### Added
