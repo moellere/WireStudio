@@ -21,6 +21,7 @@ import type {
   EnclosureSearchResponse,
   EnclosureSourceStatus,
 } from "../types/api";
+import { Button, Dialog, FieldLabel, Input } from "./ui";
 
 type Tab = "generate" | "search";
 
@@ -37,54 +38,36 @@ interface Props {
 export function EnclosureDialog({ design, boardLibraryId, boardName, onClose }: Props) {
   const [tab, setTab] = useState<Tab>("generate");
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-      onClick={onClose}
+    <Dialog
+      title="Enclosure"
+      subtitle={`${boardName} (${boardLibraryId})`}
+      onClose={onClose}
+      maxWidth="max-w-2xl"
     >
-      <div
-        className="m-4 flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
-          <div>
-            <div className="text-sm font-semibold text-zinc-100">Enclosure</div>
-            <div className="text-xs text-zinc-500">
-              {boardName} ({boardLibraryId})
-            </div>
-          </div>
+      <div className="-mx-5 -mt-4 mb-4 flex border-b border-line text-xs">
+        {(["generate", "search"] as const).map((t) => (
           <button
-            onClick={onClose}
-            className="rounded-md border border-zinc-800 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
+            key={t}
+            onClick={() => setTab(t)}
+            className={`px-3 py-2 transition-colors ${
+              tab === t
+                ? "border-b-2 border-accent-400 text-ink"
+                : "text-ink-dim hover:text-ink"
+            }`}
           >
-            Close
+            {t === "generate" ? "Generate (OpenSCAD)" : "Search community models"}
           </button>
-        </div>
-
-        <div className="flex border-b border-zinc-800 text-xs">
-          {(["generate", "search"] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`px-3 py-2 transition-colors ${
-                tab === t
-                  ? "border-b-2 border-blue-400 text-zinc-100"
-                  : "text-zinc-400 hover:text-zinc-200"
-              }`}
-            >
-              {t === "generate" ? "Generate (OpenSCAD)" : "Search community models"}
-            </button>
-          ))}
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-auto p-4 text-sm">
-          {tab === "generate" ? (
-            <GenerateTab design={design} />
-          ) : (
-            <SearchTab boardLibraryId={boardLibraryId} boardName={boardName} />
-          )}
-        </div>
+        ))}
       </div>
-    </div>
+
+      <div className="text-sm">
+        {tab === "generate" ? (
+          <GenerateTab design={design} />
+        ) : (
+          <SearchTab boardLibraryId={boardLibraryId} boardName={boardName} />
+        )}
+      </div>
+    </Dialog>
   );
 }
 
@@ -129,22 +112,18 @@ function GenerateTab({ design }: { design: Design }) {
   }
 
   return (
-    <div className="space-y-3 text-zinc-300">
-      <p className="text-xs leading-relaxed text-zinc-400">
-        Downloads a self-contained <code className="text-zinc-200">.scad</code> file
+    <div className="space-y-3 text-ink-dim">
+      <p className="text-xs leading-relaxed text-ink-dim">
+        Downloads a self-contained <code className="text-ink">.scad</code> file
         with a tunables block at the top (wall thickness, clearance, standoff
         geometry). Open in OpenSCAD; press <kbd>F5</kbd> to preview, then export STL
         for printing. Bottom shell only -- the lid is up to you, for now.
       </p>
-      <button
-        onClick={handleGenerate}
-        disabled={downloading}
-        className="rounded-md bg-blue-500/20 px-3 py-1.5 text-sm text-blue-100 ring-1 ring-blue-400/40 enabled:hover:bg-blue-500/30 disabled:opacity-40"
-      >
+      <Button variant="primary" onClick={handleGenerate} disabled={downloading}>
         {downloading ? "Generating…" : downloaded ? "Downloaded ✓ — generate again" : "Generate enclosure →"}
-      </button>
+      </Button>
       {error && (
-        <div className="rounded-md border border-rose-700/40 bg-rose-900/15 px-2 py-1.5 text-xs text-rose-200">
+        <div className="rounded-md bg-rose-500/10 px-2 py-1.5 text-xs text-rose-200 ring-1 ring-rose-500/30">
           {error}
         </div>
       )}
@@ -212,25 +191,21 @@ function SearchTab({ boardLibraryId, boardName }: { boardLibraryId: string; boar
   return (
     <div className="space-y-3">
       <form onSubmit={onSubmit} className="space-y-1">
-        <label className="block text-[11px] uppercase tracking-wide text-zinc-500">refinement</label>
+        <FieldLabel>refinement</FieldLabel>
         <div className="flex gap-2">
-          <input
+          <Input
             type="text"
             value={refinement}
             onChange={(e) => setRefinement(e.target.value)}
             placeholder={`e.g. battery, screw mount, slim`}
-            className="flex-1 rounded-md border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs text-zinc-100 focus:border-zinc-600 focus:outline-none"
+            className="flex-1 text-xs"
           />
-          <button
-            type="submit"
-            disabled={searching}
-            className="rounded-md border border-zinc-800 px-2 py-1 text-xs text-zinc-300 enabled:hover:bg-zinc-900 disabled:opacity-40"
-          >
+          <Button type="submit" disabled={searching}>
             {searching ? "Searching…" : "Search"}
-          </button>
+          </Button>
         </div>
-        <p className="text-[11px] text-zinc-500">
-          Query: <code className="text-zinc-300">
+        <p className="text-[11px] text-ink-faint">
+          Query: <code className="text-ink-dim">
             {response?.query || `${boardName} enclosure${refinement.trim() ? ` ${refinement.trim()}` : ""}`}
           </code>
         </p>
@@ -241,10 +216,10 @@ function SearchTab({ boardLibraryId, boardName }: { boardLibraryId: string; boar
           {sources.map((s) => (
             <div
               key={s.source}
-              className={`rounded-md border px-2 py-1 text-[11px] ${
+              className={`rounded-md px-2 py-1 text-[11px] ring-1 ${
                 s.available
-                  ? "border-emerald-700/40 bg-emerald-900/15 text-emerald-200"
-                  : "border-amber-700/40 bg-amber-900/15 text-amber-200"
+                  ? "bg-emerald-500/10 text-emerald-200 ring-emerald-500/30"
+                  : "bg-amber-500/10 text-amber-200 ring-amber-500/30"
               }`}
             >
               <span className="font-mono">{s.source}</span>
@@ -258,13 +233,13 @@ function SearchTab({ boardLibraryId, boardName }: { boardLibraryId: string; boar
       )}
 
       {error && (
-        <div className="rounded-md border border-rose-700/40 bg-rose-900/15 px-2 py-1.5 text-xs text-rose-200">
+        <div className="rounded-md bg-rose-500/10 px-2 py-1.5 text-xs text-rose-200 ring-1 ring-rose-500/30">
           {error}
         </div>
       )}
 
       {!anyAvailable && response && (
-        <div className="rounded-md border border-zinc-800 bg-zinc-900/30 px-3 py-2 text-xs text-zinc-400">
+        <div className="rounded-md border border-line bg-surface-2/40 px-3 py-2 text-xs text-ink-dim">
           No search source is configured. Set the env var listed in the source
           status above and restart the studio API to enable search.
         </div>
@@ -275,7 +250,7 @@ function SearchTab({ boardLibraryId, boardName }: { boardLibraryId: string; boar
           {results.map((r) => (
             <li
               key={`${r.source}:${r.id}`}
-              className="rounded-md border border-zinc-800 bg-zinc-900/40 p-2"
+              className="rounded-md border border-line bg-surface-2/40 p-2"
             >
               <div className="flex items-start gap-3">
                 {r.thumbnail_url && (
@@ -294,13 +269,13 @@ function SearchTab({ boardLibraryId, boardName }: { boardLibraryId: string; boar
                       href={r.model_url}
                       target="_blank"
                       rel="noreferrer noopener"
-                      className="text-sm text-zinc-100 hover:underline"
+                      className="text-sm text-ink hover:underline"
                     >
                       {r.title}
                     </a>
-                    <span className="text-[11px] text-zinc-500">{r.source}</span>
+                    <span className="text-[11px] text-ink-faint">{r.source}</span>
                   </div>
-                  <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-zinc-500">
+                  <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-ink-faint">
                     {r.creator && <span>by {r.creator}</span>}
                     {r.likes != null && <span>♥ {r.likes}</span>}
                   </div>
@@ -312,8 +287,8 @@ function SearchTab({ boardLibraryId, boardName }: { boardLibraryId: string; boar
       )}
 
       {!searching && response && results.length === 0 && anyAvailable && (
-        <div className="text-xs text-zinc-500">
-          No matches for <code className="rounded-md bg-zinc-800 px-1">{response.query}</code>.
+        <div className="text-xs text-ink-faint">
+          No matches for <code className="rounded-md bg-surface-2 px-1">{response.query}</code>.
           Try a different refinement.
         </div>
       )}

@@ -2,13 +2,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Boxes, Download, Search, Trash2, Upload, X } from "lucide-react";
 import { api } from "../api/client";
 import type { Design, InventoryCheckResponse, InventoryEntry } from "../types/api";
+import { Button } from "./ui";
 
 type Part = { id: string; name: string; kind: "component" | "module" };
 
 const STATUS_STYLE: Record<string, string> = {
-  have: "text-emerald-300 bg-emerald-500/10 ring-emerald-400/30",
-  partial: "text-amber-300 bg-amber-500/10 ring-amber-400/30",
-  need: "text-rose-300 bg-rose-500/10 ring-rose-400/30",
+  have: "text-emerald-300 bg-emerald-500/10 ring-emerald-500/30",
+  partial: "text-amber-300 bg-amber-500/10 ring-amber-500/30",
+  need: "text-rose-300 bg-rose-500/10 ring-rose-500/30",
 };
 
 /** "What's in my drawer": list/add/edit/remove inventory entries, and check the
@@ -148,25 +149,25 @@ export function InventoryDialog({ design, onClose }: { design?: Design | null; o
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex animate-overlay-in items-center justify-center bg-black/60 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="flex max-h-[85vh] w-[min(720px,92vw)] flex-col overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 shadow-xl"
+        className="flex max-h-[85vh] w-[min(720px,92vw)] animate-dialog-in flex-col overflow-hidden rounded-xl bg-surface-1 shadow-panel"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
-          <div className="flex items-center gap-2 text-sm font-medium text-zinc-100">
-            <Boxes className="h-4 w-4 text-zinc-400" />
+        <div className="flex items-center justify-between border-b border-line px-5 py-4">
+          <div className="flex items-center gap-2 text-sm font-semibold text-ink">
+            <Boxes className="h-4 w-4 text-ink-dim" />
             Component Inventory
           </div>
           <div className="flex items-center gap-1">
             <button onClick={exportCsv} title="Export inventory as CSV" aria-label="Export CSV"
-              className="rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200">
+              className="rounded-md p-1.5 text-ink-faint transition-colors hover:bg-surface-2 hover:text-ink">
               <Download className="h-4 w-4" />
             </button>
             <button onClick={() => fileRef.current?.click()} title="Import inventory from CSV" aria-label="Import CSV"
-              className="rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200">
+              className="rounded-md p-1.5 text-ink-faint transition-colors hover:bg-surface-2 hover:text-ink">
               <Upload className="h-4 w-4" />
             </button>
             <input
@@ -180,38 +181,38 @@ export function InventoryDialog({ design, onClose }: { design?: Design | null; o
                 ev.target.value = "";
               }}
             />
-            <button onClick={onClose} aria-label="Close" className="rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200">
+            <button onClick={onClose} aria-label="Close" className="rounded-md p-1.5 text-ink-faint transition-colors hover:bg-surface-2 hover:text-ink">
               <X className="h-4 w-4" />
             </button>
           </div>
         </div>
 
-        <div className="space-y-4 overflow-y-auto px-4 py-3">
+        <div className="space-y-4 overflow-y-auto px-5 py-4">
           {error && (
-            <div className="rounded-md border border-rose-500/40 bg-rose-500/10 p-2 text-xs text-rose-200">{error}</div>
+            <div className="rounded-md bg-rose-500/10 p-2 text-xs text-rose-200 ring-1 ring-rose-500/30">{error}</div>
           )}
 
           {/* Add a part */}
           <section>
             <div className="relative">
-              <Search className="pointer-events-none absolute left-2 top-2.5 h-3.5 w-3.5 text-zinc-500" />
+              <Search className="pointer-events-none absolute left-2 top-2.5 h-3.5 w-3.5 text-ink-faint" />
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Add a part — search components and modules…"
-                className="w-full rounded-md border border-zinc-800 bg-zinc-900 py-1.5 pl-7 pr-2 text-xs text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
+                className="w-full rounded-md border border-line bg-surface-1 py-1.5 pl-7 pr-2 text-xs text-ink placeholder:text-ink-ghost transition-colors focus:border-accent-500/60 focus:outline-none"
               />
             </div>
             {matches.length > 0 && (
-              <ul className="mt-1 divide-y divide-zinc-800 rounded-md border border-zinc-800">
+              <ul className="mt-1 divide-y divide-line rounded-md border border-line">
                 {matches.map((p) => (
                   <li key={`${p.kind}:${p.id}`}>
                     <button
                       onClick={() => addPart(p)}
-                      className="flex w-full items-center justify-between px-2 py-1.5 text-left text-xs text-zinc-200 hover:bg-zinc-900"
+                      className="flex w-full items-center justify-between px-2 py-1.5 text-left text-xs text-ink transition-colors hover:bg-surface-2"
                     >
                       <span>{p.name}</span>
-                      <span className="ml-2 rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-400">{p.kind}</span>
+                      <span className="ml-2 rounded bg-surface-2 px-1.5 py-0.5 text-[10px] text-ink-dim">{p.kind}</span>
                     </button>
                   </li>
                 ))}
@@ -222,13 +223,13 @@ export function InventoryDialog({ design, onClose }: { design?: Design | null; o
           {/* Inventory list */}
           <section>
             {loading ? (
-              <p className="text-xs text-zinc-500">Loading inventory…</p>
+              <p className="text-xs text-ink-faint">Loading inventory…</p>
             ) : entries.length === 0 ? (
-              <p className="text-xs text-zinc-500">No parts on hand yet. Search above to add one.</p>
+              <p className="text-xs text-ink-faint">No parts on hand yet. Search above to add one.</p>
             ) : (
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="text-left text-[11px] uppercase tracking-wide text-zinc-500">
+                  <tr className="text-left text-[11px] uppercase tracking-wider text-ink-faint">
                     <th className="pb-1 font-medium">Part</th>
                     <th className="pb-1 font-medium w-16">Qty</th>
                     <th className="pb-1 font-medium w-16">Min</th>
@@ -239,14 +240,14 @@ export function InventoryDialog({ design, onClose }: { design?: Design | null; o
                 </thead>
                 <tbody className="align-top">
                   {entries.map((e) => (
-                    <tr key={e.library_id} className="border-t border-zinc-900">
-                      <td className="py-1.5 pr-2 text-zinc-200">
+                    <tr key={e.library_id} className="border-t border-line">
+                      <td className="py-1.5 pr-2 text-ink">
                         {nameOf(e.library_id)}
                         {e.kind === "module" && (
-                          <span className="ml-1 rounded bg-zinc-800 px-1 py-0.5 text-[10px] text-zinc-400">module</span>
+                          <span className="ml-1 rounded bg-surface-2 px-1 py-0.5 text-[10px] text-ink-dim">module</span>
                         )}
                         {e.low_stock && (
-                          <span className="ml-1 rounded bg-amber-500/10 px-1 py-0.5 text-[10px] text-amber-300 ring-1 ring-amber-400/30">low</span>
+                          <span className="ml-1 rounded bg-amber-500/10 px-1 py-0.5 text-[10px] text-amber-300 ring-1 ring-amber-500/30">low</span>
                         )}
                       </td>
                       <td className="py-1 pr-2">
@@ -256,7 +257,7 @@ export function InventoryDialog({ design, onClose }: { design?: Design | null; o
                           value={e.quantity}
                           onChange={(ev) => patch(e.library_id, { quantity: Number(ev.target.value) })}
                           onBlur={() => persist(e)}
-                          className={`w-14 rounded border bg-zinc-900 px-1.5 py-1 text-zinc-100 focus:outline-none ${e.low_stock ? "border-amber-500/50 focus:border-amber-400" : "border-zinc-800 focus:border-zinc-600"}`}
+                          className={`w-14 rounded-md border bg-surface-1 px-1.5 py-1 text-ink transition-colors focus:outline-none ${e.low_stock ? "border-amber-500/50 focus:border-amber-400" : "border-line focus:border-accent-500/60"}`}
                         />
                       </td>
                       <td className="py-1 pr-2">
@@ -267,7 +268,7 @@ export function InventoryDialog({ design, onClose }: { design?: Design | null; o
                           title="Low-stock threshold (0 = none)"
                           onChange={(ev) => patch(e.library_id, { min_quantity: Number(ev.target.value) })}
                           onBlur={() => persist(e)}
-                          className="w-14 rounded border border-zinc-800 bg-zinc-900 px-1.5 py-1 text-zinc-500 focus:border-zinc-600 focus:text-zinc-100 focus:outline-none"
+                          className="w-14 rounded-md border border-line bg-surface-1 px-1.5 py-1 text-ink-faint transition-colors focus:border-accent-500/60 focus:text-ink focus:outline-none"
                         />
                       </td>
                       <td className="py-1 pr-2">
@@ -276,7 +277,7 @@ export function InventoryDialog({ design, onClose }: { design?: Design | null; o
                           onChange={(ev) => patch(e.library_id, { location: ev.target.value })}
                           onBlur={() => persist(e)}
                           placeholder="bin / drawer"
-                          className="w-full rounded border border-zinc-800 bg-zinc-900 px-1.5 py-1 text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
+                          className="w-full rounded-md border border-line bg-surface-1 px-1.5 py-1 text-ink placeholder:text-ink-ghost transition-colors focus:border-accent-500/60 focus:outline-none"
                         />
                       </td>
                       <td className="py-1 pr-2">
@@ -285,14 +286,14 @@ export function InventoryDialog({ design, onClose }: { design?: Design | null; o
                           onChange={(ev) => patch(e.library_id, { note: ev.target.value })}
                           onBlur={() => persist(e)}
                           placeholder="—"
-                          className="w-full rounded border border-zinc-800 bg-zinc-900 px-1.5 py-1 text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
+                          className="w-full rounded-md border border-line bg-surface-1 px-1.5 py-1 text-ink placeholder:text-ink-ghost transition-colors focus:border-accent-500/60 focus:outline-none"
                         />
                       </td>
                       <td className="py-1.5 text-right">
                         <button
                           onClick={() => remove(e.library_id)}
                           aria-label={`Remove ${nameOf(e.library_id)}`}
-                          className="rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-rose-300"
+                          className="rounded-md p-1 text-ink-faint transition-colors hover:bg-surface-2 hover:text-rose-300"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
@@ -306,15 +307,12 @@ export function InventoryDialog({ design, onClose }: { design?: Design | null; o
 
           {/* Design BOM check */}
           {design && (
-            <section className="border-t border-zinc-800 pt-3">
+            <section className="border-t border-line pt-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-zinc-300">Check the open design</span>
-                <button
-                  onClick={runCheck}
-                  className="rounded-md border border-zinc-800 px-2 py-1 text-xs text-zinc-200 hover:bg-zinc-900"
-                >
+                <span className="text-xs font-medium text-ink-dim">Check the open design</span>
+                <Button size="sm" onClick={runCheck}>
                   Check BOM
-                </button>
+                </Button>
               </div>
               {check && (
                 <div className="mt-2 space-y-2">
@@ -325,11 +323,11 @@ export function InventoryDialog({ design, onClose }: { design?: Design | null; o
                       </span>
                     ))}
                   </div>
-                  <ul className="divide-y divide-zinc-900 rounded-md border border-zinc-800">
+                  <ul className="divide-y divide-line rounded-md border border-line">
                     {check.lines.map((ln) => (
                       <li key={ln.library_id} className="flex items-center justify-between px-2 py-1 text-xs">
-                        <span className="text-zinc-200">{ln.name}</span>
-                        <span className="flex items-center gap-2 text-zinc-400">
+                        <span className="text-ink">{ln.name}</span>
+                        <span className="flex items-center gap-2 text-ink-dim">
                           <span>{ln.on_hand}/{ln.needed}</span>
                           <span className={`rounded px-1.5 py-0.5 text-[10px] ring-1 ${STATUS_STYLE[ln.status] ?? ""}`}>
                             {ln.status}

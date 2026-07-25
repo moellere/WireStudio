@@ -4,6 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>wirestudio</title>
+    <script>
+      // Set the theme before first paint to avoid a dark flash for
+      // light-theme users. Mirrors the logic in src/lib/theme.ts.
+      try {
+        var t = localStorage.getItem("wirestudio:ui:theme");
+        if (t !== "light" && t !== "dark") {
+          t = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+        }
+        document.documentElement.dataset.theme = t;
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -115,11 +115,11 @@ describe("alternatives disclosure", () => {
     await userEvent.click(toggles[0]);
 
     // The expanded panel lists the OTHER match (DHT22) with the score
-    // delta. -4 < 0 so the delta should render in the muted (zinc-600)
+    // delta. -4 < 0 so the delta should render in the muted (ink-ghost)
     // colour, not emerald.
     const delta = screen.getByText(/\(-4\.0\)/);
     expect(delta).toBeInTheDocument();
-    expect(delta).toHaveClass("text-zinc-600");
+    expect(delta).toHaveClass("text-ink-ghost");
   });
 
   it("collapses the previously expanded row when a new one is opened", async () => {

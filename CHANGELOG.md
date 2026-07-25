@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Vendor integration spec.** `docs/integration_spec.md` documents what a
+  manufacturer supplies to list a board or component in the library: the
+  exact component/board YAML schemas annotated by consuming phase (catalog,
+  pin solving, electrical validation, ESPHome generation, schematic/PCB,
+  enclosure, LoRaWAN), a submission-bundle manifest for commerce metadata,
+  and the spec/reviewed/validated listing tiers.
+
+- **Wiring view.** New default tab in the design pane: a read-only SVG
+  net graph built directly from `design.json` -- board rails/GPIOs on
+  the left, buses in a middle lane, components on the right, edges
+  colored by net class with hover highlighting of the whole net.
+  Unassigned pins surface in red. Live under render errors (same as the
+  JSON tab); no new dependencies.
+
+- **`[pcb]` extra.** `pip install wirestudio[pcb]` now pulls the
+  pip-installable half of the KiCad pipeline (skidl + cairosvg), and
+  `Dockerfile.pcb` installs it, fixing the schematic preview being
+  unavailable in the -pcb/-full images (skidl was never installed).
+  kicad-cli and the footprint/symbol libraries remain native installs.
+
+- **Schematic and PCB tabs.** Advanced mode adds two design-pane tabs
+  that render server-side previews on demand: the existing schematic
+  pipeline (SKiDL + kicad-cli), and a new placed-board preview via
+  `POST /design/kicad/pcb/render` (`kicad-cli pcb export svg`, cropped
+  to the board area) with a `/status` probe. Both gate on server tool
+  availability and surface the missing-tool reason inline.
+
+- **Light theme.** The web UI now ships light and dark themes: a header
+  toggle persists the choice to localStorage, first visit follows the
+  system `prefers-color-scheme`, and a pre-paint snippet in `index.html`
+  avoids the wrong-theme flash. Implemented entirely as token overrides
+  on `data-theme="light"` -- components are theme-agnostic. Dialogs
+  opened via the shared primitive now also close on Escape.
+
+### Changed
+
+- **Web UI design system.** Token-based theme in `index.css` (Tailwind
+  `@theme`): copper accent, layered surface scale, ink text scale, violet
+  reserved for agent surfaces, semantic emerald/amber/rose kept for
+  success/warn/error. Self-hosted Inter Variable + JetBrains Mono. New
+  `ui.tsx` Dialog/Button/Input/FieldLabel primitives replace the
+  hand-rolled overlay scaffolding in most dialogs; every component moved
+  off ad-hoc zinc/blue classes. Visual only — no behavior changes.
+
 ## [0.19.1] — 2026-07-18
 
 ### Added
