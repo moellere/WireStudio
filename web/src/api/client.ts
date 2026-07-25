@@ -53,6 +53,14 @@ class ApiError extends Error {
   }
 }
 
+// Surface the server's error detail (tool stderr, validation text) instead
+// of just "POST /path -> 500" when the body carries a string detail.
+function apiErrorMessage(method: string, path: string, status: number, body: unknown): string {
+  const detail = (body as { detail?: unknown } | null | undefined)?.detail;
+  if (typeof detail === "string" && detail.trim()) return detail;
+  return `${method} ${path} -> ${status}`;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
@@ -61,7 +69,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (!res.ok) {
     let body: unknown = undefined;
     try { body = await res.json(); } catch { /* not json */ }
-    throw new ApiError(res.status, `${init?.method ?? "GET"} ${path} -> ${res.status}`, body);
+    throw new ApiError(res.status, apiErrorMessage(init?.method ?? "GET", path, res.status, body), body);
   }
   return (await res.json()) as T;
 }
@@ -77,7 +85,7 @@ async function requestText(path: string, init?: RequestInit): Promise<string> {
   if (!res.ok) {
     let body: unknown = undefined;
     try { body = await res.json(); } catch { /* not json */ }
-    throw new ApiError(res.status, `${init?.method ?? "GET"} ${path} -> ${res.status}`, body);
+    throw new ApiError(res.status, apiErrorMessage(init?.method ?? "GET", path, res.status, body), body);
   }
   return await res.text();
 }
@@ -92,7 +100,7 @@ async function requestBlob(path: string, init?: RequestInit): Promise<Blob> {
   if (!res.ok) {
     let body: unknown = undefined;
     try { body = await res.json(); } catch { /* not json */ }
-    throw new ApiError(res.status, `${init?.method ?? "GET"} ${path} -> ${res.status}`, body);
+    throw new ApiError(res.status, apiErrorMessage(init?.method ?? "GET", path, res.status, body), body);
   }
   return await res.blob();
 }

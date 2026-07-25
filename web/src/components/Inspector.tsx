@@ -92,7 +92,13 @@ export function Inspector({
           />
         )}
         {selection.kind === "board" && <BoardInspector id={selection.id} />}
-        {selection.kind === "component" && <LibraryComponentInspector id={selection.id} />}
+        {selection.kind === "component" && (
+          <LibraryComponentInspector
+            id={selection.id}
+            designReady={!!design}
+            onAdd={onAddComponent}
+          />
+        )}
         {selection.kind === "component_instance" && (
           <ComponentInstanceInspector
             instanceId={selection.id}
@@ -187,6 +193,7 @@ function DesignInspector({
         <BusList
           design={design}
           gpioPins={gpioPins}
+          gpioCaps={(boardRecord.gpio_capabilities ?? {}) as Record<string, string[]>}
           defaultBuses={defaultBuses}
           compatibilityWarnings={compatibilityWarnings}
           onChange={onDesignChange}
@@ -251,11 +258,11 @@ function AddComponentControl({
   }, [libraryComponents]);
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="space-y-1.5">
       <select
         value={picked}
         onChange={(e) => setPicked(e.target.value)}
-        className="flex-1 rounded-md border border-dashed border-line bg-surface-1 px-2 py-1 text-xs text-ink-dim focus:border-accent-500/60 focus:outline-none"
+        className="w-full min-w-0 max-w-full rounded-md border border-dashed border-line bg-surface-1 px-2 py-1 text-xs text-ink-dim focus:border-accent-500/60 focus:outline-none"
       >
         <option value="">+ Add component...</option>
         {categories.map((cat) => (
@@ -273,7 +280,7 @@ function AddComponentControl({
           onAdd(picked);
           setPicked("");
         }}
-        className="rounded-md border border-line px-2 py-1 text-xs text-ink-dim enabled:hover:bg-surface-2 disabled:opacity-40"
+        className="w-full rounded-md border border-line px-2 py-1 text-xs text-ink-dim transition-colors enabled:hover:bg-surface-2 enabled:hover:text-ink disabled:opacity-40"
       >
         Add
       </button>
@@ -531,7 +538,13 @@ function BoardInspector({ id }: { id: string }) {
   );
 }
 
-function LibraryComponentInspector({ id }: { id: string }) {
+function LibraryComponentInspector({
+  id, designReady, onAdd,
+}: {
+  id: string;
+  designReady: boolean;
+  onAdd: (libraryId: string) => void;
+}) {
   const comp = useFetched(() => api.getComponent(id), [id]);
   if (!comp) return <Loading />;
 
@@ -547,6 +560,15 @@ function LibraryComponentInspector({ id }: { id: string }) {
           </span>
         </div>
       </div>
+
+      <button
+        disabled={!designReady}
+        onClick={() => onAdd(id)}
+        title={designReady ? "Add this component to the open design" : "Open or create a design first"}
+        className="w-full rounded-md bg-accent-600 px-3 py-1.5 text-xs font-medium text-accent-50 shadow-pop transition-colors enabled:hover:bg-accent-500 disabled:opacity-40"
+      >
+        Add to design
+      </button>
 
       <div className="rounded-md border border-line bg-surface-2/40 p-4 text-xs">
         {c.notes ? (
