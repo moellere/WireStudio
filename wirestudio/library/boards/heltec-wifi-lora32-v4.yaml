@@ -1,0 +1,114 @@
+id: heltec-wifi-lora32-v4
+name: Heltec WiFi LoRa 32 V4 (SX1262 + PA)
+mcu: esp32
+chip_variant: esp32s3
+framework: arduino
+# TODO(0.x): upstream platform-espressif32 has no heltec_wifi_lora_32_V4
+# board definition yet; the V3 def compiles and boots this board (same
+# ESP32-S3 core, same console wiring) but partitions for 8MB of the
+# 16MB flash. Switch when upstream ships a V4 def.
+platformio_board: heltec_wifi_lora_32_V3
+flash_size_mb: 16
+
+rails:
+  - {name: "5V",  voltage: 5.0, source: usb}
+  - {name: "3V3", voltage: 3.3, source: onboard_regulator}
+  - {name: "GND", voltage: 0.0}
+
+# ESP32-S3R2 (2MB PSRAM, native USB-C, no USB-UART bridge) + SX1262
+# behind a GC1109 (V4.2) / KCT8103L (V4.3) RF front end -- PA to 28dBm,
+# RX LNA -- plus onboard SSD1315 0.96" OLED (SSD1306-compatible),
+# LiPo charger, SH1.25-2 solar input, and an SH1.25-8 GNSS connector.
+# Core pinout is V3-compatible: same radio SPI (8/9/10/11), same OLED
+# I2C (17/18, Vext-gated on GPIO36 active low), same battery sense
+# (GPIO1 behind ADC_Ctrl GPIO37 -- active HIGH on V4, divider 4.9 with
+# a 1.045 factory cal factor).
+#
+# FEM control pins (GPIO2/5/7/46) are claimed by the RF front end and
+# not general-purpose: VFEM LDO on GPIO7, chip-enable (CSD) on GPIO2,
+# V4.3 CTX on GPIO5, V4.2 CPS on GPIO46. The SX1262's DIO2 drives the
+# TX/RX path select. GNSS connector pins (34, 38-42) are usable as GPIO
+# when nothing is plugged into the SH1.25-8.
+#
+# Same ESP32-S3 strap rules as ESP32-S3-DevKitC-1: GPIO0 boot, GPIO45
+# VDD_SPI, GPIO46 ROM-print. ADC1 = GPIO1-10, ADC2 = GPIO11-20
+# (unusable while WiFi is active).
+default_buses:
+  i2c: {sda: GPIO17, scl: GPIO18}
+  spi: {clk: GPIO9, miso: GPIO11, mosi: GPIO10}
+
+onboard_peripherals:
+  lora_sx1262:  {cs: GPIO8, rst: GPIO12, dio1: GPIO14, busy: GPIO13}
+  oled_ssd1306: {address: "0x3C", reset: GPIO21, vext: GPIO36}
+  battery_adc:  {pin: GPIO1, control: GPIO37, divider: 5.12}
+  vext:         {pin: GPIO36, inverted: true}
+  led:          {pin: GPIO35}
+  button:       {pin: GPIO0, inverted: true}
+  rf_fem:       {power: GPIO7, enable: GPIO2, ctx: GPIO5, pa_mode: GPIO46}
+
+# SX1262 wiring matches the V3 (RadioLib `new Module(8, 14, 12, 13)`),
+# TCXO 1.8V off DIO3, DIO2 as RF switch. setup_high powers and enables
+# the FEM before radio.begin(): VFEM (7), CSD (2), and both
+# revision-specific mode pins (5, 46) high. Static-high mode pins give
+# full TX PA on both revisions; on V4.3 RX runs in bypass (forfeits the
+# LNA's 21dB) -- dynamic TX/RX mode switching is firmware work beyond
+# the generated sketch.
+radio:
+  chip: sx1262
+  radiolib_class: SX1262
+  pins: {cs: GPIO8, rst: GPIO12, dio1: GPIO14, busy: GPIO13}
+  tcxo_voltage: 1.8
+  dio2_as_rf_switch: true
+  setup_high: [GPIO7, GPIO2, GPIO5, GPIO46]
+
+gpio_capabilities:
+  GPIO0:  [gpio, strap, boot_high, button]
+  GPIO1:  [gpio, adc, adc1, battery_sense]
+  GPIO2:  [gpio, adc, adc1, fem_enable]
+  GPIO3:  [gpio, adc, adc1, strap, i2c_scl]
+  GPIO4:  [gpio, adc, adc1, i2c_sda]
+  GPIO5:  [gpio, adc, adc1, fem_ctx]
+  GPIO6:  [gpio, adc, adc1, pwm]
+  GPIO7:  [gpio, adc, adc1, fem_power]
+  GPIO8:  [gpio, adc, adc1, lora_cs]
+  GPIO9:  [gpio, adc, adc1, spi_clk]
+  GPIO10: [gpio, adc, adc1, spi_mosi]
+  GPIO11: [gpio, adc, adc2, spi_miso]
+  GPIO12: [gpio, adc, adc2, lora_rst]
+  GPIO13: [gpio, adc, adc2, lora_busy]
+  GPIO14: [gpio, adc, adc2, lora_dio1]
+  GPIO15: [gpio, adc, adc2, pwm]
+  GPIO16: [gpio, adc, adc2, pwm]
+  GPIO17: [gpio, adc, adc2, i2c_sda]
+  GPIO18: [gpio, adc, adc2, i2c_scl]
+  GPIO19: [gpio, usb, pwm]
+  GPIO20: [gpio, usb, pwm]
+  GPIO21: [gpio, oled_reset]
+  GPIO33: [gpio, pwm]
+  GPIO34: [gpio, gnss_en]
+  GPIO35: [gpio, led, pwm]
+  GPIO36: [gpio, vext_control]
+  GPIO37: [gpio, adc_control]
+  GPIO38: [gpio, gnss_uart]
+  GPIO39: [gpio, gnss_uart]
+  GPIO40: [gpio, gnss_standby]
+  GPIO41: [gpio, gnss_pps]
+  GPIO42: [gpio, gnss_reset]
+  GPIO43: [gpio, uart_tx, serial_tx]
+  GPIO44: [gpio, uart_rx, serial_rx]
+  GPIO45: [gpio, strap, boot_low, pwm]
+  GPIO46: [gpio, strap, boot_low, fem_pa_mode]
+  GPIO47: [gpio, pwm]
+  GPIO48: [gpio, pwm]
+
+# Enclosure geometry deferred like the V3: U.FL antenna, onboard OLED,
+# and the new SH1.25 connectors need a measured board.
+# TODO(0.x): add enclosure: once verified against hardware.
+
+# KiCad symbol mapping. 36-pin board, modelled as a 2x18 header until
+# KiCad ships a dedicated Heltec module symbol.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_02x18_Odd_Even
+  footprint: Connector_PinHeader_2.54mm:PinHeader_2x18_P2.54mm_Vertical
+  value: Heltec WiFi LoRa 32 V4

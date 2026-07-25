@@ -70,6 +70,7 @@ def _radio_ctx(radio: Radio) -> dict:
         "gpio": gpio,
         "tcxo_voltage": radio.tcxo_voltage,
         "dio2_as_rf_switch": radio.dio2_as_rf_switch,
+        "setup_high": [_pin(p) for p in radio.setup_high],
     }
 
 
