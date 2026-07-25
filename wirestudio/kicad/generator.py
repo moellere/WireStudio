@@ -110,7 +110,21 @@ The script writes <design_id>.kicad_sch + .net + .xml into the current
 directory. Edit pin assignments + component overrides above the
 generate_*() calls if you want to tweak before re-running.
 """
+import os
+
+import skidl
 from skidl import Part, Net, generate_netlist, generate_schematic, TEMPLATE
+
+# Pin the tool and symbol search path so the script resolves symbols the
+# same way everywhere it runs. SKiDL's default tool predates .kicad_sym
+# libraries, and its default search path includes '.', which lets a stray
+# <Lib>.kicad_sym in the tree shadow the real library.
+skidl.set_default_tool(skidl.KICAD8)
+_sym = next((os.environ[v] for v in (
+    "KICAD8_SYMBOL_DIR", "KICAD9_SYMBOL_DIR", "KICAD7_SYMBOL_DIR",
+    "KICAD6_SYMBOL_DIR", "KICAD_SYMBOL_DIR") if os.environ.get(v)), None)
+if _sym:
+    skidl.lib_search_paths[skidl.KICAD8] = [_sym]
 
 
 def build():

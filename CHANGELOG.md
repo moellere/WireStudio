@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.1] — 2026-07-25
+
+### Fixed
+
+- **Schematic render 500 in deployments.** The generated SKiDL script now
+  pins `skidl.set_default_tool(KICAD8)` and sets the symbol search path
+  from the `KICAD*_SYMBOL_DIR` env vars itself. Previously only the CI
+  runner did this, so running the script raw -- which is exactly what
+  `/design/kicad/render` and the download-and-run flow do -- left SKiDL
+  on its legacy default tool and failed with `Can't open file: RF_Module`.
+  Verified end-to-end: raw script -> .kicad_sch on skidl 2.2.3 against
+  pinned kicad-symbols 8.0.0.
+
 ## [0.20.0] — 2026-07-25
 
 ### Added
