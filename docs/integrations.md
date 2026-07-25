@@ -70,8 +70,18 @@ emits a SKiDL Python script the user runs locally to produce a
 `.kicad_sch` — no LLM in the wire-routing path, fully diffable in git.
 `python -m wirestudio.kicad.import --symbol Lib:Symbol` drafts the
 `kicad:` block for a library component from a KiCad `.kicad_sym`
-library. PCB layout (Freerouting + Gerber export) is on the 1.0+
-roadmap.
+library.
+
+PCB layout and routing are server-side: `POST /design/kicad/pcb` emits
+the placed board, `POST /design/kicad/route` autoroutes it with
+Freerouting (SSE log stream; fetch the routed board from
+`GET /design/kicad/route/{cache_key}`), and the fab endpoints accept
+`?route=true` to route before exporting Gerbers. The route step needs
+pcbnew, a JRE, and the Freerouting jar on the server — set
+`WIRESTUDIO_PCBNEW_PYTHON`, `WIRESTUDIO_JAVA`, and
+`WIRESTUDIO_FREEROUTING_JAR`, or run the `-pcb` image variant which
+bakes all three in. `GET /design/kicad/route/status` reports what's
+missing.
 
 The output is gate-verified: the [`kicad-schematic`](../.github/workflows/kicad-schematic.yml)
 workflow runs every bundled example's SKiDL script against the pinned

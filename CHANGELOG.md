@@ -7,6 +7,98 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Vendor integration spec.** `docs/integration_spec.md` documents what a
+  manufacturer supplies to list a board or component in the library: the
+  exact component/board YAML schemas annotated by consuming phase (catalog,
+  pin solving, electrical validation, ESPHome generation, schematic/PCB,
+  enclosure, LoRaWAN), a submission-bundle manifest for commerce metadata,
+  and the spec/reviewed/validated listing tiers.
+
+- **Wiring view.** New default tab in the design pane: a read-only SVG
+  net graph built directly from `design.json` -- board rails/GPIOs on
+  the left, buses in a middle lane, components on the right, edges
+  colored by net class with hover highlighting of the whole net.
+  Unassigned pins surface in red. Live under render errors (same as the
+  JSON tab); no new dependencies.
+
+- **`[pcb]` extra.** `pip install wirestudio[pcb]` now pulls the
+  pip-installable half of the KiCad pipeline (skidl + cairosvg), and
+  `Dockerfile.pcb` installs it, fixing the schematic preview being
+  unavailable in the -pcb/-full images (skidl was never installed).
+  kicad-cli and the footprint/symbol libraries remain native installs.
+
+- **Schematic and PCB tabs.** Advanced mode adds two design-pane tabs
+  that render server-side previews on demand: the existing schematic
+  pipeline (SKiDL + kicad-cli), and a new placed-board preview via
+  `POST /design/kicad/pcb/render` (`kicad-cli pcb export svg`, cropped
+  to the board area) with a `/status` probe. Both gate on server tool
+  availability and surface the missing-tool reason inline.
+
+- **Light theme.** The web UI now ships light and dark themes: a header
+  toggle persists the choice to localStorage, first visit follows the
+  system `prefers-color-scheme`, and a pre-paint snippet in `index.html`
+  avoids the wrong-theme flash. Implemented entirely as token overrides
+  on `data-theme="light"` -- components are theme-agnostic. Dialogs
+  opened via the shared primitive now also close on Escape.
+
+### Changed
+
+- **Web UI design system.** Token-based theme in `index.css` (Tailwind
+  `@theme`): copper accent, layered surface scale, ink text scale, violet
+  reserved for agent surfaces, semantic emerald/amber/rose kept for
+  success/warn/error. Self-hosted Inter Variable + JetBrains Mono. New
+  `ui.tsx` Dialog/Button/Input/FieldLabel primitives replace the
+  hand-rolled overlay scaffolding in most dialogs; every component moved
+  off ad-hoc zinc/blue classes. Visual only — no behavior changes.
+
+## [0.19.1] — 2026-07-18
+
+### Added
+
+- **`-full` image variant: PCB toolchain + LoRaWAN worker in one image.**
+  `Dockerfile.pcb` gains the same `WITH_LORAWAN` build-arg as the default
+  Dockerfile (PlatformIO + the `[lorawan]` extra + espressif32 prewarm,
+  installed into the app venv); a new `full-image` CI job publishes it as
+  the `-full` tag suffix. This is the every-feature image prod runs —
+  autoroute/fab AND LoRaWAN compile/flash from one deployment — replacing
+  `-lorawan` as the prod-tracked variant.
+
+## [0.19.0] — 2026-07-17
+
+### Added
+
+- **Autoroute surfaces: HTTP, MCP/agent, web UI, and a `-pcb` image.**
+  `POST /design/kicad/route` streams the Freerouting log as SSE and the
+  routed board downloads from `GET /design/kicad/route/{cache_key}`;
+  `GET /design/kicad/route/status` gates the feature. The fab Gerber/package
+  endpoints accept `?route=true` (503 toolchain missing, 409 routing failed),
+  and `fab_status` reports `route`/`route_reason`. New `route_pcb` MCP/agent
+  tool returns a routed summary (segments, vias, cache_key). The KiCad export
+  dialog gains an **Autoroute** section (route button, live log, routed-board
+  download) and a **Routed** checkbox on the fab package. A new
+  `Dockerfile.pcb` variant (published as the `-pcb` tag suffix) bakes in
+  KiCad 8 + pcbnew, the pinned libraries, a Temurin JRE, and the pinned
+  Freerouting jar so a deployment can route out of the box; route results
+  cache under `/data/route-cache`.
+
+- **PCB autorouting (Freerouting).** `wirestudio/kicad/route.py` routes a
+  generated `.kicad_pcb`: Specctra DSN export via pcbnew (a dependency-free
+  `pcbnew_bridge.py` run under the system python — kicad-cli has no Specctra
+  support, and KiCad >= 8 is required for the headless SES import),
+  `freerouting.jar` in batch mode (`-mt 1`; multithreaded routing is a known
+  source of KiCad-DRC clearance violations), then SES import back into the
+  board. Subprocess-based throughout, watchdog-killed on stagnation, results
+  content-addressed like the firmware cache. Gated by `route_status()`
+  (pcbnew bridge + java + `WIRESTUDIO_FREEROUTING_JAR`); CLI at
+  `python -m wirestudio.kicad.route`. A new `pcb-route` CI gate routes
+  representative examples and holds them to the routed bar: copper present,
+  zero unconnected items, no non-waived error-severity DRC violations —
+  verified end-to-end against KiCad 8 + Freerouting 2.2.4 (four boards
+  route clean). HTTP/MCP/web-UI surfaces and a toolchain image are the
+  follow-up; this lands the pipeline and its gate.
+
 ### Documentation
 
 - **Deployment docs reconciled with the actual GitOps flow.** `docs/deployment.md`
@@ -17,6 +109,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `:X.Y.Z-lorawan` release tag), plus the manual `newTag` option. Also fixed a
   broken image tag in `deploy/k8s.yaml` (`:v0.17.1`, which never existed in the
   registry) — now `:0.18.0`.
+- **Docs roadmap: PCB layout marked Verified (unrouted).** `docs/index.md`
+  Priority 4 no longer claims the layout is "not yet in flight" — it now
+  records the shipped `.kicad_pcb` emit (0.14.0) and fab outputs (0.15.0)
+  with their CI gates, leaving Freerouting autorouting as the open step.
+- **README leads with the hardware design angle.** The intro now frames the
+  studio around what stock ESPHome's Device Builder doesn't do — electrical
+  metadata, CSP pin solving, electrical validation, and the physical artifacts
+  (wiring, schematic, PCB, fab bundle, enclosure) — instead of board/component
+  selection. Also reconciled the status table with reality: KiCad PCB layout
+  (0.14.0) and fab outputs (0.15.0) move from Deferred to Verified with their
+  CI gates linked, only Freerouting autorouting stays deferred; version
+  references and the Docker quickstart tag move to `0.18.0` (the `v0.17.1`
+  tag never existed in the registry).
 
 ## [0.18.0] — 2026-07-11
 

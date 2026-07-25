@@ -11,7 +11,7 @@ FastAPI serves the API and the built SPA from one process.
 docker run --rm -p 8765:8765 \
   -e ANTHROPIC_API_KEY=sk-ant-... \
   -v wirestudio-data:/data \
-  ghcr.io/moellere/wirestudio:0.18.0
+  ghcr.io/moellere/wirestudio:0.19.1
 ```
 
 Open <http://localhost:8765>. The image bundles the FastAPI server +
@@ -23,10 +23,12 @@ Available tags:
 
 | Tag | What it tracks |
 |---|---|
-| `:0.18.0` / `:0.18` / `:latest` | the v0.18.0 release |
+| `:0.19.1` / `:0.19` / `:latest` | the v0.19.0 release |
 | `:main` | latest commit on `main` (rolling) |
 | `:sha-<short>` | a specific commit |
-| `:<tag>-lorawan` (e.g. `:main-lorawan`, `:0.18.0-lorawan`) | same image **plus** the LoRaWAN compile worker (PlatformIO baked in) — see below |
+| `:<tag>-lorawan` (e.g. `:main-lorawan`, `:0.19.1-lorawan`) | same image **plus** the LoRaWAN compile worker (PlatformIO baked in) — see below |
+| `:<tag>-pcb` (e.g. `:main-pcb`, `:0.19.1-pcb`) | the PCB toolchain variant: KiCad 8 (kicad-cli + pcbnew), the pinned symbol/footprint libraries, a JRE, and Freerouting — everything the board/fab/autoroute endpoints gate on — see below |
+| `:<tag>-full` (e.g. `:main-full`, `:0.19.1-full`) | the every-feature image prod runs: `-pcb` **plus** the LoRaWAN compile worker (PlatformIO + prewarmed espressif32) |
 
 All feature-gating env vars are optional — the studio runs without any
 of them, just with the corresponding feature turned off. See
@@ -39,6 +41,17 @@ of them, just with the corresponding feature turned off. See
 | `THINGIVERSE_API_KEY` | enclosure search (`/enclosure/search`) |
 | `WIRESTUDIO_MCP_TOKEN` | bearer token for the `/mcp` endpoint (auto-generated if unset) |
 | `CHIRPSTACK_API_URL` + `CHIRPSTACK_API_TOKEN` | LoRaWAN device provisioning against ChirpStack (`/lorawan/provision`, `/lorawan/provision-esphome`) |
+
+### PCB toolchain (`-pcb` variant)
+
+The default image can't emit boards, Gerbers, or routed boards — those
+endpoints gate on KiCad tooling and report `available: false`. The
+**`-pcb` variant** (`Dockerfile.pcb`, based on the official
+`kicad/kicad:8.0` image) bakes in kicad-cli, pcbnew, the pinned KiCad
+libraries, a Temurin JRE, and the pinned Freerouting jar, with all the
+`WIRESTUDIO_*` toolchain env vars preset. Autoroute results cache under
+`/data/route-cache`, so they survive restarts with the volume. amd64
+only, like `-lorawan`.
 
 ### LoRaWAN compile worker
 
@@ -84,7 +97,7 @@ so both run side by side from one source tree with independent PVCs.
 
 | App | Overlay | Image | Upgrades when |
 |---|---|---|---|
-| `wirestudio-prod` | `deploy/overlays/prod` | pinned release, e.g. `:0.18.0` | the tag changes in git (bump by hand or via image-updater) |
+| `wirestudio-prod` | `deploy/overlays/prod` | pinned release, e.g. `:0.19.1` | the tag changes in git (bump by hand or via image-updater) |
 | `wirestudio-dev` | `deploy/overlays/dev` | rolling `:main-lorawan` | image-updater digest-pins a new `main` build |
 
 ```sh
@@ -93,11 +106,13 @@ kubectl apply -f deploy/argocd/wirestudio-dev.yaml
 ```
 
 Both apps run `automated: { prune, selfHeal }`, so ArgoCD applies git
-changes and reverts manual cluster edits on its own. Staging tracks the
-`:main-lorawan` tag (the LoRaWAN worker variant, so the compile/flash
-flow works on staging); prod pins an immutable release tag and stays
-lean. Each overlay sets its own namespace, so the apps never share
-`/data`.
+changes and reverts manual cluster edits on its own. Track the variant
+that carries the features the environment needs — the upstream cluster
+runs `-full` on both (staging `:main-full` by digest, prod the newest
+`:X.Y.Z-full` release tag), so the LoRaWAN compile/flash flow AND the
+PCB autoroute/fab endpoints work everywhere. Prod pins an immutable
+release tag. Each overlay sets its own namespace, so the apps never
+share `/data`.
 
 ### Keeping the image current
 

@@ -282,11 +282,24 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
         "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
     },
     {
+        "name": "route_pcb",
+        "description": (
+            "Autoroute the design's .kicad_pcb with Freerouting and return a "
+            "summary (routed, segments, vias, cache_key); the routed board file "
+            "is downloaded via GET /design/kicad/route/{cache_key}. Results are "
+            "cached, so re-routing an unchanged design is instant. Needs the "
+            "route toolchain on the server (pcbnew + java + the Freerouting "
+            "jar) -- returns ok=false, available=false otherwise. Can take a "
+            "minute or two on a dense board. Read-only."
+        ),
+        "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
+    {
         "name": "fab_status",
         "description": (
             "What fab outputs the server can produce: BOM is always available, "
-            "CPL needs the footprint libraries, Gerbers need kicad-cli. "
-            "Read-only."
+            "CPL needs the footprint libraries, Gerbers need kicad-cli, routed "
+            "Gerbers also need the Freerouting toolchain (`route`). Read-only."
         ),
         "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
     },
@@ -632,6 +645,41 @@ def _run_kicad_pcb(design: dict, library: Library) -> dict:
     }
 
 
+def _run_route_pcb(design: dict, library: Library) -> dict:
+    """Route and return a summary, not the board text (that's the artifact
+    endpoint's job). A cache hit makes repeat calls instant."""
+    from wirestudio.kicad.route import (
+        RouteError,
+        RouteUnavailable,
+        route_board,
+        route_cache_key,
+    )
+
+    try:
+        d = Design.model_validate(design)
+    except Exception as e:
+        return {"ok": False, "error": f"design failed validation: {e}"}
+    try:
+        board = generate_kicad_pcb(d, library)
+    except PcbUnavailable as e:
+        return {"ok": False, "available": False, "error": str(e)}
+    except (FileNotFoundError, ValueError) as e:
+        return {"ok": False, "error": str(e)}
+    try:
+        routed = route_board(board)
+    except RouteUnavailable as e:
+        return {"ok": False, "available": False, "error": str(e)}
+    except RouteError as e:
+        return {"ok": False, "error": str(e)[-2000:]}
+    return {
+        "ok": True,
+        "routed": True,
+        "segments": len(re.findall(r"^\t\(segment$", routed, re.M)),
+        "vias": len(re.findall(r"^\t\(via$", routed, re.M)),
+        "cache_key": route_cache_key(board),
+    }
+
+
 def _run_fab_status(_design: dict, _library: Library) -> dict:
     """Server-side capability probe; the design/library are ignored."""
     return fab_status()
@@ -691,6 +739,7 @@ TOOL_HANDLERS: dict[str, Callable[..., Any]] = {
     "solve_pins": _run_solve_pins,
     "kicad_schematic": _run_kicad_schematic,
     "kicad_pcb": _run_kicad_pcb,
+    "route_pcb": _run_route_pcb,
     "fab_status": _run_fab_status,
     "fab_bom": _run_fab_bom,
     "fab_cpl": _run_fab_cpl,

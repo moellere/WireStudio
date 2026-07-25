@@ -113,10 +113,27 @@ e.g. [YAPP_Box](https://github.com/mrWheel/YAPP_Box) and integrate
 instead of reimplementing? Next: more boards' `enclosure:` metadata
 (only 5 carry it today); a lid + snap-fit; slicer-side print validation.
 
-**Priority 4 — PCB layout.** *Deferred to 1.0+.* The footprint-coverage
-gate (every component + board names a real KiCad footprint that resolves
-in the pinned libraries) landed as step 1 — the foundation a `.kicad_pcb`
-emit builds on — but the layout itself is not yet in flight.
+**Priority 4 — PCB layout.** *Verified (unrouted).* Shipped in three
+steps: the footprint-coverage gate (every component + board names a
+real KiCad footprint that resolves in the pinned libraries, 0.13), the
+`.kicad_pcb` emit (footprints placed, pads bound to nets, `Edge.Cuts`
+outline, 0.14), and the fab outputs (BOM / CPL / Gerber + drill via
+`/design/fab/*`, packaged for JLCPCB upload, 0.15). The
+[`pcb-layout`](../.github/workflows/pcb-layout.yml) gate proves every
+bundled example emits a structurally sound board, and
+[`pcb-drc`](../.github/workflows/pcb-drc.yml) opens each board in real
+KiCad and runs DRC (unrouted airwires expected). The Freerouting
+autoroute step now closes the routing gap:
+`python -m wirestudio.kicad.route` runs board → Specctra DSN (pcbnew
+bridge) → `freerouting.jar` → SES import, and the
+[`pcb-route`](../.github/workflows/pcb-route.yml) gate holds
+representative examples to the routed bar (copper present, zero
+unconnected items, routed DRC clean). Routing is surfaced everywhere the
+board is: `POST /design/kicad/route` (SSE), the `route_pcb` MCP/agent
+tool, the web UI's Autoroute section, `?route=true` on the fab exports,
+and the `-pcb` image variant that carries the toolchain. Next: routed
+DRC feedback in the UI, via-cost/keepout tuning, and copper pours for
+power nets.
 
 **LoRaWAN target (0.13 standalone, 0.16+ external-component).** *Works —
 hardware-validated on the standalone path; external-component path
@@ -129,7 +146,8 @@ shipped, hardware join verification in progress.* Two paths share the
   browser, and provisions the device against ChirpStack. Every radio
   board's firmware builds in CI
   ([`lorawan-firmware`](../.github/workflows/lorawan-firmware.yml));
-  validated end-to-end on a TTGO T-Beam against live ChirpStack 4.17.
+  validated end-to-end on a TTGO T-Beam and Heltec WiFi LoRa 32 V2 and
+  V3 against live ChirpStack 4.17.
 - **External-component path** (`target: "esphome"` + `lorawan.payload`).
   When `design.lorawan.payload` is set, the YAML generator emits an
   `external_components: github://moellere/lorawan-for-esphome@<ref>`
