@@ -577,7 +577,10 @@ function ComponentInstanceInspector({
   const components = useMemo(() => (design ? readComponents(design) : []), [design]);
   const connectionRows = useMemo(() => (design ? readConnections(design, instanceId) : []), [design, instanceId]);
 
-  const inst = components.find((c) => c.id === instanceId) as ComponentInstance | undefined;
+  // ⚡ Bolt: memoize instance lookup to prevent O(N) traversal on every render
+  const inst = useMemo(() => {
+    return components.find((c) => c.id === instanceId) as ComponentInstance | undefined;
+  }, [components, instanceId]);
   const comp = useFetched(() => (inst ? api.getComponent(inst.library_id) : Promise.resolve(null)), [inst?.library_id]);
 
   // ⚡ Bolt: memoize component-specific warnings to avoid O(N) array allocation on every render
