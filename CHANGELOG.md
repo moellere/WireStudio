@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.3] — 2026-07-25
+
+### Changed
+
+- **Cleaner schematic renders.** Power/rail nets are marked as stubs
+  (short labeled stubs at each pin instead of routed wires), and
+  generate_schematic runs with auto_stub (high-fanout nets become
+  labeled stubs; routing failures fall back to a stubbed drawing) and
+  rotate_parts. Cuts most of the label/wire overlap in the preview.
+
 ## [0.21.2] — 2026-07-25
 
 ### Added
