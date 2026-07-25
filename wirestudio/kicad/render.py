@@ -135,7 +135,10 @@ def render_schematic(design: Design, library: Library, *, fmt: str = "svg") -> b
             timeout=_TIMEOUT,
         )
         if cli_run.returncode != 0:
-            raise RenderError("kicad-cli failed:\n" + (cli_run.stderr or "")[-2000:])
+            raise RenderError(
+                "kicad-cli failed:\n"
+                + ((cli_run.stdout or "") + (cli_run.stderr or ""))[-2000:]
+            )
 
         svgs = sorted(out_dir.glob("*.svg")) or sorted(tmp.glob("*.svg"))
         if not svgs:
@@ -203,7 +206,10 @@ def render_pcb(design: Design, library: Library) -> bytes:
             timeout=_TIMEOUT,
         )
         if cli_run.returncode != 0:
-            raise RenderError("kicad-cli failed:\n" + (cli_run.stderr or "")[-2000:])
+            raise RenderError(
+                "kicad-cli failed:\n"
+                + ((cli_run.stdout or "") + (cli_run.stderr or ""))[-2000:]
+            )
         if not out.exists():
             raise RenderError("kicad-cli produced no SVG output")
         return out.read_bytes()
