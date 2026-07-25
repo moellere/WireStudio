@@ -72,45 +72,69 @@ jobs:
         env:
           KICAD8_SYMBOL_DIR: ${{ github.workspace }}/kicad-symbols
         run: |
-          pip install sexpdata
           python - <<'EOF'
           import json, os, re, subprocess, sys
-          import sexpdata
           from wirestudio.kicad.generator import generate_skidl
           from wirestudio.library import default_library
           from wirestudio.model import Design
 
           d = Design(**json.load(open("wirestudio/examples/garage-motion.json")))
           open("schematic.py", "w").write(generate_skidl(d, default_library()))
-          r = subprocess.run([sys.executable, "schematic.py"], capture_output=True, text=True)
-          print("skidl rc:", r.returncode, r.stderr[-500:] if r.returncode else "")
+          subprocess.run([sys.executable, "schematic.py"], capture_output=True)
           sch = [f for f in os.listdir(".") if f.endswith(".kicad_sch")][0]
           src = open(sch).read()
+
+          def block(text, start):
+              depth = 0; j = start
+              while True:
+                  if text[j] == "(": depth += 1
+                  elif text[j] == ")":
+                      depth -= 1
+                      if depth == 0: return text[start:j+1]
+                  j += 1
 
           def test(name, text):
               open("variant.kicad_sch", "w").write(text)
               os.makedirs("outd", exist_ok=True)
               r = subprocess.run(["kicad-cli", "sch", "export", "svg", "--output", "outd",
                                   "variant.kicad_sch"], capture_output=True, text=True)
-              print(f"{name:32s} -> {'LOADS' if r.returncode == 0 else 'FAILS'}"
-                    f"  {(r.stdout + r.stderr).strip()[:200]}")
-              return r.returncode == 0
+              ok = r.returncode == 0
+              print(f"{name:44s} -> {'LOADS' if ok else 'FAILS'}", flush=True)
+              return ok
 
-          test("baseline", src)
-          test("version-20231120", src.replace("(version 20230409)", "(version 20231120)"))
-          test("no-generator_version", re.sub(r'\s*\(generator_version "[^"]*"\)', "", src))
-          test("both", re.sub(r'\s*\(generator_version "[^"]*"\)', "",
-                              src.replace("(version 20230409)", "(version 20231120)")))
+          hdr_end = src.find("(lib_symbols")
+          header = src[:hdr_end]
+          libsyms = block(src, hdr_end)
+          tail = ")\n"
 
-          doc = sexpdata.loads(src)
-          def keep(pred):
-              return sexpdata.dumps([doc[0]] + [x for x in doc[1:]
-                     if not isinstance(x, list) or pred(x[0].value())])
-          base = {"version", "generator", "generator_version", "uuid", "paper", "title_block"}
-          test("header-only", keep(lambda n: n in base))
-          test("no-lib_symbols", keep(lambda n: n != "lib_symbols"))
-          test("no-body-symbols", keep(lambda n: n != "symbol"))
-          test("no-wires-labels", keep(lambda n: n not in ("wire", "junction", "global_label", "label")))
+          print("=== generated file, first 40 lines ===")
+          print("\n".join(src.splitlines()[:40]))
+          print("=== single-symbol variants ===")
+          names = re.findall(r'\(symbol "([^"]+:[^"]+)"', libsyms)
+          minimal_fail = None
+          for n in names:
+              sym = block(libsyms, libsyms.find(f'(symbol "{n}"'))
+              text = header + "(lib_symbols\n" + sym + ")\n" + tail
+              if not test(f"only[{n}]", text) and minimal_fail is None:
+                  minimal_fail = (n, sym)
+
+          print("=== construct-strip on first failing symbol ===")
+          if minimal_fail:
+              n, sym = minimal_fail
+              inner = sym[sym.find('"'+n+'"') + len(n) + 2:-1]
+              spans = []
+              i = 0
+              while i < len(inner):
+                  if inner[i] == "(":
+                      b = block(inner, i)
+                      spans.append((i, i + len(b), b.split("\n")[0].strip()[:40]))
+                      i += len(b)
+                  else:
+                      i += 1
+              for start, end, label in spans:
+                  stripped = inner[:start] + inner[end:]
+                  text = header + '(lib_symbols\n(symbol "' + n + '"' + stripped + "))\n" + tail
+                  test(f"strip[{label}]", text)
           EOF
 
       - name: Render solved examples end-to-end
