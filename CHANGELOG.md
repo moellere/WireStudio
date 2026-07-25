@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.2] — 2026-07-25
+
+### Added
+
+- **kicad-render CI gate.** New workflow runs the full schematic render
+  pipeline (SKiDL -> .kicad_sch -> `kicad-cli sch export svg`) on real
+  KiCad 8 for solved and unsolved example designs -- the pipeline the
+  netlist-level gate never exercised.
+
+### Fixed
+
+- **Schematic render: KiCad 8 rejected SKiDL's output.** skidl 2.2.x's
+  kicad8 writer emits two KiCad 9 constructs -- the nested
+  `(pin_numbers (hide yes))` form and the `embedded_fonts` token --
+  that KiCad 8's parser rejects with a swallowed exception, presenting
+  as "Failed to load schematic file". The generated script rewrites the
+  emitted `.kicad_sch` to KiCad 8 grammar. Diagnosed and now guarded by
+  the kicad-render gate.
+
+- Render errors now include kicad-cli stdout, where its parse detail
+  lands; stderr alone carried only "Failed to load schematic file".
+
 ## [0.21.1] — 2026-07-25
 
 ### Fixed

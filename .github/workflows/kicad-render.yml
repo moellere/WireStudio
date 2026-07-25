@@ -1,0 +1,98 @@
+name: kicad-render
+
+# End-to-end render gate: SKiDL script -> .kicad_sch -> `kicad-cli sch
+# export svg` on real KiCad 8 -- the exact pipeline behind
+# /design/kicad/render. The kicad-schematic gate stops at the netlist;
+# this one catches what only kicad-cli's parser sees (schematic grammar,
+# embedded lib_symbols, toolchain env), which is where three render bugs
+# in a row shipped from.
+
+on:
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - 'wirestudio/kicad/**'
+      - 'wirestudio/library/**'
+      - '.github/workflows/kicad-render.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'wirestudio/kicad/**'
+      - 'wirestudio/library/**'
+      - '.github/workflows/kicad-render.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kicad-render-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  KICAD_SYMBOLS_REF: "8.0.0"
+
+jobs:
+  kicad-render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install studio + SKiDL
+        run: |
+          pip install -e .
+          pip install --no-deps skidl graphviz simp_sexp deprecation
+
+      - name: Install KiCad 8
+        run: |
+          sudo add-apt-repository -y ppa:kicad/kicad-8.0-releases
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends kicad
+          kicad-cli version
+
+      - name: Cache KiCad symbol libraries
+        id: cache-symbols
+        uses: actions/cache@v4
+        with:
+          path: kicad-symbols
+          key: kicad-symbols-${{ env.KICAD_SYMBOLS_REF }}
+
+      - name: Fetch KiCad symbol libraries
+        if: steps.cache-symbols.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch "$KICAD_SYMBOLS_REF" \
+            https://gitlab.com/kicad/libraries/kicad-symbols.git kicad-symbols
+
+      - name: Render solved examples end-to-end
+        env:
+          KICAD8_SYMBOL_DIR: ${{ github.workspace }}/kicad-symbols
+        run: |
+          python -m wirestudio.kicad.render wirestudio/examples/garage-motion.json -o garage.svg
+          python -m wirestudio.kicad.render wirestudio/examples/analog-node.json -o analog.svg
+          ls -la *.svg
+
+      - name: Render a design with unassigned pins
+        env:
+          KICAD8_SYMBOL_DIR: ${{ github.workspace }}/kicad-symbols
+        run: |
+          python - <<'EOF'
+          import json
+          d = json.load(open("wirestudio/examples/analog-node.json"))
+          d["connections"][-1]["target"] = {"kind": "gpio", "pin": ""}
+          json.dump(d, open("unsolved.json", "w"))
+          EOF
+          python -m wirestudio.kicad.render unsolved.json -o unsolved.svg
+          ls -la unsolved.svg
+
+      - name: Upload rendered SVGs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rendered-schematics
+          path: '*.svg'
+          if-no-files-found: ignore

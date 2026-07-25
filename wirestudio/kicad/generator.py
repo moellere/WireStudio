@@ -110,10 +110,27 @@ The script writes <design_id>.kicad_sch + .net + .xml into the current
 directory. Edit pin assignments + component overrides above the
 generate_*() calls if you want to tweak before re-running.
 """
+import glob
 import os
+import re
 
 import skidl
 from skidl import Part, Net, generate_netlist, generate_schematic, TEMPLATE
+
+
+def _kicad8_compat():
+    # SKiDL 2.2.x's kicad8 writer emits two KiCad 9 constructs that
+    # KiCad 8's parser rejects: the nested (pin_numbers (hide yes)) form
+    # (8 requires the bare (pin_numbers hide)) and the embedded_fonts
+    # token (unknown to 8). Rewrite the emitted file to 8's grammar.
+    for path in glob.glob("*.kicad_sch"):
+        with open(path) as fh:
+            text = fh.read()
+        text = re.sub(r"\(pin_numbers\s*\(hide yes\)\s*\)", "(pin_numbers hide)", text)
+        text = re.sub(r"\(pin_numbers\s*\(hide no\)\s*\)", "", text)
+        text = re.sub(r"\(embedded_fonts\s+(?:yes|no)\)", "", text)
+        with open(path, "w") as fh:
+            fh.write(text)
 
 # Pin the tool and symbol search path so the script resolves symbols the
 # same way everywhere it runs. SKiDL's default tool predates .kicad_sym
@@ -150,6 +167,7 @@ if __name__ == "__main__":
     # allow_routing_failure: SKiDL's schematic router is best-effort; a
     # degraded render with stubbed nets beats no render at all.
     generate_schematic(allow_routing_failure=True)
+    _kicad8_compat()
 '''
 
 
