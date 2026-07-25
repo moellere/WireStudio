@@ -41,7 +41,8 @@ images/<id>.png            # product photo, square, >= 512px
 ```
 
 `submission.yaml` carries the commerce metadata that stays out of the
-library files:
+library files (a copyable template ships at
+[`docs/submission.template.yaml`](submission.template.yaml)):
 
 ```yaml
 vendor: Example Corp
