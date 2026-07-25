@@ -193,6 +193,7 @@ function DesignInspector({
         <BusList
           design={design}
           gpioPins={gpioPins}
+          gpioCaps={(boardRecord.gpio_capabilities ?? {}) as Record<string, string[]>}
           defaultBuses={defaultBuses}
           compatibilityWarnings={compatibilityWarnings}
           onChange={onDesignChange}

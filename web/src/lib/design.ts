@@ -397,6 +397,83 @@ function nextBusId(
 
 export type BusType = "i2c" | "spi" | "uart" | "i2s" | "1wire";
 
+// A pin is a clean automatic choice only when every tag is in this set.
+// Anything else (strap, console UART, USB data, input_only, or a fixed
+// onboard role like led / lora_cs / vext_control) is surfaced as a
+// caveat and skipped by auto-selection.
+const SAFE_PIN_TAGS = new Set([
+  "gpio", "pwm", "adc", "adc1", "adc2", "touch", "dac",
+  "i2c_sda", "i2c_scl", "spi_clk", "spi_mosi", "spi_miso",
+  "uart_tx", "uart_rx", "no_pull_internal", "no_pwm", "no_i2c", "no_interrupt",
+]);
+
+/** Why a pin is a risky manual choice, or null when it's clean. */
+export function pinCaveat(tags: string[]): string | null {
+  if (tags.includes("serial_tx") || tags.includes("serial_rx")) return "console UART";
+  if (tags.includes("usb")) return "USB";
+  if (tags.includes("strap")) return "strap pin";
+  if (tags.includes("input_only")) return "input only";
+  const special = tags.find((t) => !SAFE_PIN_TAGS.has(t) && t !== "boot_high" && t !== "boot_low");
+  if (special) return special.replace(/_/g, " ");
+  return null;
+}
+
+/** Every GPIO the design already occupies: bus pin slots plus direct
+ *  gpio connection targets. */
+export function readUsedPins(d: Design): Set<string> {
+  const used = new Set<string>();
+  for (const b of (d.buses as Array<Record<string, unknown>> | undefined) ?? []) {
+    for (const [k, v] of Object.entries(b)) {
+      if (k !== "id" && k !== "type" && typeof v === "string" && /^(GPIO|D|A)\d/i.test(v)) {
+        used.add(v);
+      }
+    }
+  }
+  for (const c of (d.connections as Array<Record<string, unknown>> | undefined) ?? []) {
+    const t = c.target as { kind?: string; pin?: unknown } | undefined;
+    if (t?.kind === "gpio" && t.pin) used.add(String(t.pin));
+  }
+  return used;
+}
+
+const SUGGEST_SLOTS: Record<BusType, string[]> = {
+  i2c: ["sda", "scl"],
+  spi: ["clk", "miso", "mosi"],
+  uart: ["tx", "rx"],
+  i2s: ["lrclk", "bclk"],
+  "1wire": ["pin"],
+};
+
+const SLOT_PREF_TAG: Record<string, string> = {
+  sda: "i2c_sda", scl: "i2c_scl",
+  clk: "spi_clk", miso: "spi_miso", mosi: "spi_mosi",
+  tx: "uart_tx", rx: "uart_rx",
+};
+
+/** Pick free, caveat-less pins for a new bus, preferring pins whose
+ *  capability tags match the slot (a non-console uart_tx pin for tx).
+ *  Returns undefined when the board can't supply enough clean pins --
+ *  the bus then lands with empty slots as before. */
+export function suggestBusPins(
+  type: BusType,
+  caps: Record<string, string[]>,
+  used: Set<string>,
+): Record<string, string> | undefined {
+  const free = Object.entries(caps).filter(([p, tags]) => !used.has(p) && !pinCaveat(tags));
+  const result: Record<string, string> = {};
+  const taken = new Set<string>();
+  for (const slot of SUGGEST_SLOTS[type]) {
+    const pref = SLOT_PREF_TAG[slot];
+    const pick =
+      (pref && free.find(([p, tags]) => !taken.has(p) && tags.includes(pref))) ||
+      free.find(([p]) => !taken.has(p));
+    if (!pick) return undefined;
+    result[slot] = pick[0];
+    taken.add(pick[0]);
+  }
+  return result;
+}
+
 /** Add a bus of the given type; the new bus inherits the board's default
  * pinout when one is present, otherwise lands with empty pin slots and
  * relies on the user (or the pin solver) to fill them in. Pure. */

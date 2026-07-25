@@ -8,8 +8,11 @@ import { useState, useMemo, useEffect } from "react";
 import {
   type BusType,
   addBus,
+  pinCaveat,
+  readUsedPins,
   removeBus,
   renameBus,
+  suggestBusPins,
   updateBus,
 } from "../lib/design";
 import type { CompatibilityWarning, Design } from "../types/api";
@@ -28,13 +31,16 @@ const PIN_SLOTS_BY_TYPE: Record<BusType, string[]> = {
 };
 
 export function BusList({
-  design, gpioPins, defaultBuses, compatibilityWarnings, onChange,
+  design, gpioPins, gpioCaps = {}, defaultBuses, compatibilityWarnings, onChange,
 }: {
   design: Design;
   /** Pin names from the current board's gpio_capabilities, used to populate
    *  the pin selector dropdowns. Empty when no board is loaded -- the
    *  fields fall back to free-text input. */
   gpioPins: string[];
+  /** Full gpio_capabilities map (pin -> tags); drives pin auto-selection
+   *  for new buses and the safe/caveat notes in the pin dropdowns. */
+  gpioCaps?: Record<string, string[]>;
   /** board.default_buses if any -- used when adding a fresh bus so I2C
    *  lands on the board's canonical SDA/SCL out of the box. */
   defaultBuses: Record<string, Record<string, string>>;
@@ -66,6 +72,7 @@ export function BusList({
   }, [compatibilityWarnings]);
 
   const [pickedType, setPickedType] = useState<BusType>("i2c");
+  const usedPins = useMemo(() => readUsedPins(design), [design]);
 
   return (
     <div className="space-y-2">
@@ -79,6 +86,8 @@ export function BusList({
                 bus={b.raw}
                 type={b.type}
                 gpioPins={gpioPins}
+                gpioCaps={gpioCaps}
+                usedPins={usedPins}
                 warnings={warningsByBusId.get(b.id) ?? []}
                 allBusIds={allBusIds}
                 onRename={(newId) => onChange((d) => renameBus(d, b.id, newId))}
@@ -101,9 +110,21 @@ export function BusList({
           ))}
         </select>
         <button
-          onClick={() => onChange((d) => addBus(d, pickedType, defaultBuses[pickedType]))}
+          onClick={() =>
+            onChange((d) =>
+              addBus(
+                d,
+                pickedType,
+                defaultBuses[pickedType] ?? suggestBusPins(pickedType, gpioCaps, readUsedPins(d)),
+              ),
+            )
+          }
           className="rounded-md border border-line px-2 py-0.5 text-xs text-ink-dim hover:bg-surface-2"
-          title={`Add a ${pickedType} bus${defaultBuses[pickedType] ? " on the board's defaults" : ""}`}
+          title={`Add a ${pickedType} bus${
+            defaultBuses[pickedType]
+              ? " on the board's defaults"
+              : " on auto-selected free pins"
+          }`}
         >
           + add bus
         </button>
@@ -113,11 +134,13 @@ export function BusList({
 }
 
 function BusCard({
-  bus, type, gpioPins, warnings, allBusIds, onRename, onChange, onRemove,
+  bus, type, gpioPins, gpioCaps, usedPins, warnings, allBusIds, onRename, onChange, onRemove,
 }: {
   bus: Record<string, unknown>;
   type: BusType;
   gpioPins: string[];
+  gpioCaps: Record<string, string[]>;
+  usedPins: Set<string>;
   warnings: CompatibilityWarning[];
   /** Ids of every bus in the design; used to refuse a rename that
    *  would collide. */
@@ -209,6 +232,8 @@ function BusCard({
               label={slot}
               value={(bus[slot] as string | undefined) ?? ""}
               gpioPins={gpioPins}
+              gpioCaps={gpioCaps}
+              usedPins={usedPins}
               onChange={(v) => onChange({ [slot]: v || undefined })}
             />
           ))}
@@ -259,14 +284,22 @@ function BusCard({
 }
 
 function PinField({
-  label, value, gpioPins, onChange,
+  label, value, gpioPins, gpioCaps, usedPins, onChange,
 }: {
   label: string;
   value: string;
   gpioPins: string[];
+  gpioCaps: Record<string, string[]>;
+  usedPins: Set<string>;
   onChange: (v: string) => void;
 }) {
   const inOptions = gpioPins.includes(value);
+  function note(p: string): string {
+    if (p === value) return "";
+    if (usedPins.has(p)) return " — in use";
+    const caveat = pinCaveat(gpioCaps[p] ?? []);
+    return caveat ? ` — ${caveat}` : " — safe";
+  }
   return (
     <>
       <span className="text-[11px] uppercase tracking-wider text-ink-faint">{label}</span>
@@ -274,11 +307,11 @@ function PinField({
         <select
           value={inOptions ? value : ""}
           onChange={(e) => onChange(e.target.value)}
-          className="rounded-md border border-line bg-surface-1 px-1.5 py-0.5 text-xs text-ink focus:border-accent-500/60 focus:outline-none"
+          className="w-full min-w-0 rounded-md border border-line bg-surface-1 px-1.5 py-0.5 text-xs text-ink focus:border-accent-500/60 focus:outline-none"
         >
           <option value="">(unset{!inOptions && value ? `: ${value}` : ""})</option>
           {gpioPins.map((p) => (
-            <option key={p} value={p}>{p}</option>
+            <option key={p} value={p}>{p}{note(p)}</option>
           ))}
         </select>
       ) : (

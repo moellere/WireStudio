@@ -24,6 +24,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of a generic `POST /path -> 500`, so schematic/PCB render failures are
   diagnosable from the UI.
 
+- **UART buses auto-select pins (#171).** Adding a bus without board
+  defaults now lands on auto-selected free pins: prefers pins whose
+  capability tags match the slot (non-console uart_tx/uart_rx), skips
+  pins already used by buses or connections and pins with caveats
+  (strap, console UART, USB, input-only, fixed onboard roles). Bus pin
+  dropdowns annotate every option -- safe, in use, or the specific
+  caveat -- so manual picks stop landing on warning-prone pins.
+
 - **Inspector add-component UX.** The add-component picker stacks
   vertically (full-width dropdown, Add button below) instead of forcing
   a horizontal scroll that pushed the button out of view, and the
