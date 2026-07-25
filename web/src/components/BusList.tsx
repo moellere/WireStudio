@@ -70,7 +70,7 @@ export function BusList({
   return (
     <div className="space-y-2">
       {buses.length === 0 ? (
-        <div className="text-xs text-zinc-500">No buses.</div>
+        <div className="text-xs text-ink-faint">No buses.</div>
       ) : (
         <ul className="space-y-2">
           {buses.map((b) => (
@@ -94,7 +94,7 @@ export function BusList({
         <select
           value={pickedType}
           onChange={(e) => setPickedType(e.target.value as BusType)}
-          className="rounded-md border border-zinc-800 bg-zinc-950 px-1.5 py-0.5 text-xs text-zinc-100 focus:border-zinc-600 focus:outline-none"
+          className="rounded-md border border-line bg-surface-1 px-1.5 py-0.5 text-xs text-ink focus:border-accent-500/60 focus:outline-none"
         >
           {ALL_BUS_TYPES.map((t) => (
             <option key={t} value={t}>{t}</option>
@@ -102,7 +102,7 @@ export function BusList({
         </select>
         <button
           onClick={() => onChange((d) => addBus(d, pickedType, defaultBuses[pickedType]))}
-          className="rounded-md border border-zinc-800 px-2 py-0.5 text-xs text-zinc-300 hover:bg-zinc-900"
+          className="rounded-md border border-line px-2 py-0.5 text-xs text-ink-dim hover:bg-surface-2"
           title={`Add a ${pickedType} bus${defaultBuses[pickedType] ? " on the board's defaults" : ""}`}
         >
           + add bus
@@ -153,7 +153,7 @@ function BusCard({
   const draftCollides = draftId.trim() !== id && allBusIds.has(draftId.trim());
 
   return (
-    <div className="rounded-md border border-zinc-800 bg-zinc-900/30 p-2">
+    <div className="rounded-md border border-line bg-surface-2/40 p-2">
       <div className="mb-1.5 flex items-center justify-between gap-2">
         <div className="flex items-baseline gap-2">
           <input
@@ -178,29 +178,29 @@ function BusCard({
                 ? `Another bus already uses '${draftId.trim()}'.`
                 : "Press Enter or click away to apply. Esc to revert."
             }
-            className={`w-28 rounded-md border bg-zinc-950 px-1.5 py-0.5 font-mono text-xs focus:outline-none ${
+            className={`w-28 rounded-md border bg-surface-1 px-1.5 py-0.5 font-mono text-xs focus:outline-none ${
               draftCollides
                 ? "border-rose-500/50 text-rose-200 focus:border-rose-500"
                 : draftDirty
                   ? "border-amber-500/50 text-amber-100 focus:border-amber-400"
-                  : "border-zinc-800 text-zinc-100 focus:border-zinc-600"
+                  : "border-line text-ink focus:border-accent-500/60"
             }`}
           />
-          <span className="rounded-md border border-zinc-800 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-zinc-400">
+          <span className="rounded-md border border-line px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-ink-dim">
             {type}
           </span>
         </div>
         <button
           onClick={onRemove}
           title={`Remove ${id}`}
-          className="rounded-md border border-zinc-800 px-1.5 py-0.5 text-xs text-zinc-500 transition-colors hover:border-rose-500/40 hover:bg-rose-500/10 hover:text-rose-300"
+          className="rounded-md border border-line px-1.5 py-0.5 text-xs text-ink-faint transition-colors hover:border-rose-500/40 hover:bg-rose-500/10 hover:text-rose-300"
         >
           ✕
         </button>
       </div>
 
       {slots.length === 0 ? (
-        <div className="text-[11px] text-zinc-500">no bus-level pins</div>
+        <div className="text-[11px] text-ink-faint">no bus-level pins</div>
       ) : (
         <div className="grid grid-cols-[auto_1fr] items-center gap-x-2 gap-y-1">
           {slots.map((slot) => (
@@ -217,7 +217,7 @@ function BusCard({
 
       {(type === "i2c" || type === "uart") && (
         <div className="mt-1.5 grid grid-cols-[auto_1fr] items-center gap-x-2 gap-y-1">
-          <span className="w-16 text-[11px] text-zinc-500">
+          <span className="w-16 text-[11px] text-ink-faint">
             {type === "uart" ? "baud" : "freq Hz"}
           </span>
           <input
@@ -230,7 +230,7 @@ function BusCard({
               onChange(type === "uart" ? { baud_rate: n } : { frequency_hz: n });
             }}
             placeholder={type === "uart" ? "9600" : "100000"}
-            className="w-32 rounded-md border border-zinc-800 bg-zinc-950 px-1.5 py-0.5 text-xs text-zinc-100 focus:border-zinc-600 focus:outline-none"
+            className="w-32 rounded-md border border-line bg-surface-1 px-1.5 py-0.5 text-xs text-ink focus:border-accent-500/60 focus:outline-none"
           />
         </div>
       )}
@@ -242,10 +242,10 @@ function BusCard({
               key={`${w.code}:${w.pin_role}:${i}`}
               className={`rounded-md px-1.5 py-1 text-[10px] leading-snug ${
                 w.severity === "error"
-                  ? "border border-rose-700/50 bg-rose-900/20 text-rose-200"
+                  ? "border border-rose-500/40 bg-rose-500/10 text-rose-200"
                   : w.severity === "warn"
-                    ? "border border-amber-700/40 bg-amber-900/15 text-amber-200"
-                    : "border border-zinc-700/50 bg-zinc-900/40 text-zinc-300"
+                    ? "border border-amber-500/30 bg-amber-500/10 text-amber-200"
+                    : "border border-line-strong/50 bg-surface-2/40 text-ink-dim"
               }`}
               title={w.code}
             >
@@ -269,12 +269,12 @@ function PinField({
   const inOptions = gpioPins.includes(value);
   return (
     <>
-      <span className="text-[11px] uppercase tracking-wide text-zinc-500">{label}</span>
+      <span className="text-[11px] uppercase tracking-wider text-ink-faint">{label}</span>
       {gpioPins.length > 0 ? (
         <select
           value={inOptions ? value : ""}
           onChange={(e) => onChange(e.target.value)}
-          className="rounded-md border border-zinc-800 bg-zinc-950 px-1.5 py-0.5 text-xs text-zinc-100 focus:border-zinc-600 focus:outline-none"
+          className="rounded-md border border-line bg-surface-1 px-1.5 py-0.5 text-xs text-ink focus:border-accent-500/60 focus:outline-none"
         >
           <option value="">(unset{!inOptions && value ? `: ${value}` : ""})</option>
           {gpioPins.map((p) => (
@@ -286,7 +286,7 @@ function PinField({
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="rounded-md border border-zinc-800 bg-zinc-950 px-1.5 py-0.5 text-xs text-zinc-100 focus:border-zinc-600 focus:outline-none"
+          className="rounded-md border border-line bg-surface-1 px-1.5 py-0.5 text-xs text-ink focus:border-accent-500/60 focus:outline-none"
         />
       )}
     </>

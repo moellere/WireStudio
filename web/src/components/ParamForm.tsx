@@ -33,7 +33,7 @@ export function ParamForm({ schema, values, onChange }: Props) {
   const allKeys = [...schemaKeys, ...extraKeys];
 
   if (allKeys.length === 0) {
-    return <div className="text-xs text-zinc-500">No editable params.</div>;
+    return <div className="text-xs text-ink-faint">No editable params.</div>;
   }
 
   return (
@@ -62,9 +62,9 @@ function ParamRow({
 }) {
   const labelEl = (
     <div className="flex items-baseline justify-between gap-2">
-      <label htmlFor={`param-${k}`} className="font-mono text-xs text-zinc-200">{k}</label>
+      <label htmlFor={`param-${k}`} className="font-mono text-xs text-ink">{k}</label>
       {entry.default !== undefined && (
-        <span className="text-[11px] text-zinc-500">default: {JSON.stringify(entry.default)}</span>
+        <span className="text-[11px] text-ink-faint">default: {JSON.stringify(entry.default)}</span>
       )}
     </div>
   );
@@ -74,7 +74,7 @@ function ParamRow({
       {labelEl}
       <div className="mt-1">{renderControl(k, entry, current, onChange)}</div>
       {entry.description && (
-        <div className="mt-1 text-[11px] text-zinc-500">{entry.description}</div>
+        <div className="mt-1 text-[11px] text-ink-faint">{entry.description}</div>
       )}
     </div>
   );
@@ -94,7 +94,7 @@ function renderControl(
         id={id}
         value={v}
         onChange={(e) => onChange(k, coerceToType(e.target.value, entry.type))}
-        className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+        className="w-full rounded-md border border-line bg-surface-1 px-2 py-1 text-sm text-ink focus:border-accent-500/60 focus:outline-none"
       >
         {entry.enum.map((opt) => (
           <option key={String(opt)} value={String(opt)}>{String(opt)}</option>
@@ -105,7 +105,7 @@ function renderControl(
 
   if (entry.type === "boolean") {
     return (
-      <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-zinc-300">
+      <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-ink-dim">
         <input
           id={id}
           type="checkbox"
@@ -134,7 +134,7 @@ function renderControl(
           if (Number.isNaN(n)) return;
           onChange(k, n);
         }}
-        className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+        className="w-full rounded-md border border-line bg-surface-1 px-2 py-1 text-sm text-ink focus:border-accent-500/60 focus:outline-none"
       />
     );
   }
@@ -157,7 +157,7 @@ function renderControl(
       type="text"
       value={current === undefined || current === null ? "" : String(current)}
       onChange={(e) => onChange(k, e.target.value)}
-      className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+      className="w-full rounded-md border border-line bg-surface-1 px-2 py-1 text-sm text-ink focus:border-accent-500/60 focus:outline-none"
     />
   );
 }
@@ -232,8 +232,8 @@ function StructuredParamEditor({
         onChange={(e) => handleChange(e.target.value)}
         spellCheck={false}
         rows={Math.min(12, Math.max(3, text.split("\n").length))}
-        className={`w-full rounded-md border bg-zinc-950 p-2 font-mono text-[11px] text-zinc-100 focus:outline-none ${
-          error ? "border-rose-700/60" : "border-zinc-800 focus:border-zinc-600"
+        className={`w-full rounded-md border bg-surface-1 p-2 font-mono text-[11px] text-ink focus:outline-none ${
+          error ? "border-rose-500/60" : "border-line focus:border-accent-500/60"
         }`}
       />
       {error && (
@@ -261,10 +261,10 @@ function ExtraField({ k, value }: { k: string; value: unknown }) {
   return (
     <div>
       <div className="flex items-baseline justify-between">
-        <span className="font-mono text-xs text-zinc-200">{k}</span>
-        <span className="text-[11px] text-zinc-500">not in schema</span>
+        <span className="font-mono text-xs text-ink">{k}</span>
+        <span className="text-[11px] text-ink-faint">not in schema</span>
       </div>
-      <pre className="mt-1 overflow-auto rounded-md border border-zinc-800 bg-zinc-950 p-2 text-[11px] text-zinc-400">
+      <pre className="mt-1 overflow-auto rounded-md border border-line bg-surface-1 p-2 text-[11px] text-ink-dim">
         {JSON.stringify(value, null, 2)}
       </pre>
     </div>

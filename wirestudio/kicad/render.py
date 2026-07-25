@@ -26,6 +26,7 @@ import tempfile
 from pathlib import Path
 
 from wirestudio.kicad.generator import generate_skidl
+from wirestudio.kicad.pcb import generate_kicad_pcb, pcb_status
 from wirestudio.library import Library, default_library
 from wirestudio.model import Design
 
@@ -144,6 +145,68 @@ def render_schematic(design: Design, library: Library, *, fmt: str = "svg") -> b
     if fmt == "svg":
         return svg_bytes
     return _svg_to_png(svg_bytes)
+
+
+_PCB_LAYERS = "F.Cu,B.Cu,F.SilkS,Edge.Cuts"
+
+
+def pcb_render_status() -> dict:
+    """Probe for the tools the PCB preview needs: kicad-cli for the SVG
+    export plus the footprint/symbol libraries the board generator embeds."""
+    kicad_cli = shutil.which("kicad-cli") is not None
+    libs = pcb_status()
+    available = kicad_cli and libs["available"]
+    reason = None
+    if not available:
+        missing = []
+        if not kicad_cli:
+            missing.append("kicad-cli not on PATH")
+        if libs["reason"]:
+            missing.append(libs["reason"])
+        reason = "; ".join(missing)
+    return {
+        "available": available,
+        "kicad_cli": kicad_cli,
+        "libraries": libs["available"],
+        "reason": reason,
+    }
+
+
+def render_pcb(design: Design, library: Library) -> bytes:
+    """Render the design's placed (unrouted) board to SVG bytes.
+
+    Raises `RenderUnavailable` when kicad-cli or the KiCad libraries are
+    missing and `RenderError` when the export fails.
+    """
+    status = pcb_render_status()
+    if not status["available"]:
+        raise RenderUnavailable(status["reason"])
+
+    board_text = generate_kicad_pcb(design, library)
+
+    with tempfile.TemporaryDirectory(prefix="wirestudio-render-") as td:
+        tmp = Path(td)
+        board = tmp / "board.kicad_pcb"
+        board.write_text(board_text)
+        out = tmp / "board.svg"
+        cli_run = subprocess.run(
+            [
+                "kicad-cli", "pcb", "export", "svg",
+                "--output", str(out),
+                "--layers", _PCB_LAYERS,
+                "--page-size-mode", "2",
+                "--exclude-drawing-sheet",
+                str(board),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=_TIMEOUT,
+        )
+        if cli_run.returncode != 0:
+            raise RenderError("kicad-cli failed:\n" + (cli_run.stderr or "")[-2000:])
+        if not out.exists():
+            raise RenderError("kicad-cli produced no SVG output")
+        return out.read_bytes()
 
 
 def _svg_to_png(svg: bytes) -> bytes:

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../api/client";
 import type { Design, FleetPushResponse, FleetRunStatus, FleetStatus } from "../types/api";
+import { Button, Dialog, FieldLabel, Input } from "./ui";
 
 const LOG_POLL_INTERVAL_MS = 1500;
 
@@ -8,8 +9,8 @@ const VERDICT_STYLE: Record<string, string> = {
   passed: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/40",
   failed: "bg-rose-500/15 text-rose-300 ring-rose-500/40",
   cancelled: "bg-amber-500/15 text-amber-300 ring-amber-500/40",
-  running: "bg-blue-500/15 text-blue-300 ring-blue-500/40",
-  unknown: "bg-zinc-700/40 text-zinc-400 ring-zinc-600/40",
+  running: "bg-accent-500/15 text-accent-300 ring-accent-500/40",
+  unknown: "bg-surface-3/40 text-ink-dim ring-line-strong",
 };
 const VERDICT_LABEL: Record<string, string> = {
   passed: "Compile passed",
@@ -266,169 +267,141 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
   const canPush = !pushing && status?.available && deviceName.trim().length > 0;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-      onClick={onClose}
+    <Dialog
+      title="Push to fleet"
+      subtitle="Send the rendered YAML to fleet-for-esphome (ha-addon)."
+      onClose={onClose}
+      maxWidth="max-w-xl"
+      footer={
+        <>
+          <Button onClick={onClose}>{result ? "Done" : "Cancel"}</Button>
+          <Button variant="primary" disabled={!canPush} onClick={handlePush}>
+            {pushing ? "Pushing…" : compile ? "Push & compile →" : "Push →"}
+          </Button>
+        </>
+      }
     >
-      <div
-        className="m-4 max-h-[85vh] w-full max-w-xl overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
-          <div>
-            <div className="text-sm font-semibold text-zinc-100">Push to fleet</div>
-            <div className="text-xs text-zinc-500">
-              Send the rendered YAML to fleet-for-esphome (ha-addon).
+      <div className="space-y-4 text-sm">
+        {/* Status section */}
+        <div className="rounded-md border border-line bg-surface-2/40 p-3">
+          <div className="text-[11px] uppercase tracking-wider text-ink-faint">fleet status</div>
+          {statusError ? (
+            <div className="mt-1 text-xs text-rose-400">error: {statusError}</div>
+          ) : status === null ? (
+            <div className="mt-1 text-xs text-ink-faint">checking…</div>
+          ) : status.available ? (
+            <div className="mt-1 text-xs text-emerald-400">
+              connected · {status.url || "fleet"}
             </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="rounded-md border border-zinc-800 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
-          >
-            Close
-          </button>
+          ) : (
+            <div className="mt-1 space-y-1 text-xs">
+              <div className="text-amber-300">unavailable: {status.reason || "unknown"}</div>
+              <div className="text-ink-faint">
+                Set <code className="rounded-md bg-surface-2 px-1">FLEET_URL</code> and{" "}
+                <code className="rounded-md bg-surface-2 px-1">FLEET_TOKEN</code> in the API server's
+                environment, then restart it.
+              </div>
+            </div>
+          )}
         </div>
 
-        <div className="space-y-4 p-4 text-sm">
-          {/* Status section */}
-          <div className="rounded-md border border-zinc-800 bg-zinc-900/40 p-3">
-            <div className="text-[11px] uppercase tracking-wide text-zinc-500">fleet status</div>
-            {statusError ? (
-              <div className="mt-1 text-xs text-rose-400">error: {statusError}</div>
-            ) : status === null ? (
-              <div className="mt-1 text-xs text-zinc-500">checking…</div>
-            ) : status.available ? (
-              <div className="mt-1 text-xs text-emerald-400">
-                connected · {status.url || "fleet"}
-              </div>
-            ) : (
-              <div className="mt-1 space-y-1 text-xs">
-                <div className="text-amber-300">unavailable: {status.reason || "unknown"}</div>
-                <div className="text-zinc-500">
-                  Set <code className="rounded-md bg-zinc-800 px-1">FLEET_URL</code> and{" "}
-                  <code className="rounded-md bg-zinc-800 px-1">FLEET_TOKEN</code> in the API server's
-                  environment, then restart it.
-                </div>
+        <div className="space-y-1">
+          <FieldLabel>device name</FieldLabel>
+          <Input
+            type="text"
+            value={deviceName}
+            onChange={(e) =>
+              setDeviceName(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))
+            }
+            placeholder="garage-motion"
+            className="font-mono text-xs"
+          />
+          <p className="text-[11px] text-ink-faint">
+            Will be saved on the fleet as <code>{deviceName.trim() || "<name>"}.yaml</code>.
+            Lowercase letters, digits, and hyphens only (max 64).
+          </p>
+        </div>
+
+        {strict && (
+          <div className="rounded-md bg-amber-500/10 px-3 py-2 text-[11px] text-amber-200 ring-1 ring-amber-500/30">
+            Strict mode is on. The push will be refused if the design has any
+            warn/error compatibility entries; resolve them or toggle strict
+            off in the header to ship anyway.
+          </div>
+        )}
+
+        <label className="flex cursor-pointer items-start gap-2 rounded-md border border-line bg-surface-2/40 px-3 py-2">
+          <input
+            type="checkbox"
+            checked={compile}
+            onChange={(e) => setCompile(e.target.checked)}
+            className="mt-0.5 h-3.5 w-3.5"
+          />
+          <span className="text-xs">
+            <span className="text-ink">Compile after upload</span>
+            <span className="ml-2 text-ink-faint">
+              Enqueues an OTA build for this device on the fleet.
+            </span>
+          </span>
+        </label>
+
+        {pushError && (
+          <div className="rounded-md bg-rose-500/10 px-3 py-2 text-xs text-rose-200 ring-1 ring-rose-500/30">
+            {pushError}
+          </div>
+        )}
+
+        {result && (
+          <div className="rounded-md bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100 ring-1 ring-emerald-500/30">
+            <div>
+              {result.created ? "Created" : "Updated"}{" "}
+              <code className="rounded-md bg-emerald-500/15 px-1">{result.filename}</code> on the fleet.
+            </div>
+            {result.run_id && (
+              <div className="mt-1 text-emerald-200/80">
+                Compile enqueued: <code>{result.run_id}</code>
+                {result.enqueued ? ` (${result.enqueued} job)` : ""}.
               </div>
             )}
           </div>
+        )}
 
+        {result?.run_id && (
           <div className="space-y-1">
-            <label className="block text-[11px] uppercase tracking-wide text-zinc-500">
-              device name
-            </label>
-            <input
-              type="text"
-              value={deviceName}
-              onChange={(e) =>
-                setDeviceName(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))
-              }
-              placeholder="garage-motion"
-              className="w-full rounded-md border border-zinc-800 bg-zinc-900 px-2 py-1.5 font-mono text-xs text-zinc-100 focus:border-zinc-600 focus:outline-none"
-            />
-            <p className="text-[11px] text-zinc-500">
-              Will be saved on the fleet as <code>{deviceName.trim() || "<name>"}.yaml</code>.
-              Lowercase letters, digits, and hyphens only (max 64).
-            </p>
-          </div>
-
-          {strict && (
-            <div className="rounded-md border border-amber-700/40 bg-amber-900/15 px-3 py-2 text-[11px] text-amber-200">
-              Strict mode is on. The push will be refused if the design has any
-              warn/error compatibility entries; resolve them or toggle strict
-              off in the header to ship anyway.
-            </div>
-          )}
-
-          <label className="flex cursor-pointer items-start gap-2 rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2">
-            <input
-              type="checkbox"
-              checked={compile}
-              onChange={(e) => setCompile(e.target.checked)}
-              className="mt-0.5 h-3.5 w-3.5"
-            />
-            <span className="text-xs">
-              <span className="text-zinc-100">Compile after upload</span>
-              <span className="ml-2 text-zinc-500">
-                Enqueues an OTA build for this device on the fleet.
-              </span>
-            </span>
-          </label>
-
-          {pushError && (
-            <div className="rounded-md border border-rose-700/50 bg-rose-900/20 px-3 py-2 text-xs text-rose-200">
-              {pushError}
-            </div>
-          )}
-
-          {result && (
-            <div className="rounded-md border border-emerald-700/50 bg-emerald-900/20 px-3 py-2 text-xs text-emerald-100">
-              <div>
-                {result.created ? "Created" : "Updated"}{" "}
-                <code className="rounded-md bg-emerald-900/40 px-1">{result.filename}</code> on the fleet.
-              </div>
-              {result.run_id && (
-                <div className="mt-1 text-emerald-200/80">
-                  Compile enqueued: <code>{result.run_id}</code>
-                  {result.enqueued ? ` (${result.enqueued} job)` : ""}.
-                </div>
+            <div className="flex items-center justify-between">
+              <label className="block text-[11px] uppercase tracking-wider text-ink-faint">
+                build log
+              </label>
+              {verdict ? (
+                <span
+                  className={`rounded-md px-2 py-0.5 text-[11px] font-medium ring-1 ${
+                    VERDICT_STYLE[verdict.verdict] ?? VERDICT_STYLE.unknown
+                  }`}
+                >
+                  {VERDICT_LABEL[verdict.verdict] ?? verdict.verdict}
+                </span>
+              ) : (
+                <span className="text-[11px] text-ink-faint">
+                  {logFinished
+                    ? "finished"
+                    : logError
+                      ? "stopped"
+                      : `tailing… ${logTransport === "sse" ? "(stream)" : logTransport === "poll" ? "(poll)" : ""}`}
+                </span>
               )}
             </div>
-          )}
-
-          {result?.run_id && (
-            <div className="space-y-1">
-              <div className="flex items-center justify-between">
-                <label className="block text-[11px] uppercase tracking-wide text-zinc-500">
-                  build log
-                </label>
-                {verdict ? (
-                  <span
-                    className={`rounded-md px-2 py-0.5 text-[11px] font-medium ring-1 ${
-                      VERDICT_STYLE[verdict.verdict] ?? VERDICT_STYLE.unknown
-                    }`}
-                  >
-                    {VERDICT_LABEL[verdict.verdict] ?? verdict.verdict}
-                  </span>
-                ) : (
-                  <span className="text-[11px] text-zinc-500">
-                    {logFinished
-                      ? "finished"
-                      : logError
-                        ? "stopped"
-                        : `tailing… ${logTransport === "sse" ? "(stream)" : logTransport === "poll" ? "(poll)" : ""}`}
-                  </span>
-                )}
-              </div>
-              <pre
-                ref={logScrollRef}
-                className="max-h-64 overflow-auto rounded-md border border-zinc-800 bg-black/60 p-2 font-mono text-[11px] leading-relaxed text-zinc-300"
-              >
-                {logText || (logError ? "" : "waiting for first chunk…")}
-              </pre>
-              {logError && (
-                <div className="text-[11px] text-rose-400">log error: {logError}</div>
-              )}
-            </div>
-          )}
-
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              onClick={onClose}
-              className="rounded-md border border-zinc-800 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
+            <pre
+              ref={logScrollRef}
+              className="max-h-64 overflow-auto rounded-lg bg-surface-0 p-2 font-mono text-[12px] leading-relaxed text-ink-dim ring-1 ring-line"
             >
-              {result ? "Done" : "Cancel"}
-            </button>
-            <button
-              disabled={!canPush}
-              onClick={handlePush}
-              className="rounded-md bg-blue-500/20 px-3 py-1.5 text-sm text-blue-100 ring-1 ring-blue-400/40 enabled:hover:bg-blue-500/30 disabled:opacity-40"
-            >
-              {pushing ? "Pushing…" : compile ? "Push & compile →" : "Push →"}
-            </button>
+              {logText || (logError ? "" : "waiting for first chunk…")}
+            </pre>
+            {logError && (
+              <div className="text-[11px] text-rose-400">log error: {logError}</div>
+            )}
           </div>
-        </div>
+        )}
       </div>
-    </div>
+    </Dialog>
   );
 }

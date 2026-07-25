@@ -28,15 +28,15 @@ interface Props {
 }
 
 const SPECIAL_BADGES: { tag: string; label: string; tone: string }[] = [
-  { tag: "boot_high", label: "boot HIGH", tone: "border-amber-700/40 bg-amber-900/15 text-amber-200" },
-  { tag: "boot_low",  label: "boot LOW",  tone: "border-amber-700/40 bg-amber-900/15 text-amber-200" },
-  { tag: "input_only", label: "input only", tone: "border-rose-700/40 bg-rose-900/15 text-rose-200" },
-  { tag: "serial_tx", label: "TX",        tone: "border-rose-700/40 bg-rose-900/15 text-rose-200" },
-  { tag: "serial_rx", label: "RX",        tone: "border-rose-700/40 bg-rose-900/15 text-rose-200" },
-  { tag: "adc1",      label: "ADC1",      tone: "border-emerald-700/40 bg-emerald-900/15 text-emerald-200" },
-  { tag: "adc2",      label: "ADC2",      tone: "border-amber-700/40 bg-amber-900/15 text-amber-200" },
-  { tag: "i2c_sda",   label: "SDA",       tone: "border-blue-700/40 bg-blue-900/15 text-blue-200" },
-  { tag: "i2c_scl",   label: "SCL",       tone: "border-blue-700/40 bg-blue-900/15 text-blue-200" },
+  { tag: "boot_high", label: "boot HIGH", tone: "border-amber-500/30 bg-amber-500/10 text-amber-200" },
+  { tag: "boot_low",  label: "boot LOW",  tone: "border-amber-500/30 bg-amber-500/10 text-amber-200" },
+  { tag: "input_only", label: "input only", tone: "border-rose-500/30 bg-rose-500/10 text-rose-200" },
+  { tag: "serial_tx", label: "TX",        tone: "border-rose-500/30 bg-rose-500/10 text-rose-200" },
+  { tag: "serial_rx", label: "RX",        tone: "border-rose-500/30 bg-rose-500/10 text-rose-200" },
+  { tag: "adc1",      label: "ADC1",      tone: "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" },
+  { tag: "adc2",      label: "ADC2",      tone: "border-amber-500/30 bg-amber-500/10 text-amber-200" },
+  { tag: "i2c_sda",   label: "SDA",       tone: "border-accent-500/30 bg-accent-500/10 text-accent-200" },
+  { tag: "i2c_scl",   label: "SCL",       tone: "border-accent-500/30 bg-accent-500/10 text-accent-200" },
 ];
 
 const DRAG_MIME = "application/x-wirestudio-connection-index";
@@ -88,14 +88,14 @@ export function PinoutView({
 
   if (pinNames.length === 0) {
     return (
-      <div className="text-xs text-zinc-500">
+      <div className="text-xs text-ink-faint">
         No board pinout available -- pick a board first.
       </div>
     );
   }
   if (gpioConnections.length === 0) {
     return (
-      <div className="text-xs text-zinc-500">
+      <div className="text-xs text-ink-faint">
         This component has no gpio connections to drag. Use the Form view
         to set rail / bus / expander_pin / component targets.
       </div>
@@ -106,7 +106,7 @@ export function PinoutView({
     <div className="grid grid-cols-2 gap-3">
       {/* Left: board pins (drop targets). */}
       <div className="space-y-1">
-        <div className="text-[11px] uppercase tracking-wide text-zinc-500">
+        <div className="text-[11px] uppercase tracking-wider text-ink-faint">
           Board pins
         </div>
         <ul className="space-y-1">
@@ -120,12 +120,12 @@ export function PinoutView({
                   data-testid={`pin-${pin}`}
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={(e) => handleDrop(pin, e)}
-                  className={`flex items-center gap-2 rounded-md border px-2 py-1 text-xs transition-colors ${
+                  className={`flex items-center gap-2 rounded-md ring-1 px-2 py-1 text-xs transition-colors ${
                     occupiedBy
-                      ? "border-rose-700/40 bg-rose-900/10 text-zinc-200"
+                      ? "bg-rose-500/10 text-ink ring-rose-500/30"
                       : heldHere
-                        ? "border-emerald-700/40 bg-emerald-900/15 text-zinc-100"
-                        : "border-zinc-800 bg-zinc-900/30 text-zinc-200 hover:border-zinc-600"
+                        ? "bg-accent-500/10 text-accent-200 ring-accent-500/30"
+                        : "bg-surface-2 text-ink ring-line hover:ring-line-strong"
                   }`}
                 >
                   <span className="w-14 shrink-0 font-mono">{pin}</span>
@@ -133,13 +133,13 @@ export function PinoutView({
                     {SPECIAL_BADGES.map((b) => caps.includes(b.tag) ? (
                       <span
                         key={b.tag}
-                        className={`rounded-md border px-1 text-[10px] uppercase tracking-wide ${b.tone}`}
+                        className={`rounded-md border px-1 text-[10px] uppercase tracking-wider ${b.tone}`}
                       >
                         {b.label}
                       </span>
                     ) : null)}
                     {heldHere && (
-                      <span className="ml-auto text-[10px] text-emerald-300">
+                      <span className="ml-auto text-[10px] text-accent-300">
                         ← {heldHere}
                       </span>
                     )}
@@ -158,7 +158,7 @@ export function PinoutView({
 
       {/* Right: this component's gpio connections (draggable). */}
       <div className="space-y-1">
-        <div className="text-[11px] uppercase tracking-wide text-zinc-500">
+        <div className="text-[11px] uppercase tracking-wider text-ink-faint">
           {instance.id} pins
         </div>
         <ul className="space-y-1">
@@ -173,10 +173,10 @@ export function PinoutView({
                     e.dataTransfer.effectAllowed = "move";
                   }}
                   data-testid={`drag-${row.pin_role}`}
-                  className="flex cursor-grab items-center justify-between gap-2 rounded-md border border-zinc-800 bg-zinc-900/40 px-2 py-1 text-xs hover:border-zinc-600 active:cursor-grabbing"
+                  className="flex cursor-grab items-center justify-between gap-2 rounded-md border border-line bg-surface-2/40 px-2 py-1 text-xs hover:border-line-strong active:cursor-grabbing"
                 >
                   <span className="font-mono">{row.pin_role}</span>
-                  <span className={`font-mono ${t.pin ? "text-zinc-100" : "text-zinc-500"}`}>
+                  <span className={`font-mono ${t.pin ? "text-ink" : "text-ink-faint"}`}>
                     {t.pin || "(unbound)"}
                   </span>
                 </div>
@@ -184,7 +184,7 @@ export function PinoutView({
             );
           })}
         </ul>
-        <p className="pt-1 text-[11px] text-zinc-500">
+        <p className="pt-1 text-[11px] text-ink-faint">
           Drag a row onto a board pin on the left to bind it. Red rows
           are already used by another component's connection.
         </p>

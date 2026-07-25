@@ -24,6 +24,7 @@ import type {
 } from "../types/api";
 import { detectChip, isWebSerialSupported } from "../lib/usb-detect";
 import { macToEui64 } from "../lib/provision";
+import { Button, Dialog } from "./ui";
 
 const ACTIVATION_POLL_INTERVAL_MS = 3000;
 const DEV_EUI_RE = /^[0-9a-fA-F]{16}$/;
@@ -336,57 +337,63 @@ export function LorawanProvisionEsphomeDialog({ design, onClose }: Props) {
     eligible && devEuiValid && chirpReady && !provisioning && !result;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-      onClick={onClose}
+    <Dialog
+      title="Provision LoRaWAN device"
+      subtitle="Mint keys in ChirpStack for the lorawan-for-esphome external-component path."
+      onClose={onClose}
+      maxWidth="max-w-xl"
+      footer={
+        <>
+          <Button onClick={onClose}>{result ? "Done" : "Cancel"}</Button>
+          {!result && eligible && (
+            <Button
+              variant="primary"
+              disabled={!canProvision}
+              onClick={handleProvision}
+              title={
+                !chirpStatus
+                  ? "Probing ChirpStack…"
+                  : !chirpStatus.available
+                    ? `ChirpStack unavailable: ${chirpStatus.reason ?? "unknown"}`
+                    : !devEuiValid
+                      ? "Enter a 16-hex-char DevEUI"
+                      : undefined
+              }
+            >
+              {provisioning ? "Provisioning…" : "Provision →"}
+            </Button>
+          )}
+        </>
+      }
     >
-      <div
-        className="m-4 max-h-[85vh] w-full max-w-xl overflow-y-auto rounded-lg border border-zinc-800 bg-zinc-950 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
-          <div>
-            <div className="text-sm font-semibold text-zinc-100">Provision LoRaWAN device</div>
-            <div className="text-xs text-zinc-500">
-              Mint keys in ChirpStack for the lorawan-for-esphome external-component path.
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="rounded-md border border-zinc-800 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
-          >
-            Close
-          </button>
-        </div>
-
-        <div className="space-y-4 p-4 text-sm">
+      <div className="space-y-4 text-sm">
           {/* Eligibility / context */}
-          <div className="rounded-md border border-zinc-800 bg-zinc-900/40 p-3">
-            <div className="text-[11px] uppercase tracking-wide text-zinc-500">design</div>
-            <div className="mt-1 text-xs text-zinc-200">
-              <span className="text-zinc-300">{String((design as { name?: string }).name ?? "")}</span>{" "}
-              <span className="text-zinc-500">({String((design as { id?: string }).id ?? "")})</span>
+          <div className="rounded-md border border-line bg-surface-2/40 p-3">
+            <div className="text-[11px] uppercase tracking-wider text-ink-faint">design</div>
+            <div className="mt-1 text-xs text-ink">
+              <span className="text-ink-dim">{String((design as { name?: string }).name ?? "")}</span>{" "}
+              <span className="text-ink-faint">({String((design as { id?: string }).id ?? "")})</span>
             </div>
             {!eligible ? (
               <div className="mt-2 text-xs text-amber-300">
                 This design isn't eligible for the external-component path. Set{" "}
-                <code className="rounded-md bg-zinc-800 px-1">target: "esphome"</code> and add at
+                <code className="rounded-md bg-surface-2 px-1">target: "esphome"</code> and add at
                 least one entry to{" "}
-                <code className="rounded-md bg-zinc-800 px-1">lorawan.payload</code>, then reopen
+                <code className="rounded-md bg-surface-2 px-1">lorawan.payload</code>, then reopen
                 this dialog. The standalone Arduino path uses{" "}
                 <em>Flash LoRaWAN firmware</em> instead.
               </div>
             ) : (
-              <div className="mt-2 space-y-1 text-xs text-zinc-400">
+              <div className="mt-2 space-y-1 text-xs text-ink-dim">
                 <div>
                   Payload fields:{" "}
-                  <span className="text-zinc-200">
+                  <span className="text-ink">
                     {payloadFields.map((f) => f.sensor).join(", ")}
                   </span>
                 </div>
                 <div>
                   Band:{" "}
-                  <span className="text-zinc-200">
+                  <span className="text-ink">
                     {lorawan?.region ?? "US915"} sub-band {lorawan?.sub_band ?? 2}
                   </span>
                 </div>
@@ -397,7 +404,7 @@ export function LorawanProvisionEsphomeDialog({ design, onClose }: Props) {
           {/* DevEUI input */}
           {eligible && (
             <div className="space-y-1">
-              <label className="block text-[11px] uppercase tracking-wide text-zinc-500">
+              <label className="block text-[11px] font-medium uppercase tracking-wider text-ink-faint">
                 DevEUI (16 hex chars)
               </label>
               <div className="flex gap-2">
@@ -411,12 +418,11 @@ export function LorawanProvisionEsphomeDialog({ design, onClose }: Props) {
                   }}
                   disabled={!!result}
                   placeholder="70b3d57ed0001234"
-                  className="flex-1 rounded-md border border-zinc-800 bg-black/40 px-2 py-1.5 font-mono text-xs text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none disabled:opacity-60"
+                  className="flex-1 rounded-md border border-line bg-surface-1 px-2.5 py-1.5 font-mono text-xs text-ink placeholder:text-ink-ghost transition-colors focus:border-accent-500/60 focus:outline-none disabled:opacity-60"
                 />
-                <button
+                <Button
                   onClick={handleDetect}
                   disabled={!webSerial || detecting || !!result}
-                  className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-[11px] text-zinc-200 hover:bg-zinc-800 disabled:opacity-40"
                   title={
                     webSerial
                       ? "Read the chip's eFuse MAC over WebSerial and derive the DevEUI (MAC-48 → EUI-64)"
@@ -424,9 +430,9 @@ export function LorawanProvisionEsphomeDialog({ design, onClose }: Props) {
                   }
                 >
                   {detecting ? "Detecting…" : "Detect from chip"}
-                </button>
+                </Button>
               </div>
-              <div className="text-[11px] text-zinc-500">
+              <div className="text-[11px] text-ink-faint">
                 {webSerial
                   ? "Derive from the chip's eFuse MAC over WebSerial, or type a manual override."
                   : "Manual entry only — WebSerial isn't available (try Chrome/Edge on desktop)."}
@@ -452,7 +458,7 @@ export function LorawanProvisionEsphomeDialog({ design, onClose }: Props) {
               when it returns available=false, the reason is the gRPC status
               from the helper that wraps RpcError -> ChirpStackUnavailable. */}
           {eligible && chirpStatus && !chirpStatus.available && (
-            <div className="rounded-md border border-amber-700/50 bg-amber-900/20 px-3 py-2 text-xs text-amber-200">
+            <div className="rounded-md bg-amber-500/10 px-3 py-2 text-xs text-amber-200 ring-1 ring-amber-500/30">
               <div className="font-semibold">ChirpStack unavailable</div>
               <div className="mt-1 text-amber-200/80">
                 {chirpStatus.reason ?? "unknown reason"}
@@ -472,16 +478,16 @@ export function LorawanProvisionEsphomeDialog({ design, onClose }: Props) {
           )}
 
           {error && (
-            <div className="rounded-md border border-rose-700/50 bg-rose-900/20 px-3 py-2 text-xs text-rose-200">
+            <div className="rounded-md bg-rose-500/10 px-3 py-2 text-xs text-rose-200 ring-1 ring-rose-500/30">
               {error}
             </div>
           )}
 
           {/* Provisioned secrets */}
           {result && (
-            <div className="space-y-2 rounded-md border border-emerald-700/50 bg-emerald-900/20 p-3">
+            <div className="space-y-2 rounded-md bg-emerald-500/10 p-3 ring-1 ring-emerald-500/30">
               <div className="flex items-center justify-between">
-                <div className="text-[11px] uppercase tracking-wide text-emerald-300">
+                <div className="text-[11px] uppercase tracking-wider text-emerald-300">
                   provisioned
                 </div>
                 <div className="text-[11px] text-emerald-300/80">
@@ -494,17 +500,17 @@ export function LorawanProvisionEsphomeDialog({ design, onClose }: Props) {
                 value={secretsYamlBody(result.secrets)}
                 onClick={(e) => (e.target as HTMLTextAreaElement).select()}
                 rows={6}
-                className="w-full rounded-md border border-emerald-800/40 bg-black/60 px-2 py-1.5 font-mono text-[11px] leading-relaxed text-emerald-100/90 focus:outline-none"
+                className="w-full rounded-lg bg-surface-0 px-2 py-1.5 font-mono text-[12px] leading-relaxed text-emerald-100/90 ring-1 ring-line focus:outline-none"
               />
               <div className="flex items-center justify-between text-[11px]">
                 <div className="text-emerald-200/80">
                   Drop these alongside the rendered ESPHome YAML as{" "}
-                  <code className="rounded-md bg-emerald-900/40 px-1">secrets.yaml</code>. The
+                  <code className="rounded-md bg-emerald-500/15 px-1">secrets.yaml</code>. The
                   AppKey is shown once.
                 </div>
                 <button
                   onClick={handleCopy}
-                  className="rounded-md border border-emerald-700/60 bg-emerald-900/40 px-2 py-1 text-[11px] text-emerald-100 hover:bg-emerald-900/60"
+                  className="rounded-md bg-emerald-500/10 px-2 py-1 text-[11px] font-medium text-emerald-100 ring-1 ring-emerald-500/30 transition-colors hover:bg-emerald-500/20"
                 >
                   {copied ? "Copied" : "Copy"}
                 </button>
@@ -515,33 +521,33 @@ export function LorawanProvisionEsphomeDialog({ design, onClose }: Props) {
           {/* Push to fleet -- inline the secrets in the YAML so the operator
               doesn't need to edit fleet's secrets.yaml separately. */}
           {result && (
-            <div className="rounded-md border border-zinc-800 bg-zinc-900/40 p-3">
+            <div className="rounded-md border border-line bg-surface-2/40 p-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-[11px] uppercase tracking-wide text-zinc-500">
+                  <div className="text-[11px] uppercase tracking-wider text-ink-faint">
                     push to fleet
                   </div>
-                  <div className="mt-1 text-xs text-zinc-400">
+                  <div className="mt-1 text-xs text-ink-dim">
                     Push the rendered YAML to fleet-for-esphome with these LoRaWAN keys
                     inlined, and enqueue an OTA compile.
                   </div>
                 </div>
-                <button
+                <Button
+                  variant="primary"
                   onClick={handlePushToFleet}
                   disabled={pushState.kind === "pushing" || pushState.kind === "pushed"}
-                  className="rounded-md bg-blue-500/20 px-3 py-1.5 text-sm text-blue-100 ring-1 ring-blue-400/40 enabled:hover:bg-blue-500/30 disabled:opacity-40"
                 >
                   {pushState.kind === "pushing"
                     ? "Pushing…"
                     : pushState.kind === "pushed"
                       ? "Pushed"
                       : "Push to fleet →"}
-                </button>
+                </Button>
               </div>
               {pushState.kind === "pushed" && (
                 <div className="mt-2 text-xs text-emerald-300">
                   {pushState.created ? "Created" : "Updated"}{" "}
-                  <code className="rounded-md bg-emerald-900/40 px-1">{pushState.filename}</code>{" "}
+                  <code className="rounded-md bg-emerald-500/15 px-1">{pushState.filename}</code>{" "}
                   on the fleet.
                   {pushState.run_id && (
                     <> Compile enqueued (<code>{pushState.run_id}</code>).</>
@@ -561,18 +567,19 @@ export function LorawanProvisionEsphomeDialog({ design, onClose }: Props) {
               writes it to a blank board. Appears only after a successful
               fleet push, since the artifact doesn't exist before then. */}
           {result && pushState.kind === "pushed" && pushState.run_id && (
-            <div className="rounded-md border border-zinc-800 bg-zinc-900/40 p-3">
+            <div className="rounded-md border border-line bg-surface-2/40 p-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-[11px] uppercase tracking-wide text-zinc-500">
+                  <div className="text-[11px] uppercase tracking-wider text-ink-faint">
                     flash via WebSerial
                   </div>
-                  <div className="mt-1 text-xs text-zinc-400">
+                  <div className="mt-1 text-xs text-ink-dim">
                     Pull the fleet-built factory image and flash a blank board.
                     Waits for the compile to finish, then erase + write at 0x0.
                   </div>
                 </div>
-                <button
+                <Button
+                  variant="primary"
                   onClick={handleFlash}
                   disabled={
                     flashState.kind === "waiting" ||
@@ -585,7 +592,6 @@ export function LorawanProvisionEsphomeDialog({ design, onClose }: Props) {
                       ? "Already flashed in this session"
                       : undefined
                   }
-                  className="rounded-md bg-blue-500/20 px-3 py-1.5 text-sm text-blue-100 ring-1 ring-blue-400/40 enabled:hover:bg-blue-500/30 disabled:opacity-40"
                 >
                   {flashState.kind === "waiting"
                     ? `Waiting (${flashState.verdict})…`
@@ -596,7 +602,7 @@ export function LorawanProvisionEsphomeDialog({ design, onClose }: Props) {
                         : flashState.kind === "flashed"
                           ? "Flashed"
                           : "Flash via WebSerial →"}
-                </button>
+                </Button>
               </div>
               {flashState.kind === "flashed" && (
                 <div className="mt-2 text-xs text-emerald-300">
@@ -610,7 +616,7 @@ export function LorawanProvisionEsphomeDialog({ design, onClose }: Props) {
                 </div>
               )}
               {serialLog && (
-                <pre className="mt-2 max-h-40 overflow-auto rounded-md border border-zinc-800 bg-black/60 p-2 font-mono text-[11px] leading-relaxed text-zinc-300">
+                <pre className="mt-2 max-h-40 overflow-auto rounded-lg bg-surface-0 p-2 font-mono text-[12px] leading-relaxed text-ink-dim ring-1 ring-line">
                   {serialLog}
                 </pre>
               )}
@@ -619,21 +625,21 @@ export function LorawanProvisionEsphomeDialog({ design, onClose }: Props) {
 
           {/* Activation poll */}
           {result && (
-            <div className="rounded-md border border-zinc-800 bg-zinc-900/40 p-3">
-              <div className="text-[11px] uppercase tracking-wide text-zinc-500">
+            <div className="rounded-md border border-line bg-surface-2/40 p-3">
+              <div className="text-[11px] uppercase tracking-wider text-ink-faint">
                 join status
               </div>
               {activationErr ? (
                 <div className="mt-1 text-xs text-rose-400">error: {activationErr}</div>
               ) : activation === null ? (
-                <div className="mt-1 text-xs text-zinc-500">polling ChirpStack…</div>
+                <div className="mt-1 text-xs text-ink-faint">polling ChirpStack…</div>
               ) : activation.joined ? (
                 <div className="mt-1 space-y-1 text-xs">
                   <div className="text-emerald-400">
                     joined · dev_addr <code>{activation.dev_addr}</code>
                   </div>
                   {typeof activation.f_cnt_up === "number" && (
-                    <div className="text-zinc-500">uplink frames: {activation.f_cnt_up}</div>
+                    <div className="text-ink-faint">uplink frames: {activation.f_cnt_up}</div>
                   )}
                 </div>
               ) : (
@@ -644,34 +650,7 @@ export function LorawanProvisionEsphomeDialog({ design, onClose }: Props) {
             </div>
           )}
 
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              onClick={onClose}
-              className="rounded-md border border-zinc-800 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
-            >
-              {result ? "Done" : "Cancel"}
-            </button>
-            {!result && eligible && (
-              <button
-                disabled={!canProvision}
-                onClick={handleProvision}
-                title={
-                  !chirpStatus
-                    ? "Probing ChirpStack…"
-                    : !chirpStatus.available
-                      ? `ChirpStack unavailable: ${chirpStatus.reason ?? "unknown"}`
-                      : !devEuiValid
-                        ? "Enter a 16-hex-char DevEUI"
-                        : undefined
-                }
-                className="rounded-md bg-blue-500/20 px-3 py-1.5 text-sm text-blue-100 ring-1 ring-blue-400/40 enabled:hover:bg-blue-500/30 disabled:opacity-40"
-              >
-                {provisioning ? "Provisioning…" : "Provision →"}
-              </button>
-            )}
-          </div>
-        </div>
       </div>
-    </div>
+    </Dialog>
   );
 }

@@ -146,7 +146,8 @@ shipped, hardware join verification in progress.* Two paths share the
   browser, and provisions the device against ChirpStack. Every radio
   board's firmware builds in CI
   ([`lorawan-firmware`](../.github/workflows/lorawan-firmware.yml));
-  validated end-to-end on a TTGO T-Beam against live ChirpStack 4.17.
+  validated end-to-end on a TTGO T-Beam and Heltec WiFi LoRa 32 V2 and
+  V3 against live ChirpStack 4.17.
 - **External-component path** (`target: "esphome"` + `lorawan.payload`).
   When `design.lorawan.payload` is set, the YAML generator emits an
   `external_components: github://moellere/lorawan-for-esphome@<ref>`

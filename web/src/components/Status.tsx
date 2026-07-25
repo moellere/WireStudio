@@ -7,11 +7,11 @@ import type { ReactNode } from "react";
  */
 export function Loading() {
   return (
-    <div className="flex items-center justify-center py-8 text-xs text-zinc-500">
+    <div className="flex items-center justify-center py-8 text-xs text-ink-faint">
       <span className="flex items-center gap-2">
         <span className="relative flex h-2 w-2">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-zinc-500 opacity-75" />
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-zinc-600" />
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent-500 opacity-60" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-accent-600" />
         </span>
         Loading...
       </span>
@@ -21,7 +21,7 @@ export function Loading() {
 
 export function Empty({ children }: { children: ReactNode }) {
   return (
-    <div className="flex items-center justify-center py-8 text-center text-sm text-zinc-500">
+    <div className="flex items-center justify-center py-8 text-center text-sm text-ink-faint">
       {children}
     </div>
   );

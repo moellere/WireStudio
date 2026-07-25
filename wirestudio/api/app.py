@@ -111,6 +111,8 @@ from wirestudio.kicad.route import (
 from wirestudio.kicad.render import (
     RenderError,
     RenderUnavailable,
+    pcb_render_status,
+    render_pcb,
     render_schematic,
     render_status,
 )
@@ -611,6 +613,33 @@ def create_app(
             content=board,
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
+
+    @app.get("/design/kicad/pcb/render/status", tags=["design"])
+    def design_kicad_pcb_render_status() -> dict:
+        """Probe whether the PCB preview is available: kicad-cli plus the
+        footprint/symbol libraries. The web UI gates the PCB tab's render
+        action on `available`."""
+        return pcb_render_status()
+
+    @app.post("/design/kicad/pcb/render", tags=["design"])
+    def design_kicad_pcb_render(design: dict) -> Response:
+        """Render the design's placed (unrouted) board to an SVG preview.
+
+        Generates the `.kicad_pcb` and exports it with `kicad-cli pcb
+        export svg`, cropped to the board area. Returns 503 when the
+        tools aren't installed -- check `/design/kicad/pcb/render/status`
+        first.
+        """
+        d = _validate_design(design)
+        try:
+            data = render_pcb(d, lib)
+        except (RenderUnavailable, PcbUnavailable) as e:
+            raise HTTPException(status_code=503, detail=str(e)) from e
+        except (FileNotFoundError, ValueError) as e:
+            raise HTTPException(status_code=422, detail=str(e)) from e
+        except RenderError as e:
+            raise HTTPException(status_code=500, detail=str(e)) from e
+        return Response(content=data, media_type="image/svg+xml")
 
     @app.get("/design/kicad/route/status", tags=["design"])
     def design_kicad_route_status() -> dict:

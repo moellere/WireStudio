@@ -147,11 +147,11 @@ export function AgentSidebar({ open, design, onClose, onDesignReplaced }: Props)
   if (!open) return null;
 
   return (
-    <aside className="fixed inset-y-0 right-0 z-40 flex w-[28rem] max-w-[90vw] flex-col border-l border-zinc-800 bg-zinc-950 shadow-2xl">
-      <header className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
+    <aside className="fixed inset-y-0 right-0 z-40 flex w-[28rem] max-w-[90vw] flex-col border-l border-line bg-surface-0 shadow-2xl">
+      <header className="flex items-center justify-between border-b border-line px-4 py-3">
         <div>
-          <div className="text-sm font-semibold text-zinc-100">Agent</div>
-          <div className="mt-0.5 truncate text-[11px] text-zinc-500">
+          <div className="text-sm font-semibold text-ink">Agent</div>
+          <div className="mt-0.5 truncate font-mono text-[11px] text-ink-faint">
             {sessionId ? `session ${sessionId}` : "new session"}
           </div>
         </div>
@@ -159,14 +159,14 @@ export function AgentSidebar({ open, design, onClose, onDesignReplaced }: Props)
           <button
             onClick={handleNewSession}
             disabled={messages.length === 0}
-            className="rounded-md border border-zinc-800 px-2 py-1 text-xs text-zinc-300 enabled:hover:bg-zinc-900 disabled:opacity-40"
+            className="rounded-md border border-line px-2 py-1 text-xs text-ink-dim enabled:hover:bg-surface-2 disabled:opacity-40"
             title="Start a fresh conversation"
           >
             New
           </button>
           <button
             onClick={onClose}
-            className="rounded-md border border-zinc-800 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
+            className="rounded-md border border-line px-2 py-1 text-xs text-ink-dim hover:bg-surface-2"
           >
             Close
           </button>
@@ -190,7 +190,7 @@ export function AgentSidebar({ open, design, onClose, onDesignReplaced }: Props)
         ))}
       </div>
 
-      <div className="border-t border-zinc-800 p-3">
+      <div className="border-t border-line p-3">
         <textarea
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -203,16 +203,16 @@ export function AgentSidebar({ open, design, onClose, onDesignReplaced }: Props)
           rows={3}
           placeholder={status?.available ? "Ask the agent... (⌘/Ctrl+Enter)" : "Agent unavailable"}
           disabled={!status?.available || pending}
-          className="w-full resize-none rounded-md border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none disabled:opacity-50"
+          className="w-full resize-none rounded-md border border-line bg-surface-1 px-2 py-1.5 text-sm text-ink placeholder:text-ink-ghost focus:border-agent-500/60 focus:outline-none disabled:opacity-50"
         />
         <div className="mt-2 flex items-center justify-between">
-          <div className="text-[11px] text-zinc-500">
+          <div className="text-[11px] text-ink-faint">
             {error ? <span className="text-rose-300">{error}</span> : "Edits go directly into the live design."}
           </div>
           <button
             onClick={handleSend}
             disabled={!status?.available || pending || !draft.trim()}
-            className="rounded-md bg-blue-500/20 px-3 py-1 text-xs text-blue-100 ring-1 ring-blue-400/40 enabled:hover:bg-blue-500/30 disabled:opacity-40"
+            className="rounded-md bg-agent-500/20 px-3 py-1 text-xs text-agent-300 ring-1 ring-agent-400/40 enabled:hover:bg-agent-500/30 disabled:opacity-40"
           >
             Send
           </button>
@@ -224,8 +224,8 @@ export function AgentSidebar({ open, design, onClose, onDesignReplaced }: Props)
 
 function Welcome() {
   return (
-    <div className="rounded-md border border-zinc-800 bg-zinc-900/50 p-3 text-xs text-zinc-400">
-      <div className="mb-1.5 font-semibold text-zinc-200">Talk to the design</div>
+    <div className="rounded-md border border-line bg-surface-2/40 p-3 text-xs text-ink-dim">
+      <div className="mb-1.5 font-semibold text-ink">Talk to the design</div>
       <p>The agent can search the library, add or remove components, set
       params, change boards, and edit connections. It edits your current
       design in place — your live YAML and ASCII update as it goes.</p>
@@ -250,8 +250,8 @@ function Bubble({ message }: { message: ChatMessage }) {
           message.isError
             ? "border border-rose-500/40 bg-rose-500/10 text-rose-200"
             : isUser
-              ? "bg-blue-500/15 text-blue-100 ring-1 ring-blue-400/30"
-              : "bg-zinc-900 text-zinc-200 ring-1 ring-zinc-800"
+              ? "bg-accent-500/10 text-ink ring-1 ring-accent-400/30"
+              : "bg-surface-1 text-ink ring-1 ring-line"
         }`}
       >
         {/* Live tool-call indicators while streaming. */}
@@ -262,7 +262,7 @@ function Bubble({ message }: { message: ChatMessage }) {
                 ? "running…"
                 : tc.is_error ? "failed" : "ok";
               const palette = tc.is_error === undefined
-                ? "text-blue-300"
+                ? "text-agent-300"
                 : tc.is_error ? "text-rose-300" : "text-emerald-300";
               return (
                 <li key={tc.tool_use_id} className={palette}>
@@ -275,7 +275,7 @@ function Bubble({ message }: { message: ChatMessage }) {
         )}
 
         {empty && message.streaming && (
-          <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-blue-400" />
+          <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-agent-400" />
         )}
         {!empty && (
           <div className="whitespace-pre-wrap text-sm">
@@ -285,13 +285,13 @@ function Bubble({ message }: { message: ChatMessage }) {
         )}
 
         {message.toolCalls && message.toolCalls.length > 0 && !message.streaming && (
-          <details className="mt-2 text-[11px] text-zinc-500">
-            <summary className="cursor-pointer hover:text-zinc-300">
+          <details className="mt-2 text-[11px] text-ink-faint">
+            <summary className="cursor-pointer hover:text-ink-dim">
               {message.toolCalls.length} tool call{message.toolCalls.length === 1 ? "" : "s"}
             </summary>
             <ul className="mt-1 space-y-1 font-mono">
               {message.toolCalls.map((tc, i) => (
-                <li key={i} className={tc.is_error ? "text-rose-300" : "text-zinc-400"}>
+                <li key={i} className={tc.is_error ? "text-rose-300" : "text-ink-dim"}>
                   {tc.tool}({summarizeInput(tc.input)})
                 </li>
               ))}
@@ -317,8 +317,8 @@ function UsageFooter({ usage, model }: { usage: Record<string, number>; model?: 
   const totalInput = inTok + cacheRead + cacheWrite;
   const hitPct = totalInput > 0 ? Math.round((cacheRead / totalInput) * 100) : 0;
   return (
-    <div className="mt-2 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-zinc-500">
-      {model && <span title="model that handled this turn">{model}</span>}
+    <div className="mt-2 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-ink-faint">
+      {model && <span className="font-mono" title="model that handled this turn">{model}</span>}
       <span title="uncached input tokens">in {inTok}</span>
       <span title="output tokens">out {outTok}</span>
       {(cacheRead > 0 || cacheWrite > 0) && (

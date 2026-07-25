@@ -14,7 +14,10 @@ carries electrical metadata ESPHome doesn't model (voltage rails,
 current draw, pull-ups, per-pin capabilities), a CSP solver assigns
 legal pins from it, a validator catches boot-strap / ADC2-WiFi /
 voltage conflicts, and the same design fans out to the physical
-artifacts — wiring, schematic, PCB, enclosure.
+artifacts — wiring, schematic, PCB, enclosure. The bundled boards span
+the ESP32 family (original, C3, S3, C6) and ESP8266; nothing is
+ESP32-specific — any board ESPHome supports can be added with a library
+file ([integration spec](docs/integration_spec.md)).
 
 Two LoRaWAN paths share the studio. The standalone target builds and
 flashes RadioLib + LoRaWAN_ESP32 firmware over WebSerial. The newer
@@ -66,7 +69,7 @@ Tiers, in priority order:
 | **Verified** | KiCad PCB layout | emit a placed, unrouted `.kicad_pcb` — footprints, nets, ratsnest, edge cuts | every bundled example emits a structurally sound board, every PR ([gate](.github/workflows/pcb-layout.yml)); a DRC tier opens each board in real KiCad ([gate](.github/workflows/pcb-drc.yml)) |
 | **Verified** | Fab outputs | JLCPCB upload bundle — BOM, CPL, Gerber + drill (`/design/fab/*`) | CPL positions match the `.kicad_pcb` placement; the DRC tier smoke-tests the Gerber export. Boards are unrouted until the Freerouting step, so Gerbers carry pads but no traces (`is_routed` flags it) |
 | **Verified** | Parametric enclosure | OpenSCAD `.scad` from board mount-hole metadata | every enclosure-capable board renders through real OpenSCAD to a non-empty, manifold (closed, printable) solid, every PR ([gate](.github/workflows/enclosure-render.yml)) |
-| **Works (hardware-validated)** | LoRaWAN target | build RadioLib + LoRaWAN_ESP32 firmware for US915 radio boards, flash over WebSerial, provision against ChirpStack | every radio board's firmware builds in CI ([gate](.github/workflows/lorawan-firmware.yml)); validated end-to-end on a TTGO T-Beam against live ChirpStack 4.17 — no automated live-device gate |
+| **Works (hardware-validated)** | LoRaWAN target | build RadioLib + LoRaWAN_ESP32 firmware for US915 radio boards, flash over WebSerial, provision against ChirpStack | every radio board's firmware builds in CI ([gate](.github/workflows/lorawan-firmware.yml)); validated end-to-end on a TTGO T-Beam and Heltec WiFi LoRa 32 V2 and V3 against live ChirpStack 4.17 — no automated live-device gate |
 | **Works (lighter checks)** | MCP server | drive the design tools from Claude Code / Desktop over the Model Context Protocol | tool / auth / resource tests in `tests/test_mcp_*.py`; not exercised against a live MCP client in CI |
 | **Experimental** | Thingiverse search relay | rank community models for a board | smoke-tested; depends on a third-party search API that ranks unevenly |
 | **Experimental** | Agent (Claude tool-using) | natural-language design driving | works in practice; tool surface is small; no auto-eval against task list yet |
