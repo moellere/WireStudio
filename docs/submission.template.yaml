@@ -1,0 +1,39 @@
+# submission.yaml -- vendor batch manifest template
+#
+# Copy this file into the root of your submission bundle and fill it
+# in. The full bundle shape and every library-file field are defined
+# in docs/integration_spec.md:
+#
+#   submission.yaml            # this file (manifest; not loaded by the studio)
+#   components/<id>.yaml       # one per sensor/breakout/module product
+#   boards/<id>.yaml           # one per dev board product
+#   datasheets/<id>.pdf
+#   images/<id>.png            # product photo, square, >= 512px
+#
+# This manifest carries the commerce metadata that deliberately stays
+# OUT of the library files: part numbers, store links, and sample
+# availability. Library files hold only the engineering data.
+#
+# One entry under `products:` per library file in the bundle. The `id`
+# must match the `id` inside the corresponding boards/ or components/
+# YAML file exactly (lowercase, digits, dashes).
+
+vendor: ""            # legal or trading name as it should appear in the picker
+contact: ""           # email for review questions and listing updates
+
+products:
+  - id: ""            # matches the library file id, e.g. example-sensor
+    mpn: ""           # your manufacturer part number / SKU
+    datasheet: ""     # path within the bundle, e.g. datasheets/example-sensor.pdf
+    product_url: ""   # documentation or product page
+    purchase_url: ""  # where a picker listing should link to buy
+    samples_available: false   # true = engineering samples offered for the
+                               # validated tier (end-to-end hardware testing;
+                               # see "Validation tiers" in the spec)
+
+  # - id: ""
+  #   mpn: ""
+  #   datasheet: ""
+  #   product_url: ""
+  #   purchase_url: ""
+  #   samples_available: false

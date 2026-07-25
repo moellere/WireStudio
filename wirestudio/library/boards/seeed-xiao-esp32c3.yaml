@@ -1,0 +1,89 @@
+# STATUS: spec tier (unverified) -- pre-filled by the WireStudio project
+# from Seeed's published wiki and mechanical drawings, pending Seeed
+# review per docs/integration_spec.md. Items needing vendor
+# confirmation are marked VENDOR REVIEW below. On vendor confirmation
+# this entry moves to the reviewed tier; on sample testing, validated.
+id: seeed-xiao-esp32c3
+name: Seeed Studio XIAO ESP32C3
+mcu: esp32
+chip_variant: esp32c3
+framework: arduino
+platformio_board: seeed_xiao_esp32c3
+flash_size_mb: 4
+
+rails:
+  - {name: "5V",  voltage: 5.0, source: usb}
+  - {name: "3V3", voltage: 3.3, source: onboard_regulator}
+  - {name: "GND", voltage: 0.0}
+
+# 21 x 17.8mm ESP32-C3 board with USB-C, U.FL external antenna, and an
+# onboard LiPo charge circuit (BAT+/BAT- pads on the underside; no
+# battery-voltage sense pin is broken out -- a documented XIAO C3
+# limitation). Native USB-Serial-JTAG (GPIO18/19) is wired to the USB-C
+# port and NOT broken out; flashing and logging go over USB-C. UART0
+# (D6=GPIO21 TX / D7=GPIO20 RX) is broken out on the header.
+#
+# XIAO D-label to GPIO map: D0=2 D1=3 D2=4 D3=5 D4=6 D5=7 D6=21 D7=20
+# D8=8 D9=9 D10=10.
+#
+# Strap pins (ESP32-C3): GPIO2, GPIO8, GPIO9 must all be HIGH at boot
+# for normal SPI flash boot. GPIO9 is the BOOT button (pulls to GND
+# when pressed) -- safest used as an active-low switch input. GPIO21
+# (D6) is U0TXD: the ROM bootloader prints on it at reset, so prefer
+# it as an output.
+#
+# ADC: GPIO0-GPIO4 are ADC1; GPIO5 is ADC2 and is unusable while WiFi
+# is active -- prefer A0-A2 (GPIO2/3/4) for analog reads.
+default_buses:
+  i2c: {sda: GPIO6, scl: GPIO7}
+  spi: {clk: GPIO8, miso: GPIO9, mosi: GPIO10}
+
+onboard_peripherals:
+  boot_button: {pin: GPIO9, inverted: true}
+
+gpio_capabilities:
+  GPIO2:  [gpio, adc, adc1, strap, boot_high]
+  GPIO3:  [gpio, adc, adc1]
+  GPIO4:  [gpio, adc, adc1, pwm]
+  GPIO5:  [gpio, adc, adc2, pwm]
+  GPIO6:  [gpio, i2c_sda, pwm]
+  GPIO7:  [gpio, i2c_scl, pwm]
+  GPIO8:  [gpio, strap, boot_high, spi_clk]
+  GPIO9:  [gpio, strap, boot_high, button, spi_miso]
+  GPIO10: [gpio, spi_mosi, pwm]
+  GPIO20: [gpio, uart_rx, serial_rx]
+  GPIO21: [gpio, uart_tx, serial_tx]
+
+# --- VENDOR REVIEW REQUESTED ---
+# current_ma_typical/peak below are taken from the ESP32-C3 module
+# datasheet (WiFi associated / 802.11b TX burst), not measured on a
+# XIAO specifically. Please confirm or correct against your design
+# numbers.
+current_ma_typical: 75
+current_ma_peak: 350
+
+# Enclosure geometry from the published XIAO mechanical drawing.
+# The XIAO has no mount holes (castellated edge pads; boards are
+# friction-fit or carrier-mounted) -- the enclosure generator falls
+# back to a tray pocket for boards without holes.
+# VENDOR REVIEW: please confirm USB-C cutout offsets against the STEP
+# model.
+enclosure:
+  pcb: {length_mm: 21.0, width_mm: 17.8, thickness_mm: 1.2}
+  mount_holes: []
+  ports:
+    - kind: usb_c
+      edge: short_a
+      offset_mm: 4.4
+      width_mm: 9.0
+      height_mm: 3.4
+      height_above_pcb_mm: 1.3
+  component_height_max_mm: 4.0
+
+# KiCad symbol mapping. 14-pin (2x7) castellated board, modelled as a
+# 2x7 header until KiCad ships a dedicated XIAO module symbol.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_02x07_Odd_Even
+  footprint: Connector_PinHeader_2.54mm:PinHeader_2x07_P2.54mm_Vertical
+  value: Seeed XIAO ESP32C3
