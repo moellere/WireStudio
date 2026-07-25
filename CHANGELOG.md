@@ -7,7 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.0] — 2026-07-25
+
 ### Added
+
+- **Seeed XIAO ESP32C3 + Grove AHT20 (spec tier).** First library entries
+  added through the manufacturer-outreach spec flow: pre-filled from
+  Seeed's published docs per `docs/integration_spec.md`, marked
+  unverified with VENDOR REVIEW items flagged in-file, exercised by the
+  new `xiao-grove-climate` example.
+
+- **Submission template.** `docs/submission.template.yaml` is a copyable,
+  commented starting point for the vendor manifest the integration spec
+  describes.
 
 - **Vendor integration spec.** `docs/integration_spec.md` documents what a
   manufacturer supplies to list a board or component in the library: the
@@ -44,6 +56,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   opened via the shared primitive now also close on Escape.
 
 ### Changed
+
+- Single-pass collection building in ConnectionForm and Inspector (#155).
 
 - **Web UI design system.** Token-based theme in `index.css` (Tailwind
   `@theme`): copper accent, layered surface scale, ink text scale, violet
