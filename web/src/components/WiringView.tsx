@@ -243,15 +243,28 @@ function buildModel(design: Design) {
 
   const boardId = String((design.board as Record<string, unknown> | undefined)?.library_id ?? "board");
 
-  const railsUsed = Array.from(
-    new Set(conns.filter((c) => c.target?.kind === "rail").map((c) => String(c.target!.rail))),
-  ).sort((a, b) => (RAIL_ORDER[a] ?? 9) - (RAIL_ORDER[b] ?? 9) || a.localeCompare(b));
-  const gpiosUsed = Array.from(
-    new Set([
-      ...conns.filter((c) => c.target?.kind === "gpio").map((c) => String(c.target!.pin)),
-      ...buses.flatMap((b) => b.pins.map(([, pin]) => pin)),
-    ]),
-  ).sort((a, b) => gpioNum(a) - gpioNum(b));
+  // ⚡ Bolt: Use single-pass loops to build Sets, avoiding intermediate allocations from .filter().map()
+  const railSet = new Set<string>();
+  const gpioSet = new Set<string>();
+  for (const c of conns) {
+    if (c.target?.kind === "rail") {
+      railSet.add(String(c.target.rail));
+    } else if (c.target?.kind === "gpio") {
+      gpioSet.add(String(c.target.pin));
+    }
+  }
+  for (const b of buses) {
+    for (const [, pin] of b.pins) {
+      gpioSet.add(pin);
+    }
+  }
+
+  const railsUsed = Array.from(railSet).sort(
+    (a, b) => (RAIL_ORDER[a] ?? 9) - (RAIL_ORDER[b] ?? 9) || a.localeCompare(b),
+  );
+  const gpiosUsed = Array.from(gpioSet).sort(
+    (a, b) => gpioNum(a) - gpioNum(b),
+  );
 
   const cards: Card[] = [];
   const edges: Edge[] = [];
