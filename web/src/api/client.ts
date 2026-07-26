@@ -202,6 +202,20 @@ export const api = {
     const offset = parseInt(res.headers.get("x-flash-offset") ?? "0", 10) || 0;
     return { data: new Uint8Array(await res.arrayBuffer()), offset };
   },
+  meshtasticFirmwareStatus: () =>
+    request<{ available: boolean; version: string | null; boards: string[]; reason: string | null }>(
+      "/meshtastic/firmware/status",
+    ),
+  meshtasticFirmware: async (board: string): Promise<{ data: Uint8Array; offset: number }> => {
+    const res = await fetch(`${API_BASE}/meshtastic/firmware?board=${encodeURIComponent(board)}`);
+    if (!res.ok) {
+      let body: unknown = undefined;
+      try { body = await res.json(); } catch { /* not json */ }
+      throw new ApiError(res.status, apiErrorMessage("GET", "/meshtastic/firmware", res.status, body), body);
+    }
+    const offset = parseInt(res.headers.get("x-flash-offset") ?? "0", 10) || 0;
+    return { data: new Uint8Array(await res.arrayBuffer()), offset };
+  },
   kicadRouteStatus: () =>
     request<KicadRouteStatus>("/design/kicad/route/status"),
   kicadRoutedBoard: (cacheKey: string) =>

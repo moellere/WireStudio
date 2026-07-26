@@ -20,6 +20,8 @@ vi.mock("../api/client", async () => {
       tasmotaFirmwareStatus: vi.fn(),
       tasmotaTemplate: vi.fn(),
       tasmotaFirmware: vi.fn(),
+      meshtasticFirmwareStatus: vi.fn(),
+      meshtasticFirmware: vi.fn(),
     },
   };
 });
@@ -32,6 +34,8 @@ const mockApi = api as unknown as {
   tasmotaFirmwareStatus: ReturnType<typeof vi.fn>;
   tasmotaTemplate: ReturnType<typeof vi.fn>;
   tasmotaFirmware: ReturnType<typeof vi.fn>;
+  meshtasticFirmwareStatus: ReturnType<typeof vi.fn>;
+  meshtasticFirmware: ReturnType<typeof vi.fn>;
 };
 
 const design: Design = {
@@ -59,6 +63,12 @@ beforeEach(() => {
   mockApi.tasmotaTemplate.mockReset().mockResolvedValue({
     template: { NAME: "smart-plug", GPIO: [0], FLAG: 0, BASE: 18 },
     warnings: [],
+  });
+  mockApi.meshtasticFirmwareStatus.mockReset().mockResolvedValue({
+    available: true,
+    version: "v2.6.11.60ec05e",
+    boards: ["heltec-wifi-lora32-v3", "ttgo-t-beam"],
+    reason: null,
   });
 });
 
@@ -110,8 +120,28 @@ describe("FlashDialog", () => {
     expect(screen.getByTestId("lorawan-dialog")).toBeInTheDocument();
   });
 
-  it("meshtastic stays disabled", () => {
+  it("meshtastic flashes only mapped radio boards", async () => {
     renderDialog();
-    expect(screen.getByRole("button", { name: /meshtastic/i })).toBeDisabled();
+    await userEvent.click(screen.getByRole("button", { name: /meshtastic/i }));
+    await waitFor(() =>
+      expect(screen.getByText(/no meshtastic firmware mapping/i)).toBeInTheDocument(),
+    );
+    expect(screen.getByRole("button", { name: /flash meshtastic/i })).toBeDisabled();
+  });
+
+  it("meshtastic enables flashing for a supported board", async () => {
+    const heltecDesign = {
+      ...design,
+      board: { library_id: "heltec-wifi-lora32-v3", mcu: "esp32s3" },
+    } as Design;
+    const heltecBoards = [
+      { id: "heltec-wifi-lora32-v3", name: "Heltec V3", chip_variant: "esp32s3" } as BoardSummary,
+    ];
+    renderDialog({ design: heltecDesign, boards: heltecBoards });
+    await userEvent.click(screen.getByRole("button", { name: /meshtastic/i }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /flash meshtastic/i })).toBeEnabled(),
+    );
+    expect(screen.getByText(/v2\.6\.11\.60ec05e/)).toBeInTheDocument();
   });
 });
