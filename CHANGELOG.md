@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Pin notes on every GPIO dropdown.** The safe / in use / caveat
+  annotations from the bus pin selectors now also appear in the
+  connection editor's GPIO pin dropdowns, sharing the same
+  pinCaveat/readUsedPins logic.
+
 - **Tasmota target.** Third generation target alongside esphome and
   lorawan: emits a Tasmota device template from a solved design --
   `POST /tasmota/template`, `python -m wirestudio.targets.tasmota`, and
