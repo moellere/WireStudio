@@ -33,7 +33,7 @@ def _design(board_id: str, **extra) -> dict:
 
 
 def test_both_targets_registered():
-    assert target_ids() == ["esphome", "lorawan"]
+    assert target_ids() == ["esphome", "lorawan", "tasmota"]
 
 
 def test_register_rejects_duplicate():

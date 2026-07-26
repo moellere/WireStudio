@@ -230,7 +230,7 @@ def test_kicad_schematic_returns_skidl_python(client):
     assert "filename=\"garage-motion-v1.skidl.py\"" in r.headers.get("content-disposition", "")
     body = r.text
     assert "from skidl import" in body
-    assert "generate_schematic()" in body
+    assert "generate_schematic(allow_routing_failure=True" in body
     # Verify the response body is valid Python -- a syntax error in the
     # generator would fail this where substring assertions wouldn't.
     compile(body, "<api response>", "exec")

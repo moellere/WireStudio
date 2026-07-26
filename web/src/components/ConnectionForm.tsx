@@ -9,6 +9,8 @@
 import { useMemo } from "react";
 import type { ComponentSummary } from "../types/api";
 import {
+  pinCaveat,
+  readUsedPins,
   type ConnectionRow,
   type ConnectionTarget,
   readBuses,
@@ -42,6 +44,15 @@ export function ConnectionForm({
   const gpioPins = useMemo(() => {
     return Object.keys((board.gpio_capabilities ?? {}) as Record<string, unknown>);
   }, [board.gpio_capabilities]);
+
+  const gpioCaps = board.gpio_capabilities as Record<string, string[]> | undefined;
+  const usedPins = useMemo(() => (design ? readUsedPins(design) : new Set<string>()), [design]);
+  const pinLabel = (current: string) => (p: string) => {
+    if (p === current) return p;
+    if (usedPins.has(p)) return `${p} — in use`;
+    const caveat = pinCaveat(gpioCaps?.[p] ?? []);
+    return caveat ? `${p} — ${caveat}` : `${p} — safe`;
+  };
 
   const buses = useMemo(() => (design ? readBuses(design) : []), [design]);
   const busIds = useMemo(() => buses.map((b) => b.id), [buses]);
@@ -108,6 +119,7 @@ export function ConnectionForm({
           expanderDict={expanderDict}
           componentIds={componentIds}
           componentDict={componentDict}
+          pinLabel={pinLabel}
           onChange={(t) => onChange(row.index, t)}
           onLockedPinChange={(pin) => onLockedPinChange(row.component_id, row.pin_role, pin)}
         />
@@ -118,8 +130,9 @@ export function ConnectionForm({
 
 function Row({
   row, railNames, gpioPins, busIds, busDict, expanderIds, expanderDict, componentIds, componentDict,
-  onChange, onLockedPinChange,
+  pinLabel, onChange, onLockedPinChange,
 }: {
+  pinLabel: (current: string) => (p: string) => string;
   row: ConnectionRow;
   railNames: string[];
   gpioPins: string[];
@@ -176,6 +189,7 @@ function Row({
               value={t.pin}
               options={gpioPins}
               allowFree
+              renderLabel={pinLabel(t.pin)}
               onChange={(v) => onChange({ kind: "gpio", pin: v })}
             />
           </div>

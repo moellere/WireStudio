@@ -93,3 +93,5 @@ kicad:
   symbol: RotaryEncoder
   footprint: Rotary_Encoder:RotaryEncoder_Alps_EC11E_Vertical_H20mm
   value: Rotary encoder
+tasmota:
+  pins: {A: Rotary_A, B: Rotary_B}
