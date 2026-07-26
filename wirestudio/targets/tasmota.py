@@ -86,6 +86,48 @@ _CHIP_SLOTS: dict[str, list[int]] = {
 
 _DHT_MODELS = {"DHT11": "DHT11", "SI7021": "SI7021"}
 
+# Official release images from Tasmota's OTA server, flashed at 0x0.
+# ESP8266 uses the plain app image (it includes the boot stub); ESP32
+# variants need the .factory image (bootloader + partitions + app).
+_OTA_BASE_8266 = "http://ota.tasmota.com/tasmota/release"
+_OTA_BASE_32 = "http://ota.tasmota.com/tasmota32/release"
+_FIRMWARE: dict[str, tuple[str, int]] = {
+    "esp8266": (f"{_OTA_BASE_8266}/tasmota.bin", 0x0),
+    "esp8285": (f"{_OTA_BASE_8266}/tasmota.bin", 0x0),
+    "esp32": (f"{_OTA_BASE_32}/tasmota32.factory.bin", 0x0),
+    "esp32s2": (f"{_OTA_BASE_32}/tasmota32s2.factory.bin", 0x0),
+    "esp32s3": (f"{_OTA_BASE_32}/tasmota32s3.factory.bin", 0x0),
+    "esp32c3": (f"{_OTA_BASE_32}/tasmota32c3.factory.bin", 0x0),
+    "esp32c6": (f"{_OTA_BASE_32}/tasmota32c6.factory.bin", 0x0),
+}
+
+_FIRMWARE_TIMEOUT = 60  # seconds; release images are ~1-2 MB
+
+
+def _fetch_firmware(url: str) -> bytes:
+    import httpx
+
+    resp = httpx.get(url, timeout=_FIRMWARE_TIMEOUT, follow_redirects=True)
+    resp.raise_for_status()
+    return resp.content
+
+
+def firmware_status() -> dict:
+    """Probe whether the server can reach Tasmota's OTA host. Mirrors the
+    other feature-gate status endpoints; the web UI gates the Flash
+    button on `available` and surfaces `reason`."""
+    import httpx
+
+    try:
+        resp = httpx.head(
+            f"{_OTA_BASE_8266}/tasmota.bin", timeout=10, follow_redirects=True
+        )
+        available = resp.status_code < 400
+        reason = None if available else f"OTA server returned {resp.status_code}"
+    except Exception as e:
+        available, reason = False, f"OTA server unreachable: {e}"
+    return {"available": available, "chips": sorted(_FIRMWARE), "reason": reason}
+
 
 def _pin_number(pin: str) -> Optional[int]:
     digits = "".join(ch for ch in pin if ch.isdigit())
@@ -212,7 +254,7 @@ class TasmotaTarget(TargetPlugin):
         ]
 
     def router(self, library: Library):
-        from fastapi import APIRouter, HTTPException
+        from fastapi import APIRouter, HTTPException, Response
 
         router = APIRouter(tags=["tasmota"])
 
@@ -226,6 +268,38 @@ class TasmotaTarget(TargetPlugin):
             except FileNotFoundError as e:
                 raise HTTPException(status_code=404, detail=str(e)) from e
             return {"template": template, "warnings": warnings}
+
+        @router.get("/firmware/status")
+        def tasmota_firmware_status() -> dict:
+            return firmware_status()
+
+        # No return annotation: `from __future__ import annotations` turns it
+        # into a string that OpenAPI generation can't resolve for the
+        # locally-imported Response.
+        @router.get("/firmware", response_class=Response)
+        def tasmota_firmware(chip: str):
+            source = _FIRMWARE.get(chip)
+            if source is None:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"no Tasmota release image for chip '{chip}'",
+                )
+            url, offset = source
+            try:
+                data = _fetch_firmware(url)
+            except Exception as e:
+                raise HTTPException(
+                    status_code=502,
+                    detail=f"could not fetch {url}: {e}",
+                ) from e
+            return Response(
+                content=data,
+                media_type="application/octet-stream",
+                headers={
+                    "X-Flash-Offset": str(offset),
+                    "Content-Disposition": f'attachment; filename="{url.rsplit("/", 1)[-1]}"',
+                },
+            )
 
         return router
 

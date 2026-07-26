@@ -185,6 +185,23 @@ export const api = {
     request<KicadPcbRenderStatus>("/design/kicad/pcb/render/status"),
   kicadPcbRender: (design: Design) =>
     requestText("/design/kicad/pcb/render", { method: "POST", body: JSON.stringify(design) }),
+  tasmotaTemplate: (design: Design) =>
+    request<{ template: { NAME: string; GPIO: number[]; FLAG: number; BASE: number }; warnings: string[] }>(
+      "/tasmota/template",
+      { method: "POST", body: JSON.stringify(design) },
+    ),
+  tasmotaFirmwareStatus: () =>
+    request<{ available: boolean; chips: string[]; reason: string | null }>("/tasmota/firmware/status"),
+  tasmotaFirmware: async (chip: string): Promise<{ data: Uint8Array; offset: number }> => {
+    const res = await fetch(`${API_BASE}/tasmota/firmware?chip=${encodeURIComponent(chip)}`);
+    if (!res.ok) {
+      let body: unknown = undefined;
+      try { body = await res.json(); } catch { /* not json */ }
+      throw new ApiError(res.status, apiErrorMessage("GET", "/tasmota/firmware", res.status, body), body);
+    }
+    const offset = parseInt(res.headers.get("x-flash-offset") ?? "0", 10) || 0;
+    return { data: new Uint8Array(await res.arrayBuffer()), offset };
+  },
   kicadRouteStatus: () =>
     request<KicadRouteStatus>("/design/kicad/route/status"),
   kicadRoutedBoard: (cacheKey: string) =>
