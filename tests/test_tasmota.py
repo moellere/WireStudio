@@ -102,3 +102,30 @@ def test_template_endpoint():
     body = r.json()
     assert body["template"]["GPIO"][1] == 3072
     assert body["warnings"] == []
+
+
+def test_firmware_endpoint_serves_proxied_image(monkeypatch):
+    import wirestudio.targets.tasmota as T
+    monkeypatch.setattr(T, "_fetch_firmware", lambda url: b"BIN" + url.encode()[-10:])
+    client = TestClient(create_app())
+    r = client.get("/tasmota/firmware?chip=esp32")
+    assert r.status_code == 200
+    assert r.headers["x-flash-offset"] == "0"
+    assert r.content.startswith(b"BIN")
+
+
+def test_firmware_endpoint_unknown_chip_422():
+    client = TestClient(create_app())
+    assert client.get("/tasmota/firmware?chip=rp2040").status_code == 422
+
+
+def test_firmware_endpoint_upstream_failure_502(monkeypatch):
+    import wirestudio.targets.tasmota as T
+
+    def boom(url):
+        raise RuntimeError("nope")
+
+    monkeypatch.setattr(T, "_fetch_firmware", boom)
+    client = TestClient(create_app())
+    r = client.get("/tasmota/firmware?chip=esp8266")
+    assert r.status_code == 502

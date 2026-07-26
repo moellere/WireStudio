@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.23.0] — 2026-07-26
+
+### Added
+
+- **Unified flash dialog.** The Radio toolbar button now opens a single
+  flashing surface with a framework picker -- ESPHome, Tasmota, LoRaWAN,
+  Meshtastic -- all sharing the one WebSerial/esptool-js mechanism. ESPHome hands off to the fleet push dialog; LoRaWAN keeps
+  its compile-flash-provision flow; Tasmota fetches the official release
+  image through the server proxy, flashes with full-chip erase, then
+  offers a post-flash serial config push: the design's template plus
+  optional WiFi credentials sent as `Backlog0` console commands.
+  Credentials stay client-side -- never sent to the server or stored in
+  the design.
+- **Tasmota firmware proxy.** `GET /tasmota/firmware?chip=` streams the
+  matching official release image from ota.tasmota.com with the flash
+  offset in `X-Flash-Offset`; `GET /tasmota/firmware/status` gates the
+  UI on upstream reachability.
+- **Meshtastic flashing.** `GET /meshtastic/firmware?board=` proxies the
+  official release factory image from meshtastic.github.io for the radio
+  boards (Heltec V2/V3/V4, T-Beam, TTGO LoRa32), resolving the newest
+  stable version from the same release-list API the official web flasher
+  uses. Flashed at 0x0 with full erase via the unified dialog. Not a
+  target plugin -- devices run stock firmware, so nothing is generated
+  from the design. Region/channel config is protobuf over serial; the
+  dialog links to client.meshtastic.org, and an in-studio config push
+  via `@meshtastic/js` moves to the backlog.
+
 ## [0.22.0] — 2026-07-26
 
 ### Added
