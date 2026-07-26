@@ -100,6 +100,29 @@ def test_ttgo_v2_uses_v21_platformio_board(lib):
     assert "SX1276 radio = new Module(18, 26, 23, RADIOLIB_NC);" in out["src/main.cpp"]
 
 
+def test_heltec_v4_seeded_gnss_powers_enable_and_fem(lib):
+    # A seeded V4 LoRaWAN tracker: the GNSS enable pin (GPIO34, active low)
+    # is driven LOW to power the module, the UART lands on 38/39, and the RF
+    # front-end pins stay forced HIGH for the radio.
+    from wirestudio.seed import seed_onboard_components
+
+    frag = seed_onboard_components(lib.board("heltec-wifi-lora32-v4"), lib)
+    design = Design(
+        schema_version="0.1", id="v4t", name="V4 tracker",
+        board={"library_id": "heltec-wifi-lora32-v4", "mcu": "esp32"},
+        power={"supply": "usb", "rail_voltage_v": 3.3},
+        target="lorawan", lorawan={"region": "US915", "sub_band": 2},
+        components=frag["components"], buses=frag["buses"],
+        connections=frag["connections"],
+    )
+    cpp = generate_firmware(design, lib)["src/main.cpp"]
+    assert "pinMode(34, OUTPUT);" in cpp
+    assert "digitalWrite(34, LOW);" in cpp  # active-low enable -> power on
+    assert "GPSSerial.begin(9600, SERIAL_8N1, 38, 39);" in cpp
+    for pin in (7, 2, 5, 46):
+        assert f"digitalWrite({pin}, HIGH);" in cpp  # FEM forced high
+
+
 def test_non_radio_board_raises(lib):
     with pytest.raises(ValueError, match="no radio"):
         generate_firmware(_design("esp32-devkitc-v4"), lib)

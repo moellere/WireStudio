@@ -45,6 +45,13 @@ onboard_peripherals:
   led:          {pin: GPIO35}
   button:       {pin: GPIO0, inverted: true}
   rf_fem:       {power: GPIO7, enable: GPIO2, ctx: GPIO5, pa_mode: GPIO46}
+  # SH1.25-8 GNSS connector (plug-in module, e.g. Heltec UC6580 / L76K).
+  # tx/rx are the module-side labels; the seed handler crosses them so the
+  # MCU rx (GPIO38, "data toward the CPU") reads the module's TX and the MCU
+  # tx (GPIO39) drives the module's RX -- matching Meshtastic's heltec_v4
+  # GPS_TX_PIN=38 / GPS_RX_PIN=39. The module needs GPS_EN driven LOW to
+  # power up: GPIO34 on the V4, GPIO42 on the V4-R8 (see gnss_en below).
+  gps_gnss:     {tx: GPIO38, rx: GPIO39, baud: 9600, enable: GPIO34, enable_active_low: true}
 
 # SX1262 wiring matches the V3 (RadioLib `new Module(8, 14, 12, 13)`),
 # TCXO 1.8V off DIO3, DIO2 as RF switch. setup_high powers and enables

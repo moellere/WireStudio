@@ -148,6 +148,12 @@ def _seed_gps(key: str, params: dict, ctx: _SeedContext) -> Optional[tuple[dict,
             "satellites": {"name": "GPS Satellites"},
         }},
     }
+    # Boards that gate GNSS power behind a GPIO (Heltec V4: GPS_EN on GPIO34,
+    # active low) stay dark until the firmware drives that pin. Carry it as a
+    # param so the uart_gps LoRaWAN setup fragment can power the module up.
+    if params.get("enable"):
+        comp["params"]["enable_pin"] = params["enable"]
+        comp["params"]["enable_active_low"] = bool(params.get("enable_active_low", False))
     conns = [_rail("onboard_gps", "VCC", "3V3"), _rail("onboard_gps", "GND", "GND"),
              _bus("onboard_gps", "TX", bus_id), _bus("onboard_gps", "RX", bus_id)]
     return comp, conns
@@ -263,7 +269,7 @@ def _handler_for(key: str) -> Optional[Handler]:
         return _seed_mpu6886
     if key.startswith("lora_sx1276"):
         return _seed_sx127x
-    if key.startswith("gps_neo6m"):
+    if key.startswith("gps_"):
         return _seed_gps
     if key == "battery_adc":
         return _seed_battery_adc
