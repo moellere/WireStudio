@@ -74,3 +74,5 @@ kicad:
     VCC: AVDD
     GND: AGND
     SCK: PD_SCK
+tasmota:
+  pins: {SCK: HX711_SCK, DOUT: HX711_DAT}

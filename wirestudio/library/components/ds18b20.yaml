@@ -74,3 +74,5 @@ kicad:
   pin_map:
     VCC: V_{DD}
     DATA: DQ
+tasmota:
+  pins: {DATA: DS18x20}

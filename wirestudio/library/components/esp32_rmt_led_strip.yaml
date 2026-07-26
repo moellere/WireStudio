@@ -59,3 +59,5 @@ kicad:
   pin_map:
     VCC: VDD
     GND: VSS
+tasmota:
+  pins: {DIN: WS2812}

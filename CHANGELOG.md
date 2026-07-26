@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.0] — 2026-07-26
+
+### Added
+
+- **Tasmota target.** Third generation target alongside esphome and
+  lorawan: emits a Tasmota device template from a solved design --
+  `POST /tasmota/template`, `python -m wirestudio.targets.tasmota`, and
+  the target seam. GPIO function ids and per-chip template layouts are
+  sourced from Tasmota's `tasmota_template.h`; 15 library components
+  gain `tasmota:` mappings (relays, switches, DHT/DS18B20, WS2812, ADC,
+  HC-SR04, rotary, counter, buzzer, IR, HX711, CSE7766, HLW8012), and
+  I2C sensors ride the bus pins via Tasmota autodetection. The
+  smart-plug example reproduces the Sonoff S31 template convention.
+  Meshtastic and CircuitPython targets are added to the roadmap backlog.
+
 ## [0.21.3] — 2026-07-25
 
 ### Changed

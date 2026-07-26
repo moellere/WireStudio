@@ -135,6 +135,24 @@ and the `-pcb` image variant that carries the toolchain. Next: routed
 DRC feedback in the UI, via-cost/keepout tuning, and copper pours for
 power nets.
 
+**Tasmota target (0.22).** *Works.* Emits a Tasmota device template --
+a pure mapping of solved pins to Tasmota GPIO function ids -- via
+`POST /tasmota/template`, the target seam, and
+`python -m wirestudio.targets.tasmota`. Function ids and per-chip
+template layouts are sourced from `tasmota_template.h`; unit tests pin
+the Sonoff S31 convention for the smart-plug example. Library
+components opt in with a `tasmota:` block; I2C sensors ride the bus
+pins via Tasmota autodetection.
+
+**Target backlog.** Next parallel frameworks, in order: Meshtastic
+(flash prebuilt firmware + generate/apply region/channel/key config
+over the existing WebSerial path; the radio-board library including the
+Heltec V4 FEM data is the hard part already done), then CircuitPython
+(emit a code.py scaffold with pin constants + driver init per
+component, the LoRaWAN-fragment pattern; timed with Adafruit outreach).
+Deliberately deferred: generic Arduino/PlatformIO scaffolds (per-driver
+maintenance sinkhole), Zephyr, Zigbee/Thread on the C6.
+
 **LoRaWAN target (0.13 standalone, 0.16+ external-component).** *Works —
 hardware-validated on the standalone path; external-component path
 shipped, hardware join verification in progress.* Two paths share the
