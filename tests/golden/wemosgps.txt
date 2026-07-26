@@ -3,7 +3,7 @@
 +-----------------------------------------------------------------------------------------------------------------------+
 |  Rails: 5V, 3V3, GND                                                                                                  |
 |                                                                                                                       |
-|  gps  [Generic UART GPS module (NEO-6M / NEO-8M)]  -- GPS                                                             |
+|  gps  [Generic UART GPS / GNSS module (NEO-6M / NEO-8M / UC6580)]  -- GPS                                             |
 |    VCC   -> rail 5V                                                                                                   |
 |    GND   -> rail GND                                                                                                  |
 |    TX    -> my_uart (D2)                                                                                              |
@@ -14,7 +14,7 @@
 |                                                                                                                       |
 |  BOM:                                                                                                                 |
 |    - WeMos D1 Mini                                                                                                    |
-|    - Generic UART GPS module (NEO-6M / NEO-8M)  (gps)                                                                 |
+|    - Generic UART GPS / GNSS module (NEO-6M / NEO-8M / UC6580)  (gps)                                                 |
 |    - 1x 10uF capacitor                                                                                                |
 |                                                                                                                       |
 |  Power: ~30mA typical, ~80mA peak (budget 500mA)  OK                                                                  |

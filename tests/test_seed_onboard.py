@@ -134,6 +134,16 @@ def test_gps_uart_crosses_over_and_avoids_reserved_id(lib):
     assert bus["tx"] == "GPIO12" and bus["rx"] == "GPIO34"
 
 
+def test_heltec_v4_gnss_connector_seeds_on_correct_pins(lib):
+    # The V4's SH1.25-8 GNSS connector auto-selects its UART pins: the
+    # module's TX (GPIO38, "toward the CPU") is the MCU rx, and the MCU tx
+    # (GPIO39) drives the module's RX -- matching Meshtastic's heltec_v4.
+    frag = seed_onboard_components(lib.board("heltec-wifi-lora32-v4"), lib)
+    assert "uart_gps" in {c["library_id"] for c in frag["components"]}
+    bus = next(b for b in frag["buses"] if b["type"] == "uart")
+    assert bus["tx"] == "GPIO39" and bus["rx"] == "GPIO38"
+
+
 def test_unmapped_peripherals_warn_not_fail(lib):
     # axp192 (PMIC) has no component; it should warn, not break seeding.
     frag = seed_onboard_components(lib.board("ttgo-t-beam"), lib)
@@ -145,6 +155,7 @@ def test_unmapped_peripherals_warn_not_fail(lib):
     "esp32-c3-devkitm-1", "esp32-c3-supermini", "esp32-s3-devkitc-1",
     "m5stack-atom-echo", "m5stack-atom-matrix", "m5stack-atomu",
     "m5stack-atoms3-lite", "ttgo-lora32-v1", "ttgo-t-beam",
+    "heltec-wifi-lora32-v4",
 ])
 def test_every_board_seed_renders(lib, board_id):
     """Every board's seeded design renders without error. The
