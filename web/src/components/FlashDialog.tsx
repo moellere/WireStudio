@@ -1,0 +1,399 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Radio, UploadCloud, Zap } from "lucide-react";
+import type { BoardSummary, Design } from "../types/api";
+import { api, ApiError } from "../api/client";
+import { flashFirmware, type FlashSession } from "../lib/flash";
+import { tasmotaConfigCommands, type TasmotaTemplate } from "../lib/tasmota";
+import { Button, Dialog, FieldLabel, Input } from "./ui";
+import { LorawanFlashDialog } from "./LorawanFlashDialog";
+
+type Framework = "esphome" | "tasmota" | "lorawan" | "meshtastic";
+
+const FRAMEWORKS: Array<{ id: Framework; label: string; note: string; disabled?: boolean }> = [
+  { id: "esphome", label: "ESPHome", note: "OTA via fleet-for-esphome; no serial flash needed" },
+  { id: "tasmota", label: "Tasmota", note: "official release image + template push over serial" },
+  { id: "lorawan", label: "LoRaWAN", note: "compile RadioLib firmware, flash, provision" },
+  { id: "meshtastic", label: "Meshtastic", note: "official release image; configure via client.meshtastic.org" },
+];
+
+interface Props {
+  design: Design | null;
+  boards: BoardSummary[] | null;
+  onClose: () => void;
+  onOpenFleet: () => void;
+}
+
+/** One flashing surface for every framework. WebSerial + esptool-js is
+ *  the single mechanism; frameworks differ only in where the image
+ *  comes from and what gets pushed over serial afterwards. */
+export function FlashDialog({ design, boards, onClose, onOpenFleet }: Props) {
+  const [framework, setFramework] = useState<Framework>("tasmota");
+
+  if (framework === "lorawan") {
+    return <LorawanFlashDialog onClose={onClose} />;
+  }
+
+  return (
+    <Dialog
+      title="Flash device"
+      subtitle="Pick the firmware framework; flashing always runs over WebSerial."
+      onClose={onClose}
+      maxWidth="max-w-2xl"
+    >
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-2">
+          {FRAMEWORKS.map((f) => (
+            <button
+              key={f.id}
+              disabled={f.disabled}
+              onClick={() => setFramework(f.id)}
+              className={`rounded-lg border px-3 py-2 text-left transition-colors disabled:opacity-40 ${
+                framework === f.id
+                  ? "border-accent-500/50 bg-accent-500/5"
+                  : "border-line bg-surface-2/40 enabled:hover:border-line-strong enabled:hover:bg-surface-2"
+              }`}
+            >
+              <div className="text-sm font-medium text-ink">{f.label}</div>
+              <div className="mt-0.5 text-[11px] text-ink-faint">{f.note}</div>
+            </button>
+          ))}
+        </div>
+
+        {framework === "esphome" && (
+          <div className="space-y-3 rounded-lg border border-line bg-surface-2/40 p-3 text-xs text-ink-dim">
+            <p>
+              ESPHome devices build and deploy over the air through the
+              fleet-for-esphome pipeline — push the rendered YAML and the
+              fleet compiles and updates the device; no serial connection
+              needed after first provisioning.
+            </p>
+            <Button variant="primary" onClick={() => { onClose(); onOpenFleet(); }}>
+              <UploadCloud className="h-3.5 w-3.5" />
+              Push to fleet
+            </Button>
+          </div>
+        )}
+
+        {framework === "tasmota" && (
+          <TasmotaFlash design={design} boards={boards} />
+        )}
+
+        {framework === "meshtastic" && (
+          <MeshtasticFlash design={design} boards={boards} />
+        )}
+      </div>
+    </Dialog>
+  );
+}
+
+type MeshtasticPhase = "idle" | "fetching" | "flashing" | "flashed";
+
+function MeshtasticFlash({ design, boards }: { design: Design | null; boards: BoardSummary[] | null }) {
+  const [status, setStatus] = useState<{
+    available: boolean;
+    version: string | null;
+    boards: string[];
+    reason: string | null;
+  } | null>(null);
+  const [phase, setPhase] = useState<MeshtasticPhase>("idle");
+  const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<number>(0);
+  const [log, setLog] = useState<string[]>([]);
+  const [serial, setSerial] = useState<string>("");
+  const sessionRef = useRef<FlashSession | null>(null);
+
+  const boardLibraryId = String((design?.board as Record<string, unknown> | undefined)?.library_id ?? "");
+  const board = useMemo(
+    () => (boards ?? []).find((b) => b.id === boardLibraryId) ?? null,
+    [boards, boardLibraryId],
+  );
+  const supported = status?.boards.includes(boardLibraryId) ?? false;
+
+  useEffect(() => {
+    let cancelled = false;
+    api.meshtasticFirmwareStatus()
+      .then((s) => { if (!cancelled) setStatus(s); })
+      .catch((e) => {
+        if (!cancelled) {
+          setStatus({ available: false, version: null, boards: [], reason: e instanceof Error ? e.message : String(e) });
+        }
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => () => { void sessionRef.current?.close(); }, []);
+
+  function appendLog(line: string) {
+    setLog((l) => [...l.slice(-200), line]);
+  }
+
+  async function handleFlash() {
+    setError(null);
+    setPhase("fetching");
+    try {
+      const { data, offset } = await api.meshtasticFirmware(boardLibraryId);
+      appendLog(`fetched ${status?.version ?? "release"} factory image (${(data.length / 1024).toFixed(0)} KiB)`);
+      setPhase("flashing");
+      const session = await flashFirmware({
+        images: [{ data, address: offset }],
+        eraseAll: true,
+        onProgress: (written, total) => setProgress(total ? written / total : 0),
+        onLog: appendLog,
+        onSerial: (text) => setSerial((s) => (s + text).slice(-8000)),
+      });
+      sessionRef.current = session;
+      setPhase("flashed");
+    } catch (e) {
+      setError(e instanceof ApiError ? `${e.status}: ${e.message}` : e instanceof Error ? e.message : String(e));
+      setPhase("idle");
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      {status !== null && !status.available && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+          <div className="font-semibold">Firmware download unavailable</div>
+          <div className="mt-1">{status.reason}</div>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between gap-3 text-xs text-ink-dim">
+        <div>
+          {!design
+            ? "Open a design with a supported radio board (Heltec V2/V3/V4, T-Beam, TTGO LoRa32)."
+            : supported
+              ? <>Flashing the official Meshtastic {status?.version ?? "release"} factory image for <code className="font-mono text-ink">{board?.name ?? boardLibraryId}</code>, full-chip erase.</>
+              : <>No Meshtastic firmware mapping for <code className="font-mono text-ink">{board?.name ?? boardLibraryId}</code>. Supported: Heltec V2/V3/V4, T-Beam, TTGO LoRa32.</>}
+        </div>
+        <Button
+          variant="primary"
+          disabled={!supported || !status?.available || phase === "fetching" || phase === "flashing"}
+          onClick={handleFlash}
+        >
+          <Zap className="h-3.5 w-3.5" />
+          {phase === "fetching" ? "Fetching…" : phase === "flashing" ? `Flashing ${(progress * 100).toFixed(0)}%` : "Flash Meshtastic"}
+        </Button>
+      </div>
+
+      {log.length > 0 && (
+        <pre className="max-h-32 overflow-auto rounded-lg bg-surface-0 p-2 font-mono text-[11px] leading-snug text-ink-dim ring-1 ring-line">
+          {log.join("\n")}
+        </pre>
+      )}
+
+      {phase === "flashed" && (
+        <div className="rounded-lg border border-line bg-surface-2/40 p-3 text-xs text-ink-dim">
+          Device flashed. Meshtastic configuration (region, channels) is
+          protobuf over serial, not console commands — set it up in the
+          official client at{" "}
+          <a
+            href="https://client.meshtastic.org"
+            target="_blank"
+            rel="noreferrer"
+            className="text-accent-400 underline decoration-accent-500/40 hover:text-accent-300"
+          >
+            client.meshtastic.org
+          </a>{" "}
+          (Serial connection) after closing this dialog to free the port.
+        </div>
+      )}
+
+      {serial && (
+        <pre className="max-h-40 overflow-auto rounded-lg bg-surface-0 p-2 font-mono text-[11px] leading-snug text-emerald-300/90 ring-1 ring-line">
+          {serial}
+        </pre>
+      )}
+
+      {error && (
+        <div className="rounded-lg border border-rose-500/40 bg-rose-500/10 p-3 text-xs text-rose-200 whitespace-pre-wrap">
+          {error}
+        </div>
+      )}
+    </div>
+  );
+}
+
+type TasmotaPhase = "idle" | "fetching" | "flashing" | "flashed" | "pushing" | "pushed";
+
+function TasmotaFlash({ design, boards }: { design: Design | null; boards: BoardSummary[] | null }) {
+  const [status, setStatus] = useState<{ available: boolean; reason: string | null } | null>(null);
+  const [phase, setPhase] = useState<TasmotaPhase>("idle");
+  const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<number>(0);
+  const [log, setLog] = useState<string[]>([]);
+  const [serial, setSerial] = useState<string>("");
+  const [template, setTemplate] = useState<TasmotaTemplate | null>(null);
+  const [templateWarnings, setTemplateWarnings] = useState<string[]>([]);
+  const [ssid, setSsid] = useState("");
+  const [password, setPassword] = useState("");
+  const sessionRef = useRef<FlashSession | null>(null);
+
+  const boardLibraryId = String((design?.board as Record<string, unknown> | undefined)?.library_id ?? "");
+  const board = useMemo(
+    () => (boards ?? []).find((b) => b.id === boardLibraryId) ?? null,
+    [boards, boardLibraryId],
+  );
+  const chip = board?.chip_variant ?? null;
+
+  useEffect(() => {
+    let cancelled = false;
+    api.tasmotaFirmwareStatus()
+      .then((s) => { if (!cancelled) setStatus(s); })
+      .catch((e) => {
+        if (!cancelled) setStatus({ available: false, reason: e instanceof Error ? e.message : String(e) });
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!design) { setTemplate(null); return; }
+    let cancelled = false;
+    api.tasmotaTemplate(design)
+      .then((r) => {
+        if (cancelled) return;
+        setTemplate(r.template);
+        setTemplateWarnings(r.warnings);
+      })
+      .catch(() => { if (!cancelled) setTemplate(null); });
+    return () => { cancelled = true; };
+  }, [design]);
+
+  useEffect(() => () => { void sessionRef.current?.close(); }, []);
+
+  function appendLog(line: string) {
+    setLog((l) => [...l.slice(-200), line]);
+  }
+
+  async function handleFlash() {
+    if (!chip) return;
+    setError(null);
+    setPhase("fetching");
+    try {
+      const { data, offset } = await api.tasmotaFirmware(chip);
+      appendLog(`fetched release image (${(data.length / 1024).toFixed(0)} KiB) for ${chip}`);
+      setPhase("flashing");
+      const session = await flashFirmware({
+        images: [{ data, address: offset }],
+        eraseAll: true,
+        onProgress: (written, total) => setProgress(total ? written / total : 0),
+        onLog: appendLog,
+        onSerial: (text) => setSerial((s) => (s + text).slice(-8000)),
+      });
+      sessionRef.current = session;
+      setPhase("flashed");
+    } catch (e) {
+      setError(e instanceof ApiError ? `${e.status}: ${e.message}` : e instanceof Error ? e.message : String(e));
+      setPhase("idle");
+    }
+  }
+
+  async function handlePush() {
+    const session = sessionRef.current;
+    if (!session || !template) return;
+    setError(null);
+    setPhase("pushing");
+    try {
+      for (const cmd of tasmotaConfigCommands(template, ssid.trim() || undefined, password || undefined)) {
+        await session.write(cmd + "\r\n");
+        appendLog(`> ${cmd.replace(password ? password : " ", "***")}`);
+        await new Promise((r) => setTimeout(r, 500));
+      }
+      setPhase("pushed");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setPhase("flashed");
+    }
+  }
+
+  const busy = phase === "fetching" || phase === "flashing" || phase === "pushing";
+
+  return (
+    <div className="space-y-3">
+      {status !== null && !status.available && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+          <div className="font-semibold">Firmware download unavailable</div>
+          <div className="mt-1">{status.reason}</div>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between gap-3 text-xs text-ink-dim">
+        <div>
+          {chip
+            ? <>Flashing the official Tasmota release for <code className="font-mono text-ink">{chip}</code> ({board?.name}), full-chip erase.</>
+            : "Open a design to derive the chip, or connect any supported board."}
+        </div>
+        <Button
+          variant="primary"
+          disabled={!chip || !status?.available || busy}
+          onClick={handleFlash}
+        >
+          <Zap className="h-3.5 w-3.5" />
+          {phase === "fetching" ? "Fetching…" : phase === "flashing" ? `Flashing ${(progress * 100).toFixed(0)}%` : "Flash Tasmota"}
+        </Button>
+      </div>
+
+      {log.length > 0 && (
+        <pre className="max-h-32 overflow-auto rounded-lg bg-surface-0 p-2 font-mono text-[11px] leading-snug text-ink-dim ring-1 ring-line">
+          {log.join("\n")}
+        </pre>
+      )}
+
+      {(phase === "flashed" || phase === "pushing" || phase === "pushed") && (
+        <div className="space-y-2 rounded-lg border border-line bg-surface-2/40 p-3">
+          <div className="text-xs font-medium text-ink">Push configuration over serial</div>
+          {template ? (
+            <pre className="max-h-24 overflow-auto rounded-md bg-surface-0 p-2 font-mono text-[10px] text-ink-dim ring-1 ring-line">
+              {JSON.stringify(template)}
+            </pre>
+          ) : (
+            <div className="text-[11px] text-ink-faint">
+              No design open — flashing works, but there is no template to push.
+            </div>
+          )}
+          {templateWarnings.length > 0 && (
+            <ul className="text-[10px] text-amber-200">
+              {templateWarnings.map((w, i) => <li key={i}>{w}</li>)}
+            </ul>
+          )}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <FieldLabel>wifi ssid (optional)</FieldLabel>
+              <Input value={ssid} onChange={(e) => setSsid(e.target.value)} placeholder="left blank: skip WiFi" />
+            </div>
+            <div className="space-y-1">
+              <FieldLabel>wifi password</FieldLabel>
+              <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+            </div>
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10px] text-ink-faint">
+              Credentials go straight to the device over serial; they are never
+              sent to the server or stored in the design.
+            </span>
+            <Button
+              variant="primary"
+              disabled={!template || phase === "pushing"}
+              onClick={handlePush}
+            >
+              <Radio className="h-3.5 w-3.5" />
+              {phase === "pushing" ? "Pushing…" : phase === "pushed" ? "Push again" : "Push config"}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {serial && (
+        <pre className="max-h-40 overflow-auto rounded-lg bg-surface-0 p-2 font-mono text-[11px] leading-snug text-emerald-300/90 ring-1 ring-line">
+          {serial}
+        </pre>
+      )}
+
+      {error && (
+        <div className="rounded-lg border border-rose-500/40 bg-rose-500/10 p-3 text-xs text-rose-200 whitespace-pre-wrap">
+          {error}
+        </div>
+      )}
+    </div>
+  );
+}

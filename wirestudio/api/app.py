@@ -1447,6 +1447,12 @@ def create_app(
         if target_router is not None:
             app.include_router(target_router, prefix=f"/{target_id}")
 
+    # Meshtastic is a firmware proxy, not a generation target: devices run
+    # stock firmware, so there is no generate() to plug into the target seam.
+    from wirestudio.api.meshtastic import router as meshtastic_router
+
+    app.include_router(meshtastic_router(), prefix="/meshtastic")
+
     if mcp_server is not None:
         # Streamable HTTP transport. mcp_server.streamable_http_app() registers
         # `/mcp` on its own Starlette app; we wrap it in BearerTokenMiddleware

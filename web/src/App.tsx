@@ -22,7 +22,7 @@ import { PushToFleetDialog } from "./components/PushToFleetDialog";
 import { CapabilityPickerDialog } from "./components/CapabilityPickerDialog";
 import { EnclosureDialog } from "./components/EnclosureDialog";
 import { SchematicDialog } from "./components/SchematicDialog";
-import { LorawanFlashDialog } from "./components/LorawanFlashDialog";
+import { FlashDialog } from "./components/FlashDialog";
 import { LorawanProvisionEsphomeDialog } from "./components/LorawanProvisionEsphomeDialog";
 import { InventoryDialog } from "./components/InventoryDialog";
 import { SettingsDialog } from "./components/SettingsDialog";
@@ -631,8 +631,8 @@ export default function App() {
               <button
                 onClick={() => setShowFlashDialog(true)}
                 className="flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium text-ink-faint transition-colors hover:bg-surface-2 hover:text-ink"
-                title="Build + flash LoRaWAN firmware over WebSerial"
-                aria-label="Flash LoRaWAN firmware"
+                title="Flash firmware over WebSerial (ESPHome, Tasmota, LoRaWAN)"
+                aria-label="Flash firmware"
               >
                 <Radio className="h-4 w-4" />
               </button>
@@ -780,7 +780,12 @@ export default function App() {
         />
       )}
       {showFlashDialog && (
-        <LorawanFlashDialog onClose={() => setShowFlashDialog(false)} />
+        <FlashDialog
+          design={design}
+          boards={boards}
+          onClose={() => setShowFlashDialog(false)}
+          onOpenFleet={() => setShowFleetDialog(true)}
+        />
       )}
       {showFleetDialog && design && (
         <PushToFleetDialog
