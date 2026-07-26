@@ -110,10 +110,27 @@ The script writes <design_id>.kicad_sch + .net + .xml into the current
 directory. Edit pin assignments + component overrides above the
 generate_*() calls if you want to tweak before re-running.
 """
+import glob
 import os
+import re
 
 import skidl
 from skidl import Part, Net, generate_netlist, generate_schematic, TEMPLATE
+
+
+def _kicad8_compat():
+    # SKiDL 2.2.x's kicad8 writer emits two KiCad 9 constructs that
+    # KiCad 8's parser rejects: the nested (pin_numbers (hide yes)) form
+    # (8 requires the bare (pin_numbers hide)) and the embedded_fonts
+    # token (unknown to 8). Rewrite the emitted file to 8's grammar.
+    for path in glob.glob("*.kicad_sch"):
+        with open(path) as fh:
+            text = fh.read()
+        text = re.sub(r"\(pin_numbers\s*\(hide yes\)\s*\)", "(pin_numbers hide)", text)
+        text = re.sub(r"\(pin_numbers\s*\(hide no\)\s*\)", "", text)
+        text = re.sub(r"\(embedded_fonts\s+(?:yes|no)\)", "", text)
+        with open(path, "w") as fh:
+            fh.write(text)
 
 # Pin the tool and symbol search path so the script resolves symbols the
 # same way everywhere it runs. SKiDL's default tool predates .kicad_sym
@@ -129,7 +146,11 @@ if _sym:
 
 def build():
     # ---- Power rails -----------------------------------------------------
+    # Power nets draw as short labeled stubs at each pin instead of
+    # routed wires -- standard schematic practice, and it keeps SKiDL's
+    # router from webbing the sheet with power wiring.
     GND = Net("GND")
+    GND.stub = True
 {rail_decls}
 
     # ---- Component instances --------------------------------------------
@@ -149,7 +170,11 @@ if __name__ == "__main__":
     generate_netlist()
     # allow_routing_failure: SKiDL's schematic router is best-effort; a
     # degraded render with stubbed nets beats no render at all.
-    generate_schematic(allow_routing_failure=True)
+    # auto_stub: high-fanout nets (buses) become labeled stubs, and
+    # routing failures fall back to a stubbed drawing instead of raising.
+    # rotate_parts: the placer may orient parts to shorten wiring.
+    generate_schematic(allow_routing_failure=True, auto_stub=True, rotate_parts=True)
+    _kicad8_compat()
 '''
 
 
@@ -184,6 +209,7 @@ def _render_rails(design: Design) -> str:
     out: list[str] = []
     for r in sorted(rails):
         out.append(f'NET_PLUS_{_py_var(r)} = Net("+{r}")')
+        out.append(f'NET_PLUS_{_py_var(r)}.stub = True')
     return "\n".join(out)
 
 

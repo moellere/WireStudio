@@ -53,7 +53,7 @@ def test_skidl_imports_appear(lib):
     script = generate_skidl(_design("garage-motion"), lib)
     assert "from skidl import" in script
     assert "Part" in script and "Net" in script
-    assert "generate_schematic(allow_routing_failure=True)" in script
+    assert "generate_schematic(allow_routing_failure=True, auto_stub=True, rotate_parts=True)" in script
 
 
 def test_design_id_appears_in_docstring(lib):

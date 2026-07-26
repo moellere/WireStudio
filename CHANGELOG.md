@@ -7,6 +7,85 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.23.0] — 2026-07-26
+
+### Added
+
+- **Unified flash dialog.** The Radio toolbar button now opens a single
+  flashing surface with a framework picker -- ESPHome, Tasmota, LoRaWAN,
+  Meshtastic -- all sharing the one WebSerial/esptool-js mechanism. ESPHome hands off to the fleet push dialog; LoRaWAN keeps
+  its compile-flash-provision flow; Tasmota fetches the official release
+  image through the server proxy, flashes with full-chip erase, then
+  offers a post-flash serial config push: the design's template plus
+  optional WiFi credentials sent as `Backlog0` console commands.
+  Credentials stay client-side -- never sent to the server or stored in
+  the design.
+- **Tasmota firmware proxy.** `GET /tasmota/firmware?chip=` streams the
+  matching official release image from ota.tasmota.com with the flash
+  offset in `X-Flash-Offset`; `GET /tasmota/firmware/status` gates the
+  UI on upstream reachability.
+- **Meshtastic flashing.** `GET /meshtastic/firmware?board=` proxies the
+  official release factory image from meshtastic.github.io for the radio
+  boards (Heltec V2/V3/V4, T-Beam, TTGO LoRa32), resolving the newest
+  stable version from the same release-list API the official web flasher
+  uses. Flashed at 0x0 with full erase via the unified dialog. Not a
+  target plugin -- devices run stock firmware, so nothing is generated
+  from the design. Region/channel config is protobuf over serial; the
+  dialog links to client.meshtastic.org, and an in-studio config push
+  via `@meshtastic/js` moves to the backlog.
+
+## [0.22.0] — 2026-07-26
+
+### Added
+
+- **Pin notes on every GPIO dropdown.** The safe / in use / caveat
+  annotations from the bus pin selectors now also appear in the
+  connection editor's GPIO pin dropdowns, sharing the same
+  pinCaveat/readUsedPins logic.
+
+- **Tasmota target.** Third generation target alongside esphome and
+  lorawan: emits a Tasmota device template from a solved design --
+  `POST /tasmota/template`, `python -m wirestudio.targets.tasmota`, and
+  the target seam. GPIO function ids and per-chip template layouts are
+  sourced from Tasmota's `tasmota_template.h`; 15 library components
+  gain `tasmota:` mappings (relays, switches, DHT/DS18B20, WS2812, ADC,
+  HC-SR04, rotary, counter, buzzer, IR, HX711, CSE7766, HLW8012), and
+  I2C sensors ride the bus pins via Tasmota autodetection. The
+  smart-plug example reproduces the Sonoff S31 template convention.
+  Meshtastic and CircuitPython targets are added to the roadmap backlog.
+
+## [0.21.3] — 2026-07-25
+
+### Changed
+
+- **Cleaner schematic renders.** Power/rail nets are marked as stubs
+  (short labeled stubs at each pin instead of routed wires), and
+  generate_schematic runs with auto_stub (high-fanout nets become
+  labeled stubs; routing failures fall back to a stubbed drawing) and
+  rotate_parts. Cuts most of the label/wire overlap in the preview.
+
+## [0.21.2] — 2026-07-25
+
+### Added
+
+- **kicad-render CI gate.** New workflow runs the full schematic render
+  pipeline (SKiDL -> .kicad_sch -> `kicad-cli sch export svg`) on real
+  KiCad 8 for solved and unsolved example designs -- the pipeline the
+  netlist-level gate never exercised.
+
+### Fixed
+
+- **Schematic render: KiCad 8 rejected SKiDL's output.** skidl 2.2.x's
+  kicad8 writer emits two KiCad 9 constructs -- the nested
+  `(pin_numbers (hide yes))` form and the `embedded_fonts` token --
+  that KiCad 8's parser rejects with a swallowed exception, presenting
+  as "Failed to load schematic file". The generated script rewrites the
+  emitted `.kicad_sch` to KiCad 8 grammar. Diagnosed and now guarded by
+  the kicad-render gate.
+
+- Render errors now include kicad-cli stdout, where its parse detail
+  lands; stderr alone carried only "Failed to load schematic file".
+
 ## [0.21.1] — 2026-07-25
 
 ### Fixed

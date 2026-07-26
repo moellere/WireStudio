@@ -135,6 +135,32 @@ and the `-pcb` image variant that carries the toolchain. Next: routed
 DRC feedback in the UI, via-cost/keepout tuning, and copper pours for
 power nets.
 
+**Tasmota target (0.22).** *Works.* Emits a Tasmota device template --
+a pure mapping of solved pins to Tasmota GPIO function ids -- via
+`POST /tasmota/template`, the target seam, and
+`python -m wirestudio.targets.tasmota`. Function ids and per-chip
+template layouts are sourced from `tasmota_template.h`; unit tests pin
+the Sonoff S31 convention for the smart-plug example. Library
+components opt in with a `tasmota:` block; I2C sensors ride the bus
+pins via Tasmota autodetection.
+
+**Meshtastic flashing (0.23).** *Works.* The unified flash dialog
+fetches the official Meshtastic release factory image through the
+server proxy (`GET /meshtastic/firmware`, board-to-variant map for
+Heltec V2/V3/V4, T-Beam, TTGO LoRa32) and flashes it at 0x0 over the
+same WebSerial path. Not a target plugin -- devices run stock firmware,
+nothing is generated from the design. Region/channel config is protobuf
+over serial, so the dialog links to client.meshtastic.org; an in-studio
+config push via `@meshtastic/js` stays in the backlog.
+
+**Target backlog.** Next: Meshtastic config push (`@meshtastic/js`
+region/channel/key setup over the existing serial session), then
+CircuitPython
+(emit a code.py scaffold with pin constants + driver init per
+component, the LoRaWAN-fragment pattern; timed with Adafruit outreach).
+Deliberately deferred: generic Arduino/PlatformIO scaffolds (per-driver
+maintenance sinkhole), Zephyr, Zigbee/Thread on the C6.
+
 **LoRaWAN target (0.13 standalone, 0.16+ external-component).** *Works —
 hardware-validated on the standalone path; external-component path
 shipped, hardware join verification in progress.* Two paths share the

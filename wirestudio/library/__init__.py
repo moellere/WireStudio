@@ -151,6 +151,15 @@ class Capability(_Strict):
     checks: list[CapabilityChecks] = Field(default_factory=list)
 
 
+class TasmotaSpec(_Strict):
+    """Tasmota template mapping. `pins` maps a pin role to a function
+    name from the tasmota target's FUNC table; `bus` maps a bus pin
+    slot (rx/tx) to a function for UART-attached parts. I2C sensors
+    need no block -- Tasmota autodetects them from the bus pins."""
+    pins: dict[str, str] = Field(default_factory=dict)
+    bus: dict[str, str] = Field(default_factory=dict)
+
+
 class LibraryComponent(_Strict):
     id: str
     name: str
@@ -164,6 +173,7 @@ class LibraryComponent(_Strict):
     params_schema: dict = Field(default_factory=dict)
     notes: Optional[str] = None
     kicad: Optional[KicadSymbolRef] = None
+    tasmota: Optional[TasmotaSpec] = None
 
 
 class Rail(_Strict):

@@ -60,3 +60,5 @@ kicad:
   pin_map:
     OUT: '1'
     GND: '2'
+tasmota:
+  pins: {OUT: Buzzer}

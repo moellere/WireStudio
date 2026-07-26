@@ -22,6 +22,7 @@ Every downstream artifact is generated from these files plus a user's
 | PCB + fab bundle | `kicad.footprint` |
 | Enclosure generation | board `enclosure` (pcb dims, mount_holes, ports, component_height_max_mm) |
 | LoRaWAN firmware | board `radio`, component `lorawan` |
+| Tasmota template | component `tasmota` (pins / bus function map) |
 
 A product with only the required fields still works end-to-end for
 YAML generation and wiring; each optional block unlocks the phase it
@@ -132,6 +133,14 @@ kicad:
   pin_map: {VCC: VDD}         # library role -> symbol pin name, where they differ
 
 notes: "3V3 only. On 5V boards, place behind a level shifter."
+
+# --- tasmota (optional; unlocks the Tasmota template target) ---
+# Maps pin roles to Tasmota GPIO function names (see the tasmota
+# target's FUNC table). UART-attached parts map bus slots instead.
+# I2C sensors need no block: Tasmota autodetects them from the bus.
+tasmota:
+  pins: {DATA: DHT22}         # or e.g. {OUT: Relay}, {IN: Switch}
+  # bus: {rx: CSE7766_RX, tx: CSE7766_TX}
 ```
 
 If no upstream KiCad symbol exists, name the closest generic symbol

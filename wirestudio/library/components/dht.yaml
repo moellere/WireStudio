@@ -112,3 +112,5 @@ kicad:
   value: DHT11/DHT22
   pin_map:
     VCC: VDD
+tasmota:
+  pins: {DATA: DHT22}
