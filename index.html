@@ -10,7 +10,7 @@
 <meta property="og:description" content="Describe the function; get the whole device. One design.json yields firmware to run it (ESPHome / LoRaWAN) and hardware to build it (schematic, PCB, enclosure, BOM) — deterministically.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://wirestudio.io">
-<link rel="stylesheet" href="style.css?v=20260614">
+<link rel="stylesheet" href="style.css?v=20260728">
 </head>
 <body>
 
@@ -49,7 +49,7 @@
         <div class="code-bar"><span></span><span></span><span></span></div>
         <pre><code><span class="c-prompt">$</span> wirestudio <span class="c-dim">"battery LoRa soil sensor — moisture + GPS"</span>
 <span class="c-ok">✓</span> design.json          <span class="c-dim">board + parts chosen, pins solved</span>
-<span class="c-ok">✓</span> firmware             <span class="c-dim">ESPHome YAML · LoRaWAN (RadioLib)</span>
+<span class="c-ok">✓</span> firmware             <span class="c-dim">ESPHome · LoRaWAN · Tasmota · more</span>
 <span class="c-ok">✓</span> schematic + PCB      <span class="c-dim">.kicad_sch · .kicad_pcb · Gerbers</span>
 <span class="c-ok">✓</span> enclosure + BOM      <span class="c-dim">OpenSCAD shell · ordered parts list</span></code></pre>
       </div>
@@ -58,10 +58,10 @@
 
   <section class="stats">
     <div class="container stats-inner">
-      <div class="stat"><strong>60</strong><span>components</span></div>
-      <div class="stat"><strong>24</strong><span>boards</span></div>
-      <div class="stat"><strong>51</strong><span>example designs</span></div>
-      <div class="stat"><strong>MCP</strong><span>ready</span></div>
+      <div class="stat"><strong>64</strong><span>components</span></div>
+      <div class="stat"><strong>26</strong><span>boards</span></div>
+      <div class="stat"><strong>60</strong><span>example designs</span></div>
+      <div class="stat"><strong>5</strong><span>firmware frameworks</span></div>
     </div>
   </section>
 
@@ -92,8 +92,12 @@
               <span class="badge hw">hardware-validated</span>
             </div>
             <div class="axis-item">
-              <span class="label">more frameworks<small>pluggable target seam</small></span>
-              <span class="badge planned">planned</span>
+              <span class="label">Tasmota template<small>solved pins &rarr; device template + serial config push</small></span>
+              <span class="badge verified">verified</span>
+            </div>
+            <div class="axis-item">
+              <span class="label">Meshtastic &middot; CircuitPython<small>official images, one WebSerial flash dialog</small></span>
+              <span class="badge works">works</span>
             </div>
           </div>
 
@@ -105,8 +109,8 @@
               <span class="badge verified">verified</span>
             </div>
             <div class="axis-item">
-              <span class="label">PCB + fab bundle<small>.kicad_pcb &middot; Gerber / drill / CPL / BOM</small></span>
-              <span class="badge caveat">unrouted</span>
+              <span class="label">PCB + fab bundle<small>.kicad_pcb &middot; Freerouting autoroute &middot; Gerber / drill / CPL / BOM</small></span>
+              <span class="badge verified">verified</span>
             </div>
             <div class="axis-item">
               <span class="label">Enclosure<small>parametric OpenSCAD shell</small></span>
@@ -119,8 +123,7 @@
       <p class="flow-legend">
         <strong>verified</strong> = gated against upstream tools every PR &middot;
         <strong>hardware-validated</strong> = proven on a real device &middot;
-        <strong>unrouted</strong> = board ships with pads + ratsnest, autoroute is on the roadmap &middot;
-        <strong>planned</strong> = on the roadmap
+        <strong>works</strong> = shipped with lighter checks (mocked-upstream tests, no live-flash gate)
       </p>
       <p class="how-note">
         No LLM sits in a compile or fetch path. The agent edits the design;
@@ -160,8 +163,9 @@
         <article class="card">
           <h3>KiCad schematic + PCB</h3>
           <p>Emits a SKiDL script for a <code>.kicad_sch</code> and a
-          grid-placed <code>.kicad_pcb</code> with nets and board outline —
-          plus Gerber/drill/CPL/BOM for the fab. No LLM placing wires.</p>
+          placed <code>.kicad_pcb</code>, autoroutes it with Freerouting,
+          and packages Gerber/drill/CPL/BOM for the fab. No LLM placing
+          wires.</p>
         </article>
 
         <article class="card">
@@ -182,6 +186,15 @@
           <p>Drives the design tools from Claude Code or Claude Desktop
           over the Model Context Protocol — on your subscription, no
           API keys to wire up.</p>
+        </article>
+
+        <article class="card">
+          <h3>One flash dialog</h3>
+          <p>Five firmware frameworks — ESPHome, Tasmota, LoRaWAN,
+          Meshtastic, CircuitPython — flashed over WebSerial from the
+          browser. Official release images fetched through the studio;
+          CircuitPython lands with a generated starter
+          <code>code.py</code>.</p>
         </article>
 
         <article class="card">

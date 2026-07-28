@@ -375,6 +375,7 @@ a:hover { text-decoration: underline; }
 .badge.hw { background: #e7edfd; color: var(--accent-dark); }
 .badge.caveat { background: #fdf0dd; color: #b45309; }
 .badge.planned { background: var(--bg-soft); color: var(--ink-soft); }
+.badge.works { background: #f0e9fd; color: #6d28d9; }
 .flow-legend {
   max-width: 720px;
   margin: 2px auto 22px;
