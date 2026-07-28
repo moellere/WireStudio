@@ -27,8 +27,18 @@
   parametric OpenSCAD enclosure (`.scad`), and a SKiDL Python script
   the user runs locally to produce a `.kicad_sch`. Bundled examples
   pinned as goldens.
+- **Flash.** One flash dialog (**Flash firmware**, radio icon) covers
+  five frameworks over the same WebSerial + esptool-js mechanism:
+  **ESPHome** hands off to the fleet push (OTA, no serial flash),
+  **Tasmota** fetches the official release image for the design's chip
+  and offers a post-flash template + WiFi push over serial,
+  **LoRaWAN** compiles and flashes the RadioLib firmware,
+  **Meshtastic** flashes the official factory image for the mapped
+  radio boards (config happens at client.meshtastic.org), and
+  **CircuitPython** flashes the official release image and serves a
+  generated starter `code.py` (save-to-CIRCUITPY or download).
 - **LoRaWAN (radio boards).** Two flows for US915 radio boards (TTGO
-  LoRa32 / T-Beam, Heltec WiFi LoRa 32 V2 / V3):
+  LoRa32 / T-Beam, Heltec WiFi LoRa 32 V2 / V3 / V4):
   - **Flash LoRaWAN firmware** (radio icon, advanced mode) builds the
     standalone RadioLib + LoRaWAN_ESP32 path and flashes over WebSerial
     with runtime serial provisioning. Hardware-validated.
@@ -63,9 +73,12 @@ Inspector surfaces:
 
 Header buttons: **New design**, **Reset**, **Save**, **Download JSON**,
 **Solve pins**, **strict** (toggle), **Connect device** (USB
-bootstrap), **Add by function** (capability picker), **Schematic**
-(KiCad export), **Enclosure** (parametric `.scad` + Thingiverse
-search), **Push to fleet**, **Settings** (gear).
+bootstrap), **Add by function** (capability picker), **Flash firmware**
+(the unified flash dialog), **Provision LoRaWAN device** (key icon),
+**Schematic** (KiCad export), **Enclosure** (parametric `.scad` +
+Thingiverse search), **Push to fleet**, **Agent** (chat sidebar),
+**Settings** (gear). Advanced mode reveals the Agent, Schematic,
+Enclosure, and Fleet options.
 
 The **Settings** dialog surfaces the MCP bearer token: reveal, copy, or
 regenerate it without leaving the browser (read-only when the token is
@@ -94,6 +107,15 @@ pinned via `WIRESTUDIO_MCP_TOKEN`). See [the MCP guide](mcp.md#auth).
 | `GET`  | `/fleet/jobs/{run_id}` | aggregated compile verdict for a Push-to-fleet run |
 | `GET`  | `/fleet/jobs/{run_id}/log?offset=N` | poll the addon's build log for a compile run; returns `{log, offset, finished}` |
 | `GET`  | `/fleet/jobs/{run_id}/log/stream` | Server-Sent Events relay over the same log endpoint; ~300ms cadence, exits with `event: done` when the build finishes |
+| `POST` | `/tasmota/template` | emit a Tasmota device template (solved pins → GPIO function ids) |
+| `GET`  | `/tasmota/firmware?chip=` | proxy the official Tasmota release image for the chip (`/tasmota/firmware/status` gates it) |
+| `GET`  | `/meshtastic/firmware?board=` | proxy the official Meshtastic factory image for a mapped radio board (`/meshtastic/firmware/status` gates it) |
+| `GET`  | `/circuitpython/firmware?board=` | proxy the official CircuitPython release image for an ESP32-family board (`/circuitpython/firmware/status` gates it, and flags generic-image fallbacks) |
+| `GET`  | `/circuitpython/code?board=` | starter `code.py` generated from the board's library metadata |
+
+The table above is a working subset — schematic/PCB/fab/route, LoRaWAN,
+designs, seed, inventory, and agent endpoints are all in the
+auto-generated OpenAPI docs, which are authoritative.
 
 The HTTP API is a thin layer over the studio's pure-function modules
 (`wirestudio.generate`, `wirestudio.csp`, `wirestudio.recommend`, `wirestudio.fleet`,
