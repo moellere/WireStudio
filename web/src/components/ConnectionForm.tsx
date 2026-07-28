@@ -54,15 +54,18 @@ export function ConnectionForm({
     return caveat ? `${p} — ${caveat}` : `${p} — safe`;
   };
 
-  const buses = useMemo(() => (design ? readBuses(design) : []), [design]);
-  const busIds = useMemo(() => buses.map((b) => b.id), [buses]);
-  const busDict = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const b of buses) {
-      map.set(b.id, `${b.id} (${b.type})`);
+  // ⚡ Bolt: Use single-pass loops to derive lookups directly, avoiding chained .map()/.filter() intermediate array allocations
+  const { busIds, busDict } = useMemo(() => {
+    const ids: string[] = [];
+    const dict = new Map<string, string>();
+    if (design) {
+      for (const b of readBuses(design)) {
+        ids.push(b.id);
+        dict.set(b.id, `${b.id} (${b.type})`);
+      }
     }
-    return map;
-  }, [buses]);
+    return { busIds: ids, busDict: dict };
+  }, [design]);
 
   const expanderLibIds = useMemo(() => {
     if (!libraryComponents) return new Set<string>();
@@ -75,31 +78,32 @@ export function ConnectionForm({
     return ids;
   }, [libraryComponents]);
 
-  const expanders = useMemo(() => {
-    return design ? readComponents(design).filter((c) => expanderLibIds.has(c.library_id)) : [];
-  }, [design, expanderLibIds]);
-  const expanderIds = useMemo(() => expanders.map((e) => e.id), [expanders]);
-  const expanderDict = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const e of expanders) {
-      map.set(e.id, `${e.id} (${e.library_id})`);
-    }
-    return map;
-  }, [expanders]);
+  // ⚡ Bolt: Derive expander and component IDs and Dictionaries in a single loop over components
+  const { expanderIds, expanderDict, componentIds, componentDict } = useMemo(() => {
+    const eIds: string[] = [];
+    const eDict = new Map<string, string>();
+    const cIds: string[] = [];
+    const cDict = new Map<string, string>();
 
-  const componentInstances = useMemo(() => {
-    return (design ? readComponents(design) : []).map((c) => ({
-      id: c.id, library_id: c.library_id,
-    }));
-  }, [design]);
-  const componentIds = useMemo(() => componentInstances.map((c) => c.id), [componentInstances]);
-  const componentDict = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const c of componentInstances) {
-      map.set(c.id, `${c.id} (${c.library_id})`);
+    if (design) {
+      for (const c of readComponents(design)) {
+        const label = `${c.id} (${c.library_id})`;
+
+        cIds.push(c.id);
+        cDict.set(c.id, label);
+
+        if (expanderLibIds.has(c.library_id)) {
+          eIds.push(c.id);
+          eDict.set(c.id, label);
+        }
+      }
     }
-    return map;
-  }, [componentInstances]);
+
+    return {
+      expanderIds: eIds, expanderDict: eDict,
+      componentIds: cIds, componentDict: cDict,
+    };
+  }, [design, expanderLibIds]);
 
   if (rows.length === 0) {
     return <div className="text-xs text-ink-faint">No connections.</div>;
