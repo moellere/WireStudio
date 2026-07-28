@@ -302,6 +302,11 @@ function buildModel(design: Design) {
     boardRowY.set(r.net!, TOP + HEAD_H + PAD_Y + i * ROW_H + ROW_H / 2);
   });
 
+  const busTypeMap = new Map<string, string>();
+  for (const b of buses) {
+    busTypeMap.set(b.id, b.type);
+  }
+
   let busY = TOP;
   const busRowY = new Map<string, Map<string, number>>();
   for (const b of buses) {
@@ -368,7 +373,7 @@ function buildModel(design: Design) {
               ? "fill-amber-400"
               : "fill-rose-400"
           : c.target?.kind === "bus"
-            ? busClass(buses.find((b) => b.id === c.target!.bus_id)?.type ?? "")
+            ? busClass(busTypeMap.get(String(c.target!.bus_id)) ?? "")
                 .replace("stroke-", "fill-")
             : "fill-accent-400",
     }));
@@ -420,7 +425,7 @@ function buildModel(design: Design) {
             y1,
             x2: BUS_X + CARD_W,
             y2,
-            cls: busClass(buses.find((b) => b.id === c.target!.bus_id)?.type ?? ""),
+            cls: busClass(busTypeMap.get(String(c.target!.bus_id)) ?? ""),
             net,
           });
         }
