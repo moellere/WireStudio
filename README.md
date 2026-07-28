@@ -29,6 +29,14 @@ join-status polling all from the web UI. Both paths target US915 radio
 boards (TTGO T-Beam / LoRa32, Heltec WiFi LoRa 32 V2 / V3 / V4) and
 provision against ChirpStack.
 
+One flash dialog covers five firmware frameworks over the same
+WebSerial + esptool-js mechanism: **ESPHome** (OTA via fleet push),
+**Tasmota** (official release image + template push over serial),
+**LoRaWAN** (compiled RadioLib firmware), **Meshtastic** (official
+release factory image for the radio boards), and **CircuitPython**
+(official release image plus a generated starter `code.py` for the
+CIRCUITPY drive).
+
 Not affiliated with the ESPHome project — see
 [`weirded/fleet-for-esphome`](https://github.com/weirded/fleet-for-esphome)
 for the OTA-deploy companion this studio's **Push to fleet** flow
@@ -48,7 +56,7 @@ Detailed docs live in [`docs/`](docs/):
 
 ## Status
 
-`v0.19.1` — on PyPI (`pip install wirestudio`). The studio has wide
+`v0.23.0` — on PyPI (`pip install wirestudio`). The studio has wide
 surface area (YAML, schematic, PCB + fab outputs, enclosure, agent,
 MCP server, fleet handoff, web UI, two LoRaWAN flash/provision paths —
 standalone Arduino and an external-component path that emits ESPHome
@@ -72,6 +80,7 @@ Tiers, in priority order:
 | **Works (hardware-validated)** | LoRaWAN target | build RadioLib + LoRaWAN_ESP32 firmware for US915 radio boards, flash over WebSerial, provision against ChirpStack | every radio board's firmware builds in CI ([gate](.github/workflows/lorawan-firmware.yml)); validated end-to-end on a TTGO T-Beam and Heltec WiFi LoRa 32 V2 and V3 against live ChirpStack 4.17 — no automated live-device gate |
 | **Verified** | Tasmota target | emit a Tasmota device template (`/tasmota/template`) mapping solved pins to Tasmota GPIO function ids | function ids + per-chip layouts sourced from `tasmota_template.h`; unit tests pin the Sonoff S31 template convention for the smart-plug example |
 | **Works (lighter checks)** | Meshtastic flashing | proxy the official release factory image (`/meshtastic/firmware`) for the radio boards and flash it via the unified WebSerial dialog | endpoint tests with mocked upstream; board-to-variant map checked against `meshtastic/firmware` variants; no live-flash gate |
+| **Works (lighter checks)** | CircuitPython flashing | proxy the official release image (`/circuitpython/firmware`) for ESP32/S3/C3/C6 boards, flash via the unified dialog, serve a generated starter `code.py` (`/circuitpython/code`) | endpoint tests with mocked upstream; every board-id mapping verified against downloads.circuitpython.org; generated starters parse as valid Python; no live-flash gate |
 | **Works (lighter checks)** | MCP server | drive the design tools from Claude Code / Desktop over the Model Context Protocol | tool / auth / resource tests in `tests/test_mcp_*.py`; not exercised against a live MCP client in CI |
 | **Experimental** | Thingiverse search relay | rank community models for a board | smoke-tested; depends on a third-party search API that ranks unevenly |
 | **Experimental** | Agent (Claude tool-using) | natural-language design driving | works in practice; tool surface is small; no auto-eval against task list yet |
@@ -97,7 +106,7 @@ that pin moves, this line moves with it.
 docker run --rm -p 8765:8765 \
   -e ANTHROPIC_API_KEY=sk-ant-... \
   -v wirestudio-data:/data \
-  ghcr.io/moellere/wirestudio:0.19.1
+  ghcr.io/moellere/wirestudio:0.23.0
 ```
 
 Open <http://localhost:8765>. The image bundles the FastAPI server +
@@ -140,7 +149,7 @@ The [User guide](docs/user_guide.md) walks the panes and header actions.
 ## Tests
 
 ```sh
-python -m pytest                          # ~680 cases
+python -m pytest                          # ~900 cases
 python -m ruff check .                    # lint
 cd web && npx vitest run                  # vitest + jsdom
 pip install 'esphome==2025.12.7'

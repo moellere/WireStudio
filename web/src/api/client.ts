@@ -216,6 +216,27 @@ export const api = {
     const offset = parseInt(res.headers.get("x-flash-offset") ?? "0", 10) || 0;
     return { data: new Uint8Array(await res.arrayBuffer()), offset };
   },
+  circuitpythonFirmwareStatus: () =>
+    request<{
+      available: boolean;
+      version: string | null;
+      boards: string[];
+      generic: string[];
+      images: Record<string, string>;
+      reason: string | null;
+    }>("/circuitpython/firmware/status"),
+  circuitpythonFirmware: async (board: string): Promise<{ data: Uint8Array; offset: number }> => {
+    const res = await fetch(`${API_BASE}/circuitpython/firmware?board=${encodeURIComponent(board)}`);
+    if (!res.ok) {
+      let body: unknown = undefined;
+      try { body = await res.json(); } catch { /* not json */ }
+      throw new ApiError(res.status, apiErrorMessage("GET", "/circuitpython/firmware", res.status, body), body);
+    }
+    const offset = parseInt(res.headers.get("x-flash-offset") ?? "0", 10) || 0;
+    return { data: new Uint8Array(await res.arrayBuffer()), offset };
+  },
+  circuitpythonCode: (board: string) =>
+    requestText(`/circuitpython/code?board=${encodeURIComponent(board)}`),
   kicadRouteStatus: () =>
     request<KicadRouteStatus>("/design/kicad/route/status"),
   kicadRoutedBoard: (cacheKey: string) =>

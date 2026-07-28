@@ -30,8 +30,6 @@ into an empty WeMos D1 Mini design also lays down `i2c0` on `D2/D1`).
 Digital GPIO pins land as empty placeholders that the connection editor
 shows as `(invalid: <unset>)` until you wire them.
 
-Drag-and-drop wiring and the agent sidebar are later iterations.
-
 Header buttons:
 - **Solve pins** runs the pin-assignment solver against the current
   design: every unbound connection (gpio with empty pin, bus with empty
@@ -76,6 +74,20 @@ Header buttons:
   The top match is badged "top pick" but the user is free to pick a
   different one — handy when you have a specific part on hand and
   want to use *that* sensor rather than the library default.
+- **Flash firmware** opens the unified flash dialog: a framework picker
+  (ESPHome / Tasmota / LoRaWAN / Meshtastic / CircuitPython) over one
+  WebSerial + esptool-js mechanism (`lib/flash.ts`). ESPHome hands off
+  to the fleet push; the others fetch their firmware through the
+  server's proxy endpoints and flash it, with per-framework post-flash
+  steps (Tasmota template/WiFi push over serial, CircuitPython starter
+  `code.py` with save-to-CIRCUITPY).
+- **Provision LoRaWAN device** drives the lorawan-for-esphome
+  external-component flow: detect DevEUI from eFuse MAC, mint keys
+  against ChirpStack, push to fleet with secrets inlined, poll the
+  OTAA join.
+- **Schematic** / **Enclosure** / **Settings** and the theme toggle
+  round out the header; advanced mode reveals Agent, Schematic,
+  Enclosure, and Fleet.
 
 ## Dev
 
@@ -111,18 +123,31 @@ src/
 │   ├── debounce.ts          # useDebouncedValue
 │   ├── design.ts            # immutable design helpers (params, connections,
 │   │                        # board, fleet, requirements, warnings, add/remove)
-│   ├── design.test.ts       # vitest unit tests covering the helpers
 │   ├── bootstrap.ts         # normalizeChipFamily + candidateBoardsFor + bootstrapDesign
-│   ├── bootstrap.test.ts    # vitest tests for the bootstrap helpers
-│   └── usb-detect.ts        # esptool-js wrapper (dynamic-imported)
+│   ├── usb-detect.ts        # esptool-js chip detect (dynamic-imported)
+│   ├── flash.ts             # WebSerial flashing + serial monitor (esptool-js)
+│   ├── provision.ts         # LoRaWAN DevEUI derivation + provisioning helpers
+│   ├── tasmota.ts           # Tasmota template → Backlog console commands
+│   ├── theme.ts / uiMode.ts # theme toggle + basic/advanced mode
+│   └── *.test.ts            # vitest units alongside each module
 ├── components/
-│   ├── LeftSidebar.tsx      # tabs: Examples / Boards / Components, with search
+│   ├── LeftSidebar.tsx      # tabs: Examples / Saved / Boards / Components, with search
 │   ├── DesignPane.tsx       # tabs: ASCII / YAML / JSON; design metadata header
+│   ├── WiringView.tsx / PinoutView.tsx  # wiring diagram + drag-and-drop pinout
+│   ├── ServerRenderView.tsx # schematic/PCB raster previews
 │   ├── Inspector.tsx        # routes between design / board / component / instance views
 │   ├── ParamForm.tsx        # form generated from params_schema
 │   ├── ConnectionForm.tsx   # per-connection editor (rail/gpio/bus/expander_pin)
+│   ├── BusList.tsx          # bus add/rename/edit with compat warnings
 │   ├── UsbDetectDialog.tsx  # WebSerial chip-detect modal + bootstrap picker
-│   ├── AgentSidebar.tsx     # Claude agent chat drawer; replaces the working design on each turn
+│   ├── NewDesignDialog.tsx  # fresh design from a board (seeds onboard parts)
+│   ├── CapabilityPickerDialog.tsx  # Add by function picker
+│   ├── FlashDialog.tsx      # unified flash dialog (ESPHome/Tasmota/LoRaWAN/Meshtastic/CircuitPython)
+│   ├── LorawanFlashDialog.tsx      # standalone LoRaWAN compile-flash-provision flow
+│   ├── LorawanProvisionEsphomeDialog.tsx  # external-component provision + join polling
+│   ├── PushToFleetDialog.tsx       # fleet push + compile log tail
+│   ├── SchematicDialog.tsx / EnclosureDialog.tsx / InventoryDialog.tsx / SettingsDialog.tsx
+│   ├── AgentSidebar.tsx     # Claude agent chat drawer (streamed tool calls)
 │   └── SolveResultBanner.tsx  # transient banner surfacing assignments + warnings from /design/solve_pins
 ├── App.tsx                  # state + data flow; three-pane grid
 ├── main.tsx
@@ -136,18 +161,17 @@ npm test            # vitest, runs once
 npm run test:watch  # watch mode
 ```
 
-Currently 49 tests across `lib/design.ts` (immutable patch helpers,
-isDirty, readers, add/remove with auto-wiring + auto-bus) and
-`lib/bootstrap.ts` (chip-family normalization, board candidate
-matching, bootstrap-design shape). Component-level RTL tests are a
-future iteration once we set up jsdom; the WebSerial flow gets
-manual test only because there's no headless ESP.
+~200 tests across the `lib/` helpers (design patching, bootstrap,
+flash, provision, tasmota) and component-level RTL suites under jsdom
+(Inspector, FlashDialog, provisioning dialogs, API client). The actual
+WebSerial write path gets manual testing only — there's no headless
+ESP.
 
 ## Editing model
 
-- The current design is held entirely in browser state. There is no
-  `/design/save` endpoint and no persistence; modifications stay local
-  until you hit Download JSON.
+- The current design is held in browser state; **Save** persists it to
+  the server's designs store (`designs/<id>.json`, listed under the
+  **Saved** tab), and **Download JSON** exports it to disk.
 - Every edit goes through `updateComponentParam` (in `lib/design.ts`),
   which never mutates -- it returns a new design with the targeted
   `params` key changed.

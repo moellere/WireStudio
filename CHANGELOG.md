@@ -9,6 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CircuitPython flashing.** The unified flash dialog gains a CircuitPython
+  framework: `GET /circuitpython/firmware?board=` proxies the official
+  release image from downloads.circuitpython.org (combined binary, flashed
+  at 0x0 with full erase over the same WebSerial/esptool-js mechanism),
+  resolving the newest stable version from the adafruit/circuitpython
+  releases API. All 22 ESP32/S3/C3/C6 boards map to a verified build --
+  exact where upstream has one (Heltec V3, M5Stack Atom family, XIAO,
+  SuperMinis, devkits), a pin-compatible generic image otherwise (flagged
+  in the status response and warned about in the UI). ESP8266 boards are
+  unsupported (CircuitPython dropped the port).
+- **Starter code.py.** `GET /circuitpython/code?board=` generates a
+  dependency-free starter from the board's library metadata -- Vext
+  power-up, onboard-LED blink, default-I2C scan, and a boot-time pin
+  listing. The flash dialog shows it post-flash with save-to-CIRCUITPY
+  (File System Access API) and download buttons.
+
+### Changed
+
+- **Documentation sweep.** README / docs index / user guide / library
+  reference / integrations / deployment / web README brought current:
+  the five-framework flash dialog, firmware-proxy endpoints, module map
+  (seed, intent, inventory, jlcpcb), the boards and components added
+  since 0.19 (SuperMinis, XIAO C3, TTGO LoRa32 V2.1, steppers/fans/
+  potentiometer/Grove AHT20/AXP192), version examples bumped to 0.23.0,
+  and stale claims removed (web UI persistence, test counts, shipped
+  PCB milestones still listed as future).
 - **Heltec WiFi LoRa 32 V4 GNSS auto-wiring.** The board's SH1.25-8 GNSS
   connector is now an onboard peripheral (`gps_gnss`), so seeding the board
   auto-places a GPS wired to the correct UART pins (MCU rx GPIO38, tx GPIO39

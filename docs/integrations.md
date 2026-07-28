@@ -96,7 +96,7 @@ pin map.
 ## LoRaWAN / ChirpStack
 
 Two paths for US915 radio boards — TTGO LoRa32 / T-Beam (SX1276), Heltec
-WiFi LoRa 32 V2 (SX1276) / V3 (SX1262).
+WiFi LoRa 32 V2 (SX1276) / V3 / V4 (SX1262).
 
 ### Standalone Arduino path (`Design.target: "lorawan"`)
 
@@ -166,6 +166,25 @@ sub-2. Multi-region is a tracked backlog item (safety-sensitive, so
 it's not half-shipped). The network server is ChirpStack v4 over gRPC;
 TTN / other servers aren't wired yet. The external-component path is
 hardware-join-verified pending a live test against a real gateway.
+
+## Firmware proxies (Tasmota / Meshtastic / CircuitPython)
+
+The unified flash dialog's non-ESPHome frameworks need no configuration
+— the server proxies the official upstream release images so the
+browser can flash them over WebSerial without CORS trouble:
+
+- **Tasmota** — `GET /tasmota/firmware?chip=` streams the release image
+  from ota.tasmota.com for the design's chip variant.
+- **Meshtastic** — `GET /meshtastic/firmware?board=` streams the factory
+  image from meshtastic.github.io for the mapped radio boards.
+- **CircuitPython** — `GET /circuitpython/firmware?board=` streams the
+  release image from downloads.circuitpython.org for ESP32/S3/C3/C6
+  boards; `GET /circuitpython/code?board=` serves a generated starter
+  `code.py`.
+
+Each has a `/firmware/status` endpoint reporting upstream reachability
+(and, for CircuitPython, which boards fall back to a pin-compatible
+generic image); the UI gates its flash buttons on it.
 
 ## MCP server
 
