@@ -24,17 +24,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   power-up, onboard-LED blink, default-I2C scan, and a boot-time pin
   listing. The flash dialog shows it post-flash with save-to-CIRCUITPY
   (File System Access API) and download buttons.
-
-### Changed
-
-- **Documentation sweep.** README / docs index / user guide / library
-  reference / integrations / deployment / web README brought current:
-  the five-framework flash dialog, firmware-proxy endpoints, module map
-  (seed, intent, inventory, jlcpcb), the boards and components added
-  since 0.19 (SuperMinis, XIAO C3, TTGO LoRa32 V2.1, steppers/fans/
-  potentiometer/Grove AHT20/AXP192), version examples bumped to 0.23.0,
-  and stale claims removed (web UI persistence, test counts, shipped
-  PCB milestones still listed as future).
 - **Heltec WiFi LoRa 32 V4 GNSS auto-wiring.** The board's SH1.25-8 GNSS
   connector is now an onboard peripheral (`gps_gnss`), so seeding the board
   auto-places a GPS wired to the correct UART pins (MCU rx GPIO38, tx GPIO39
@@ -46,6 +35,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Documentation sweep.** README / docs index / user guide / library
+  reference / integrations / deployment / web README brought current:
+  the five-framework flash dialog, firmware-proxy endpoints, module map
+  (seed, intent, inventory, jlcpcb), the boards and components added
+  since 0.19 (SuperMinis, XIAO C3, TTGO LoRa32 V2.1, steppers/fans/
+  potentiometer/Grove AHT20/AXP192), version examples bumped to 0.23.0,
+  and stale claims removed (web UI persistence, test counts, shipped
+  PCB milestones still listed as future).
 - **GPS/GNSS component discoverability.** `uart_gps` gains `gnss`, `gps`,
   `uc6580`, and `ublox` aliases (and a `gnss` use-case) so an inspector
   search for "GNSS" finds it. Covers the Heltec V4's UC6580-class module.
