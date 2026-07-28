@@ -13,12 +13,17 @@ exercised by a bundled example, see
 - `esp32-devkitc-v4` — ESP32 DevKitC V4 (ESP32-WROOM-32, 4MB flash)
 - `nodemcu-32s` — NodeMCU-32S (ESP32-WROOM-32, marks I2S-capable pins)
 - `ttgo-lora32-v1` — LilyGO TTGO LoRa32 V1 (ESP32 + onboard SX1276 + onboard SSD1306)
+- `ttgo-lora32-v2` — TTGO LoRa32 V2.1 (T3 v1.6.1; ESP32 + SX1276 + SSD1306, own PlatformIO key)
 - `ttgo-t-beam` — LilyGO TTGO T-Beam v1.x (ESP32 + onboard SX1276 + NEO-6M GPS + AXP192 PMIC + 18650)
 - `heltec-wifi-lora32-v2` — Heltec WiFi LoRa 32 V2 (ESP32 + SX1276 + onboard SSD1306; LoRaWAN hardware-validated)
 - `heltec-wifi-lora32-v3` — Heltec WiFi LoRa 32 V3 (ESP32-S3 + SX1262 + onboard SSD1306; LoRaWAN hardware-validated)
 - `heltec-wifi-lora32-v4` — Heltec WiFi LoRa 32 V4 (ESP32-S3R2 + SX1262 + GC1109/KCT8103L PA to 28dBm + onboard SSD1315)
 - `esp32-c3-devkitm-1` — ESP32-C3-DevKitM-1 (single-core RISC-V, USB-Serial-JTAG, onboard WS2812)
+- `esp32-c3-supermini` — ESP32-C3 SuperMini (tiny C3 breakout, onboard status LED)
+- `esp32-c6-supermini` — ESP32-C6 SuperMini (WiFi 6 / Zigbee-capable C6, onboard WS2812)
 - `esp32-s3-devkitc-1` — ESP32-S3-DevKitC-1 (dual-core Xtensa, native USB, onboard WS2812)
+- `esp32-s3-supermini` — ESP32-S3 SuperMini (compact S3 breakout, onboard WS2812)
+- `seeed-xiao-esp32c3` — Seeed Studio XIAO ESP32C3 (thumbnail-size C3 with Grove ecosystem)
 - `esp32cam-ai-thinker` — AI-Thinker ESP32-CAM (ESP32-WROVER-B + OV2640 + microSD)
 - `esp32-wrover-cam` — ESP32-WROVER-CAM (Freenove-style, OV2640 with the WROVER pinout)
 - `m5stack-atom` — M5Stack Atom Lite / Echo (ESP32-PICO-D4, 24mm cube, onboard SK6812)
@@ -44,6 +49,7 @@ _Environmental sensors:_
 - `htu21d` — TE Connectivity HTU21D temperature + humidity (I2C; covers Si7021 / SHT2x)
 - `sht3xd` — Sensirion SHT3x / SHT4x precision temp + humidity (I2C; modern default)
 - `aht10` — Aosong AHT10 / AHT20 cheap temp + humidity (I2C; AliExpress weather modules)
+- `grove-aht20` — Seeed Grove AHT20 temp + humidity (I2C; plug-in Grove module)
 - `ds18b20` — Dallas DS18B20 1-Wire temperature sensor (single-pin bus + 4.7kΩ pull-up)
 - `bh1750` — BH1750FVI ambient light sensor in lux (I2C; GY-30 / GY-302 modules)
 
@@ -91,7 +97,13 @@ _Generic IO:_
 - `gpio_input` — generic binary_sensor on a GPIO or expander pin (buttons, limit switches, door/window/motion sensors)
 - `gpio_output` — generic switch on a GPIO or expander pin (relays, indicators)
 - `adc` — generic analog input (battery monitoring, potentiometers, LDRs)
+- `potentiometer` — analog knob / slider on an ADC pin
 - `pulse_counter` — pulse counter / tachometer (RPM, flow, energy meters)
+
+_Actuators / power:_
+- `uln2003` — ULN2003 stepper driver for the 28BYJ-48 geared stepper
+- `pwm_fan` — 12V 4-wire PWM fan with tachometer feedback
+- `axp192` — X-Powers AXP192 PMIC (T-Beam battery/rail management; no ESPHome core component yet)
 
 _Light / audio / camera:_
 - `ws2812b` — WS2812B / SK6812 addressable RGB LED (1-wire NeoPixel; bit-banged or ESP8266-DMA)

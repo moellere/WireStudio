@@ -1453,6 +1453,10 @@ def create_app(
 
     app.include_router(meshtastic_router(), prefix="/meshtastic")
 
+    from wirestudio.api.circuitpython import router as circuitpython_router
+
+    app.include_router(circuitpython_router(lib), prefix="/circuitpython")
+
     if mcp_server is not None:
         # Streamable HTTP transport. mcp_server.streamable_http_app() registers
         # `/mcp` on its own Starlette app; we wrap it in BearerTokenMiddleware

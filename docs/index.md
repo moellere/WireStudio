@@ -27,16 +27,21 @@ under upstream ESPHome.
   ┌─ wirestudio.model         pydantic models mirroring the schema
   ├─ wirestudio.library       loads boards/ + components/ YAML
   ├─ wirestudio.generate      design + library → ESPHome YAML + ASCII
-  ├─ wirestudio.targets       generation targets: esphome (wraps generate) + lorawan
+  ├─ wirestudio.targets       generation targets: esphome (wraps generate) + lorawan + tasmota
   ├─ wirestudio.csp           pin solver + port-compatibility checker
   ├─ wirestudio.recommend     deterministic capability ranking
+  ├─ wirestudio.seed          board onboard-peripheral auto-placement
+  ├─ wirestudio.intent        automation (trigger/action) validation + lowering
+  ├─ wirestudio.inventory     owned-parts inventory store
   ├─ wirestudio.agent         Claude tool-using agent + session store
   ├─ wirestudio.designs       file-backed designs/<id>.json store
   ├─ wirestudio.fleet         fleet-for-esphome HTTP client
   ├─ wirestudio.enclosure     parametric OpenSCAD + Thingiverse search
-  ├─ wirestudio.kicad         SKiDL schematic emitter + .kicad_sym importer
+  ├─ wirestudio.kicad         SKiDL schematic emitter, PCB emit/route, .kicad_sym importer
+  ├─ wirestudio.jlcpcb        fab outputs (BOM / CPL / Gerber + drill)
   ├─ wirestudio.mcp           MCP server over the agent tool surface
-  └─ wirestudio.api           FastAPI HTTP layer (mounts everything above)
+  └─ wirestudio.api           FastAPI HTTP layer (mounts everything above,
+                              plus the meshtastic + circuitpython firmware proxies)
                           serve.py adds the production wrapper:
                           API at /api/*, web bundle at /
 ```
@@ -55,7 +60,7 @@ reads.
 wirestudio/              python package — see Architecture above for the module map
 wirestudio/schema/       JSON Schema for design.json (source of truth)
 wirestudio/library/      board + component manifests (electrical, ESPHome, enclosure, kicad)
-wirestudio/targets/      generation targets: esphome + lorawan (firmware gen, ChirpStack, compile)
+wirestudio/targets/      generation targets: esphome + lorawan (firmware gen, ChirpStack, compile) + tasmota (device template)
 wirestudio/examples/     bundled design.json files (every one pinned by goldens)
 web/                     React 19 + Vite + Tailwind v4 SPA
 tests/                   pytest + golden artifacts; vitest tests under web/src
@@ -83,9 +88,10 @@ through upstream `esphome config`. Shipped: the `esphome config` CI
 gate over every bundled example; a nightly `esphome compile` smoke;
 the component-coverage matrix ([`library-coverage.md`](library-coverage.md))
 with a `--strict` no-regression gate now at **zero uncovered** (every
-one of the 60 components and 23 boards is exercised (esphome examples,
-or the lorawan firmware build for radio boards); a pinned ESPHome version called
-out in the README + workflow; an
+component and board is exercised — esphome examples, or the lorawan
+firmware build for radio boards — see
+[`library-coverage.md`](library-coverage.md) for the live counts); a
+pinned ESPHome version called out in the README + workflow; an
 [`esphome-matrix`](../.github/workflows/esphome-matrix.yml) compatibility
 report that runs the gate across the pin + latest stables so a pin bump
 is evidence-driven; CONTRIBUTING.md establishes the gate as the merge
@@ -153,11 +159,23 @@ nothing is generated from the design. Region/channel config is protobuf
 over serial, so the dialog links to client.meshtastic.org; an in-studio
 config push via `@meshtastic/js` stays in the backlog.
 
+**CircuitPython flashing (unreleased).** *Works.* The unified flash
+dialog gains a CircuitPython framework: `GET /circuitpython/firmware`
+proxies the official release image from downloads.circuitpython.org
+(combined binary at 0x0, full erase), resolving the newest stable from
+the adafruit/circuitpython releases API. Every ESP32/S3/C3/C6 board
+maps to a verified build — exact where upstream has one, a
+pin-compatible generic image otherwise (flagged in the status response
+and warned about in the UI); ESP8266 has no CircuitPython port.
+`GET /circuitpython/code` serves a starter code.py generated from the
+board's library metadata (Vext power-up, LED blink, I2C scan, pin
+listing) with save-to-CIRCUITPY and download buttons post-flash.
+
 **Target backlog.** Next: Meshtastic config push (`@meshtastic/js`
-region/channel/key setup over the existing serial session), then
-CircuitPython
-(emit a code.py scaffold with pin constants + driver init per
-component, the LoRaWAN-fragment pattern; timed with Adafruit outreach).
+region/channel/key setup over the existing serial session), then full
+CircuitPython code.py generation from the design (per-component driver
+init + Adafruit bundle libs, the LoRaWAN-fragment pattern — the
+interpreter flash + starter above is the shipped first step).
 Deliberately deferred: generic Arduino/PlatformIO scaffolds (per-driver
 maintenance sinkhole), Zephyr, Zigbee/Thread on the C6.
 
@@ -199,9 +217,8 @@ solver (`0.6`), fleet handoff (`0.7`), enclosure (`0.8`), KiCad
 schematic (`0.9`), MCP server + KiCad symbol importer (`0.10`),
 Docker single-image deploy + K8s manifest.
 
-**Future** — PCB layout (Priority 4): SKiDL → KiCad PCB, Freerouting,
-Gerber + JLCPCB export, now that the schematic is Verified; an agent
-eval harness scoring tool-use against a fixed task list (to promote the
-agent from Experimental); a multi-writer state backend so the studio
-can run as a HA replica; attributing `esphome-matrix` failures to
-specific components for per-release support tables.
+**Future** — an agent eval harness scoring tool-use against a fixed
+task list (to promote the agent from Experimental); a multi-writer
+state backend so the studio can run as a HA replica; attributing
+`esphome-matrix` failures to specific components for per-release
+support tables.

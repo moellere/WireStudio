@@ -7,13 +7,14 @@ import { tasmotaConfigCommands, type TasmotaTemplate } from "../lib/tasmota";
 import { Button, Dialog, FieldLabel, Input } from "./ui";
 import { LorawanFlashDialog } from "./LorawanFlashDialog";
 
-type Framework = "esphome" | "tasmota" | "lorawan" | "meshtastic";
+type Framework = "esphome" | "tasmota" | "lorawan" | "meshtastic" | "circuitpython";
 
 const FRAMEWORKS: Array<{ id: Framework; label: string; note: string; disabled?: boolean }> = [
   { id: "esphome", label: "ESPHome", note: "OTA via fleet-for-esphome; no serial flash needed" },
   { id: "tasmota", label: "Tasmota", note: "official release image + template push over serial" },
   { id: "lorawan", label: "LoRaWAN", note: "compile RadioLib firmware, flash, provision" },
   { id: "meshtastic", label: "Meshtastic", note: "official release image; configure via client.meshtastic.org" },
+  { id: "circuitpython", label: "CircuitPython", note: "official release image + starter code.py for the CIRCUITPY drive" },
 ];
 
 interface Props {
@@ -80,6 +81,10 @@ export function FlashDialog({ design, boards, onClose, onOpenFleet }: Props) {
 
         {framework === "meshtastic" && (
           <MeshtasticFlash design={design} boards={boards} />
+        )}
+
+        {framework === "circuitpython" && (
+          <CircuitPythonFlash design={design} boards={boards} />
         )}
       </div>
     </Dialog>
@@ -196,6 +201,197 @@ function MeshtasticFlash({ design, boards }: { design: Design | null; boards: Bo
             client.meshtastic.org
           </a>{" "}
           (Serial connection) after closing this dialog to free the port.
+        </div>
+      )}
+
+      {serial && (
+        <pre className="max-h-40 overflow-auto rounded-lg bg-surface-0 p-2 font-mono text-[11px] leading-snug text-emerald-300/90 ring-1 ring-line">
+          {serial}
+        </pre>
+      )}
+
+      {error && (
+        <div className="rounded-lg border border-rose-500/40 bg-rose-500/10 p-3 text-xs text-rose-200 whitespace-pre-wrap">
+          {error}
+        </div>
+      )}
+    </div>
+  );
+}
+
+type CircuitPythonPhase = "idle" | "fetching" | "flashing" | "flashed";
+
+function CircuitPythonFlash({ design, boards }: { design: Design | null; boards: BoardSummary[] | null }) {
+  const [status, setStatus] = useState<{
+    available: boolean;
+    version: string | null;
+    boards: string[];
+    generic: string[];
+    images: Record<string, string>;
+    reason: string | null;
+  } | null>(null);
+  const [phase, setPhase] = useState<CircuitPythonPhase>("idle");
+  const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<number>(0);
+  const [log, setLog] = useState<string[]>([]);
+  const [serial, setSerial] = useState<string>("");
+  const [starter, setStarter] = useState<string | null>(null);
+  const [saved, setSaved] = useState<string | null>(null);
+  const sessionRef = useRef<FlashSession | null>(null);
+
+  const boardLibraryId = String((design?.board as Record<string, unknown> | undefined)?.library_id ?? "");
+  const board = useMemo(
+    () => (boards ?? []).find((b) => b.id === boardLibraryId) ?? null,
+    [boards, boardLibraryId],
+  );
+  const supported = status?.boards.includes(boardLibraryId) ?? false;
+  const generic = status?.generic.includes(boardLibraryId) ?? false;
+  const image = status?.images[boardLibraryId];
+
+  useEffect(() => {
+    let cancelled = false;
+    api.circuitpythonFirmwareStatus()
+      .then((s) => { if (!cancelled) setStatus(s); })
+      .catch((e) => {
+        if (!cancelled) {
+          setStatus({ available: false, version: null, boards: [], generic: [], images: {}, reason: e instanceof Error ? e.message : String(e) });
+        }
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!supported) { setStarter(null); return; }
+    let cancelled = false;
+    api.circuitpythonCode(boardLibraryId)
+      .then((code) => { if (!cancelled) setStarter(code); })
+      .catch(() => { if (!cancelled) setStarter(null); });
+    return () => { cancelled = true; };
+  }, [supported, boardLibraryId]);
+
+  useEffect(() => () => { void sessionRef.current?.close(); }, []);
+
+  function appendLog(line: string) {
+    setLog((l) => [...l.slice(-200), line]);
+  }
+
+  async function handleFlash() {
+    setError(null);
+    setPhase("fetching");
+    try {
+      const { data, offset } = await api.circuitpythonFirmware(boardLibraryId);
+      appendLog(`fetched CircuitPython ${status?.version ?? "release"} image (${(data.length / 1024).toFixed(0)} KiB)`);
+      setPhase("flashing");
+      const session = await flashFirmware({
+        images: [{ data, address: offset }],
+        eraseAll: true,
+        onProgress: (written, total) => setProgress(total ? written / total : 0),
+        onLog: appendLog,
+        onSerial: (text) => setSerial((s) => (s + text).slice(-8000)),
+      });
+      sessionRef.current = session;
+      setPhase("flashed");
+    } catch (e) {
+      setError(e instanceof ApiError ? `${e.status}: ${e.message}` : e instanceof Error ? e.message : String(e));
+      setPhase("idle");
+    }
+  }
+
+  /** Write code.py straight onto the CIRCUITPY drive via the File System
+   *  Access API (Chrome/Edge -- same support matrix as WebSerial). */
+  async function handleSaveToDrive() {
+    if (!starter) return;
+    setError(null);
+    try {
+      const picker = (window as Window & { showDirectoryPicker?: (opts?: unknown) => Promise<FileSystemDirectoryHandle> }).showDirectoryPicker;
+      if (!picker) throw new Error("This browser can't write files directly. Use Download and copy code.py over by hand.");
+      const dir = await picker.call(window, { mode: "readwrite" });
+      const file = await dir.getFileHandle("code.py", { create: true });
+      const writable = await (file as FileSystemFileHandle & { createWritable: () => Promise<{ write: (d: string) => Promise<void>; close: () => Promise<void> }> }).createWritable();
+      await writable.write(starter);
+      await writable.close();
+      setSaved(`code.py saved to ${dir.name}/`);
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return; // user cancelled the picker
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  function handleDownload() {
+    if (!starter) return;
+    const url = URL.createObjectURL(new Blob([starter], { type: "text/x-python" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "code.py";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  return (
+    <div className="space-y-3">
+      {status !== null && !status.available && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+          <div className="font-semibold">Firmware download unavailable</div>
+          <div className="mt-1">{status.reason}</div>
+        </div>
+      )}
+
+      {generic && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+          No official CircuitPython build for <code className="font-mono">{board?.name ?? boardLibraryId}</code> —
+          flashing the pin-compatible <code className="font-mono">{image}</code> image.
+          It boots, but pin names and flash/PSRAM sizing may differ; the starter
+          code.py prints the pins the build actually exposes.
+        </div>
+      )}
+
+      <div className="flex items-center justify-between gap-3 text-xs text-ink-dim">
+        <div>
+          {!design
+            ? "Open a design with an ESP32-family board (ESP8266 has no CircuitPython port)."
+            : supported
+              ? <>Flashing CircuitPython {status?.version ?? ""} (<code className="font-mono text-ink">{image}</code>) for <code className="font-mono text-ink">{board?.name ?? boardLibraryId}</code>, full-chip erase.</>
+              : <>No CircuitPython build for <code className="font-mono text-ink">{board?.name ?? boardLibraryId}</code>. ESP32/S3/C3/C6 boards are supported; ESP8266 is not.</>}
+        </div>
+        <Button
+          variant="primary"
+          disabled={!supported || !status?.available || phase === "fetching" || phase === "flashing"}
+          onClick={handleFlash}
+        >
+          <Zap className="h-3.5 w-3.5" />
+          {phase === "fetching" ? "Fetching…" : phase === "flashing" ? `Flashing ${(progress * 100).toFixed(0)}%` : "Flash CircuitPython"}
+        </Button>
+      </div>
+
+      {log.length > 0 && (
+        <pre className="max-h-32 overflow-auto rounded-lg bg-surface-0 p-2 font-mono text-[11px] leading-snug text-ink-dim ring-1 ring-line">
+          {log.join("\n")}
+        </pre>
+      )}
+
+      {phase === "flashed" && (
+        <div className="space-y-2 rounded-lg border border-line bg-surface-2/40 p-3 text-xs text-ink-dim">
+          <p>
+            Device flashed. After it reboots it mounts a <code className="font-mono text-ink">CIRCUITPY</code>{" "}
+            USB drive — close this dialog to free the serial port, then drop a{" "}
+            <code className="font-mono text-ink">code.py</code> onto the drive to run it.
+          </p>
+          {starter && (
+            <>
+              <div className="text-xs font-medium text-ink">Starter code.py for this board</div>
+              <pre className="max-h-40 overflow-auto rounded-md bg-surface-0 p-2 font-mono text-[10px] text-ink-dim ring-1 ring-line">
+                {starter}
+              </pre>
+              <div className="flex items-center gap-2">
+                <Button variant="primary" onClick={handleSaveToDrive}>
+                  <UploadCloud className="h-3.5 w-3.5" />
+                  Save to CIRCUITPY
+                </Button>
+                <Button onClick={handleDownload}>Download code.py</Button>
+                {saved && <span className="text-[10px] text-emerald-300/90">{saved}</span>}
+              </div>
+            </>
+          )}
         </div>
       )}
 

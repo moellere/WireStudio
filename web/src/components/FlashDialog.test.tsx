@@ -22,6 +22,9 @@ vi.mock("../api/client", async () => {
       tasmotaFirmware: vi.fn(),
       meshtasticFirmwareStatus: vi.fn(),
       meshtasticFirmware: vi.fn(),
+      circuitpythonFirmwareStatus: vi.fn(),
+      circuitpythonFirmware: vi.fn(),
+      circuitpythonCode: vi.fn(),
     },
   };
 });
@@ -36,6 +39,9 @@ const mockApi = api as unknown as {
   tasmotaFirmware: ReturnType<typeof vi.fn>;
   meshtasticFirmwareStatus: ReturnType<typeof vi.fn>;
   meshtasticFirmware: ReturnType<typeof vi.fn>;
+  circuitpythonFirmwareStatus: ReturnType<typeof vi.fn>;
+  circuitpythonFirmware: ReturnType<typeof vi.fn>;
+  circuitpythonCode: ReturnType<typeof vi.fn>;
 };
 
 const design: Design = {
@@ -70,6 +76,18 @@ beforeEach(() => {
     boards: ["heltec-wifi-lora32-v3", "ttgo-t-beam"],
     reason: null,
   });
+  mockApi.circuitpythonFirmwareStatus.mockReset().mockResolvedValue({
+    available: true,
+    version: "10.2.1",
+    boards: ["heltec-wifi-lora32-v3", "heltec-wifi-lora32-v4"],
+    generic: ["heltec-wifi-lora32-v4"],
+    images: {
+      "heltec-wifi-lora32-v3": "heltec_esp32s3_wifi_lora_v3",
+      "heltec-wifi-lora32-v4": "heltec_esp32s3_wifi_lora_v3",
+    },
+    reason: null,
+  });
+  mockApi.circuitpythonCode.mockReset().mockResolvedValue("import board\n");
 });
 
 function renderDialog(overrides: Partial<Parameters<typeof FlashDialog>[0]> = {}) {
@@ -127,6 +145,31 @@ describe("FlashDialog", () => {
       expect(screen.getByText(/no meshtastic firmware mapping/i)).toBeInTheDocument(),
     );
     expect(screen.getByRole("button", { name: /flash meshtastic/i })).toBeDisabled();
+  });
+
+  it("circuitpython rejects unsupported (esp8266) boards", async () => {
+    renderDialog();
+    await userEvent.click(screen.getByRole("button", { name: /circuitpython/i }));
+    await waitFor(() =>
+      expect(screen.getByText(/no circuitpython build for/i)).toBeInTheDocument(),
+    );
+    expect(screen.getByRole("button", { name: /flash circuitpython/i })).toBeDisabled();
+  });
+
+  it("circuitpython enables flashing and warns on a generic image", async () => {
+    const v4Design = {
+      ...design,
+      board: { library_id: "heltec-wifi-lora32-v4", mcu: "esp32s3" },
+    } as Design;
+    const v4Boards = [
+      { id: "heltec-wifi-lora32-v4", name: "Heltec V4", chip_variant: "esp32s3" } as BoardSummary,
+    ];
+    renderDialog({ design: v4Design, boards: v4Boards });
+    await userEvent.click(screen.getByRole("button", { name: /circuitpython/i }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /flash circuitpython/i })).toBeEnabled(),
+    );
+    expect(screen.getByText(/no official circuitpython build/i)).toBeInTheDocument();
   });
 
   it("meshtastic enables flashing for a supported board", async () => {
