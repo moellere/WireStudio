@@ -35,6 +35,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   potentiometer/Grove AHT20/AXP192), version examples bumped to 0.23.0,
   and stale claims removed (web UI persistence, test counts, shipped
   PCB milestones still listed as future).
+- **Heltec WiFi LoRa 32 V4 GNSS auto-wiring.** The board's SH1.25-8 GNSS
+  connector is now an onboard peripheral (`gps_gnss`), so seeding the board
+  auto-places a GPS wired to the correct UART pins (MCU rx GPIO38, tx GPIO39
+  -- matching Meshtastic's `heltec_v4` `GPS_TX_PIN`/`GPS_RX_PIN`). The
+  onboard-GPS seed handler now matches any `gps_*` peripheral key, not just
+  `gps_neo6m`. The seed also carries a board's GNSS power-enable pin (V4:
+  GPS_EN on GPIO34, active low), and the `uart_gps` LoRaWAN setup fragment
+  drives it so the module powers up instead of staying dark.
+
+### Changed
+
+- **GPS/GNSS component discoverability.** `uart_gps` gains `gnss`, `gps`,
+  `uc6580`, and `ublox` aliases (and a `gnss` use-case) so an inspector
+  search for "GNSS" finds it. Covers the Heltec V4's UC6580-class module.
 
 ## [0.23.0] — 2026-07-26
 

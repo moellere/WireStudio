@@ -1,8 +1,8 @@
 id: uart_gps
-name: Generic UART GPS module (NEO-6M / NEO-8M)
+name: Generic UART GPS / GNSS module (NEO-6M / NEO-8M / UC6580)
 category: sensor
-use_cases: [gps, location, time_sync, navigation]
-aliases: [neo-6m, neo-8m, beitian-880, gp-02]
+use_cases: [gps, gnss, location, time_sync, navigation]
+aliases: [gnss, gps, neo-6m, neo-8m, beitian-880, gp-02, uc6580, ublox]
 
 electrical:
   vcc_min: 3.0
@@ -26,6 +26,11 @@ lorawan:
     TinyGPSPlus gps;
     HardwareSerial GPSSerial(1);
   setup: |
+    {%- if params.enable_pin is defined and params.enable_pin %}
+      pinMode({{ params.enable_pin | string | replace('GPIO', '') }}, OUTPUT);
+      digitalWrite({{ params.enable_pin | string | replace('GPIO', '') }}, {{ 'LOW' if params.enable_active_low else 'HIGH' }});  // power on GNSS module
+      delay(100);
+    {%- endif %}
     {%- if bus is not none %}
       GPSSerial.begin({{ bus.baud | default(9600) }}, SERIAL_8N1, {{ bus.rx }}, {{ bus.tx }});  // RX, TX
     {%- else %}
