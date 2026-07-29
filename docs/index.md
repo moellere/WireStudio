@@ -179,6 +179,42 @@ interpreter flash + starter above is the shipped first step).
 Deliberately deferred: generic Arduino/PlatformIO scaffolds (per-driver
 maintenance sinkhole), Zephyr, Zigbee/Thread on the C6.
 
+**Workbench featureset (planned).** Integrate a
+[Universal Embedded Workbench](https://github.com/SensorsIot/Universal-Embedded-Workbench)
+(Raspberry Pi exposing RFC2217 network serial per USB slot, a JSON HTTP
+API, a WiFi AP tester, an MQTT broker, UDP logging, GPIO boot/reset
+control, and an optional RTL-SDR) as the studio's hardware truth layer.
+The studio verifies artifacts against upstream tools; nothing today
+verifies them against silicon — flashing is WebSerial-only (Chrome,
+local USB, human present), and the Meshtastic / CircuitPython /
+LoRaWAN-join tiers all carry a "no live-flash gate" caveat. The
+workbench closes that gap. Client-side only: the studio talks to the
+workbench API behind a `WORKBENCH_URL` env gate (the usual integration
+seam), never re-implements slots/serial/RF.
+
+Phases, each independently shippable:
+
+1. **Remote flash transport.** `/workbench/status` + `/workbench/flash`:
+   the server fetches the framework image exactly as today, writes it
+   with esptool over `rfc2217://<pi>:<slot-port>`, streams progress over
+   SSE. The flash dialog gains a Local USB / Workbench-slot target
+   toggle — flashing from any browser, no WebSerial, no physical
+   presence.
+2. **Boot-marker verification.** Stream the slot's serial into the flash
+   dialog and assert per-framework success signatures (ESPHome boot
+   log, Meshtastic banner, CIRCUITPY enumeration, LoRaWAN join) —
+   upgrading "flashed" to "flashed and booted", the failure class CI
+   can't see.
+3. **Nightly hardware gate.** A scheduled job flashes a representative
+   example per framework to a dedicated slot and asserts boot/join, so
+   the "Works (lighter checks)" tiers hold hardware-validated status
+   continuously instead of as a one-time claim.
+4. **Functional loop + RF truth.** Flash generated ESPHome firmware,
+   provision against the workbench's AP, assert the device's API/MQTT
+   entities appear; for radio boards, an SDR power-spectrum capture
+   during TX catches deaf-radio wiring bugs (e.g. undriven FEM pins)
+   that serial output cannot.
+
 **LoRaWAN target (0.13 standalone, 0.16+ external-component).** *Works —
 hardware-validated on the standalone path; external-component path
 shipped, hardware join verification in progress.* Two paths share the
