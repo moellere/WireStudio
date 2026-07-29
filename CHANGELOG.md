@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.24.1] — 2026-07-29
+
+### Fixed
+
+- **Pin `mcp<2`.** mcp 2.0.0 (released 2026-07-28) removed the
+  `mcp.server.fastmcp` import path, so images built after it crashed at
+  boot with ModuleNotFoundError -- the 0.24.0-full image never came up
+  (prod stayed on 0.23.0). Migrating to the mcp 2.x API is follow-up
+  work; the pin restores a bootable image.
+
 ## [0.24.0] — 2026-07-29
 
 ### Added
