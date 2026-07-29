@@ -119,7 +119,14 @@ export default function App() {
 
   const dirty = useMemo(() => isDirty(originalDesign, design), [originalDesign, design]);
   const debouncedDesign = useDebouncedValue(design, 250);
-  const designBusTypes = useMemo(() => (design ? Array.from(new Set(readBuses(design).map((b) => b.type))) : []), [design]);
+  const designBusTypes = useMemo(() => {
+    if (!design) return [];
+    const types = new Set<string>();
+    for (const b of readBuses(design)) {
+      types.add(b.type);
+    }
+    return Array.from(types);
+  }, [design]);
 
   // Bootstrap.
   useEffect(() => {
