@@ -17,6 +17,9 @@ under upstream ESPHome.
   in the library.
 - [Library coverage](library-coverage.md) — which library entries are
   exercised by a bundled example.
+- [Workbench integration](workbench.md) — planned hardware-truth layer
+  on a Universal Embedded Workbench: capability map, phases,
+  constraints.
 
 ## Architecture
 
@@ -190,7 +193,8 @@ local USB, human present), and the Meshtastic / CircuitPython /
 LoRaWAN-join tiers all carry a "no live-flash gate" caveat. The
 workbench closes that gap. Client-side only: the studio talks to the
 workbench API behind a `WORKBENCH_URL` env gate (the usual integration
-seam), never re-implements slots/serial/RF.
+seam), never re-implements slots/serial/RF. Full capability map and
+design constraints in [workbench.md](workbench.md).
 
 Phases, each independently shippable:
 

@@ -14,7 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   studio's hardware truth layer -- remote flash transport over RFC2217,
   boot-marker verification, a nightly hardware gate, and a functional
   loop with SDR TX checks -- phased and env-gated like every other
-  integration.
+  integration. docs/workbench.md carries the full capability map and
+  design constraints.
 
 ## [0.24.1] — 2026-07-29
 
