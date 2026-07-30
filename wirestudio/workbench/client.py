@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from typing import AsyncIterator, Optional
+from typing import AsyncIterator, Iterator, Optional
 
 import httpx
 
@@ -231,18 +231,7 @@ class WorkbenchClient:
         if not ok:
             raise WorkbenchUnavailable(reason or f"{slot} is not flashable")
 
-        # The portal keys each part by `bin@<offset>`; anything else is
-        # silently ignored and the request fails as "no binaries to flash".
-        files = [
-            (f"bin@{offset:#x}", (f"{offset:#x}.bin", data, "application/octet-stream"))
-            for offset, data in images
-        ]
-        form = {
-            "slot": slot,
-            "chip": chip,
-            "baud": str(baud),
-            "erase": "true" if erase else "false",
-        }
+        form, files = _flash_payload(slot, images, chip, erase, baud)
 
         try:
             async with self._client(timeout=self.flash_timeout) as c:
@@ -250,26 +239,116 @@ class WorkbenchClient:
         except httpx.HTTPError as e:
             raise WorkbenchUnavailable(f"flash transport failed: {e}") from e
 
-        if r.status_code >= 400:
-            raise WorkbenchUnavailable(f"flash rejected: {_error_text(r)}")
+        for event in _flash_events(r, slot):
+            yield event
 
+    # ------------------------------------------------------------------
+    # Synchronous variants
+    #
+    # The LoRaWAN target is synchronous (grpc + subprocess), so its routes
+    # are plain `def` and FastAPI runs them in a threadpool. Awaiting from
+    # there would need a nested event loop; these share the async path's
+    # payload building and response handling.
+    # ------------------------------------------------------------------
+
+    def _sync_client(self, timeout: Optional[float] = None) -> httpx.Client:
+        headers = {"Authorization": f"Bearer {self.token}"} if self.token else {}
+        return httpx.Client(
+            base_url=self.base_url, timeout=timeout or self.timeout, headers=headers
+        )
+
+    def slots_sync(self) -> list[Slot]:
+        if not self.is_configured():
+            raise WorkbenchUnavailable(
+                self.unconfigured_reason() or "workbench not configured"
+            )
         try:
-            body = r.json()
-        except ValueError as e:
-            raise WorkbenchUnavailable(f"flash: unparseable response: {r.text[:200]}") from e
+            with self._sync_client() as c:
+                r = c.get("/api/devices")
+        except httpx.HTTPError as e:
+            raise WorkbenchUnavailable(f"unreachable: {e}") from e
+        if r.status_code == 401:
+            raise WorkbenchUnavailable("unauthorized (check WORKBENCH_TOKEN)")
+        if r.status_code >= 400:
+            raise WorkbenchUnavailable(f"/api/devices: http {r.status_code}")
+        return [Slot.from_api(s) for s in r.json().get("slots", [])]
 
-        # The portal buffers esptool and answers once, as
-        # {ok, output, returncode} -- so these lines arrive together at
-        # the end rather than live. Progress liveness needs the phase-2
-        # serial relay; this at least gives the operator the real log.
-        output = body.get("output") or ""
-        for line in output.splitlines():
-            if line.strip():
-                yield {"type": "log", "data": line.rstrip()}
+    def slot_sync(self, label: str) -> Slot:
+        for s in self.slots_sync():
+            if s.label == label:
+                return s
+        raise WorkbenchUnavailable(f"no such slot '{label}'")
 
-        rc = body.get("returncode")
-        if not body.get("ok") or rc not in (0, None):
-            detail = body.get("error") or _last_meaningful(output) or f"returncode {rc}"
-            raise WorkbenchUnavailable(f"flash failed: {detail}")
+    def flash_sync(
+        self,
+        slot: str,
+        images: list[tuple[int, bytes]],
+        chip: str = "esp32",
+        erase: bool = False,
+        baud: int = 921600,
+    ) -> Iterator[dict]:
+        if not self.is_configured():
+            raise WorkbenchUnavailable(
+                self.unconfigured_reason() or "workbench not configured"
+            )
+        if not images:
+            raise WorkbenchUnavailable("no images to flash")
 
-        yield {"type": "done", "ok": True, "slot": slot, "returncode": rc}
+        ok, reason = self.slot_sync(slot).flashable
+        if not ok:
+            raise WorkbenchUnavailable(reason or f"{slot} is not flashable")
+
+        form, files = _flash_payload(slot, images, chip, erase, baud)
+        try:
+            with self._sync_client(timeout=self.flash_timeout) as c:
+                r = c.post("/api/flash", data=form, files=files)
+        except httpx.HTTPError as e:
+            raise WorkbenchUnavailable(f"flash transport failed: {e}") from e
+        yield from _flash_events(r, slot)
+
+
+def _flash_payload(slot, images, chip, erase, baud):
+    """Multipart body for /api/flash.
+
+    The portal keys each part by `bin@<offset>`; any other name is silently
+    ignored and the request fails as "no binaries to flash".
+    """
+    files = [
+        (f"bin@{offset:#x}", (f"{offset:#x}.bin", data, "application/octet-stream"))
+        for offset, data in images
+    ]
+    form = {
+        "slot": slot,
+        "chip": chip,
+        "baud": str(baud),
+        "erase": "true" if erase else "false",
+    }
+    return form, files
+
+
+def _flash_events(r: httpx.Response, slot: str) -> Iterator[dict]:
+    """Turn the portal's one buffered answer into log + done events.
+
+    The portal buffers esptool and replies once as {ok, output, returncode},
+    so the log arrives at completion rather than live -- and a non-zero
+    returncode comes back under HTTP 200, which is why success is read from
+    that field rather than the status code.
+    """
+    if r.status_code >= 400:
+        raise WorkbenchUnavailable(f"flash rejected: {_error_text(r)}")
+    try:
+        body = r.json()
+    except ValueError as e:
+        raise WorkbenchUnavailable(f"flash: unparseable response: {r.text[:200]}") from e
+
+    output = body.get("output") or ""
+    for line in output.splitlines():
+        if line.strip():
+            yield {"type": "log", "data": line.rstrip()}
+
+    rc = body.get("returncode")
+    if not body.get("ok") or rc not in (0, None):
+        detail = body.get("error") or _last_meaningful(output) or f"returncode {rc}"
+        raise WorkbenchUnavailable(f"flash failed: {detail}")
+
+    yield {"type": "done", "ok": True, "slot": slot, "returncode": rc}
