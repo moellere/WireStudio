@@ -152,3 +152,24 @@ def test_lorawan_matches_golden(lib):
     assert fw["src/main.cpp"] == (golden_dir / "t-beam.cpp").read_text()
     assert fw["platformio.ini"] == (golden_dir / "t-beam.ini").read_text()
     assert codec == (golden_dir / "t-beam.js").read_text()
+
+
+def test_synthesized_dht_emits_its_configured_pin(lib):
+    """A DHT requested via `lorawan.dht22` has no wiring, so the render
+    context sets `pin` to None. Jinja's `default()` only fires on *undefined*,
+    so the old template fell through to a literal "None" in the C++."""
+    src = generate_firmware(
+        _design("ttgo-t-beam", dht22={"pin": "GPIO13"}), lib
+    )["src/main.cpp"]
+    assert "DHT dht(13, DHT22);" in src
+    assert "None" not in src
+
+
+def test_tbeam_powers_its_rails_before_using_them(lib):
+    """The T-Beam's LoRa and GPS rails hang off the AXP192. Without the PMIC
+    init the board boots and reports setting up LoRaWAN while the radio is
+    unpowered -- it never joins, and serial output looks healthy."""
+    src = generate_firmware(_design("ttgo-t-beam", dht22={"pin": "GPIO13"}), lib)["src/main.cpp"]
+    assert "XPowersLib.h" in src
+    assert "enableLDO2" in src and "enableLDO3" in src
+    assert src.index("power.begin") < src.index("GPSSerial.begin")

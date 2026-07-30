@@ -108,6 +108,13 @@ void loop() {
       // in lockstep with the ChirpStack decodeUplink codec on the profile.
       uint8_t payload[{{ payload_size }}];
 {{ payload_pack }}
+      // Re-assert the rate every uplink. Setting it once after join is not
+      // enough: a restored session or an ADR downlink can drop us to DR0,
+      // whose payload cap is below these {{ payload_size }} bytes, and then
+      // every sendReceive fails RADIOLIB_ERR_PACKET_TOO_LONG (-4) with nothing
+      // but a serial line to show for it -- the device stays joined and
+      // silently stops uplinking.
+      node->setDatarate({{ min_datarate }});
       int16_t state = node->sendReceive(payload, sizeof(payload));
       Serial.printf("uplink: RadioLib state %d\n", state);
       persist.saveSession(node);

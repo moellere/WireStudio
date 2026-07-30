@@ -36,6 +36,9 @@ import type {
   SolvePinsResponse,
   ValidateResponse,
   Design,
+  WorkbenchStatus,
+  WorkbenchSlot,
+  WorkbenchFlashEvent,
 } from "../types/api";
 
 // In dev, Vite proxies /api/* to the studio API on :8765 (see vite.config.ts).
@@ -237,6 +240,8 @@ export const api = {
   },
   circuitpythonCode: (board: string) =>
     requestText(`/circuitpython/code?board=${encodeURIComponent(board)}`),
+  workbenchStatus: () => request<WorkbenchStatus>("/workbench/status"),
+  workbenchSlots: () => request<{ slots: WorkbenchSlot[] }>("/workbench/slots"),
   kicadRouteStatus: () =>
     request<KicadRouteStatus>("/design/kicad/route/status"),
   kicadRoutedBoard: (cacheKey: string) =>
@@ -530,6 +535,33 @@ export async function* lorawanCompile(design: Design): AsyncGenerator<LorawanCom
     throw new Error("lorawan/compile: no response body");
   }
   yield* parseSse<LorawanCompileEvent>(res.body);
+}
+
+/**
+ * Flash a board on a workbench slot. The studio uploads the image and the
+ * bench runs esptool against its own USB, so this yields the whole log at
+ * completion rather than live progress -- the bench buffers.
+ */
+export async function* workbenchFlash(body: {
+  slot: string;
+  chip: string;
+  erase: boolean;
+  images: Array<{ offset: string; data: string }>;
+}): AsyncGenerator<WorkbenchFlashEvent> {
+  const res = await fetch(`${API_BASE}/workbench/flash`, {
+    method: "POST",
+    headers: { "content-type": "application/json", accept: "text/event-stream" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    let errBody: unknown = undefined;
+    try { errBody = await res.json(); } catch { /* not json */ }
+    throw new ApiError(res.status, apiErrorMessage("POST", "/workbench/flash", res.status, errBody), errBody);
+  }
+  if (!res.body) {
+    throw new Error("workbench/flash: no response body");
+  }
+  yield* parseSse<WorkbenchFlashEvent>(res.body);
 }
 
 export { ApiError };

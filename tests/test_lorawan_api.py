@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import types
 
 import pytest
 from fastapi.testclient import TestClient
@@ -218,7 +219,8 @@ def test_set_codec_reflects_external_gps(client, monkeypatch):
     design = _design("heltec-wifi-lora32-v3", gps={"rx_pin": "GPIO3", "tx_pin": "GPIO1"})
     r = client.post("/lorawan/codec", json={"dev_eui": "64b708fffeab8974", "design": design})
     assert r.status_code == 200
-    assert "data.lat" in fake.codec_set and "data.batt_mv" not in fake.codec_set
+    # batt_mv comes from the board's battery divider, not a PMIC.
+    assert "data.lat" in fake.codec_set and "data.batt_mv" in fake.codec_set
 
 
 def test_set_codec_rejects_bad_dev_eui(client, monkeypatch):
@@ -384,3 +386,42 @@ def test_provision_esphome_502_surfaces_grpc_status_on_chirpstack_unavailable(
     )
     assert r.status_code == 502
     assert "UNAUTHENTICATED" in r.json()["detail"]
+
+
+def test_platformio_status_flags_unwritable_core_dir(monkeypatch, tmp_path):
+    """`pio --version` never touches the core dir, so a status probe that
+    stops there stays green on an install that cannot build -- which is how
+    a read-only baked core dir reached users as a mid-build traceback."""
+    from wirestudio.targets.lorawan import compile as compile_mod
+
+    monkeypatch.setattr(compile_mod, "_pio_cmd", lambda: ["pio"])
+    monkeypatch.setattr(
+        compile_mod.subprocess,
+        "run",
+        lambda *a, **k: types.SimpleNamespace(returncode=0, stdout="PlatformIO Core 6.1", stderr=""),
+    )
+    ro = tmp_path / "pio"
+    ro.mkdir()
+    ro.chmod(0o500)
+    monkeypatch.setenv("PLATFORMIO_CORE_DIR", str(ro))
+    try:
+        status = compile_mod.platformio_status()
+    finally:
+        ro.chmod(0o700)
+    assert status["available"] is False
+    assert "not writable" in status["reason"]
+
+
+def test_platformio_status_available_when_core_dir_usable(monkeypatch, tmp_path):
+    from wirestudio.targets.lorawan import compile as compile_mod
+
+    monkeypatch.setattr(compile_mod, "_pio_cmd", lambda: ["pio"])
+    monkeypatch.setattr(
+        compile_mod.subprocess,
+        "run",
+        lambda *a, **k: types.SimpleNamespace(returncode=0, stdout="PlatformIO Core 6.1", stderr=""),
+    )
+    monkeypatch.setenv("PLATFORMIO_CORE_DIR", str(tmp_path / "pio"))
+    status = compile_mod.platformio_status()
+    assert status["available"] is True
+    assert status["reason"] is None

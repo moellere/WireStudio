@@ -1,0 +1,72 @@
+id: battery_adc
+name: Onboard battery sense divider
+category: power
+use_cases: [power, battery, telemetry]
+aliases: [vbat, battery_divider]
+
+# Most LoRa dev boards without a PMIC bring the 18650/LiPo terminal out to an
+# ADC pin through a resistor divider (Heltec V2: GPIO37 / 3.2, TTGO LoRa32:
+# GPIO35 / 2.0). The board file carries the pin and the ratio; this component
+# turns them into the same `batt_mv` field the AXP192 contributes, so a board
+# reports battery voltage whichever way it senses it.
+electrical:
+  vcc_min: 3.0
+  vcc_max: 4.3
+  current_ma_typical: 0
+  current_ma_peak: 0
+  pins:
+    - {role: SENSE, kind: adc}
+
+esphome:
+  required_components: []
+  yaml_template: ""
+
+params_schema: {}
+
+notes: >
+  Read-only sense path. The divider ratio is a board property, not a user
+  choice, so it comes from the board's onboard_peripherals rather than params.
+
+lorawan:
+  globals: |
+    uint16_t batteryMv = 0;
+  setup: |
+    {# analogSetPinAttenuation() here fails "Pin is not configured as analog
+       channel" -- the Arduino core only attaches the pin on first read, and the
+       failed call takes setup() down with it (TG1WDT reset loop).
+       analogReadMilliVolts applies the calibration anyway. #}
+    {% if params.control is defined and params.control is not none -%}
+    pinMode({{ params.control }}, OUTPUT);
+    {% endif -%}
+  loop: |
+    {% if params.control is defined and params.control is not none -%}
+    // Some boards (Heltec V3) gate the divider behind a control pin; the
+    // reading is meaningless unless it is asserted for the measurement.
+    digitalWrite({{ params.control }}, LOW);
+    delay(10);
+    {% endif -%}
+    // analogReadMilliVolts applies the chip's own eFuse ADC calibration, which
+    // raw analogRead does not -- without it the reading is off by enough to
+    // look like a discharged cell.
+    batteryMv = (uint16_t)(analogReadMilliVolts({{ params.pin | default(35) }})
+                           * {{ params.divider | default(2.0) }});
+    {% if params.control is defined and params.control is not none -%}
+    digitalWrite({{ params.control }}, HIGH);
+    {% endif -%}
+  fields:
+    - name: batt_mv
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: batteryMv
+      ha_device_class: voltage
+      ha_unit: V
+      ha_state_class: measurement
+      ha_diagnostic: true
+      ha_divide: 1000
+
+# The divider is already on the board; what a schematic needs to show is the
+# cell wired to it, same treatment as the AXP192's battery terminal.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x02
+  footprint: Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical
