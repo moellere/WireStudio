@@ -61,6 +61,10 @@ def _pin(value) -> Optional[int]:
 _ONBOARD = [
     ("uart_gps", "gps_neo6m", "gps", "GPS", "gps"),
     ("axp192", "axp192", "axp192", "PMIC", "batt"),
+    # Same `batt_mv` field and `batt` tag as the PMIC: a board senses the cell
+    # either through a PMIC or through a divider, never both, so the payload
+    # layout and profile name stay identical whichever it is.
+    ("battery_adc", "battery_adc", "batt_adc", "Battery", "batt"),
     ("dht", None, "dht1", "DHT", "dht"),
     ("ssd1306", "oled_ssd1306", "oled", "OLED", None),
 ]
@@ -103,6 +107,13 @@ def _synth_params(lib_id, onboard_key, onboard, lw):
     on = onboard_key in onboard if onboard_key else False
     if lib_id == "axp192":
         return {} if on else None
+    if lib_id == "battery_adc":
+        # A PMIC already reports the cell; adding the divider too would collide
+        # on the batt_mv field name (fields_for raises on duplicates).
+        if not on or "axp192" in onboard:
+            return None
+        ob = onboard[onboard_key]
+        return {"pin": _pin(ob.get("pin")), "divider": ob.get("divider", 2.0)}
     if lib_id == "uart_gps":
         gps = getattr(lw, "gps", None)
         if gps is not None:
@@ -196,7 +207,20 @@ def pack_cpp(fields: list[Field], *, indent: str = "  ") -> str:
 def decode_js(fields: list[Field]) -> str:
     """ChirpStack `decodeUplink` reading the same big-endian layout, honoring
     each field's signedness and scale."""
-    lines = ["function decodeUplink(input) {", "  var b = input.bytes;", "  var data = {};"]
+    size = payload_size(fields)
+    lines = [
+        "function decodeUplink(input) {",
+        "  var b = input.bytes;",
+        # Without this guard a short payload reads past the end: JS yields
+        # undefined, the shifts coerce it to 0, and the decode returns a full
+        # set of plausible zeros with no error -- fabricated readings that
+        # reach Home Assistant looking exactly like real ones.
+        f"  if (b.length < {size}) {{",
+        f"    return {{ data: {{}}, warnings: [],"
+        f" errors: ['expected {size} bytes, got ' + b.length] }};",
+        "  }",
+        "  var data = {};",
+    ]
     offset = 0
     for fld in fields:
         nbits = fld["bytes"] * 8

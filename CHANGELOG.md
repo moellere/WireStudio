@@ -7,6 +7,79 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Workbench remote flash transport (phase 1, server side).** New
+  `wirestudio.workbench` client and `/workbench/*` routes behind a
+  `WORKBENCH_URL` + `WORKBENCH_TOKEN` gate: `GET /workbench/status`
+  (always 200, carries `available`/`reason`/`configure_hint` like the
+  fleet and enclosure gates), `GET /workbench/slots`, and
+  `POST /workbench/flash` streaming the bench's esptool output as SSE.
+  The studio uploads the image and the Pi flashes its own USB rather
+  than the studio driving esptool over RFC2217 -- esptool's block
+  protocol is round-trip bound, so one bulk transfer survives the very
+  link that makes remote flashing necessary, and the bench keeps owning
+  the bench. RFC2217 remains what phase 2 relays for serial.
+- **Hardware-validated against the reference bench.** The wire format is
+  verified, not assumed: parts are keyed `bin@<offset>`, and the portal
+  answers once with `{ok, output, returncode}` rather than streaming, so
+  the client parses that log into per-line SSE events and treats a
+  non-zero `returncode` as a failure instead of reporting a successful
+  flash. Progress therefore arrives at completion, not live; liveness
+  needs the phase-2 serial relay.
+- **Slot pre-flight.** A flash is refused before the stream opens (409)
+  when the slot is busy, flapping, or holds no serial device, so a
+  wedged bench reports as a bench fault rather than a firmware failure.
+  A token is required alongside the URL: the studio pushes firmware at
+  an operator-supplied host, so a URL-only gate would let any
+  deployment flash any reachable bench.
+
+### Fixed
+
+- **LoRaWAN builds could not run in the deployed image.** Three faults
+  stacked. (1) The `-full` image builds on `kicad/kicad:8.0`, which
+  already occupies uid 1000, so its bare `useradd appuser` landed on
+  1001 while manifests pin `runAsUser: 1000`. (2) PlatformIO creates
+  platform directories `0700`, so the prewarmed toolchain was unreadable
+  to any other uid -- `PermissionError` on a plain `listdir`. (3)
+  `PLATFORMIO_CORE_DIR` was baked to `/opt/pio`, but PlatformIO writes
+  `appstate.json` and lockfiles there on every invocation, which cannot
+  work under `readOnlyRootFilesystem: true`. The core dir now defaults to
+  `/data/pio` with the prewarmed toolchain kept read-only via
+  `PLATFORMIO_PLATFORMS_DIR` / `PLATFORMIO_PACKAGES_DIR`, the cache under
+  `/tmp`, and the baked tree is `chmod a+rX` so any runtime uid can read
+  it. No re-download, and uid no longer has to match.
+- **`platformio_status()` reported available for a toolchain that could
+  not build.** It only ran `pio --version`, which never touches the core
+  dir, so the UI offered the LoRaWAN flow and the failure surfaced as a
+  mid-build traceback. It now verifies the core dir is writable and the
+  platform tree readable, and reports the specific reason.
+- **Uplinks silently stopped at DR0 (`PACKET_TOO_LONG`).** The datarate
+  was set once after join, so a restored session or an ADR downlink could
+  drop the device to DR0, whose US915 payload cap is 11 bytes. Every
+  `sendReceive` then failed `RADIOLIB_ERR_PACKET_TOO_LONG` (-4) while the
+  device stayed joined and looked healthy -- the only evidence was a
+  serial line nobody reads. Hardware-confirmed on a T-Beam: a 22-byte
+  payload failed -4 indefinitely, and re-asserting the rate per uplink
+  fixed it (`fCnt` advancing at DR1, decoded object correct).
+- **Generated codec fabricated zeros for a short payload.** `decodeUplink`
+  read its full field layout unconditionally, so an uplink shorter than
+  the layout read past the end -- JS yields `undefined`, the shifts coerce
+  it to 0, and the codec returned a complete set of plausible zeros with
+  `errors: []`. Home Assistant showed those as real readings. The codec
+  now length-checks first and reports the mismatch as a decode error.
+  Observed live: a device sending one `0x00` byte decoded as nine
+  zero-valued sensor fields.
+- **DHT pin rendered as literal `None` in LoRaWAN firmware.** A DHT
+  requested through `lorawan.dht22` has no wiring, so `firmware_gen`
+  sets the render context's `pin` to `None`; Jinja's `default()` only
+  substitutes for *undefined* values, so the chain never fell through
+  to `params.pin` and emitted `DHT dht(None, DHT22);` -- C++ that does
+  not compile. The template now tests for none explicitly (and avoids
+  `or`, which would discard a legitimate GPIO0). Regression tests cover
+  the synthesized-DHT path and the T-Beam's AXP192 rail init, neither
+  of which was exercised before.
+
 ### Changed
 
 - **Roadmap: Workbench featureset.** docs/index.md gains a planned
@@ -16,6 +89,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   loop with SDR TX checks -- phased and env-gated like every other
   integration. docs/workbench.md carries the full capability map and
   design constraints.
+- **Roadmap accuracy pass.** Four claims in docs/index.md contradicted
+  the repo and are corrected: coverage is "zero unexplained gaps", not
+  "zero uncovered" (`axp192` is a permanent baseline entry, so the
+  matrix reads 63/64); the `.kicad_sch` render in CI moves from Next to
+  shipped (the `kicad-render` gate already runs it); PCB layout is
+  "Verified (routed)" now that the `pcb-route` gate holds examples to
+  the routed bar; CircuitPython flashing is tagged 0.24 rather than
+  unreleased. The outstanding mcp 2.x migration behind the 0.24.1
+  `mcp<2` pin is recorded as Known debt.
+- **Workbench: constraints and phase rationale.** Phase 1 is motivated
+  by reach rather than convenience -- a LoRaWAN board can only be
+  join-tested where a gateway is in range, so a bench remote from the
+  developer has no WebSerial path at all. Four design constraints
+  folded in: `WORKBENCH_URL` alone is not authorization (host allowlist
+  + token ship with the transport, since the workbench API is
+  unauthenticated and the server-side fetch is an SSRF primitive);
+  bench resources are exclusive and callers must expect a busy state;
+  hardware faults report distinctly from test failures behind a
+  pre-flight self-test; RF checks assert against a fixed-gain baseline
+  rather than energy presence. The phase-3 self-hosted runner is stated
+  as a prerequisite cost.
 
 ## [0.24.1] — 2026-07-29
 

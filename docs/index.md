@@ -90,10 +90,13 @@ non-negotiable bar: every artifact the studio emits round-trips
 through upstream `esphome config`. Shipped: the `esphome config` CI
 gate over every bundled example; a nightly `esphome compile` smoke;
 the component-coverage matrix ([`library-coverage.md`](library-coverage.md))
-with a `--strict` no-regression gate now at **zero uncovered** (every
-component and board is exercised — esphome examples, or the lorawan
-firmware build for radio boards — see
-[`library-coverage.md`](library-coverage.md) for the live counts); a
+with a `--strict` no-regression gate holding **zero unexplained gaps** —
+every board and every component but one is exercised (esphome examples,
+or the lorawan firmware build for radio boards); the sole exception,
+`axp192`, is a permanent baseline entry, since the T-Beam's PMIC has no
+standalone ESPHome platform and is materialized implicitly by the
+LoRaWAN generator rather than named by any example — see
+[`library-coverage.md`](library-coverage.md) for the live counts; a
 pinned ESPHome version called out in the README + workflow; an
 [`esphome-matrix`](../.github/workflows/esphome-matrix.yml) compatibility
 report that runs the gate across the pin + latest stables so a pin bump
@@ -108,9 +111,14 @@ importer (`python -m wirestudio.kicad.import`) shipped. The
 every bundled example's SKiDL script against the pinned upstream KiCad
 symbol libraries and fails the PR unless it builds a netlist with no
 unresolved symbols or pins; parts KiCad ships no stock symbol for
-render as labeled generic headers. Next: ERC on the generated netlist;
-a full `.kicad_sch` render in CI; pin-solver property tests on
-randomized designs; compatibility-checker fuzzing.
+render as labeled generic headers. The
+[`kicad-render`](../.github/workflows/kicad-render.yml) gate carries the
+pipeline the rest of the way — SKiDL script → `.kicad_sch` →
+`kicad-cli sch export svg` on real KiCad 8 — catching what only
+kicad-cli's parser sees (schematic grammar, embedded `lib_symbols`,
+toolchain env), which the netlist gate cannot. Next: ERC on the
+generated netlist; pin-solver property tests on randomized designs;
+compatibility-checker fuzzing.
 
 **Priority 3 — Enclosures.** *Verified.* Parametric OpenSCAD
 generator + Thingiverse search relay shipped. The
@@ -122,7 +130,7 @@ e.g. [YAPP_Box](https://github.com/mrWheel/YAPP_Box) and integrate
 instead of reimplementing? Next: more boards' `enclosure:` metadata
 (only 5 carry it today); a lid + snap-fit; slicer-side print validation.
 
-**Priority 4 — PCB layout.** *Verified (unrouted).* Shipped in three
+**Priority 4 — PCB layout.** *Verified (routed).* Shipped in three
 steps: the footprint-coverage gate (every component + board names a
 real KiCad footprint that resolves in the pinned libraries, 0.13), the
 `.kicad_pcb` emit (footprints placed, pads bound to nets, `Edge.Cuts`
@@ -162,7 +170,7 @@ nothing is generated from the design. Region/channel config is protobuf
 over serial, so the dialog links to client.meshtastic.org; an in-studio
 config push via `@meshtastic/js` stays in the backlog.
 
-**CircuitPython flashing (unreleased).** *Works.* The unified flash
+**CircuitPython flashing (0.24).** *Works.* The unified flash
 dialog gains a CircuitPython framework: `GET /circuitpython/firmware`
 proxies the official release image from downloads.circuitpython.org
 (combined binary at 0x0, full erase), resolving the newest stable from
@@ -196,14 +204,27 @@ workbench API behind a `WORKBENCH_URL` env gate (the usual integration
 seam), never re-implements slots/serial/RF. Full capability map and
 design constraints in [workbench.md](workbench.md).
 
-Phases, each independently shippable:
+Phases, each independently shippable. Note the payoff is not evenly
+distributed: phase 1 is what makes a remote bench reachable at all,
+and phase 3 is what retires the "no live-flash gate" caveats above.
 
-1. **Remote flash transport.** `/workbench/status` + `/workbench/flash`:
-   the server fetches the framework image exactly as today, writes it
-   with esptool over `rfc2217://<pi>:<slot-port>`, streams progress over
-   SSE. The flash dialog gains a Local USB / Workbench-slot target
-   toggle — flashing from any browser, no WebSerial, no physical
-   presence.
+1. **Remote flash transport.** `/workbench/status`, `/workbench/slots`
+   and `/workbench/flash`: the server fetches the framework image
+   exactly as today, uploads it to the bench, and streams progress over
+   SSE while the Pi runs esptool against its own USB. The flash dialog
+   gains a Local USB / Workbench-slot target toggle. Flashing is
+   delegated rather than driven over RFC2217 from the studio — esptool's
+   block protocol is round-trip bound, so one bulk upload plus a local
+   flash survives the very link that makes this phase necessary.
+   This is not merely a convenience over WebSerial — it removes
+   the requirement that the developer be in the same room as the board.
+   The motivating case is LoRaWAN: a radio board has to be flashed
+   where it can actually reach a gateway, so when the bench and the
+   ChirpStack instance sit at one site and the developer at another,
+   WebSerial cannot close the loop at all. Remote flash makes the
+   provision → flash → join cycle runnable against the real network
+   from anywhere, and is the prerequisite for every headless/MCP-driven
+   use of the bench.
 2. **Boot-marker verification.** Stream the slot's serial into the flash
    dialog and assert per-framework success signatures (ESPHome boot
    log, Meshtastic banner, CIRCUITPY enumeration, LoRaWAN join) —
@@ -212,7 +233,10 @@ Phases, each independently shippable:
 3. **Nightly hardware gate.** A scheduled job flashes a representative
    example per framework to a dedicated slot and asserts boot/join, so
    the "Works (lighter checks)" tiers hold hardware-validated status
-   continuously instead of as a one-time claim.
+   continuously instead of as a one-time claim. Prerequisite: a runner
+   that can reach the bench network — hosted GitHub runners cannot, so
+   this phase carries a self-hosted runner as real setup and
+   maintenance cost, not a footnote.
 4. **Functional loop + RF truth.** Flash generated ESPHome firmware,
    provision against the workbench's AP, assert the device's API/MQTT
    entities appear; for radio boards, an SDR power-spectrum capture
@@ -262,3 +286,9 @@ task list (to promote the agent from Experimental); a multi-writer
 state backend so the studio can run as a HA replica; attributing
 `esphome-matrix` failures to specific components for per-release
 support tables.
+
+**Known debt** — `mcp` is pinned to `<2` (0.24.1). mcp 2.0.0 removed
+the `mcp.server.fastmcp` import path the MCP server is built on, so
+images built against it crashed at boot; the pin restores a bootable
+image but freezes the dependency. Migrating to the mcp 2.x API is
+outstanding.

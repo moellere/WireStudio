@@ -147,12 +147,43 @@ def platformio_status() -> dict:
         return {"available": False, "pio": " ".join(pio), "version": None, "reason": str(exc)}
     version = (proc.stdout or proc.stderr).strip()
     ok = proc.returncode == 0
+    if not ok:
+        return {"available": False, "pio": " ".join(pio), "version": None, "reason": version}
+    # `pio --version` never touches the core dir, so it stays green on an
+    # install that cannot build: PlatformIO writes appstate.json + lockfiles
+    # there on every run, and reads the platform tree. A read-only core dir
+    # (baked image + readOnlyRootFilesystem) or one owned by another uid
+    # fails only once a build is already underway.
+    reason = _core_dir_problem()
     return {
-        "available": ok,
+        "available": reason is None,
         "pio": " ".join(pio),
-        "version": version if ok else None,
-        "reason": None if ok else version,
+        "version": version,
+        "reason": reason,
     }
+
+
+def _core_dir_problem() -> Optional[str]:
+    """Why PlatformIO could not use its core dir, or None if it can."""
+    core = Path(os.environ.get("PLATFORMIO_CORE_DIR") or (Path.home() / ".platformio"))
+    try:
+        core.mkdir(parents=True, exist_ok=True)
+        probe = core / ".wirestudio-write-probe"
+        probe.touch()
+        probe.unlink()
+    except OSError as exc:
+        return f"PLATFORMIO_CORE_DIR {core} is not writable: {exc}"
+    platforms = Path(
+        os.environ.get("PLATFORMIO_PLATFORMS_DIR") or (core / "platforms")
+    )
+    if platforms.is_dir():
+        try:
+            for entry in platforms.iterdir():
+                if entry.is_dir():
+                    os.listdir(entry)
+        except OSError as exc:
+            return f"PlatformIO platform tree {platforms} is not readable: {exc}"
+    return None
 
 
 def compile_firmware_events(

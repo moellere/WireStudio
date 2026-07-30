@@ -4,6 +4,19 @@ platform = espressif32
 board = {{ board.platformio_board }}
 framework = arduino
 monitor_speed = 115200
+{% if board.flash_size_mb %}
+; Pin the flash size from the board file rather than inheriting PlatformIO's
+; default for this board id. A header claiming more flash than the chip has
+; makes the bootloader assert at startup ("Detected size ... smaller than the
+; size in the binary image header") and boot-loop before any sketch code runs.
+board_build.flash_size = {{ board.flash_size_mb }}MB
+board_upload.flash_size = {{ board.flash_size_mb }}MB
+; The partition table has to match the flash size too. Pinning only the size
+; leaves the board's default table in place, and an 8 MB table on a 4 MB chip
+; fails verification ("partition N invalid - offset ... exceeds flash chip
+; size") -- a different boot loop one step later.
+board_build.partitions = {{ 'default.csv' if board.flash_size_mb == 4 else 'default_%dMB.csv' % board.flash_size_mb }}
+{% endif %}
 lib_deps =
     jgromes/RadioLib@^7.6.0
     ropg/LoRaWAN_ESP32@^1.3.0

@@ -16,6 +16,11 @@
 # the LoRaWAN firmware generator materializes it implicitly from the board's
 # `onboard_peripherals`. So no example references it by id; this is a
 # permanent, deliberate baseline entry, not a coverage gap to close.
+# battery_adc is the same case: the divider is a board property (Heltec V2
+# GPIO37/3.2, TTGO LoRa32 GPIO35/2.0) that the LoRaWAN generator materializes
+# from `onboard_peripherals`, so no example names it by id either. Its ESPHome
+# template is empty -- battery sense on the ESPHome path is the `adc` platform.
 components:
   - axp192
+  - battery_adc
 boards: []

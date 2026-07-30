@@ -4,7 +4,11 @@ mcu: esp32
 chip_variant: esp32
 framework: arduino
 platformio_board: heltec_wifi_lora_32_V2
-flash_size_mb: 8
+# The V2 is an ESP32-PICO-D4, which integrates 4 MB. PlatformIO's board
+# definition claims 8 MB; building against that makes the bootloader assert on
+# the size mismatch and boot-loop. Verified on hardware: esptool reports
+# "Detected size(4096k)" and the 8 MB image never reaches setup().
+flash_size_mb: 4
 
 rails:
   - {name: "5V",  voltage: 5.0, source: usb}

@@ -24,7 +24,9 @@ lorawan:
     - "adafruit/DHT sensor library@^1.4.6"
   globals: |
     #include <DHT.h>
-    DHT dht({{ (pin | default(pins.DATA) | default(params.pin)) | string | replace('GPIO', '') }}, {{ params.model | default('DHT22') }});
+    {% set dht_pin = pin if pin is not none
+       else (pins.DATA if pins.DATA is defined and pins.DATA is not none else params.pin) -%}
+    DHT dht({{ dht_pin | string | replace('GPIO', '') }}, {{ params.model | default('DHT22') }});
     float dhtTempC = 0.0;
     float dhtHumidity = 0.0;
   setup: |

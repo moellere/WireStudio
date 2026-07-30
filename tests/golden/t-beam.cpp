@@ -130,6 +130,13 @@ while (GPSSerial.available()) gps.encode(GPSSerial.read());  // keep the fix cur
   uint16_t _v_batt_mv = batteryMv;
   payload[17] = (uint8_t)(_v_batt_mv >> 8);
   payload[18] = (uint8_t)(_v_batt_mv);
+      // Re-assert the rate every uplink. Setting it once after join is not
+      // enough: a restored session or an ADR downlink can drop us to DR0,
+      // whose payload cap is below these 19 bytes, and then
+      // every sendReceive fails RADIOLIB_ERR_PACKET_TOO_LONG (-4) with nothing
+      // but a serial line to show for it -- the device stays joined and
+      // silently stops uplinking.
+      node->setDatarate(1);
       int16_t state = node->sendReceive(payload, sizeof(payload));
       Serial.printf("uplink: RadioLib state %d\n", state);
       persist.saveSession(node);

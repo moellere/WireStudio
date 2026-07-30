@@ -164,6 +164,59 @@ export async function flashFirmware(opts: FlashOptions): Promise<FlashSession> {
   };
 }
 
+/**
+ * Where the firmware goes. "usb" is WebSerial in this browser; "workbench"
+ * is a slot on a remote bench, which is the only path to a board that isn't
+ * physically here.
+ */
+export type FlashTarget = { kind: "usb" } | { kind: "workbench"; slot: string };
+
+/**
+ * Flash to either target. Returns a FlashSession for USB; returns null for
+ * the workbench, which has no serial session to hand back -- the bench owns
+ * the port and only answers once the flash is done. Boot output over a slot
+ * is phase 2.
+ */
+export async function flashToTarget(
+  target: FlashTarget,
+  opts: FlashOptions & { chip?: string },
+): Promise<FlashSession | null> {
+  if (target.kind === "usb") {
+    return flashFirmware(opts);
+  }
+  if (opts.images.length === 0) {
+    throw new Error("nothing to flash: no firmware images provided");
+  }
+
+  const { workbenchFlash } = await import("../api/client");
+  for await (const event of workbenchFlash({
+    slot: target.slot,
+    chip: opts.chip ?? "esp32",
+    erase: opts.eraseAll ?? false,
+    images: opts.images.map((i) => ({
+      offset: `0x${i.address.toString(16)}`,
+      data: toBase64(i.data),
+    })),
+  })) {
+    if (event.type === "log") opts.onLog?.(event.data);
+  }
+  // The bench reports bytes only in its log, so there is no honest
+  // incremental progress to report -- jump to complete rather than fake it.
+  opts.onProgress?.(1, 1);
+  return null;
+}
+
+function toBase64(bytes: Uint8Array): string {
+  // btoa needs a binary string; chunk it so a multi-MB image doesn't blow
+  // the argument limit on String.fromCharCode.
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
