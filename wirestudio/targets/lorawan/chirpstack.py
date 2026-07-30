@@ -85,9 +85,17 @@ class ChirpStackClient:
         *,
         tls: Optional[bool] = None,
         stubs: Optional[ChirpStackStubs] = None,
+        tenant_id: Optional[str] = None,
     ) -> None:
         self.url = url or os.environ.get("CHIRPSTACK_API_URL") or DEFAULT_URL
         self._token = token if token is not None else os.environ.get("CHIRPSTACK_API_TOKEN", "")
+        # Listing tenants is admin-only, so a tenant-scoped API key -- the
+        # least-privilege choice, and what the ChirpStack UI hands out by
+        # default -- cannot discover its own tenant. Naming it explicitly lets
+        # such a key do everything else it is entitled to.
+        self._tenant_id = (
+            tenant_id if tenant_id is not None else os.environ.get("CHIRPSTACK_TENANT_ID", "")
+        )
         self._tls = (
             (os.environ.get("CHIRPSTACK_API_TLS", "").lower() == "true")
             if tls is None
@@ -125,19 +133,37 @@ class ChirpStackClient:
         ChirpStackUnavailable on any transport/auth error."""
         grpc, m = _load()
         try:
-            self._get_stubs().tenant.List(
-                m.tenant.ListTenantsRequest(limit=1), metadata=self._auth
-            )
+            if self._tenant_id:
+                # A tenant-scoped key cannot list tenants, so probing with
+                # tenant.List would report a perfectly usable key as down.
+                self._get_stubs().application.List(
+                    m.app.ListApplicationsRequest(limit=1, tenant_id=self._tenant_id),
+                    metadata=self._auth,
+                )
+            else:
+                self._get_stubs().tenant.List(
+                    m.tenant.ListTenantsRequest(limit=1), metadata=self._auth
+                )
         except grpc.RpcError as exc:
             raise ChirpStackUnavailable(f"ChirpStack unreachable: {_rpc_msg(exc)}") from exc
 
     def default_tenant_id(self) -> str:
+        if self._tenant_id:
+            return self._tenant_id
         grpc, m = _load()
         try:
             resp = self._get_stubs().tenant.List(
                 m.tenant.ListTenantsRequest(limit=1), metadata=self._auth
             )
         except grpc.RpcError as exc:
+            if exc.code().name in ("UNAUTHENTICATED", "PERMISSION_DENIED"):
+                # The key works for everything else; it just cannot enumerate
+                # tenants. Say so, rather than reporting the server as down.
+                raise ChirpStackUnavailable(
+                    f"{_rpc_msg(exc)} listing tenants is admin-only and this "
+                    "API key is tenant-scoped -- set CHIRPSTACK_TENANT_ID to "
+                    "the tenant the key belongs to"
+                ) from exc
             raise ChirpStackUnavailable(_rpc_msg(exc)) from exc
         if not resp.result:
             raise ChirpStackUnavailable("ChirpStack has no tenant to provision under")

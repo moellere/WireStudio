@@ -288,3 +288,23 @@ def test_provision_device_flushes_nonces():
     stubs.device.FlushDevNonces.assert_called_once()
     stubs.device.Create.assert_called_once()
     stubs.device.CreateKeys.assert_called_once()
+
+
+def test_tenant_scoped_key_is_told_how_to_fix_itself():
+    """Listing tenants is admin-only, so a tenant-scoped key -- the
+    least-privilege choice the UI hands out -- cannot discover its own
+    tenant. Reporting that as a bare UNAUTHENTICATED reads as a bad token."""
+    stubs = _stubs()
+    stubs.tenant.List.side_effect = _RpcError(grpc.StatusCode.UNAUTHENTICATED)
+    with pytest.raises(cs.ChirpStackUnavailable, match="CHIRPSTACK_TENANT_ID"):
+        _client(stubs).default_tenant_id()
+
+
+def test_configured_tenant_id_skips_the_admin_only_lookup():
+    stubs = _stubs()
+    stubs.tenant.List.side_effect = _RpcError(grpc.StatusCode.UNAUTHENTICATED)
+    client = cs.ChirpStackClient(
+        url="host:8080", token="t", stubs=stubs, tenant_id="tenant-1"
+    )
+    assert client.default_tenant_id() == "tenant-1"
+    stubs.tenant.List.assert_not_called()

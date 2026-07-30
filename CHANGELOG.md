@@ -34,8 +34,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   an operator-supplied host, so a URL-only gate would let any
   deployment flash any reachable bench.
 
+### Added
+
+- **Headless LoRaWAN bring-up on a bench slot.**
+  `POST /lorawan/workbench/provision` flashes, registers, provisions and
+  verifies a board in one call, streaming a phase per step. Registration
+  already existed and was designed around a host that supplies the eFuse
+  MAC and types the keys into the device's serial prompt; that host could
+  only be the browser. `wirestudio.workbench.serial.answer_prompts` drives
+  the same dialogue over the slot's RFC2217 port, so the flow no longer
+  needs anyone at the bench. Phase order is forced by the hardware: the
+  flash runs first because esptool's own output is the only place the MAC
+  appears (the bench exposes no chip-detect), and the erase must precede
+  registration so `provision_device`'s DevNonce flush lands after the
+  device's counter restarts. Keys are redacted from the log
+  case-insensitively -- devices echo them back, in uppercase.
+
 ### Fixed
 
+- **A tenant-scoped ChirpStack API key was reported as unusable.**
+  `ping()` and `default_tenant_id()` both probed `TenantService.List`,
+  which is admin-only, so the least-privilege key the ChirpStack UI hands
+  out made `/lorawan/chirpstack/status` report the server as down and
+  every provisioning chain fail with a bare `UNAUTHENTICATED`. Set
+  `CHIRPSTACK_TENANT_ID` and the client skips the admin-only lookup and
+  probes with a tenant-scoped call instead; the error now says so rather
+  than reading as a bad token.
 - **LoRaWAN builds could not run in the deployed image.** Three faults
   stacked. (1) The `-full` image builds on `kicad/kicad:8.0`, which
   already occupies uid 1000, so its bare `useradd appuser` landed on
