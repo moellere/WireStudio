@@ -204,7 +204,7 @@ def build_router(library: Library, backend: BuildBackend) -> APIRouter:
         if not wb.is_configured():
             raise HTTPException(
                 status_code=503,
-                detail="workbench not configured (set WORKBENCH_URL and WORKBENCH_TOKEN)",
+                detail="workbench not configured (set WORKBENCH_URL)",
             )
         chirp = cs.ChirpStackClient()
         if not chirp.is_configured():

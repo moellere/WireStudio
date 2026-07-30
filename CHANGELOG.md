@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`WORKBENCH_TOKEN` is optional.** Phase 1 required it, reasoning that
+  every comparable gate pairs a host with a credential. That was wrong:
+  those tokens authenticate to services that check them, and the stock
+  workbench portal checks nothing. Requiring it gated nothing -- anyone
+  able to set the URL can set a token too -- while implying a credential
+  that does not exist and pushing operators to seal a dummy value into a
+  secret store. `WORKBENCH_URL` alone now configures the integration, and
+  the token is sent only when set, for a bench fronted by something that
+  does authenticate.
+
 ## [0.25.0] — 2026-07-30
 
 ### Added

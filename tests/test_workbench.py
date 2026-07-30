@@ -159,12 +159,27 @@ async def test_unconfigured_without_url(monkeypatch):
     assert not ok and reason == "WORKBENCH_URL not set"
 
 
-async def test_url_alone_is_not_configured():
-    """A URL without a token must not be enough -- see docs/workbench.md."""
-    wc = WorkbenchClient(base_url="http://bench:8080", token="")
-    assert not wc.is_configured()
-    ok, reason = await wc.is_available()
-    assert not ok and reason == "WORKBENCH_TOKEN not set"
+async def test_url_alone_is_enough():
+    """The stock portal does not authenticate, so requiring a token gated
+    nothing -- anyone able to set the URL can set a token too -- while
+    implying a credential that does not exist. The URL is the gate."""
+    assert WorkbenchClient(base_url="http://bench:8080", token="").is_configured()
+
+
+async def test_token_is_omitted_when_unset():
+    """No Authorization header at all, rather than an empty bearer."""
+    seen = {}
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        seen["auth"] = req.headers.get("authorization")
+        return httpx.Response(200, json={"hostname": "bench"})
+
+    wc = WorkbenchClient(
+        base_url="http://bench:8080", token="", transport=httpx.MockTransport(handler)
+    )
+    ok, _ = await wc.is_available()
+    assert ok
+    assert seen["auth"] is None
 
 
 async def test_bad_token_reports_unauthorized():
@@ -185,7 +200,6 @@ async def test_available_when_configured_and_reachable():
 
 def test_status_reports_reason_and_hint_when_unconfigured(monkeypatch):
     monkeypatch.delenv("WORKBENCH_URL", raising=False)
-    monkeypatch.delenv("WORKBENCH_TOKEN", raising=False)
     body = TestClient(create_app()).get("/workbench/status").json()
     assert body["available"] is False
     assert body["reason"] == "WORKBENCH_URL not set"
