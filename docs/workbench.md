@@ -53,7 +53,7 @@ receiver plus signal generator.
 Each phase is independently shippable; later phases build on earlier
 ones but none blocks the others' value.
 
-1. **Remote flash transport.** `WORKBENCH_URL` + `WORKBENCH_TOKEN` env
+1. **Remote flash transport.** A `WORKBENCH_URL` env
    gate (the usual integration seam) enabling `/workbench/status`,
    `/workbench/slots` and `/workbench/flash`: the server fetches the
    framework's image exactly as the existing proxies do, uploads it to
@@ -112,18 +112,25 @@ ones but none blocks the others' value.
   the UI surfaces why, same as fleet/ChirpStack/Thingiverse.
 - **No bench state in `design.json`.** Slot assignments and workbench
   hosts are deployment configuration, not design content.
-- **The URL is not sufficient authorization.** Every comparable gate
-  pairs a host with a credential (`FLEET_URL` + `FLEET_TOKEN`,
-  `CHIRPSTACK_API_URL` + `CHIRPSTACK_API_TOKEN`); the workbench API is
-  unauthenticated, and phase 1 has the server push firmware at a device
-  on an operator-supplied host. A `WORKBENCH_URL` alone would make any
-  hosted studio a relay for flashing arbitrary images onto someone's
-  bench. Phase 1 therefore ships `WORKBENCH_TOKEN` alongside the
-  transport rather than as a follow-up. Note there is no existing
-  outbound-SSRF guard in the codebase to reuse: `WIRESTUDIO_ALLOWED_ORIGINS`
-  is CORS and `WIRESTUDIO_MCP_ALLOWED_HOSTS` is the MCP SDK's *inbound*
-  DNS-rebinding mitigation. Only the comma-split env parsing idiom
-  carries over; the enforcement is new code.
+- **`WORKBENCH_URL` is the gate, and it is a real one.** The server
+  pushes firmware at a device on an operator-supplied host, so pointing
+  it anywhere but a bench you control is the whole risk. `WORKBENCH_TOKEN`
+  is optional and sent only when set — for a bench fronted by something
+  that authenticates; the stock portal ignores it.
+
+  Phase 1 originally *required* the token, reasoning that every
+  comparable gate pairs a host with a credential (`FLEET_URL` +
+  `FLEET_TOKEN`). That was wrong: those tokens authenticate to services
+  that check them, and this one is checked by nothing. Requiring it gated
+  nothing — anyone able to set the URL can set a token too — while
+  implying a credential that does not exist and pushing operators to seal
+  a dummy value into a secret store. An honest unauthenticated integration
+  beats a decorative credential.
+
+  A real outbound guard would be a host allowlist, and there is no
+  existing one to reuse: `WIRESTUDIO_ALLOWED_ORIGINS` is CORS and
+  `WIRESTUDIO_MCP_ALLOWED_HOSTS` is the MCP SDK's *inbound* DNS-rebinding
+  mitigation. Only the comma-split env parsing idiom carries over.
 - **Bench resources are exclusive; model the contention.** A slot's
   serial port admits one reader, and the SDR is a single dongle behind
   a global lock — a capture in flight rejects the next caller outright.

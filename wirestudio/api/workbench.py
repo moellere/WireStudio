@@ -55,8 +55,9 @@ def router(client_factory: Optional[Callable[[], WorkbenchClient]] = None) -> AP
             "reason": reason,
             "url": wc.base_url or None,
             "configure_hint": (
-                "Export WORKBENCH_URL=http://<pi>:8080 and WORKBENCH_TOKEN=<secret> "
-                "to flash boards on a remote bench."
+                "Export WORKBENCH_URL=http://<pi>:8080 to flash boards on a remote "
+                "bench. WORKBENCH_TOKEN is optional -- set it only if the bench "
+                "sits behind something that authenticates."
                 if not ok
                 else None
             ),
@@ -68,7 +69,7 @@ def router(client_factory: Optional[Callable[[], WorkbenchClient]] = None) -> AP
         if not wc.is_configured():
             raise HTTPException(
                 status_code=503,
-                detail="workbench not configured (set WORKBENCH_URL and WORKBENCH_TOKEN)",
+                detail="workbench not configured (set WORKBENCH_URL)",
             )
         try:
             slots = await wc.slots()
@@ -104,7 +105,7 @@ def router(client_factory: Optional[Callable[[], WorkbenchClient]] = None) -> AP
         if not wc.is_configured():
             raise HTTPException(
                 status_code=503,
-                detail="workbench not configured (set WORKBENCH_URL and WORKBENCH_TOKEN)",
+                detail="workbench not configured (set WORKBENCH_URL)",
             )
 
         slot = body.get("slot")

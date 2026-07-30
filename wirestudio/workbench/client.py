@@ -1,13 +1,17 @@
 """HTTP client for a Universal Embedded Workbench.
 
   WORKBENCH_URL    base URL of the Pi's portal (e.g. http://10.0.0.44:8080)
-  WORKBENCH_TOKEN  shared secret, sent as a Bearer token
+  WORKBENCH_TOKEN  optional bearer token, sent when set
 
-The token is required even though the stock portal does not check one:
-the studio uploads firmware to whatever host WORKBENCH_URL names, so a
-URL-only gate would let any studio deployment push arbitrary images at
-any reachable bench. Requiring the operator to set both keeps that
-deliberate. See docs/workbench.md.
+The stock portal does not authenticate, so the token is sent only for
+benches fronted by something that does (a reverse proxy, say). It is not
+required, and requiring it bought nothing: anyone able to set the URL can
+set a token too, so it gated nothing while implying a credential that does
+not exist.
+
+WORKBENCH_URL is therefore the gate, and it is a real one -- the server
+uploads firmware to whatever host it names. Point it only at a bench you
+control. See docs/workbench.md.
 """
 from __future__ import annotations
 
@@ -147,13 +151,11 @@ class WorkbenchClient:
     # ------------------------------------------------------------------
 
     def is_configured(self) -> bool:
-        return bool(self.base_url and self.token)
+        return bool(self.base_url)
 
     def unconfigured_reason(self) -> Optional[str]:
         if not self.base_url:
             return "WORKBENCH_URL not set"
-        if not self.token:
-            return "WORKBENCH_TOKEN not set"
         return None
 
     async def is_available(self) -> tuple[bool, Optional[str]]:
