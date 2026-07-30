@@ -90,8 +90,22 @@ if [ "$WITH_LORAWAN" = "true" ]; then
     mkdir -p "$PLATFORMIO_CORE_DIR"
     python -c "from wirestudio.library import default_library; from wirestudio.model import Design; from wirestudio.targets import get_target; from wirestudio.targets.lorawan.compile import compile_firmware; lib=default_library(); [compile_firmware(Design(schema_version='0.1', id='prewarm-'+b, name=b, target='lorawan', lorawan={}, board={'library_id': b, 'mcu': 'esp32'}, power={'supply':'usb','rail_voltage_v':3.3}), lib, use_cache=False) for b in get_target('lorawan').board_ids(lib)]"
     chown -R appuser:appuser "$PLATFORMIO_CORE_DIR"
+    # PlatformIO creates platform dirs 0700, so the baked toolchain is
+    # unreadable to any uid but the one that built it -- and a manifest is
+    # free to pin a different runAsUser than this image's appuser. Readable
+    # by everyone, writable by no one: the runtime never writes here.
+    chmod -R a+rX "$PLATFORMIO_CORE_DIR"
 fi
 EOF
+
+# PlatformIO writes appstate.json + lockfiles into its core dir on every
+# invocation, so a baked-in core dir cannot work under a read-only root
+# filesystem. Split it: state on the writable volume, the prewarmed
+# toolchain read-only where the build stage left it.
+ENV PLATFORMIO_CORE_DIR=/data/pio \
+    PLATFORMIO_PLATFORMS_DIR=/opt/pio/platforms \
+    PLATFORMIO_PACKAGES_DIR=/opt/pio/packages \
+    PLATFORMIO_CACHE_DIR=/tmp/pio-cache
 
 ENV PYTHONUNBUFFERED=1 \
     WIRESTUDIO_STATIC_DIR=/app/web-dist \

@@ -211,6 +211,7 @@ def create_app(
     event_bus: Optional[DesignEventBus] = None,
     active_design: Optional[ActiveDesignTracker] = None,
     inventory: Optional[InventoryStore] = None,
+    workbench_client_factory=None,
 ) -> FastAPI:
     import os as _os
     lib = library or default_library()
@@ -1456,6 +1457,12 @@ def create_app(
     from wirestudio.api.circuitpython import router as circuitpython_router
 
     app.include_router(circuitpython_router(lib), prefix="/circuitpython")
+
+    # The workbench is a destination for firmware, not a source of it --
+    # the image still comes from whichever framework proxy serves it.
+    from wirestudio.api.workbench import router as workbench_router
+
+    app.include_router(workbench_router(workbench_client_factory), prefix="/workbench")
 
     if mcp_server is not None:
         # Streamable HTTP transport. mcp_server.streamable_http_app() registers

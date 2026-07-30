@@ -1,5 +1,8 @@
 function decodeUplink(input) {
   var b = input.bytes;
+  if (b.length < 19) {
+    return { data: {}, warnings: [], errors: ['expected 19 bytes, got ' + b.length] };
+  }
   var data = {};
   data.uptime_s = (((b[0] << 24) | (b[1] << 16) | (b[2] << 8) | b[3]) >>> 0);
   data.boot_count = (((b[4] << 8) | b[5]) >>> 0);
