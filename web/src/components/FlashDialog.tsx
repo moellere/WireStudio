@@ -460,6 +460,12 @@ function CircuitPythonFlash({ design, boards }: { design: Design | null; boards:
         </div>
       )}
 
+      <FlashTargetPicker
+        target={target}
+        onChange={setTarget}
+        disabled={phase === "fetching" || phase === "flashing"}
+      />
+
       <div className="flex items-center justify-between gap-3 text-xs text-ink-dim">
         <div>
           {!design
