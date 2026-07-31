@@ -425,3 +425,29 @@ def test_platformio_status_available_when_core_dir_usable(monkeypatch, tmp_path)
     status = compile_mod.platformio_status()
     assert status["available"] is True
     assert status["reason"] is None
+
+
+def test_platformio_status_flags_unwritable_lock(monkeypatch, tmp_path):
+    """PlatformIO locks at `<dir>.lock` -- a sibling of the managed directory.
+    Pointing platforms at a read-only prewarmed tree leaves that lock
+    unwritable, so every build dies with "Read-only file system:
+    .../platforms.lock" while a core-dir-only probe still reports available."""
+    from wirestudio.targets.lorawan import compile as compile_mod
+
+    monkeypatch.setattr(compile_mod, "_pio_cmd", lambda: ["pio"])
+    monkeypatch.setattr(
+        compile_mod.subprocess,
+        "run",
+        lambda *a, **k: types.SimpleNamespace(returncode=0, stdout="PlatformIO Core 6.1", stderr=""),
+    )
+    baked = tmp_path / "baked"
+    (baked / "platforms").mkdir(parents=True)
+    baked.chmod(0o500)  # readable, not writable -- the image filesystem
+    monkeypatch.setenv("PLATFORMIO_CORE_DIR", str(tmp_path / "core"))
+    monkeypatch.setenv("PLATFORMIO_PLATFORMS_DIR", str(baked / "platforms"))
+    try:
+        status = compile_mod.platformio_status()
+    finally:
+        baked.chmod(0o700)
+    assert status["available"] is False
+    assert "lock" in status["reason"]
