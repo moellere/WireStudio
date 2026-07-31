@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Regenerated the library coverage matrix.** It still reported 64
+  components; `battery_adc` had been added without refreshing the
+  generated doc.
+
 ## [0.25.1] — 2026-07-30
 
 ### Changed
