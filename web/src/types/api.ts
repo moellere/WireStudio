@@ -308,6 +308,32 @@ export type KicadRouteEvent =
   | { type: "log"; data: string }
   | { type: "done"; ok: boolean; routed: boolean; cache_key: string; cache_hit: boolean };
 
+export interface WorkbenchStatus {
+  available: boolean;
+  reason: string | null;
+  url: string | null;
+  configure_hint: string | null;
+}
+
+export interface WorkbenchSlot {
+  label: string;
+  state: string;
+  present: boolean;
+  chip: string | null;
+  product: string | null;
+  serial_url: string | null;
+  flapping: boolean;
+  last_error: string | null;
+  flashable: boolean;
+  blocked_reason: string | null;
+}
+
+/** The bench buffers esptool, so every `log` arrives at completion --
+ *  there is no incremental progress to render. */
+export type WorkbenchFlashEvent =
+  | { type: "log"; data: string }
+  | { type: "done"; ok: boolean; slot: string; returncode: number | null };
+
 export interface FabStatus {
   bom: boolean;
   cpl: boolean;

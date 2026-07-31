@@ -32,10 +32,13 @@ def test_tbeam_adds_onboard_gps_and_battery():
     assert codec.payload_size(fields) == 19
 
 
-def test_radio_only_board_is_builtin_only():
+def test_radio_only_board_reports_battery_from_its_divider():
+    """No PMIC, but the board brings the cell out to an ADC through a divider,
+    so it still reports batt_mv -- a bare uptime heartbeat is not worth an
+    uplink."""
     lib = default_library()
     assert [f["name"] for f in codec.fields_for(_design("ttgo-lora32-v1"), lib)] == [
-        "uptime_s", "boot_count",
+        "uptime_s", "boot_count", "batt_mv",
     ]
 
 
@@ -56,13 +59,17 @@ def test_oled_is_display_only_no_payload_field():
     assert base == witholed
 
 
-def test_external_gps_adds_gps_fields_without_battery():
-    # Heltec has no onboard GPS/AXP; an external GPS config still adds GPS fields.
+def test_external_gps_adds_gps_fields():
+    # Heltec has no onboard GPS; an external GPS config still adds GPS fields.
     lib = default_library()
     design = _design("heltec-wifi-lora32-v3", gps={"rx_pin": "GPIO3", "tx_pin": "GPIO1"})
     names = [f["name"] for f in codec.fields_for(design, lib)]
     assert "lat" in names and "sats" in names
-    assert "batt_mv" not in names  # no AXP192 on the Heltec
+    # No AXP192, but the board has a battery divider, so batt_mv still appears
+    # -- and in the PMIC's slot (after GPS), so the layout is identical whether
+    # the cell is sensed by a PMIC or a divider.
+    assert "batt_mv" in names
+    assert names.index("lat") < names.index("batt_mv")
 
 
 def test_decode_js_offsets_and_scaling():
@@ -110,3 +117,17 @@ def test_ha_device_info_gps_emits_device_tracker():
     # a non-GPS board gets no device_tracker
     plain_js = codec.generate_codec(_design("ttgo-lora32-v1"), lib)
     assert "device_tracker" not in plain_js
+
+
+def test_decode_js_rejects_short_payload():
+    """A 1-byte uplink against a 22-byte layout reads past the end: JS gives
+    undefined, the shifts coerce to 0, and the codec returns a full set of
+    plausible zeros with errors:[]. Home Assistant then shows fabricated
+    readings that look exactly like real ones."""
+    fields = codec.fields_for(_design("ttgo-t-beam"), default_library())
+    js = codec.decode_js(fields)
+    size = codec.payload_size(fields)
+    assert f"if (b.length < {size})" in js
+    assert f"errors: ['expected {size} bytes, got ' + b.length]" in js
+    # The guard must precede the first field read, or it cannot prevent it.
+    assert js.index("b.length") < js.index("data.uptime_s")

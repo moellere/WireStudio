@@ -46,6 +46,30 @@ _ZERO_EUI = "0000000000000000"
 _SSE_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
 
 
+def _decode_images(raw) -> list[tuple[int, bytes]]:
+    """[{offset, data}] -> [(int, bytes)]; `data` is base64.
+
+    Offsets arrive as strings like "0x10000", so they are parsed base 0 --
+    reading them as decimal would flash a valid-looking image to the wrong
+    address.
+    """
+    import base64
+
+    if not raw:
+        raise HTTPException(status_code=422, detail="images is required")
+    out: list[tuple[int, bytes]] = []
+    for i, img in enumerate(raw):
+        try:
+            offset = int(str(img["offset"]), 0)
+            data = base64.b64decode(img["data"], validate=True)
+        except (KeyError, ValueError, TypeError) as exc:
+            raise HTTPException(status_code=422, detail=f"image {i}: {exc}") from exc
+        if offset < 0 or not data:
+            raise HTTPException(status_code=422, detail=f"image {i}: empty or negative offset")
+        out.append((offset, data))
+    return out
+
+
 def build_router(library: Library, backend: BuildBackend) -> APIRouter:
     """`backend` is the build path the compile/firmware routes drive. The
     endpoints know nothing about PlatformIO -- swapping in a remote build worker
@@ -148,6 +172,72 @@ def build_router(library: Library, backend: BuildBackend) -> APIRouter:
             "application_id": result["application_id"],
             "device_profile_id": result["device_profile_id"],
         }
+
+    @router.post("/workbench/provision")
+    def workbench_provision(body: dict) -> StreamingResponse:
+        """Flash, register, provision and verify a board on a bench slot.
+
+        The headless counterpart of the browser flow: WebSerial supplied the
+        eFuse MAC and typed the keys into the device's prompt, and a slot on
+        the workbench can do both. Everything checkable up front is validated
+        before the stream opens, since SSE cannot carry a status change once
+        it has.
+        """
+        from wirestudio.targets.lorawan import chirpstack as cs
+        from wirestudio.targets.lorawan.workbench_provision import provision_events
+        from wirestudio.workbench import WorkbenchClient, WorkbenchUnavailable
+        from wirestudio.workbench.serial import SerialUnavailable
+
+        slot = body.get("slot")
+        if not slot or not isinstance(slot, str):
+            raise HTTPException(status_code=422, detail="slot is required")
+        try:
+            design = Design.model_validate(body["design"])
+        except KeyError as exc:
+            raise HTTPException(status_code=422, detail="design is required") from exc
+        except ValidationError as exc:
+            raise HTTPException(status_code=422, detail=exc.errors()) from exc
+
+        images = _decode_images(body.get("images"))
+
+        wb = WorkbenchClient()
+        if not wb.is_configured():
+            raise HTTPException(
+                status_code=503,
+                detail="workbench not configured (set WORKBENCH_URL)",
+            )
+        chirp = cs.ChirpStackClient()
+        if not chirp.is_configured():
+            raise HTTPException(
+                status_code=503,
+                detail="ChirpStack not configured (set CHIRPSTACK_API_TOKEN / CHIRPSTACK_API_URL)",
+            )
+        try:
+            ok, reason = wb.slot_sync(slot).flashable
+        except WorkbenchUnavailable as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+        if not ok:
+            raise HTTPException(status_code=409, detail=reason)
+
+        def events():
+            try:
+                for event in provision_events(
+                    design,
+                    library,
+                    slot=slot,
+                    workbench=wb,
+                    chirpstack=chirp,
+                    images=images,
+                    erase=bool(body.get("erase", True)),
+                    application_name=str(body.get("application_name") or "wirestudio"),
+                ):
+                    yield f"data: {json.dumps(event)}\n\n"
+            except (WorkbenchUnavailable, SerialUnavailable, cs.ChirpStackUnavailable) as exc:
+                yield f"event: error\ndata: {json.dumps({'message': str(exc)})}\n\n"
+
+        return StreamingResponse(
+            events(), media_type="text/event-stream", headers=_SSE_HEADERS
+        )
 
     @router.post("/provision-esphome")
     def provision_esphome(body: dict) -> dict:

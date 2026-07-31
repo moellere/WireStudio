@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Radio, UploadCloud, Zap } from "lucide-react";
-import type { BoardSummary, Design } from "../types/api";
+import type { BoardSummary, Design, WorkbenchSlot, WorkbenchStatus } from "../types/api";
 import { api, ApiError } from "../api/client";
-import { flashFirmware, type FlashSession } from "../lib/flash";
+import { flashToTarget, type FlashSession, type FlashTarget } from "../lib/flash";
 import { tasmotaConfigCommands, type TasmotaTemplate } from "../lib/tasmota";
 import { Button, Dialog, FieldLabel, Input } from "./ui";
 import { LorawanFlashDialog } from "./LorawanFlashDialog";
@@ -22,6 +22,111 @@ interface Props {
   boards: BoardSummary[] | null;
   onClose: () => void;
   onOpenFleet: () => void;
+}
+
+/**
+ * Local USB vs a remote bench slot. Renders nothing until the workbench
+ * status probe answers, and nothing at all when no bench is configured --
+ * a lone "Local USB" toggle is noise for the majority who have none.
+ */
+function FlashTargetPicker({
+  target,
+  onChange,
+  disabled,
+}: {
+  target: FlashTarget;
+  onChange: (t: FlashTarget) => void;
+  disabled: boolean;
+}) {
+  const [status, setStatus] = useState<WorkbenchStatus | null>(null);
+  const [slots, setSlots] = useState<WorkbenchSlot[] | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.workbenchStatus()
+      .then((s) => {
+        if (cancelled) return;
+        setStatus(s);
+        if (!s.available) return;
+        return api.workbenchSlots()
+          .then((r) => { if (!cancelled) setSlots(r.slots); })
+          .catch(() => { if (!cancelled) setSlots([]); });
+      })
+      .catch(() => {
+        if (!cancelled) setStatus({ available: false, reason: null, url: null, configure_hint: null });
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  if (!status?.available) return null;
+
+  const usable = (slots ?? []).filter((s) => s.flashable);
+
+  return (
+    <div className="space-y-2 rounded-lg border border-line bg-surface-2/40 p-3">
+      <FieldLabel>Flash target</FieldLabel>
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          disabled={disabled}
+          onClick={() => onChange({ kind: "usb" })}
+          className={`rounded-lg border px-3 py-2 text-left transition-colors disabled:opacity-40 ${
+            target.kind === "usb"
+              ? "border-accent-500/50 bg-accent-500/5"
+              : "border-line bg-surface-2/40 enabled:hover:border-line-strong"
+          }`}
+        >
+          <div className="text-sm font-medium text-ink">Local USB</div>
+          <div className="mt-0.5 text-[11px] text-ink-faint">WebSerial, board plugged into this machine</div>
+        </button>
+        <button
+          disabled={disabled || usable.length === 0}
+          onClick={() => usable[0] && onChange({ kind: "workbench", slot: usable[0].label })}
+          className={`rounded-lg border px-3 py-2 text-left transition-colors disabled:opacity-40 ${
+            target.kind === "workbench"
+              ? "border-accent-500/50 bg-accent-500/5"
+              : "border-line bg-surface-2/40 enabled:hover:border-line-strong"
+          }`}
+        >
+          <div className="text-sm font-medium text-ink">Workbench slot</div>
+          <div className="mt-0.5 text-[11px] text-ink-faint">
+            {slots === null
+              ? "checking slots…"
+              : usable.length === 0
+                ? "no slot ready"
+                : `${usable.length} slot${usable.length > 1 ? "s" : ""} ready`}
+          </div>
+        </button>
+      </div>
+
+      {target.kind === "workbench" && (
+        <div className="flex flex-wrap gap-1.5">
+          {(slots ?? []).map((s) => (
+            <button
+              key={s.label}
+              disabled={disabled || !s.flashable}
+              title={s.blocked_reason ?? s.product ?? undefined}
+              onClick={() => onChange({ kind: "workbench", slot: s.label })}
+              className={`rounded-md border px-2 py-1 font-mono text-[11px] transition-colors disabled:opacity-40 ${
+                target.slot === s.label
+                  ? "border-accent-500/50 bg-accent-500/10 text-ink"
+                  : "border-line bg-surface-2/40 text-ink-dim enabled:hover:border-line-strong"
+              }`}
+            >
+              {s.label}
+              {!s.flashable && <span className="ml-1 text-ink-faint">·{s.state}</span>}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {target.kind === "workbench" && (
+        <p className="text-[11px] text-ink-faint">
+          The bench runs esptool on its own USB and reports when the flash
+          finishes, so the log arrives at the end rather than live.
+        </p>
+      )}
+    </div>
+  );
 }
 
 /** One flashing surface for every framework. WebSerial + esptool-js is
@@ -105,6 +210,7 @@ function MeshtasticFlash({ design, boards }: { design: Design | null; boards: Bo
   const [progress, setProgress] = useState<number>(0);
   const [log, setLog] = useState<string[]>([]);
   const [serial, setSerial] = useState<string>("");
+  const [target, setTarget] = useState<FlashTarget>({ kind: "usb" });
   const sessionRef = useRef<FlashSession | null>(null);
 
   const boardLibraryId = String((design?.board as Record<string, unknown> | undefined)?.library_id ?? "");
@@ -139,9 +245,10 @@ function MeshtasticFlash({ design, boards }: { design: Design | null; boards: Bo
       const { data, offset } = await api.meshtasticFirmware(boardLibraryId);
       appendLog(`fetched ${status?.version ?? "release"} factory image (${(data.length / 1024).toFixed(0)} KiB)`);
       setPhase("flashing");
-      const session = await flashFirmware({
+      const session = await flashToTarget(target, {
         images: [{ data, address: offset }],
         eraseAll: true,
+        chip: board?.chip_variant,
         onProgress: (written, total) => setProgress(total ? written / total : 0),
         onLog: appendLog,
         onSerial: (text) => setSerial((s) => (s + text).slice(-8000)),
@@ -162,6 +269,12 @@ function MeshtasticFlash({ design, boards }: { design: Design | null; boards: Bo
           <div className="mt-1">{status.reason}</div>
         </div>
       )}
+
+      <FlashTargetPicker
+        target={target}
+        onChange={setTarget}
+        disabled={phase === "fetching" || phase === "flashing"}
+      />
 
       <div className="flex items-center justify-between gap-3 text-xs text-ink-dim">
         <div>
@@ -237,6 +350,7 @@ function CircuitPythonFlash({ design, boards }: { design: Design | null; boards:
   const [serial, setSerial] = useState<string>("");
   const [starter, setStarter] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
+  const [target, setTarget] = useState<FlashTarget>({ kind: "usb" });
   const sessionRef = useRef<FlashSession | null>(null);
 
   const boardLibraryId = String((design?.board as Record<string, unknown> | undefined)?.library_id ?? "");
@@ -282,9 +396,10 @@ function CircuitPythonFlash({ design, boards }: { design: Design | null; boards:
       const { data, offset } = await api.circuitpythonFirmware(boardLibraryId);
       appendLog(`fetched CircuitPython ${status?.version ?? "release"} image (${(data.length / 1024).toFixed(0)} KiB)`);
       setPhase("flashing");
-      const session = await flashFirmware({
+      const session = await flashToTarget(target, {
         images: [{ data, address: offset }],
         eraseAll: true,
+        chip: board?.chip_variant,
         onProgress: (written, total) => setProgress(total ? written / total : 0),
         onLog: appendLog,
         onSerial: (text) => setSerial((s) => (s + text).slice(-8000)),
@@ -344,6 +459,12 @@ function CircuitPythonFlash({ design, boards }: { design: Design | null; boards:
           code.py prints the pins the build actually exposes.
         </div>
       )}
+
+      <FlashTargetPicker
+        target={target}
+        onChange={setTarget}
+        disabled={phase === "fetching" || phase === "flashing"}
+      />
 
       <div className="flex items-center justify-between gap-3 text-xs text-ink-dim">
         <div>
@@ -423,6 +544,7 @@ function TasmotaFlash({ design, boards }: { design: Design | null; boards: Board
   const [templateWarnings, setTemplateWarnings] = useState<string[]>([]);
   const [ssid, setSsid] = useState("");
   const [password, setPassword] = useState("");
+  const [target, setTarget] = useState<FlashTarget>({ kind: "usb" });
   const sessionRef = useRef<FlashSession | null>(null);
 
   const boardLibraryId = String((design?.board as Record<string, unknown> | undefined)?.library_id ?? "");
@@ -469,9 +591,10 @@ function TasmotaFlash({ design, boards }: { design: Design | null; boards: Board
       const { data, offset } = await api.tasmotaFirmware(chip);
       appendLog(`fetched release image (${(data.length / 1024).toFixed(0)} KiB) for ${chip}`);
       setPhase("flashing");
-      const session = await flashFirmware({
+      const session = await flashToTarget(target, {
         images: [{ data, address: offset }],
         eraseAll: true,
+        chip: board?.chip_variant,
         onProgress: (written, total) => setProgress(total ? written / total : 0),
         onLog: appendLog,
         onSerial: (text) => setSerial((s) => (s + text).slice(-8000)),
@@ -513,6 +636,8 @@ function TasmotaFlash({ design, boards }: { design: Design | null; boards: Board
         </div>
       )}
 
+      <FlashTargetPicker target={target} onChange={setTarget} disabled={busy} />
+
       <div className="flex items-center justify-between gap-3 text-xs text-ink-dim">
         <div>
           {chip
@@ -538,6 +663,14 @@ function TasmotaFlash({ design, boards }: { design: Design | null; boards: Board
       {(phase === "flashed" || phase === "pushing" || phase === "pushed") && (
         <div className="space-y-2 rounded-lg border border-line bg-surface-2/40 p-3">
           <div className="text-xs font-medium text-ink">Push configuration over serial</div>
+          {sessionRef.current === null && (
+            <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-2 text-[11px] text-amber-200">
+              Flashed on a workbench slot, so there is no serial session here to
+              push the template through — the bench owns the port. Push the
+              config from a local USB flash, or configure the device over its
+              own WiFi portal.
+            </div>
+          )}
           {template ? (
             <pre className="max-h-24 overflow-auto rounded-md bg-surface-0 p-2 font-mono text-[10px] text-ink-dim ring-1 ring-line">
               {JSON.stringify(template)}
@@ -569,7 +702,7 @@ function TasmotaFlash({ design, boards }: { design: Design | null; boards: Board
             </span>
             <Button
               variant="primary"
-              disabled={!template || phase === "pushing"}
+              disabled={!template || phase === "pushing" || sessionRef.current === null}
               onClick={handlePush}
             >
               <Radio className="h-3.5 w-3.5" />

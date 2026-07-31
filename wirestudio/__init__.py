@@ -1,3 +1,3 @@
 """wirestudio: design.json -> ESPHome YAML + ASCII diagram."""
 
-__version__ = "0.24.1"
+__version__ = "0.25.1"
