@@ -43,7 +43,11 @@ export function InventoryDialog({ design, onClose }: { design?: Design | null; o
     })();
   }, []);
 
-  const inInventory = useMemo(() => new Set(entries.map((e) => e.library_id)), [entries]);
+  const inInventory = useMemo(() => {
+    const ids = new Set<string>();
+    for (const e of entries) ids.add(e.library_id);
+    return ids;
+  }, [entries]);
 
   // ⚡ Bolt: memoize parts lookup map to avoid O(N²) array traversals inside the render loop
   const partsMap = useMemo(() => {
