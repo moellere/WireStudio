@@ -18,6 +18,7 @@ import { UsbDetectDialog } from "./components/UsbDetectDialog";
 import { AgentSidebar } from "./components/AgentSidebar";
 import { SolveResultBanner } from "./components/SolveResultBanner";
 import { NewDesignDialog } from "./components/NewDesignDialog";
+import { FeedbackLink } from "./components/FeedbackLink";
 import { PushToFleetDialog } from "./components/PushToFleetDialog";
 import { CapabilityPickerDialog } from "./components/CapabilityPickerDialog";
 import { EnclosureDialog } from "./components/EnclosureDialog";
@@ -695,6 +696,15 @@ export default function App() {
                 ADVANCED
               </label>
             </div>
+
+            <FeedbackLink
+              version={version}
+              boardId={
+                ((design?.board as Record<string, unknown> | undefined)?.library_id as
+                  | string
+                  | undefined) ?? null
+              }
+            />
 
             <button
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}

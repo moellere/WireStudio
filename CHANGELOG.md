@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Feedback link in the header.** An icon beside the theme and settings
+  buttons opens the repo's new-issue form, prefilled with the running
+  version, the current board, and the browser UA -- the details a bug
+  report otherwise costs a round trip to collect. A plain link rather
+  than an API call: no token, nothing leaves the browser, and GitHub
+  shows the reporter the whole body before they submit. The design is
+  deliberately not included.
+
 ### Changed
 
 - **Regenerated the library coverage matrix.** It still reported 64
