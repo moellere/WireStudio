@@ -182,7 +182,8 @@ export function updateRequirement(d: Design, index: number, patch: Partial<Requi
 export function addRequirement(d: Design): Design {
   const reqs = (d.requirements as Array<Record<string, unknown>> | undefined) ?? [];
   // Auto-generate an id like r1, r2, ... that isn't already used.
-  const used = new Set(reqs.map((r) => String(r.id)));
+  const used = new Set<string>();
+  for (const r of reqs) used.add(String(r.id));
   let n = reqs.length + 1;
   while (used.has(`r${n}`)) n += 1;
   const fresh = { id: `r${n}`, kind: "capability", text: "" };
@@ -274,7 +275,8 @@ export interface AddComponentOptions {
 
 /** Generate a unique component id derived from the library id. */
 export function nextInstanceId(d: Design, libraryId: string, hint?: string): string {
-  const used = new Set(readComponents(d).map((c) => c.id));
+  const used = new Set<string>();
+  for (const c of readComponents(d)) used.add(c.id);
   const safeHint = hint?.replace(/[^a-zA-Z0-9_]/g, "_");
   if (safeHint && !used.has(safeHint)) return safeHint;
   const base = libraryId.replace(/[^a-z0-9]/gi, "_");

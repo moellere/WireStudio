@@ -57,7 +57,11 @@ export function BusList({
       raw: b,
     }));
   }, [design.buses]);
-  const allBusIds = useMemo(() => new Set(buses.map((b) => b.id)), [buses]);
+  const allBusIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const b of buses) ids.add(b.id);
+    return ids;
+  }, [buses]);
 
   // ⚡ Bolt: avoid O(N²) array allocations inside the render loop below
   const warningsByBusId = useMemo(() => {

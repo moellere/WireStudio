@@ -9,3 +9,7 @@
 ## 2024-05-18 - Single-Pass Lookup Building in `useMemo`
 **Learning:** We often chain `.map()` to build an array of IDs and then loop again to build a dictionary mapping IDs to labels in `useMemo` hooks. This causes multiple iterations and intermediate array allocations.
 **Action:** When building both an array of IDs and a dictionary map from the same source data, use a single `for...of` loop to populate both simultaneously.
+
+## 2024-08-01 - Avoid new Set(arr.map()) for performance
+**Learning:** Constructing a Set by mapping an array via `new Set(arr.map(fn))` causes an unnecessary intermediate array allocation in memory before the Set is built. This can create garbage collection overhead in render loops or frequently called utilities.
+**Action:** Replace `new Set(arr.map(fn))` with a single-pass `for...of` loop to add items to a Set, avoiding the intermediate array entirely.
