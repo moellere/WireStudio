@@ -86,6 +86,21 @@ esphome:
       {{ sensor_key }}: {{ sensor_cfg | tojson }}
     {%- endfor %}
     {%- endif %}
+    {%- if params.enable_pin is defined and params.enable_pin %}
+    switch:
+    - platform: gpio
+      id: {{ id }}_power
+      name: "{{ label | default('GNSS') }} power"
+      pin:
+        number: {{ params.enable_pin }}
+        inverted: {{ 'true' if params.enable_active_low else 'false' }}
+      # Boards that gate GNSS power (Heltec V4: GPS_EN on GPIO34, active low)
+      # leave the module dark at reset. Nothing reports an error -- the UART
+      # simply never produces a sentence, which looks identical to no fix.
+      # ALWAYS_ON powers it at boot, matching what the standalone firmware
+      # does in setup().
+      restore_mode: ALWAYS_ON
+    {%- endif %}
 
 params_schema:
   sensors:
