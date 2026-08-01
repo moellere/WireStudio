@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **ESPHome configs declared 4 MB regardless of the board.** ESPHome
+  defaults to 4 MB, so a 16 MB board silently got a 4 MB partition table --
+  three quarters of the flash unused and OTA slots smaller than the chip
+  allows. Nothing errors, which is why it went unnoticed; found reading
+  `SPI Flash Size : 4MB` out of a Heltec V4 whose chip reports 16 MB by
+  JEDEC ID. The `esp32:` block now carries `flash_size` from the board
+  file, matching what the standalone path already pins via
+  `board_build.flash_size`.
+
+  This makes `flash_size_mb` load-bearing for every ESP32 design. Only
+  five boards claim more than 4 MB, and over-declaring is the direction
+  that boot-loops (see the V2 fix in 0.25.0) -- of those, only
+  `heltec-wifi-lora32-v4` is verified against real silicon here. ESP8266
+  boards are unaffected; the key is emitted inside the `esp32:` branch.
+
 ## [0.26.1] — 2026-08-01
 
 ### Fixed

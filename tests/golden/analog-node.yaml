@@ -4,6 +4,7 @@ esp32:
   board: esp32dev
   framework:
     type: arduino
+  flash_size: 4MB
 logger: {}
 api:
   encryption:

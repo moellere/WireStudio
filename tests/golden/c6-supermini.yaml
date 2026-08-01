@@ -5,6 +5,7 @@ esp32:
   framework:
     type: esp-idf
   variant: ESP32C6
+  flash_size: 4MB
 logger: {}
 api:
   encryption:

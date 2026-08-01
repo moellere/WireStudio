@@ -5,6 +5,7 @@ esp32:
   framework:
     type: arduino
   variant: ESP32S3
+  flash_size: 8MB
 logger: {}
 api:
   encryption:

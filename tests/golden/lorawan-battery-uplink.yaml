@@ -4,6 +4,7 @@ esp32:
   board: ttgo-lora32-v1
   framework:
     type: arduino
+  flash_size: 4MB
 logger: {}
 sensor:
 - platform: adc
