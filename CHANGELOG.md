@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Roadmap: MCP tool surface hardware gap.** The 22 MCP tools stop at
+  the artifact -- no compile, flash or provision -- so an MCP client
+  builds a design and then has to hand off to HTTP to reach a board.
+  That matters for exposure, not just ergonomics: `/mcp` authenticates
+  with `WIRESTUDIO_MCP_TOKEN`, while the REST surface authenticates with
+  nothing, so publishing REST instead means publishing unauthenticated
+  firmware-flashing and ChirpStack provisioning.
+
 ### Added
 
 - **Feedback link in the header.** An icon beside the theme and settings
