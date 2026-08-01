@@ -1330,12 +1330,16 @@ def create_app(
         ``/lorawan/firmware/{cache_key}[/factory]`` so the WebSerial flow
         on the external-component path can reuse ``lib/flash.ts`` unchanged.
 
+        Takes a run_id, matching the push response and the status poll.
+        The addon keys artifacts by job_id, so the client resolves the run
+        to its jobs when the id isn't found directly; a job_id also works
+        if you happen to have one.
+
         Returns 404 when the run hasn't finished, has aged out of the
         addon's tracking, or the build didn't produce the requested image
         type; 503 when fleet credentials are missing; 502 when the addon
-        is reachable but the call failed (e.g. the upstream artifact
-        endpoint isn't implemented yet -- see
-        ``docs/lorawan/fleet-firmware-flash.md``).
+        is reachable but the call failed -- see
+        ``docs/lorawan/fleet-firmware-flash.md``.
         """
         fc = make_fleet()
         if not fc.is_configured():

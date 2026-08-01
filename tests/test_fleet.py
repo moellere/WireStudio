@@ -753,3 +753,40 @@ async def test_fleet_push_lorawan_secrets_no_op_for_non_lorawan_designs(
     # The pushed YAML has no lorawan block at all; the secrets are ignored.
     assert "lorawan:" not in pushed
     assert "dev_eui" not in pushed
+
+
+async def test_get_firmware_resolves_a_run_id_to_its_job_id():
+    """The addon keys artifacts by job_id, while the push response, the
+    status poll and the studio's own route are all keyed by run_id. Passing
+    the run_id straight through 404s, which reads as "the build produced
+    nothing" rather than "wrong key" -- a compile that actually succeeded
+    looks broken."""
+    addon = FakeFleetAddon()
+    addon.queue_jobs = [{
+        "id": "job-abc", "run_id": "run-1", "state": "success",
+        "target": "dev.yaml", "finished_at": "2026-08-01T00:00:00Z",
+    }]
+    # Stored under the job id, as the real addon does.
+    addon.firmware["job-abc"] = {"app": b"FAKE-APP-IMAGE", "factory": None}
+    fc = addon.make_client()
+    assert await fc.get_firmware("run-1") == b"FAKE-APP-IMAGE"
+
+
+async def test_get_firmware_still_accepts_a_job_id_directly():
+    addon = FakeFleetAddon()
+    addon.firmware["job-abc"] = {"app": b"DIRECT", "factory": None}
+    fc = addon.make_client()
+    assert await fc.get_firmware("job-abc") == b"DIRECT"
+
+
+async def test_get_firmware_reports_the_jobs_it_tried():
+    """A genuinely missing artifact should say the run's jobs were checked,
+    so the failure is distinguishable from the key mix-up above."""
+    addon = FakeFleetAddon()
+    addon.queue_jobs = [{
+        "id": "job-abc", "run_id": "run-1", "state": "success",
+        "target": "dev.yaml", "finished_at": "2026-08-01T00:00:00Z",
+    }]
+    fc = addon.make_client()
+    with pytest.raises(FleetUnavailable, match="job"):
+        await fc.get_firmware("run-1")
