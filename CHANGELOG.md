@@ -35,16 +35,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **`workbench_flash` would have bricked a board when given a
-  `fleet_run_id`.** It fetched the fleet artifact with the client's
-  default `factory=False` -- the bare *app* image -- and wrote it at
-  offset `0x0`, on top of the bootloader. `factory` is now an explicit
-  argument: true (default) fetches the merged image for `0x0`, false
-  fetches the app image for `app_offset` (default `0x10000`), and a
-  build with no factory artifact returns an error saying how to recover.
-  Found by running the tool against the live fleet addon, which reported
-  the app image at 427 KB and no factory image at all; the unit test
-  asserted only the byte count, never the offset.
+- **`workbench_flash` picks its offset by inspecting the artifact.** A
+  merged image (bootloader + partition table + app) goes to `0x0`; a bare
+  app image goes to `0x10000`. The kind is detected from the bytes -- an
+  ESP-IDF partition table at `0x8000` -- because the endpoint that serves
+  them does not reliably say which is which.
+
+  This landed the hard way. `fleet/client.py` documented `/firmware` as
+  the app image and `/firmware/factory` as the merged one, so an earlier
+  attempt at this fix wrote `/firmware` to the app offset. Against the
+  live addon `/firmware` is in fact a *merged* image and
+  `/firmware/factory` 404s, so that put a bootloader in the app partition
+  and boot-looped a Heltec V4 (`No bootable app partitions in the
+  partition table`). Recovered by rewriting the same artifact at `0x0`.
+  The client docstring now records what the addon actually serves.
 
 ### Fixed
 

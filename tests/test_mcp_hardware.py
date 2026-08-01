@@ -266,40 +266,101 @@ async def test_fleet_job_status_reports_the_real_verdict_field(tmp_path):
     }]
 
 
-async def test_fleet_flash_writes_the_app_image_at_the_app_offset(tmp_path):
-    """The artifact kind decides the offset.
+def _merged_image(app_len: int = 4096) -> bytes:
+    """A blob shaped like esptool merge_bin output.
 
-    `get_firmware(factory=False)` returns the *bare app* image. Writing it
-    at 0x0 lands on top of the bootloader and boot-loops the board -- only
-    the merged factory image belongs there.
+    0xE9 image magic at 0, an ESP-IDF partition table (0xAA50) at 0x8000,
+    and another image at 0x10000 -- the layout observed in the fleet
+    addon's real artifact.
+    """
+    blob = bytearray(b"\x00" * (0x10000 + app_len))
+    blob[0] = 0xE9
+    blob[0x8000:0x8002] = b"\xaa\x50"
+    blob[0x10000] = 0xE9
+    return bytes(blob)
+
+
+def _app_image(size: int = 4096) -> bytes:
+    """A bare app image: ESP magic, and nothing at the partition offset."""
+    return b"\xe9" + b"\x11" * (size - 1)
+
+
+def test_merged_and_app_images_are_told_apart():
+    from wirestudio.mcp.hardware import is_merged_image
+
+    assert is_merged_image(_merged_image()) is True
+    assert is_merged_image(_app_image()) is False
+    assert is_merged_image(b"") is False
+    assert is_merged_image(b"\x00" * 0x20000) is False  # no ESP magic
+
+
+async def test_merged_artifact_is_written_at_zero(tmp_path):
+    """A merged image at the app offset boot-loops the board.
+
+    The live addon serves a merged image from `/firmware` despite that
+    endpoint being described as the app image, so the offset has to come
+    from the bytes.
     """
     bench = FakeBench(slots=[_slot("SLOT1")])
     server, _ = _server(
         tmp_path, bench=bench,
-        fleet_handler=_fleet_handler(firmware=b"\xe9app", factory_firmware=None),
+        fleet_handler=_fleet_handler(firmware=_merged_image()),
     )
 
     out = _payload(await server.call_tool("workbench_flash", {
-        "slot": "SLOT1", "fleet_run_id": "run-1", "factory": False,
+        "slot": "SLOT1", "fleet_run_id": "run-1",
     }))
     assert out["ok"] is True, out
     await _wait_job(server, out["job_id"])
 
     body = bench.flashed[0]["body"]
-    assert b"0x10000" in body, "app image must be written at the app offset"
-    assert b'name="bin@0x0"' not in body, "app image must not be written at 0x0"
+    assert b'name="bin@0x0"' in body, "merged image must be written at 0x0"
+    assert b'name="bin@0x10000"' not in body
 
 
-async def test_missing_factory_image_says_how_to_recover(tmp_path):
+async def test_bare_app_artifact_is_written_at_the_app_offset(tmp_path):
+    bench = FakeBench(slots=[_slot("SLOT1")])
+    server, _ = _server(
+        tmp_path, bench=bench,
+        fleet_handler=_fleet_handler(firmware=_app_image()),
+    )
+
+    out = _payload(await server.call_tool("workbench_flash", {
+        "slot": "SLOT1", "fleet_run_id": "run-1",
+    }))
+    assert out["ok"] is True, out
+    await _wait_job(server, out["job_id"])
+
+    body = bench.flashed[0]["body"]
+    assert b'name="bin@0x10000"' in body
+    assert b'name="bin@0x0"' not in body
+
+
+async def test_explicit_offset_overrides_detection(tmp_path):
+    bench = FakeBench(slots=[_slot("SLOT1")])
+    server, _ = _server(
+        tmp_path, bench=bench,
+        fleet_handler=_fleet_handler(firmware=_merged_image()),
+    )
+
+    out = _payload(await server.call_tool("workbench_flash", {
+        "slot": "SLOT1", "fleet_run_id": "run-1", "offset": "0x20000",
+    }))
+    assert out["ok"] is True, out
+    await _wait_job(server, out["job_id"])
+    assert b'name="bin@0x20000"' in bench.flashed[0]["body"]
+
+
+async def test_bad_offset_is_rejected(tmp_path):
     server, _ = _server(
         tmp_path, bench=FakeBench(slots=[_slot("SLOT1")]),
-        fleet_handler=_fleet_handler(factory_firmware=None),
+        fleet_handler=_fleet_handler(),
     )
     out = _payload(await server.call_tool("workbench_flash", {
-        "slot": "SLOT1", "fleet_run_id": "run-1",  # factory=True default
+        "slot": "SLOT1", "fleet_run_id": "run-1", "offset": "banana",
     }))
     assert out["ok"] is False
-    assert "factory=false" in out["error"]
+    assert "not a number" in out["error"]
 
 
 async def test_firmware_is_found_via_the_job_id_not_the_run_id(tmp_path):

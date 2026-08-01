@@ -303,11 +303,18 @@ class FleetClient:
         passthrough that fetches with the server token and re-streams the
         bytes to the WebSerial flasher via the matching studio route.
 
-        ``factory=False`` (default) fetches the app image (re-flash that
-        preserves NVS); ``factory=True`` fetches the merged factory image
-        for blank-board flashing at offset 0x0. 404 -> ``FleetUnavailable``
-        the same way ``get_job_log`` handles unknown run_ids, so the UI
-        can stop polling.
+        ``factory=False`` (default) fetches ``/firmware``; ``factory=True``
+        fetches ``/firmware/factory``. **Do not infer the flash offset from
+        that flag.** Observed against the live addon (2026-08-01): the
+        default ``/firmware`` served a *merged* image -- 0xE9 magic, an
+        ESP-IDF partition table at 0x8000, bootloader entry point -- and
+        ``/firmware/factory`` 404'd entirely. Writing that at the app
+        offset puts a bootloader in the app partition and the board
+        boot-loops ("No bootable app partitions"). Callers must sniff the
+        bytes; see ``wirestudio.mcp.hardware.is_merged_image``.
+
+        404 -> ``FleetUnavailable`` the same way ``get_job_log`` handles
+        unknown run_ids, so the UI can stop polling.
         """
         if not self.is_configured():
             raise FleetUnavailable("FLEET_URL or FLEET_TOKEN missing")

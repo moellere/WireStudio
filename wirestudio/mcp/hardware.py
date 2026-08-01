@@ -56,6 +56,33 @@ def _valid_eui(dev_eui: str) -> bool:
     return True
 
 
+#: An ESP-IDF partition table lives at 0x8000 inside a *merged* image and
+#: starts with this magic. A bare app image is a single ESP image with
+#: nothing at that offset, so its presence is what distinguishes the two.
+_PARTITION_TABLE_MAGIC = b"\xaa\x50"
+_PARTITION_TABLE_OFFSET = 0x8000
+_ESP_IMAGE_MAGIC = 0xE9
+_DEFAULT_APP_OFFSET = 0x10000
+
+
+def is_merged_image(blob: bytes) -> bool:
+    """Does `blob` carry its own bootloader + partition table?
+
+    Sniffed from the bytes rather than taken on faith from whichever
+    endpoint served them. The fleet addon's ``/firmware`` publishes a
+    merged image even though the client's docstring calls it the app
+    image, and writing a merged image at the app offset puts a
+    bootloader in the app partition -- the board then boot-loops with
+    "Segment 0 ... overlaps bootloader stack / No bootable app
+    partitions". Getting this from the artifact is the only way that
+    stays correct across addon versions.
+    """
+    if len(blob) <= _PARTITION_TABLE_OFFSET + 2 or blob[0] != _ESP_IMAGE_MAGIC:
+        return False
+    at_table = blob[_PARTITION_TABLE_OFFSET:_PARTITION_TABLE_OFFSET + 2]
+    return at_table == _PARTITION_TABLE_MAGIC
+
+
 def _decode_images(raw: Optional[list[dict]]) -> list[tuple[int, bytes]]:
     """[{offset, data}] -> [(int, bytes)]; `data` is base64.
 
@@ -258,13 +285,12 @@ def _register_workbench_tools(
             "`offset` like '0x10000'. Set chip to match the board "
             "(esp32, esp32s3, esp32c3...). erase=true wipes flash first, "
             "which also clears LoRaWAN DevNonce counters.\n\n"
-            "With fleet_run_id, `factory` picks which artifact and therefore "
-            "which offset: factory=true (default) is the merged image "
-            "(bootloader + partition table + app) written at 0x0, correct "
-            "for a blank board; factory=false is the bare app image written "
-            "at `app_offset` (default 0x10000), which preserves NVS but "
-            "requires the board to already hold a matching bootloader and "
-            "partition table."
+            "With fleet_run_id the offset is detected from the artifact: a "
+            "merged image (bootloader + partition table + app) is written "
+            "at 0x0, a bare app image at 0x10000. Pass `offset` only to "
+            "override that, and only if you know which kind the build "
+            "publishes -- a merged image written at the app offset "
+            "boot-loops the board."
         ),
     )
     async def workbench_flash(
@@ -274,8 +300,8 @@ def _register_workbench_tools(
         chip: str = "esp32",
         erase: bool = False,
         baud: int = 921600,
-        factory: bool = True,
-        app_offset: str = "0x10000",
+        factory: bool = False,
+        offset: Optional[str] = None,
     ) -> dict:
         wc = workbench()
         if not wc.is_configured():
@@ -287,29 +313,23 @@ def _register_workbench_tools(
             fc = fleet()
             if not fc.is_configured():
                 return _err("fleet not configured (set FLEET_URL and FLEET_TOKEN)")
-            # The artifact kind decides the offset, and getting this wrong
-            # bricks the board: the bare app image written at 0x0 lands on
-            # top of the bootloader. Only the merged factory image belongs
-            # at 0x0.
-            try:
-                offset = 0x0 if factory else int(app_offset, 0)
-            except ValueError:
-                return _err(f"app_offset is not a number: {app_offset!r}")
-            if offset < 0:
-                return _err("app_offset must not be negative")
             try:
                 blob = await fc.get_firmware(fleet_run_id, factory=factory)
             except Exception as e:
-                hint = (
-                    " -- this build may not publish a merged factory image; "
-                    "retry with factory=false to flash the app image at "
-                    "app_offset, or pass `images` explicitly"
-                    if factory else ""
-                )
-                return _err(
-                    f"could not fetch firmware for run {fleet_run_id}: {e}{hint}"
-                )
-            parsed = [(offset, blob)]
+                return _err(f"could not fetch firmware for run {fleet_run_id}: {e}")
+            # The artifact kind decides the offset and getting it wrong
+            # bricks the board, so read it off the bytes rather than
+            # trusting which endpoint served them.
+            if offset is not None:
+                try:
+                    where = int(offset, 0)
+                except ValueError:
+                    return _err(f"offset is not a number: {offset!r}")
+                if where < 0:
+                    return _err("offset must not be negative")
+            else:
+                where = 0x0 if is_merged_image(blob) else _DEFAULT_APP_OFFSET
+            parsed = [(where, blob)]
         else:
             try:
                 parsed = _decode_images(images)
