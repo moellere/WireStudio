@@ -4,6 +4,7 @@ esp32:
   board: m5stack-atom
   framework:
     type: arduino
+  flash_size: 4MB
 logger: {}
 api:
   encryption:
