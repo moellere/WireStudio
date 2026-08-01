@@ -370,10 +370,13 @@ def _secret_name(ref: str) -> str:
 # the component repo cuts its first stable release post hardware-join
 # validation (decision logged in docs/lorawan/workflow-integration.md).
 _LORAWAN_FOR_ESPHOME_REPO = "moellere/lorawan-for-esphome"
-# Pinned to the SPI-pin schema PR's merge (lorawan-for-esphome#2). Required
-# for the rendered radio: block's sck_pin / miso_pin / mosi_pin keys to
-# validate; `main` doesn't carry those fields until this commit.
-_LORAWAN_FOR_ESPHOME_REF = "1f7ee9a011c09502240fcd77e99afb6c35db375a"
+# Pinned to the SX1262 radio-keys merge (lorawan-for-esphome#8). Its
+# RADIO_SCHEMA is a strict cv.Schema, so the ref and the keys emitted below
+# have to move together: an older ref rejects `tcxo_voltage`,
+# `dio2_as_rf_switch` and `setup_high` outright, and ESPHome refuses the
+# config rather than ignoring them. The previous pin (#2) carried the
+# sck/miso/mosi keys and nothing more.
+_LORAWAN_FOR_ESPHOME_REF = "df1f6cd7ffe29f5a719ea684c23c26b629d1a5a4"
 
 
 def _emit_lorawan_blocks(
@@ -447,6 +450,13 @@ def _emit_lorawan_blocks(
         radio_block["tcxo_voltage"] = radio.tcxo_voltage
     if radio.dio2_as_rf_switch:
         radio_block["dio2_as_rf_switch"] = radio.dio2_as_rf_switch
+    # Front-end power / PA-mode pins. The standalone path drives these in
+    # setup() and the board is deaf without them -- begin() still returns OK
+    # and uplinks still report as sent, so the only symptom is that nothing
+    # reaches the gateway. Dropping them here made the ESPHome path silently
+    # unusable on every board with an external PA (Heltec V3/V4).
+    if radio.setup_high:
+        radio_block["setup_high"] = list(radio.setup_high)
 
     overrides = lorawan_secrets or {}
 

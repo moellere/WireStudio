@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Bumped the lorawan-for-esphome pin to the SX1262 radio-keys merge.**
+  Its `RADIO_SCHEMA` is strict, so the ref and the emitted keys move
+  together: an older ref rejects `tcxo_voltage`, `dio2_as_rf_switch` and
+  `setup_high` outright rather than ignoring them.
+- **ESPHome LoRaWAN path was unusable on SX1262 boards with a PA.** The
+  rendered radio block dropped the board's `setup_high` front-end pins, so
+  a Heltec V3/V4 came up deaf -- `begin()` returns OK, uplinks report as
+  sent, and nothing reaches the gateway. They are now emitted alongside
+  `tcxo_voltage` and `dio2_as_rf_switch`, which needs
+  lorawan-for-esphome#8 to accept them.
+- **GNSS stayed unpowered on boards that gate it.** A board carrying a
+  GNSS power-enable (Heltec V4: `GPS_EN` on GPIO34, active low) rendered
+  no way to assert it, so the module sat dark and the UART never produced
+  a sentence -- indistinguishable from "no satellite fix". `uart_gps` now
+  emits a GPIO switch with `restore_mode: ALWAYS_ON` when the component
+  carries an enable pin, matching what the standalone firmware does in
+  `setup()`.
+
+### Fixed
+
 - **LoRaWAN builds still failed in the deployed image.** The 0.25.0 fix
   moved `PLATFORMIO_CORE_DIR` to the writable volume but pointed
   `PLATFORMIO_PLATFORMS_DIR` / `PACKAGES_DIR` straight at the prewarmed

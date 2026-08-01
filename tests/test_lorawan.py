@@ -398,3 +398,65 @@ def test_sx127x_requires_dio0():
                 "pins": {"cs": "GPIO18", "rst": "GPIO23", "busy": "GPIO13"},
             }
         )
+
+
+def _v4_design(**component_params):
+    """Heltec V4: ESP32-S3 + SX1262 behind an external PA, GNSS on the
+    board's built-in port."""
+    return Design.model_validate({
+        "schema_version": "0.1",
+        "id": "v4", "name": "v4", "target": "esphome",
+        "board": {"library_id": "heltec-wifi-lora32-v4", "mcu": "esp32", "framework": "arduino"},
+        "power": {"supply": "usb-5v", "rail_voltage_v": 5.0},
+        "buses": [{"id": "gps_uart", "type": "uart", "rx": "GPIO38", "tx": "GPIO39", "baud_rate": 9600}],
+        "components": [{
+            "id": "gps", "library_id": "uart_gps", "label": "GNSS",
+            "params": {"sensors": {"latitude": {"name": "Lat", "id": "gps_lat"}}, **component_params},
+        }],
+        "connections": [{"component_id": "gps", "pin_role": "BUS",
+                         "target": {"kind": "bus", "bus_id": "gps_uart"}}],
+        "lorawan": {"payload": [{"sensor": "gps_lat"}]},
+    })
+
+
+def test_front_end_pins_reach_the_esphome_radio_block():
+    """A board with an external PA is deaf until its front-end pins are
+    driven, and the failure is silent: begin() returns OK and uplinks report
+    as sent. The standalone path drives them; dropping them here made the
+    ESPHome path quietly unusable on every SX1262 + PA board."""
+    from wirestudio.generate.yaml_gen import build_yaml_dict
+
+    out = build_yaml_dict(_v4_design(), default_library())
+    assert out["lorawan"]["radio"]["setup_high"] == ["GPIO7", "GPIO2", "GPIO5", "GPIO46"]
+
+
+def test_sx1262_radio_keys_are_emitted():
+    from wirestudio.generate.yaml_gen import build_yaml_dict
+
+    radio = build_yaml_dict(_v4_design(), default_library())["lorawan"]["radio"]
+    assert radio["chip"] == "sx1262"
+    assert radio["tcxo_voltage"] == 1.8
+    assert radio["dio2_as_rf_switch"] is True
+
+
+def test_gnss_power_switch_emitted_when_the_board_gates_it():
+    """Boards that gate GNSS power leave the module dark at reset -- the UART
+    just never produces a sentence, which is indistinguishable from no fix."""
+    from wirestudio.generate.yaml_gen import build_yaml_dict
+
+    out = build_yaml_dict(
+        _v4_design(enable_pin="GPIO34", enable_active_low=True), default_library()
+    )
+    sw = [s for s in out.get("switch", []) if s.get("id") == "gps_power"]
+    assert len(sw) == 1
+    assert sw[0]["pin"] == {"number": "GPIO34", "inverted": True}
+    assert sw[0]["restore_mode"] == "ALWAYS_ON"
+
+
+def test_no_gnss_switch_without_an_enable_pin():
+    """Most GPS modules are always-on; emitting a switch for them would
+    invent a pin the board never wired."""
+    from wirestudio.generate.yaml_gen import build_yaml_dict
+
+    out = build_yaml_dict(_v4_design(), default_library())
+    assert not [s for s in out.get("switch", []) if s.get("id") == "gps_power"]
