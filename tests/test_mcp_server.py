@@ -79,6 +79,34 @@ async def test_all_expected_tools_registered(mcp_server):
     assert names == EXPECTED_TOOLS
 
 
+async def test_every_tool_binds_a_distinct_function(mcp_server):
+    """Stacked @mcp.tool decorators silently alias two names to one function.
+
+    The decorator returns `fn` unchanged, so stacking registers the same
+    callable twice under different names -- the second tool's own function
+    is then never registered at all. A name-only assertion can't see this.
+    """
+    server, _ = mcp_server
+    tools = server._tool_manager.list_tools()
+    by_fn: dict[int, list[str]] = {}
+    for tool in tools:
+        by_fn.setdefault(id(tool.fn), []).append(tool.name)
+    aliased = {tuple(sorted(v)) for v in by_fn.values() if len(v) > 1}
+    assert not aliased, f"tools sharing one function: {aliased}"
+
+
+async def test_recommend_takes_a_query_not_a_library_id(mcp_server):
+    server, _ = mcp_server
+    tools = {t.name: t for t in await server.list_tools()}
+    params = set(tools["recommend"].inputSchema.get("properties", {}))
+    assert "query" in params
+    assert "library_id" not in params
+
+    result = await server.call_tool("recommend", {"query": "temperature"})
+    payload = _content_to_dict(result[0] if isinstance(result, tuple) else result)
+    assert payload.get("ok") is not False, payload
+
+
 async def test_tool_input_schemas_include_design_id_for_mutating_tools(mcp_server):
     server, _ = mcp_server
     tools = {t.name: t for t in await server.list_tools()}
