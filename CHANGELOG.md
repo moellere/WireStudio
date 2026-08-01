@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Bumped the lorawan-for-esphome pin to the SX1262 radio-keys merge.**
+  Its `RADIO_SCHEMA` is strict, so the ref and the emitted keys move
+  together: an older ref rejects `tcxo_voltage`, `dio2_as_rf_switch` and
+  `setup_high` outright rather than ignoring them.
 - **ESPHome LoRaWAN path was unusable on SX1262 boards with a PA.** The
   rendered radio block dropped the board's `setup_high` front-end pins, so
   a Heltec V3/V4 came up deaf -- `begin()` returns OK, uplinks report as
