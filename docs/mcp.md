@@ -213,6 +213,55 @@ and persist back to `designs/<id>.json`.
 Every design-bound tool accepts an optional `design_id`; omit it to use
 the active design.
 
+### Hardware tools
+
+These reach real hardware — a bench, a ChirpStack server, the fleet
+addon. They are registered by default; pass `hardware=False` to
+`build_mcp_server` to leave them off.
+
+| Tool | Mutates | Notes |
+|------|---------|-------|
+| `workbench_status` | no | is a bench configured and reachable |
+| `workbench_slots` | no | slot labels, detected chip, and whether each is flashable now |
+| `workbench_flash` | yes | flash a slot → `job_id` |
+| `lorawan_chirpstack_status` | no | ChirpStack token + reachability probe |
+| `lorawan_compile` | no | build standalone RadioLib firmware → `job_id` |
+| `lorawan_provision` | yes | register in ChirpStack, issue AppKey (standalone path) |
+| `lorawan_provision_esphome` | yes | same, formatted for `secrets.yaml` (external-component path) |
+| `lorawan_activation` | no | has the device joined |
+| `lorawan_workbench_provision` | yes | flash + register + key-push + verify → `job_id` |
+| `fleet_status` | no | is the fleet addon configured and reachable |
+| `fleet_push` | yes | render + push to fleet, optionally compile → `run_id` |
+| `fleet_job_status` | no | compile verdict for a run |
+| `fleet_job_log` | no | incremental build log |
+| `fleet_firmware_info` | no | artifact size + availability (never the bytes) |
+| `job_status` | no | poll a `job_id` |
+| `job_events` | no | incremental event log for a `job_id` |
+| `job_list` | no | jobs this process is holding |
+
+#### Long operations
+
+A tool call returns once; a compile or flash streams for minutes. So
+`workbench_flash`, `lorawan_compile` and `lorawan_workbench_provision`
+start the work and return a `job_id` — poll `job_status` until `state`
+leaves `running`, and read the log with `job_events` using the returned
+`next_since` cursor.
+
+Jobs live in the server process and are lost on restart.
+
+**A `job_id` and a `run_id` are not interchangeable.** Fleet builds keep
+their own `run_id`, which belongs to the addon's GitHub run, outlives a
+wirestudio restart, and is polled with `fleet_job_status` — not
+`job_status`.
+
+#### Firmware never crosses the boundary
+
+`workbench_flash` takes either `images` (base64, for firmware you already
+hold) or `fleet_run_id`, in which case the server fetches that build's
+artifact itself. `fleet_firmware_info` reports size and availability
+rather than returning the image, because an agent needs the bytes on the
+board, not in its context window.
+
 ## Resources
 
 Seven read-only resources. Compact indexes for discovery, `{id}`

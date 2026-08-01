@@ -16,7 +16,7 @@ its `streamable_http_app()` into the parent FastAPI app and arranging
 """
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 from mcp.server.fastmcp import FastMCP
 
@@ -56,6 +56,9 @@ def build_mcp_server(
     *,
     name: str = "wirestudio",
     active: Optional[ActiveDesignTracker] = None,
+    hardware: bool = True,
+    workbench_factory: Optional[Callable[[], Any]] = None,
+    fleet_factory: Optional[Callable[[], Any]] = None,
 ) -> FastMCP:
     """Build a FastMCP server with all wirestudio tools + resources registered.
 
@@ -65,6 +68,10 @@ def build_mcp_server(
     whatever the browser is showing. A fresh tracker is built if the
     caller doesn't supply one (test-only path -- production wires through
     `create_app`).
+
+    `hardware` registers the workbench / ChirpStack / fleet tools. The
+    factories let a caller inject clients; production passes the same ones
+    `create_app` uses for the REST routes.
     """
     mcp = FastMCP(name=name)
     tracker = active or ActiveDesignTracker()
@@ -72,6 +79,15 @@ def build_mcp_server(
     _register_design_tools(mcp, library, designs, tracker)
     _register_active_tools(mcp, tracker, designs)
     _register_resources(mcp, library, designs)
+    if hardware:
+        from wirestudio.mcp.hardware import register_hardware_tools
+        from wirestudio.mcp.jobs import JobRegistry
+
+        register_hardware_tools(
+            mcp, library, designs, tracker, JobRegistry(),
+            workbench_factory=workbench_factory,
+            fleet_factory=fleet_factory,
+        )
     return mcp
 
 

@@ -242,7 +242,17 @@ def create_app(
 
 
     mcp_enabled = os.environ.get("WIRESTUDIO_MCP_ENABLED", "true").lower() != "false"
-    mcp_server = build_mcp_server(lib, designs_store, active=active) if mcp_enabled else None
+    # The hardware tools get the same client factories the REST routes use,
+    # so a test that mocks the transport mocks both surfaces at once.
+    mcp_server = (
+        build_mcp_server(
+            lib, designs_store, active=active,
+            workbench_factory=workbench_client_factory,
+            fleet_factory=make_fleet,
+        )
+        if mcp_enabled
+        else None
+    )
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
