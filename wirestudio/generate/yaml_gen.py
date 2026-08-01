@@ -447,6 +447,13 @@ def _emit_lorawan_blocks(
         radio_block["tcxo_voltage"] = radio.tcxo_voltage
     if radio.dio2_as_rf_switch:
         radio_block["dio2_as_rf_switch"] = radio.dio2_as_rf_switch
+    # Front-end power / PA-mode pins. The standalone path drives these in
+    # setup() and the board is deaf without them -- begin() still returns OK
+    # and uplinks still report as sent, so the only symptom is that nothing
+    # reaches the gateway. Dropping them here made the ESPHome path silently
+    # unusable on every board with an external PA (Heltec V3/V4).
+    if radio.setup_high:
+        radio_block["setup_high"] = list(radio.setup_high)
 
     overrides = lorawan_secrets or {}
 
