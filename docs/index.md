@@ -190,6 +190,27 @@ interpreter flash + starter above is the shipped first step).
 Deliberately deferred: generic Arduino/PlatformIO scaffolds (per-driver
 maintenance sinkhole), Zephyr, Zigbee/Thread on the C6.
 
+**MCP tool surface — hardware gap.** The 22 MCP tools cover design,
+KiCad and fab, but stop at the artifact: there is no `compile`, `flash`,
+`provision`, or `workbench_slots` tool. An MCP client can produce a
+design and a schematic and then has to hand off to HTTP to put it on a
+board, which defeats the point of the headless path — and the two are
+not equivalently exposed. A deployment behind SSO can reasonably publish
+`/mcp`, which authenticates with `WIRESTUDIO_MCP_TOKEN`; the REST
+endpoints authenticate with nothing, so publishing those instead means
+publishing unauthenticated firmware-flashing and ChirpStack
+provisioning. Closing the gap in MCP is the only route that does not
+force that trade. Wrapping the existing `/lorawan/compile`,
+`/lorawan/workbench/provision` and `/workbench/*` handlers is most of
+the work; the open question is how a long SSE compile maps onto an MCP
+call that wants to return once.
+
+Related, and worth doing regardless: the REST surface has no auth at
+all. `/workbench/flash` and `/lorawan/provision` are reachable by
+anything that can route to the pod. That is survivable while the only
+exposure is a cluster-internal Service, and is the reason the ingress
+publishes `/mcp` alone.
+
 **Workbench featureset (planned).** Integrate a
 [Universal Embedded Workbench](https://github.com/SensorsIot/Universal-Embedded-Workbench)
 (Raspberry Pi exposing RFC2217 network serial per USB slot, a JSON HTTP
