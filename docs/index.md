@@ -190,22 +190,29 @@ interpreter flash + starter above is the shipped first step).
 Deliberately deferred: generic Arduino/PlatformIO scaffolds (per-driver
 maintenance sinkhole), Zephyr, Zigbee/Thread on the C6.
 
-**MCP tool surface — hardware gap.** The 22 MCP tools cover design,
-KiCad and fab, but stop at the artifact: there is no `compile`, `flash`,
-`provision`, or `workbench_slots` tool. An MCP client can produce a
-design and a schematic and then has to hand off to HTTP to put it on a
-board, which defeats the point of the headless path — and the two are
-not equivalently exposed. A deployment behind SSO can reasonably publish
-`/mcp`, which authenticates with `WIRESTUDIO_MCP_TOKEN`; the REST
-endpoints authenticate with nothing, so publishing those instead means
-publishing unauthenticated firmware-flashing and ChirpStack
-provisioning. Closing the gap in MCP is the only route that does not
-force that trade. Wrapping the existing `/lorawan/compile`,
-`/lorawan/workbench/provision` and `/workbench/*` handlers is most of
-the work; the open question is how a long SSE compile maps onto an MCP
-call that wants to return once.
+**MCP tool surface — hardware gap (closed).** The design/KiCad/fab tools
+used to stop at the artifact: an MCP client could produce a design and a
+schematic, then had to hand off to HTTP to put it on a board. That
+workaround was worse than it looked, because the two surfaces are not
+equivalently exposed — `/mcp` authenticates with `WIRESTUDIO_MCP_TOKEN`
+while the REST endpoints authenticate with nothing, so publishing those
+instead meant publishing unauthenticated flashing and provisioning.
 
-Related, and worth doing regardless: the REST surface has no auth at
+Seventeen tools now cover the rest of the path: `workbench_status` /
+`workbench_slots` / `workbench_flash`, the `lorawan_*` compile,
+provision and activation tools, the `fleet_*` push/status/log tools, and
+`job_status` / `job_events` / `job_list`.
+
+The open question was how a long SSE compile maps onto a call that
+returns once. It doesn't, so the streaming operations return a `job_id`
+and the client polls. Fleet builds are the deliberate exception: their
+`run_id` belongs to the addon's GitHub run and outlives this process, so
+they keep it rather than being wrapped in the in-memory registry — which
+also means a `job_id` and a `run_id` are not interchangeable. Firmware
+bytes stay server-side: `workbench_flash` takes a `fleet_run_id` and
+fetches the artifact itself.
+
+Still open, and worth doing regardless: the REST surface has no auth at
 all. `/workbench/flash` and `/lorawan/provision` are reachable by
 anything that can route to the pod. That is survivable while the only
 exposure is a cluster-internal Service, and is the reason the ingress

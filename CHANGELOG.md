@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **MCP hardware tools — a headless client can now finish a bring-up.**
+  The 22 design/library/fab tools stopped at the artifact; putting it on a
+  board meant dropping to HTTP. That was the wrong workaround, because
+  `/api/mcp` is bearer-gated while `/api/workbench/*` and `/api/lorawan/*`
+  carry no auth at all, so "just publish the REST endpoints" meant
+  publishing unauthenticated flashing and ChirpStack provisioning.
+  Seventeen new tools close it: `workbench_status` / `workbench_slots` /
+  `workbench_flash`; `lorawan_chirpstack_status` / `lorawan_compile` /
+  `lorawan_provision` / `lorawan_provision_esphome` /
+  `lorawan_activation` / `lorawan_workbench_provision`; `fleet_status` /
+  `fleet_push` / `fleet_job_status` / `fleet_job_log` /
+  `fleet_firmware_info`; and `job_status` / `job_events` / `job_list`.
+- **Long operations return a job handle instead of blocking.** Compile,
+  flash and workbench-provision stream for minutes, which does not fit a
+  tool call that returns once. They now start the work and hand back a
+  `job_id` to poll. Fleet builds deliberately keep their own `run_id`:
+  that handle belongs to the addon's GitHub run and survives a wirestudio
+  restart, so wrapping it in the in-memory registry would only make it
+  more fragile.
+- Firmware bytes never cross the MCP boundary. `workbench_flash` takes a
+  `fleet_run_id` and fetches the artifact server-side; `fleet_firmware_info`
+  reports size and availability rather than returning megabytes of base64
+  into a context window.
+
 ### Fixed
 
 - **The `recommend` MCP tool was dead — it ran `library_detail` instead.**

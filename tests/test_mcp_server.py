@@ -41,6 +41,26 @@ EXPECTED_TOOLS = {
     "get_active_design",
 }
 
+HARDWARE_TOOLS = {
+    "job_status",
+    "job_events",
+    "job_list",
+    "workbench_status",
+    "workbench_slots",
+    "workbench_flash",
+    "lorawan_chirpstack_status",
+    "lorawan_compile",
+    "lorawan_provision",
+    "lorawan_provision_esphome",
+    "lorawan_activation",
+    "lorawan_workbench_provision",
+    "fleet_status",
+    "fleet_push",
+    "fleet_job_status",
+    "fleet_job_log",
+    "fleet_firmware_info",
+}
+
 
 def _seed_design(store: FileDesignStore, design_id: str = "test-bench") -> str:
     design = {
@@ -76,6 +96,17 @@ async def test_all_expected_tools_registered(mcp_server):
     server, _ = mcp_server
     tools = await server.list_tools()
     names = {t.name for t in tools}
+    assert names == EXPECTED_TOOLS | HARDWARE_TOOLS
+
+
+async def test_hardware_tools_can_be_left_off(tmp_path: Path):
+    """A build without hardware access registers only the design surface."""
+    server = build_mcp_server(
+        default_library(),
+        FileDesignStore(root=tmp_path / "designs"),
+        hardware=False,
+    )
+    names = {t.name for t in await server.list_tools()}
     assert names == EXPECTED_TOOLS
 
 
