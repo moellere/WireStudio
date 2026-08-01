@@ -96,9 +96,12 @@ EOF
 # invocation, so a baked-in core dir cannot work under a read-only root
 # filesystem. Split it: state on the writable volume, the prewarmed
 # toolchain read-only where the build stage left it.
+# Only the core dir and cache are set. platforms/packages are NOT pointed at
+# /opt/pio directly: PlatformIO locks at `<dir>.lock`, a sibling of the managed
+# directory, so that would leave the lock on the read-only image filesystem and
+# every build would fail. docker-entrypoint.sh symlinks the prewarmed trees in
+# from the writable core dir instead.
 ENV PLATFORMIO_CORE_DIR=/data/pio \
-    PLATFORMIO_PLATFORMS_DIR=/opt/pio/platforms \
-    PLATFORMIO_PACKAGES_DIR=/opt/pio/packages \
     PLATFORMIO_CACHE_DIR=/tmp/pio-cache
 
 ENV PYTHONUNBUFFERED=1 \
@@ -120,5 +123,6 @@ VOLUME ["/data"]
 
 USER appuser
 
-ENTRYPOINT ["/usr/bin/tini", "--"]
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/docker-entrypoint.sh"]
 CMD ["python", "-m", "wirestudio.api", "--host", "0.0.0.0", "--port", "8765", "--static-dir", "/app/web-dist"]

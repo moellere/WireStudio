@@ -7,15 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
+### Fixed
 
-- **Roadmap: MCP tool surface hardware gap.** The 22 MCP tools stop at
-  the artifact -- no compile, flash or provision -- so an MCP client
-  builds a design and then has to hand off to HTTP to reach a board.
-  That matters for exposure, not just ergonomics: `/mcp` authenticates
-  with `WIRESTUDIO_MCP_TOKEN`, while the REST surface authenticates with
-  nothing, so publishing REST instead means publishing unauthenticated
-  firmware-flashing and ChirpStack provisioning.
+- **LoRaWAN builds still failed in the deployed image.** The 0.25.0 fix
+  moved `PLATFORMIO_CORE_DIR` to the writable volume but pointed
+  `PLATFORMIO_PLATFORMS_DIR` / `PACKAGES_DIR` straight at the prewarmed
+  tree baked into the image. PlatformIO takes its lock at `<dir>.lock` --
+  a *sibling* of the managed directory, not a child -- so every build died
+  with `OSError: [Errno 30] Read-only file system:
+  '/opt/pio/platforms.lock'`. The core dir now holds symlinks to the
+  prewarmed trees (created by a new entrypoint, since /data is a volume
+  and masks anything written at build time), so locks land on the writable
+  volume while the content still resolves to the read-only baked copy --
+  no re-download, nothing duplicated onto the volume.
+- **`platformio_status()` reported available for that install.** The probe
+  checked core-dir writability and platform-tree readability, which is
+  exactly what this failure slips past. It now also verifies the lock path
+  beside each managed directory is writable. Found by running a real build
+  against the deployed image: status said available, the build failed.
 
 ### Added
 
