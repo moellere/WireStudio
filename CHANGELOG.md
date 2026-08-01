@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **A design could be pushed to fleet once and never updated.** The addon
+  keys its target list by `target`; the client read only `filename`/`name`,
+  so the existence check was always empty, every push took the create
+  branch, and re-pushing an existing device failed with
+  `create_target failed: ... already exists` instead of overwriting.
+  The test fake returned the assumed shape rather than the addon's, which
+  is why nothing caught it -- the fake now mirrors a live response.
+
 ## [0.26.2] — 2026-08-01
 
 ### Fixed

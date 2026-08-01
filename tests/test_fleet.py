@@ -58,14 +58,18 @@ class FakeFleetAddon:
             method = req.method
 
             if method == "GET" and path == "/ui/api/targets":
+                # Shape verified against a live addon: a bare list whose
+                # entries key the filename as `target`. The previous fake
+                # returned {"filename", "name"}, which the client happened
+                # to read -- so an existence check that never matched
+                # anything still looked correct here.
                 return httpx.Response(
                     200,
-                    json={
-                        "targets": [
-                            {"filename": f, "name": f}
-                            for f in sorted(self.files.keys())
-                        ],
-                    },
+                    json=[
+                        {"target": f, "device_name": f.removesuffix(".yaml"),
+                         "esp_type": "ESP32", "archived": False}
+                        for f in sorted(self.files.keys())
+                    ],
                 )
 
             if method == "POST" and path == "/ui/api/targets":
@@ -790,3 +794,23 @@ async def test_get_firmware_reports_the_jobs_it_tried():
     fc = addon.make_client()
     with pytest.raises(FleetUnavailable, match="job"):
         await fc.get_firmware("run-1")
+
+
+async def test_push_overwrites_an_existing_target():
+    """The addon keys its target list by `target`. Reading only `filename`
+    made the existence check always empty, so every push took the create
+    branch and re-pushing a device 400'd with 'already exists' -- you could
+    push a design once and never update it."""
+    addon = FakeFleetAddon()
+    addon.files["dev.yaml"] = "esphome:\n  name: dev\n"
+    fc = addon.make_client()
+    await fc.push_device(device_name="dev", yaml="esphome:\n  name: dev2\n")
+    assert addon.files["dev.yaml"] == "esphome:\n  name: dev2\n"
+
+
+async def test_push_creates_when_absent():
+    addon = FakeFleetAddon()
+    fc = addon.make_client()
+    res = await fc.push_device(device_name="fresh", yaml="esphome:\n  name: fresh\n")
+    assert res.created is True
+    assert "fresh.yaml" in addon.files

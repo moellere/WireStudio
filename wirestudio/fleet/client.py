@@ -364,15 +364,19 @@ class FleetClient:
                 f"list targets failed: http {resp.status_code} {resp.text}"
             )
         body = resp.json()
-        # The addon returns either {"targets": [...]} with each entry a
-        # dict ({"filename": "..."}) or a bare list -- accept both.
+        # The addon returns a bare list whose entries key the filename as
+        # `target`; older/other shapes use `filename` or `name`, or a plain
+        # string. Missing the real key here is not a cosmetic bug: the set
+        # comes back empty, every push looks like a create, and re-pushing
+        # an existing device fails with "already exists" instead of
+        # overwriting it.
         items = body.get("targets", body) if isinstance(body, dict) else body
         out: set[str] = set()
         for it in items or []:
             if isinstance(it, str):
                 out.add(it)
             elif isinstance(it, dict):
-                f = it.get("filename") or it.get("name")
+                f = it.get("target") or it.get("filename") or it.get("name")
                 if isinstance(f, str):
                     out.add(f)
         return out
