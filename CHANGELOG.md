@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The `recommend` MCP tool was dead — it ran `library_detail` instead.**
+  Two `@mcp.tool` decorators were stacked on one function. FastMCP's
+  decorator returns `fn` unchanged, so both names bound to
+  `library_detail`, and the real `recommend` body was never registered.
+  MCP clients calling `recommend(query=...)` got a pydantic
+  `ValidationError` for `library_detailArguments`. The existing test
+  asserted the set of tool *names*, which was correct either way — the
+  suite now also asserts no two tools share a function, and that
+  `recommend` takes `query` and returns results.
+
 ## [0.26.3] — 2026-08-01
 
 ### Fixed

@@ -110,6 +110,15 @@ def _register_library_tools(mcp: FastMCP, library: Library) -> None:
             "excluded_categories) to filter before ranking."
         ),
     )
+    def recommend(
+        query: str,
+        limit: int = 10,
+        constraints: Optional[dict] = None,
+    ) -> dict:
+        return _run_recommend(
+            {}, library, query=query, limit=limit, constraints=constraints
+        )
+
     @mcp.tool(
         name="library_detail",
         description=(
@@ -122,15 +131,6 @@ def _register_library_tools(mcp: FastMCP, library: Library) -> None:
     )
     def library_detail(library_id: str, kind: str = "component") -> dict:
         return _run_library_detail({}, library, library_id=library_id, kind=kind)
-
-    def recommend(
-        query: str,
-        limit: int = 10,
-        constraints: Optional[dict] = None,
-    ) -> dict:
-        return _run_recommend(
-            {}, library, query=query, limit=limit, constraints=constraints
-        )
 
 
 _DESIGN_ID_HINT = (
