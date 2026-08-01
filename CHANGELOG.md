@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.26.3] — 2026-08-01
+
 ### Fixed
 
 - **A design could be pushed to fleet once and never updated.** The addon
