@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Fleet firmware artifacts were unfetchable by run_id.** The addon keys
+  artifacts by `job_id`, while the push response, the status poll and the
+  studio's own route are all keyed by `run_id`. Passing the run_id
+  straight through 404s as "firmware artifact not available", which reads
+  as *the build produced nothing* rather than *wrong key* -- so a compile
+  that had actually succeeded looked broken, and the documented
+  provision -> compile -> flash flow could not complete. `get_firmware`
+  now resolves the run to its jobs and retries; a job_id still works
+  directly. Found fetching a real fleet build for a Heltec V4.
+- **Stale docstrings claimed the fleet artifact endpoint did not exist.**
+  It does, and the comment cost real debugging time.
+
 ## [0.26.0] — 2026-08-01
 
 ### Fixed
