@@ -504,6 +504,14 @@ def build_yaml_dict(
         chip_block["framework"] = {"type": design.board.framework}
         if board.chip_variant != "esp32":
             chip_block["variant"] = board.chip_variant.upper()
+        # ESPHome defaults to 4 MB regardless of the PlatformIO board, so a
+        # 16 MB board silently gets a 4 MB partition table -- three quarters
+        # of the flash unused and OTA slots smaller than the chip allows.
+        # Nothing errors, which is why it goes unnoticed. Under-declaring is
+        # the safe direction (over-declaring boot-loops the bootloader on a
+        # size mismatch), so emit what the board file says.
+        if board.flash_size_mb:
+            chip_block["flash_size"] = f"{board.flash_size_mb}MB"
         out["esp32"] = chip_block
     else:
         out[board.chip_variant] = chip_block
