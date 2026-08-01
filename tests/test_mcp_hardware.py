@@ -206,7 +206,10 @@ async def test_flash_failure_surfaces_as_job_error(tmp_path):
 # ---------------------------------------------------------------------------
 
 def _fleet_handler(
-    *, existing: list[dict] | None = None, firmware: bytes = b"\xe9firmware",
+    *,
+    existing: list[dict] | None = None,
+    firmware: bytes = b"\xe9firmware",
+    factory_firmware: bytes | None = b"\xe9factory-merged",
 ):
     """Speaks the addon's actual shapes.
 
@@ -231,6 +234,13 @@ def _fleet_handler(
                 {"run_id": "run-1", "id": "job-9", "target": "dut.yaml",
                  "state": "success", "finished_at": "2026-08-01T00:00:00Z"},
             ])
+        # Two distinct artifacts: /firmware is the bare app image,
+        # /firmware/factory is the merged bootloader+table+app. A build
+        # may publish the first without the second.
+        if path == "/ui/api/jobs/job-9/firmware/factory":
+            if factory_firmware is None:
+                return httpx.Response(404, json={"error": "no factory image"})
+            return httpx.Response(200, content=factory_firmware)
         if path == "/ui/api/jobs/job-9/firmware":
             return httpx.Response(200, content=firmware)
         if path.endswith("/log"):
@@ -254,6 +264,42 @@ async def test_fleet_job_status_reports_the_real_verdict_field(tmp_path):
         "job_id": "job-9", "target": "dut.yaml", "state": "success",
         "finished_at": "2026-08-01T00:00:00Z",
     }]
+
+
+async def test_fleet_flash_writes_the_app_image_at_the_app_offset(tmp_path):
+    """The artifact kind decides the offset.
+
+    `get_firmware(factory=False)` returns the *bare app* image. Writing it
+    at 0x0 lands on top of the bootloader and boot-loops the board -- only
+    the merged factory image belongs there.
+    """
+    bench = FakeBench(slots=[_slot("SLOT1")])
+    server, _ = _server(
+        tmp_path, bench=bench,
+        fleet_handler=_fleet_handler(firmware=b"\xe9app", factory_firmware=None),
+    )
+
+    out = _payload(await server.call_tool("workbench_flash", {
+        "slot": "SLOT1", "fleet_run_id": "run-1", "factory": False,
+    }))
+    assert out["ok"] is True, out
+    await _wait_job(server, out["job_id"])
+
+    body = bench.flashed[0]["body"]
+    assert b"0x10000" in body, "app image must be written at the app offset"
+    assert b'name="bin@0x0"' not in body, "app image must not be written at 0x0"
+
+
+async def test_missing_factory_image_says_how_to_recover(tmp_path):
+    server, _ = _server(
+        tmp_path, bench=FakeBench(slots=[_slot("SLOT1")]),
+        fleet_handler=_fleet_handler(factory_firmware=None),
+    )
+    out = _payload(await server.call_tool("workbench_flash", {
+        "slot": "SLOT1", "fleet_run_id": "run-1",  # factory=True default
+    }))
+    assert out["ok"] is False
+    assert "factory=false" in out["error"]
 
 
 async def test_firmware_is_found_via_the_job_id_not_the_run_id(tmp_path):

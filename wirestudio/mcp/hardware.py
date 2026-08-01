@@ -256,9 +256,15 @@ def _register_workbench_tools(
             "server fetches that build's artifact itself -- preferred) or "
             "as `images`, a list of {offset, data} with base64 `data` and "
             "`offset` like '0x10000'. Set chip to match the board "
-            "(esp32, esp32s3, esp32c3...); an ESP32-S3 bootloader belongs "
-            "at 0x0, not 0x1000. erase=true wipes flash first, which also "
-            "clears LoRaWAN DevNonce counters."
+            "(esp32, esp32s3, esp32c3...). erase=true wipes flash first, "
+            "which also clears LoRaWAN DevNonce counters.\n\n"
+            "With fleet_run_id, `factory` picks which artifact and therefore "
+            "which offset: factory=true (default) is the merged image "
+            "(bootloader + partition table + app) written at 0x0, correct "
+            "for a blank board; factory=false is the bare app image written "
+            "at `app_offset` (default 0x10000), which preserves NVS but "
+            "requires the board to already hold a matching bootloader and "
+            "partition table."
         ),
     )
     async def workbench_flash(
@@ -268,6 +274,8 @@ def _register_workbench_tools(
         chip: str = "esp32",
         erase: bool = False,
         baud: int = 921600,
+        factory: bool = True,
+        app_offset: str = "0x10000",
     ) -> dict:
         wc = workbench()
         if not wc.is_configured():
@@ -279,12 +287,29 @@ def _register_workbench_tools(
             fc = fleet()
             if not fc.is_configured():
                 return _err("fleet not configured (set FLEET_URL and FLEET_TOKEN)")
+            # The artifact kind decides the offset, and getting this wrong
+            # bricks the board: the bare app image written at 0x0 lands on
+            # top of the bootloader. Only the merged factory image belongs
+            # at 0x0.
             try:
-                blob = await fc.get_firmware(fleet_run_id)
+                offset = 0x0 if factory else int(app_offset, 0)
+            except ValueError:
+                return _err(f"app_offset is not a number: {app_offset!r}")
+            if offset < 0:
+                return _err("app_offset must not be negative")
+            try:
+                blob = await fc.get_firmware(fleet_run_id, factory=factory)
             except Exception as e:
-                return _err(f"could not fetch firmware for run {fleet_run_id}: {e}")
-            # A fleet artifact is a merged factory image -- one blob at 0x0.
-            parsed = [(0x0, blob)]
+                hint = (
+                    " -- this build may not publish a merged factory image; "
+                    "retry with factory=false to flash the app image at "
+                    "app_offset, or pass `images` explicitly"
+                    if factory else ""
+                )
+                return _err(
+                    f"could not fetch firmware for run {fleet_run_id}: {e}{hint}"
+                )
+            parsed = [(offset, blob)]
         else:
             try:
                 parsed = _decode_images(images)
