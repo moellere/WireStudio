@@ -35,6 +35,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`workbench_flash` would have bricked a board when given a
+  `fleet_run_id`.** It fetched the fleet artifact with the client's
+  default `factory=False` -- the bare *app* image -- and wrote it at
+  offset `0x0`, on top of the bootloader. `factory` is now an explicit
+  argument: true (default) fetches the merged image for `0x0`, false
+  fetches the app image for `app_offset` (default `0x10000`), and a
+  build with no factory artifact returns an error saying how to recover.
+  Found by running the tool against the live fleet addon, which reported
+  the app image at 427 KB and no factory image at all; the unit test
+  asserted only the byte count, never the offset.
+
+### Fixed
+
 - **The `recommend` MCP tool was dead — it ran `library_detail` instead.**
   Two `@mcp.tool` decorators were stacked on one function. FastMCP's
   decorator returns `fn` unchanged, so both names bound to
