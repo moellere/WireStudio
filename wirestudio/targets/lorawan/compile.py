@@ -176,6 +176,9 @@ def _core_dir_problem() -> Optional[str]:
     platforms = Path(
         os.environ.get("PLATFORMIO_PLATFORMS_DIR") or (core / "platforms")
     )
+    packages = Path(
+        os.environ.get("PLATFORMIO_PACKAGES_DIR") or (core / "packages")
+    )
     if platforms.is_dir():
         try:
             for entry in platforms.iterdir():
@@ -183,6 +186,25 @@ def _core_dir_problem() -> Optional[str]:
                     os.listdir(entry)
         except OSError as exc:
             return f"PlatformIO platform tree {platforms} is not readable: {exc}"
+
+    # PlatformIO takes a lock at `<dir>.lock` -- a sibling of the managed
+    # directory, not a child -- so pointing platforms/packages at a read-only
+    # tree leaves the lock unwritable even when the core dir is fine. Every
+    # build then dies with "Read-only file system: /.../platforms.lock", while
+    # a probe that only checked core-dir writability reported available.
+    for managed in (platforms, packages):
+        lock = managed.with_name(managed.name + ".lock")
+        if lock.exists():
+            continue
+        try:
+            lock.touch()
+            lock.unlink()
+        except OSError as exc:
+            return (
+                f"PlatformIO cannot take its lock at {lock}: {exc} -- point "
+                f"PLATFORMIO_{'PLATFORMS' if managed is platforms else 'PACKAGES'}_DIR "
+                "at a writable location, or symlink it from inside the core dir"
+            )
     return None
 
 
