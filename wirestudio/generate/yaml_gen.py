@@ -376,7 +376,7 @@ _LORAWAN_FOR_ESPHOME_REPO = "moellere/lorawan-for-esphome"
 # `dio2_as_rf_switch` and `setup_high` outright, and ESPHome refuses the
 # config rather than ignoring them. The previous pin (#2) carried the
 # sck/miso/mosi keys and nothing more.
-_LORAWAN_FOR_ESPHOME_REF = "df1f6cd7ffe29f5a719ea684c23c26b629d1a5a4"
+_LORAWAN_FOR_ESPHOME_REF = "137d06ee47c47c0257b822a6d053870f6ecc021e"
 
 
 def _emit_lorawan_blocks(
