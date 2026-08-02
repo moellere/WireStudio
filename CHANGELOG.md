@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.27.1] — 2026-08-02
+
+### Changed
+
+- `readConnections` uses a single-pass loop instead of a chained
+  `.map().filter()`, and `nextInstanceId` iterates the raw components
+  array rather than building throw-away `ComponentInstance` objects to
+  read their ids (#209).
+
 ### Fixed
 
 - **ESPHome LoRaWAN devices stopped uplinking once the network settled.**
