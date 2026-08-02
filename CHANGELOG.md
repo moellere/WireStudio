@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **ESPHome LoRaWAN devices stopped uplinking once the network settled.**
+  A 12-byte payload (three float32 fields) joined fine, uplinked once or
+  twice, then failed with `RADIOLIB_ERR_PACKET_TOO_LONG` (-4) forever.
+  US915 DR0 caps the application payload at 11 bytes and ADR drives the
+  rate to DR0 on a strong link, so the failure appeared only after the
+  network had settled -- which made it look like a radio or provisioning
+  fault. Bumps `lorawan-for-esphome` to a build that re-asserts the
+  payload's minimum data rate before every uplink. The standalone
+  RadioLib path already did this; the ESPHome external-component path
+  never had it.
+
 ## [0.27.0] — 2026-08-02
 
 ### Added
