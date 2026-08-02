@@ -1,9 +1,21 @@
 name: changelog
 
-# Nudge, not a wall: if a PR changes shipped code under wirestudio/ but
-# leaves CHANGELOG.md untouched, fail with a hint. The point is to make
-# "does this need a changelog entry?" a conscious choice, not to block
-# refactors or test-only changes.
+# Nudge, not a wall: if a PR changes shipped code but leaves CHANGELOG.md
+# untouched, fail with a hint. The point is to make "does this need a
+# changelog entry?" a conscious choice, not to block refactors or
+# test-only changes.
+#
+# Shipped code is wirestudio/ *and* web/src/ -- the Dockerfile builds the
+# SPA and copies web/dist into the image, so a UI change reaches users the
+# same way a Python one does. web/ was outside this check for a long time,
+# which is why a dozen web-only PRs merged without an entry.
+#
+# The Bolt perf stream is exempt by title. Those PRs are machine-generated
+# single-pass-loop refactors with no behaviour change, and they are frequent
+# enough that requiring a label on each would just train people to bypass
+# the gate. Note the exemption cannot key on the author: Bolt PRs are opened
+# by a human account with the bot only as a commit co-author, so
+# `user.type == 'Bot'` never matches.
 #
 # Escape hatches (either one):
 #   - put [skip changelog] anywhere in the PR title, or
@@ -22,6 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     if: >-
       !contains(github.event.pull_request.title, '[skip changelog]') &&
+      !contains(github.event.pull_request.title, 'Bolt:') &&
       !contains(github.event.pull_request.labels.*.name, 'skip-changelog')
     steps:
       - uses: actions/checkout@v4
@@ -35,10 +48,10 @@ jobs:
           changed=$(git diff --name-only "$BASE" "$HEAD")
           echo "Changed files:"
           echo "$changed"
-          code=$(echo "$changed" | grep -E '^wirestudio/' || true)
+          code=$(echo "$changed" | grep -E '^(wirestudio/|web/src/)' || true)
           changelog=$(echo "$changed" | grep -E '^CHANGELOG\.md$' || true)
           if [ -n "$code" ] && [ -z "$changelog" ]; then
-            echo "::error::Code under wirestudio/ changed but CHANGELOG.md was not updated."
+            echo "::error::Shipped code changed but CHANGELOG.md was not updated."
             echo "Add an entry under [Unreleased], or use [skip changelog] in the PR title / the skip-changelog label."
             exit 1
           fi
