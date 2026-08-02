@@ -83,20 +83,25 @@ export function readConnections(d: Design | null, componentId?: string): Connect
       locksByCid.set(String(c.id), lp);
     }
   }
-  return (d.connections as Array<Record<string, unknown>>)
-    .map((c, index) => {
-      const cid = String(c.component_id);
-      const role = String(c.pin_role);
-      const locks = locksByCid.get(cid);
-      return {
-        index,
-        component_id: cid,
-        pin_role: role,
-        target: c.target as ConnectionTarget,
-        locked_pin: locks && typeof locks[role] === "string" ? locks[role] : null,
-      };
-    })
-    .filter((c) => !componentId || c.component_id === componentId);
+  // ⚡ Bolt: Use a single-pass loop to avoid intermediate array allocations from .map().filter()
+  const result: ConnectionRow[] = [];
+  const conns = d.connections as Array<Record<string, unknown>>;
+  for (let index = 0; index < conns.length; index++) {
+    const c = conns[index];
+    const cid = String(c.component_id);
+    if (componentId && cid !== componentId) continue;
+
+    const role = String(c.pin_role);
+    const locks = locksByCid.get(cid);
+    result.push({
+      index,
+      component_id: cid,
+      pin_role: role,
+      target: c.target as ConnectionTarget,
+      locked_pin: locks && typeof locks[role] === "string" ? locks[role] : null,
+    });
+  }
+  return result;
 }
 
 /**
@@ -276,7 +281,14 @@ export interface AddComponentOptions {
 /** Generate a unique component id derived from the library id. */
 export function nextInstanceId(d: Design, libraryId: string, hint?: string): string {
   const used = new Set<string>();
-  for (const c of readComponents(d)) used.add(c.id);
+  // ⚡ Bolt: iterate directly over the components array to avoid mapping it to intermediate ComponentInstance objects
+  if (Array.isArray(d.components)) {
+    for (const c of d.components) {
+      if (c && typeof c === "object" && typeof (c as Record<string, unknown>).id === "string") {
+        used.add((c as Record<string, unknown>).id as string);
+      }
+    }
+  }
   const safeHint = hint?.replace(/[^a-zA-Z0-9_]/g, "_");
   if (safeHint && !used.has(safeHint)) return safeHint;
   const base = libraryId.replace(/[^a-z0-9]/gi, "_");
