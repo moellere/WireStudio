@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.27.0] — 2026-08-02
+
 ### Added
 
 - **MCP hardware tools — a headless client can now finish a bring-up.**
@@ -49,8 +51,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and boot-looped a Heltec V4 (`No bootable app partitions in the
   partition table`). Recovered by rewriting the same artifact at `0x0`.
   The client docstring now records what the addon actually serves.
-
-### Fixed
 
 - **The `recommend` MCP tool was dead — it ran `library_detail` instead.**
   Two `@mcp.tool` decorators were stacked on one function. FastMCP's
