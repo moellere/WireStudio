@@ -17,3 +17,6 @@
 ## 2024-08-01 - Avoid allocating full objects to extract scalar IDs
 **Learning:** Helper functions like `readComponents(d)` allocate a full new object for every item in the array to provide a sanitized/normalized view. When a function only needs to extract primitive fields (like string `id`s for a Set or array), invoking these helpers wastes memory on object creation.
 **Action:** When extracting scalar fields from raw JSON-like structures (e.g. `d.components`), iterate directly over the raw array instead of calling normalizing helper functions, checking types manually to satisfy TypeScript.
+## 2024-05-18 - Avoid array iteration with .includes on small arrays
+**Learning:** Using `.includes()` on an array inside tight loops or data transformations adds unnecessary O(N) array traversals per iteration.
+**Action:** Inside tight loops, replace `.includes()` on small static arrays with direct strict inequality comparisons (e.g., `key !== 'a' && key !== 'b'`).

@@ -232,14 +232,22 @@ function buildModel(design: Design) {
   const conns: Conn[] = Array.isArray(design.connections)
     ? (design.connections as unknown as Conn[])
     : [];
+  // ⚡ Bolt: Iterate directly over buses to construct the typed structure, avoiding .map().filter() array allocations
   const busesRaw = Array.isArray(design.buses) ? (design.buses as Array<Record<string, unknown>>) : [];
-  const buses: Bus[] = busesRaw.map((b) => ({
-    id: String(b.id ?? ""),
-    type: String(b.type ?? ""),
-    pins: Object.entries(b).filter(
-      ([k, v]) => !["id", "type", "frequency_hz"].includes(k) && typeof v === "string" && /^(GPIO|D|A)\d/i.test(String(v)),
-    ) as Array<[string, string]>,
-  }));
+  const buses: Bus[] = [];
+  for (const b of busesRaw) {
+    const pins: Array<[string, string]> = [];
+    for (const [k, v] of Object.entries(b)) {
+      if (k !== "id" && k !== "type" && k !== "frequency_hz" && typeof v === "string" && /^(GPIO|D|A)\d/i.test(v)) {
+        pins.push([k, v]);
+      }
+    }
+    buses.push({
+      id: String(b.id ?? ""),
+      type: String(b.type ?? ""),
+      pins,
+    });
+  }
 
   const boardId = String((design.board as Record<string, unknown> | undefined)?.library_id ?? "board");
 
