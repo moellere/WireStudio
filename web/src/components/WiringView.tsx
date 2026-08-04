@@ -237,7 +237,7 @@ function buildModel(design: Design) {
     id: String(b.id ?? ""),
     type: String(b.type ?? ""),
     pins: Object.entries(b).filter(
-      ([k, v]) => !["id", "type", "frequency_hz"].includes(k) && typeof v === "string" && /^(GPIO|D|A)\d/i.test(String(v)),
+      ([k, v]) => k !== "id" && k !== "type" && k !== "frequency_hz" && typeof v === "string" && /^(GPIO|D|A)\d/i.test(String(v)),
     ) as Array<[string, string]>,
   }));
 
