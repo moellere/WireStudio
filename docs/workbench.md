@@ -1,13 +1,22 @@
-# Workbench integration (planned)
+# Workbench integration
 
 [← docs index](index.md)
 
-Scoping for integrating a
-[SensorsIot Universal Embedded Workbench](https://github.com/SensorsIot/Universal-Embedded-Workbench)
-— a Raspberry Pi that exposes every USB-attached dev board as a network
-resource — as the studio's hardware truth layer. Roadmap placement and
-phase status live in [index.md](index.md#roadmap); this page carries the
-full capability map and design constraints.
+Integrating a
+[SensorsIot Embedded AI Harness](https://github.com/SensorsIot/Embedded-AI-Harness)
+(formerly Universal Embedded Workbench) — a Raspberry Pi that exposes
+every USB-attached dev board as a network resource — as the studio's
+hardware truth layer. Roadmap placement and phase status live in
+[index.md](index.md#roadmap); this page carries the full capability map
+and design constraints.
+
+**Phase 1 has shipped** (0.25.0): remote flash transport, slot listing
+with pre-flight, and — from 0.26.0 — the whole LoRaWAN bring-up
+(flash → register in ChirpStack → push keys over the slot's serial
+prompt → verify the join) against a bench slot, with no human at the
+bench. 0.27.0 put the same reach behind MCP tools. Later phases
+(continuous serial relay, scheduled flashing, a live-device CI gate)
+are still scoping; the phase table below marks which is which.
 
 ## Why
 

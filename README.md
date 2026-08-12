@@ -37,6 +37,18 @@ release factory image for the radio boards), and **CircuitPython**
 (official release image plus a generated starter `code.py` for the
 CIRCUITPY drive).
 
+WebSerial needs the board on the end of a cable. A **remote workbench**
+removes that: point the studio at a
+[SensorsIot Embedded AI Harness](https://github.com/SensorsIot/Embedded-AI-Harness)
+— a Raspberry Pi exposing every USB-attached board as a network
+resource — and flashing, LoRaWAN key provisioning and join verification
+all run against a slot on a bench somewhere else
+([workbench](docs/workbench.md)). The MCP server carries the same
+reach: alongside the design tools it exposes workbench, ChirpStack and
+fleet-build tools, so a headless client can take a design from
+`design.json` to a joined device without dropping to HTTP
+([MCP](docs/mcp.md)).
+
 Not affiliated with the ESPHome project — see
 [`weirded/fleet-for-esphome`](https://github.com/weirded/fleet-for-esphome)
 for the OTA-deploy companion this studio's **Push to fleet** flow
@@ -51,17 +63,18 @@ Detailed docs live in [`docs/`](docs/):
 - [Deployment](docs/deployment.md) — self-host with Docker or Kubernetes.
 - [Integrations](docs/integrations.md) — agent, fleet handoff, enclosure search, KiCad.
 - [MCP server](docs/mcp.md) — drive the studio from Claude Code / Desktop.
+- [Workbench](docs/workbench.md) — flash and provision boards on a remote bench.
 - [Library reference](docs/library.md) — every board and component.
 - [LoRaWAN target](docs/lorawan/) — build + flash LoRaWAN firmware, provision against ChirpStack.
 
 ## Status
 
-`v0.24.0` — on PyPI (`pip install wirestudio`). The studio has wide
+`v0.27.1` — on PyPI (`pip install wirestudio`). The studio has wide
 surface area (YAML, schematic, PCB + fab outputs, enclosure, agent,
-MCP server, fleet handoff, web UI, two LoRaWAN flash/provision paths —
-standalone Arduino and an external-component path that emits ESPHome
-YAML referencing `lorawan-for-esphome`) and a set of things actually
-verified against upstream tools. The YAML, schematic, PCB, and
+MCP server, fleet handoff, remote workbench, web UI, two LoRaWAN
+flash/provision paths — standalone Arduino and an external-component
+path that emits ESPHome YAML referencing `lorawan-for-esphome`) and a
+set of things actually verified against upstream tools. The YAML, schematic, PCB, and
 enclosure paths are gated in CI, and **every library component and
 board is exercised by a bundled example** that passes those gates. This section is honest about which is which, ordered
 by how much it matters that it works.
@@ -78,10 +91,12 @@ Tiers, in priority order:
 | **Verified** | Fab outputs | JLCPCB upload bundle — BOM, CPL, Gerber + drill (`/design/fab/*`) | CPL positions match the `.kicad_pcb` placement; the DRC tier smoke-tests the Gerber export. Boards are unrouted until the Freerouting step, so Gerbers carry pads but no traces (`is_routed` flags it) |
 | **Verified** | Parametric enclosure | OpenSCAD `.scad` from board mount-hole metadata | every enclosure-capable board renders through real OpenSCAD to a non-empty, manifold (closed, printable) solid, every PR ([gate](.github/workflows/enclosure-render.yml)) |
 | **Works (hardware-validated)** | LoRaWAN target | build RadioLib + LoRaWAN_ESP32 firmware for US915 radio boards, flash over WebSerial, provision against ChirpStack | every radio board's firmware builds in CI ([gate](.github/workflows/lorawan-firmware.yml)); validated end-to-end on a TTGO T-Beam and Heltec WiFi LoRa 32 V2 and V3 against live ChirpStack 4.17 — no automated live-device gate |
+| **Works (hardware-validated)** | LoRaWAN external-component path | emit ESPHome YAML referencing `lorawan-for-esphome`, provision keys into `secrets.yaml`, build through fleet | validated end-to-end on a Heltec WiFi LoRa 32 V4 (SX1262 + external PA): joined, uplinked and decoded against live ChirpStack. Payloads over 11 bytes need the data rate asserted per uplink — US915 DR0 caps at 11 and ADR drives to DR0 on a strong link. No automated live-device gate |
+| **Works (hardware-validated)** | Remote workbench | flash a board on a bench slot, and run the whole LoRaWAN bring-up (flash → register → key push → verify) headlessly | wire format verified against a reference bench; flashing and LoRaWAN bring-up exercised repeatedly on a live Pi bench with an ESP32-S3. Transport tests in `tests/test_workbench.py` use wire-level fakes; no automated live-bench gate |
 | **Verified** | Tasmota target | emit a Tasmota device template (`/tasmota/template`) mapping solved pins to Tasmota GPIO function ids | function ids + per-chip layouts sourced from `tasmota_template.h`; unit tests pin the Sonoff S31 template convention for the smart-plug example |
 | **Works (lighter checks)** | Meshtastic flashing | proxy the official release factory image (`/meshtastic/firmware`) for the radio boards and flash it via the unified WebSerial dialog | endpoint tests with mocked upstream; board-to-variant map checked against `meshtastic/firmware` variants; no live-flash gate |
 | **Works (lighter checks)** | CircuitPython flashing | proxy the official release image (`/circuitpython/firmware`) for ESP32/S3/C3/C6 boards, flash via the unified dialog, serve a generated starter `code.py` (`/circuitpython/code`) | endpoint tests with mocked upstream; every board-id mapping verified against downloads.circuitpython.org; generated starters parse as valid Python; no live-flash gate |
-| **Works (lighter checks)** | MCP server | drive the design tools from Claude Code / Desktop over the Model Context Protocol | tool / auth / resource tests in `tests/test_mcp_*.py`; not exercised against a live MCP client in CI |
+| **Works (lighter checks)** | MCP server | 39 tools over the Model Context Protocol: 22 design/library/fab, plus 17 that reach hardware — workbench flash, LoRaWAN compile / provision / activation, fleet push + build status, and job polling for the long ones | tool / auth / resource tests in `tests/test_mcp_*.py`; the hardware tools drive the real clients against wire-level fakes, and were exercised against a live bench, ChirpStack and fleet during bring-up. Not run against a live MCP client in CI |
 | **Experimental** | Thingiverse search relay | rank community models for a board | smoke-tested; depends on a third-party search API that ranks unevenly |
 | **Experimental** | Agent (Claude tool-using) | natural-language design driving | works in practice; tool surface is small; no auto-eval against task list yet |
 | **Verified** | PCB autorouting | Freerouting roundtrip — board → Specctra DSN → routed → SES import; SSE route endpoint, `route_pcb` MCP/agent tool, web-UI Route button, `?route=true` fab exports, `-pcb` image variant | representative examples route with zero unconnected items and pass routed DRC ([gate](.github/workflows/pcb-route.yml)) |
@@ -106,7 +121,7 @@ that pin moves, this line moves with it.
 docker run --rm -p 8765:8765 \
   -e ANTHROPIC_API_KEY=sk-ant-... \
   -v wirestudio-data:/data \
-  ghcr.io/moellere/wirestudio:0.24.0
+  ghcr.io/moellere/wirestudio:0.27.1
 ```
 
 Open <http://localhost:8765>. The image bundles the FastAPI server +
@@ -149,7 +164,7 @@ The [User guide](docs/user_guide.md) walks the panes and header actions.
 ## Tests
 
 ```sh
-python -m pytest                          # ~900 cases
+python -m pytest                          # ~1030 cases
 python -m ruff check .                    # lint
 cd web && npx vitest run                  # vitest + jsdom
 pip install 'esphome==2025.12.7'
