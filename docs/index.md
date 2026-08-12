@@ -17,9 +17,9 @@ under upstream ESPHome.
   in the library.
 - [Library coverage](library-coverage.md) — which library entries are
   exercised by a bundled example.
-- [Workbench integration](workbench.md) — planned hardware-truth layer
-  on a Universal Embedded Workbench: capability map, phases,
-  constraints.
+- [Workbench integration](workbench.md) — hardware-truth layer on an
+  Embedded AI Harness: remote flash and headless LoRaWAN bring-up
+  (shipped), capability map, later phases, constraints.
 
 ## Architecture
 
@@ -218,8 +218,8 @@ anything that can route to the pod. That is survivable while the only
 exposure is a cluster-internal Service, and is the reason the ingress
 publishes `/mcp` alone.
 
-**Workbench featureset (planned).** Integrate a
-[Universal Embedded Workbench](https://github.com/SensorsIot/Universal-Embedded-Workbench)
+**Workbench featureset (phase 1 shipped).** Integrate an
+[Embedded AI Harness](https://github.com/SensorsIot/Embedded-AI-Harness)
 (Raspberry Pi exposing RFC2217 network serial per USB slot, a JSON HTTP
 API, a WiFi AP tester, an MQTT broker, UDP logging, GPIO boot/reset
 control, and an optional RTL-SDR) as the studio's hardware truth layer.
@@ -236,7 +236,11 @@ Phases, each independently shippable. Note the payoff is not evenly
 distributed: phase 1 is what makes a remote bench reachable at all,
 and phase 3 is what retires the "no live-flash gate" caveats above.
 
-1. **Remote flash transport.** `/workbench/status`, `/workbench/slots`
+1. **Remote flash transport — shipped in 0.25.0**, extended in 0.26.0
+   with the headless LoRaWAN bring-up
+   (`/lorawan/workbench/provision`: flash → register → push keys over
+   the slot's serial prompt → verify the join) and in 0.27.0 with the
+   MCP tools that drive both. `/workbench/status`, `/workbench/slots`
    and `/workbench/flash`: the server fetches the framework image
    exactly as today, uploads it to the bench, and streams progress over
    SSE while the Pi runs esptool against its own USB. The flash dialog
