@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The LoRaWAN battery example sampled the wrong ADC pin.** The
+  `lorawan-battery-uplink` design wired its ADC to `GPIO36` and applied
+  no scaling, while both `ttgo-lora32-v1` and `-v2` carry
+  `battery_adc: {pin: GPIO35, divider: 2.0}` -- GPIO35 is the pin tagged
+  `battery_sense`, and the pack is read through a 1:2 divider. So the
+  example sampled an unconnected pin and, even on the right one, would
+  have reported half the pack voltage while labelled `V`. Now GPIO35
+  with a `multiply: 2.0` filter. The board metadata was already correct;
+  nothing consulted it, because the design pinned the connection
+  explicitly.
+
 ## [0.27.1] — 2026-08-02
 
 ### Changed
