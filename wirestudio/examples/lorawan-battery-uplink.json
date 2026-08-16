@@ -30,7 +30,8 @@
       "params": {
         "attenuation": "12db",
         "update_interval": "30s",
-        "unit_of_measurement": "V"
+        "unit_of_measurement": "V",
+        "filters": [{ "multiply": 2.0 }]
       }
     }
   ],
@@ -38,7 +39,7 @@
   "buses": [],
 
   "connections": [
-    { "component_id": "battery", "pin_role": "IN", "target": { "kind": "gpio", "pin": "GPIO36" } }
+    { "component_id": "battery", "pin_role": "IN", "target": { "kind": "gpio", "pin": "GPIO35" } }
   ],
 
   "passives": [],
