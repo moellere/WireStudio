@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.27.2] — 2026-08-16
+
 ### Fixed
 
 - **The LoRaWAN battery example sampled the wrong ADC pin.** The
@@ -19,6 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with a `multiply: 2.0` filter. The board metadata was already correct;
   nothing consulted it, because the design pinned the connection
   explicitly.
+
+### Changed
+
+- `buildModel` in `WiringView.tsx` builds its bus list with a single-pass
+  loop instead of `.map().filter()`, and compares keys with `!==` rather
+  than `Array.includes` (#214). No behaviour change.
 
 ## [0.27.1] — 2026-08-02
 
