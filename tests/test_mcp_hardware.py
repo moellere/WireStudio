@@ -54,10 +54,9 @@ def _seed(store: FileDesignStore, design_id: str = "bench-dut") -> str:
 
 
 def _payload(result: Any) -> dict:
-    """Decode a FastMCP call_tool result into its JSON dict."""
-    content = result[0] if isinstance(result, tuple) else result
-    if isinstance(content, dict):
-        return content
+    """Decode an MCPServer call_tool result into its JSON dict."""
+    content = result.content
+    assert content, "expected at least one content block"
     text = getattr(content[0], "text", None)
     assert isinstance(text, str), f"unexpected content: {content!r}"
     return json.loads(text)

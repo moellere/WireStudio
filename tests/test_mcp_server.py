@@ -77,8 +77,9 @@ def _seed_design(store: FileDesignStore, design_id: str = "test-bench") -> str:
     return design_id
 
 
-def _content_to_dict(content: list[Any]) -> dict:
-    """Decode the first TextContent payload as JSON."""
+def _content_to_dict(result: Any) -> dict:
+    """Decode the first TextContent payload of a CallToolResult as JSON."""
+    content = result.content
     assert content, "expected at least one content block"
     text = getattr(content[0], "text", None)
     assert isinstance(text, str)
@@ -129,12 +130,12 @@ async def test_every_tool_binds_a_distinct_function(mcp_server):
 async def test_recommend_takes_a_query_not_a_library_id(mcp_server):
     server, _ = mcp_server
     tools = {t.name: t for t in await server.list_tools()}
-    params = set(tools["recommend"].inputSchema.get("properties", {}))
+    params = set(tools["recommend"].input_schema.get("properties", {}))
     assert "query" in params
     assert "library_id" not in params
 
     result = await server.call_tool("recommend", {"query": "temperature"})
-    payload = _content_to_dict(result[0] if isinstance(result, tuple) else result)
+    payload = _content_to_dict(result)
     assert payload.get("ok") is not False, payload
 
 
@@ -143,7 +144,7 @@ async def test_tool_input_schemas_include_design_id_for_mutating_tools(mcp_serve
     tools = {t.name: t for t in await server.list_tools()}
     for name in {"set_board", "add_component", "remove_component", "set_param",
                  "set_connection", "add_bus", "solve_pins", "render", "validate"}:
-        schema = tools[name].inputSchema
+        schema = tools[name].input_schema
         assert "design_id" in schema.get("properties", {}), f"{name} missing design_id"
 
 
@@ -236,7 +237,7 @@ async def test_remove_component_persists(mcp_server):
 
 async def test_unknown_design_id_surfaces_as_tool_error(mcp_server):
     server, _ = mcp_server
-    # Unknown design_id triggers FileNotFoundError in the store. FastMCP's
+    # Unknown design_id triggers FileNotFoundError in the store. MCPServer's
     # contract is that tool exceptions become an isError-flagged result;
     # call_tool itself raises ToolError so the model can recover instead
     # of seeing a black-hole response.

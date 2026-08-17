@@ -23,7 +23,7 @@ from __future__ import annotations
 import base64
 from typing import Any, Callable, Optional
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 
 from wirestudio.designs.active import ActiveDesignTracker
 from wirestudio.designs.store import DesignStore
@@ -108,7 +108,7 @@ def _decode_images(raw: Optional[list[dict]]) -> list[tuple[int, bytes]]:
 
 
 def register_hardware_tools(
-    mcp: FastMCP,
+    mcp: MCPServer,
     library: Library,
     designs: DesignStore,
     active: ActiveDesignTracker,
@@ -162,7 +162,7 @@ def register_hardware_tools(
 # Job polling
 # ---------------------------------------------------------------------------
 
-def _register_job_tools(mcp: FastMCP, jobs: JobRegistry) -> None:
+def _register_job_tools(mcp: MCPServer, jobs: JobRegistry) -> None:
     @mcp.tool(
         name="job_status",
         description=(
@@ -210,7 +210,7 @@ def _register_job_tools(mcp: FastMCP, jobs: JobRegistry) -> None:
 # ---------------------------------------------------------------------------
 
 def _register_workbench_tools(
-    mcp: FastMCP,
+    mcp: MCPServer,
     jobs: JobRegistry,
     workbench: Callable[[], Any],
     fleet: Callable[[], Any],
@@ -359,7 +359,7 @@ def _register_workbench_tools(
 # ---------------------------------------------------------------------------
 
 def _register_lorawan_tools(
-    mcp: FastMCP,
+    mcp: MCPServer,
     library: Library,
     jobs: JobRegistry,
     load_model: Callable[[Optional[str]], tuple[Optional[Design], Optional[dict]]],
@@ -626,7 +626,7 @@ def _register_lorawan_tools(
 # ---------------------------------------------------------------------------
 
 def _register_fleet_tools(
-    mcp: FastMCP,
+    mcp: MCPServer,
     library: Library,
     load_model: Callable[[Optional[str]], tuple[Optional[Design], Optional[dict]]],
     fleet: Callable[[], Any],

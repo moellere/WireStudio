@@ -22,6 +22,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import os
+from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import ValidationError
 
 from wirestudio.mcp import (
@@ -256,7 +257,7 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
-        # FastMCP's session_manager wraps the streamable_http_app; without
+        # MCPServer's session_manager wraps the streamable_http_app; without
         # entering its run() context the /mcp endpoint 500s with "Task group
         # is not initialized." AsyncExitStack lets us no-op when MCP is
         # disabled without a duplicate yield branch.
@@ -1483,11 +1484,17 @@ def create_app(
         # `/mcp` on its own Starlette app; we wrap it in BearerTokenMiddleware
         # and mount at root so the path stays `/mcp`. Mounting at `/mcp` would
         # land the inner route at `/mcp/mcp`, which is wrong.
+        # mcp 2.x dropped `transport_security` from Settings; it is now an
+        # argument to streamable_http_app(), which is where it was always
+        # used. Built here and passed at mount time below.
         allowed_hosts = os.environ.get("WIRESTUDIO_MCP_ALLOWED_HOSTS")
+        transport_security = None
         if allowed_hosts:
-            mcp_server.settings.transport_security.allowed_hosts = [
-                h.strip() for h in allowed_hosts.split(",") if h.strip()
-            ]
+            hosts = [h.strip() for h in allowed_hosts.split(",") if h.strip()]
+            if hosts:
+                transport_security = TransportSecuritySettings(
+                    allowed_hosts=hosts
+                )
         token_path_env = os.environ.get("WIRESTUDIO_MCP_TOKEN_PATH")
         token_store = load_token_store(
             token_path=Path(token_path_env) if token_path_env else None,
@@ -1513,7 +1520,9 @@ def create_app(
                 raise HTTPException(status_code=409, detail=str(e)) from e
             return McpTokenResponse(token=new_token, managed="file")
 
-        mcp_app = mcp_server.streamable_http_app()
+        mcp_app = mcp_server.streamable_http_app(
+            transport_security=transport_security
+        )
         mcp_app.add_middleware(BearerTokenMiddleware, store=token_store)
         app.mount("/", mcp_app)
 
