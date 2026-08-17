@@ -79,7 +79,7 @@ async def test_static_resources_registered(mcp_server):
 async def test_template_resources_registered(mcp_server):
     server, _ = mcp_server
     templates = await server.list_resource_templates()
-    uris = {t.uriTemplate for t in templates}
+    uris = {t.uri_template for t in templates}
     assert EXPECTED_TEMPLATE_URIS <= uris
 
 

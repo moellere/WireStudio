@@ -41,7 +41,7 @@ def create_serve_app(static_dir: str | Path) -> FastAPI:
         raise FileNotFoundError(f"static_dir does not exist: {static_path}")
     studio_app = create_app()
     # Mounted sub-apps in FastAPI/Starlette don't get their lifespan run by
-    # the parent. The studio_app uses lifespan to enter the FastMCP session
+    # the parent. The studio_app uses lifespan to enter the MCPServer session
     # manager's run() context; without forwarding it the manager stays
     # uninitialized and /api/mcp returns 500. Re-using studio_app's
     # lifespan_context here runs it once on the parent's startup.
