@@ -10,7 +10,7 @@ Resources expose read-only views over the library and stored designs:
 - `library://boards` + `library://boards/{id}` for boards
 - `design://{id}/{format}` for rendered design output (json / yaml / ascii)
 
-The server is a `FastMCP` instance. The caller is responsible for mounting
+The server is an `MCPServer` instance. The caller is responsible for mounting
 its `streamable_http_app()` into the parent FastAPI app and arranging
 `session_manager.run()` in the parent's lifespan.
 """
@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import Any, Callable, Optional
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 
 from wirestudio.agent.tools import (
     _run_add_bus,
@@ -59,8 +59,8 @@ def build_mcp_server(
     hardware: bool = True,
     workbench_factory: Optional[Callable[[], Any]] = None,
     fleet_factory: Optional[Callable[[], Any]] = None,
-) -> FastMCP:
-    """Build a FastMCP server with all wirestudio tools + resources registered.
+) -> MCPServer:
+    """Build an MCPServer with all wirestudio tools + resources registered.
 
     `active` is the shared active-design tracker (Phase 1.4). When set,
     design-bound tools default their `design_id` argument to the tracker's
@@ -73,7 +73,7 @@ def build_mcp_server(
     factories let a caller inject clients; production passes the same ones
     `create_app` uses for the REST routes.
     """
-    mcp = FastMCP(name=name)
+    mcp = MCPServer(name=name)
     tracker = active or ActiveDesignTracker()
     _register_library_tools(mcp, library)
     _register_design_tools(mcp, library, designs, tracker)
@@ -91,7 +91,7 @@ def build_mcp_server(
     return mcp
 
 
-def _register_library_tools(mcp: FastMCP, library: Library) -> None:
+def _register_library_tools(mcp: MCPServer, library: Library) -> None:
     @mcp.tool(
         name="search_components",
         description=(
@@ -165,7 +165,7 @@ _NO_DESIGN_ERROR = {
 
 
 def _register_design_tools(
-    mcp: FastMCP, library: Library, designs: DesignStore,
+    mcp: MCPServer, library: Library, designs: DesignStore,
     active: ActiveDesignTracker,
 ) -> None:
     def _resolve(design_id: Optional[str]) -> Optional[str]:
@@ -490,7 +490,7 @@ def _register_design_tools(
 
 
 def _register_active_tools(
-    mcp: FastMCP, active: ActiveDesignTracker, designs: DesignStore
+    mcp: MCPServer, active: ActiveDesignTracker, designs: DesignStore
 ) -> None:
     @mcp.tool(
         name="set_active_design",
@@ -527,7 +527,7 @@ def _register_active_tools(
         return {"active_design_id": active.get()}
 
 
-def _register_resources(mcp: FastMCP, library: Library, designs: DesignStore) -> None:
+def _register_resources(mcp: MCPServer, library: Library, designs: DesignStore) -> None:
     """Read-only views of the library and stored designs.
 
     The library catalog resources serve a dual purpose: they let an LLM

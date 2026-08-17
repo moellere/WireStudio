@@ -33,8 +33,9 @@ def _seed_design(store: FileDesignStore, design_id: str = "active-test") -> str:
     return design_id
 
 
-def _tool_payload(content: list[Any]) -> dict:
-    """Decode the first TextContent payload as JSON."""
+def _tool_payload(result: Any) -> dict:
+    """Decode the first TextContent payload of a CallToolResult as JSON."""
+    content = result.content
     assert content
     text = getattr(content[0], "text", None)
     assert isinstance(text, str)

@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Migrated to mcp 2.x**, lifting the `mcp<2` pin carried since 0.24.1.
+  2.0 renamed the server package `mcp.server.fastmcp` ->
+  `mcp.server.mcpserver` and the class `FastMCP` -> `MCPServer`; the
+  decorator, resource and transport API is otherwise unchanged, so the
+  39 tools and their registrations move across as-is.
+
+  Three breaks needed real changes rather than a rename:
+  `Settings` no longer carries `transport_security` (it is now an
+  argument to `streamable_http_app()`, which is where it was always
+  used); `call_tool` returns a `CallToolResult` instead of a bare
+  content sequence; and the model fields are snake_case
+  (`inputSchema` -> `input_schema`, `uriTemplate` -> `uri_template`).
+
+  Note mcp 2.x depends on **httpx2**, a separate distribution from
+  httpx. The import names differ, so it coexists with the studio's own
+  httpx usage rather than replacing it -- but it is a second HTTP stack
+  in the image.
+
 ## [0.27.2] — 2026-08-16
 
 ### Fixed
