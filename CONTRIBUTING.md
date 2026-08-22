@@ -155,6 +155,22 @@ change inside a diff nobody is reading for that.
 Generate it against the image's Python (3.11), not whatever is on your
 machine — pins that resolve on 3.13 may have no 3.11 wheel.
 
+The [`constraints`](.github/workflows/constraints.yml) gate installs
+under the pins on 3.11 and fails if anything reached the environment
+unpinned — which is what happens when a dependency is added to
+`pyproject.toml` and the file is not refreshed. Run it yourself with:
+
+```sh
+pip install -c constraints.txt .
+python scripts/check_constraints.py
+```
+
+It checks one direction only. Every installed package must be pinned;
+the reverse is not required, because the file is generated from the
+`-full` image and carries pins for `platformio` and the extras that a
+base install never touches. A constraint on a package pip is not
+installing is inert.
+
 ### Nightly compile smoke
 
 `.github/workflows/esphome-compile.yml` runs `esphome compile`
