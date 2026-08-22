@@ -63,8 +63,11 @@ WORKDIR /app
 COPY pyproject.toml ./
 COPY wirestudio/ ./wirestudio/
 COPY README.md ./
+# Caps what pip resolves so two images built weeks apart get the same
+# dependency set. See the header in constraints.txt for how to refresh.
+COPY constraints.txt ./
 
-RUN pip install --no-cache-dir .
+RUN pip install --no-cache-dir -c constraints.txt .
 
 # Drop the built SPA into a stable path. WIRESTUDIO_STATIC_DIR points
 # uvicorn at it through wirestudio.api.serve.
@@ -86,7 +89,7 @@ ENV PLATFORMIO_CORE_DIR=/opt/pio
 RUN <<'EOF'
 set -eu
 if [ "$WITH_LORAWAN" = "true" ]; then
-    pip install --no-cache-dir platformio ".[lorawan]"
+    pip install --no-cache-dir -c constraints.txt platformio ".[lorawan]"
     mkdir -p "$PLATFORMIO_CORE_DIR"
     python -c "from wirestudio.library import default_library; from wirestudio.model import Design; from wirestudio.targets import get_target; from wirestudio.targets.lorawan.compile import compile_firmware; lib=default_library(); [compile_firmware(Design(schema_version='0.1', id='prewarm-'+b, name=b, target='lorawan', lorawan={}, board={'library_id': b, 'mcu': 'esp32'}, power={'supply':'usb','rail_voltage_v':3.3}), lib, use_cache=False) for b in get_target('lorawan').board_ids(lib)]"
     chown -R appuser:appuser "$PLATFORMIO_CORE_DIR"
