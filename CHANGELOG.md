@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **A gate that keeps `constraints.txt` honest.** The pins added in
+  0.28.1 only hold while the file names every package pip installs; add
+  a dependency to `pyproject.toml` and it is simply not pinned, nothing
+  fails, and builds can drift again. The `constraints` workflow installs
+  under the pins on Python 3.11 (the image's) and fails if anything
+  arrived unpinned. Runnable locally via
+  `scripts/check_constraints.py`.
+
 ## [0.28.1] — 2026-08-22
 
 ### Changed

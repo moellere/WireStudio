@@ -1,0 +1,51 @@
+name: constraints
+
+# constraints.txt caps the versions the runtime image resolves, and only
+# stays true while it names every package pip pulls in. Add a dependency
+# to pyproject.toml and it is simply not pinned -- nothing fails, and the
+# file silently stops being complete. That is exactly the drift it exists
+# to prevent, so it would go unnoticed for as long as it did last time.
+#
+# The install here is *constrained* on purpose. Resolving unconstrained
+# and diffing would also flag upstream releases that add a transitive
+# dependency -- drift nobody in this repo caused. A gate that goes red
+# for reasons no one can act on gets ignored, and then it catches
+# nothing. Under the pins each package's dependency list is fixed, so the
+# resolved set only moves when pyproject.toml does, which is the defect
+# worth failing on.
+#
+# The comparison is one-directional: every installed package must be
+# pinned, but not every pin must be installed. The file is generated from
+# the -full image, so it carries pins for platformio and the extras that
+# a base install never touches; a constraint on a package pip is not
+# installing is inert.
+
+on:
+  pull_request:
+    branches: [main, dev]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  constraints:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          # Must match the Dockerfile's runtime base (python:3.11-slim).
+          # A resolve on a newer interpreter can pick wheels that do not
+          # exist for 3.11, and the resolved set can differ.
+          python-version: '3.11'
+
+      - name: Install under constraints
+        run: |
+          python -m pip install --upgrade pip
+          pip install -c constraints.txt .
+
+      - name: Every installed package must be pinned
+        run: python scripts/check_constraints.py
