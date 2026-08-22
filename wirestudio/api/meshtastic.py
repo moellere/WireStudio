@@ -13,6 +13,7 @@ links to client.meshtastic.org instead.
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Response
+from wirestudio.errors import describe
 
 _RELEASE_LIST = "https://api.meshtastic.org/github/firmware/list"
 _FILES_BASE = "https://raw.githubusercontent.com/meshtastic/meshtastic.github.io/master"
@@ -57,7 +58,7 @@ def firmware_status() -> dict:
         version = _latest_stable()
         available, reason = True, None
     except Exception as e:
-        version, available, reason = None, False, f"release list unreachable: {e}"
+        version, available, reason = None, False, f"release list unreachable: {describe(e)}"
     return {
         "available": available,
         "version": version,
@@ -90,7 +91,7 @@ def router() -> APIRouter:
             data = _fetch_firmware(url)
         except Exception as e:
             raise HTTPException(
-                status_code=502, detail=f"could not fetch firmware: {e}"
+                status_code=502, detail=f"could not fetch firmware: {describe(e)}"
             ) from e
         return Response(
             content=data,

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 import time
+from wirestudio.errors import describe
 from typing import Iterator, Optional, Pattern, Sequence
 
 DEFAULT_BAUD = 115200
@@ -63,7 +64,7 @@ def answer_prompts(
     try:
         port = serial.serial_for_url(url, baudrate=baud, timeout=1)
     except Exception as exc:
-        raise SerialUnavailable(f"cannot open {url}: {exc}") from exc
+        raise SerialUnavailable(f"cannot open {url}: {describe(exc)}") from exc
 
     buf = ""
     last_sent = 0.0
