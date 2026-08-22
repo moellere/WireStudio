@@ -30,6 +30,7 @@ from wirestudio.designs.store import DesignStore
 from wirestudio.library import Library
 from wirestudio.mcp.jobs import JobNotFound, JobRegistry
 from wirestudio.model import Design
+from wirestudio.errors import describe
 
 _EUI_LEN = 16
 
@@ -98,7 +99,7 @@ def _decode_images(raw: Optional[list[dict]]) -> list[tuple[int, bytes]]:
             offset = int(str(img["offset"]), 0)
             data = base64.b64decode(img["data"], validate=True)
         except (KeyError, ValueError, TypeError) as e:
-            raise ValueError(f"image {i}: {e}") from e
+            raise ValueError(f"image {i}: {describe(e)}") from e
         if offset < 0:
             raise ValueError(f"image {i}: negative offset")
         if not data:
@@ -136,7 +137,7 @@ def register_hardware_tools(
         try:
             return Design.model_validate(raw), None
         except Exception as e:
-            return None, _err(f"design '{rid}' failed validation: {e}")
+            return None, _err(f"design '{rid}' failed validation: {describe(e)}")
 
     def _workbench() -> Any:
         if workbench_factory is not None:
@@ -255,7 +256,7 @@ def _register_workbench_tools(
         try:
             slots = await wc.slots()
         except Exception as e:
-            return _err(f"workbench unreachable: {e}")
+            return _err(f"workbench unreachable: {describe(e)}")
         return {
             "ok": True,
             "slots": [
@@ -316,7 +317,7 @@ def _register_workbench_tools(
             try:
                 blob = await fc.get_firmware(fleet_run_id, factory=factory)
             except Exception as e:
-                return _err(f"could not fetch firmware for run {fleet_run_id}: {e}")
+                return _err(f"could not fetch firmware for run {fleet_run_id}: {describe(e)}")
             # The artifact kind decides the offset and getting it wrong
             # bricks the board, so read it off the bytes rather than
             # trusting which endpoint served them.
@@ -339,7 +340,7 @@ def _register_workbench_tools(
         try:
             ok, reason = (await wc.slot(slot)).flashable
         except Exception as e:
-            return _err(f"workbench unreachable: {e}")
+            return _err(f"workbench unreachable: {describe(e)}")
         if not ok:
             return _err(f"slot {slot} is not flashable: {reason}")
 
@@ -605,7 +606,7 @@ def _register_lorawan_tools(
         try:
             ok, reason = wb.slot_sync(slot).flashable
         except Exception as e:
-            return _err(f"workbench unreachable: {e}")
+            return _err(f"workbench unreachable: {describe(e)}")
         if not ok:
             return _err(f"slot {slot} is not flashable: {reason}")
 
@@ -690,7 +691,7 @@ def _register_fleet_tools(
         except ValueError as e:
             return _err(str(e))
         except Exception as e:
-            return _err(f"fleet unreachable: {e}")
+            return _err(f"fleet unreachable: {describe(e)}")
         return {
             "ok": True,
             "filename": result.filename,
@@ -715,7 +716,7 @@ def _register_fleet_tools(
         try:
             status = await fc.get_run_status(run_id)
         except Exception as e:
-            return _err(f"fleet unreachable: {e}")
+            return _err(f"fleet unreachable: {describe(e)}")
         return {
             "ok": True,
             "run_id": status.run_id,
@@ -745,7 +746,7 @@ def _register_fleet_tools(
         try:
             chunk = await fc.get_job_log(run_id, offset=offset)
         except Exception as e:
-            return _err(f"fleet unreachable: {e}")
+            return _err(f"fleet unreachable: {describe(e)}")
         return {
             "ok": True, "run_id": run_id,
             "log": chunk.log, "offset": chunk.offset, "finished": chunk.finished,
@@ -767,5 +768,5 @@ def _register_fleet_tools(
         try:
             blob = await fc.get_firmware(run_id, factory=factory)
         except Exception as e:
-            return _err(f"firmware not available for run {run_id}: {e}")
+            return _err(f"firmware not available for run {run_id}: {describe(e)}")
         return {"ok": True, "run_id": run_id, "factory": factory, "bytes": len(blob)}
