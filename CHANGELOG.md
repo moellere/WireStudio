@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Documented that the first join after a flash fails, and that verbose
+  logging is not why.** `-1116` (no join-accept) on the boot right after
+  new firmware is written is expected: it costs one uplink interval and
+  one DevNonce, then recovers. Measured 11 reboots (all joined first
+  try) against 4 flashes (all failed first try), on both a default and a
+  VERBOSE build -- so the logger level, which the symptom was previously
+  attributed to, makes no difference.
+
 ### Fixed
 
 - **Network failures reported a bare colon and nothing else.** httpx
