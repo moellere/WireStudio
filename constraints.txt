@@ -1,0 +1,124 @@
+# Reproducible image builds.
+#
+# pyproject.toml carries lower bounds only, and the Dockerfile installs
+# with plain `pip install .`, so two images built a week apart resolve
+# different versions of everything -- including transitive packages
+# nothing here declares. That is how staging and prod ended up on
+# different httpx2 minors (an mcp 2.x dependency) in August 2026.
+#
+# This file caps what the image resolves. It does not *cause* anything
+# to be installed: a constraint only applies to a package pip is already
+# pulling in, so entries for extras (platformio, the lorawan set) are
+# inert in the base image.
+#
+# Refresh deliberately, not casually -- the point is that it only moves
+# when someone decides it should:
+#
+#   1. build/run an image you trust, or a clean venv from pyproject
+#   2. python -m pip freeze | grep -viE '^wirestudio==|^-e |@ file://' | sort
+#   3. paste below, run the suite, commit in its own change
+#
+# Generated 2026-08-22 from the wirestudio 0.28.0-full image serving prod.
+ajsonrpc==1.2.0
+annotated-doc==0.0.5
+annotated-types==0.8.0
+anthropic==1.0.0
+anyio==4.14.2
+attrs==26.1.0
+bottle==0.13.4
+cairocffi==1.7.1
+CairoSVG==2.9.0
+certifi==2026.7.22
+cffi==2.1.1
+charset-normalizer==3.5.1
+chirpstack-api==4.19.0
+click==8.3.3
+colorama==0.4.6
+contourpy==1.3.3
+cryptography==50.0.0
+cssselect2==0.9.0
+cycler==0.12.1
+defusedxml==0.7.1
+Deprecated==1.3.1
+deprecation==2.1.0
+diskcache==5.6.3
+docstring_parser==0.18.0
+fastapi==0.141.1
+fonttools==4.63.0
+google-api-core==2.34.0
+googleapis-common-protos==1.75.1
+google-auth==2.56.3
+graphviz==0.21
+grpcio==1.83.0
+h11==0.16.0
+h5py==3.16.0
+hierplace==1.1.0
+httpcore==1.0.9
+httpcore2==2.12.0
+httptools==0.8.0
+httpx==0.28.1
+httpx2==2.12.0
+idna==3.19
+InSpice==1.6.3.3
+Jinja2==3.1.6
+jiter==0.16.0
+jsonschema==4.26.0
+jsonschema-specifications==2025.9.1
+kinet2pcb==1.1.4
+kiwisolver==1.5.0
+limits==5.8.0
+markdown-it-py==4.2.0
+MarkupSafe==3.0.3
+marshmallow==3.26.2
+matplotlib==3.11.1
+mcp==2.0.0
+mcp-types==2.0.0
+mdurl==0.1.2
+numpy==2.4.6
+opentelemetry-api==1.44.0
+packaging==26.3
+paho-mqtt==2.1.0
+pillow==12.3.0
+platformio==6.1.19
+ply==3.11
+protobuf==7.36.0
+proto-plus==1.28.3
+pyasn1==0.6.4
+pyasn1_modules==0.4.2
+pycparser==3.0
+pydantic==2.13.4
+pydantic_core==2.46.4
+pyelftools==0.33
+Pygments==2.21.0
+PyJWT==2.13.0
+pyparsing==3.3.2
+pyserial==3.5
+python-dateutil==2.9.0.post0
+python-dotenv==1.2.3
+python-multipart==0.0.32
+PyYAML==6.0.3
+referencing==0.37.0
+requests==2.34.2
+rich==15.0.0
+rpds-py==2026.6.3
+semantic-version==2.10.0
+simp_sexp==0.3.1
+six==1.17.0
+skidl==2.3.0
+slowapi==0.1.10
+sniffio==1.3.1
+sse-starlette==3.4.8
+starlette==0.52.1
+tabulate==0.10.0
+tinycss2==1.5.1
+truststore==0.10.4
+typing_extensions==4.16.0
+typing-inspection==0.4.4
+urllib3==2.7.0
+uvicorn==0.40.0
+uvloop==0.22.1
+watchfiles==1.2.0
+webencodings==0.6.1
+websockets==17.0.1
+wrapt==2.3.0
+wsproto==1.3.2

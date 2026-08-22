@@ -126,6 +126,35 @@ board *before* bumping. When it does, bump the pin (and add the new
 version to the matrix list); when it's red, the failing examples show
 what upstream changed.
 
+### Refreshing the image constraints
+
+`constraints.txt` pins every package the runtime image resolves, and the
+Dockerfile installs with `pip install -c constraints.txt .`. Without it
+`pyproject.toml` carries lower bounds only, so two images built weeks
+apart get different versions of everything — including transitive
+packages nothing in `pyproject.toml` names. That is how staging and prod
+ended up on different `httpx2` minors, a dependency that arrived with
+mcp 2.x and that no wirestudio code imports.
+
+It is *not* a lockfile: it caps versions, it does not resolve or install
+them. Constraints only apply to packages pip is already pulling in, so
+entries for the `lorawan` extra sit inert in the base image.
+
+To move it:
+
+```sh
+# from a clean venv built off pyproject, or an image you trust
+python -m pip freeze | grep -viE '^wirestudio==|^-e |@ file://' | sort
+```
+
+Paste the result under the header, run the suite, and commit it on its
+own. The point of the file is that it moves when someone decides it
+should — bundling a refresh into an unrelated PR hides a dependency
+change inside a diff nobody is reading for that.
+
+Generate it against the image's Python (3.11), not whatever is on your
+machine — pins that resolve on 3.13 may have no 3.11 wheel.
+
 ### Nightly compile smoke
 
 `.github/workflows/esphome-compile.yml` runs `esphome compile`
