@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Image builds are now constrained.** `pyproject.toml` carries lower
+  bounds only and the Dockerfile installed with a bare
+  `pip install .`, so two images built weeks apart resolved different
+  versions of everything -- including transitive packages nothing
+  declares. `constraints.txt` caps the whole set (103 pins, taken from
+  the 0.28.0-full image serving prod) and both install lines now use
+  `-c constraints.txt`. Refresh procedure in `CONTRIBUTING.md`.
+
+  The prompt was staging and prod landing on different `httpx2` minors,
+  a dependency that arrived with mcp 2.x and that no wirestudio code
+  imports. They happened to reconverge on the next build, which is the
+  actual problem: they agreed by coincidence of timing rather than by
+  construction.
+
 ## [0.28.0] — 2026-08-22
 
 ### Changed
