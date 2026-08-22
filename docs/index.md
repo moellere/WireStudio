@@ -319,8 +319,17 @@ state backend so the studio can run as a HA replica; attributing
 `esphome-matrix` failures to specific components for per-release
 support tables.
 
-**Known debt** — `mcp` is pinned to `<2` (0.24.1). mcp 2.0.0 removed
-the `mcp.server.fastmcp` import path the MCP server is built on, so
-images built against it crashed at boot; the pin restores a bootable
-image but freezes the dependency. Migrating to the mcp 2.x API is
-outstanding.
+**Retired debt** — `mcp` was pinned to `<2` from 0.24.1, because mcp
+2.0.0 removed the `mcp.server.fastmcp` import path the server is built
+on and images built against it crashed at boot. Migrated in #225: the
+package became `mcp.server.mcpserver` and the class `MCPServer`, with
+three real breaks beyond the rename — `Settings` dropped
+`transport_security` (now an argument to `streamable_http_app()`),
+`call_tool` returns a `CallToolResult` rather than a content sequence,
+and the model fields are snake_case. Verified on staging, where the
+image has served for days without a restart.
+
+Note mcp 2.x pulls **httpx2**, a distribution separate from httpx. The
+import names differ, so it coexists with the studio's own httpx usage
+rather than replacing it — at the cost of a second HTTP stack in the
+image.
