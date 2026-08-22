@@ -8,6 +8,9 @@ framework: arduino
 # ESP32-S3 core, same console wiring) but partitions for 8MB of the
 # 16MB flash. Switch when upstream ships a V4 def.
 platformio_board: heltec_wifi_lora_32_V3
+# Verified on silicon: the ESP-IDF bootloader reports
+#   I (33) boot.esp32s3: SPI Flash Size : 16MB
+# on the bench unit (2026-08-01, re-confirmed 2026-08-22).
 flash_size_mb: 16
 
 rails:

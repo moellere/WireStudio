@@ -159,7 +159,7 @@ mcu: esp32                    # esp8266 | esp32 today; any ESPHome-supported MCU
 chip_variant: esp32c3         # PlatformIO chip variant
 framework: arduino            # arduino | esp-idf
 platformio_board: example_devkit
-flash_size_mb: 4
+flash_size_mb: 4              # see "Flash size" below -- get this wrong upward and the board boot-loops
 image: https://example.com/img/devkit.png
 
 # --- power (required; current budget validation) ---
@@ -224,6 +224,38 @@ radio:
   tcxo_voltage: 1.8
   dio2_as_rf_switch: true
 ```
+
+### Flash size
+
+`flash_size_mb` is emitted into the ESPHome config and drives the
+partition table, so it is the one field where a wrong value bricks
+rather than degrades. The asymmetry matters:
+
+- **Under-declaring wastes flash.** A 16MB board declared as 8MB loses
+  half its OTA slots and nothing else.
+- **Over-declaring boot-loops the board.** Declaring 8MB on a 4MB
+  PICO-D4 is how a Heltec V2 was bricked in 0.26.x.
+
+So when in doubt, declare the smallest size the board ships with, and
+say so in a comment. Several bundled boards carry exactly that note.
+
+**Boards sold in multiple flash sizes under one name are the trap.** The
+ESP32-S3-DevKitC-1 ships as N8/N8R2/N8R8 (8MB) *and* N32R16V (32MB); no
+static value is right for every unit. Pin the floor and comment that it
+must not be raised.
+
+To verify against silicon, the reliable route is the ESP-IDF bootloader,
+which prints the real size at boot:
+
+```
+I (33) boot.esp32s3: SPI Flash Size : 16MB
+```
+
+That line only appears on ESP-IDF builds — an Arduino-framework board
+prints ROM output and nothing about flash. `esptool flash-id` reads it
+directly, but needs the chip in download mode, which auto-reset over a
+network RFC2217 link does not reliably achieve; drive the board's
+boot/reset pins, or run esptool locally over USB.
 
 ## Validation tiers
 
