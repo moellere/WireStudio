@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Board `flash_size_mb` now records where its value came from.** The
+  field drives the ESPHome partition table, and the failure is
+  asymmetric: under-declaring wastes flash, over-declaring boot-loops
+  the board. Six boards now carry provenance -- two verified against
+  silicon, three from vendor docs and marked unverified, and
+  `esp32-s3-devkitc-1` marked as a floor that must not be raised,
+  because Espressif sells it as both an 8MB and a 32MB part under one
+  name. `docs/integration_spec.md` explains the asymmetry and how to
+  read the real size off an ESP-IDF bootloader.
+
 ### Added
 
 - **A gate that keeps `constraints.txt` honest.** The pins added in

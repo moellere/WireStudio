@@ -4,6 +4,10 @@ mcu: esp32
 chip_variant: esp32s3
 framework: arduino
 platformio_board: heltec_wifi_lora_32_V3
+# Vendor docs and the ESPHome device page agree on 8MB (ESP32-S3FN8,
+# FN8 = 8MB, no PSRAM). No alternate-size SKU found, but Heltec
+# publishes no ordering matrix -- so this is 'no contrary evidence',
+# not vendor-guaranteed. Unverified against silicon.
 flash_size_mb: 8
 
 rails:
