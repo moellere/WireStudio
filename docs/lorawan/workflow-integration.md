@@ -211,6 +211,53 @@ gateway and the WireStudio integration is correct end-to-end.
 
 The test is hand-driven after W2 lands and one-click after W3.
 
+### The first join after a flash fails — expected, not a fault
+
+Step 5 will usually show this on the very first attempt:
+
+```
+[W][lorawan:155]: OTAA join failed: -1116
+```
+
+`-1116` is "no join-accept received". One uplink interval later the retry
+succeeds and the device is normal from then on:
+
+```
+22:24:31  OTAA join failed: -1116      <- immediately after the flash
+22:29:30  OTAA join OK (new session)   <- retry, one interval later
+22:34:25  uplink sent (12 bytes)
+```
+
+Do not chase it. It costs one uplink interval of downtime and one
+DevNonce, and it recovers on its own.
+
+**It follows a flash, not a reboot.** Measured on a Heltec V4 against a
+live gateway:
+
+| Event | Trials | First join |
+|---|---|---|
+| Reboot (reset or power cycle) | 11 | **OK ×11** |
+| Flash | 4 | **failed ×4** |
+
+So a device that is merely power-cycled — acceptance step 7 — re-joins
+first try, and nonce persistence across reboots holds. Only the boot
+immediately after new firmware is written shows this.
+
+**Verbose logging is not the cause**, despite looking like it. Enabling
+`logger: level: VERBOSE` does slow the RX windows and produces the
+banner *"VERBOSE logging is active — performance impact"*, so the two
+coincide whenever you flash a debug build. Measured separately, four
+reboots on a VERBOSE build joined first-try, and a flash of a *default*
+logger build failed exactly the same way. The logger level makes no
+difference to this.
+
+The mechanism is not established. The plausible candidate is DevNonce
+state: ESPHome preferences are keyed partly on config, so writing a
+changed config can orphan the persisted nonce, and a replayed DevNonce
+is dropped silently by the network — which looks exactly like "no
+join-accept". Unconfirmed; the failed attempt persists a fresh nonce,
+which is consistent with the retry then succeeding.
+
 ## Risks / unknowns
 
 - **ESPHome external-components fetch.** ESPHome's build needs outbound
