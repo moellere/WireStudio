@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Network failures reported a bare colon and nothing else.** httpx
+  raises `ConnectTimeout`, `ReadTimeout`, `PoolTimeout`, `ConnectError`,
+  `ReadError` and `RemoteProtocolError` with **no message**, so the
+  `f"...: {e}"` used in ~20 places rendered as
+  `firmware not available for run <id>: ` or `unreachable: `. Because
+  only some failure modes carry text, the same tool gave a useful
+  message one minute and an empty one the next -- which read as an
+  intermittent bug rather than a whole class of error with nothing to
+  say. Exceptions now render through `wirestudio.errors.describe`,
+  which falls back to the class name.
+
 ### Changed
 
 - **Board `flash_size_mb` now records where its value came from.** The

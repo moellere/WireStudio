@@ -22,6 +22,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Response
 
 from wirestudio.library import Library, LibraryBoard
+from wirestudio.errors import describe
 
 _RELEASES_LATEST = "https://api.github.com/repos/adafruit/circuitpython/releases/latest"
 _BIN_BASE = "https://downloads.circuitpython.org/bin"
@@ -83,7 +84,7 @@ def firmware_status() -> dict:
         version = _latest_stable()
         available, reason = True, None
     except Exception as e:
-        version, available, reason = None, False, f"release lookup failed: {e}"
+        version, available, reason = None, False, f"release lookup failed: {describe(e)}"
     return {
         "available": available,
         "version": version,
@@ -231,7 +232,7 @@ def router(lib: Library) -> APIRouter:
             data = _fetch_firmware(url)
         except Exception as e:
             raise HTTPException(
-                status_code=502, detail=f"could not fetch firmware: {e}"
+                status_code=502, detail=f"could not fetch firmware: {describe(e)}"
             ) from e
         return Response(
             content=data,

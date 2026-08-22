@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from typing import AsyncIterator, Iterator, Optional
 
 import httpx
+from wirestudio.errors import describe
 
 
 class WorkbenchUnavailable(RuntimeError):
@@ -167,7 +168,7 @@ class WorkbenchClient:
             async with self._client() as c:
                 r = await c.get("/api/info")
         except httpx.HTTPError as e:
-            return False, f"unreachable: {e}"
+            return False, f"unreachable: {describe(e)}"
         if r.status_code == 401:
             return False, "unauthorized (check WORKBENCH_TOKEN)"
         if r.status_code >= 400:
@@ -196,7 +197,7 @@ class WorkbenchClient:
             async with self._client() as c:
                 r = await c.get(path)
         except httpx.HTTPError as e:
-            raise WorkbenchUnavailable(f"unreachable: {e}") from e
+            raise WorkbenchUnavailable(f"unreachable: {describe(e)}") from e
         if r.status_code == 401:
             raise WorkbenchUnavailable("unauthorized (check WORKBENCH_TOKEN)")
         if r.status_code >= 400:
@@ -239,7 +240,7 @@ class WorkbenchClient:
             async with self._client(timeout=self.flash_timeout) as c:
                 r = await c.post("/api/flash", data=form, files=files)
         except httpx.HTTPError as e:
-            raise WorkbenchUnavailable(f"flash transport failed: {e}") from e
+            raise WorkbenchUnavailable(f"flash transport failed: {describe(e)}") from e
 
         for event in _flash_events(r, slot):
             yield event
@@ -268,7 +269,7 @@ class WorkbenchClient:
             with self._sync_client() as c:
                 r = c.get("/api/devices")
         except httpx.HTTPError as e:
-            raise WorkbenchUnavailable(f"unreachable: {e}") from e
+            raise WorkbenchUnavailable(f"unreachable: {describe(e)}") from e
         if r.status_code == 401:
             raise WorkbenchUnavailable("unauthorized (check WORKBENCH_TOKEN)")
         if r.status_code >= 400:
@@ -305,7 +306,7 @@ class WorkbenchClient:
             with self._sync_client(timeout=self.flash_timeout) as c:
                 r = c.post("/api/flash", data=form, files=files)
         except httpx.HTTPError as e:
-            raise WorkbenchUnavailable(f"flash transport failed: {e}") from e
+            raise WorkbenchUnavailable(f"flash transport failed: {describe(e)}") from e
         yield from _flash_events(r, slot)
 
 

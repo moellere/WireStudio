@@ -379,6 +379,37 @@ async def test_fleet_firmware_info_reports_size_not_bytes(tmp_path):
     assert "data" not in out and "firmware" not in out
 
 
+async def test_transport_failure_names_the_error_not_a_bare_colon(tmp_path):
+    """httpx raises timeouts with no message, so `f"{e}"` renders empty.
+
+    The tool then reported `firmware not available for run <id>: ` --
+    a failure with nothing after the colon, which reads as an
+    intermittent bug in the tool rather than a class of error that
+    carries no text.
+    """
+    def timing_out(_request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectTimeout("")
+
+    server, _ = _server(tmp_path, fleet_handler=timing_out)
+
+    out = _payload(await server.call_tool("fleet_firmware_info", {"run_id": "run-1"}))
+    assert out["ok"] is False
+    assert not out["error"].rstrip().endswith(":"), out["error"]
+    assert "ConnectTimeout" in out["error"], out["error"]
+
+
+async def test_fleet_status_reason_is_never_blank(tmp_path):
+    def timing_out(_request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("")
+
+    server, _ = _server(tmp_path, fleet_handler=timing_out)
+
+    out = _payload(await server.call_tool("fleet_status", {}))
+    assert out["available"] is False
+    assert out["reason"] and out["reason"].strip() != "unreachable:"
+    assert "ConnectError" in out["reason"], out["reason"]
+
+
 async def test_fleet_tools_without_config_are_errors(tmp_path):
     server, _ = _server(tmp_path)
     out = _payload(await server.call_tool("fleet_push", {"design_id": "bench-dut"}))

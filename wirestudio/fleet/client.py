@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 import httpx
+from wirestudio.errors import describe
 
 
 _FILENAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
@@ -134,7 +135,7 @@ class FleetClient:
             async with self._client() as c:
                 r = await c.get("/ui/api/targets")
         except httpx.HTTPError as e:
-            return False, f"unreachable: {e}"
+            return False, f"unreachable: {describe(e)}"
         if r.status_code == 401:
             return False, "unauthorized (check FLEET_TOKEN)"
         if r.status_code >= 400:
