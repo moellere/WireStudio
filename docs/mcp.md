@@ -75,6 +75,46 @@ session, `/mcp` shows the wirestudio tools and resources.
 
 Restart Claude Desktop. The wirestudio tools appear in the tool menu.
 
+**Python SDK** — the studio requires `mcp` 2.x, whose client differs
+from 1.x in two ways that are easy to trip over. The entry point is
+`streamable_http_client` (was `streamablehttp_client`), and it takes an
+`http_client` rather than `headers`:
+
+```python
+import httpx2
+from mcp import ClientSession
+from mcp.client.streamable_http import streamable_http_client
+
+# timeout: httpx2 defaults to 5s, which is too short -- see below.
+http = httpx2.AsyncClient(headers={"Authorization": "Bearer <token>"},
+                          timeout=60)
+
+async with streamable_http_client("http://localhost:8765/mcp",
+                                  http_client=http) as (read, write, *_):
+    async with ClientSession(read, write) as session:
+        await session.initialize()
+        tools = (await session.list_tools()).tools
+```
+
+**Set the timeout.** `httpx2.AsyncClient()` defaults to
+`Timeout(timeout=5.0)`, and that budget covers the streamed response, so
+any tool call slower than five seconds tears the SSE stream down. The
+error names neither the timeout nor the tool:
+
+```
+MCPError: SSE stream ended without a response
+```
+
+It also fails *intermittently*, because it depends on how slow the call
+happens to be — which reads like a flaky server rather than a client
+setting. Several hardware tools fetch server-side before returning:
+`fleet_firmware_info` downloads the build artifact (a few hundred KB),
+and `workbench_flash` with a `fleet_run_id` does the same before handing
+back a job id. Sixty seconds is a comfortable default.
+
+Note this applies to the Python SDK only. Claude Code and Claude Desktop
+speak HTTP directly and are unaffected.
+
 ### 4. Create a design to edit
 
 The design-editing tools operate on a design that already exists in the
@@ -248,6 +288,11 @@ leaves `running`, and read the log with `job_events` using the returned
 `next_since` cursor.
 
 Jobs live in the server process and are lost on restart.
+
+Returning a handle keeps the *call* short, but a few tools still do real
+work before they answer — fetching an artifact, probing a bench. On the
+Python SDK that runs into the client's five-second default; see
+[Wire up a client](#3-wire-up-a-client).
 
 **A `job_id` and a `run_id` are not interchangeable.** Fleet builds keep
 their own `run_id`, which belongs to the addon's GitHub run, outlives a
