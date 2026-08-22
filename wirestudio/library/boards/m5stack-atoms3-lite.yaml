@@ -4,6 +4,8 @@ mcu: esp32
 chip_variant: esp32s3
 framework: arduino
 platformio_board: esp32-s3-devkitc-1
+# M5Stack shop spec gives 8MB (ESP32-S3FN8), PSRAM: None.
+# Unverified against silicon.
 flash_size_mb: 8
 image: https://static-cdn.m5stack.com/resource/docs/products/core/AtomS3%20Lite/img-dc6432b6-fd9b-4066-9a4d-49786503d1a3.webp
 

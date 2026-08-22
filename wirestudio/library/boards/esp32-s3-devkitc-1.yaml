@@ -4,6 +4,13 @@ mcu: esp32
 chip_variant: esp32s3
 framework: arduino
 platformio_board: esp32-s3-devkitc-1
+# FLOOR -- do not raise. Espressif sells this one board name across
+# several modules: N8 / N8R2 / N8R8 (8MB, WROOM-1) and N32R16V (32MB,
+# WROOM-2). No single value is correct for every unit, so this is the
+# smallest. Under-declaring only wastes flash; over-declaring boot-loops
+# the board, which is how a Heltec V2 was bricked in 0.26.x by an 8MB
+# declaration on a 4MB part. Unverified against silicon.
+# https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32s3/esp32-s3-devkitc-1/user_guide_v1.1.html
 flash_size_mb: 8
 
 rails:

@@ -8,6 +8,8 @@ platformio_board: heltec_wifi_lora_32_V2
 # definition claims 8 MB; building against that makes the bootloader assert on
 # the size mismatch and boot-loop. Verified on hardware: esptool reports
 # "Detected size(4096k)" and the 8 MB image never reaches setup().
+# Verified on silicon the hard way: declaring 8MB here in 0.26.x
+# boot-looped the bench unit, whose PICO-D4 carries 4MB. Do not raise.
 flash_size_mb: 4
 
 rails:
