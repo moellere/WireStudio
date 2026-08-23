@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.28.2] — 2026-08-23
+
+### Added
+
+- **A gate that keeps `constraints.txt` honest.** The pins added in
+  0.28.1 only hold while the file names every package pip installs; add
+  a dependency to `pyproject.toml` and it is simply not pinned, nothing
+  fails, and builds can drift again. The `constraints` workflow installs
+  under the pins on Python 3.11 (the image's) and fails if anything
+  arrived unpinned. Runnable locally via
+  `scripts/check_constraints.py`.
+
 ### Changed
 
 - **Documented that the first join after a flash fails, and that verbose
@@ -16,6 +28,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   try) against 4 flashes (all failed first try), on both a default and a
   VERBOSE build -- so the logger level, which the symptom was previously
   attributed to, makes no difference.
+- **Board `flash_size_mb` now records where its value came from.** The
+  field drives the ESPHome partition table, and the failure is
+  asymmetric: under-declaring wastes flash, over-declaring boot-loops
+  the board. Six boards now carry provenance -- two verified against
+  silicon, three from vendor docs and marked unverified, and
+  `esp32-s3-devkitc-1` marked as a floor that must not be raised,
+  because Espressif sells it as both an 8MB and a 32MB part under one
+  name. `docs/integration_spec.md` explains the asymmetry and how to
+  read the real size off an ESP-IDF bootloader.
 
 ### Fixed
 
@@ -29,28 +50,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   intermittent bug rather than a whole class of error with nothing to
   say. Exceptions now render through `wirestudio.errors.describe`,
   which falls back to the class name.
-
-### Changed
-
-- **Board `flash_size_mb` now records where its value came from.** The
-  field drives the ESPHome partition table, and the failure is
-  asymmetric: under-declaring wastes flash, over-declaring boot-loops
-  the board. Six boards now carry provenance -- two verified against
-  silicon, three from vendor docs and marked unverified, and
-  `esp32-s3-devkitc-1` marked as a floor that must not be raised,
-  because Espressif sells it as both an 8MB and a 32MB part under one
-  name. `docs/integration_spec.md` explains the asymmetry and how to
-  read the real size off an ESP-IDF bootloader.
-
-### Added
-
-- **A gate that keeps `constraints.txt` honest.** The pins added in
-  0.28.1 only hold while the file names every package pip installs; add
-  a dependency to `pyproject.toml` and it is simply not pinned, nothing
-  fails, and builds can drift again. The `constraints` workflow installs
-  under the pins on Python 3.11 (the image's) and fails if anything
-  arrived unpinned. Runnable locally via
-  `scripts/check_constraints.py`.
 
 ## [0.28.1] — 2026-08-22
 
