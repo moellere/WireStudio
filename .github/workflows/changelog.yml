@@ -21,6 +21,13 @@ name: changelog
 #   - put [skip changelog] anywhere in the PR title, or
 #   - add the `skip-changelog` label to the PR.
 
+#
+# The `shape` job is separate and unexempted: it checks the section is
+# still coherent rather than whether an entry was required. Four PRs each
+# writing "### Fixed" leaves four Fixed blocks, which is only visible when
+# someone reads the whole section at release time -- 0.27.0 and 0.28.2
+# both needed that tidy-up by hand.
+
 on:
   pull_request:
     branches: [main, dev]
@@ -56,3 +63,17 @@ jobs:
             exit 1
           fi
           echo "changelog check: OK"
+
+  # Deliberately a separate job with no exemptions. The gate above asks
+  # "is there an entry?" and can be skipped; this one asks "is the
+  # section still coherent?", which is cheap and true regardless of who
+  # opened the PR or whether they were required to write an entry.
+  shape:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: No duplicate or unknown headings under [Unreleased]
+        run: python scripts/check_changelog.py
