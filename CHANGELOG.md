@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **A check that `[Unreleased]` keeps one heading per kind.** Every PR
+  adds its own entry, so four PRs each writing `### Fixed` left four
+  separate Fixed blocks -- visible only when someone read the whole
+  section at release time, which 0.27.0 and 0.28.2 both needed by hand.
+  Also catches a misspelled heading (`### Fixes`), which fails the same
+  way but looks correct in a diff. Released sections are not checked:
+  0.26.0, 0.25.0 and 0.17.0 already carry duplicates, so enforcing
+  history would block unrelated work.
+
 ## [0.28.2] — 2026-08-23
 
 ### Added
