@@ -301,5 +301,9 @@ done
       board's `enclosure:` block).
 - [ ] If you added or changed a library entry, an example uses it.
 - [ ] If a golden changed, the regenerated golden is in the same diff.
+- [ ] Your CHANGELOG entry went under an *existing* heading if
+      `[Unreleased]` already has one — `python scripts/check_changelog.py`
+      fails on a second `### Fixed` rather than leaving it to be merged
+      by hand at release time.
 - [ ] If you bumped the ESPHome pin, all three pin sites (config
       workflow, compile workflow, README) moved together.
