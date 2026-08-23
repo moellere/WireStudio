@@ -47,6 +47,7 @@ HARDWARE_TOOLS = {
     "job_list",
     "workbench_status",
     "workbench_slots",
+    "workbench_verify_boot",
     "workbench_flash",
     "lorawan_chirpstack_status",
     "lorawan_compile",

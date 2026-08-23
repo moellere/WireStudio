@@ -188,6 +188,44 @@ class WorkbenchClient:
                 return s
         raise WorkbenchUnavailable(f"no such slot '{label}'")
 
+    async def monitor(
+        self, slot: str, pattern: Optional[str] = None, timeout: float = 10.0
+    ) -> dict:
+        """Watch a slot's serial for `pattern`, up to `timeout` seconds.
+
+        The bench reads through its read-only fan-out port rather than an
+        RFC2217 client, so this cannot disturb the device it is watching --
+        which is what makes it safe to assert on a board mid-boot.
+
+        Returns the bench's answer as-is: {matched, line, output}.
+        """
+        body: dict = {"slot": slot, "timeout": timeout}
+        if pattern is not None:
+            body["pattern"] = pattern
+        # The bench blocks for `timeout` before answering, so the HTTP read
+        # has to outlast it.
+        return await self._post_json("/api/serial/monitor", body,
+                                     read_timeout=timeout + 15.0)
+
+    async def output(
+        self, slot: str, lines: int = 500, since: float = 0
+    ) -> list[dict]:
+        """Read the slot's recorder buffer -- lines already captured.
+
+        The recorder runs whenever the proxy is up, so this sees output
+        that was printed before anyone was watching. `monitor` cannot:
+        it waits for the *next* line, which loses any marker emitted in
+        the second between a flash finishing and the call starting.
+
+        Note the bench returns the OLDEST `lines` entries after `since`,
+        not the newest, so pass a `since` that brackets the window you
+        care about rather than relying on a small `lines`.
+        """
+        data = await self._get_json(
+            f"/api/serial/output?slot={slot}&lines={lines}&since={since}"
+        )
+        return data.get("lines", [])
+
     async def _get_json(self, path: str) -> dict:
         if not self.is_configured():
             raise WorkbenchUnavailable(
@@ -196,6 +234,24 @@ class WorkbenchClient:
         try:
             async with self._client() as c:
                 r = await c.get(path)
+        except httpx.HTTPError as e:
+            raise WorkbenchUnavailable(f"unreachable: {describe(e)}") from e
+        if r.status_code == 401:
+            raise WorkbenchUnavailable("unauthorized (check WORKBENCH_TOKEN)")
+        if r.status_code >= 400:
+            raise WorkbenchUnavailable(f"{path}: http {r.status_code}")
+        return r.json()
+
+    async def _post_json(
+        self, path: str, body: dict, read_timeout: Optional[float] = None
+    ) -> dict:
+        if not self.is_configured():
+            raise WorkbenchUnavailable(
+                self.unconfigured_reason() or "workbench not configured"
+            )
+        try:
+            async with self._client() as c:
+                r = await c.post(path, json=body, timeout=read_timeout)
         except httpx.HTTPError as e:
             raise WorkbenchUnavailable(f"unreachable: {describe(e)}") from e
         if r.status_code == 401:
