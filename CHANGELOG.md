@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Boot-marker verification (workbench phase 2, server side).** A
+  successful flash proves bytes reached the chip and nothing more -- a
+  wrong flash size or an undriven front end flashes perfectly and then
+  fails at start-up, which is the failure class CI cannot see. The new
+  `workbench_verify_boot` MCP tool watches a slot for a line the running
+  firmware emits, upgrading "flashed" to "flashed and booted". Supports
+  `esphome`, `lorawan` (standalone RadioLib) and `lorawan-esphome`;
+  Meshtastic and CircuitPython are explicitly unsupported with the
+  reason, rather than approximated.
+- Joining is a separate, opt-in check with a 7-minute budget, because
+  the first join after a flash reliably fails and only the retry --
+  one uplink interval later -- succeeds. Asserting it by default would
+  fail on a healthy board.
+
 - **A check that `[Unreleased]` keeps one heading per kind.** Every PR
   adds its own entry, so four PRs each writing `### Fixed` left four
   separate Fixed blocks -- visible only when someone read the whole

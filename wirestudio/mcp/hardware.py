@@ -241,6 +241,44 @@ def _register_workbench_tools(
         }
 
     @mcp.tool(
+        name="workbench_verify_boot",
+        description=(
+            "Assert that firmware on a slot actually started, by watching "
+            "the slot's serial for a line the running firmware emits. A "
+            "successful flash only proves bytes reached the chip -- a wrong "
+            "flash size or an undriven front end flashes perfectly and then "
+            "fails at start-up. Frameworks: esphome, lorawan (standalone "
+            "RadioLib), lorawan-esphome.\n\n"
+            "Set check_join=true to additionally wait for the LoRaWAN join. "
+            "It is off by default and generously timed because the first "
+            "join after a flash reliably fails and only the retry, one "
+            "uplink interval later, succeeds -- so asserting it immediately "
+            "would fail on a healthy board.\n\n"
+            "Pass `since` (an epoch from just before the flash) so the slot's "
+            "already-captured output is searched before waiting on new "
+            "lines -- a boot marker is printed once, seconds after reset, "
+            "and is usually gone by the time you ask.\n\n"
+            "Returns booted=true/false rather than erroring: a board that "
+            "flashed but did not boot is a result. When it did not boot, "
+            "recent_output carries what it printed instead."
+        ),
+    )
+    async def workbench_verify_boot(
+        slot: str, framework: str, check_join: bool = False,
+        since: Optional[float] = None,
+    ) -> dict:
+        wc = workbench()
+        if not wc.is_configured():
+            return _err("workbench not configured (set WORKBENCH_URL)")
+        from wirestudio.workbench.boot import verify_boot
+
+        try:
+            return await verify_boot(wc, slot, framework,
+                                     since=since, check_join=check_join)
+        except Exception as e:
+            return _err(f"workbench unreachable: {describe(e)}")
+
+    @mcp.tool(
         name="workbench_slots",
         description=(
             "List the bench's USB slots: label, state, present, detected "
