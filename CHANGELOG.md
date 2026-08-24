@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.30.0] — 2026-08-24
+
 ### Added
 
 - **Nightly hardware gate (workbench phase 3).** A new
