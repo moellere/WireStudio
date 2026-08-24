@@ -52,6 +52,7 @@ pcb = [
 [project.scripts]
 wirestudio-generate = "wirestudio.generate.__main__:main"
 wirestudio-api = "wirestudio.api.__main__:main"
+wirestudio-hardware-gate = "wirestudio.workbench.gate:main"
 
 [tool.setuptools.dynamic]
 version = { attr = "wirestudio.__version__" }
