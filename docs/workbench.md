@@ -224,3 +224,26 @@ real traffic, and reflashing one nightly costs a rejoin, a DevNonce and
 about ten minutes off the air each time. Until then the gate is a
 bench-health detector, and the "no live-flash gate" caveat on the
 framework tiers still stands.
+
+### How a failure reaches you
+
+There is no PR to annotate, so a failed Job is the report. Two Prometheus
+alerts turn that into a push notification via the cluster's
+alertmanager → ntfy bridge:
+
+- `WireStudioHardwareGateFailed` — the newest run failed and nothing has
+  succeeded since. It compares against the CronJob's `lastSuccessfulTime`
+  rather than alerting on `kube_job_status_failed` directly, because
+  failed Jobs are deliberately kept for a week as evidence and a bare
+  `> 0` would keep firing long after a fix. Re-running the gate by hand
+  clears it: `kubectl create job --from=cronjob/...` inherits the
+  CronJob's ownerReference, so `lastSuccessfulTime` advances.
+- `WireStudioHardwareGateStale` — no successful run in 26 hours. This
+  covers the mode the gate itself is built around: absence reading as
+  health. If the CronJob stops firing there is no failed Job to find, so
+  the first alert stays silent; staleness cannot be fooled that way, and
+  it also catches a sustained failure whose Jobs have aged out.
+
+Both live in the argocd repo, not here, since they describe the
+deployment. The pod log is the full report:
+`kubectl logs -n wirestudio -l job-name=<job> --tail=30`.

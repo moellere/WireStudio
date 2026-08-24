@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Document how a hardware-gate failure reaches an operator: a failed Job
+  is the report, and two Prometheus alerts turn it into a push. One
+  covers "the run failed", the other "no successful run in 26 hours" --
+  the second exists because if the CronJob stops firing there is no
+  failed Job to alert on, and absence would otherwise read as health.
+
 ### Fixed
 
 - The hardware gate reports an unreadable or empty roster as one line and
