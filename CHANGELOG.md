@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Nightly hardware gate (workbench phase 3).** A new
+  `wirestudio-hardware-gate` entry point asserts the bench and every
+  board on it is still alive: the portal answers, each configured slot
+  is present and flashable, its serial recorder captured output
+  recently, and ChirpStack saw its DevEUI recently. Exits non-zero on
+  any failure. See `docs/workbench.md`; the roster schema is
+  `scripts/hardware_gate.example.yaml`.
+- Serial liveness and uplink recency are separate checks because they
+  fail separately: a board on the reference bench was transmitting
+  normally while absent from the USB bus -- alive on the air, but
+  unflashable and invisible to any check that only asked ChirpStack.
+  Uplink recency is asserted from `last_seen_at`, not from the presence
+  of an activation: a device silent since June still had a valid one.
+- A missing slot fails rather than resolving. Slot labels are
+  positional, so a board that moves ports gets a new label; quietly
+  following it would hide exactly the event the gate exists to report.
+
+### Changed
+
+- Workbench phase 3 is scheduled from a cluster CronJob instead of the
+  self-hosted runner originally planned. WireStudio is a public
+  repository, and a runner on the bench network would let any fork's
+  pull request execute code with reach into that network. The tradeoff
+  is that the gate cannot annotate a PR.
+
 ## [0.29.0] — 2026-08-23
 
 ### Added
