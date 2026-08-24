@@ -30,7 +30,9 @@ traffic -- reflashing one nightly costs a rejoin, a DevNonce and about
 ten minutes of downtime each time. Add a spare board, set `flash:` on
 its entry, and the stage below turns on.
 
-Exit code is 0 when every enabled check passes, 1 otherwise.
+Exit code is 0 when every enabled check passes, 1 when one fails,
+and 2 when the roster itself is unusable -- a bad config must not read
+as a clean bench.
 """
 from __future__ import annotations
 
@@ -42,10 +44,25 @@ import sys
 import time
 from pathlib import Path
 
+
+class ConfigError(Exception):
+    pass
+
+
 def _load_config(path: Path) -> dict:
     import yaml
 
-    return yaml.safe_load(path.read_text()) or {}
+    try:
+        raw = yaml.safe_load(path.read_text())
+    except FileNotFoundError:
+        raise ConfigError(f"no such roster: {path}") from None
+    except (OSError, yaml.YAMLError) as e:
+        raise ConfigError(f"cannot read roster {path}: {e}") from None
+    if raw is None:
+        raise ConfigError(f"roster {path} is empty")
+    if not isinstance(raw, dict) or not raw.get("devices"):
+        raise ConfigError(f"roster {path} lists no devices")
+    return raw
 
 
 class Report:
@@ -192,7 +209,11 @@ def main() -> int:
               "is deployment state (slot labels, DevEUIs), so it is not shipped --\n"
               "see docs/workbench.md for the schema.", file=sys.stderr)
         return 2
-    config = _load_config(args.config)
+    try:
+        config = _load_config(args.config)
+    except ConfigError as e:
+        print(f"hardware gate: {e}", file=sys.stderr)
+        return 2
     print(f"hardware gate: {args.config}")
     print(f"bench: {os.environ.get('WORKBENCH_URL', '(WORKBENCH_URL unset)')}\n")
 

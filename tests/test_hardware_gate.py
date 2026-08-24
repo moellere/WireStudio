@@ -150,3 +150,20 @@ async def test_a_device_silent_for_months_fails():
 
     assert any(s == "uplinks" and "silent for over" in d
                for s, _, ok, d in report.rows if not ok), report.rows
+
+
+def test_a_missing_roster_is_reported_not_raised(tmp_path):
+    """The gate runs unattended; a config typo should read as one line,
+    not a traceback."""
+    with pytest.raises(gate.ConfigError, match="no such roster"):
+        gate._load_config(tmp_path / "nope.yaml")
+
+
+@pytest.mark.parametrize("body", ["", "max_serial_silence_s: 60\n"])
+def test_a_roster_with_no_devices_is_rejected(tmp_path, body):
+    """Silently checking nothing and exiting 0 is the worst outcome for a
+    gate -- it reads as 'all clear'."""
+    p = tmp_path / "roster.yaml"
+    p.write_text(body)
+    with pytest.raises(gate.ConfigError):
+        gate._load_config(p)
