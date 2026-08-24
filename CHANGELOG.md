@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- The hardware gate reports an unreadable or empty roster as one line and
+  exits 2, instead of raising a traceback. It also rejects a roster with
+  no devices: silently checking nothing and exiting 0 is the worst
+  outcome for a gate, since it reads as "all clear".
+
 ## [0.30.0] — 2026-08-24
 
 ### Added
