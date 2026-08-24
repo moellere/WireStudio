@@ -101,13 +101,23 @@ ones but none blocks the others' value.
 2. **Boot-marker verification.** A `/workbench/verify` step and serial
    SSE relay in the dialog, with per-framework success/failure
    signatures over the slot's serial.
-3. **Nightly hardware gate.** A scheduled job flashes a representative
-   example per framework to a dedicated slot and asserts boot/join —
-   the "Works (lighter checks)" tiers hold hardware-validated status
-   continuously instead of as a one-time claim. This phase's real
-   prerequisite is a self-hosted runner on the bench network: hosted CI
-   runners cannot reach it, so the runner is setup and maintenance cost
-   the phase has to carry, not an implementation detail.
+3. **Nightly hardware gate.** A scheduled job asserts the bench and
+   everything on it is still alive — see [The gate](#the-gate) below.
+
+   The scheduler is a cluster CronJob, **not** a self-hosted runner as
+   originally planned. WireStudio is a public repository, so a runner
+   on the bench network would let any fork's pull request execute code
+   with reach into that network; the `pull_request` trigger runs
+   fork-authored workflows by design. Scheduling from inside the
+   perimeter keeps the same reach with nothing repo-controlled running
+   on it, and the cluster already holds the bench and ChirpStack
+   credentials. The cost is that the gate cannot annotate a PR.
+
+   The flashing half — a representative example per framework flashed
+   to a dedicated slot, which is what would let the "Works (lighter
+   checks)" tiers hold hardware-validated status continuously — is
+   **not** yet enabled. It needs a board nothing else depends on;
+   see the caveat under [The gate](#the-gate).
 4. **Functional loop + RF truth.** AP provision + MQTT/API entity
    assertions for generated ESPHome devices; SDR TX power check for
    radio boards.
@@ -161,3 +171,56 @@ ones but none blocks the others' value.
   TX check pins a fixed gain and asserts against a known-good baseline
   captured under the same geometry — a bare "is there energy at the
   carrier" test proves nothing.
+
+## The gate
+
+`wirestudio-hardware-gate --config <roster.yaml>` runs the phase-3
+checks and exits non-zero if any fail. It needs `WORKBENCH_URL` (plus
+`WORKBENCH_TOKEN` if the bench is authenticated) and, for the uplink
+stage, the usual ChirpStack environment.
+
+| stage | asserts |
+|---|---|
+| `bench` | the portal answers; nothing downstream runs if it doesn't |
+| `slots` | each configured slot is present and `flashable` |
+| `serial` | the slot's recorder captured output within `max_serial_silence_s` |
+| `uplinks` | ChirpStack saw the DevEUI within `max_uplink_silence_s` |
+
+The roster is deployment state — slot labels and DevEUIs describe one
+physical bench — so it is not shipped in the package.
+`scripts/hardware_gate.example.yaml` documents the schema:
+
+```yaml
+max_serial_silence_s: 1800
+max_uplink_silence_s: 3600
+devices:
+  - slot: SLOT12          # positional label, from sorted hub-port order
+    name: TTGO T-Beam
+    framework: lorawan
+    dev_eui: 10521cfffe66b6e0   # optional; enables the uplinks stage
+```
+
+Two decisions worth keeping:
+
+**A missing slot is a failure, not a lookup.** Slot labels are
+positional, assigned in sorted hub-port order, so a board that moves
+ports gets a new label. Resolving that silently would hide the event —
+"the hardware moved or died" is precisely what a nightly check exists
+to report.
+
+**Serial and uplinks are independent, and both are needed.** A board
+can be present and printing to serial while completely off the air, and
+— as the reference bench demonstrates — it can be transmitting happily
+while absent from the USB bus, alive but unflashable. An activation
+record only proves the device joined *once*; the gate asserts
+`last_seen_at` recency because a stale session is indistinguishable
+from a live one otherwise. A device silent since June still had a
+valid activation.
+
+**The flash stage is not enabled.** Setting `flash: true` on a device
+reports as an explicit failure rather than doing nothing. Turning it on
+needs a *dedicated* board: every device on the reference bench carries
+real traffic, and reflashing one nightly costs a rejoin, a DevNonce and
+about ten minutes off the air each time. Until then the gate is a
+bench-health detector, and the "no live-flash gate" caveat on the
+framework tiers still stands.

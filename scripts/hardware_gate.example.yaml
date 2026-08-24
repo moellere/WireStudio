@@ -1,0 +1,42 @@
+# EXAMPLE roster for the nightly hardware gate (wirestudio-hardware-gate).
+#
+# The live roster is deployment state and lives with the deployment, not
+# here -- this file documents the schema and records what the reference
+# bench watches.
+#
+# Slots are identified by label, and the gate FAILS when a configured
+# slot is absent. That is deliberate: bench slot labels are positional --
+# assigned in sorted hub-port order -- so a board that moves ports gets a
+# new label. A hard failure surfaces "the hardware moved or died", which
+# is exactly what a nightly check is for. Silently resolving it would
+# hide the event.
+#
+# dev_eui is optional; when set, ChirpStack is asked whether that device
+# still has an activation. A board can be present, powered and printing
+# to serial while being completely off the air.
+
+max_serial_silence_s: 1800   # 30 min. The LoRaWAN boards log once per
+                             # uplink interval (5 min default), so this
+                             # tolerates a few missed cycles.
+max_uplink_silence_s: 3600
+
+devices:
+  - slot: SLOT12
+    name: TTGO T-Beam
+    framework: lorawan          # standalone RadioLib
+    dev_eui: 10521cfffe66b6e0
+
+  - slot: SLOT19
+    name: Heltec WiFi LoRa 32 V2
+    framework: lorawan
+    dev_eui: 64b708fffeab8974
+
+  - slot: SLOT28
+    name: Heltec WiFi LoRa 32 V4 GNSS
+    framework: lorawan-esphome
+    dev_eui: 8cfd49fffeb55758
+
+# Add `flash: true` to a device once there is a *dedicated* board that
+# nothing depends on. Every board above carries real traffic, and
+# reflashing one nightly costs a rejoin, a DevNonce and roughly ten
+# minutes off the air each time.
