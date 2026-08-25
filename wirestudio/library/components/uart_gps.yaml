@@ -75,6 +75,24 @@ lorawan:
       ha_state_class: measurement
       ha_diagnostic: true
       ha_icon: mdi:satellite-variant
+    # How stale lat/lon are. The position is deliberately NOT cleared when the
+    # fix drops -- on a vehicle, "where was it last seen" is the whole point,
+    # and a parked machine with its GNSS off should still report its location.
+    # But then nothing distinguishes a live fix from a week-old one, so the age
+    # rides alongside it. 65535 is the sentinel for "never had a fix": without
+    # the isValid() guard an unfixed device reports age 0, i.e. reads as
+    # perfectly fresh, which is the exact confusion this field exists to end.
+    - name: fix_age_min
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: >-
+        (uint16_t)(gps.location.isValid()
+          ? ((gps.location.age() / 60000UL) > 65534UL ? 65534UL : (gps.location.age() / 60000UL))
+          : 65535UL)
+      ha_unit: min
+      ha_state_class: measurement
+      ha_diagnostic: true
+      ha_icon: mdi:map-clock
 
 esphome:
   required_components: [uart]

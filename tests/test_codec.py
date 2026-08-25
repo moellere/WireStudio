@@ -27,9 +27,10 @@ def test_tbeam_adds_onboard_gps_and_battery():
     lib = default_library()
     fields = codec.fields_for(_design("ttgo-t-beam"), lib)
     assert [f["name"] for f in fields] == [
-        "uptime_s", "boot_count", "lat", "lon", "alt_m", "sats", "batt_mv",
+        "uptime_s", "boot_count", "lat", "lon", "alt_m", "sats",
+        "fix_age_min", "batt_mv",
     ]
-    assert codec.payload_size(fields) == 19
+    assert codec.payload_size(fields) == 21
 
 
 def test_radio_only_board_reports_battery_from_its_divider():
@@ -78,7 +79,9 @@ def test_decode_js_offsets_and_scaling():
     assert "data.lat = ((b[6] << 24)" in js  # lat begins after the 6-byte built-in block
     assert "/ 10000000" in js
     assert "data.alt_m = ((((b[14] << 8) | b[15]) << 16) >> 16)" in js  # signed 16-bit
-    assert "data.batt_mv = (((b[17] << 8) | b[18]) >>> 0)" in js
+    # fix_age_min sits at b[17:18], pushing batt_mv out by two.
+    assert "data.fix_age_min = (((b[17] << 8) | b[18]) >>> 0)" in js
+    assert "data.batt_mv = (((b[19] << 8) | b[20]) >>> 0)" in js
 
 
 def test_pack_cpp_matches_size_and_reads_sensors():
