@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The hardware gate roster accepts `on_bench: false` for a device that is
+  powered and transmitting but whose USB cable is out. It is dropped from
+  the slots and serial stages and asserted over the radio only. Failing
+  every night on a condition everyone already knows about is how a gate
+  gets muted, which `docs/workbench.md` warns about explicitly.
+- The slots stage now reports a present slot that no roster entry claims.
+  That is the same class of divergence as a declared slot being absent,
+  and it is how an off-bench device announces its return: slot labels are
+  positional, so a reconnected board cannot be predicted onto a label.
+- The roster is rejected if an on-bench device declares no slot, or an
+  off-bench device declares no `dev_eui` -- the latter would sit in the
+  roster looking monitored while nothing about it could be checked.
 - Document how a hardware-gate failure reaches an operator: a failed Job
   is the report, and two Prometheus alerts turn it into a push. One
   covers "the run failed", the other "no successful run in 26 hours" --
