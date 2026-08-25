@@ -63,6 +63,7 @@ def _valid_eui(dev_eui: str) -> bool:
 _PARTITION_TABLE_MAGIC = b"\xaa\x50"
 _PARTITION_TABLE_OFFSET = 0x8000
 _ESP_IMAGE_MAGIC = 0xE9
+_BOOTLOADER_OFFSETS = (0x0, 0x1000)
 _DEFAULT_APP_OFFSET = 0x10000
 
 
@@ -78,7 +79,16 @@ def is_merged_image(blob: bytes) -> bool:
     partitions". Getting this from the artifact is the only way that
     stays correct across addon versions.
     """
-    if len(blob) <= _PARTITION_TABLE_OFFSET + 2 or blob[0] != _ESP_IMAGE_MAGIC:
+    if len(blob) <= _PARTITION_TABLE_OFFSET + 2:
+        return False
+    # The bootloader is at 0x0 on the ESP32-S3/C3 family but at 0x1000 on the
+    # classic ESP32, whose merged image therefore opens with 4 KiB of 0xff
+    # padding. Requiring the image magic at byte 0 read that padding as "not
+    # merged" and would have written the whole image to the app offset --
+    # the bricking case this function exists to prevent, just one chip family
+    # over.
+    if not any(len(blob) > off and blob[off] == _ESP_IMAGE_MAGIC
+               for off in _BOOTLOADER_OFFSETS):
         return False
     at_table = blob[_PARTITION_TABLE_OFFSET:_PARTITION_TABLE_OFFSET + 2]
     return at_table == _PARTITION_TABLE_MAGIC
