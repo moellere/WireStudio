@@ -308,3 +308,50 @@ def test_configured_tenant_id_skips_the_admin_only_lookup():
     )
     assert client.default_tenant_id() == "tenant-1"
     stubs.tenant.List.assert_not_called()
+
+
+def test_create_device_repoints_an_existing_device_at_the_new_profile():
+    """A design whose sensor set changed produces a new payload layout and a
+    new profile to decode it. Leaving the device on its old profile decodes
+    every uplink at the wrong byte offsets while provision_device still
+    reports the new profile id -- success for a device emitting garbage.
+    Observed on a real T-Beam: batt_mv read the temperature.
+    """
+    stubs = _stubs()
+    stubs.device.Create.side_effect = _RpcError(
+        grpc.StatusCode.INTERNAL,
+        details="UNIQUE constraint failed: device.dev_eui",
+    )
+    # A real Device proto, not a stand-in: the fix hands the fetched message
+    # straight back to UpdateDevice so the fields it does not touch (name,
+    # join_eui, tags) survive the round trip. A fake would hide that.
+    from chirpstack_api.api import device_pb2
+
+    existing = device_pb2.Device(
+        dev_eui="0011223344556677", name="T-Beam",
+        application_id="app", device_profile_id="dp-old",
+    )
+    stubs.device.Get.return_value = SimpleNamespace(device=existing)
+
+    _client(stubs).create_device("0011223344556677", "dev", "app", "dp-new")
+
+    assert stubs.device.Update.called, "device was left on its stale profile"
+    sent = stubs.device.Update.call_args[0][0].device
+    assert sent.device_profile_id == "dp-new"
+    assert sent.name == "T-Beam", "an Update must not blank the other fields"
+
+
+def test_create_device_does_not_update_when_the_profile_already_matches():
+    """No write when nothing changed -- the idempotent path stays a no-op."""
+    stubs = _stubs()
+    stubs.device.Create.side_effect = _RpcError(
+        grpc.StatusCode.INTERNAL,
+        details="UNIQUE constraint failed: device.dev_eui",
+    )
+    stubs.device.Get.return_value = SimpleNamespace(
+        device=SimpleNamespace(application_id="app", device_profile_id="dp"),
+    )
+
+    _client(stubs).create_device("0011223344556677", "dev", "app", "dp")
+
+    assert not stubs.device.Update.called
