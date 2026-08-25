@@ -36,6 +36,18 @@ devices:
     framework: lorawan-esphome
     dev_eui: 8cfd49fffeb55758
 
+  # A board that is powered and transmitting but whose USB cable is out.
+  # `on_bench: false` drops it from the slots and serial stages -- failing
+  # nightly on a known condition is how a gate gets muted -- and keeps the
+  # uplinks check, which is the only assertion still possible. It needs no
+  # slot: labels are positional, so a reconnected board cannot be predicted
+  # onto one. Its return is caught instead by the slots stage reporting a
+  # present slot that no entry claims.
+  - name: TTGO LoRa32 v2
+    on_bench: false
+    framework: lorawan
+    dev_eui: 500291fffe9df404
+
 # Add `flash: true` to a device once there is a *dedicated* board that
 # nothing depends on. Every board above carries real traffic, and
 # reflashing one nightly costs a rejoin, a DevNonce and roughly ten

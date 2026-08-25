@@ -62,6 +62,15 @@ def _load_config(path: Path) -> dict:
         raise ConfigError(f"roster {path} is empty")
     if not isinstance(raw, dict) or not raw.get("devices"):
         raise ConfigError(f"roster {path} lists no devices")
+    for i, dev in enumerate(raw["devices"]):
+        if dev.get("on_bench", True) and not dev.get("slot"):
+            raise ConfigError(
+                f"roster {path}: device {i} ({dev.get('name', '?')}) has no slot. "
+                "Set `on_bench: false` if it is off the bench on purpose.")
+        if not dev.get("on_bench", True) and not dev.get("dev_eui"):
+            raise ConfigError(
+                f"roster {path}: device {i} ({dev.get('name', '?')}) is off the "
+                "bench with no dev_eui, so nothing about it can be checked.")
     return raw
 
 
@@ -107,7 +116,13 @@ async def run(config: dict, report: Report, client=None, chirp=None) -> None:
         report.add("slots", "listing", False, str(e))
         return
 
-    for dev in devices:
+    # A device declared `on_bench: false` is known to be off the bench -- its
+    # USB cable is out, but it is still powered and on the air. Failing on that
+    # every night would train the reader to ignore the gate, so it is asserted
+    # over the radio only (uplinks, below) and claims no slot.
+    on_bench = [d for d in devices if d.get("on_bench", True)]
+
+    for dev in on_bench:
         label = dev["slot"]
         s = slots.get(label)
         if s is None:
@@ -126,9 +141,21 @@ async def run(config: dict, report: Report, client=None, chirp=None) -> None:
             continue
         report.add("slots", label, True, f"present, chip={s.chip or 'undetected'}")
 
+    # A board present on a slot no entry claims is a divergence from the
+    # declared bench, the same class as a declared slot being absent, and it
+    # is how an off-bench device announces it is back: slot labels are
+    # positional, so a reconnected board cannot be predicted onto a label and
+    # has to be caught by "something is here that should not be".
+    claimed = {d["slot"] for d in on_bench}
+    for label, s in sorted(slots.items()):
+        if s.present and label not in claimed:
+            report.add("slots", label, False,
+                       "unexpected board present -- a device declared "
+                       "`on_bench: false` may be reconnected and flashable again")
+
     # --- serial liveness ------------------------------------------------
     cutoff = time.time() - max_silence
-    for dev in devices:
+    for dev in on_bench:
         label = dev["slot"]
         s = slots.get(label)
         if s is None or not s.present:
@@ -148,7 +175,10 @@ async def run(config: dict, report: Report, client=None, chirp=None) -> None:
                        f"nothing captured in {int(max_silence)}s -- board may be hung")
 
     # --- uplinks --------------------------------------------------------
-    euis = [(d["slot"], d["dev_eui"]) for d in devices if d.get("dev_eui")]
+    # An off-bench device has no slot to name it by, so fall back to its
+    # roster name -- this stage is the only assertion it gets.
+    euis = [(d.get("slot") or d.get("name") or d["dev_eui"], d["dev_eui"])
+            for d in devices if d.get("dev_eui")]
     if euis:
         from wirestudio.targets.lorawan import chirpstack as cs
 

@@ -167,3 +167,91 @@ def test_a_roster_with_no_devices_is_rejected(tmp_path, body):
     p.write_text(body)
     with pytest.raises(gate.ConfigError):
         gate._load_config(p)
+
+
+OFF_BENCH = {
+    "max_serial_silence_s": 1800,
+    "max_uplink_silence_s": 3600,
+    "devices": [
+        {"slot": "SLOT1", "framework": "lorawan"},
+        {"name": "TTGO LoRa32 v2", "on_bench": False, "dev_eui": "bb"},
+    ],
+}
+
+
+def _chirp_seen(seconds_ago):
+    chirp = FakeChirp({"bb": {"dev_addr": "02", "f_cnt_up": 9}}, {})
+
+    class Stubs:
+        class device:
+            @staticmethod
+            def Get(req, metadata=None):
+                class R:
+                    class last_seen_at:
+                        seconds = int(time.time()) - seconds_ago
+                return R()
+
+    chirp._get_stubs = lambda: Stubs
+    chirp._auth = []
+    return chirp
+
+
+async def test_off_bench_device_does_not_fail_the_slots_stage():
+    """Its cable is out and everyone knows. Failing nightly on a known
+    condition is how a gate gets muted."""
+    report = gate.Report()
+    bench = FakeBench([FakeSlot("SLOT1")], {"SLOT1": _fresh()})
+    await gate.run(OFF_BENCH, report, client=bench, chirp=_chirp_seen(30))
+
+    assert not report.failed, report.rows
+    assert not any(s in ("slots", "serial") and "LoRa32" in subj
+                   for s, subj, _, _ in report.rows)
+
+
+async def test_off_bench_device_is_still_asserted_over_the_air():
+    """The radio is the only assertion it gets, so it has to be a real one."""
+    report = gate.Report()
+    bench = FakeBench([FakeSlot("SLOT1")], {"SLOT1": _fresh()})
+    await gate.run(OFF_BENCH, report, client=bench, chirp=_chirp_seen(99_999))
+
+    assert any(s == "uplinks" and "LoRa32" in subj and "silent for over" in d
+               for s, subj, ok, d in report.rows if not ok), report.rows
+
+
+async def test_a_reconnected_board_is_reported():
+    """Slot labels are positional, so a returning board cannot be predicted
+    onto a label -- it has to be caught as 'something is here that should
+    not be'. This is the whole point of listing an off-bench device."""
+    report = gate.Report()
+    bench = FakeBench([FakeSlot("SLOT1"), FakeSlot("SLOT7")],
+                      {"SLOT1": _fresh(), "SLOT7": _fresh()})
+    await gate.run(OFF_BENCH, report, client=bench, chirp=_chirp_seen(30))
+
+    hits = [r for r in report.failed if r[1] == "SLOT7"]
+    assert hits, report.rows
+    assert "unexpected board present" in hits[0][3]
+
+
+async def test_an_absent_unclaimed_slot_is_not_reported():
+    """The bench has 31 slots and most are always empty."""
+    report = gate.Report()
+    bench = FakeBench([FakeSlot("SLOT1"), FakeSlot("SLOT7", present=False)],
+                      {"SLOT1": _fresh()})
+    await gate.run(OFF_BENCH, report, client=bench, chirp=_chirp_seen(30))
+    assert not report.failed, report.rows
+
+
+def test_an_on_bench_device_without_a_slot_is_rejected(tmp_path):
+    p = tmp_path / "r.yaml"
+    p.write_text("devices:\n  - name: nameless\n    dev_eui: aa\n")
+    with pytest.raises(gate.ConfigError, match="has no slot"):
+        gate._load_config(p)
+
+
+def test_an_off_bench_device_without_a_dev_eui_is_rejected(tmp_path):
+    """Off the bench and no radio identity means nothing can be checked --
+    it would sit in the roster looking monitored."""
+    p = tmp_path / "r.yaml"
+    p.write_text("devices:\n  - name: ghost\n    on_bench: false\n")
+    with pytest.raises(gate.ConfigError, match="nothing about it can be checked"):
+        gate._load_config(p)
