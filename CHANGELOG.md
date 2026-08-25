@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`t-beam-lorawan` example.** A T-Beam uplinking GPS position, cell
+  voltage and DHT22 temperature/humidity, with an SSD1306 showing live
+  status. The only standalone-LoRaWAN example so far was a bare board;
+  this one exercises sensors the board file knows nothing about
+  alongside the two it does.
+- The cell voltage comes from the onboard AXP192, not an ADC divider:
+  `ttgo-t-beam` declares no `battery_adc`, and the codec already refuses
+  to synthesize one when a PMIC is present, since both would collide on
+  `batt_mv`.
+- The design carries no radio component. The board file owns the SX1276
+  wiring and `lorawan.region` drives the frequency, so the 433 MHz
+  `sx127x` the ESPHome T-Beam example carries would be a false statement
+  on a US915 device.
+
 ## [0.31.0] — 2026-08-25
 
 ### Added
