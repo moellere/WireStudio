@@ -1,7 +1,7 @@
 function decodeUplink(input) {
   var b = input.bytes;
-  if (b.length < 19) {
-    return { data: {}, warnings: [], errors: ['expected 19 bytes, got ' + b.length] };
+  if (b.length < 21) {
+    return { data: {}, warnings: [], errors: ['expected 21 bytes, got ' + b.length] };
   }
   var data = {};
   data.uptime_s = (((b[0] << 24) | (b[1] << 16) | (b[2] << 8) | b[3]) >>> 0);
@@ -10,7 +10,8 @@ function decodeUplink(input) {
   data.lon = ((b[10] << 24) | (b[11] << 16) | (b[12] << 8) | b[13]) / 10000000;
   data.alt_m = ((((b[14] << 8) | b[15]) << 16) >> 16);
   data.sats = ((b[16]) >>> 0);
-  data.batt_mv = (((b[17] << 8) | b[18]) >>> 0);
+  data.fix_age_min = (((b[17] << 8) | b[18]) >>> 0);
+  data.batt_mv = (((b[19] << 8) | b[20]) >>> 0);
   return { data: data, warnings: [], errors: [] };
 }
 
@@ -65,6 +66,15 @@ function getHaDeviceInfo() {
         entity_category: "diagnostic",
         state_class: "measurement",
         icon: "mdi:satellite-variant"
+      }
+    },
+    fix_age_min: {
+      entity_conf: {
+        value_template: "{{ value_json.object.fix_age_min | int }}",
+        entity_category: "diagnostic",
+        state_class: "measurement",
+        unit_of_measurement: "min",
+        icon: "mdi:map-clock"
       }
     },
     batt_mv: {

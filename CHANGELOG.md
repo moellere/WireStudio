@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`fix_age_min` on every GPS payload.** The position is deliberately
+  never cleared when the fix drops -- on a vehicle "where was it last
+  seen" is the whole point, and a machine parked with its GNSS off should
+  still report where it is. But then nothing distinguished a live fix from
+  a week-old one, so the age of the position now rides alongside it.
+  65535 is the sentinel for "never had a fix": without the `isValid()`
+  guard an unfixed device reports age 0, reading as perfectly fresh, which
+  is the confusion the field exists to end.
+- This is a **breaking payload change for any design carrying a GPS**.
+  The field sits after `sats`, so everything downstream of it shifts by
+  two bytes and existing devices need a rebuild, reflash and profile
+  update before their uplinks decode correctly again. The T-Beam example
+  goes 22 -> 24 bytes, still inside DR1's 53-byte cap, so it costs no
+  range.
+- **`t-beam-lorawan` example.** A T-Beam uplinking GPS position, cell
+  voltage and DHT22 temperature/humidity, with an SSD1306 showing live
+  status. The only standalone-LoRaWAN example so far was a bare board;
+  this one exercises sensors the board file knows nothing about
+  alongside the two it does.
+- The cell voltage comes from the onboard AXP192, not an ADC divider:
+  `ttgo-t-beam` declares no `battery_adc`, and the codec already refuses
+  to synthesize one when a PMIC is present, since both would collide on
+  `batt_mv`.
+- The design carries no radio component. The board file owns the SX1276
+  wiring and `lorawan.region` drives the frequency, so the 433 MHz
+  `sx127x` the ESPHome T-Beam example carries would be a false statement
+  on a US915 device.
+
 ### Fixed
 
 - **A merged image for the classic ESP32 was mistaken for a bare app.**
@@ -24,22 +54,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   real T-Beam, where `batt_mv` was reading the temperature. The device is
   now re-pointed, and the fetched message is handed back to `UpdateDevice`
   so its other fields survive.
-
-### Added
-
-- **`t-beam-lorawan` example.** A T-Beam uplinking GPS position, cell
-  voltage and DHT22 temperature/humidity, with an SSD1306 showing live
-  status. The only standalone-LoRaWAN example so far was a bare board;
-  this one exercises sensors the board file knows nothing about
-  alongside the two it does.
-- The cell voltage comes from the onboard AXP192, not an ADC divider:
-  `ttgo-t-beam` declares no `battery_adc`, and the codec already refuses
-  to synthesize one when a PMIC is present, since both would collide on
-  `batt_mv`.
-- The design carries no radio component. The board file owns the SX1276
-  wiring and `lorawan.region` drives the frequency, so the 433 MHz
-  `sx127x` the ESPHome T-Beam example carries would be a false statement
-  on a US915 device.
 
 ## [0.31.0] — 2026-08-25
 
