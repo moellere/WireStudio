@@ -269,7 +269,12 @@ class ChirpStackClient:
         *,
         join_eui: Optional[str] = None,
     ) -> None:
-        """Create the device. Idempotent: an existing DevEUI is left in place."""
+        """Create the device.
+
+        Idempotent on identity: an existing DevEUI keeps its registration.
+        Its profile is re-pointed if the design now needs a different one --
+        see the already-exists branch.
+        """
         grpc, m = _load()
         device = m.dev.Device(
             dev_eui=dev_eui,
@@ -307,6 +312,20 @@ class ChirpStackClient:
                     f"application ({existing.application_id}); remove it from "
                     "that application before re-provisioning here."
                 )
+            # The device is ours, but it may be sitting on a stale profile.
+            # Re-provisioning a design whose sensor set changed produces a new
+            # payload layout and a new profile to decode it; leaving the device
+            # pointed at the old one decodes every uplink at the wrong offsets,
+            # and the caller still reports the new profile id -- success for a
+            # device that is quietly emitting garbage.
+            if existing.device_profile_id != device_profile_id:
+                existing.device_profile_id = device_profile_id
+                try:
+                    stubs.device.Update(
+                        m.dev.UpdateDeviceRequest(device=existing), metadata=self._auth
+                    )
+                except grpc.RpcError as upd_exc:
+                    raise ChirpStackUnavailable(_rpc_msg(upd_exc)) from upd_exc
 
     def set_device_keys(self, dev_eui: str, app_key: str) -> None:
         """Set the device's root key. For our pinned LoRaWAN 1.0.4 devices the

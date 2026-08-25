@@ -279,6 +279,19 @@ def _merged_image(app_len: int = 4096) -> bytes:
     return bytes(blob)
 
 
+def _esp32_merged_image(app_len: int = 4096) -> bytes:
+    """A merged image for the *classic* ESP32, whose bootloader lives at
+    0x1000 rather than 0x0 -- so the image opens with 4 KiB of 0xff erase
+    padding. This is what PlatformIO produces for a ttgo-t-beam, verified
+    byte-for-byte against a real factory.bin.
+    """
+    blob = bytearray(b"\xff" * 0x1000 + b"\x00" * (0xF000 + app_len))
+    blob[0x1000] = 0xE9
+    blob[0x8000:0x8002] = b"\xaa\x50"
+    blob[0x10000] = 0xE9
+    return bytes(blob)
+
+
 def _app_image(size: int = 4096) -> bytes:
     """A bare app image: ESP magic, and nothing at the partition offset."""
     return b"\xe9" + b"\x11" * (size - 1)
@@ -291,6 +304,26 @@ def test_merged_and_app_images_are_told_apart():
     assert is_merged_image(_app_image()) is False
     assert is_merged_image(b"") is False
     assert is_merged_image(b"\x00" * 0x20000) is False  # no ESP magic
+
+
+def test_a_classic_esp32_merged_image_is_recognised():
+    """Its bootloader is at 0x1000, so the image starts with 0xff padding.
+    Requiring the ESP magic at byte 0 classified it as a bare app, which
+    would write the whole thing to the app offset and brick the board --
+    the exact failure this function exists to prevent, one chip family over.
+    """
+    from wirestudio.mcp.hardware import is_merged_image
+
+    assert is_merged_image(_esp32_merged_image()) is True
+
+
+def test_padding_alone_is_not_a_merged_image():
+    """0xff with no bootloader behind it is an erased region, not an image."""
+    from wirestudio.mcp.hardware import is_merged_image
+
+    blob = bytearray(b"\xff" * 0x20000)
+    blob[0x8000:0x8002] = b"\xaa\x50"
+    assert is_merged_image(bytes(blob)) is False
 
 
 async def test_merged_artifact_is_written_at_zero(tmp_path):

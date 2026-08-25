@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **A merged image for the classic ESP32 was mistaken for a bare app.**
+  `is_merged_image` required the ESP image magic at byte 0, but only the
+  ESP32-S3/C3 family puts its bootloader there -- on the classic ESP32 it
+  sits at 0x1000, so the image opens with 4 KiB of 0xff erase padding.
+  The sniffer read that as "not merged" and would have written the whole
+  image to the app offset: the exact bricking case it exists to prevent,
+  one chip family over. Caught while flashing a T-Beam.
+- **Re-provisioning left an existing device on its old ChirpStack
+  profile.** `create_device` treated a known DevEUI as a no-op, so a
+  design whose sensor set changed got a correct new profile that nothing
+  pointed at, while the caller reported the new profile id -- success for
+  a device decoding every uplink at the wrong byte offsets. Seen on a
+  real T-Beam, where `batt_mv` was reading the temperature. The device is
+  now re-pointed, and the fetched message is handed back to `UpdateDevice`
+  so its other fields survive.
+
 ### Added
 
 - **`t-beam-lorawan` example.** A T-Beam uplinking GPS position, cell
