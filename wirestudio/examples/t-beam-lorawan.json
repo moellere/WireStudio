@@ -1,0 +1,190 @@
+{
+  "schema_version": "0.1",
+  "id": "t-beam-lorawan",
+  "name": "LilyGO TTGO T-Beam LoRaWAN (GPS + DHT22 + OLED)",
+  "description": "T-Beam uplinking GPS position, cell voltage from the onboard AXP192 PMIC, and temperature/humidity from a DHT22, with an SSD1306 showing live status. Standalone RadioLib firmware; keys arrive over the serial prompt at runtime.",
+  "created_at": "2026-08-25T00:00:00Z",
+  "updated_at": "2026-08-25T00:00:00Z",
+  "board": {
+    "library_id": "ttgo-t-beam",
+    "mcu": "esp32",
+    "framework": "arduino"
+  },
+  "power": {
+    "supply": "usb-5v",
+    "rail_voltage_v": 5,
+    "regulator": "onboard",
+    "budget_ma": 500
+  },
+  "requirements": [
+    {
+      "id": "r1",
+      "kind": "capability",
+      "text": "expose the board's built-in peripherals"
+    }
+  ],
+  "components": [
+    {
+      "id": "onboard_gps",
+      "library_id": "uart_gps",
+      "label": "Onboard GPS",
+      "params": {}
+    },
+    {
+      "id": "onboard_button",
+      "library_id": "gpio_input",
+      "label": "Onboard button",
+      "params": {
+        "filters": [
+          {
+            "invert": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "ssd1306_1",
+      "library_id": "ssd1306",
+      "label": "Status OLED",
+      "params": {}
+    },
+    {
+      "id": "dht_1",
+      "library_id": "dht",
+      "label": "DHT22 temperature + humidity",
+      "params": {
+        "model": "DHT22"
+      }
+    }
+  ],
+  "buses": [
+    {
+      "id": "gps_uart",
+      "type": "uart",
+      "tx": "GPIO12",
+      "rx": "GPIO34",
+      "baud_rate": 9600
+    },
+    {
+      "id": "i2c0",
+      "type": "i2c",
+      "sda": "GPIO21",
+      "scl": "GPIO22"
+    }
+  ],
+  "connections": [
+    {
+      "component_id": "onboard_gps",
+      "pin_role": "VCC",
+      "target": {
+        "kind": "rail",
+        "rail": "3V3"
+      }
+    },
+    {
+      "component_id": "onboard_gps",
+      "pin_role": "GND",
+      "target": {
+        "kind": "rail",
+        "rail": "GND"
+      }
+    },
+    {
+      "component_id": "onboard_gps",
+      "pin_role": "TX",
+      "target": {
+        "kind": "bus",
+        "bus_id": "gps_uart"
+      }
+    },
+    {
+      "component_id": "onboard_gps",
+      "pin_role": "RX",
+      "target": {
+        "kind": "bus",
+        "bus_id": "gps_uart"
+      }
+    },
+    {
+      "component_id": "onboard_button",
+      "pin_role": "IN",
+      "target": {
+        "kind": "gpio",
+        "pin": "GPIO38"
+      }
+    },
+    {
+      "component_id": "ssd1306_1",
+      "pin_role": "VCC",
+      "target": {
+        "kind": "rail",
+        "rail": "3V3"
+      }
+    },
+    {
+      "component_id": "ssd1306_1",
+      "pin_role": "GND",
+      "target": {
+        "kind": "rail",
+        "rail": "GND"
+      }
+    },
+    {
+      "component_id": "ssd1306_1",
+      "pin_role": "SDA",
+      "target": {
+        "kind": "bus",
+        "bus_id": "i2c0"
+      }
+    },
+    {
+      "component_id": "ssd1306_1",
+      "pin_role": "SCL",
+      "target": {
+        "kind": "bus",
+        "bus_id": "i2c0"
+      }
+    },
+    {
+      "component_id": "ssd1306_1",
+      "pin_role": "RESET",
+      "target": {
+        "kind": "gpio",
+        "pin": "GPIO4"
+      }
+    },
+    {
+      "component_id": "dht_1",
+      "pin_role": "VCC",
+      "target": {
+        "kind": "rail",
+        "rail": "3V3"
+      }
+    },
+    {
+      "component_id": "dht_1",
+      "pin_role": "GND",
+      "target": {
+        "kind": "rail",
+        "rail": "GND"
+      }
+    },
+    {
+      "component_id": "dht_1",
+      "pin_role": "DATA",
+      "target": {
+        "kind": "gpio",
+        "pin": "GPIO13"
+      }
+    }
+  ],
+  "passives": [],
+  "warnings": [],
+  "esphome_extras": {},
+  "target": "lorawan",
+  "lorawan": {
+    "region": "US915",
+    "sub_band": 2,
+    "provisioning": "runtime_serial"
+  }
+}
