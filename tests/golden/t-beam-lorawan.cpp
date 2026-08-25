@@ -95,7 +95,7 @@ if (Wire.endTransmission() == 0 && display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
   } else {
     Serial.println("JOIN FAILED: not activated (check keys + gateway coverage; retries on reboot)");
   }
-  // US915 DR0 (SF10) caps the app payload at 11 bytes; this 22-byte
+  // US915 DR0 (SF10) caps the app payload at 11 bytes; this 24-byte
   // payload needs at least DR1. ADR tunes the rate from here.
   node->setDatarate(1);
 }
@@ -151,7 +151,7 @@ if (oledReady) {
     if (node->isActivated()) {
       // Payload packed big-endian from the generated field spec (codec.py),
       // in lockstep with the ChirpStack decodeUplink codec on the profile.
-      uint8_t payload[22];
+      uint8_t payload[24];
   uint32_t _v_uptime_s = (uint32_t)(millis() / 1000UL);
   payload[0] = (uint8_t)(_v_uptime_s >> 24);
   payload[1] = (uint8_t)(_v_uptime_s >> 16);
@@ -175,17 +175,22 @@ if (oledReady) {
   payload[15] = (uint8_t)(_v_alt_m);
   uint8_t _v_sats = (uint8_t)gps.satellites.value();
   payload[16] = (uint8_t)(_v_sats);
+  uint16_t _v_fix_age_min = (uint16_t)(gps.location.isValid()
+  ? ((gps.location.age() / 60000UL) > 65534UL ? 65534UL : (gps.location.age() / 60000UL))
+  : 65535UL);
+  payload[17] = (uint8_t)(_v_fix_age_min >> 8);
+  payload[18] = (uint8_t)(_v_fix_age_min);
   int16_t _v_temp_c = (int16_t)(dhtTempC * 100.0);
-  payload[17] = (uint8_t)(_v_temp_c >> 8);
-  payload[18] = (uint8_t)(_v_temp_c);
+  payload[19] = (uint8_t)(_v_temp_c >> 8);
+  payload[20] = (uint8_t)(_v_temp_c);
   uint8_t _v_humidity = (uint8_t)dhtHumidity;
-  payload[19] = (uint8_t)(_v_humidity);
+  payload[21] = (uint8_t)(_v_humidity);
   uint16_t _v_batt_mv = batteryMv;
-  payload[20] = (uint8_t)(_v_batt_mv >> 8);
-  payload[21] = (uint8_t)(_v_batt_mv);
+  payload[22] = (uint8_t)(_v_batt_mv >> 8);
+  payload[23] = (uint8_t)(_v_batt_mv);
       // Re-assert the rate every uplink. Setting it once after join is not
       // enough: a restored session or an ADR downlink can drop us to DR0,
-      // whose payload cap is below these 22 bytes, and then
+      // whose payload cap is below these 24 bytes, and then
       // every sendReceive fails RADIOLIB_ERR_PACKET_TOO_LONG (-4) with nothing
       // but a serial line to show for it -- the device stays joined and
       // silently stops uplinking.

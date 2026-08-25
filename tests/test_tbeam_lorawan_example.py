@@ -54,14 +54,17 @@ def test_the_pmic_supplies_the_cell_voltage(design, lib):
 def test_payload_carries_gps_environment_and_battery(design, lib):
     names = [f["name"] for f in codec.fields_for(design, lib)]
     assert names == ["uptime_s", "boot_count", "lat", "lon", "alt_m",
-                     "sats", "temp_c", "humidity", "batt_mv"]
+                     "sats", "fix_age_min", "temp_c", "humidity", "batt_mv"]
 
 
 def test_the_datarate_floor_clears_the_payload(design, lib):
-    """US915 DR0 caps the app payload at 11 bytes and this payload is 22, so
-    a build that let ADR reach DR0 would have its uplinks rejected outright."""
+    """US915 DR0 caps the app payload at 11 bytes and this payload is 24, so
+    a build that let ADR reach DR0 would have its uplinks rejected outright.
+    24 is still well inside DR1's 53-byte cap, so adding fix_age_min cost no
+    range."""
     size = codec.payload_size(codec.fields_for(design, lib))
-    assert size == 22
+    assert size == 24
+    assert size <= 53, "still fits DR1"
 
     cpp = generate_firmware(design, lib)["src/main.cpp"]
     assert "node->setDatarate(1);" in cpp
@@ -100,5 +103,29 @@ def test_firmware_matches_golden(design, lib, key, golden):
 
 
 def test_codec_matches_golden(design, lib):
-    js = codec.decode_js(codec.fields_for(design, lib))
-    assert js == (GOLDEN / "t-beam-lorawan.js").read_text()
+    """generate_codec, not decode_js: the HA entity block rides along with
+    the decoder and is what actually lands on the ChirpStack profile."""
+    assert codec.generate_codec(design, lib) == (GOLDEN / "t-beam-lorawan.js").read_text()
+
+
+def test_position_is_retained_when_the_fix_drops(design, lib):
+    """lat/lon are published unconditionally, on purpose. On a vehicle,
+    "where was it last seen" is the point -- a machine parked with its GNSS
+    off should still report where it is. So the position is never cleared."""
+    cpp = generate_firmware(design, lib)["src/main.cpp"]
+    assert "(int32_t)(gps.location.lat() * 10000000.0)" in cpp
+    assert "isValid() ? (int32_t)" not in cpp, "position must not be gated on a fix"
+
+
+def test_fix_age_distinguishes_stale_from_fresh(design, lib):
+    """Retaining the position means nothing marks a week-old fix as old, so
+    the age rides alongside it. The isValid() guard is load-bearing: without
+    it a device that never got a fix reports age 0 -- reading as perfectly
+    fresh, which is the exact confusion this field exists to end."""
+    cpp = generate_firmware(design, lib)["src/main.cpp"]
+    assert "gps.location.isValid()" in cpp
+    assert "65535" in cpp, "sentinel for 'never had a fix'"
+    assert "60000UL" in cpp, "milliseconds -> minutes"
+
+    names = [f["name"] for f in codec.fields_for(design, lib)]
+    assert names.index("fix_age_min") == names.index("sats") + 1
