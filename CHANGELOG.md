@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.31.0] — 2026-08-25
+
 ### Added
 
 - The hardware gate roster accepts `on_bench: false` for a device that is
