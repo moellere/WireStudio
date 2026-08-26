@@ -218,7 +218,7 @@ anything that can route to the pod. That is survivable while the only
 exposure is a cluster-internal Service, and is the reason the ingress
 publishes `/mcp` alone.
 
-**Workbench featureset (phase 1 shipped).** Integrate an
+**Workbench featureset (phases 1–3 shipped).** Integrate an
 [Embedded AI Harness](https://github.com/SensorsIot/Embedded-AI-Harness)
 (Raspberry Pi exposing RFC2217 network serial per USB slot, a JSON HTTP
 API, a WiFi AP tester, an MQTT broker, UDP logging, GPIO boot/reset
@@ -234,7 +234,9 @@ design constraints in [workbench.md](workbench.md).
 
 Phases, each independently shippable. Note the payoff is not evenly
 distributed: phase 1 is what makes a remote bench reachable at all,
-and phase 3 is what retires the "no live-flash gate" caveats above.
+and it is phase 3's *flashing* half that retires the "no live-flash
+gate" caveats above — which is the half not yet enabled, so those
+caveats still stand.
 
 1. **Remote flash transport — shipped in 0.25.0**, extended in 0.26.0
    with the headless LoRaWAN bring-up
@@ -257,18 +259,39 @@ and phase 3 is what retires the "no live-flash gate" caveats above.
    provision → flash → join cycle runnable against the real network
    from anywhere, and is the prerequisite for every headless/MCP-driven
    use of the bench.
-2. **Boot-marker verification.** Stream the slot's serial into the flash
-   dialog and assert per-framework success signatures (ESPHome boot
-   log, Meshtastic banner, CIRCUITPY enumeration, LoRaWAN join) —
-   upgrading "flashed" to "flashed and booted", the failure class CI
-   can't see.
-3. **Nightly hardware gate.** A scheduled job flashes a representative
-   example per framework to a dedicated slot and asserts boot/join, so
-   the "Works (lighter checks)" tiers hold hardware-validated status
-   continuously instead of as a one-time claim. Prerequisite: a runner
-   that can reach the bench network — hosted GitHub runners cannot, so
-   this phase carries a self-hosted runner as real setup and
-   maintenance cost, not a footnote.
+2. **Boot-marker verification — server side shipped in 0.29.0.** The
+   `workbench_verify_boot` tool watches a slot for a line the running
+   firmware emits, upgrading "flashed" to "flashed and booted" — the
+   failure class CI can't see, since a wrong flash size or an undriven
+   front end flashes perfectly and then fails at start-up. Supports
+   `esphome`, `lorawan` and `lorawan-esphome`; Meshtastic and
+   CircuitPython are explicitly unsupported with the reason rather than
+   approximated. Joining is a separate opt-in check, because the first
+   join after a flash reliably fails and only the retry succeeds.
+   Still to do: stream that serial into the flash dialog so a human
+   watches the boot.
+3. **Nightly hardware gate — shipped in 0.30.0.** A scheduled job
+   asserts the bench and every board on it: the portal answers, each
+   configured slot is present and flashable, its serial recorder is
+   capturing, and ChirpStack saw its DevEUI recently. Exits non-zero on
+   any failure.
+
+   It runs from a **cluster CronJob, not a self-hosted runner** as this
+   roadmap first assumed. WireStudio is a public repository, and
+   `pull_request` runs fork-authored workflows by design, so a runner on
+   a network that reaches the bench would let any fork's pull request
+   execute code there. Scheduling from inside the perimeter keeps the
+   reach and removes the inbound execution path; the cost is that the
+   gate cannot annotate a PR, so a failed Job is the report.
+
+   The **flashing** half — a representative example per framework
+   flashed to a dedicated slot, which is what would let the "Works
+   (lighter checks)" tiers hold hardware-validated status continuously
+   — is deliberately not enabled yet. It needs a board nothing else
+   depends on: every device on the reference bench carries real traffic,
+   and a nightly reflash costs a rejoin, a DevNonce and about ten
+   minutes off air each time. Details in
+   [workbench.md](workbench.md#the-gate).
 4. **Functional loop + RF truth.** Flash generated ESPHome firmware,
    provision against the workbench's AP, assert the device's API/MQTT
    entities appear; for radio boards, an SDR power-spectrum capture
