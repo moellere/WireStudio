@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `HANDOFF.md`: current backlog and bench state for picking this up in a
+  fresh session -- what is shipped, what is blocked on hardware at the
+  bench, which beliefs are unverified, and the gotchas that cost time.
+  It had been parked in an unrelated repo, where a session opened on that
+  tree could not act on any of it.
+
 ### Fixed
 
 - **The roadmap contradicted itself on why the hardware gate is a
