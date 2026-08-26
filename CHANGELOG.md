@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The roadmap contradicted itself on why the hardware gate is a
+  CronJob.** `docs/index.md` still described phase 3 as carrying "a
+  self-hosted runner as real setup and maintenance cost" while
+  `docs/workbench.md` explained why a runner was rejected: this is a
+  public repository, `pull_request` runs fork-authored workflows by
+  design, and a runner reaching the bench network would let any fork's
+  PR execute code there. Of everything in that phase it is the decision
+  most worth getting right in writing, and the repo argued both sides.
+- The same section claimed phase 3 retires the "no live-flash gate"
+  caveats. It does not yet -- the flashing half is deliberately off for
+  want of a dedicated board, so the caveats still stand. Marked phases
+  2 and 3 as shipped, which they have been since 0.29.0 and 0.30.0.
+
 ## [0.32.0] — 2026-08-25
 
 ### Added
