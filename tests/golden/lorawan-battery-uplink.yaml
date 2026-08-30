@@ -20,7 +20,7 @@ sensor:
   lorawan_id: lw
   sensor: battery
 external_components:
-- source: github://moellere/lorawan-for-esphome@137d06ee47c47c0257b822a6d053870f6ecc021e
+- source: github://moellere/lorawan-for-esphome@3abc55852e90814c28ce0ffa38b918ba5230a5e1
   components:
   - lorawan
 lorawan:

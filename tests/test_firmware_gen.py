@@ -119,8 +119,13 @@ def test_heltec_v4_seeded_gnss_powers_enable_and_fem(lib):
     assert "pinMode(34, OUTPUT);" in cpp
     assert "digitalWrite(34, LOW);" in cpp  # active-low enable -> power on
     assert "GPSSerial.begin(9600, SERIAL_8N1, 38, 39);" in cpp
-    for pin in (7, 2, 5, 46):
-        assert f"digitalWrite({pin}, HIGH);" in cpp  # FEM forced high
+    # Bench-proven V4 FEM recipe (2026-08-28): VFEM+CSD static high, VEXT
+    # static low, PA_TX_EN per-transfer via RadioLib's rf switch -- the old
+    # static-high [7,2,5,46] drive pinned the PA on and deafened the RX.
+    for pin in (7, 2):
+        assert f"digitalWrite({pin}, HIGH);" in cpp
+    assert "digitalWrite(36, LOW);" in cpp
+    assert "radio.setRfSwitchPins(RADIOLIB_NC, 46);" in cpp
 
 
 def test_non_radio_board_raises(lib):

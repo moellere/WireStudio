@@ -422,12 +422,17 @@ def _v4_design(**component_params):
 def test_front_end_pins_reach_the_esphome_radio_block():
     """A board with an external PA is deaf until its front-end pins are
     driven, and the failure is silent: begin() returns OK and uplinks report
-    as sent. The standalone path drives them; dropping them here made the
-    ESPHome path quietly unusable on every SX1262 + PA board."""
+    as sent. Bench-proven V4 recipe (2026-08-28): VFEM + CSD static high,
+    VEXT static low, and PA_TX_EN per-transfer via txen_pin -- held
+    statically high it pins the PA on and the receiver is deaf."""
     from wirestudio.generate.yaml_gen import build_yaml_dict
 
     out = build_yaml_dict(_v4_design(), default_library())
-    assert out["lorawan"]["radio"]["setup_high"] == ["GPIO7", "GPIO2", "GPIO5", "GPIO46"]
+    radio = out["lorawan"]["radio"]
+    assert radio["setup_high"] == ["GPIO7", "GPIO2"]
+    assert radio["setup_low"] == ["GPIO36"]
+    assert radio["txen_pin"] == "GPIO46"
+    assert "rxen_pin" not in radio
 
 
 def test_sx1262_radio_keys_are_emitted():

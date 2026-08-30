@@ -45,12 +45,26 @@ void setup() {
 {% endif %}
 {{ component_setup | default('') }}
 {% if setup_high %}
-  // RF front-end enable: FEM power/chip-enable/mode pins held high (see the
+  // RF front-end enable: FEM power/chip-enable pins held high (see the
   // board library file's radio.setup_high for pin roles and tradeoffs).
 {% for p in setup_high %}
   pinMode({{ p }}, OUTPUT);
   digitalWrite({{ p }}, HIGH);
 {% endfor %}
+{% endif %}
+{% if setup_low %}
+  // Active-low rails (e.g. Heltec V4 VEXT): power the FEM/antenna path.
+{% for p in setup_low %}
+  pinMode({{ p }}, OUTPUT);
+  digitalWrite({{ p }}, LOW);
+{% endfor %}
+{% endif %}
+{% if txen is not none or rxen is not none %}
+  // Per-transfer PA/LNA enables: RadioLib drives txen HIGH only during TX
+  // (rxen during RX). Held statically high, a FEM's TX enable pins the PA
+  // output stage on and the receiver is deaf -- joins transmit, accepts
+  // never arrive. Bench-proven on the Heltec V4 (2026-08-28).
+  radio.setRfSwitchPins({{ rxen if rxen is not none else 'RADIOLIB_NC' }}, {{ txen if txen is not none else 'RADIOLIB_NC' }});
 {% endif %}
 
   int16_t state = radio.begin();

@@ -71,6 +71,9 @@ def _radio_ctx(radio: Radio) -> dict:
         "tcxo_voltage": radio.tcxo_voltage,
         "dio2_as_rf_switch": radio.dio2_as_rf_switch,
         "setup_high": [_pin(p) for p in radio.setup_high],
+        "setup_low": [_pin(p) for p in radio.setup_low],
+        "txen": _pin(radio.txen) if radio.txen else None,
+        "rxen": _pin(radio.rxen) if radio.rxen else None,
     }
 
 

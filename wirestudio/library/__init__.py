@@ -283,6 +283,18 @@ class Radio(_Strict):
     # until the FEM's power/enable/mode pins are up; the transceiver's SPI
     # works regardless, so the failure presents as a join problem.
     setup_high: list[str] = Field(default_factory=list)
+    # Active-low rails driven LOW before radio.begin() (Heltec V4's VEXT on
+    # GPIO36 powers the FEM/antenna path; undriven, TX is leakage-grade and
+    # RX is deaf).
+    setup_low: list[str] = Field(default_factory=list)
+    # Per-transfer RF-switch enables handed to RadioLib (setRfSwitchPins):
+    # idle LOW, txen HIGH only during TX, rxen HIGH only during RX. For
+    # PA/LNA enables that must NOT be held statically -- the Heltec V4.2's
+    # GC1109 PA_TX_EN (GPIO46) pinned high leaves the PA output stage
+    # engaged and the receiver deaf: joins transmit, accepts never arrive.
+    # Bench-proven on the V4, 2026-08-28 (roboat P4 HIL).
+    txen: Optional[str] = None
+    rxen: Optional[str] = None
 
     @model_validator(mode="after")
     def _require_family_pins(self) -> "Radio":
