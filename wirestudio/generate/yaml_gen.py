@@ -370,13 +370,14 @@ def _secret_name(ref: str) -> str:
 # the component repo cuts its first stable release post hardware-join
 # validation (decision logged in docs/lorawan/workflow-integration.md).
 _LORAWAN_FOR_ESPHOME_REPO = "moellere/lorawan-for-esphome"
-# Pinned to the SX1262 radio-keys merge (lorawan-for-esphome#8). Its
+# Pinned to the head of lorawan-for-esphome#10 (setup_low, per-transfer
+# rxen/txen rf-switch pins, device_class C, send_raw). Its predecessor
 # RADIO_SCHEMA is a strict cv.Schema, so the ref and the keys emitted below
 # have to move together: an older ref rejects `tcxo_voltage`,
 # `dio2_as_rf_switch` and `setup_high` outright, and ESPHome refuses the
 # config rather than ignoring them. The previous pin (#2) carried the
 # sck/miso/mosi keys and nothing more.
-_LORAWAN_FOR_ESPHOME_REF = "137d06ee47c47c0257b822a6d053870f6ecc021e"
+_LORAWAN_FOR_ESPHOME_REF = "3abc55852e90814c28ce0ffa38b918ba5230a5e1"
 
 
 def _emit_lorawan_blocks(
@@ -457,6 +458,14 @@ def _emit_lorawan_blocks(
     # unusable on every board with an external PA (Heltec V3/V4).
     if radio.setup_high:
         radio_block["setup_high"] = list(radio.setup_high)
+    if radio.setup_low:
+        radio_block["setup_low"] = list(radio.setup_low)
+    # Per-transfer PA/LNA enables (RadioLib rf-switch): a statically-driven
+    # TX enable deafens the receiver on FEM boards -- see the Radio model.
+    if radio.txen:
+        radio_block["txen_pin"] = radio.txen
+    if radio.rxen:
+        radio_block["rxen_pin"] = radio.rxen
 
     overrides = lorawan_secrets or {}
 

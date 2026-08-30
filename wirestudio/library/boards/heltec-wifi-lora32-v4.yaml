@@ -57,19 +57,24 @@ onboard_peripherals:
   gps_gnss:     {tx: GPIO38, rx: GPIO39, baud: 9600, enable: GPIO34, enable_active_low: true}
 
 # SX1262 wiring matches the V3 (RadioLib `new Module(8, 14, 12, 13)`),
-# TCXO 1.8V off DIO3, DIO2 as RF switch. setup_high powers and enables
-# the FEM before radio.begin(): VFEM (7), CSD (2), and both
-# revision-specific mode pins (5, 46) high. Static-high mode pins give
-# full TX PA on both revisions; on V4.3 RX runs in bypass (forfeits the
-# LNA's 21dB) -- dynamic TX/RX mode switching is firmware work beyond
-# the generated sketch.
+# TCXO 1.8V off DIO3, DIO2 as RF switch. Bench-proven FEM recipe
+# (2026-08-28, roboat P4 HIL -- OTAA join + Class C downlink validated):
+# static high = VFEM LDO (7) + CSD chip enable (2); static LOW = VEXT
+# (36, active-low FEM/antenna power); PA_TX_EN (46) is PER-TRANSFER via
+# txen -- RadioLib raises it only while transmitting. The previous
+# static-high [7,2,5,46] drive pinned the GC1109's output stage on and
+# left the receiver deaf: 69 join-requests accepted server-side, zero
+# join-accepts heard. V4.3 (KCT8103L) note: if a V4.3 board stays deaf
+# with this recipe, move txen to GPIO5 (CTX).
 radio:
   chip: sx1262
   radiolib_class: SX1262
   pins: {cs: GPIO8, rst: GPIO12, dio1: GPIO14, busy: GPIO13}
   tcxo_voltage: 1.8
   dio2_as_rf_switch: true
-  setup_high: [GPIO7, GPIO2, GPIO5, GPIO46]
+  setup_high: [GPIO7, GPIO2]
+  setup_low: [GPIO36]
+  txen: GPIO46
 
 gpio_capabilities:
   GPIO0:  [gpio, strap, boot_high, button]
