@@ -194,7 +194,7 @@ def generate_firmware(design: Design, library: Library) -> dict[str, str]:
             "platformio_board": board.platformio_board,
             "chip_variant": board.chip_variant,
             "mcu": board.mcu,
-            "flash_size_mb": board.flash_size_mb,
+            "flash_size_mb": design.board.flash_size_mb or board.flash_size_mb,
         },
         "region": region,
         "sub_band": sub_band,

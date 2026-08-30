@@ -21,6 +21,7 @@
         "library_id": { "type": "string" },
         "mcu": { "type": "string" },
         "framework": { "type": "string", "default": "arduino" },
+        "flash_size_mb": { "enum": [4, 8, 16, 32] },
         "pinned_esphome_version": { "type": "string" }
       }
     },

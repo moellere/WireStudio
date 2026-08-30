@@ -69,6 +69,12 @@ def test_set_board_updates_design(lib, garage_motion_design):
     assert garage_motion_design["board"]["mcu"] == "esp8266"
 
 
+def test_set_board_drops_a_flash_size_measured_on_the_old_board(lib, garage_motion_design):
+    garage_motion_design["board"]["flash_size_mb"] = 16
+    execute_tool("set_board", {"library_id": "wemos-d1-mini"}, garage_motion_design, lib)
+    assert "flash_size_mb" not in garage_motion_design["board"]
+
+
 def test_set_board_unknown_returns_error(lib, garage_motion_design):
     out, is_error = execute_tool(
         "set_board", {"library_id": "no-such-board"}, garage_motion_design, lib,

@@ -651,3 +651,13 @@ def test_tsl2561_renders_with_address_override(library):
     assert tsl["gain"] == "16x"
     assert tsl["integration_time"] == "402ms"
     assert tsl["name"] == "Window Illuminance"
+
+
+def test_design_flash_size_override_wins_over_board_file(garage_motion_design, library):
+    parsed = yaml.unsafe_load(render_yaml(garage_motion_design, library))
+    assert parsed["esp32"]["flash_size"] == "4MB"
+
+    override = garage_motion_design.model_copy(deep=True)
+    override.board.flash_size_mb = 16
+    parsed = yaml.unsafe_load(render_yaml(override, library))
+    assert parsed["esp32"]["flash_size"] == "16MB"

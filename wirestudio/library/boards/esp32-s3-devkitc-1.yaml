@@ -9,7 +9,8 @@ platformio_board: esp32-s3-devkitc-1
 # WROOM-2). No single value is correct for every unit, so this is the
 # smallest. Under-declaring only wastes flash; over-declaring boot-loops
 # the board, which is how a Heltec V2 was bricked in 0.26.x by an 8MB
-# declaration on a 4MB part. Unverified against silicon.
+# declaration on a 4MB part. Unverified against silicon. An N32R16V owner
+# who has measured their unit sets board.flash_size_mb in design.json.
 # https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32s3/esp32-s3-devkitc-1/user_guide_v1.1.html
 flash_size_mb: 8
 

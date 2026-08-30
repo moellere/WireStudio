@@ -85,6 +85,7 @@ from wirestudio.fleet.client import FleetClient, FleetUnavailable
 from wirestudio.csp.compatibility import check_pin_compatibility, strict_blockers
 from wirestudio.csp.pin_solver import solve_pins as run_solve_pins
 from wirestudio.intent import validate_automations
+from wirestudio.validate import check_board_flash
 from wirestudio.enclosure import (
     EnclosureUnavailable,
     default_sources,
@@ -429,6 +430,7 @@ def create_app(
         # (warnings, not blocks) so a half-authored automation can render.
         target_warnings = get_target(d.target).validate(d, lib)
         automation_warnings = validate_automations(d, lib)
+        board_warnings = check_board_flash(d, lib)
         # In strict mode, warn/error compatibility entries and design warnings
         # flip ok to false (the render/push gates refuse the same design).
         # Permissive mode always reports ok -- warnings are guidance, not blocks.
@@ -442,7 +444,7 @@ def create_app(
             connection_count=len(d.connections),
             warnings=[
                 w.model_dump()
-                for w in list(d.warnings) + target_warnings + automation_warnings
+                for w in list(d.warnings) + target_warnings + automation_warnings + board_warnings
             ],
             compatibility_warnings=_wire_compat(check_pin_compatibility(design, lib)),
         )

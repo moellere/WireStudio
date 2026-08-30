@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`board.flash_size_mb` in `design.json`: a per-design override of the
+  library board file's flash size.** Board files pin the *floor* for
+  boards sold in several sizes under one name -- the ESP32-S3-DevKitC-1
+  ships as N8/N8R2/N8R8 (8MB) and N32R16V (32MB) -- because
+  over-declaring boot-loops the board and no static value is right for
+  every unit. That left an N32R16V owner with three quarters of their
+  flash unreachable and no way to claim it short of editing the shared
+  library. The override wins over the board file in both the ESPHome and
+  the LoRaWAN generator, is restricted to the sizes both can name a
+  partition table for (4/8/16/32), warns
+  (`flash_size_override_above_board`) when it raises the board file's
+  value since that is the direction that bricks, and is dropped when
+  `set_board` switches boards -- a size measured on one board says
+  nothing about another. Closes the last actionable half of #219; the
+  remaining half is `esptool flash-id` on four boards not at the bench.
 - `HANDOFF.md`: current backlog and bench state for picking this up in a
   fresh session -- what is shipped, what is blocked on hardware at the
   bench, which beliefs are unverified, and the gotchas that cost time.
@@ -17,6 +32,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Heltec V4 FEM: `PA_TX_EN` is per-transfer, not static.** Holding the
+  GC1109's PA_TX_EN (GPIO46) high pinned the PA output stage on and left
+  the receiver deaf -- 69 join-requests accepted server-side, zero
+  join-accepts heard (RadioLib -1116). The board file and both firmware
+  paths now drive it through RadioLib's rf-switch (`txen`), with VFEM
+  (GPIO7) and CSD (GPIO2) static high and VEXT (GPIO36) static low;
+  without VEXT the FEM path is unpowered and TX is leakage-grade
+  (-52 dBm at 2 m). OTAA join and a Class C downlink validated on the
+  bench. On a V4.3 (KCT8103L) that is still deaf, move `txen` to GPIO5.
+- **Heltec V4 GNSS UART direction was backwards.** Heltec's GNSS_TX/RX
+  net names are direction-ambiguous, and the Meshtastic-derived table
+  0.24.1 cited when it added the auto-wiring has them reversed. Measured
+  against a live L76K: the *module's* TX is GPIO39 (the MCU reads NMEA
+  there) and its RX is GPIO38.
+- **Heltec V4 GNSS stayed mute until standby was driven.** STANDBY
+  (GPIO40) undriven leaves the module silent with its TX held low, which
+  reads as a UART break flood and is easily mistaken for a floating pin.
+  `uart_gps` now carries `standby_pin` and `reset_pin` through the seed
+  into both firmware paths, and the power-up order is pinned: VEXT(36
+  low) -> settle -> EN(34 low) -> RST(42 high) -> WAKE(40 high) -> ~1 s
+  warmup, giving 1 Hz multi-constellation NMEA at 9600. (V4-R8 moves EN
+  to GPIO42 and drops reset.)
+- **`$GPTXT ... ANTENNA OPEN` on the V4 GNSS is benign**, and this
+  bring-up chased it as a fault. The L76K's antenna is an integrated
+  passive patch -- there is nothing to connect -- so its active-antenna
+  DC-detect always reports open. Noted in the board file. Zero satellites
+  indoors is also normal; a first fix needs sky view.
 - **The roadmap contradicted itself on why the hardware gate is a
   CronJob.** `docs/index.md` still described phase 3 as carrying "a
   self-hosted runner as real setup and maintenance cost" while
