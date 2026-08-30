@@ -184,3 +184,20 @@ def test_tbeam_powers_its_rails_before_using_them(lib):
     assert "XPowersLib.h" in src
     assert "enableLDO2" in src and "enableLDO3" in src
     assert src.index("power.begin") < src.index("GPSSerial.begin")
+
+
+def test_design_flash_size_override_wins_over_board_file(lib):
+    # heltec-wifi-lora32-v3 pins 8MB; a design that measured 16MB on its own
+    # unit gets the bigger partition table.
+    design = _design("heltec-wifi-lora32-v3")
+    design.board.flash_size_mb = 16
+    ini = generate_firmware(design, lib)["platformio.ini"]
+    assert "board_build.flash_size = 16MB" in ini
+    assert "board_upload.flash_size = 16MB" in ini
+    assert "board_build.partitions = default_16MB.csv" in ini
+
+
+def test_no_override_uses_board_file_flash_size(lib):
+    ini = generate_firmware(_design("heltec-wifi-lora32-v3"), lib)["platformio.ini"]
+    assert "board_build.flash_size = 8MB" in ini
+    assert "board_build.partitions = default_8MB.csv" in ini

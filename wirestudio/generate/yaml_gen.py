@@ -518,9 +518,11 @@ def build_yaml_dict(
         # of the flash unused and OTA slots smaller than the chip allows.
         # Nothing errors, which is why it goes unnoticed. Under-declaring is
         # the safe direction (over-declaring boot-loops the bootloader on a
-        # size mismatch), so emit what the board file says.
-        if board.flash_size_mb:
-            chip_block["flash_size"] = f"{board.flash_size_mb}MB"
+        # size mismatch), so the board file pins a floor for boards sold in
+        # several sizes; the design overrides it once the size is measured.
+        flash_size_mb = design.board.flash_size_mb or board.flash_size_mb
+        if flash_size_mb:
+            chip_block["flash_size"] = f"{flash_size_mb}MB"
         out["esp32"] = chip_block
     else:
         out[board.chip_variant] = chip_block

@@ -10,9 +10,21 @@ class _Strict(BaseModel):
 
 
 class Board(_Strict):
+    """The board this design targets.
+
+    `flash_size_mb` overrides the library board file's value for this design
+    only. It exists for boards sold in several flash sizes under one name --
+    the ESP32-S3-DevKitC-1 ships as N8/N8R2/N8R8 (8MB) and N32R16V (32MB) --
+    where the board file pins the floor because no static value is right for
+    every unit. Set it only from a measured size (the ESP-IDF bootloader's
+    "SPI Flash Size" banner, or `esptool flash-id`): raising it past what the
+    chip has boot-loops the board. Restricted to sizes both generators can
+    emit a partition table for, and ignored on non-ESP32 boards.
+    """
     library_id: str
     mcu: str
     framework: str = "arduino"
+    flash_size_mb: Optional[Literal[4, 8, 16, 32]] = None
     pinned_esphome_version: Optional[str] = None
 
 
