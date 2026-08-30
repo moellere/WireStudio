@@ -48,13 +48,16 @@ onboard_peripherals:
   led:          {pin: GPIO35}
   button:       {pin: GPIO0, inverted: true}
   rf_fem:       {power: GPIO7, enable: GPIO2, ctx: GPIO5, pa_mode: GPIO46}
-  # SH1.25-8 GNSS connector (plug-in module, e.g. Heltec UC6580 / L76K).
-  # tx/rx are the module-side labels; the seed handler crosses them so the
-  # MCU rx (GPIO38, "data toward the CPU") reads the module's TX and the MCU
-  # tx (GPIO39) drives the module's RX -- matching Meshtastic's heltec_v4
-  # GPS_TX_PIN=38 / GPS_RX_PIN=39. The module needs GPS_EN driven LOW to
-  # power up: GPIO34 on the V4, GPIO42 on the V4-R8 (see gnss_en below).
-  gps_gnss:     {tx: GPIO38, rx: GPIO39, baud: 9600, enable: GPIO34, enable_active_low: true}
+  # SH1.25-8 GNSS connector (plug-in L76K on the bench unit; 9600 baud).
+  # tx/rx are MODULE-side labels; the seed handler crosses them onto the
+  # bus. Determined empirically 2026-08-30 (Heltec's GNSS_TX/RX net names
+  # are direction-ambiguous and several references have them backwards):
+  # the module's TX is GPIO39 (MCU reads NMEA there), module RX is GPIO38.
+  # Power-up REQUIRES, in order: VEXT low (rail), settle, EN GPIO34 low,
+  # reset GPIO42 HIGH (deasserted), standby GPIO40 HIGH (wake), ~1 s
+  # warmup. Undriven standby leaves the module mute with its TX held low.
+  # V4-R8 revision: EN moves to GPIO42, reset removed.
+  gps_gnss:     {tx: GPIO39, rx: GPIO38, baud: 9600, enable: GPIO34, enable_active_low: true, standby: GPIO40, reset: GPIO42}
 
 # SX1262 wiring matches the V3 (RadioLib `new Module(8, 14, 12, 13)`),
 # TCXO 1.8V off DIO3, DIO2 as RF switch. Bench-proven FEM recipe

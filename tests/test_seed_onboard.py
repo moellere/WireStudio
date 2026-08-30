@@ -135,13 +135,19 @@ def test_gps_uart_crosses_over_and_avoids_reserved_id(lib):
 
 
 def test_heltec_v4_gnss_connector_seeds_on_correct_pins(lib):
-    # The V4's SH1.25-8 GNSS connector auto-selects its UART pins: the
-    # module's TX (GPIO38, "toward the CPU") is the MCU rx, and the MCU tx
-    # (GPIO39) drives the module's RX -- matching Meshtastic's heltec_v4.
+    # The V4's SH1.25-8 GNSS connector auto-selects its UART pins. Empirical
+    # (2026-08-30, live L76K on the bench unit): the module's TX is GPIO39 --
+    # the MCU rx reads NMEA there -- and the MCU tx (GPIO38) drives the
+    # module's RX. Heltec's net names are direction-ambiguous and several
+    # references (including Meshtastic-derived tables) have this backwards.
     frag = seed_onboard_components(lib.board("heltec-wifi-lora32-v4"), lib)
-    assert "uart_gps" in {c["library_id"] for c in frag["components"]}
+    comp = next(c for c in frag["components"] if c["library_id"] == "uart_gps")
     bus = next(b for b in frag["buses"] if b["type"] == "uart")
-    assert bus["tx"] == "GPIO39" and bus["rx"] == "GPIO38"
+    assert bus["tx"] == "GPIO38" and bus["rx"] == "GPIO39"
+    # power/reset/standby lines carried so generated firmware can drive them
+    assert comp["params"]["enable_pin"] == "GPIO34"
+    assert comp["params"]["standby_pin"] == "GPIO40"
+    assert comp["params"]["reset_pin"] == "GPIO42"
 
 
 def test_unmapped_peripherals_warn_not_fail(lib):
