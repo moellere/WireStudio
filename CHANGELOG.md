@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`lorawan-for-esphome` pin moved to the #10 squash-merge on `main`**
+  (`b7da6174`). The previous pin was the PR's branch-head SHA, which
+  fell off-history when the PR squash-merged; GitHub keeps such commits
+  fetchable via PR refs for now, but a pin on main's history is the
+  durable choice. Generated YAML changes only in the ref string.
+
 ### Added
 
 - **`board.flash_size_mb` in `design.json`: a per-design override of the
