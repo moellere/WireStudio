@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.33.0] — 2026-08-30
+
 ### Added
 
 - **`board.flash_size_mb` in `design.json`: a per-design override of the
