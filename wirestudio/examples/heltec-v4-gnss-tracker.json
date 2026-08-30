@@ -1,0 +1,67 @@
+{
+  "schema_version": "0.1",
+  "id": "heltec-v4-gnss-tracker",
+  "name": "Heltec V4 GNSS tracker",
+  "description": "Heltec WiFi LoRa 32 V4 with its SH1.25-8 GNSS module, uplinking latitude/longitude/satellites over LoRaWAN via lorawan-for-esphome. Field order matches the wirestudio-esphome-us915-sub2-gnss ChirpStack profile codec. GPS enable on GPIO34 = standard V4 (R2); the V4-R8 moves it to GPIO42.",
+  "board": {
+    "library_id": "heltec-wifi-lora32-v4",
+    "mcu": "esp32",
+    "framework": "arduino"
+  },
+  "power": {
+    "supply": "usb-5v",
+    "rail_voltage_v": 5.0,
+    "budget_ma": 500
+  },
+  "requirements": [
+    {"id": "r1", "kind": "capability", "text": "uplink GNSS position over LoRaWAN"}
+  ],
+  "components": [
+    {
+      "id": "gnss",
+      "library_id": "uart_gps",
+      "label": "GNSS",
+      "params": {
+        "enable_pin": "GPIO34",
+        "enable_active_low": true,
+        "sensors": {
+          "latitude": {"id": "gnss_lat", "name": "Latitude"},
+          "longitude": {"id": "gnss_lon", "name": "Longitude"},
+          "satellites": {"id": "gnss_sats", "name": "Satellites"}
+        }
+      }
+    }
+  ],
+  "buses": [
+    {"id": "gnss_uart", "type": "uart", "rx": "GPIO38", "tx": "GPIO39", "baud_rate": 9600}
+  ],
+  "connections": [
+    {"component_id": "gnss", "pin_role": "VCC", "target": {"kind": "rail", "rail": "3V3"}},
+    {"component_id": "gnss", "pin_role": "GND", "target": {"kind": "rail", "rail": "GND"}},
+    {"component_id": "gnss", "pin_role": "TX", "target": {"kind": "bus", "bus_id": "gnss_uart"}},
+    {"component_id": "gnss", "pin_role": "RX", "target": {"kind": "bus", "bus_id": "gnss_uart"}}
+  ],
+  "passives": [],
+  "target": "esphome",
+  "lorawan": {
+    "region": "US915",
+    "sub_band": 2,
+    "payload": [
+      {"sensor": "gnss_lat"},
+      {"sensor": "gnss_lon"},
+      {"sensor": "gnss_sats"}
+    ]
+  },
+  "esphome_extras": {
+    "logger": {}
+  },
+  "fleet": {
+    "device_name": "heltec-v4-gnss-tracker",
+    "tags": ["lorawan", "gnss"],
+    "secrets_ref": {
+      "dev_eui": "!secret dev_eui",
+      "join_eui": "!secret join_eui",
+      "app_key": "!secret app_key"
+    }
+  }
+}
