@@ -372,7 +372,6 @@ def _secret_name(ref: str) -> str:
 _LORAWAN_FOR_ESPHOME_REPO = "moellere/lorawan-for-esphome"
 # Pinned to the lorawan-for-esphome#10 squash-merge on main (setup_low,
 # per-transfer rxen/txen rf-switch pins, device_class C, send_raw). Its
-# pre-merge branch-head predecessor
 # RADIO_SCHEMA is a strict cv.Schema, so the ref and the keys emitted below
 # have to move together: an older ref rejects `tcxo_voltage`,
 # `dio2_as_rf_switch` and `setup_high` outright, and ESPHome refuses the
