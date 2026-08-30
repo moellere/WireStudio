@@ -244,6 +244,21 @@ ESP32-S3-DevKitC-1 ships as N8/N8R2/N8R8 (8MB) *and* N32R16V (32MB); no
 static value is right for every unit. Pin the floor and comment that it
 must not be raised.
 
+A design that has *measured* its own unit claims the rest with a
+per-design override, which wins over the board file in both the ESPHome
+and LoRaWAN generators:
+
+```json
+"board": { "library_id": "esp32-s3-devkitc-1", "mcu": "esp32", "flash_size_mb": 32 }
+```
+
+Allowed values are 4, 8, 16 and 32 — the sizes both generators can name a
+partition table for. Raising it above the board file's value validates
+with a `flash_size_override_above_board` warning, because that is the
+direction that boot-loops; lowering it is safe and silent. Switching the
+design's board drops the override, since a size measured on one board
+says nothing about another.
+
 To verify against silicon, the reliable route is the ESP-IDF bootloader,
 which prints the real size at boot:
 

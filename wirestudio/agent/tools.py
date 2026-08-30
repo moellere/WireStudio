@@ -22,6 +22,7 @@ from wirestudio.kicad.pcb import PcbUnavailable, generate_kicad_pcb
 from wirestudio.library import Library
 from wirestudio.model import Design
 from wirestudio.recommend.recommender import Constraints, recommend_components
+from wirestudio.validate import check_board_flash
 
 
 # ---------------------------------------------------------------------------
@@ -396,8 +397,12 @@ def _run_list_boards(design: dict, library: Library) -> dict:
 
 def _run_set_board(design: dict, library: Library, *, library_id: str) -> dict:
     board = library.board(library_id)  # raises FileNotFoundError if unknown
+    kept = dict(design.get("board") or {})
+    # A flash size measured on the old board says nothing about the new one,
+    # and carrying it over is the direction that boot-loops.
+    kept.pop("flash_size_mb", None)
     design["board"] = {
-        **(design.get("board") or {}),
+        **kept,
         "library_id": board.id,
         "mcu": board.mcu,
         "framework": board.framework,
@@ -589,6 +594,7 @@ def _run_validate(design: dict, library: Library) -> dict:
     except (FileNotFoundError, ValueError) as e:
         return {"ok": False, "error": str(e), "schema_ok": True}
     compat = check_pin_compatibility(design, library)
+    board_warnings = check_board_flash(d, library)
     # Strict blockers are surfaced regardless of mode so the caller can see
     # what *would* block; in strict mode their presence also flips ok=False.
     blockers = strict_blockers(design, library)
@@ -600,7 +606,7 @@ def _run_validate(design: dict, library: Library) -> dict:
         "components": len(d.components),
         "buses": len(d.buses),
         "connections": len(d.connections),
-        "warnings": [w.model_dump() for w in d.warnings],
+        "warnings": [w.model_dump() for w in list(d.warnings) + board_warnings],
         "compatibility_warnings": [
             {
                 "severity": w.severity, "code": w.code, "pin": w.pin,

@@ -101,6 +101,13 @@ def test_validate_accepts_known_example(client):
     assert body["component_count"] == 2
 
 
+def test_validate_surfaces_a_flash_size_override_above_the_board_file(client):
+    design = json.loads((EXAMPLES_DIR / "garage-motion.json").read_text())
+    design["board"]["flash_size_mb"] = 16  # esp32-devkitc-v4 is a 4MB board
+    body = client.post("/design/validate", json=design).json()
+    assert "flash_size_override_above_board" in {w["code"] for w in body["warnings"]}
+
+
 def test_validate_rejects_missing_required(client):
     bad = {"schema_version": "0.1", "id": "x", "name": "x"}  # missing board/power
     r = client.post("/design/validate", json=bad)

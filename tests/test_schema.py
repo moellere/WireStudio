@@ -32,3 +32,16 @@ def test_examples_validate_against_schema(name):
     schema = json.loads((REPO_ROOT / "wirestudio" / "schema" / "design.schema.json").read_text())
     design = json.loads((REPO_ROOT / "wirestudio" / "examples" / f"{name}.json").read_text())
     jsonschema.validate(design, schema)
+
+
+def test_board_flash_size_override_is_constrained_to_emittable_sizes():
+    schema = json.loads((REPO_ROOT / "wirestudio" / "schema" / "design.schema.json").read_text())
+    design = json.loads((REPO_ROOT / "wirestudio" / "examples" / "garage-motion.json").read_text())
+
+    design["board"]["flash_size_mb"] = 32
+    jsonschema.validate(design, schema)
+
+    # 2MB has no default_2MB.csv partition table; neither generator can name one.
+    design["board"]["flash_size_mb"] = 2
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(design, schema)

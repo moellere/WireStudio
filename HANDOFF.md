@@ -73,10 +73,12 @@ TX power check for radio boards.
 ## Open issues / PRs
 
 - **wirestudio #219** — board `flash_size` unverified; `esp32-s3-devkitc-1`
-  ships 8 MB and 32 MB under one name. **Partly unblocked**: SLOT28 is an
-  esp32s3, so flash size can now be read from silicon. The undecidable half
-  stands (one board name, four SKUs) — it likely needs a detected-at-flash-time
-  value rather than a board-file constant.
+  ships 8 MB and 32 MB under one name. The undecidable half is now handled:
+  the board file keeps the floor and `design.json` carries a
+  `board.flash_size_mb` override for a unit whose size has been measured.
+  What remains is measurement, and it is still blocked — none of the four
+  boards named in the issue is on the bench (SLOT28 is a V4, already
+  verified at 16 MB). Each is seconds of `esptool flash-id` once present.
 - **SensorsIot/Embedded-AI-Harness #29** — "MCP could reset a slot but never
   answer it". Open **18 days, no review**. Nudge or ping.
 - **SensorsIot/Embedded-AI-Harness #31** — keep-hostname opt-out (opened
