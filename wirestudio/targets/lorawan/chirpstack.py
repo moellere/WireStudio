@@ -268,12 +268,19 @@ class ChirpStackClient:
         device_profile_id: str,
         *,
         join_eui: Optional[str] = None,
+        tags: Optional[dict[str, str]] = None,
     ) -> None:
         """Create the device.
 
         Idempotent on identity: an existing DevEUI keeps its registration.
-        Its profile is re-pointed if the design now needs a different one --
-        see the already-exists branch.
+        Its profile is re-pointed if the design now needs a different one,
+        and `tags` are merged onto it -- see the already-exists branch.
+
+        `tags` records where the device physically lives (`slot`). It is
+        written here because provisioning is the only thing that registers a
+        device, so the binding cannot drift from the hardware the way a
+        hand-maintained roster does: reprovisioning a board onto another slot
+        moves the tag with it.
         """
         grpc, m = _load()
         device = m.dev.Device(
@@ -284,6 +291,8 @@ class ChirpStackClient:
         )
         if join_eui:
             device.join_eui = join_eui
+        if tags:
+            device.tags.update(tags)
         stubs = self._get_stubs()
         try:
             stubs.device.Create(
@@ -318,8 +327,19 @@ class ChirpStackClient:
             # pointed at the old one decodes every uplink at the wrong offsets,
             # and the caller still reports the new profile id -- success for a
             # device that is quietly emitting garbage.
+            changed = False
             if existing.device_profile_id != device_profile_id:
                 existing.device_profile_id = device_profile_id
+                changed = True
+            # Merge rather than replace: tags we do not set are someone
+            # else's, and a device reprovisioned onto a new slot must carry
+            # the new one -- a stale `slot` tag is the drift this exists to
+            # prevent.
+            for k, v in (tags or {}).items():
+                if existing.tags.get(k) != v:
+                    existing.tags[k] = v
+                    changed = True
+            if changed:
                 try:
                     stubs.device.Update(
                         m.dev.UpdateDeviceRequest(device=existing), metadata=self._auth
@@ -435,6 +455,7 @@ class ChirpStackClient:
         device_name: Optional[str] = None,
         join_eui: Optional[str] = None,
         codec: Optional[str] = None,
+        tags: Optional[dict[str, str]] = None,
     ) -> dict:
         """Full (re)provision: ensure profile (with codec) + app, create device,
         set key, flush nonces. Returns the resolved ids. Side-effecting against
@@ -450,6 +471,7 @@ class ChirpStackClient:
             application_id,
             device_profile_id,
             join_eui=join_eui,
+            tags=tags,
         )
         self.set_device_keys(dev_eui, app_key)
         self.flush_dev_nonces(dev_eui)

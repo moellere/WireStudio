@@ -251,6 +251,15 @@ def test_full_flow_reaches_done(fake_serial):
     assert events[-1]["dev_addr"] == "0136e110"
 
 
+def test_registration_records_the_slot_the_board_sits_in(fake_serial):
+    """The slot->DevEUI binding is written by the one action that knows both
+    for certain. A roster maintained by hand goes stale the first time a board
+    is repurposed, and nothing notices until a gate blames the hardware."""
+    chirp = FakeChirp()
+    _run(fake_serial, chirp=chirp)
+    assert chirp.calls[0]["tags"] == {"slot": "SLOT1"}
+
+
 def test_registration_follows_the_flash(fake_serial):
     """The DevEUI comes out of esptool's log, so registration cannot precede
     the flash -- and provision_device's DevNonce flush has to land after the
