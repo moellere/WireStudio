@@ -72,6 +72,11 @@ class Slot:
     serial_url: Optional[str]
     flapping: bool
     last_error: Optional[str]
+    # What the board in this slot is for, as the bench itself records it.
+    # Labels are positional and say nothing about purpose, so without these
+    # a slot's contents can only be identified by asking someone.
+    group: Optional[str] = None
+    role: Optional[str] = None
 
     @property
     def busy(self) -> bool:
@@ -111,6 +116,8 @@ class Slot:
             serial_url=d.get("url"),
             flapping=bool(d.get("flapping")),
             last_error=d.get("last_error"),
+            group=d.get("group"),
+            role=d.get("role"),
         )
 
 

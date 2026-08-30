@@ -125,6 +125,12 @@ def provision_events(
         device_profile_name=profile_name(design, library),
         join_eui=join_eui,
         codec=generate_codec(design, library),
+        # Records which slot this device physically sits in, at the one moment
+        # that fact is known for certain. Without it the only slot->DevEUI map
+        # is hand-maintained, and it goes stale silently the first time a board
+        # is repurposed -- the device keeps uplinking under its new identity
+        # while anything watching the old one reports dead hardware.
+        tags={"slot": slot},
     )
     yield {
         "type": "phase",

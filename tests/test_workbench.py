@@ -111,6 +111,16 @@ def _parse_sse(body: str) -> list[dict]:
 # ----------------------------------------------------------------------
 
 
+def test_slot_carries_the_benchs_purpose_labels():
+    s = Slot.from_api(_slot(group="lorawan", role="roboat-hil"))
+    assert (s.group, s.role) == ("lorawan", "roboat-hil")
+
+
+def test_slot_purpose_labels_default_to_none_when_the_bench_omits_them():
+    s = Slot.from_api(_slot())
+    assert (s.group, s.role) == (None, None)
+
+
 def test_empty_slot_is_not_flashable():
     ok, reason = Slot.from_api(
         _slot(present=False, state="absent", usb_devices=[])

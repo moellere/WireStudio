@@ -355,3 +355,62 @@ def test_create_device_does_not_update_when_the_profile_already_matches():
     _client(stubs).create_device("0011223344556677", "dev", "app", "dp")
 
     assert not stubs.device.Update.called
+
+
+def test_create_device_stamps_tags_on_the_new_device():
+    stubs = _stubs()
+    _client(stubs).create_device(
+        "0011223344556677", "dev", "app", "dp", tags={"slot": "SLOT19"},
+    )
+    device = stubs.device.Create.call_args.args[0].device
+    assert dict(device.tags) == {"slot": "SLOT19"}
+
+
+def test_create_device_moves_a_stale_slot_tag_on_reprovision():
+    # The drift case: a board reprovisioned onto a different slot must carry
+    # the new slot, or anything reading the tag keeps pointing at the old one.
+    stubs = _stubs()
+    stubs.device.Create.side_effect = _RpcError(grpc.StatusCode.ALREADY_EXISTS)
+    from chirpstack_api.api import device_pb2
+
+    existing = device_pb2.Device(application_id="app", device_profile_id="dp")
+    existing.tags["slot"] = "SLOT12"
+    stubs.device.Get.return_value = SimpleNamespace(device=existing)
+
+    _client(stubs).create_device(
+        "0011223344556677", "dev", "app", "dp", tags={"slot": "SLOT19"},
+    )
+    updated = stubs.device.Update.call_args.args[0].device
+    assert updated.tags["slot"] == "SLOT19"
+
+
+def test_create_device_leaves_foreign_tags_alone():
+    stubs = _stubs()
+    stubs.device.Create.side_effect = _RpcError(grpc.StatusCode.ALREADY_EXISTS)
+    from chirpstack_api.api import device_pb2
+
+    existing = device_pb2.Device(application_id="app", device_profile_id="dp")
+    existing.tags["owner"] = "roboat"
+    stubs.device.Get.return_value = SimpleNamespace(device=existing)
+
+    _client(stubs).create_device(
+        "0011223344556677", "dev", "app", "dp", tags={"slot": "SLOT19"},
+    )
+    updated = stubs.device.Update.call_args.args[0].device
+    assert updated.tags["owner"] == "roboat"
+    assert updated.tags["slot"] == "SLOT19"
+
+
+def test_create_device_with_matching_tags_and_profile_skips_the_update():
+    stubs = _stubs()
+    stubs.device.Create.side_effect = _RpcError(grpc.StatusCode.ALREADY_EXISTS)
+    from chirpstack_api.api import device_pb2
+
+    existing = device_pb2.Device(application_id="app", device_profile_id="dp")
+    existing.tags["slot"] = "SLOT19"
+    stubs.device.Get.return_value = SimpleNamespace(device=existing)
+
+    _client(stubs).create_device(
+        "0011223344556677", "dev", "app", "dp", tags={"slot": "SLOT19"},
+    )
+    stubs.device.Update.assert_not_called()

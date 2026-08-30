@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Provisioning records which slot a device sits in.** A LoRaWAN device
+  registered through the workbench path is now tagged `slot: SLOT19` in
+  ChirpStack, written by the one action that knows the board and the slot
+  at the same moment. Until now the only slot-to-DevEUI map was the
+  hardware gate's hand-maintained roster, and it went stale silently the
+  first time a board was repurposed: the board kept uplinking under its
+  new identity while the gate watched the retired one and reported dead
+  hardware for four nightly runs. Tags are merged, not replaced, so a tag
+  someone else set survives; a device reprovisioned onto another slot
+  carries the new slot with it. `ListDevices` returns tags inline, so
+  "which device is in SLOT19?" is one call.
+- **`Slot.group` / `Slot.role`** are now parsed from the bench. The
+  workbench has always reported them and the client dropped them on the
+  floor. Slot labels are positional and say nothing about purpose, so
+  without these a slot's contents can only be identified by asking
+  someone who remembers.
+
 ## [0.33.1] — 2026-08-30
 
 ### Changed
