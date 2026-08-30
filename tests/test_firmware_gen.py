@@ -118,7 +118,13 @@ def test_heltec_v4_seeded_gnss_powers_enable_and_fem(lib):
     cpp = generate_firmware(design, lib)["src/main.cpp"]
     assert "pinMode(34, OUTPUT);" in cpp
     assert "digitalWrite(34, LOW);" in cpp  # active-low enable -> power on
-    assert "GPSSerial.begin(9600, SERIAL_8N1, 38, 39);" in cpp
+    # Empirical (2026-08-30): the module's TX is GPIO39 -- MCU reads NMEA on
+    # 39 and drives the module's RX on 38. Heltec's net names are
+    # direction-ambiguous and several references have this backwards.
+    assert "GPSSerial.begin(9600, SERIAL_8N1, 39, 38);" in cpp
+    # standby (wake) and reset both driven HIGH; mute-with-TX-low otherwise
+    assert "digitalWrite(40, HIGH);" in cpp
+    assert "digitalWrite(42, HIGH);" in cpp
     # Bench-proven V4 FEM recipe (2026-08-28): VFEM+CSD static high, VEXT
     # static low, PA_TX_EN per-transfer via RadioLib's rf switch -- the old
     # static-high [7,2,5,46] drive pinned the PA on and deafened the RX.

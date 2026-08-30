@@ -154,6 +154,12 @@ def _seed_gps(key: str, params: dict, ctx: _SeedContext) -> Optional[tuple[dict,
     if params.get("enable"):
         comp["params"]["enable_pin"] = params["enable"]
         comp["params"]["enable_active_low"] = bool(params.get("enable_active_low", False))
+    # Standby/wake and reset lines (Heltec V4: GPIO40 / GPIO42). Both must be
+    # driven HIGH for the module to run -- an undriven standby leaves it mute.
+    if params.get("standby"):
+        comp["params"]["standby_pin"] = params["standby"]
+    if params.get("reset"):
+        comp["params"]["reset_pin"] = params["reset"]
     conns = [_rail("onboard_gps", "VCC", "3V3"), _rail("onboard_gps", "GND", "GND"),
              _bus("onboard_gps", "TX", bus_id), _bus("onboard_gps", "RX", bus_id)]
     return comp, conns

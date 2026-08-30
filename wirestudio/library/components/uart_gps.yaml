@@ -31,6 +31,15 @@ lorawan:
       digitalWrite({{ params.enable_pin | string | replace('GPIO', '') }}, {{ 'LOW' if params.enable_active_low else 'HIGH' }});  // power on GNSS module
       delay(100);
     {%- endif %}
+    {%- if params.reset_pin is defined and params.reset_pin %}
+      pinMode({{ params.reset_pin | string | replace('GPIO', '') }}, OUTPUT);
+      digitalWrite({{ params.reset_pin | string | replace('GPIO', '') }}, HIGH);  // reset deasserted
+    {%- endif %}
+    {%- if params.standby_pin is defined and params.standby_pin %}
+      // Wake from standby: undriven, the module is mute with TX held low.
+      pinMode({{ params.standby_pin | string | replace('GPIO', '') }}, OUTPUT);
+      digitalWrite({{ params.standby_pin | string | replace('GPIO', '') }}, HIGH);
+    {%- endif %}
     {%- if bus is not none %}
       GPSSerial.begin({{ bus.baud | default(9600) }}, SERIAL_8N1, {{ bus.rx }}, {{ bus.tx }});  // RX, TX
     {%- else %}
@@ -104,8 +113,10 @@ esphome:
       {{ sensor_key }}: {{ sensor_cfg | tojson }}
     {%- endfor %}
     {%- endif %}
-    {%- if params.enable_pin is defined and params.enable_pin %}
+    {%- if (params.enable_pin is defined and params.enable_pin) or (params.reset_pin is defined and params.reset_pin) or (params.standby_pin is defined and params.standby_pin) %}
     switch:
+    {%- endif %}
+    {%- if params.enable_pin is defined and params.enable_pin %}
     - platform: gpio
       id: {{ id }}_power
       name: "{{ label | default('GNSS') }} power"
@@ -117,6 +128,23 @@ esphome:
       # simply never produces a sentence, which looks identical to no fix.
       # ALWAYS_ON powers it at boot, matching what the standalone firmware
       # does in setup().
+      restore_mode: ALWAYS_ON
+    {%- endif %}
+    {%- if params.reset_pin is defined and params.reset_pin %}
+    - platform: gpio
+      id: {{ id }}_reset_deassert
+      name: "{{ label | default('GNSS') }} reset (deasserted)"
+      pin:
+        number: {{ params.reset_pin }}
+      restore_mode: ALWAYS_ON
+    {%- endif %}
+    {%- if params.standby_pin is defined and params.standby_pin %}
+    # Wake from standby: undriven, the module is mute with its TX held low.
+    - platform: gpio
+      id: {{ id }}_wake
+      name: "{{ label | default('GNSS') }} wake"
+      pin:
+        number: {{ params.standby_pin }}
       restore_mode: ALWAYS_ON
     {%- endif %}
 
