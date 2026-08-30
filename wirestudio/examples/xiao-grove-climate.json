@@ -8,8 +8,7 @@
   "board": {
     "library_id": "seeed-xiao-esp32c3",
     "mcu": "esp32",
-    "framework": "arduino",
-    "pinned_esphome_version": "2025.12.7"
+    "framework": "arduino"
   },
   "power": {
     "supply": "usb-5v",

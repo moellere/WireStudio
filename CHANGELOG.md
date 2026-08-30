@@ -30,6 +30,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   It had been parked in an unrelated repo, where a session opened on that
   tree could not act on any of it.
 
+### Removed
+
+- **`board.pinned_esphome_version` in `design.json`.** Declared in the
+  0.1 schema sketch and never wired to anything -- no generator, API,
+  or gate has ever read it, so a design that set it got the same YAML
+  built against the same ESPHome as one that didn't. ESPHome version
+  pinning is real, but it lives in CI and the container images, not
+  per design. Dropped from the model, the JSON schema, the three
+  bundled examples that carried it, and the `START.md` schema sketch.
+  `design.json` rejects unknown keys, so a design still carrying the
+  line needs it deleted; nothing else changes, since nothing consumed
+  the value.
+
 ### Fixed
 
 - **Heltec V4 FEM: `PA_TX_EN` is per-transfer, not static.** Holding the
