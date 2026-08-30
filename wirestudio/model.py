@@ -25,7 +25,6 @@ class Board(_Strict):
     mcu: str
     framework: str = "arduino"
     flash_size_mb: Optional[Literal[4, 8, 16, 32]] = None
-    pinned_esphome_version: Optional[str] = None
 
 
 class Power(_Strict):

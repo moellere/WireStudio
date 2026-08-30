@@ -1480,8 +1480,7 @@ agent never has to *guess* what hardware you have — the device tells us.
   "board": {
     "library_id": "esp32-devkitc-v4",
     "mcu": "esp32",
-    "framework": "arduino",
-    "pinned_esphome_version": "2024.10.0"
+    "framework": "arduino"
   },
 
   "power": {
