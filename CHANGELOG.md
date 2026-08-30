@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.33.1] — 2026-08-30
+
 ### Changed
 
 - **`lorawan-for-esphome` pin moved to the #10 squash-merge on `main`**
