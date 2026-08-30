@@ -57,6 +57,10 @@ onboard_peripherals:
   # reset GPIO42 HIGH (deasserted), standby GPIO40 HIGH (wake), ~1 s
   # warmup. Undriven standby leaves the module mute with its TX held low.
   # V4-R8 revision: EN moves to GPIO42, reset removed.
+  # The L76K's antenna is an INTEGRATED passive patch (nothing to connect);
+  # its active-antenna DC-detect therefore always reports "$GPTXT ...
+  # ANTENNA OPEN" -- benign, not a fault. Zero sats indoors is normal;
+  # first fix needs sky view (patch facing up, TTFF ~30 s).
   gps_gnss:     {tx: GPIO39, rx: GPIO38, baud: 9600, enable: GPIO34, enable_active_low: true, standby: GPIO40, reset: GPIO42}
 
 # SX1262 wiring matches the V3 (RadioLib `new Module(8, 14, 12, 13)`),
