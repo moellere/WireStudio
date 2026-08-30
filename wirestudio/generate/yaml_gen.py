@@ -370,14 +370,15 @@ def _secret_name(ref: str) -> str:
 # the component repo cuts its first stable release post hardware-join
 # validation (decision logged in docs/lorawan/workflow-integration.md).
 _LORAWAN_FOR_ESPHOME_REPO = "moellere/lorawan-for-esphome"
-# Pinned to the head of lorawan-for-esphome#10 (setup_low, per-transfer
-# rxen/txen rf-switch pins, device_class C, send_raw). Its predecessor
+# Pinned to the lorawan-for-esphome#10 squash-merge on main (setup_low,
+# per-transfer rxen/txen rf-switch pins, device_class C, send_raw). Its
+# pre-merge branch-head predecessor
 # RADIO_SCHEMA is a strict cv.Schema, so the ref and the keys emitted below
 # have to move together: an older ref rejects `tcxo_voltage`,
 # `dio2_as_rf_switch` and `setup_high` outright, and ESPHome refuses the
 # config rather than ignoring them. The previous pin (#2) carried the
 # sck/miso/mosi keys and nothing more.
-_LORAWAN_FOR_ESPHOME_REF = "3abc55852e90814c28ce0ffa38b918ba5230a5e1"
+_LORAWAN_FOR_ESPHOME_REF = "b7da617482bf59341a5d14992f033e522af72b57"
 
 
 def _emit_lorawan_blocks(
