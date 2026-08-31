@@ -16,7 +16,7 @@ wifi:
   password: !secret wifi_password
 captive_portal: {}
 spi:
-- id: spi0
+- id: spi_bus
   clk_pin: GPIO18
   miso_pin: GPIO19
   mosi_pin: GPIO23
@@ -28,7 +28,7 @@ uart:
 cc1101:
   cs_pin: GPIO5
   gdo0_pin: GPIO4
-  spi_id: spi0
+  spi_id: spi_bus
   frequency: 433920000
   modulation_type: ASK/OOK
 rdm6300:

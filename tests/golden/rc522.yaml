@@ -32,14 +32,14 @@ wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
 spi:
-- id: spi0
+- id: spi_bus
   clk_pin: D5
   miso_pin: D6
   mosi_pin: D7
 rc522_spi:
   cs_pin: D8
   reset_pin: D4
-  spi_id: spi0
+  spi_id: spi_bus
   update_interval: 2s
   on_tag:
     then:

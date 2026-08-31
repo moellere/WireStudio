@@ -6,9 +6,9 @@
 |  tft  [ILI9341 / ILI9486 / ILI9488 SPI TFT display]  -- TFT         |
 |    VCC   -> rail 3V3                                                |
 |    GND   -> rail GND                                                |
-|    SCK   -> spi0 (GPIO18)                                           |
-|    MOSI  -> spi0 (GPIO23)                                           |
-|    MISO  -> spi0 (GPIO19)                                           |
+|    SCK   -> spi_bus (GPIO18)                                        |
+|    MOSI  -> spi_bus (GPIO23)                                        |
+|    MISO  -> spi_bus (GPIO19)                                        |
 |    CS    -> GPIO5                                                   |
 |    DC    -> GPIO16                                                  |
 |    RESET -> GPIO17                                                  |
@@ -17,9 +17,9 @@
 |  touch  [XPT2046 resistive touchscreen controller (SPI)]  -- Touch  |
 |    VCC   -> rail 3V3                                                |
 |    GND   -> rail GND                                                |
-|    SCK   -> spi0 (GPIO18)                                           |
-|    MOSI  -> spi0 (GPIO23)                                           |
-|    MISO  -> spi0 (GPIO19)                                           |
+|    SCK   -> spi_bus (GPIO18)                                        |
+|    MOSI  -> spi_bus (GPIO23)                                        |
+|    MISO  -> spi_bus (GPIO19)                                        |
 |    CS    -> GPIO21                                                  |
 |    IRQ   -> GPIO22                                                  |
 |                                                                     |

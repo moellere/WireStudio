@@ -27,7 +27,7 @@ at all:
 
 Every PR runs `.github/workflows/esphome-config.yml`, which:
 
-1. Installs the pinned ESPHome (currently `==2025.12.7`).
+1. Installs the pinned ESPHome (currently `==2026.6.5`).
 2. For every `examples/*.json`, renders YAML through
    `wirestudio.generate.yaml_gen` and runs `esphome config <file>` against
    it.
@@ -41,7 +41,7 @@ gate.** It's the gate the project can be judged by from the outside.
 
 ```sh
 pip install -e .[dev]
-pip install 'esphome==2025.12.7'
+pip install 'esphome==2026.6.5'
 python scripts/check_examples.py            # all examples
 python scripts/check_examples.py garage-motion oled    # just these two
 python scripts/check_examples.py --keep     # leave generated YAML on disk
@@ -108,7 +108,7 @@ single push with `git push --no-verify` when iterating on a WIP
 feature branch.
 
 The pre-commit config lives at `.pre-commit-config.yaml`. Same
-`esphome==2025.12.7` install applies; same Debian-host venv
+`esphome==2026.6.5` install applies; same Debian-host venv
 caveat above applies if the install trips on `paho-mqtt`.
 
 ### Bumping the pinned ESPHome

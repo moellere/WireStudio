@@ -6,8 +6,8 @@
 |  probe  [MAX31855 thermocouple amplifier (SPI, K-type)]  -- Grill probe  |
 |    VCC   -> rail 3V3                                                     |
 |    GND   -> rail GND                                                     |
-|    CLK   -> spi0 (GPIO18)                                                |
-|    MISO  -> spi0 (GPIO19)                                                |
+|    CLK   -> spi_bus (GPIO18)                                             |
+|    MISO  -> spi_bus (GPIO19)                                             |
 |    CS    -> GPIO5                                                        |
 |                                                                          |
 |  lid  [MPU6050 6-axis IMU (accel + gyro, I2C)]  -- Grill lid             |
