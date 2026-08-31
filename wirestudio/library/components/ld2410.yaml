@@ -1,0 +1,70 @@
+id: ld2410
+name: Hi-Link LD2410 24GHz mmWave presence sensor (UART)
+category: binary_sensor
+use_cases: [presence, occupancy, motion, distance, still_detection]
+aliases: [ld2410b, ld2410c, hlk-ld2410]
+
+electrical:
+  vcc_min: 4.5
+  vcc_max: 5.5
+  current_ma_typical: 80
+  current_ma_peak: 120
+  pins:
+    - {role: VCC, kind: power}
+    - {role: GND, kind: ground}
+    - {role: TX, kind: uart_tx, voltage: 3.3}
+    - {role: RX, kind: uart_rx, voltage: 3.3}
+    - {role: OUT, kind: digital_out, voltage: 3.3}
+  passives:
+    - {kind: capacitor, value: "10uF", between: [VCC, GND], purpose: bulk decoupling}
+
+esphome:
+  required_components: [uart]
+  yaml_template: |
+    ld2410:
+      uart_id: {{ bus.id }}
+      id: {{ id }}
+    binary_sensor:
+      - platform: ld2410
+        has_target:
+          name: "{{ label }} Presence"
+        has_moving_target:
+          name: "{{ label }} Moving Target"
+        has_still_target:
+          name: "{{ label }} Still Target"
+    sensor:
+      - platform: ld2410
+        moving_distance:
+          name: "{{ label }} Moving Distance"
+        still_distance:
+          name: "{{ label }} Still Distance"
+        detection_distance:
+          name: "{{ label }} Detection Distance"
+
+capability:
+  role: input
+  provides:
+    - {event: on_press}
+    - {event: on_release}
+  checks:
+    - {predicate: is_on,  esphome: binary_sensor.is_on}
+    - {predicate: is_off, esphome: binary_sensor.is_off}
+
+params_schema:
+  throttle:
+    type: string
+    description: "Minimum interval between distance/energy updates (e.g. '2s') to calm the log."
+
+notes: |
+  The mmWave that made still-presence detection mainstream: detects a
+  motionless person by micro-motion out to ~5m through plastic. UART
+  runs at 256000 baud -- set the bus accordingly. Wire module TX to MCU
+  RX and vice versa. The OUT pin mirrors presence as a plain digital
+  signal if you want a wire fallback; the UART integration is richer
+  (per-gate energies, distances, engineering mode). One ld2410 hub per
+  device. Sister ld2420 has its own library entry.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x05
+  footprint: Connector_PinHeader_1.27mm:PinHeader_1x05_P1.27mm_Vertical
+  value: LD2410

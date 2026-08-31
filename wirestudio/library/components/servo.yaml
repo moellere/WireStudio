@@ -1,0 +1,74 @@
+id: servo
+name: Hobby servo (SG90/MG90S class, 50Hz PWM)
+category: actuator
+use_cases: [servo, valve, lock, pan_tilt, damper, dispenser]
+aliases: ["sg90", "mg90s", "mg996r", "micro-servo"]
+
+electrical:
+  vcc_min: 4.8
+  vcc_max: 6.0
+  current_ma_typical: 200
+  current_ma_peak: 750
+  pins:
+    - {role: VCC, kind: power}
+    - {role: GND, kind: ground}
+    - {role: PWM, kind: digital_in, voltage: 3.3}
+  passives:
+    - {kind: capacitor, value: "470uF", between: [VCC, GND], purpose: bulk decoupling for stall surges}
+
+esphome:
+  required_components: []
+  yaml_template: |
+    output:
+      - platform: {{ params.output_platform | default(('ledc' if board and board.chip_variant.startswith('esp32') else 'esp8266_pwm')) }}
+        id: {{ id }}_pwm
+        pin: {{ pins.PWM | tojson }}
+        frequency: 50 Hz
+    servo:
+      - id: {{ id }}
+        output: {{ id }}_pwm
+        auto_detach_time: {{ params.auto_detach_time | default('2s') }}
+        transition_length: {{ params.transition_length | default('1s') }}
+    number:
+      - platform: template
+        name: "{{ label }} Position"
+        min_value: -100
+        max_value: 100
+        step: 1
+        optimistic: true
+        set_action:
+          then:
+            - servo.write:
+                id: {{ id }}
+                level: "!lambda return x / 100.0;"
+
+capability:
+  role: output
+  accepts:
+    - {action: write,  esphome: servo.write}
+    - {action: detach, esphome: servo.detach}
+
+params_schema:
+  auto_detach_time:
+    type: string
+    default: "2s"
+    description: "Stop driving the signal after reaching position -- quiets buzz and saves power. '0s' holds torque continuously."
+  transition_length:
+    type: string
+    default: "1s"
+  output_platform:
+    type: string
+    enum: [ledc, esp8266_pwm]
+    description: "Defaults by chip: ledc on ESP32-family, esp8266_pwm on ESP8266."
+
+notes: |
+  Standard 50Hz hobby servo on a single GPIO; the template exposes a
+  -100..100 position slider in Home Assistant. Power from 5V, never
+  the 3.3V rail -- a stalled SG90 pulls ~750mA and an MG996R several
+  amps (size the supply and cap accordingly). The 3.3V signal is fine
+  for practically every 5V servo.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x03
+  footprint: Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical
+  value: Servo

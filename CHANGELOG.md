@@ -9,6 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Library sweep: 18 new components** (65 -> 83), drawn from the
+  maintainer fleet's real device configs plus the most-requested
+  ESPHome hardware, each validated end-to-end through upstream
+  `esphome config`:
+  - *Environment:* SHT4x, SCD4x true CO2, SGP4x VOC/NOx index,
+    VEML7700 lux, BME680, MH-Z19 (UART), PMS5003/PMSX003 particulate
+    (UART).
+  - *Presence:* LD2410 mmWave (UART, richer channel set than the
+    existing LD2420; the stale `ld2410` alias moved off the ld2420
+    entry).
+  - *Power:* INA219 DC current/power, PZEM-004T v3 AC meter (rides the
+    modbus hub like sdm_meter), SCT-013 CT clamp (adc + ct_clamp with
+    burden/bias passives modeled).
+  - *Input:* PN532 NFC (I2C), Wiegand keypad/reader, IR receiver
+    (remote_receiver, with a Tasmota IRrecv mapping).
+  - *Output:* TM1637 7-segment display, hobby servo (per-chip
+    ledc/esp8266_pwm output plus an HA position slider), PCA9685 16ch
+    PWM, SN74HC595 shift register as a first-class expander
+    (`expander_pin_key`; downstream components wire to its pins).
+- **Six new bundled examples** covering all 18: air-quality-station,
+  co2-display (MH-Z19 driving a TM1637 readout), presence-media-node,
+  energy-monitor (PZEM-004T + CT clamp + INA219), access-panel (PN532 +
+  Wiegand + servo latch), output-hub (PCA9685 + shift-register relay on
+  an expander pin). The mhz19/scd4x templates give their CO2 channel a
+  referenceable id (`<id>_co2`) so displays and automations can read it.
+
 - **Provisioning records which slot a device sits in.** A LoRaWAN device
   registered through the workbench path is now tagged `slot: SLOT19` in
   ChirpStack, written by the one action that knows the board and the slot

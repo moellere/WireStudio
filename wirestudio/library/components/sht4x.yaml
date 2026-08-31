@@ -1,0 +1,61 @@
+id: sht4x
+name: Sensirion SHT4x temperature/humidity sensor (I2C)
+category: sensor
+use_cases: [temperature, humidity, climate, indoor_air]
+aliases: ["sht40", "sht41", "sht45", "adafruit-4885"]
+
+electrical:
+  vcc_min: 1.08
+  vcc_max: 3.6
+  current_ma_typical: 0.4
+  current_ma_peak: 0.6
+  pins:
+  - {role: VCC, kind: power}
+  - {role: GND, kind: ground}
+  - role: SDA
+    kind: i2c_sda
+    pull_up: {required: true, value: "4.7k", to: VCC}
+  - role: SCL
+    kind: i2c_scl
+    pull_up: {required: true, value: "4.7k", to: VCC}
+  passives:
+  - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+
+esphome:
+  required_components: [i2c]
+  yaml_template: |
+    sensor:
+      - platform: sht4x
+        i2c_id: {{ bus.id }}
+        address: {{ params.address | default('0x44') }}
+        temperature:
+          name: "{{ label }} Temperature"
+        humidity:
+          name: "{{ label }} Humidity"
+        update_interval: {{ params.update_interval | default('60s') }}
+
+capability:
+  role: sensor
+  provides:
+    - {event: on_value, kind: value}
+
+params_schema:
+  address:
+    type: string
+    default: "0x44"
+    description: "SHT40-AD variant is 0x45; everything common is 0x44."
+  update_interval:
+    type: string
+    default: "60s"
+
+notes: |
+  Sensirion's current-generation replacement for the SHT3x/DHT lines:
+  factory-calibrated, +/-0.2C / +/-1.8%RH (SHT40), no warm-up. 3.3V
+  only -- most breakouts have no level shifter. The optional on-die
+  heater (creep recovery in condensing environments) is exposed by
+  ESPHome's heater_* options if needed.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x04
+  footprint: Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical
+  value: SHT4x

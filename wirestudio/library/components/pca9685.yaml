@@ -1,0 +1,81 @@
+id: pca9685
+name: NXP PCA9685 16-channel 12-bit PWM driver (I2C)
+category: io_expander
+use_cases: [pwm, led_dimming, servo_bank, light_channels]
+aliases: ["adafruit-815", "16-channel-pwm"]
+
+electrical:
+  vcc_min: 2.3
+  vcc_max: 5.5
+  current_ma_typical: 6
+  current_ma_peak: 10
+  pins:
+  - {role: VCC, kind: power}
+  - {role: GND, kind: ground}
+  - role: SDA
+    kind: i2c_sda
+    pull_up: {required: true, value: "4.7k", to: VCC}
+  - role: SCL
+    kind: i2c_scl
+    pull_up: {required: true, value: "4.7k", to: VCC}
+  - {role: OE, kind: digital_in, voltage: 3.3}
+  passives:
+  - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+
+esphome:
+  required_components: [i2c]
+  yaml_template: |
+    pca9685:
+      id: {{ id }}
+      i2c_id: {{ bus.id }}
+      address: {{ params.address | default('0x40') }}
+      frequency: {{ params.frequency | default('500Hz') }}
+    output:
+    {%- for ch in params.channels | default([{"channel": 0}]) %}
+      - platform: pca9685
+        pca9685_id: {{ id }}
+        id: {{ id }}_ch{{ ch.channel }}
+        channel: {{ ch.channel }}
+    {%- endfor %}
+    light:
+    {%- for ch in params.channels | default([{"channel": 0}]) %}
+      - platform: monochromatic
+        name: "{{ ch.name | default(label ~ ' Channel ' ~ ch.channel) }}"
+        output: {{ id }}_ch{{ ch.channel }}
+    {%- endfor %}
+
+capability:
+  role: output
+  accepts:
+    - {action: turn_on,  esphome: light.turn_on}
+    - {action: turn_off, esphome: light.turn_off}
+
+params_schema:
+  address:
+    type: string
+    default: "0x40"
+    description: "Six address jumpers give 0x40-0x7F; note 0x40 collides with an INA219 on the same bus."
+  frequency:
+    type: string
+    default: "500Hz"
+    description: "24Hz-1526Hz, shared by all 16 channels. Use 50Hz for servos, higher for LEDs."
+  channels:
+    type: array
+    description: "Channels to expose, e.g. [{channel: 0, name: 'Desk strip'}, {channel: 1}]. Each becomes an output + monochromatic light."
+
+notes: |
+  16 hardware PWM channels over I2C -- LED banks or servo arrays
+  without spending MCU pins. Each declared channel renders as an
+  output plus a dimmable light entity; for servos set frequency to
+  50Hz and point a `servo:` at the generated output id instead of the
+  light. The V+ screw terminal powers servos separately from VCC
+  logic; the frequency is global, so don't mix servos and fast LED
+  PWM on one chip.
+kicad:
+  symbol_lib: Driver_LED
+  symbol: PCA9685PW
+  footprint: Package_SO:TSSOP-28_4.4x9.7mm_P0.65mm
+  pin_map:
+    VCC: VDD
+    GND: VSS
+    OE: ~{OE}

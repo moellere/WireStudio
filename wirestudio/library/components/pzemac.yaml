@@ -1,0 +1,63 @@
+id: pzemac
+name: Peacefair PZEM-004T v3 AC energy monitor (Modbus RTU over UART)
+category: sensor
+use_cases: [power_metering, ac_voltage, ac_current, energy, mains_monitoring]
+aliases: ["pzem-004t", "pzem004t", "pzem"]
+
+electrical:
+  current_ma_typical: 10
+  current_ma_peak: 15
+  pins:
+    - role: HUB
+      kind: hub_ref
+      parent_library_id: modbus
+  passives: []
+
+esphome:
+  required_components: []
+  yaml_template: |
+    sensor:
+      - platform: pzemac
+        modbus_id: {{ parent.id }}
+        address: {{ params.address | default(1) }}
+        voltage:
+          name: "{{ label }} Voltage"
+        current:
+          name: "{{ label }} Current"
+        power:
+          name: "{{ label }} Power"
+        energy:
+          name: "{{ label }} Energy"
+        frequency:
+          name: "{{ label }} Frequency"
+        power_factor:
+          name: "{{ label }} Power Factor"
+        update_interval: {{ params.update_interval | default('10s') }}
+
+capability:
+  role: sensor
+  provides:
+    - {event: on_value, kind: value}
+
+params_schema:
+  address:
+    type: number
+    default: 1
+    description: "Modbus slave address. Factory units answer address 1 (and the 0xF8 broadcast); re-address via ESPHome's pzemac.reset_energy/set_address services when stacking meters."
+  update_interval:
+    type: string
+    default: "10s"
+
+notes: |
+  The de-facto DIY mains monitor: clamp CT or shunt on the AC side,
+  optocoupled 5V TTL UART on ours. Interface side draws ~10mA from 5V;
+  the measurement side connects to live mains -- enclose it, fuse the
+  voltage tap, and keep the CT low-voltage side separated. UART runs
+  9600 baud through ESPHome's modbus hub (uart -> modbus -> pzemac).
+  Note the TTL header wants 5V VCC but its RX needs only 3.3V-safe
+  drive -- it works directly off ESP32/ESP8266 pins.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x04
+  footprint: Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical
+  value: PZEM-004T
