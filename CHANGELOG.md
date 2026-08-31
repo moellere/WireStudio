@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **ESPHome pin bumped 2025.12.7 -> 2026.6.5** (config gate, nightly
+  compile smoke, matrix, README/CONTRIBUTING). Two schema breaks:
+  2026.x reserves the id `spi0` internally, so the nine examples whose
+  SPI bus was named `spi0` rename it to `spi_bus`; and the i2s_audio
+  media_player was removed upstream, so the max98357a template now
+  emits an i2s_audio speaker wrapped by the speaker media_player
+  (goldens regenerated). All 68 examples validate under the new pin.
+
 ### Added
 
 - **CircuitPython code.py generation from the design.** The
@@ -23,18 +33,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   design-generated code over the board starter and lists the bundle
   libraries to copy to CIRCUITPY/lib plus any unmapped components.
   Every bundled example generates parseable code.
-
-### Changed
-
-- **ESPHome pin bumped 2025.12.7 -> 2026.6.5** (config gate, nightly
-  compile smoke, matrix, README/CONTRIBUTING). Two schema breaks:
-  2026.x reserves the id `spi0` internally, so the nine examples whose
-  SPI bus was named `spi0` rename it to `spi_bus`; and the i2s_audio
-  media_player was removed upstream, so the max98357a template now
-  emits an i2s_audio speaker wrapped by the speaker media_player
-  (goldens regenerated). All 68 examples validate under the new pin.
-
-### Added
 
 - **Tasmota coverage for the library-sweep components.** Eight new
   entries in the verified FUNC table (values recomputed from
