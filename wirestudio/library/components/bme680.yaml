@@ -43,6 +43,14 @@ capability:
   provides:
     - {event: on_value, kind: value}
 
+circuitpython:
+  imports: ["import adafruit_bme680"]
+  deps: [adafruit_bme680, adafruit_bus_device]
+  setup: |
+    {{ id }} = adafruit_bme680.Adafruit_BME680_I2C({{ bus_var }}, address={{ params.address | default('0x76') }})
+  loop: |
+    print("{{ label }}: %.1fC %.0f%% %.1fhPa gas=%d" % ({{ id }}.temperature, {{ id }}.humidity, {{ id }}.pressure, {{ id }}.gas))
+
 params_schema:
   address:
     type: string

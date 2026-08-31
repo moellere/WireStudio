@@ -349,6 +349,9 @@ function CircuitPythonFlash({ design, boards }: { design: Design | null; boards:
   const [log, setLog] = useState<string[]>([]);
   const [serial, setSerial] = useState<string>("");
   const [starter, setStarter] = useState<string | null>(null);
+  const [codeDeps, setCodeDeps] = useState<string[]>([]);
+  const [codeWarnings, setCodeWarnings] = useState<string[]>([]);
+  const [fromDesign, setFromDesign] = useState(false);
   const [saved, setSaved] = useState<string | null>(null);
   const [target, setTarget] = useState<FlashTarget>({ kind: "usb" });
   const sessionRef = useRef<FlashSession | null>(null);
@@ -377,11 +380,25 @@ function CircuitPythonFlash({ design, boards }: { design: Design | null; boards:
   useEffect(() => {
     if (!supported) { setStarter(null); return; }
     let cancelled = false;
-    api.circuitpythonCode(boardLibraryId)
-      .then((code) => { if (!cancelled) setStarter(code); })
-      .catch(() => { if (!cancelled) setStarter(null); });
+    const fallback = () =>
+      api.circuitpythonCode(boardLibraryId)
+        .then((code) => { if (!cancelled) { setStarter(code); setCodeDeps([]); setCodeWarnings([]); setFromDesign(false); } })
+        .catch(() => { if (!cancelled) setStarter(null); });
+    if (design && (design.components as unknown[] | undefined)?.length) {
+      api.circuitpythonDesignCode(design)
+        .then((r) => {
+          if (cancelled) return;
+          setStarter(r.code);
+          setCodeDeps(r.deps);
+          setCodeWarnings(r.warnings);
+          setFromDesign(true);
+        })
+        .catch(() => { if (!cancelled) void fallback(); });
+    } else {
+      void fallback();
+    }
     return () => { cancelled = true; };
-  }, [supported, boardLibraryId]);
+  }, [supported, boardLibraryId, design]);
 
   useEffect(() => () => { void sessionRef.current?.close(); }, []);
 
@@ -499,7 +516,20 @@ function CircuitPythonFlash({ design, boards }: { design: Design | null; boards:
           </p>
           {starter && (
             <>
-              <div className="text-xs font-medium text-ink">Starter code.py for this board</div>
+              <div className="text-xs font-medium text-ink">
+                {fromDesign ? "code.py generated from this design" : "Starter code.py for this board"}
+              </div>
+              {fromDesign && codeDeps.length > 0 && (
+                <div className="text-[10px] text-ink-faint">
+                  Copy from the Adafruit bundle into CIRCUITPY/lib:{" "}
+                  <code className="font-mono text-ink-dim">{codeDeps.join("  ")}</code>
+                </div>
+              )}
+              {fromDesign && codeWarnings.length > 0 && (
+                <ul className="text-[10px] text-amber-200">
+                  {codeWarnings.map((w, i) => <li key={i}>{w}</li>)}
+                </ul>
+              )}
               <pre className="max-h-40 overflow-auto rounded-md bg-surface-0 p-2 font-mono text-[10px] text-ink-dim ring-1 ring-line">
                 {starter}
               </pre>

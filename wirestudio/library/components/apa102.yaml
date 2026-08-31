@@ -37,6 +37,13 @@ esphome:
         default_transition_length: {{ params.default_transition_length }}
     {%- endif %}
 
+circuitpython:
+  imports: ["import adafruit_dotstar"]
+  deps: [adafruit_dotstar, adafruit_pixelbuf]
+  setup: |
+    {{ id }} = adafruit_dotstar.DotStar(P({{ pins.CI }}), P({{ pins.DI }}), {{ params.num_leds | default(1) }}, auto_write=True)
+    {{ id }}.fill((0, 8, 0))
+
 params_schema:
   chipset:
     type: string

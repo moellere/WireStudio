@@ -109,3 +109,71 @@ def test_code_generates_valid_python_for_every_board():
         r = client.get(f"/circuitpython/code?board={board}")
         assert r.status_code == 200, board
         ast.parse(r.text)
+
+
+def test_design_code_air_quality_station():
+    from wirestudio.generate.circuitpython_gen import generate_code
+    from wirestudio.library import default_library
+    from wirestudio.model import Design
+    import json
+    from pathlib import Path
+
+    examples = Path(__file__).resolve().parent.parent / "wirestudio" / "examples"
+    design = Design.model_validate(
+        json.loads((examples / "air-quality-station.json").read_text())
+    )
+    out = generate_code(design, default_library())
+    code = out["code"]
+    assert "i2c_i2c0 = busio.I2C(P(22), P(21))" in code
+    assert "adafruit_scd4x.SCD4X(i2c_i2c0)" in code
+    assert "adafruit_sht4x" in out["deps"]
+    # pmsx003 has no CP driver: warned, and its uart bus is not emitted.
+    assert any("pmsx003" in w for w in out["warnings"])
+    assert "busio.UART" not in code
+
+
+def test_design_code_every_example_is_valid_python():
+    import ast
+    import json
+    from pathlib import Path
+
+    from wirestudio.generate.circuitpython_gen import generate_code
+    from wirestudio.library import default_library
+    from wirestudio.model import Design
+
+    lib = default_library()
+    examples = Path(__file__).resolve().parent.parent / "wirestudio" / "examples"
+    mapped = 0
+    for path in sorted(examples.glob("*.json")):
+        design = Design.model_validate(json.loads(path.read_text()))
+        out = generate_code(design, lib)
+        ast.parse(out["code"])  # generator also parses; double-checked here
+        if "# Not generated" not in out["code"]:
+            mapped += 1
+    assert mapped > 15  # plenty of examples generate with zero gaps
+
+
+def test_design_code_endpoint():
+    import json
+    from pathlib import Path
+
+    client = TestClient(create_app())
+    examples = Path(__file__).resolve().parent.parent / "wirestudio" / "examples"
+    design = json.loads((examples / "access-panel.json").read_text())
+    r = client.post("/circuitpython/code", json=design)
+    assert r.status_code == 200
+    body = r.json()
+    assert "PN532_I2C" in body["code"]
+    assert "adafruit_pn532" in body["deps"]
+    assert any("wiegand" in w for w in body["warnings"])
+
+
+def test_design_code_endpoint_unknown_board_404():
+    import json
+    from pathlib import Path
+
+    client = TestClient(create_app())
+    examples = Path(__file__).resolve().parent.parent / "wirestudio" / "examples"
+    design = json.loads((examples / "access-panel.json").read_text())
+    design["board"]["library_id"] = "not-a-board"
+    assert client.post("/circuitpython/code", json=design).status_code == 404

@@ -19,6 +19,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CircuitPython code.py generation from the design.** The
+  LoRaWAN-fragment pattern applied to Python: 36 library components
+  gain a `circuitpython:` block -- explicit import lines, Adafruit
+  bundle deps, and Jinja2 setup/loop fragments -- and the new
+  generator (`wirestudio/generate/circuitpython_gen.py`) resolves the
+  design's buses to busio objects, renders each component's wiring
+  through the P() pin helper (IO/GPIO/D naming varies per build),
+  assembles one runnable file, and ast-validates it. Components
+  without a mapping degrade to a warning comment, and only buses a
+  mapped component uses are emitted. `POST /circuitpython/code`
+  returns {code, deps, warnings}; the flash dialog now prefers
+  design-generated code over the board starter and lists the bundle
+  libraries to copy to CIRCUITPY/lib plus any unmapped components.
+  Every bundled example generates parseable code.
+
 - **Tasmota coverage for the library-sweep components.** Eight new
   entries in the verified FUNC table (values recomputed from
   `tasmota_template.h` enum indexes, anchors cross-checked against the
