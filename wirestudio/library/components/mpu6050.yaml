@@ -44,6 +44,14 @@ esphome:
         temperature:
           name: "{{ label }} Die Temp"
 
+circuitpython:
+  imports: ["import adafruit_mpu6050"]
+  deps: [adafruit_mpu6050, adafruit_bus_device, adafruit_register]
+  setup: |
+    {{ id }} = adafruit_mpu6050.MPU6050({{ bus_var }})
+  loop: |
+    print("{{ label }}: accel %s gyro %s" % ({{ id }}.acceleration, {{ id }}.gyro))
+
 params_schema:
   address:
     type: string

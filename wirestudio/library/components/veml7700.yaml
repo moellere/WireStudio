@@ -36,6 +36,14 @@ capability:
   provides:
     - {event: on_value, kind: value}
 
+circuitpython:
+  imports: ["import adafruit_veml7700"]
+  deps: [adafruit_veml7700, adafruit_bus_device, adafruit_register]
+  setup: |
+    {{ id }} = adafruit_veml7700.VEML7700({{ bus_var }})
+  loop: |
+    print("{{ label }}: %.0f lux" % {{ id }}.lux)
+
 params_schema:
   update_interval:
     type: string

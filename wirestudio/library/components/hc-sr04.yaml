@@ -47,6 +47,17 @@ capability:
   provides:
     - {event: on_value, kind: value}
 
+circuitpython:
+  imports: ["import adafruit_hcsr04"]
+  deps: [adafruit_hcsr04]
+  setup: |
+    {{ id }} = adafruit_hcsr04.HCSR04(trigger_pin=P({{ pins.TRIGGER }}), echo_pin=P({{ pins.ECHO }}))
+  loop: |
+    try:
+        print("{{ label }}: %.1f cm" % {{ id }}.distance)
+    except RuntimeError:
+        print("{{ label }}: no echo")
+
 params_schema:
   update_interval: { type: string, default: "60s" }
   unit_of_measurement: { type: string, default: "m" }

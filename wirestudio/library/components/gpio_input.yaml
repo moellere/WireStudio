@@ -58,6 +58,15 @@ capability:
     - {predicate: is_on,  esphome: binary_sensor.is_on}
     - {predicate: is_off, esphome: binary_sensor.is_off}
 
+circuitpython:
+  imports: ["import digitalio"]
+  setup: |
+    {{ id }} = digitalio.DigitalInOut(P({{ pins.IN }}))
+    {{ id }}.direction = digitalio.Direction.INPUT
+    {{ id }}.pull = digitalio.Pull.UP
+  loop: |
+    print("{{ label }}:", "open" if {{ id }}.value else "closed")
+
 params_schema:
   device_class:
     type: string

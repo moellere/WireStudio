@@ -50,6 +50,16 @@ capability:
     - {action: turn_on,  esphome: light.turn_on}
     - {action: turn_off, esphome: light.turn_off}
 
+circuitpython:
+  imports: ["from adafruit_pca9685 import PCA9685"]
+  deps: [adafruit_pca9685, adafruit_bus_device, adafruit_register]
+  setup: |
+    {{ id }} = PCA9685({{ bus_var }}, address={{ params.address | default('0x40') }})
+    {{ id }}.frequency = {{ (params.frequency | default('500Hz')) | replace('Hz','') | int }}
+    {%- for ch in params.channels | default([{"channel": 0}]) %}
+    {{ id }}.channels[{{ ch.channel }}].duty_cycle = 0
+    {%- endfor %}
+
 params_schema:
   address:
     type: string

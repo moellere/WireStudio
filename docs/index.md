@@ -184,11 +184,19 @@ and warned about in the UI); ESP8266 has no CircuitPython port.
 board's library metadata (Vext power-up, LED blink, I2C scan, pin
 listing) with save-to-CIRCUITPY and download buttons post-flash.
 
+**CircuitPython codegen.** *Works.* Full code.py generation from the
+design — the LoRaWAN-fragment pattern applied to Python. 36 library
+components carry a `circuitpython:` block (explicit imports, Adafruit
+bundle deps, Jinja2 setup/loop fragments); the generator resolves
+buses to busio objects, renders each component's wiring, lists the
+bundle libraries to copy to CIRCUITPY/lib, and ast-validates the
+output. `POST /circuitpython/code` returns {code, deps, warnings};
+the flash dialog prefers design code over the board starter and
+surfaces deps + unmapped-component warnings. Unmapped parts degrade
+to a comment, never a broken file.
+
 **Target backlog.** Next: Meshtastic config push (`@meshtastic/js`
-region/channel/key setup over the existing serial session), then full
-CircuitPython code.py generation from the design (per-component driver
-init + Adafruit bundle libs, the LoRaWAN-fragment pattern — the
-interpreter flash + starter above is the shipped first step), then
+region/channel/key setup over the existing serial session), then
 MicroPython (the CircuitPython pattern applied upstream: proxy the
 micropython.org release port per chip, flash via the unified dialog,
 generate a main.py scaffold — differs in stdlib/driver sourcing, since

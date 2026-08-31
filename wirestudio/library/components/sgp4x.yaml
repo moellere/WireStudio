@@ -40,6 +40,14 @@ capability:
   provides:
     - {event: on_value, kind: value}
 
+circuitpython:
+  imports: ["import adafruit_sgp40"]
+  deps: [adafruit_sgp40, adafruit_bus_device]
+  setup: |
+    {{ id }} = adafruit_sgp40.SGP40({{ bus_var }})
+  loop: |
+    print("{{ label }}: raw VOC %d" % {{ id }}.raw)
+
 params_schema:
   model:
     type: string

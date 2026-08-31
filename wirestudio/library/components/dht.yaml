@@ -95,6 +95,17 @@ capability:
     - {event: on_value, kind: value, channel: humidity}
     - {event: on_value_range, kind: event, channel: humidity}
 
+circuitpython:
+  imports: ["import adafruit_dht"]
+  deps: [adafruit_dht]
+  setup: |
+    {{ id }} = adafruit_dht.{{ 'DHT11' if (params.model | default('DHT22')) == 'DHT11' else 'DHT22' }}(P({{ pins.DATA }}))
+  loop: |
+    try:
+        print("{{ label }}: %sC %s%%" % ({{ id }}.temperature, {{ id }}.humidity))
+    except RuntimeError as e:
+        print("{{ label }}:", e)
+
 params_schema:
   model:
     type: string

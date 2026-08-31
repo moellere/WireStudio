@@ -42,6 +42,14 @@ capability:
     - {predicate: is_on,  esphome: binary_sensor.is_on}
     - {predicate: is_off, esphome: binary_sensor.is_off}
 
+circuitpython:
+  imports: ["import digitalio"]
+  setup: |
+    {{ id }} = digitalio.DigitalInOut(P({{ pins.OUT }}))
+    {{ id }}.direction = digitalio.Direction.INPUT
+  loop: |
+    print("{{ label }}: motion" if {{ id }}.value else "{{ label }}: clear")
+
 params_schema:
   retrigger:
     type: string

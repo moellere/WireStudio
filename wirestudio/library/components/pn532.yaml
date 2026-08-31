@@ -44,6 +44,17 @@ capability:
   provides:
     - {event: on_tag, kind: event}
 
+circuitpython:
+  imports: ["from adafruit_pn532.i2c import PN532_I2C"]
+  deps: [adafruit_pn532, adafruit_bus_device]
+  setup: |
+    {{ id }} = PN532_I2C({{ bus_var }})
+    {{ id }}.SAM_configuration()
+  loop: |
+    {{ id }}_uid = {{ id }}.read_passive_target(timeout=0.5)
+    if {{ id }}_uid is not None:
+        print("{{ label }}: tag", "-".join("%02x" % b for b in {{ id }}_uid))
+
 params_schema:
   update_interval:
     type: string

@@ -28,6 +28,13 @@ esphome:
         name: "{{ label }}"
         id: {{ id }}
 
+circuitpython:
+  imports: ["import neopixel"]
+  deps: [neopixel, adafruit_pixelbuf]
+  setup: |
+    {{ id }} = neopixel.NeoPixel(P({{ pins.DIN }}), {{ params.num_leds | default(1) }}, auto_write=True)
+    {{ id }}.fill((0, 8, 0))
+
 params_schema:
   rgb_order:
     type: string

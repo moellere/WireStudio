@@ -160,6 +160,20 @@ class TasmotaSpec(_Strict):
     bus: dict[str, str] = Field(default_factory=dict)
 
 
+class CircuitPythonSpec(_Strict):
+    """CircuitPython code.py generation. `setup` is a Jinja2 Python
+    fragment run once at boot (context: id, label, params, pins as
+    role->GPIO-number, bus, bus_var); `loop` an optional fragment for
+    the main while-loop body. `imports` are the exact import lines the
+    fragments need; `deps` names the Adafruit bundle libraries to copy
+    to CIRCUITPY/lib (core modules need no entry). Explicit rather than
+    inferred so the mapping is reviewed code, not a runtime guess."""
+    imports: list[str] = Field(default_factory=list)
+    deps: list[str] = Field(default_factory=list)
+    setup: str
+    loop: Optional[str] = None
+
+
 class LibraryComponent(_Strict):
     id: str
     name: str
@@ -174,6 +188,7 @@ class LibraryComponent(_Strict):
     notes: Optional[str] = None
     kicad: Optional[KicadSymbolRef] = None
     tasmota: Optional[TasmotaSpec] = None
+    circuitpython: Optional[CircuitPythonSpec] = None
 
 
 class Rail(_Strict):

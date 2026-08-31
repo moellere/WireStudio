@@ -240,6 +240,11 @@ export const api = {
   },
   circuitpythonCode: (board: string) =>
     requestText(`/circuitpython/code?board=${encodeURIComponent(board)}`),
+  circuitpythonDesignCode: (design: Design) =>
+    request<{ code: string; deps: string[]; warnings: string[] }>(
+      "/circuitpython/code",
+      { method: "POST", body: JSON.stringify(design) },
+    ),
   workbenchStatus: () => request<WorkbenchStatus>("/workbench/status"),
   workbenchSlots: () => request<{ slots: WorkbenchSlot[] }>("/workbench/slots"),
   kicadRouteStatus: () =>

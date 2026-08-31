@@ -39,6 +39,14 @@ capability:
   provides:
     - {event: on_value, kind: value}
 
+circuitpython:
+  imports: ["import adafruit_sht4x"]
+  deps: [adafruit_sht4x, adafruit_bus_device]
+  setup: |
+    {{ id }} = adafruit_sht4x.SHT4x({{ bus_var }}, address={{ params.address | default('0x44') }})
+  loop: |
+    print("{{ label }}: %.1fC %.0f%%" % {{ id }}.measurements)
+
 params_schema:
   address:
     type: string
