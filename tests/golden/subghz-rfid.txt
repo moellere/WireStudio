@@ -6,9 +6,9 @@
 |  radio  [Texas Instruments CC1101 sub-GHz transceiver (SPI)]  -- Sub-GHz radio  |
 |    VCC   -> rail 3V3                                                            |
 |    GND   -> rail GND                                                            |
-|    SCK   -> spi0 (GPIO18)                                                       |
-|    MISO  -> spi0 (GPIO19)                                                       |
-|    MOSI  -> spi0 (GPIO23)                                                       |
+|    SCK   -> spi_bus (GPIO18)                                                    |
+|    MISO  -> spi_bus (GPIO19)                                                    |
+|    MOSI  -> spi_bus (GPIO23)                                                    |
 |    CS    -> GPIO5                                                               |
 |    GDO0  -> GPIO4                                                               |
 |    GDO2  -> GPIO2                                                               |

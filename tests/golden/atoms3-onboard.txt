@@ -6,8 +6,8 @@
 |  onboard_display  [Sitronix ST7789V color TFT (SPI)]  -- Onboard display  |
 |    VCC   -> rail 3V3                                                      |
 |    GND   -> rail GND                                                      |
-|    SCK   -> spi0 (GPIO17)                                                 |
-|    MOSI  -> spi0 (GPIO21)                                                 |
+|    SCK   -> spi_bus (GPIO17)                                              |
+|    MOSI  -> spi_bus (GPIO21)                                              |
 |    CS    -> GPIO15                                                        |
 |    DC    -> GPIO33                                                        |
 |    RESET -> GPIO34                                                        |

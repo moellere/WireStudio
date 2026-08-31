@@ -41,15 +41,15 @@
   ],
 
   "buses": [
-    { "id": "spi0", "type": "spi", "clk": "GPIO18", "miso": "GPIO19", "mosi": "GPIO23" },
+    { "id": "spi_bus", "type": "spi", "clk": "GPIO18", "miso": "GPIO19", "mosi": "GPIO23" },
     { "id": "i2c0", "type": "i2c", "frequency_hz": 100000, "sda": "GPIO21", "scl": "GPIO22" }
   ],
 
   "connections": [
     { "component_id": "probe", "pin_role": "VCC",  "target": { "kind": "rail", "rail": "3V3" } },
     { "component_id": "probe", "pin_role": "GND",  "target": { "kind": "rail", "rail": "GND" } },
-    { "component_id": "probe", "pin_role": "CLK",  "target": { "kind": "bus",  "bus_id": "spi0" } },
-    { "component_id": "probe", "pin_role": "MISO", "target": { "kind": "bus",  "bus_id": "spi0" } },
+    { "component_id": "probe", "pin_role": "CLK",  "target": { "kind": "bus",  "bus_id": "spi_bus" } },
+    { "component_id": "probe", "pin_role": "MISO", "target": { "kind": "bus",  "bus_id": "spi_bus" } },
     { "component_id": "probe", "pin_role": "CS",   "target": { "kind": "gpio", "pin": "GPIO5" } },
 
     { "component_id": "lid",   "pin_role": "VCC",  "target": { "kind": "rail", "rail": "3V3" } },

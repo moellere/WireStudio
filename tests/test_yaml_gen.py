@@ -175,7 +175,7 @@ def test_rc522_spi_block_emitted(rc522_design, library):
     assert parsed["spi"][0]["clk_pin"] == "D5"
     assert parsed["spi"][0]["miso_pin"] == "D6"
     assert parsed["rc522_spi"]["cs_pin"] == "D8"
-    assert parsed["rc522_spi"]["spi_id"] == "spi0"
+    assert parsed["rc522_spi"]["spi_id"] == "spi_bus"
 
 
 def test_esp32_audio_matches_golden(esp32_audio_design, library, golden_dir):
@@ -189,16 +189,15 @@ def test_esp32_audio_i2s_bus_emits_singleton(esp32_audio_design, library):
     assert isinstance(parsed["i2s_audio"], dict)
     assert parsed["i2s_audio"]["i2s_lrclk_pin"] == "GPIO33"
     assert parsed["i2s_audio"]["i2s_bclk_pin"] == "GPIO25"
-    assert parsed["media_player"][0]["dac_type"] == "external"
-    assert parsed["media_player"][0]["i2s_dout_pin"] == "GPIO32"
+    # 2026.x removed the i2s_audio media_player; the DAC is now an
+    # i2s_audio speaker fronted by the speaker media_player.
+    assert parsed["speaker"][0]["dac_type"] == "external"
+    assert parsed["speaker"][0]["i2s_dout_pin"] == "GPIO32"
+    assert parsed["media_player"][0]["platform"] == "speaker"
+    assert parsed["media_player"][0]["announcement_pipeline"]["speaker"] == "amp_spk"
 
 
 def test_esp32_audio_uses_arduino_framework(esp32_audio_design, library):
-    # max98357a's media_player platform is arduino-only in upstream ESPHome
-    # (`cv.only_with_arduino`); the example used to set framework=esp-idf,
-    # which `esphome config` rejected. Revisit when esp-idf gains the
-    # platform or we route audio through speaker: + media_player: speaker
-    # chained.
     parsed = yaml.unsafe_load(render_yaml(esp32_audio_design, library))
     assert parsed["esp32"]["framework"]["type"] == "arduino"
 
@@ -269,7 +268,7 @@ def test_ttgo_lora32_radio_block(ttgo_lora32_design, library):
     assert radio["cs_pin"] == "GPIO18"
     assert radio["rst_pin"] == "GPIO23"
     assert radio["dio0_pin"] == "GPIO26"
-    assert radio["spi_id"] == "spi0"
+    assert radio["spi_id"] == "spi_bus"
     assert radio["frequency"] == 915000000
 
 

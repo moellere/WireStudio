@@ -55,15 +55,15 @@
   ],
 
   "buses": [
-    { "id": "spi0", "type": "spi", "clk": "D5", "miso": "D6", "mosi": "D7" }
+    { "id": "spi_bus", "type": "spi", "clk": "D5", "miso": "D6", "mosi": "D7" }
   ],
 
   "connections": [
     { "component_id": "reader", "pin_role": "VCC",   "target": { "kind": "rail", "rail": "3V3" } },
     { "component_id": "reader", "pin_role": "GND",   "target": { "kind": "rail", "rail": "GND" } },
-    { "component_id": "reader", "pin_role": "SCK",   "target": { "kind": "bus",  "bus_id": "spi0" } },
-    { "component_id": "reader", "pin_role": "MISO",  "target": { "kind": "bus",  "bus_id": "spi0" } },
-    { "component_id": "reader", "pin_role": "MOSI",  "target": { "kind": "bus",  "bus_id": "spi0" } },
+    { "component_id": "reader", "pin_role": "SCK",   "target": { "kind": "bus",  "bus_id": "spi_bus" } },
+    { "component_id": "reader", "pin_role": "MISO",  "target": { "kind": "bus",  "bus_id": "spi_bus" } },
+    { "component_id": "reader", "pin_role": "MOSI",  "target": { "kind": "bus",  "bus_id": "spi_bus" } },
     { "component_id": "reader", "pin_role": "CS",    "target": { "kind": "gpio", "pin": "D8" } },
     { "component_id": "reader", "pin_role": "RESET", "target": { "kind": "gpio", "pin": "D4" } },
 

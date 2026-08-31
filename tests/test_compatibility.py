@@ -241,10 +241,10 @@ def test_ttgo_lora32_warning_is_about_gpio5(lib):
     boot = _by_code(warnings, "boot_strap_output")
     assert len(boot) == 1
     assert boot[0].pin == "GPIO5"
-    # The warning fires at the bus level (spi0.CLK), not the per-component
+    # The warning fires at the bus level (spi_bus.CLK), not the per-component
     # SCK connection -- the bus is what assigns GPIO5 to the line.
     assert boot[0].pin_role == "CLK"
-    assert boot[0].component_id == "spi0"
+    assert boot[0].component_id == "spi_bus"
 
 
 # ---------------------------------------------------------------------------

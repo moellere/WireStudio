@@ -22,14 +22,14 @@
   ],
 
   "buses": [
-    { "id": "spi0", "type": "spi", "clk": "GPIO18", "mosi": "GPIO23", "miso": "GPIO19" }
+    { "id": "spi_bus", "type": "spi", "clk": "GPIO18", "mosi": "GPIO23", "miso": "GPIO19" }
   ],
 
   "connections": [
     { "component_id": "matrix", "pin_role": "VCC",  "target": { "kind": "rail", "rail": "5V" } },
     { "component_id": "matrix", "pin_role": "GND",  "target": { "kind": "rail", "rail": "GND" } },
-    { "component_id": "matrix", "pin_role": "CLK",  "target": { "kind": "bus",  "bus_id": "spi0" } },
-    { "component_id": "matrix", "pin_role": "MOSI", "target": { "kind": "bus",  "bus_id": "spi0" } },
+    { "component_id": "matrix", "pin_role": "CLK",  "target": { "kind": "bus",  "bus_id": "spi_bus" } },
+    { "component_id": "matrix", "pin_role": "MOSI", "target": { "kind": "bus",  "bus_id": "spi_bus" } },
     { "component_id": "matrix", "pin_role": "CS",   "target": { "kind": "gpio", "pin": "GPIO5" } },
 
     { "component_id": "panel", "pin_role": "VCC", "target": { "kind": "rail", "rail": "5V" } },

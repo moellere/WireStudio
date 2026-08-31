@@ -109,7 +109,7 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the bar a change has to
 clear before merging, [`CHANGELOG.md`](CHANGELOG.md) for per-release
 deltas, and [`START.md`](START.md) for the longer-form design notes.
 
-Tested against ESPHome **`==2025.12.7`** (pinned in
+Tested against ESPHome **`==2026.6.5`** (pinned in
 `.github/workflows/esphome-config.yml` + bumped deliberately). When
 that pin moves, this line moves with it.
 
@@ -167,7 +167,7 @@ The [User guide](docs/user_guide.md) walks the panes and header actions.
 python -m pytest                          # ~1030 cases
 python -m ruff check .                    # lint
 cd web && npx vitest run                  # vitest + jsdom
-pip install 'esphome==2025.12.7'
+pip install 'esphome==2026.6.5'
 python scripts/check_examples.py          # the YAML gate -- every example through `esphome config`
 ```
 

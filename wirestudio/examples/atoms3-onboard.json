@@ -65,7 +65,7 @@
   ],
   "buses": [
     {
-      "id": "spi0",
+      "id": "spi_bus",
       "type": "spi",
       "clk": "GPIO17",
       "mosi": "GPIO21",
@@ -100,7 +100,7 @@
       "pin_role": "SCK",
       "target": {
         "kind": "bus",
-        "bus_id": "spi0"
+        "bus_id": "spi_bus"
       }
     },
     {
@@ -108,7 +108,7 @@
       "pin_role": "MOSI",
       "target": {
         "kind": "bus",
-        "bus_id": "spi0"
+        "bus_id": "spi_bus"
       }
     },
     {

@@ -60,7 +60,7 @@ jobs:
         # bump both in the same PR.
         run: |
           pip install -e .
-          pip install 'esphome==2025.12.7'
+          pip install 'esphome==2026.6.5'
 
       - name: Cache PlatformIO + ESPHome build artifacts
         # The toolchain pull dominates wall-clock on a cold run.
@@ -71,7 +71,7 @@ jobs:
           path: |
             ~/.platformio
             ~/.cache/pip
-          key: pio-${{ runner.os }}-esphome-2025.12.7
+          key: pio-${{ runner.os }}-esphome-2026.6.5
           restore-keys: |
             pio-${{ runner.os }}-esphome-
 

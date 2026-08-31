@@ -56,7 +56,7 @@ jobs:
         # match this pin.
         run: |
           pip install -e .
-          pip install 'esphome==2025.12.7'
+          pip install 'esphome==2026.6.5'
 
       - name: Print resolved ESPHome version
         run: esphome version

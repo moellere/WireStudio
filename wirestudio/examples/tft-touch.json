@@ -22,15 +22,15 @@
   ],
 
   "buses": [
-    { "id": "spi0", "type": "spi", "clk": "GPIO18", "mosi": "GPIO23", "miso": "GPIO19" }
+    { "id": "spi_bus", "type": "spi", "clk": "GPIO18", "mosi": "GPIO23", "miso": "GPIO19" }
   ],
 
   "connections": [
     { "component_id": "tft", "pin_role": "VCC",       "target": { "kind": "rail", "rail": "3V3" } },
     { "component_id": "tft", "pin_role": "GND",       "target": { "kind": "rail", "rail": "GND" } },
-    { "component_id": "tft", "pin_role": "SCK",       "target": { "kind": "bus",  "bus_id": "spi0" } },
-    { "component_id": "tft", "pin_role": "MOSI",      "target": { "kind": "bus",  "bus_id": "spi0" } },
-    { "component_id": "tft", "pin_role": "MISO",      "target": { "kind": "bus",  "bus_id": "spi0" } },
+    { "component_id": "tft", "pin_role": "SCK",       "target": { "kind": "bus",  "bus_id": "spi_bus" } },
+    { "component_id": "tft", "pin_role": "MOSI",      "target": { "kind": "bus",  "bus_id": "spi_bus" } },
+    { "component_id": "tft", "pin_role": "MISO",      "target": { "kind": "bus",  "bus_id": "spi_bus" } },
     { "component_id": "tft", "pin_role": "CS",        "target": { "kind": "gpio", "pin": "GPIO5" } },
     { "component_id": "tft", "pin_role": "DC",        "target": { "kind": "gpio", "pin": "GPIO16" } },
     { "component_id": "tft", "pin_role": "RESET",     "target": { "kind": "gpio", "pin": "GPIO17" } },
@@ -38,9 +38,9 @@
 
     { "component_id": "touch", "pin_role": "VCC",  "target": { "kind": "rail", "rail": "3V3" } },
     { "component_id": "touch", "pin_role": "GND",  "target": { "kind": "rail", "rail": "GND" } },
-    { "component_id": "touch", "pin_role": "SCK",  "target": { "kind": "bus",  "bus_id": "spi0" } },
-    { "component_id": "touch", "pin_role": "MOSI", "target": { "kind": "bus",  "bus_id": "spi0" } },
-    { "component_id": "touch", "pin_role": "MISO", "target": { "kind": "bus",  "bus_id": "spi0" } },
+    { "component_id": "touch", "pin_role": "SCK",  "target": { "kind": "bus",  "bus_id": "spi_bus" } },
+    { "component_id": "touch", "pin_role": "MOSI", "target": { "kind": "bus",  "bus_id": "spi_bus" } },
+    { "component_id": "touch", "pin_role": "MISO", "target": { "kind": "bus",  "bus_id": "spi_bus" } },
     { "component_id": "touch", "pin_role": "CS",   "target": { "kind": "gpio", "pin": "GPIO21" } },
     { "component_id": "touch", "pin_role": "IRQ",  "target": { "kind": "gpio", "pin": "GPIO22" } }
   ],
