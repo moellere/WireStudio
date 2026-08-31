@@ -30,6 +30,11 @@ esphome:
         lambda: |-
           {{ params.lambda | default('it.print("----");') }}
 
+tasmota:
+  pins:
+    CLK: TM1637_CLK
+    DIO: TM1637_DIO
+
 params_schema:
   intensity:
     type: integer

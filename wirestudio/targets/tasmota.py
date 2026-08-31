@@ -59,10 +59,25 @@ FUNC = {
     "CSE7766_RX": 3104,
     "Rotary_A": 3264,
     "Rotary_B": 3296,
+    "MHZ_TXD": 1408,
+    "MHZ_RXD": 1440,
+    "PMS5003_TX": 1664,
+    "PMS5003_RX": 1696,
     "ADC_Input": 4704,
+    "ADC_CT_POWER": 4896,
+    "Wiegand_D0": 6912,
+    "Wiegand_D1": 6944,
+    "TM1637_CLK": 7104,
+    "TM1637_DIO": 7136,
     "MAX7219_CLK": 7392,
     "MAX7219_DIN": 7424,
     "MAX7219_CS": 7456,
+    "Shift595_SRCLK": 8288,
+    "Shift595_RCLK": 8320,
+    "Shift595_OE": 8352,
+    "Shift595_SER": 8384,
+    "LD2410_TX": 9888,
+    "LD2410_RX": 9920,
 }
 
 # Families where repeated use numbers the unit (Relay1, Relay2, ...).
@@ -129,7 +144,18 @@ def firmware_status() -> dict:
     return {"available": available, "chips": sorted(_FIRMWARE), "reason": reason}
 
 
+# ESP8266 D-label convention (D1 Mini / NodeMCU): the digit is not the
+# GPIO number. A0 is Tasmota's ADC0 slot (17).
+_DPIN = {
+    "D0": 16, "D1": 5, "D2": 4, "D3": 0, "D4": 2,
+    "D5": 14, "D6": 12, "D7": 13, "D8": 15,
+    "RX": 3, "TX": 1, "A0": 17,
+}
+
+
 def _pin_number(pin: str) -> Optional[int]:
+    if pin in _DPIN:
+        return _DPIN[pin]
     digits = "".join(ch for ch in pin if ch.isdigit())
     return int(digits) if digits else None
 
@@ -147,6 +173,7 @@ def build_template(design: Design, library: Library) -> tuple[dict, list[str]]:
     assignments: dict[int, int] = {}
     warnings: list[str] = []
     unit_used: dict[str, int] = {}
+    bus_mapped: set[tuple[str, Optional[str]]] = set()
 
     def assign(pin: str, func_name: str, owner: str) -> None:
         num = _pin_number(pin)
@@ -202,9 +229,14 @@ def build_template(design: Design, library: Library) -> tuple[dict, list[str]]:
                         f"templatable (target is {t.kind})"
                     )
             elif spec.bus and t.kind == "bus":
+                # A component with several connections to the same bus (TX
+                # and RX roles) maps the bus pins once, not per connection.
+                if (comp.id, t.bus_id) in bus_mapped:
+                    continue
                 bus = buses.get(t.bus_id or "")
                 if bus is None:
                     continue
+                bus_mapped.add((comp.id, t.bus_id))
                 for bus_role, bus_func in spec.bus.items():
                     pin = getattr(bus, bus_role, None)
                     if pin:

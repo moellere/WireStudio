@@ -36,6 +36,11 @@ capability:
   provides:
     - {event: on_value, kind: value}
 
+tasmota:
+  bus:
+    tx: MHZ_TXD
+    rx: MHZ_RXD
+
 params_schema:
   update_interval:
     type: string

@@ -129,3 +129,45 @@ def test_firmware_endpoint_upstream_failure_502(monkeypatch):
     client = TestClient(create_app())
     r = client.get("/tasmota/firmware?chip=esp8266")
     assert r.status_code == 502
+
+
+def test_co2_display_resolves_d_labels_and_uart_funcs(lib):
+    template, warnings = build_template(_design("co2-display"), lib)
+    slots = _CHIP_SLOTS["esp8266"]
+    gpio = template["GPIO"]
+    # TM1637 on D1/D2 = GPIO5/GPIO4, not GPIO1/GPIO2.
+    assert gpio[slots.index(5)] == FUNC["TM1637_CLK"]
+    assert gpio[slots.index(4)] == FUNC["TM1637_DIO"]
+    # MH-Z19 over the software UART: bus tx D6 = GPIO12, rx D5 = GPIO14.
+    assert gpio[slots.index(12)] == FUNC["MHZ_TXD"]
+    assert gpio[slots.index(14)] == FUNC["MHZ_RXD"]
+    # Two bus connections (TX + RX) map the bus once -- no duplicate warnings.
+    assert warnings == []
+
+
+def test_access_panel_wiegand_and_servo(lib):
+    template, _ = build_template(_design("access-panel"), lib)
+    slots = _CHIP_SLOTS["esp32"]
+    gpio = template["GPIO"]
+    assert gpio[slots.index(32)] == FUNC["Wiegand_D0"]
+    assert gpio[slots.index(33)] == FUNC["Wiegand_D1"]
+    assert gpio[slots.index(13)] == FUNC["PWM"]
+    assert gpio[slots.index(26)] == FUNC["Relay"]
+
+
+def test_output_hub_shift_register(lib):
+    template, _ = build_template(_design("output-hub"), lib)
+    slots = _CHIP_SLOTS["esp32"]
+    gpio = template["GPIO"]
+    assert gpio[slots.index(25)] == FUNC["Shift595_SER"]
+    assert gpio[slots.index(26)] == FUNC["Shift595_SRCLK"]
+    assert gpio[slots.index(27)] == FUNC["Shift595_RCLK"]
+
+
+def test_presence_media_node_ld2410_and_ir(lib):
+    template, _ = build_template(_design("presence-media-node"), lib)
+    slots = _CHIP_SLOTS["esp32"]
+    gpio = template["GPIO"]
+    assert gpio[slots.index(17)] == FUNC["LD2410_TX"]
+    assert gpio[slots.index(16)] == FUNC["LD2410_RX"]
+    assert gpio[slots.index(25)] == FUNC["IRrecv"]

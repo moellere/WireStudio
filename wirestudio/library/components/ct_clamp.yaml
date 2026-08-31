@@ -39,6 +39,10 @@ capability:
   provides:
     - {event: on_value, kind: value}
 
+tasmota:
+  pins:
+    OUT: ADC_CT_POWER
+
 params_schema:
   sample_duration:
     type: string

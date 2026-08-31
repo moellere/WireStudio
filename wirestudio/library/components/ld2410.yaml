@@ -50,6 +50,11 @@ capability:
     - {predicate: is_on,  esphome: binary_sensor.is_on}
     - {predicate: is_off, esphome: binary_sensor.is_off}
 
+tasmota:
+  bus:
+    tx: LD2410_TX
+    rx: LD2410_RX
+
 params_schema:
   throttle:
     type: string
