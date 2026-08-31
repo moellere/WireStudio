@@ -36,6 +36,11 @@ capability:
     - {event: on_tag, kind: event}
     - {event: on_key, kind: event}
 
+tasmota:
+  pins:
+    D0: Wiegand_D0
+    D1: Wiegand_D1
+
 params_schema:
   on_tag:
     type: array

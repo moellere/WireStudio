@@ -159,7 +159,9 @@ a pure mapping of solved pins to Tasmota GPIO function ids -- via
 template layouts are sourced from `tasmota_template.h`; unit tests pin
 the Sonoff S31 convention for the smart-plug example. Library
 components opt in with a `tasmota:` block; I2C sensors ride the bus
-pins via Tasmota autodetection.
+pins via Tasmota autodetection, and UART-attached parts (MH-Z19,
+PMS5003, LD2410, CSE7766) map their bus pins to the matching Tx/Rx
+functions. ESP8266 D-labels resolve to real GPIO numbers.
 
 **Meshtastic flashing (0.23).** *Works.* The unified flash dialog
 fetches the official Meshtastic release factory image through the
@@ -186,7 +188,11 @@ listing) with save-to-CIRCUITPY and download buttons post-flash.
 region/channel/key setup over the existing serial session), then full
 CircuitPython code.py generation from the design (per-component driver
 init + Adafruit bundle libs, the LoRaWAN-fragment pattern — the
-interpreter flash + starter above is the shipped first step).
+interpreter flash + starter above is the shipped first step), then
+MicroPython (the CircuitPython pattern applied upstream: proxy the
+micropython.org release port per chip, flash via the unified dialog,
+generate a main.py scaffold — differs in stdlib/driver sourcing, since
+there is no single blessed bundle like Adafruit's).
 Deliberately deferred: generic Arduino/PlatformIO scaffolds (per-driver
 maintenance sinkhole), Zephyr, Zigbee/Thread on the C6.
 
