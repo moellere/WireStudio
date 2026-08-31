@@ -16,6 +16,20 @@ from __future__ import annotations
 from wirestudio.library import Library
 from wirestudio.model import Design, DesignWarning
 
+# Curated RTTTL melodies an automation can name via `args: {song: ...}`
+# on the rtttl `play` action -- the lowering substitutes the full string.
+# Reviewed recipes, not free-handed RTTTL in every design.
+MELODIES: dict[str, str] = {
+    "beep": "beep:d=8,o=6,b=180:c",
+    "two_beep": "twobeep:d=8,o=6,b=180:c,p,c",
+    "success": "success:d=16,o=6,b=140:c,e,g,4c7",
+    "failure": "failure:d=16,o=6,b=140:c7,g,e,4c",
+    "alarm": "alarm:d=8,o=6,b=160:c,p,c,p,c,p,c,p,c,p,c",
+    "doorbell": "doorbell:d=4,o=5,b=100:e6,8p,c6",
+    "nokia": "nokia:d=4,o=5,b=180:8e6,8d6,f#,g#,8c#6,8b,d,e,8b,8a,c#,e,2a",
+    "mario": "mario:d=4,o=5,b=140:16e6,16e6,32p,8e6,16c6,8e6,8g6,8p,8g,8p",
+}
+
 
 def validate_automations(design: Design, library: Library) -> list[DesignWarning]:
     """Permissive checks over `design.automations`. Returns DesignWarnings;
@@ -164,5 +178,19 @@ def validate_automations(design: Design, library: Library) -> list[DesignWarning
                     text=(f"automation {auto.id!r}: component "
                           f"{act.component_id!r} does not accept action "
                           f"{act.action!r}; accepts: {accepted}"),
+                ))
+            song = act.args.get("song")
+            if song is not None and song not in MELODIES:
+                out.append(DesignWarning(
+                    level="warn", code="automation_unknown_song",
+                    text=(f"automation {auto.id!r}: unknown song {song!r}; "
+                          f"known: {', '.join(sorted(MELODIES))}"),
+                ))
+            if act.action == "play" and song is None and "rtttl" not in act.args:
+                out.append(DesignWarning(
+                    level="warn", code="automation_play_needs_song",
+                    text=(f"automation {auto.id!r}: play on "
+                          f"{act.component_id!r} needs args.song (a named "
+                          f"melody) or args.rtttl (a raw RTTTL string)"),
                 ))
     return out

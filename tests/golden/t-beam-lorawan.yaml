@@ -1,0 +1,43 @@
+esphome:
+  name: t-beam-lorawan
+esp32:
+  board: ttgo-t-beam
+  framework:
+    type: arduino
+  flash_size: 4MB
+logger: {}
+uart:
+- id: gps_uart
+  rx_pin: GPIO34
+  tx_pin: GPIO12
+  baud_rate: 9600
+i2c:
+- id: i2c0
+  sda: GPIO21
+  scl: GPIO22
+gps:
+  uart_id: gps_uart
+binary_sensor:
+- platform: gpio
+  pin: GPIO38
+  name: Onboard button
+  id: onboard_button
+  filters:
+  - invert: null
+display:
+- platform: ssd1306_i2c
+  model: SSD1306 128x64
+  address: '0x3C'
+  i2c_id: i2c0
+  id: ssd1306_1
+  reset_pin: GPIO4
+sensor:
+- platform: dht
+  model: DHT22
+  pin: GPIO13
+  temperature:
+    id: dht_1_temperature
+    name: DHT22 temperature + humidity Temperature
+  humidity:
+    id: dht_1_humidity
+    name: DHT22 temperature + humidity Humidity

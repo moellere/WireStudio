@@ -1,0 +1,39 @@
++------------------------------------------------------------------+
+|  ESP32-DevKitC-V4  ---  oled-knob                                |
++------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                             |
+|                                                                  |
+|  disp  [SSD1306 / SH1106 OLED display (I2C)]  -- Panel OLED      |
+|    VCC   -> rail 3V3                                             |
+|    GND   -> rail GND                                             |
+|    SDA   -> i2c0 (GPIO21)                                        |
+|    SCL   -> i2c0 (GPIO22)                                        |
+|                                                                  |
+|  knob  [Quadrature rotary encoder (KY-040 style)]  -- Menu knob  |
+|    A     -> GPIO16                                               |
+|    B     -> GPIO17                                               |
+|                                                                  |
+|  knobbtn  [Generic GPIO binary sensor]  -- Knob press            |
+|    IN    -> GPIO18                                               |
+|                                                                  |
+|  btn1  [Generic GPIO binary sensor]  -- Button A                 |
+|    IN    -> GPIO19                                               |
+|                                                                  |
+|  btn2  [Generic GPIO binary sensor]  -- Button B                 |
+|    IN    -> GPIO23                                               |
+|                                                                  |
+|  Passives:                                                       |
+|    c1: 100nF capacitor, disp.VCC  <->  GND   (decoupling disp)   |
+|    r1: 4.7k resistor, i2c0.SDA  <->  3V3   (I2C pull-up)         |
+|    r2: 4.7k resistor, i2c0.SCL  <->  3V3   (I2C pull-up)         |
+|                                                                  |
+|  BOM:                                                            |
+|    - ESP32-DevKitC-V4                                            |
+|    - 1.3in OLED + EC11 encoder combo module  (oled-knob-13-1)    |
+|    - 1x 100nF capacitor                                          |
+|    - 2x 4.7k resistor                                            |
+|                                                                  |
+|  Power: ~8mA typical, ~20mA peak (budget 500mA)  OK              |
+|                                                                  |
+|  Warnings: none                                                  |
++------------------------------------------------------------------+

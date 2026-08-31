@@ -36,6 +36,12 @@ esphome:
       on_finished_playback: {{ params.on_finished_playback | tojson }}
     {%- endif %}
 
+capability:
+  role: output
+  accepts:
+    - {action: play, esphome: rtttl.play}
+    - {action: stop, esphome: rtttl.stop}
+
 params_schema:
   output_platform:
     type: string

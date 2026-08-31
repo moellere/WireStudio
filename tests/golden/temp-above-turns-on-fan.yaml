@@ -21,14 +21,17 @@ sensor:
   address: '0x76'
   i2c_id: i2c0
   temperature:
+    id: climate_temperature
     name: Climate Temperature
     on_value_range:
     - above: 28.0
       then:
       - switch.turn_on: fan
   humidity:
+    id: climate_humidity
     name: Climate Humidity
   pressure:
+    id: climate_pressure
     name: Climate Pressure
 switch:
 - platform: gpio

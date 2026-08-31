@@ -34,7 +34,8 @@ under upstream ESPHome.
   ├─ wirestudio.csp           pin solver + port-compatibility checker
   ├─ wirestudio.recommend     deterministic capability ranking
   ├─ wirestudio.seed          board onboard-peripheral auto-placement
-  ├─ wirestudio.intent        automation (trigger/action) validation + lowering
+  ├─ wirestudio.intent        automation (trigger/action) validation + lowering, melody map;
+  │                           display-content (`show`) lowering in wirestudio.generate
   ├─ wirestudio.inventory     owned-parts inventory store
   ├─ wirestudio.agent         Claude tool-using agent + session store
   ├─ wirestudio.designs       file-backed designs/<id>.json store

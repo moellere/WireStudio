@@ -26,6 +26,7 @@ esphome:
   yaml_template: |
     sensor:
       - platform: tsl2561
+        id: {{ id }}
         i2c_id: {{ bus.id }}
         address: "{{ params.address | default('0x39') }}"
         name: "{{ label }} Illuminance"

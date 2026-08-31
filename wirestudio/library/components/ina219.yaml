@@ -34,10 +34,13 @@ esphome:
         max_current: {{ params.max_current | default('3.2A') }}
         max_voltage: {{ params.max_voltage | default('26.0V') }}
         current:
+          id: {{ id }}_current
           name: "{{ label }} Current"
         power:
+          id: {{ id }}_power
           name: "{{ label }} Power"
         bus_voltage:
+          id: {{ id }}_bus_voltage
           name: "{{ label }} Bus Voltage"
         update_interval: {{ params.update_interval | default('60s') }}
 

@@ -19,6 +19,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Display content intent: `params.show`.** Adding a display used to
+  produce a dark panel unless the user hand-wrote the ESPHome lambda.
+  `show` is a declarative widget list (text / value / time) lowered to
+  the display lambda per dialect: pixel displays (ssd1306, ili9xxx,
+  st7789) get an automatic `font:` block (gfonts://Roboto) and
+  y-stepped printf lines, character LCDs print into rows, digit
+  displays (tm1637, max7219) render one value. Value widgets bind
+  other components' readings by id convention (`<component>` for
+  single-value sensors, `<component>_<channel>` for multi-channel --
+  20 sensor templates now emit those ids); time widgets bring their
+  own `time:` block. A hand-written `lambda_` still wins. Validation
+  warns on unknown sources/channels/widgets
+  (`show_*` codes); the oled example now uses `show` end to end.
+- **Named RTTTL melodies for the buzzer.** The rtttl component gains a
+  capability (`play` / `stop`), and a play action can name a curated
+  melody -- `args: {song: "doorbell"}` -- instead of hand-writing an
+  RTTTL string (`args: {rtttl: ...}` stays as the escape hatch). Eight
+  reviewed melodies ship (beep, two_beep, success, failure, alarm,
+  doorbell, nokia, mario), listed at `GET /intent/melodies`; unknown
+  songs warn and the action is dropped rather than emitting a broken
+  play. The co2-display example gains a buzzer that plays the alarm
+  melody when CO2 crosses 1200ppm (`on_value_range` on the new mhz19
+  co2 channel).
 - **CircuitPython code.py generation from the design.** The
   LoRaWAN-fragment pattern applied to Python: 36 library components
   gain a `circuitpython:` block -- explicit import lines, Adafruit

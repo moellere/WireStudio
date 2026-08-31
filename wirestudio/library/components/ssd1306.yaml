@@ -82,6 +82,7 @@ lorawan:
 
 esphome:
   required_components: [i2c]
+  display_dialect: pixel
   yaml_template: |
     display:
       - platform: ssd1306_i2c

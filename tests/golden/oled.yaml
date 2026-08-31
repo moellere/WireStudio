@@ -16,6 +16,13 @@ i2c:
   sda: D2
   scl: D1
   frequency: 100kHz
+font:
+- file: gfonts://Roboto
+  id: ws_show_font
+  size: 14
+time:
+- platform: homeassistant
+  id: ws_show_time
 display:
 - platform: ssd1306_i2c
   model: SSD1306 128x64
@@ -24,17 +31,14 @@ display:
   id: oled1
   reset_pin: D0
   update_interval: 2s
-  lambda: |
-    it.strftime(0, 11, id(font1), "Time: %H:%M", id(time1).now());
-    it.strftime(0, 23, id(font1), "Date: %d.%m.%Y", id(time1).now());
-    it.printf(0, 35, id(font1),  WiFi.localIP().toString().c_str());
-time:
-- platform: homeassistant
-  id: time1
-font:
-- file: gfonts://Roboto
-  id: font1
-  size: 10
+  lambda: |-
+    int y = 0;
+    it.printf(0, y, id(ws_show_font), "wirestudio");
+    y += 16;
+    it.strftime(0, y, id(ws_show_font), "Time: %H:%M", id(ws_show_time).now());
+    y += 16;
+    it.strftime(0, y, id(ws_show_font), "Date: %d.%m.%Y", id(ws_show_time).now());
+    y += 16;
 sensor:
 - platform: uptime
   name: oled System Uptime

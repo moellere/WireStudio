@@ -26,6 +26,7 @@ esphome:
   yaml_template: |
     sensor:
       - platform: veml7700
+        id: {{ id }}
         i2c_id: {{ bus.id }}
         update_interval: {{ params.update_interval | default('60s') }}
         ambient_light:

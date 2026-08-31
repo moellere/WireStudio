@@ -21,6 +21,7 @@ electrical:
 
 esphome:
   required_components: [spi]
+  display_dialect: seven_segment
   yaml_template: |
     display:
       - platform: max7219digit

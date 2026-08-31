@@ -1,0 +1,37 @@
++--------------------------------------------------------------------------------------------+
+|  LilyGO TTGO T-Beam (v1.x)  ---  t-beam-lorawan                                            |
++--------------------------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                                       |
+|                                                                                            |
+|  onboard_gps  [Generic UART GPS / GNSS module (NEO-6M / NEO-8M / UC6580)]  -- Onboard GPS  |
+|    VCC   -> rail 3V3                                                                       |
+|    GND   -> rail GND                                                                       |
+|    TX    -> gps_uart (GPIO34)                                                              |
+|    RX    -> gps_uart (GPIO12)                                                              |
+|                                                                                            |
+|  onboard_button  [Generic GPIO binary sensor]  -- Onboard button                           |
+|    IN    -> GPIO38                                                                         |
+|                                                                                            |
+|  ssd1306_1  [SSD1306 / SH1106 OLED display (I2C)]  -- Status OLED                          |
+|    VCC   -> rail 3V3                                                                       |
+|    GND   -> rail GND                                                                       |
+|    SDA   -> i2c0 (GPIO21)                                                                  |
+|    SCL   -> i2c0 (GPIO22)                                                                  |
+|    RESET -> GPIO4                                                                          |
+|                                                                                            |
+|  dht_1  [DHT11 / DHT22 / AM2302 temperature + humidity]  -- DHT22 temperature + humidity   |
+|    VCC   -> rail 3V3                                                                       |
+|    GND   -> rail GND                                                                       |
+|    DATA  -> GPIO13                                                                         |
+|                                                                                            |
+|  BOM:                                                                                      |
+|    - LilyGO TTGO T-Beam (v1.x)                                                             |
+|    - Generic UART GPS / GNSS module (NEO-6M / NEO-8M / UC6580)  (onboard_gps)              |
+|    - Generic GPIO binary sensor  (onboard_button)                                          |
+|    - SSD1306 / SH1106 OLED display (I2C)  (ssd1306_1)                                      |
+|    - DHT11 / DHT22 / AM2302 temperature + humidity  (dht_1)                                |
+|                                                                                            |
+|  Power: ~39mA typical, ~102mA peak (budget 500mA)  OK                                      |
+|                                                                                            |
+|  Warnings: none                                                                            |
++--------------------------------------------------------------------------------------------+
