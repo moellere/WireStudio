@@ -6,9 +6,9 @@
 |  reader  [NXP MFRC522 RFID reader (SPI)]  -- RFID Reader                                                      |
 |    VCC   -> rail 3V3                                                                                          |
 |    GND   -> rail GND                                                                                          |
-|    SCK   -> spi0 (D5)                                                                                         |
-|    MISO  -> spi0 (D6)                                                                                         |
-|    MOSI  -> spi0 (D7)                                                                                         |
+|    SCK   -> spi_bus (D5)                                                                                      |
+|    MISO  -> spi_bus (D6)                                                                                      |
+|    MOSI  -> spi_bus (D7)                                                                                      |
 |    CS    -> D8                                                                                                |
 |    RESET -> D4                                                                                                |
 |                                                                                                               |

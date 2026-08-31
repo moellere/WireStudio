@@ -48,7 +48,7 @@
   ],
 
   "buses": [
-    { "id": "spi0", "type": "spi", "clk": "GPIO18", "mosi": "GPIO23" },
+    { "id": "spi_bus", "type": "spi", "clk": "GPIO18", "mosi": "GPIO23" },
     { "id": "i2s0", "type": "i2s", "lrclk": "GPIO33", "bclk": "GPIO25" }
   ],
 
@@ -61,8 +61,8 @@
 
     { "component_id": "screen", "pin_role": "VCC",       "target": { "kind": "rail", "rail": "3V3" } },
     { "component_id": "screen", "pin_role": "GND",       "target": { "kind": "rail", "rail": "GND" } },
-    { "component_id": "screen", "pin_role": "SCK",       "target": { "kind": "bus",  "bus_id": "spi0" } },
-    { "component_id": "screen", "pin_role": "MOSI",      "target": { "kind": "bus",  "bus_id": "spi0" } },
+    { "component_id": "screen", "pin_role": "SCK",       "target": { "kind": "bus",  "bus_id": "spi_bus" } },
+    { "component_id": "screen", "pin_role": "MOSI",      "target": { "kind": "bus",  "bus_id": "spi_bus" } },
     { "component_id": "screen", "pin_role": "CS",        "target": { "kind": "gpio", "pin": "GPIO5"  } },
     { "component_id": "screen", "pin_role": "DC",        "target": { "kind": "gpio", "pin": "GPIO17" } },
     { "component_id": "screen", "pin_role": "RESET",     "target": { "kind": "gpio", "pin": "GPIO22" } },

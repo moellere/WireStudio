@@ -13,8 +13,8 @@
 |  screen  [Sitronix ST7789V color TFT (SPI)]  -- Esp32 Audio Display                                         |
 |    VCC   -> rail 3V3                                                                                        |
 |    GND   -> rail GND                                                                                        |
-|    SCK   -> spi0 (GPIO18)                                                                                   |
-|    MOSI  -> spi0 (GPIO23)                                                                                   |
+|    SCK   -> spi_bus (GPIO18)                                                                                |
+|    MOSI  -> spi_bus (GPIO23)                                                                                |
 |    CS    -> GPIO5                                                                                           |
 |    DC    -> GPIO17                                                                                          |
 |    RESET -> GPIO22                                                                                          |

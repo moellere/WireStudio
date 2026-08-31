@@ -175,7 +175,7 @@ def test_rc522_spi_block_emitted(rc522_design, library):
     assert parsed["spi"][0]["clk_pin"] == "D5"
     assert parsed["spi"][0]["miso_pin"] == "D6"
     assert parsed["rc522_spi"]["cs_pin"] == "D8"
-    assert parsed["rc522_spi"]["spi_id"] == "spi0"
+    assert parsed["rc522_spi"]["spi_id"] == "spi_bus"
 
 
 def test_esp32_audio_matches_golden(esp32_audio_design, library, golden_dir):
@@ -269,7 +269,7 @@ def test_ttgo_lora32_radio_block(ttgo_lora32_design, library):
     assert radio["cs_pin"] == "GPIO18"
     assert radio["rst_pin"] == "GPIO23"
     assert radio["dio0_pin"] == "GPIO26"
-    assert radio["spi_id"] == "spi0"
+    assert radio["spi_id"] == "spi_bus"
     assert radio["frequency"] == 915000000
 
 

@@ -16,14 +16,14 @@ wifi:
   password: !secret wifi_password
 captive_portal: {}
 spi:
-- id: spi0
+- id: spi_bus
   clk_pin: GPIO18
   miso_pin: GPIO19
   mosi_pin: GPIO23
 display:
 - platform: ili9xxx
   model: ILI9341
-  spi_id: spi0
+  spi_id: spi_bus
   cs_pin: GPIO5
   dc_pin: GPIO16
   reset_pin: GPIO17
@@ -35,7 +35,7 @@ touchscreen:
   id: touch
   cs_pin: GPIO21
   interrupt_pin: GPIO22
-  spi_id: spi0
+  spi_id: spi_bus
   calibration:
     x_min: 280
     x_max: 3860

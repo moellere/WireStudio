@@ -21,16 +21,16 @@
   ],
 
   "buses": [
-    { "id": "spi0", "type": "spi", "clk": "GPIO18", "mosi": "GPIO23", "miso": "GPIO19" },
+    { "id": "spi_bus", "type": "spi", "clk": "GPIO18", "mosi": "GPIO23", "miso": "GPIO19" },
     { "id": "rfid_uart", "type": "uart", "rx": "GPIO16", "tx": "GPIO17", "baud_rate": 9600 }
   ],
 
   "connections": [
     { "component_id": "radio", "pin_role": "VCC",  "target": { "kind": "rail", "rail": "3V3" } },
     { "component_id": "radio", "pin_role": "GND",  "target": { "kind": "rail", "rail": "GND" } },
-    { "component_id": "radio", "pin_role": "SCK",  "target": { "kind": "bus",  "bus_id": "spi0" } },
-    { "component_id": "radio", "pin_role": "MISO", "target": { "kind": "bus",  "bus_id": "spi0" } },
-    { "component_id": "radio", "pin_role": "MOSI", "target": { "kind": "bus",  "bus_id": "spi0" } },
+    { "component_id": "radio", "pin_role": "SCK",  "target": { "kind": "bus",  "bus_id": "spi_bus" } },
+    { "component_id": "radio", "pin_role": "MISO", "target": { "kind": "bus",  "bus_id": "spi_bus" } },
+    { "component_id": "radio", "pin_role": "MOSI", "target": { "kind": "bus",  "bus_id": "spi_bus" } },
     { "component_id": "radio", "pin_role": "CS",   "target": { "kind": "gpio", "pin": "GPIO5" } },
     { "component_id": "radio", "pin_role": "GDO0", "target": { "kind": "gpio", "pin": "GPIO4" } },
     { "component_id": "radio", "pin_role": "GDO2", "target": { "kind": "gpio", "pin": "GPIO2" } },
