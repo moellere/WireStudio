@@ -1,0 +1,59 @@
+id: sn74hc595
+name: TI SN74HC595 8-bit shift register (output expander, daisy-chainable)
+category: io_expander
+use_cases: [gpio_expansion, led_outputs, relay_banks, seven_segment]
+aliases: ["74hc595", "595"]
+
+electrical:
+  vcc_min: 2.0
+  vcc_max: 6.0
+  current_ma_typical: 1
+  current_ma_peak: 70
+  pins:
+  - {role: VCC, kind: power}
+  - {role: GND, kind: ground}
+  - {role: DATA, kind: digital_in, voltage: 3.3}
+  - {role: CLOCK, kind: digital_in, voltage: 3.3}
+  - {role: LATCH, kind: digital_in, voltage: 3.3}
+  - {role: OE, kind: digital_in, voltage: 3.3}
+  passives:
+  - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+
+esphome:
+  required_components: []
+  expander_pin_key: sn74hc595
+  yaml_template: |
+    sn74hc595:
+      - id: {{ id }}
+        data_pin: {{ pins.DATA | tojson }}
+        clock_pin: {{ pins.CLOCK | tojson }}
+        latch_pin: {{ pins.LATCH | tojson }}
+    {%- if pins.OE is defined %}
+        oe_pin: {{ pins.OE | tojson }}
+    {%- endif %}
+        sr_count: {{ params.sr_count | default(1) }}
+
+params_schema:
+  sr_count:
+    type: integer
+    minimum: 1
+    maximum: 4
+    default: 1
+    description: "Daisy-chained register count; pins number 0..(8*sr_count - 1)."
+
+notes: |
+  Three MCU pins buy 8 outputs per chip, chainable to 32. Output-only:
+  wire downstream gpio_output/switch components to expander pins 0-7
+  (chip QA-QH). Leave OE unconnected (module boards strap it low) or
+  wire it for a hardware blank-on-boot -- outputs float during MCU
+  reset otherwise. Per-pin sink/source is 35mA absolute max but keep
+  the whole chip under ~70mA; drive relay modules, not relay coils.
+kicad:
+  symbol_lib: 74xx
+  symbol: 74HC595
+  footprint: Package_DIP:DIP-16_W7.62mm
+  pin_map:
+    DATA: SER
+    CLOCK: SRCLK
+    LATCH: RCLK
+    OE: ~{OE}

@@ -1,0 +1,66 @@
+id: bme680
+name: Bosch BME680 environmental sensor (temp/humidity/pressure/gas, I2C)
+category: sensor
+use_cases: [temperature, humidity, pressure, voc, air_quality, indoor_air]
+aliases: ["bme688", "gy-bme680"]
+
+electrical:
+  vcc_min: 1.71
+  vcc_max: 3.6
+  current_ma_typical: 12
+  current_ma_peak: 18
+  pins:
+  - {role: VCC, kind: power}
+  - {role: GND, kind: ground}
+  - role: SDA
+    kind: i2c_sda
+    pull_up: {required: true, value: "4.7k", to: VCC}
+  - role: SCL
+    kind: i2c_scl
+    pull_up: {required: true, value: "4.7k", to: VCC}
+  passives:
+  - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+
+esphome:
+  required_components: [i2c]
+  yaml_template: |
+    sensor:
+      - platform: bme680
+        i2c_id: {{ bus.id }}
+        address: {{ params.address | default('0x76') }}
+        temperature:
+          name: "{{ label }} Temperature"
+        pressure:
+          name: "{{ label }} Pressure"
+        humidity:
+          name: "{{ label }} Humidity"
+        gas_resistance:
+          name: "{{ label }} Gas Resistance"
+        update_interval: {{ params.update_interval | default('60s') }}
+
+capability:
+  role: sensor
+  provides:
+    - {event: on_value, kind: value}
+
+params_schema:
+  address:
+    type: string
+    enum: ["0x76", "0x77"]
+    default: "0x76"
+    description: "SDO low = 0x76, high = 0x77. Adafruit boards default to 0x77."
+  update_interval:
+    type: string
+    default: "60s"
+
+notes: |
+  The four-in-one climate sensor. gas_resistance is a raw MOX reading
+  (ohms) -- turning it into an IAQ score needs Bosch's closed-source
+  BSEC library (ESPHome's separate bme68x_bsec2 platform). The heater
+  also warms the die slightly; expect temperature ~1C high unless you
+  calibrate it out with a filter.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x06
+  footprint: Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical
+  value: BME680

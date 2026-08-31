@@ -1,0 +1,93 @@
+{
+  "schema_version": "0.1",
+  "id": "air-quality-station",
+  "name": "Indoor air quality station",
+  "description": "ESP32-DevKitC-V4 with the current-generation Sensirion stack on I2C (SCD4x true CO2, SHT4x temp/RH, SGP4x VOC index, VEML7700 lux, BME680 pressure/gas) and a Plantower PMS5003 particulate sensor on UART2.",
+  "created_at": "2026-08-31T00:00:00Z",
+  "updated_at": "2026-08-31T00:00:00Z",
+
+  "board": {
+    "library_id": "esp32-devkitc-v4",
+    "mcu": "esp32",
+    "framework": "arduino"
+  },
+
+  "power": {
+    "supply": "usb",
+    "rail_voltage_v": 5.0,
+    "regulator": "onboard-ams1117-3v3",
+    "budget_ma": 900
+  },
+
+  "requirements": [
+    { "id": "r1", "kind": "capability", "text": "publish CO2, PM2.5, VOC index, temperature, humidity, pressure and illuminance" },
+    { "id": "r2", "kind": "constraint", "text": "all I2C sensors share one bus; addresses must not collide" }
+  ],
+
+  "components": [
+    { "id": "co2",  "library_id": "scd4x",    "label": "Indoor",    "params": { "update_interval": "60s" } },
+    { "id": "th",   "library_id": "sht4x",    "label": "Climate",   "params": { "update_interval": "60s" } },
+    { "id": "voc",  "library_id": "sgp4x",    "label": "Air",       "params": { "model": "sgp40" } },
+    { "id": "lux",  "library_id": "veml7700", "label": "Room",      "params": {} },
+    { "id": "baro", "library_id": "bme680",   "label": "Enclosure", "params": { "address": "0x76" } },
+    { "id": "pm",   "library_id": "pmsx003",  "label": "Air",       "params": { "type": "PMSX003" } }
+  ],
+
+  "buses": [
+    { "id": "i2c0", "type": "i2c", "frequency_hz": 100000, "sda": "GPIO21", "scl": "GPIO22" },
+    { "id": "pm_uart", "type": "uart", "tx": "GPIO17", "rx": "GPIO16", "baud_rate": 9600 }
+  ],
+
+  "connections": [
+    { "component_id": "co2",  "pin_role": "VCC", "target": { "kind": "rail", "rail": "3V3" } },
+    { "component_id": "co2",  "pin_role": "GND", "target": { "kind": "rail", "rail": "GND" } },
+    { "component_id": "co2",  "pin_role": "SDA", "target": { "kind": "bus", "bus_id": "i2c0" } },
+    { "component_id": "co2",  "pin_role": "SCL", "target": { "kind": "bus", "bus_id": "i2c0" } },
+
+    { "component_id": "th",   "pin_role": "VCC", "target": { "kind": "rail", "rail": "3V3" } },
+    { "component_id": "th",   "pin_role": "GND", "target": { "kind": "rail", "rail": "GND" } },
+    { "component_id": "th",   "pin_role": "SDA", "target": { "kind": "bus", "bus_id": "i2c0" } },
+    { "component_id": "th",   "pin_role": "SCL", "target": { "kind": "bus", "bus_id": "i2c0" } },
+
+    { "component_id": "voc",  "pin_role": "VCC", "target": { "kind": "rail", "rail": "3V3" } },
+    { "component_id": "voc",  "pin_role": "GND", "target": { "kind": "rail", "rail": "GND" } },
+    { "component_id": "voc",  "pin_role": "SDA", "target": { "kind": "bus", "bus_id": "i2c0" } },
+    { "component_id": "voc",  "pin_role": "SCL", "target": { "kind": "bus", "bus_id": "i2c0" } },
+
+    { "component_id": "lux",  "pin_role": "VCC", "target": { "kind": "rail", "rail": "3V3" } },
+    { "component_id": "lux",  "pin_role": "GND", "target": { "kind": "rail", "rail": "GND" } },
+    { "component_id": "lux",  "pin_role": "SDA", "target": { "kind": "bus", "bus_id": "i2c0" } },
+    { "component_id": "lux",  "pin_role": "SCL", "target": { "kind": "bus", "bus_id": "i2c0" } },
+
+    { "component_id": "baro", "pin_role": "VCC", "target": { "kind": "rail", "rail": "3V3" } },
+    { "component_id": "baro", "pin_role": "GND", "target": { "kind": "rail", "rail": "GND" } },
+    { "component_id": "baro", "pin_role": "SDA", "target": { "kind": "bus", "bus_id": "i2c0" } },
+    { "component_id": "baro", "pin_role": "SCL", "target": { "kind": "bus", "bus_id": "i2c0" } },
+
+    { "component_id": "pm",   "pin_role": "VCC", "target": { "kind": "rail", "rail": "5V" } },
+    { "component_id": "pm",   "pin_role": "GND", "target": { "kind": "rail", "rail": "GND" } },
+    { "component_id": "pm",   "pin_role": "TX",  "target": { "kind": "bus", "bus_id": "pm_uart" } },
+    { "component_id": "pm",   "pin_role": "RX",  "target": { "kind": "bus", "bus_id": "pm_uart" } }
+  ],
+
+  "passives": [],
+
+  "warnings": [
+    { "level": "info", "code": "scd4x_current_burst",
+      "text": "The SCD4x pulls ~200mA bursts during measurement; the 10uF bulk cap near its VCC matters on long supply runs." }
+  ],
+
+  "esphome_extras": {
+    "captive_portal": {}
+  },
+
+  "fleet": {
+    "device_name": "air-quality-station",
+    "tags": ["indoor", "air-quality"],
+    "secrets_ref": {
+      "wifi_ssid": "!secret wifi_ssid",
+      "wifi_password": "!secret wifi_password",
+      "api_key": "!secret api_key"
+    }
+  }
+}

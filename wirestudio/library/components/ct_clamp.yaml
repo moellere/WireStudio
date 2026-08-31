@@ -1,0 +1,67 @@
+id: ct_clamp
+name: Current transformer clamp (SCT-013 class, analog)
+category: sensor
+use_cases: [ac_current, power_metering, mains_monitoring, sub_metering]
+aliases: ["sct-013", "sct013", "current-clamp"]
+
+electrical:
+  current_ma_typical: 0
+  current_ma_peak: 0
+  pins:
+    - {role: OUT, kind: adc}
+  passives:
+    - {kind: resistor, value: "33R", between: [OUT, GND], purpose: burden (SCT-013-000 current-output type only)}
+    - {kind: resistor, value: "10k", between: [OUT, VCC], purpose: bias divider to mid-rail}
+    - {kind: resistor, value: "10k", between: [OUT, GND], purpose: bias divider to mid-rail}
+    - {kind: capacitor, value: "10uF", between: [OUT, GND], purpose: bias rail smoothing}
+
+esphome:
+  required_components: []
+  yaml_template: |
+    sensor:
+      - platform: adc
+        id: {{ id }}_adc
+        pin: {{ pins.OUT | tojson }}
+        attenuation: 12db
+        internal: true
+      - platform: ct_clamp
+        sensor: {{ id }}_adc
+        name: "{{ label }} Current"
+        sample_duration: {{ params.sample_duration | default('200ms') }}
+        update_interval: {{ params.update_interval | default('60s') }}
+        filters:
+          - calibrate_linear:
+              - 0.0 -> 0.0
+              - {{ params.calibration_point | default('0.0125 -> 1.25') }}
+
+capability:
+  role: sensor
+  provides:
+    - {event: on_value, kind: value}
+
+params_schema:
+  sample_duration:
+    type: string
+    default: "200ms"
+    description: "Integrate over >= several mains cycles (200ms = 10-12 cycles)."
+  update_interval:
+    type: string
+    default: "60s"
+  calibration_point:
+    type: string
+    default: "0.0125 -> 1.25"
+    description: "measured_raw -> amps, from a known load (e.g. a heater through a kill-a-watt)."
+
+notes: |
+  Non-invasive AC current sensing: clamp around ONE conductor (live or
+  neutral, not the whole cord). The SCT-013-000 is a current-output CT
+  and needs the burden resistor; -030 (1V/30A) variants have it
+  built in. Bias the signal to mid-rail with the divider so the ADC
+  sees the full sine. Reports RMS current only -- multiply by an
+  assumed voltage for apparent power, or use a PZEM-004T where real
+  power matters. ESP32 ADC only (ESP8266 A0 works at reduced range).
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x02
+  footprint: Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical
+  value: SCT-013

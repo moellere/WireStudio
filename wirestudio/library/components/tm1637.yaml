@@ -1,0 +1,56 @@
+id: tm1637
+name: TM1637 4-digit 7-segment display module
+category: display
+use_cases: [display, seven_segment, clock, counter, numeric_readout]
+aliases: ["4-digit-display", "grove-4-digit"]
+
+electrical:
+  vcc_min: 3.3
+  vcc_max: 5.5
+  current_ma_typical: 30
+  current_ma_peak: 80
+  pins:
+    - {role: VCC, kind: power}
+    - {role: GND, kind: ground}
+    - {role: CLK, kind: digital_in, voltage: 3.3}
+    - {role: DIO, kind: digital_in, voltage: 3.3}
+  passives:
+    - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+
+esphome:
+  required_components: []
+  yaml_template: |
+    display:
+      - platform: tm1637
+        id: {{ id }}
+        clk_pin: {{ pins.CLK | tojson }}
+        dio_pin: {{ pins.DIO | tojson }}
+        intensity: {{ params.intensity | default(4) }}
+        update_interval: {{ params.update_interval | default('1s') }}
+        lambda: |-
+          {{ params.lambda | default('it.print("----");') }}
+
+params_schema:
+  intensity:
+    type: integer
+    minimum: 0
+    maximum: 7
+    default: 4
+  update_interval:
+    type: string
+    default: "1s"
+  lambda:
+    type: string
+    description: "Display lambda body, e.g. `it.printf(\"%4.0f\", id(co2_val).state);` or `it.strftime(\"%H.%M\", id(my_time).now());`"
+
+notes: |
+  The ubiquitous 4-digit LED module (clocks, counters, CO2 readouts).
+  Two-wire protocol that looks like I2C but isn't -- CLK/DIO take any
+  two GPIOs, no bus. Runs at 3.3V logic fine; brightness at 5V VCC is
+  noticeably higher. The colon variant maps to the decimal point of
+  digit 2 (`it.print("12.34")` style).
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x04
+  footprint: Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical
+  value: TM1637

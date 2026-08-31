@@ -1,0 +1,58 @@
+id: wiegand
+name: Wiegand keypad / card reader interface (D0/D1)
+category: input
+use_cases: [access_control, rfid, keypad, door_entry]
+aliases: ["wiegand26", "wiegand34", "access-keypad"]
+
+electrical:
+  vcc_min: 5.0
+  vcc_max: 12.0
+  current_ma_typical: 60
+  current_ma_peak: 120
+  pins:
+    - {role: VCC, kind: power}
+    - {role: GND, kind: ground}
+    - {role: D0, kind: digital_out, voltage: 5.0}
+    - {role: D1, kind: digital_out, voltage: 5.0}
+  passives: []
+
+esphome:
+  required_components: []
+  yaml_template: |
+    wiegand:
+      - id: {{ id }}
+        d0: {{ pins.D0 | tojson }}
+        d1: {{ pins.D1 | tojson }}
+    {%- if params.on_tag is defined %}
+        on_tag: {{ params.on_tag | tojson }}
+    {%- endif %}
+    {%- if params.on_key is defined %}
+        on_key: {{ params.on_key | tojson }}
+    {%- endif %}
+
+capability:
+  role: input
+  provides:
+    - {event: on_tag, kind: event}
+    - {event: on_key, kind: event}
+
+params_schema:
+  on_tag:
+    type: array
+    description: "Actions on card/fob scan; `x` is the tag id string."
+  on_key:
+    type: array
+    description: "Actions on keypad digit; `x` is the key (0-9, * = 10, # = 11)."
+
+notes: |
+  The wall-reader standard: two open-collector lines pulsing bits.
+  Most readers run 5-12V and idle D0/D1 at their supply voltage --
+  check the reader's spec: many pull to 5V, which ESP32 pins are not
+  rated for. Safest wiring is a small level shifter or two resistor
+  dividers on D0/D1; some readers are fine idling at 3.3V with the
+  MCU's internal pull-ups. Keep the run under ~10m.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x04
+  footprint: Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical
+  value: Wiegand reader
