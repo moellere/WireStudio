@@ -1,0 +1,57 @@
+id: pmsx003
+name: Plantower PMS5003/PMS7003 particulate matter sensor (UART)
+category: sensor
+use_cases: [pm25, air_quality, dust, particulate, outdoor_air]
+aliases: ["pms5003", "pms7003", "pmsa003", "plantower"]
+
+electrical:
+  vcc_min: 4.5
+  vcc_max: 5.5
+  current_ma_typical: 100
+  current_ma_peak: 120
+  pins:
+    - {role: VCC, kind: power}
+    - {role: GND, kind: ground}
+    - {role: TX, kind: uart_tx, voltage: 3.3}
+    - {role: RX, kind: uart_rx, voltage: 3.3}
+    - {role: SET, kind: digital_in, voltage: 3.3}
+  passives:
+    - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+
+esphome:
+  required_components: [uart]
+  yaml_template: |
+    sensor:
+      - platform: pmsx003
+        uart_id: {{ bus.id }}
+        type: {{ params.type | default('PMSX003') }}
+        pm_1_0:
+          name: "{{ label }} PM1.0"
+        pm_2_5:
+          name: "{{ label }} PM2.5"
+        pm_10_0:
+          name: "{{ label }} PM10"
+
+capability:
+  role: sensor
+  provides:
+    - {event: on_value, kind: value}
+
+params_schema:
+  type:
+    type: string
+    enum: [PMSX003, PMS5003T, PMS5003ST, PMS5003S]
+    default: PMSX003
+    description: "T/ST variants add temperature+humidity, S/ST add formaldehyde."
+
+notes: |
+  Laser-scatter particle counter, the sensor inside most DIY AQI
+  boxes. 5V fan, 3.3V UART at 9600 baud. The fan wears out over a few
+  years of continuous duty -- tie SET low or use ESPHome's
+  update_interval sleep support to duty-cycle it outdoors. Give the
+  inlet/outlet clearance in the enclosure; recirculated air reads low.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x08
+  footprint: Connector_PinHeader_1.27mm:PinHeader_1x08_P1.27mm_Vertical
+  value: PMS5003

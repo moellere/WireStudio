@@ -1,0 +1,69 @@
+id: pn532
+name: NXP PN532 NFC/RFID reader (13.56MHz, I2C)
+category: input
+use_cases: [rfid, nfc, access_control, tag_reader]
+aliases: ["pn532-nfc", "elechouse-pn532", "grove-nfc"]
+
+electrical:
+  vcc_min: 3.3
+  vcc_max: 5.5
+  current_ma_typical: 60
+  current_ma_peak: 150
+  pins:
+  - {role: VCC, kind: power}
+  - {role: GND, kind: ground}
+  - role: SDA
+    kind: i2c_sda
+    pull_up: {required: true, value: "4.7k", to: VCC}
+  - role: SCL
+    kind: i2c_scl
+    pull_up: {required: true, value: "4.7k", to: VCC}
+  passives:
+  - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+
+esphome:
+  required_components: [i2c]
+  yaml_template: |
+    pn532_i2c:
+      id: {{ id }}
+      i2c_id: {{ bus.id }}
+      update_interval: {{ params.update_interval | default('1s') }}
+    {%- if params.on_tag is defined %}
+      on_tag: {{ params.on_tag | tojson }}
+    {%- endif %}
+    {%- if params.uid is defined %}
+    binary_sensor:
+      - platform: pn532
+        pn532_id: {{ id }}
+        uid: {{ params.uid | tojson }}
+        name: "{{ label }} Known Tag"
+    {%- endif %}
+
+capability:
+  role: input
+  provides:
+    - {event: on_tag, kind: event}
+
+params_schema:
+  update_interval:
+    type: string
+    default: "1s"
+    description: "Tag poll interval; 100ms-500ms for snappy access control."
+  uid:
+    type: string
+    description: "Match a specific tag as a binary_sensor, e.g. '74-10-37-94'."
+  on_tag:
+    type: array
+    description: "Actions on any tag; `x` is the UID string. Pair with homeassistant.tag_scanned for HA's tag registry."
+
+notes: |
+  Reads 13.56MHz MIFARE/NTAG (the card/fob/phone-tag family) -- a
+  different band from the 125kHz RDM6300/EM4100 fobs. The common red
+  Elechouse module: set its DIP switches to I2C mode (1=on 2=off).
+  Antenna is on-board; keep it clear of ground planes and metal
+  standoffs. SPI variant exists (pn532_spi) if the bus is busy.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x04
+  footprint: Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical
+  value: PN532

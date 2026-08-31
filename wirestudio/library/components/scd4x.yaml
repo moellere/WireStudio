@@ -1,0 +1,67 @@
+id: scd4x
+name: Sensirion SCD4x true-CO2 sensor (photoacoustic NDIR, I2C)
+category: sensor
+use_cases: [co2, air_quality, ventilation, indoor_air]
+aliases: ["scd40", "scd41", "adafruit-5187"]
+
+electrical:
+  vcc_min: 2.4
+  vcc_max: 5.5
+  current_ma_typical: 15
+  current_ma_peak: 205
+  pins:
+  - {role: VCC, kind: power}
+  - {role: GND, kind: ground}
+  - role: SDA
+    kind: i2c_sda
+    pull_up: {required: true, value: "4.7k", to: VCC}
+  - role: SCL
+    kind: i2c_scl
+    pull_up: {required: true, value: "4.7k", to: VCC}
+  passives:
+  - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+  - {kind: capacitor, value: "10uF", between: [VCC, GND], purpose: bulk decoupling for measurement bursts}
+
+esphome:
+  required_components: [i2c]
+  yaml_template: |
+    sensor:
+      - platform: scd4x
+        i2c_id: {{ bus.id }}
+        co2:
+          id: {{ id }}_co2
+          name: "{{ label }} CO2"
+        temperature:
+          name: "{{ label }} Temperature"
+        humidity:
+          name: "{{ label }} Humidity"
+        update_interval: {{ params.update_interval | default('60s') }}
+    {%- if params.altitude_compensation is defined %}
+        altitude_compensation: {{ params.altitude_compensation }}
+    {%- endif %}
+
+capability:
+  role: sensor
+  provides:
+    - {event: on_value, kind: value}
+
+params_schema:
+  update_interval:
+    type: string
+    default: "60s"
+  altitude_compensation:
+    type: string
+    description: "Site altitude (e.g. '450m') -- CO2 reading shifts ~3% per 1000m without it."
+
+notes: |
+  Photoacoustic NDIR, so it measures actual CO2 rather than inferring
+  eCO2 from VOCs -- the difference matters for ventilation control.
+  Draws up to ~200mA in 1A bursts during measurement: budget the rail
+  and keep the bulk cap close. SCD41 adds single-shot mode for battery
+  use. Automatic self-calibration assumes weekly exposure to fresh-air
+  ~400ppm; disable it for greenhouses or continuously occupied spaces.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x04
+  footprint: Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical
+  value: SCD4x

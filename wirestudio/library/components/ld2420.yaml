@@ -2,7 +2,7 @@ id: ld2420
 name: Hi-Link LD2420 24GHz mmWave presence sensor
 category: binary_sensor
 use_cases: [presence, occupancy, motion, distance]
-aliases: [ld2410, ld2412, hlk-ld2420]
+aliases: [ld2412, hlk-ld2420]
 
 electrical:
   vcc_min: 4.5

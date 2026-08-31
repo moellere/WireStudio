@@ -1,0 +1,63 @@
+id: sgp4x
+name: Sensirion SGP40/SGP41 VOC/NOx index sensor (I2C)
+category: sensor
+use_cases: [voc, air_quality, nox, odor, indoor_air]
+aliases: ["sgp40", "sgp41", "adafruit-4829"]
+
+electrical:
+  vcc_min: 1.7
+  vcc_max: 3.6
+  current_ma_typical: 2.6
+  current_ma_peak: 3.4
+  pins:
+  - {role: VCC, kind: power}
+  - {role: GND, kind: ground}
+  - role: SDA
+    kind: i2c_sda
+    pull_up: {required: true, value: "4.7k", to: VCC}
+  - role: SCL
+    kind: i2c_scl
+    pull_up: {required: true, value: "4.7k", to: VCC}
+  passives:
+  - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+
+esphome:
+  required_components: [i2c]
+  yaml_template: |
+    sensor:
+      - platform: sgp4x
+        i2c_id: {{ bus.id }}
+        voc:
+          name: "{{ label }} VOC Index"
+    {%- if params.model | default('sgp40') == 'sgp41' %}
+        nox:
+          name: "{{ label }} NOx Index"
+    {%- endif %}
+        update_interval: {{ params.update_interval | default('60s') }}
+
+capability:
+  role: sensor
+  provides:
+    - {event: on_value, kind: value}
+
+params_schema:
+  model:
+    type: string
+    enum: [sgp40, sgp41]
+    default: sgp40
+    description: "SGP41 adds the NOx index channel."
+  update_interval:
+    type: string
+    default: "60s"
+
+notes: |
+  Reports Sensirion's VOC Index (1-500, 100 = typical air), not ppb --
+  the on-chip gas algorithm baselines itself over ~24h. Pair with an
+  SHT4x on the same bus and set humidity_source for compensated
+  readings. The hotplate runs continuously; ~2.6mA is the price of a
+  stable index.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x04
+  footprint: Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical
+  value: SGP4x

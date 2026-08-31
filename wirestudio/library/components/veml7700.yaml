@@ -1,0 +1,53 @@
+id: veml7700
+name: Vishay VEML7700 ambient light sensor (lux, I2C)
+category: sensor
+use_cases: [light, illuminance, lux, ambient_light, brightness]
+aliases: ["adafruit-4162", "veml6030"]
+
+electrical:
+  vcc_min: 2.5
+  vcc_max: 3.6
+  current_ma_typical: 0.045
+  current_ma_peak: 0.06
+  pins:
+  - {role: VCC, kind: power}
+  - {role: GND, kind: ground}
+  - role: SDA
+    kind: i2c_sda
+    pull_up: {required: true, value: "4.7k", to: VCC}
+  - role: SCL
+    kind: i2c_scl
+    pull_up: {required: true, value: "4.7k", to: VCC}
+  passives:
+  - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+
+esphome:
+  required_components: [i2c]
+  yaml_template: |
+    sensor:
+      - platform: veml7700
+        i2c_id: {{ bus.id }}
+        update_interval: {{ params.update_interval | default('60s') }}
+        ambient_light:
+          name: "{{ label }} Illuminance"
+
+capability:
+  role: sensor
+  provides:
+    - {event: on_value, kind: value}
+
+params_schema:
+  update_interval:
+    type: string
+    default: "60s"
+
+notes: |
+  Successor tier to the BH1750: 16-bit, 0.005-120k lux with automatic
+  gain/integration ("auto_mode" is ESPHome's default), so it holds
+  accuracy from moonlight to direct sun without manual ranging. Fixed
+  address 0x10 -- one per bus.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x04
+  footprint: Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical
+  value: VEML7700

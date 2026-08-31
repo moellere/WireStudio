@@ -1,0 +1,59 @@
+id: mhz19
+name: Winsen MH-Z19 NDIR CO2 sensor (UART)
+category: sensor
+use_cases: [co2, air_quality, ventilation, indoor_air]
+aliases: ["mh-z19b", "mh-z19c", "mh-z19e"]
+
+electrical:
+  vcc_min: 4.5
+  vcc_max: 5.5
+  current_ma_typical: 60
+  current_ma_peak: 150
+  pins:
+    - {role: VCC, kind: power}
+    - {role: GND, kind: ground}
+    - {role: TX, kind: uart_tx, voltage: 3.3}
+    - {role: RX, kind: uart_rx, voltage: 3.3}
+  passives:
+    - {kind: capacitor, value: "10uF", between: [VCC, GND], purpose: bulk decoupling for lamp pulses}
+
+esphome:
+  required_components: [uart]
+  yaml_template: |
+    sensor:
+      - platform: mhz19
+        uart_id: {{ bus.id }}
+        co2:
+          id: {{ id }}_co2
+          name: "{{ label }} CO2"
+        temperature:
+          name: "{{ label }} Temperature"
+        update_interval: {{ params.update_interval | default('60s') }}
+        automatic_baseline_calibration: {{ params.automatic_baseline_calibration | default(false) | tojson }}
+
+capability:
+  role: sensor
+  provides:
+    - {event: on_value, kind: value}
+
+params_schema:
+  update_interval:
+    type: string
+    default: "60s"
+  automatic_baseline_calibration:
+    type: boolean
+    default: false
+    description: "ABC assumes the room sees ~400ppm fresh air daily; leave off for bedrooms/offices that stay occupied."
+
+notes: |
+  The classic hobbyist NDIR CO2 sensor: 5V supply, 3.3V UART at 9600
+  baud (wire sensor TX to MCU RX and vice versa). Needs ~3 minutes of
+  warm-up before readings settle. Temperature output is the internal
+  die temperature -- coarse, not a room thermometer. For new designs
+  the SCD4x costs similar and adds RH; the MH-Z19 remains the cheap
+  proven default.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x04
+  footprint: Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical
+  value: MH-Z19

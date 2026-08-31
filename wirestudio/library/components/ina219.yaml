@@ -1,0 +1,79 @@
+id: ina219
+name: TI INA219 high-side current/power monitor (I2C)
+category: sensor
+use_cases: [current, power_metering, dc_power, battery_monitoring, voltage]
+aliases: ["gy-219", "adafruit-904"]
+
+electrical:
+  vcc_min: 3.0
+  vcc_max: 5.5
+  current_ma_typical: 1
+  current_ma_peak: 1.2
+  pins:
+  - {role: VCC, kind: power}
+  - {role: GND, kind: ground}
+  - role: SDA
+    kind: i2c_sda
+    pull_up: {required: true, value: "4.7k", to: VCC}
+  - role: SCL
+    kind: i2c_scl
+    pull_up: {required: true, value: "4.7k", to: VCC}
+  - {role: VIN_PLUS, kind: analog_in, voltage: 26.0}
+  - {role: VIN_MINUS, kind: analog_in, voltage: 26.0}
+  passives:
+  - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+
+esphome:
+  required_components: [i2c]
+  yaml_template: |
+    sensor:
+      - platform: ina219
+        i2c_id: {{ bus.id }}
+        address: {{ params.address | default('0x40') }}
+        shunt_resistance: {{ params.shunt_resistance | default('0.1 ohm') }}
+        max_current: {{ params.max_current | default('3.2A') }}
+        max_voltage: {{ params.max_voltage | default('26.0V') }}
+        current:
+          name: "{{ label }} Current"
+        power:
+          name: "{{ label }} Power"
+        bus_voltage:
+          name: "{{ label }} Bus Voltage"
+        update_interval: {{ params.update_interval | default('60s') }}
+
+capability:
+  role: sensor
+  provides:
+    - {event: on_value, kind: value}
+
+params_schema:
+  address:
+    type: string
+    enum: ["0x40", "0x41", "0x44", "0x45"]
+    default: "0x40"
+    description: "A0/A1 solder jumpers; four boards can share one bus."
+  shunt_resistance:
+    type: string
+    default: "0.1 ohm"
+    description: "The common purple GY-219 module ships an R100 (0.1 ohm) shunt."
+  max_current:
+    type: string
+    default: "3.2A"
+  max_voltage:
+    type: string
+    default: "26.0V"
+  update_interval:
+    type: string
+    default: "60s"
+
+notes: |
+  Measures the load's current through its own shunt (VIN+ -> VIN- in
+  series with the supply, high side) up to 26V / 3.2A with the stock
+  0.1-ohm shunt. current_ma here is the chip's own draw -- the measured
+  circuit's current flows through the shunt, not the MCU rail. For
+  higher current swap the shunt and set shunt_resistance/max_current.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x06
+  footprint: Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical
+  value: INA219

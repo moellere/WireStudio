@@ -1,0 +1,85 @@
+{
+  "schema_version": "0.1",
+  "id": "access-panel",
+  "name": "Door access panel (NFC + keypad + servo latch)",
+  "description": "ESP32-DevKitC-V4 door controller: a PN532 NFC reader on I2C for fobs/cards/phone tags, a Wiegand keypad on GPIO32/GPIO33 for PIN entry, a servo-driven latch on GPIO13 and a relay output for the strike plate.",
+  "created_at": "2026-08-31T00:00:00Z",
+  "updated_at": "2026-08-31T00:00:00Z",
+
+  "board": {
+    "library_id": "esp32-devkitc-v4",
+    "mcu": "esp32",
+    "framework": "arduino"
+  },
+
+  "power": {
+    "supply": "external-5v",
+    "rail_voltage_v": 5.0,
+    "regulator": "onboard-ams1117-3v3",
+    "budget_ma": 1500
+  },
+
+  "requirements": [
+    { "id": "r1", "kind": "capability", "text": "scan NFC tags and forward UIDs to Home Assistant's tag registry" },
+    { "id": "r2", "kind": "capability", "text": "accept PIN entry from the Wiegand keypad" },
+    { "id": "r3", "kind": "capability", "text": "actuate the latch servo and strike relay" }
+  ],
+
+  "components": [
+    { "id": "reader", "library_id": "pn532", "label": "Door Reader",
+      "params": {
+        "update_interval": "500ms",
+        "on_tag": [ { "homeassistant.tag_scanned": "!lambda return x;" } ]
+      } },
+    { "id": "keypad", "library_id": "wiegand", "label": "Keypad", "params": {} },
+    { "id": "latch", "library_id": "servo", "label": "Latch",
+      "params": { "auto_detach_time": "2s", "transition_length": "500ms" } },
+    { "id": "strike", "library_id": "gpio_output", "label": "Door Strike", "params": {} }
+  ],
+
+  "buses": [
+    { "id": "i2c0", "type": "i2c", "frequency_hz": 100000, "sda": "GPIO21", "scl": "GPIO22" }
+  ],
+
+  "connections": [
+    { "component_id": "reader", "pin_role": "VCC", "target": { "kind": "rail", "rail": "3V3" } },
+    { "component_id": "reader", "pin_role": "GND", "target": { "kind": "rail", "rail": "GND" } },
+    { "component_id": "reader", "pin_role": "SDA", "target": { "kind": "bus", "bus_id": "i2c0" } },
+    { "component_id": "reader", "pin_role": "SCL", "target": { "kind": "bus", "bus_id": "i2c0" } },
+
+    { "component_id": "keypad", "pin_role": "VCC", "target": { "kind": "rail", "rail": "5V" } },
+    { "component_id": "keypad", "pin_role": "GND", "target": { "kind": "rail", "rail": "GND" } },
+    { "component_id": "keypad", "pin_role": "D0",  "target": { "kind": "gpio", "pin": "GPIO32" } },
+    { "component_id": "keypad", "pin_role": "D1",  "target": { "kind": "gpio", "pin": "GPIO33" } },
+
+    { "component_id": "latch", "pin_role": "VCC", "target": { "kind": "rail", "rail": "5V" } },
+    { "component_id": "latch", "pin_role": "GND", "target": { "kind": "rail", "rail": "GND" } },
+    { "component_id": "latch", "pin_role": "PWM", "target": { "kind": "gpio", "pin": "GPIO13" } },
+
+    { "component_id": "strike", "pin_role": "OUT", "target": { "kind": "gpio", "pin": "GPIO26" } }
+  ],
+
+  "passives": [
+    { "id": "c_servo", "kind": "capacitor", "value": "470uF",
+      "between": ["latch.VCC", "GND"], "purpose": "servo stall surge" }
+  ],
+
+  "warnings": [
+    { "level": "warn", "code": "wiegand_5v_levels",
+      "text": "Most Wiegand readers idle D0/D1 at 5V. Add resistor dividers or a level shifter before GPIO32/GPIO33 unless the reader is confirmed 3.3V-safe." }
+  ],
+
+  "esphome_extras": {
+    "captive_portal": {}
+  },
+
+  "fleet": {
+    "device_name": "access-panel",
+    "tags": ["security", "access", "nfc"],
+    "secrets_ref": {
+      "wifi_ssid": "!secret wifi_ssid",
+      "wifi_password": "!secret wifi_password",
+      "api_key": "!secret api_key"
+    }
+  }
+}

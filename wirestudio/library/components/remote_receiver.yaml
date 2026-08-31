@@ -1,0 +1,68 @@
+id: remote_receiver
+name: IR receiver (TSOP38238/VS1838B, 38kHz demodulated)
+category: input
+use_cases: [ir, remote_control, media_control, learning_remote]
+aliases: ["tsop38238", "vs1838b", "tsop4838", "ir-receiver"]
+
+electrical:
+  vcc_min: 2.5
+  vcc_max: 5.5
+  current_ma_typical: 0.45
+  current_ma_peak: 1.5
+  pins:
+    - {role: VCC, kind: power}
+    - {role: GND, kind: ground}
+    - {role: OUT, kind: digital_out, voltage: 3.3}
+  passives:
+    - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling per datasheet app circuit}
+    - {kind: resistor, value: "100R", between: [VCC, VCC], purpose: supply filter (datasheet RC) -- optional on clean rails}
+
+esphome:
+  required_components: []
+  yaml_template: |
+    remote_receiver:
+      id: {{ id }}
+      pin:
+        number: {{ pins.OUT | tojson }}
+        inverted: {{ params.inverted | default(true) | tojson }}
+        mode:
+          input: true
+      dump: {{ params.dump | default('all') }}
+    {%- if params.on_nec is defined %}
+      on_nec: {{ params.on_nec | tojson }}
+    {%- endif %}
+
+tasmota:
+  pins:
+    OUT: IRrecv
+
+capability:
+  role: input
+  provides:
+    - {event: on_nec, kind: event}
+
+params_schema:
+  dump:
+    type: string
+    default: "all"
+    description: "Protocols to log for learning codes ('all' while setting up, then narrow or remove)."
+  inverted:
+    type: boolean
+    default: true
+    description: "Demodulating receivers idle high and pull low on carrier -- leave true."
+  on_nec:
+    type: object
+    description: "NEC automation, e.g. {address: 0x407F, command: 0xC03F, then: [...]}"
+
+notes: |
+  Counterpart to the remote_transmitter entry: a demodulating 38kHz
+  receiver module on one GPIO. Start with dump: all, press the remote,
+  copy the decoded protocol/address/command from the log into a
+  binary_sensor or automation. On ESP32 the RMT peripheral does the
+  timing; on ESP8266 pick a pin that tolerates interrupts (avoid
+  GPIO16).
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x03
+  footprint: Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical
+  value: TSOP38238
