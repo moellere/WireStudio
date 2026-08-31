@@ -1,0 +1,22 @@
++-------------------------------------------------------------------------------------+
+|  M5Stack AtomS3 Lite  ---  atoms3-lite                                              |
++-------------------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                                |
+|                                                                                     |
+|  status  [ESP32 RMT-driven addressable LED strip (WS2812 / SK6812)]  -- Status LED  |
+|    VCC   -> rail 5V                                                                 |
+|    GND   -> rail GND                                                                |
+|    DIN   -> GPIO35                                                                  |
+|                                                                                     |
+|  btn  [Generic GPIO binary sensor]  -- Button                                       |
+|    IN    -> GPIO41                                                                  |
+|                                                                                     |
+|  BOM:                                                                               |
+|    - M5Stack AtomS3 Lite                                                            |
+|    - ESP32 RMT-driven addressable LED strip (WS2812 / SK6812)  (status)             |
+|    - Generic GPIO binary sensor  (btn)                                              |
+|                                                                                     |
+|  Power: ~20mA typical, ~60mA peak (budget 500mA)  OK                                |
+|                                                                                     |
+|  Warnings: none                                                                     |
++-------------------------------------------------------------------------------------+

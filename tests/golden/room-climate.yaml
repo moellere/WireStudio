@@ -19,6 +19,7 @@ i2c:
   frequency: 100kHz
 sensor:
 - platform: bh1750
+  id: lux1
   i2c_id: i2c0
   address: '0x23'
   name: Room light Illuminance
@@ -28,6 +29,8 @@ sensor:
   variant: AHT20
   update_interval: 60s
   temperature:
+    id: th1_temperature
     name: Room climate Temperature
   humidity:
+    id: th1_humidity
     name: Room climate Humidity

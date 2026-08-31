@@ -1,0 +1,83 @@
+esphome:
+  name: heltec-v4-gnss-tracker
+esp32:
+  board: heltec_wifi_lora_32_V3
+  framework:
+    type: arduino
+  variant: ESP32S3
+  flash_size: 16MB
+logger: {}
+uart:
+- id: gnss_uart
+  rx_pin: GPIO39
+  tx_pin: GPIO38
+  baud_rate: 9600
+gps:
+  uart_id: gnss_uart
+  latitude:
+    id: gnss_lat
+    name: Latitude
+  longitude:
+    id: gnss_lon
+    name: Longitude
+  satellites:
+    id: gnss_sats
+    name: Satellites
+switch:
+- platform: gpio
+  id: gnss_power
+  name: GNSS power
+  pin:
+    number: GPIO34
+    inverted: true
+  restore_mode: ALWAYS_ON
+- platform: gpio
+  id: gnss_reset_deassert
+  name: GNSS reset (deasserted)
+  pin:
+    number: GPIO42
+  restore_mode: ALWAYS_ON
+- platform: gpio
+  id: gnss_wake
+  name: GNSS wake
+  pin:
+    number: GPIO40
+  restore_mode: ALWAYS_ON
+external_components:
+- source: github://moellere/lorawan-for-esphome@b7da617482bf59341a5d14992f033e522af72b57
+  components:
+  - lorawan
+lorawan:
+  id: lw
+  region: US915
+  sub_band: 2
+  dev_eui: !secret dev_eui
+  join_eui: !secret join_eui
+  app_key: !secret app_key
+  radio:
+    chip: sx1262
+    cs_pin: GPIO8
+    rst_pin: GPIO12
+    sck_pin: GPIO9
+    miso_pin: GPIO11
+    mosi_pin: GPIO10
+    dio1_pin: GPIO14
+    busy_pin: GPIO13
+    tcxo_voltage: 1.8
+    dio2_as_rf_switch: true
+    setup_high:
+    - GPIO7
+    - GPIO2
+    setup_low:
+    - GPIO36
+    txen_pin: GPIO46
+sensor:
+- platform: lorawan
+  lorawan_id: lw
+  sensor: gnss_lat
+- platform: lorawan
+  lorawan_id: lw
+  sensor: gnss_lon
+- platform: lorawan
+  lorawan_id: lw
+  sensor: gnss_sats

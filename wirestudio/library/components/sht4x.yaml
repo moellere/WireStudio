@@ -29,8 +29,10 @@ esphome:
         i2c_id: {{ bus.id }}
         address: {{ params.address | default('0x44') }}
         temperature:
+          id: {{ id }}_temperature
           name: "{{ label }} Temperature"
         humidity:
+          id: {{ id }}_humidity
           name: "{{ label }} Humidity"
         update_interval: {{ params.update_interval | default('60s') }}
 

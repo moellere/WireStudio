@@ -1,0 +1,42 @@
++---------------------------------------------------------------------------------------------------------------+
+|  ESP32-DevKitC-V4  ---  access-panel                                                                          |
++---------------------------------------------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                                                          |
+|                                                                                                               |
+|  reader  [NXP PN532 NFC/RFID reader (13.56MHz, I2C)]  -- Door Reader                                          |
+|    VCC   -> rail 3V3                                                                                          |
+|    GND   -> rail GND                                                                                          |
+|    SDA   -> i2c0 (GPIO21)                                                                                     |
+|    SCL   -> i2c0 (GPIO22)                                                                                     |
+|                                                                                                               |
+|  keypad  [Wiegand keypad / card reader interface (D0/D1)]  -- Keypad                                          |
+|    VCC   -> rail 5V                                                                                           |
+|    GND   -> rail GND                                                                                          |
+|    D0    -> GPIO32                                                                                            |
+|    D1    -> GPIO33                                                                                            |
+|                                                                                                               |
+|  latch  [Hobby servo (SG90/MG90S class, 50Hz PWM)]  -- Latch                                                  |
+|    VCC   -> rail 5V                                                                                           |
+|    GND   -> rail GND                                                                                          |
+|    PWM   -> GPIO13                                                                                            |
+|                                                                                                               |
+|  strike  [Generic GPIO switch / relay output]  -- Door Strike                                                 |
+|    OUT   -> GPIO26                                                                                            |
+|                                                                                                               |
+|  Passives:                                                                                                    |
+|    c_servo: 470uF capacitor, latch.VCC  <->  GND   (servo stall surge)                                        |
+|                                                                                                               |
+|  BOM:                                                                                                         |
+|    - ESP32-DevKitC-V4                                                                                         |
+|    - NXP PN532 NFC/RFID reader (13.56MHz, I2C)  (reader)                                                      |
+|    - Wiegand keypad / card reader interface (D0/D1)  (keypad)                                                 |
+|    - Hobby servo (SG90/MG90S class, 50Hz PWM)  (latch)                                                        |
+|    - Generic GPIO switch / relay output  (strike)                                                             |
+|    - 1x 470uF capacitor                                                                                       |
+|                                                                                                               |
+|  Power: ~320mA typical, ~1020mA peak (budget 1500mA)  OK                                                      |
+|                                                                                                               |
+|  Warnings:                                                                                                    |
+|    [warn] wiegand_5v_levels: Most Wiegand readers idle D0/D1 at 5V. Add resistor dividers or a level shifter  |
+|                              before GPIO32/GPIO33 unless the reader is confirmed 3.3V-safe.                   |
++---------------------------------------------------------------------------------------------------------------+

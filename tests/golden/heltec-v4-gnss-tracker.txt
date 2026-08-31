@@ -1,0 +1,19 @@
++------------------------------------------------------------------------------+
+|  Heltec WiFi LoRa 32 V4 (SX1262 + PA)  ---  heltec-v4-gnss-tracker           |
++------------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                         |
+|                                                                              |
+|  gnss  [Generic UART GPS / GNSS module (NEO-6M / NEO-8M / UC6580)]  -- GNSS  |
+|    VCC   -> rail 3V3                                                         |
+|    GND   -> rail GND                                                         |
+|    TX    -> gnss_uart (GPIO39)                                               |
+|    RX    -> gnss_uart (GPIO38)                                               |
+|                                                                              |
+|  BOM:                                                                        |
+|    - Heltec WiFi LoRa 32 V4 (SX1262 + PA)                                    |
+|    - Generic UART GPS / GNSS module (NEO-6M / NEO-8M / UC6580)  (gnss)       |
+|                                                                              |
+|  Power: ~30mA typical, ~80mA peak (budget 500mA)  OK                         |
+|                                                                              |
+|  Warnings: none                                                              |
++------------------------------------------------------------------------------+

@@ -465,12 +465,15 @@ def test_temp_to_fan_lowers_into_the_temperature_sub_block(lib):
     # on the sibling humidity/pressure channels.
     expected = (
         "  temperature:\n"
+        "    id: climate_temperature\n"
         "    name: Climate Temperature\n"
         "    on_value:\n"
         "    - switch.turn_on: fan\n"
         "  humidity:\n"
+        "    id: climate_humidity\n"
         "    name: Climate Humidity\n"
         "  pressure:\n"
+        "    id: climate_pressure\n"
         "    name: Climate Pressure"
     )
     assert expected in yaml
@@ -504,6 +507,7 @@ def test_threshold_above_lowers_into_range_entry_inside_sub_block(lib):
     yaml = render_yaml(d, lib)
     expected = (
         "  temperature:\n"
+        "    id: climate_temperature\n"
         "    name: Climate Temperature\n"
         "    on_value_range:\n"
         "    - above: 28.0\n"

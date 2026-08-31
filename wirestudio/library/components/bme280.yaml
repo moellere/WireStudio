@@ -29,6 +29,7 @@ esphome:
         address: "{{ params.address | default('0x76') }}"
         i2c_id: {{ bus.id }}
         temperature:
+          id: {{ id }}_temperature
           name: "{{ label }} Temperature"
     {%- if params.temperature_on_value is defined %}
           on_value: {{ params.temperature_on_value | tojson }}
@@ -37,6 +38,7 @@ esphome:
           on_value_range: {{ params.temperature_on_value_range | tojson }}
     {%- endif %}
         humidity:
+          id: {{ id }}_humidity
           name: "{{ label }} Humidity"
     {%- if params.humidity_on_value is defined %}
           on_value: {{ params.humidity_on_value | tojson }}
@@ -45,6 +47,7 @@ esphome:
           on_value_range: {{ params.humidity_on_value_range | tojson }}
     {%- endif %}
         pressure:
+          id: {{ id }}_pressure
           name: "{{ label }} Pressure"
     {%- if params.pressure_on_value is defined %}
           on_value: {{ params.pressure_on_value | tojson }}

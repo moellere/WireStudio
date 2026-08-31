@@ -1,0 +1,25 @@
+esphome:
+  name: xiao-grove-climate-v1
+esp32:
+  board: seeed_xiao_esp32c3
+  framework:
+    type: arduino
+  variant: ESP32C3
+  flash_size: 4MB
+logger: {}
+i2c:
+- id: i2c0
+  sda: GPIO6
+  scl: GPIO7
+  frequency: 100kHz
+sensor:
+- platform: aht10
+  i2c_id: i2c0
+  variant: AHT20
+  update_interval: 60s
+  temperature:
+    id: aht1_temperature
+    name: Room climate Temperature
+  humidity:
+    id: aht1_humidity
+    name: Room climate Humidity

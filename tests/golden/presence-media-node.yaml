@@ -1,0 +1,49 @@
+esphome:
+  name: presence-media-node
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+  flash_size: 4MB
+logger: {}
+api:
+  encryption:
+    key: !secret api_key
+ota:
+- platform: esphome
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+captive_portal: {}
+uart:
+- id: radar_uart
+  rx_pin: GPIO16
+  tx_pin: GPIO17
+  baud_rate: 256000
+ld2410:
+  uart_id: radar_uart
+  id: presence
+binary_sensor:
+- platform: ld2410
+  has_target:
+    name: Couch Presence
+  has_moving_target:
+    name: Couch Moving Target
+  has_still_target:
+    name: Couch Still Target
+sensor:
+- platform: ld2410
+  moving_distance:
+    name: Couch Moving Distance
+  still_distance:
+    name: Couch Still Distance
+  detection_distance:
+    name: Couch Detection Distance
+remote_receiver:
+  id: ir
+  pin:
+    number: GPIO25
+    inverted: true
+    mode:
+      input: true
+  dump: all

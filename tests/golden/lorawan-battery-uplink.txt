@@ -4,7 +4,7 @@
 |  Rails: 5V, 3V3, GND                                |
 |                                                     |
 |  battery  [Generic analog input]  -- Battery        |
-|    IN    -> GPIO36                                  |
+|    IN    -> GPIO35                                  |
 |                                                     |
 |  BOM:                                               |
 |    - TTGO LoRa32 V1 (T3)                            |
