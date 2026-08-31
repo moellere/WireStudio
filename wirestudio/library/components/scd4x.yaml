@@ -32,8 +32,10 @@ esphome:
           id: {{ id }}_co2
           name: "{{ label }} CO2"
         temperature:
+          id: {{ id }}_temperature
           name: "{{ label }} Temperature"
         humidity:
+          id: {{ id }}_humidity
           name: "{{ label }} Humidity"
         update_interval: {{ params.update_interval | default('60s') }}
     {%- if params.altitude_compensation is defined %}

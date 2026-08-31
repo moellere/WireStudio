@@ -1,0 +1,47 @@
+esphome:
+  name: solder-fan
+esp8266:
+  board: d1_mini
+logger: {}
+api:
+  encryption:
+    key: !secret api_key
+ota:
+- platform: esphome
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+captive_portal: {}
+sensor:
+- platform: adc
+  pin: A0
+  name: Speed knob
+  id: pot
+  update_interval: 0.5s
+  unit_of_measurement: '%'
+  filters:
+  - multiply: 100.0
+- platform: pulse_counter
+  pin:
+    number: D2
+    mode: INPUT_PULLUP
+  unit_of_measurement: RPM
+  name: Solder Exhaust Fan RPM
+  id: exhaust_rpm
+  update_interval: 0.5s
+  accuracy_decimals: 0
+  filters:
+  - multiply: 0.5
+output:
+- platform: esp8266_pwm
+  pin: D5
+  frequency: 25000 Hz
+  id: exhaust_pwm
+  min_power: 10%
+  max_power: 100%
+  zero_means_zero: true
+fan:
+- platform: speed
+  output: exhaust_pwm
+  name: Solder Exhaust Fan
+  id: exhaust

@@ -1,0 +1,33 @@
++----------------------------------------------------------------------------------------------------------------+
+|  ESP32-DevKitC-V4  ---  output-hub                                                                             |
++----------------------------------------------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                                                           |
+|                                                                                                                |
+|  pwmhub  [NXP PCA9685 16-channel 12-bit PWM driver (I2C)]  -- LED Bank                                         |
+|    VCC   -> rail 3V3                                                                                           |
+|    GND   -> rail GND                                                                                           |
+|    SDA   -> i2c0 (GPIO21)                                                                                      |
+|    SCL   -> i2c0 (GPIO22)                                                                                      |
+|                                                                                                                |
+|  shift1  [TI SN74HC595 8-bit shift register (output expander, daisy-chainable)]  -- Relay Fanout               |
+|    VCC   -> rail 3V3                                                                                           |
+|    GND   -> rail GND                                                                                           |
+|    DATA  -> GPIO25                                                                                             |
+|    CLOCK -> GPIO26                                                                                             |
+|    LATCH -> GPIO27                                                                                             |
+|                                                                                                                |
+|  fan_relay  [Generic GPIO switch / relay output]  -- Vent Fan                                                  |
+|    OUT   -> shift1.0                                                                                           |
+|                                                                                                                |
+|  BOM:                                                                                                          |
+|    - ESP32-DevKitC-V4                                                                                          |
+|    - NXP PCA9685 16-channel 12-bit PWM driver (I2C)  (pwmhub)                                                  |
+|    - TI SN74HC595 8-bit shift register (output expander, daisy-chainable)  (shift1)                            |
+|    - Generic GPIO switch / relay output  (fan_relay)                                                           |
+|                                                                                                                |
+|  Power: ~7mA typical, ~80mA peak (budget 500mA)  OK                                                            |
+|                                                                                                                |
+|  Warnings:                                                                                                     |
+|    [info] sn74hc595_boot_float: Shift-register outputs float until the first latch after boot; wire OE with a  |
+|                                 pull-up if the relay must stay off through reset.                              |
++----------------------------------------------------------------------------------------------------------------+

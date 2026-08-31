@@ -19,6 +19,7 @@ electrical:
 
 esphome:
   required_components: []
+  display_dialect: seven_segment
   yaml_template: |
     display:
       - platform: tm1637

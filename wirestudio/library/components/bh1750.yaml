@@ -27,6 +27,7 @@ esphome:
   yaml_template: |
     sensor:
       - platform: bh1750
+        id: {{ id }}
         i2c_id: {{ bus.id }}
         address: "{{ params.address | default('0x23') }}"
         name: "{{ label }} Illuminance"

@@ -1,0 +1,21 @@
++-------------------------------------------------------------------+
+|  ESP32-DevKitC-V4  ---  blind-stepper-v1                          |
++-------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                              |
+|                                                                   |
+|  stepper1  [ULN2003 stepper driver (28BYJ-48)]  -- Blind stepper  |
+|    VCC   -> rail 5V                                               |
+|    GND   -> rail GND                                              |
+|    A     -> GPIO16                                                |
+|    B     -> GPIO17                                                |
+|    C     -> GPIO18                                                |
+|    D     -> GPIO19                                                |
+|                                                                   |
+|  BOM:                                                             |
+|    - ESP32-DevKitC-V4                                             |
+|    - ULN2003 stepper driver (28BYJ-48)  (stepper1)                |
+|                                                                   |
+|  Power: ~100mA typical, ~240mA peak (budget 500mA)  OK            |
+|                                                                   |
+|  Warnings: none                                                   |
++-------------------------------------------------------------------+

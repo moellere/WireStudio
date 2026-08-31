@@ -84,7 +84,8 @@ from wirestudio.designs.events import DesignEventBus, EventEmittingDesignStore
 from wirestudio.fleet.client import FleetClient, FleetUnavailable
 from wirestudio.csp.compatibility import check_pin_compatibility, strict_blockers
 from wirestudio.csp.pin_solver import solve_pins as run_solve_pins
-from wirestudio.intent import validate_automations
+from wirestudio.generate.display_intent import validate_show
+from wirestudio.intent import MELODIES, validate_automations
 from wirestudio.validate import check_board_flash
 from wirestudio.enclosure import (
     EnclosureUnavailable,
@@ -420,6 +421,12 @@ def create_app(
         design.setdefault("warnings", []).extend(frag["warnings"])
         return design
 
+    @app.get("/intent/melodies", tags=["design"])
+    def intent_melodies() -> dict:
+        """Named RTTTL melodies a `play` action can reference via
+        `args: {song: <name>}`."""
+        return {"melodies": MELODIES}
+
     @app.post("/design/validate", response_model=ValidateResponse, tags=["design"])
     def validate(design: dict) -> ValidateResponse:
         d = _validate_design(design)
@@ -429,7 +436,7 @@ def create_app(
         # validator surfaces dangling trigger/action refs the same way
         # (warnings, not blocks) so a half-authored automation can render.
         target_warnings = get_target(d.target).validate(d, lib)
-        automation_warnings = validate_automations(d, lib)
+        automation_warnings = validate_automations(d, lib) + validate_show(d, lib)
         board_warnings = check_board_flash(d, lib)
         # In strict mode, warn/error compatibility entries and design warnings
         # flip ok to false (the render/push gates refuse the same design).

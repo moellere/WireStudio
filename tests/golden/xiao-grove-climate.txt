@@ -1,0 +1,19 @@
++---------------------------------------------------------------------------+
+|  Seeed Studio XIAO ESP32C3  ---  xiao-grove-climate-v1                    |
++---------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                      |
+|                                                                           |
+|  aht1  [Seeed Grove AHT20 temperature + humidity (I2C)]  -- Room climate  |
+|    VCC   -> rail 3V3                                                      |
+|    GND   -> rail GND                                                      |
+|    SDA   -> i2c0 (GPIO6)                                                  |
+|    SCL   -> i2c0 (GPIO7)                                                  |
+|                                                                           |
+|  BOM:                                                                     |
+|    - Seeed Studio XIAO ESP32C3                                            |
+|    - Seeed Grove AHT20 temperature + humidity (I2C)  (aht1)               |
+|                                                                           |
+|  Power: ~0mA typical, ~0mA peak (budget 500mA)  OK                        |
+|                                                                           |
+|  Warnings: none                                                           |
++---------------------------------------------------------------------------+

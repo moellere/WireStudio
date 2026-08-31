@@ -1,0 +1,86 @@
+esphome:
+  name: air-quality-station
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+  flash_size: 4MB
+logger: {}
+api:
+  encryption:
+    key: !secret api_key
+ota:
+- platform: esphome
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+captive_portal: {}
+i2c:
+- id: i2c0
+  sda: GPIO21
+  scl: GPIO22
+  frequency: 100kHz
+uart:
+- id: pm_uart
+  rx_pin: GPIO16
+  tx_pin: GPIO17
+  baud_rate: 9600
+sensor:
+- platform: scd4x
+  i2c_id: i2c0
+  co2:
+    id: co2_co2
+    name: Indoor CO2
+  temperature:
+    id: co2_temperature
+    name: Indoor Temperature
+  humidity:
+    id: co2_humidity
+    name: Indoor Humidity
+  update_interval: 60s
+- platform: sht4x
+  i2c_id: i2c0
+  address: 68
+  temperature:
+    id: th_temperature
+    name: Climate Temperature
+  humidity:
+    id: th_humidity
+    name: Climate Humidity
+  update_interval: 60s
+- platform: sgp4x
+  i2c_id: i2c0
+  voc:
+    name: Air VOC Index
+  update_interval: 60s
+- platform: veml7700
+  id: lux
+  i2c_id: i2c0
+  update_interval: 60s
+  ambient_light:
+    name: Room Illuminance
+- platform: bme680
+  i2c_id: i2c0
+  address: 118
+  temperature:
+    id: baro_temperature
+    name: Enclosure Temperature
+  pressure:
+    id: baro_pressure
+    name: Enclosure Pressure
+  humidity:
+    id: baro_humidity
+    name: Enclosure Humidity
+  gas_resistance:
+    id: baro_gas_resistance
+    name: Enclosure Gas Resistance
+  update_interval: 60s
+- platform: pmsx003
+  uart_id: pm_uart
+  type: PMSX003
+  pm_1_0:
+    name: Air PM1.0
+  pm_2_5:
+    name: Air PM2.5
+  pm_10_0:
+    name: Air PM10

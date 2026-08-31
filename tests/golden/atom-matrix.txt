@@ -1,0 +1,22 @@
++-------------------------------------------------------------------------------------+
+|  M5Stack Atom Matrix  ---  atom-matrix                                              |
++-------------------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                                |
+|                                                                                     |
+|  matrix  [ESP32 RMT-driven addressable LED strip (WS2812 / SK6812)]  -- LED matrix  |
+|    VCC   -> rail 5V                                                                 |
+|    GND   -> rail GND                                                                |
+|    DIN   -> GPIO27                                                                  |
+|                                                                                     |
+|  btn  [Generic GPIO binary sensor]  -- Button                                       |
+|    IN    -> GPIO39                                                                  |
+|                                                                                     |
+|  BOM:                                                                               |
+|    - M5Stack Atom Matrix                                                            |
+|    - ESP32 RMT-driven addressable LED strip (WS2812 / SK6812)  (matrix)             |
+|    - Generic GPIO binary sensor  (btn)                                              |
+|                                                                                     |
+|  Power: ~20mA typical, ~60mA peak (budget 1500mA)  OK                               |
+|                                                                                     |
+|  Warnings: none                                                                     |
++-------------------------------------------------------------------------------------+

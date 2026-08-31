@@ -87,9 +87,11 @@ def test_oled_matches_golden(oled_design, library, golden_dir):
 
 
 def test_oled_lambda_renders_as_literal_block(oled_design, library):
+    # The example's lambda comes from the show intent now; it still has
+    # to land as a YAML literal block, not an escaped one-liner.
     text = render_yaml(oled_design, library)
     assert "lambda: |" in text
-    assert "WiFi.localIP()" in text
+    assert 'it.strftime(0, y, id(ws_show_font), "Time: %H:%M", id(ws_show_time).now());' in text
     assert 'lambda: "it.strftime' not in text
 
 

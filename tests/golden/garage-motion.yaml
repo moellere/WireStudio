@@ -32,8 +32,11 @@ sensor:
   address: '0x76'
   i2c_id: i2c0
   temperature:
+    id: bme1_temperature
     name: Porch climate Temperature
   humidity:
+    id: bme1_humidity
     name: Porch climate Humidity
   pressure:
+    id: bme1_pressure
     name: Porch climate Pressure

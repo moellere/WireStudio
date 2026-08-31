@@ -19,6 +19,7 @@ i2c:
   frequency: 100kHz
 sensor:
 - platform: vl53l0x
+  id: tof1
   i2c_id: i2c0
   address: '0x29'
   name: Parking distance Distance

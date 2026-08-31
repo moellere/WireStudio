@@ -25,18 +25,23 @@ sensor:
   address: '0x76'
   i2c_id: i2c0
   temperature:
+    id: baro_temperature
     name: Weather pressure Temperature
   pressure:
+    id: baro_pressure
     name: Weather pressure Pressure
   update_interval: 60s
 - platform: htu21d
   i2c_id: i2c0
   update_interval: 60s
   temperature:
+    id: climate_temperature
     name: Weather climate Temperature
   humidity:
+    id: climate_humidity
     name: Weather climate Humidity
 - platform: tsl2561
+  id: lux
   i2c_id: i2c0
   address: '0x39'
   name: Weather light Illuminance

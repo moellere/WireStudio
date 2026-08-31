@@ -22,14 +22,18 @@ sensor:
   model: DHT22
   pin: D5
   temperature:
+    id: th_temperature
     name: Attic climate Temperature
   humidity:
+    id: th_humidity
     name: Attic climate Humidity
   update_interval: 60s
 - platform: bmp085
   i2c_id: i2c0
   update_interval: 60s
   temperature:
+    id: baro_temperature
     name: Attic pressure Temperature
   pressure:
+    id: baro_pressure
     name: Attic pressure Pressure

@@ -23,6 +23,7 @@ electrical:
 
 esphome:
   required_components: [i2c]
+  display_dialect: character
   yaml_template: |
     display:
       - platform: lcd_pcf8574

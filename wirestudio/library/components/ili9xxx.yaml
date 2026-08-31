@@ -25,6 +25,7 @@ electrical:
 
 esphome:
   required_components: [spi]
+  display_dialect: pixel
   yaml_template: |
     display:
       - platform: ili9xxx

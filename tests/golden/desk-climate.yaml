@@ -27,6 +27,8 @@ sensor:
   address: '0x44'
   update_interval: 30s
   temperature:
+    id: th1_temperature
     name: Desk climate Temperature
   humidity:
+    id: th1_humidity
     name: Desk climate Humidity

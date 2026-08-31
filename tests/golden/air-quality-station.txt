@@ -1,0 +1,56 @@
++------------------------------------------------------------------------------------------------------------------+
+|  ESP32-DevKitC-V4  ---  air-quality-station                                                                      |
++------------------------------------------------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                                                             |
+|                                                                                                                  |
+|  co2  [Sensirion SCD4x true-CO2 sensor (photoacoustic NDIR, I2C)]  -- Indoor                                     |
+|    VCC   -> rail 3V3                                                                                             |
+|    GND   -> rail GND                                                                                             |
+|    SDA   -> i2c0 (GPIO21)                                                                                        |
+|    SCL   -> i2c0 (GPIO22)                                                                                        |
+|                                                                                                                  |
+|  th  [Sensirion SHT4x temperature/humidity sensor (I2C)]  -- Climate                                             |
+|    VCC   -> rail 3V3                                                                                             |
+|    GND   -> rail GND                                                                                             |
+|    SDA   -> i2c0 (GPIO21)                                                                                        |
+|    SCL   -> i2c0 (GPIO22)                                                                                        |
+|                                                                                                                  |
+|  voc  [Sensirion SGP40/SGP41 VOC/NOx index sensor (I2C)]  -- Air                                                 |
+|    VCC   -> rail 3V3                                                                                             |
+|    GND   -> rail GND                                                                                             |
+|    SDA   -> i2c0 (GPIO21)                                                                                        |
+|    SCL   -> i2c0 (GPIO22)                                                                                        |
+|                                                                                                                  |
+|  lux  [Vishay VEML7700 ambient light sensor (lux, I2C)]  -- Room                                                 |
+|    VCC   -> rail 3V3                                                                                             |
+|    GND   -> rail GND                                                                                             |
+|    SDA   -> i2c0 (GPIO21)                                                                                        |
+|    SCL   -> i2c0 (GPIO22)                                                                                        |
+|                                                                                                                  |
+|  baro  [Bosch BME680 environmental sensor (temp/humidity/pressure/gas, I2C)]  -- Enclosure                       |
+|    VCC   -> rail 3V3                                                                                             |
+|    GND   -> rail GND                                                                                             |
+|    SDA   -> i2c0 (GPIO21)                                                                                        |
+|    SCL   -> i2c0 (GPIO22)                                                                                        |
+|                                                                                                                  |
+|  pm  [Plantower PMS5003/PMS7003 particulate matter sensor (UART)]  -- Air                                        |
+|    VCC   -> rail 5V                                                                                              |
+|    GND   -> rail GND                                                                                             |
+|    TX    -> pm_uart (GPIO16)                                                                                     |
+|    RX    -> pm_uart (GPIO17)                                                                                     |
+|                                                                                                                  |
+|  BOM:                                                                                                            |
+|    - ESP32-DevKitC-V4                                                                                            |
+|    - Sensirion SCD4x true-CO2 sensor (photoacoustic NDIR, I2C)  (co2)                                            |
+|    - Sensirion SHT4x temperature/humidity sensor (I2C)  (th)                                                     |
+|    - Sensirion SGP40/SGP41 VOC/NOx index sensor (I2C)  (voc)                                                     |
+|    - Vishay VEML7700 ambient light sensor (lux, I2C)  (lux)                                                      |
+|    - Bosch BME680 environmental sensor (temp/humidity/pressure/gas, I2C)  (baro)                                 |
+|    - Plantower PMS5003/PMS7003 particulate matter sensor (UART)  (pm)                                            |
+|                                                                                                                  |
+|  Power: ~130mA typical, ~347mA peak (budget 900mA)  OK                                                           |
+|                                                                                                                  |
+|  Warnings:                                                                                                       |
+|    [info] scd4x_current_burst: The SCD4x pulls ~200mA bursts during measurement; the 10uF bulk cap near its VCC  |
+|                                matters on long supply runs.                                                      |
++------------------------------------------------------------------------------------------------------------------+

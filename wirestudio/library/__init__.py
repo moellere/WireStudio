@@ -94,6 +94,12 @@ class EsphomeSpec(_Strict):
     required_components: list[str] = Field(default_factory=list)
     yaml_template: str = ""
     expander_pin_key: Optional[str] = None
+    # Set on display components to enable the `params.show` content
+    # intent: "pixel" needs a font and draws at x/y (ssd1306, TFTs),
+    # "character" prints into a row/column grid (HD44780-class), and
+    # "seven_segment" prints digits (tm1637, max7219). The lowering
+    # picks the printf shape from this.
+    display_dialect: Optional[str] = None
 
 
 class CapabilityProvides(_Strict):

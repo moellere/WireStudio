@@ -37,6 +37,8 @@ sensor:
   address: '0x44'
   update_interval: 60s
   temperature:
+    id: th_temperature
     name: Room Temperature
   humidity:
+    id: th_humidity
     name: Room Humidity

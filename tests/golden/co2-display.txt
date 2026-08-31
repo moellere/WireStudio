@@ -1,0 +1,31 @@
++----------------------------------------------------------------------------------------------------+
+|  WeMos D1 Mini  ---  co2-display                                                                   |
++----------------------------------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                                               |
+|                                                                                                    |
+|  co2meter  [Winsen MH-Z19 NDIR CO2 sensor (UART)]  -- Room                                         |
+|    VCC   -> rail 5V                                                                                |
+|    GND   -> rail GND                                                                               |
+|    TX    -> co2_uart (D5)                                                                          |
+|    RX    -> co2_uart (D6)                                                                          |
+|                                                                                                    |
+|  readout  [TM1637 4-digit 7-segment display module]  -- CO2 Readout                                |
+|    VCC   -> rail 5V                                                                                |
+|    GND   -> rail GND                                                                               |
+|    CLK   -> D1                                                                                     |
+|    DIO   -> D2                                                                                     |
+|                                                                                                    |
+|  alert_buzzer  [Piezo buzzer + RTTTL melody player]  -- CO2 Alert                                  |
+|    OUT   -> D7                                                                                     |
+|                                                                                                    |
+|  BOM:                                                                                              |
+|    - WeMos D1 Mini                                                                                 |
+|    - Winsen MH-Z19 NDIR CO2 sensor (UART)  (co2meter)                                              |
+|    - TM1637 4-digit 7-segment display module  (readout)                                            |
+|    - Piezo buzzer + RTTTL melody player  (alert_buzzer)                                            |
+|                                                                                                    |
+|  Power: ~98mA typical, ~260mA peak (budget 500mA)  OK                                              |
+|                                                                                                    |
+|  Warnings:                                                                                         |
+|    [info] mhz19_warmup: MH-Z19 needs ~3 minutes of warm-up after power-on before readings settle.  |
++----------------------------------------------------------------------------------------------------+

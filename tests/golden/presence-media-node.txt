@@ -1,0 +1,27 @@
++-----------------------------------------------------------------------------------------------------------+
+|  ESP32-DevKitC-V4  ---  presence-media-node                                                               |
++-----------------------------------------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                                                      |
+|                                                                                                           |
+|  presence  [Hi-Link LD2410 24GHz mmWave presence sensor (UART)]  -- Couch                                 |
+|    VCC   -> rail 5V                                                                                       |
+|    GND   -> rail GND                                                                                      |
+|    TX    -> radar_uart (GPIO16)                                                                           |
+|    RX    -> radar_uart (GPIO17)                                                                           |
+|                                                                                                           |
+|  ir  [IR receiver (TSOP38238/VS1838B, 38kHz demodulated)]  -- IR Receiver                                 |
+|    VCC   -> rail 3V3                                                                                      |
+|    GND   -> rail GND                                                                                      |
+|    OUT   -> GPIO25                                                                                        |
+|                                                                                                           |
+|  BOM:                                                                                                     |
+|    - ESP32-DevKitC-V4                                                                                     |
+|    - Hi-Link LD2410 24GHz mmWave presence sensor (UART)  (presence)                                       |
+|    - IR receiver (TSOP38238/VS1838B, 38kHz demodulated)  (ir)                                             |
+|                                                                                                           |
+|  Power: ~80mA typical, ~121mA peak (budget 500mA)  OK                                                     |
+|                                                                                                           |
+|  Warnings:                                                                                                |
+|    [info] ld2410_mounting: Mount the LD2410 with clear line of sight; it detects through plastic but not  |
+|                            metal. Ceiling or high-wall placement reads the room best.                     |
++-----------------------------------------------------------------------------------------------------------+

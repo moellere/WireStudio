@@ -1,0 +1,51 @@
+esphome:
+  name: co2-display
+esp8266:
+  board: d1_mini
+logger: {}
+api:
+  encryption:
+    key: !secret api_key
+ota:
+- platform: esphome
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+captive_portal: {}
+uart:
+- id: co2_uart
+  rx_pin: D5
+  tx_pin: D6
+  baud_rate: 9600
+sensor:
+- platform: mhz19
+  uart_id: co2_uart
+  co2:
+    id: co2meter_co2
+    name: Room CO2
+    on_value_range:
+    - above: 1200.0
+      then:
+      - rtttl.play:
+          id: alert_buzzer
+          rtttl: alarm:d=8,o=6,b=160:c,p,c,p,c,p,c,p,c,p,c
+  temperature:
+    id: co2meter_temperature
+    name: Room Temperature
+  update_interval: 30s
+  automatic_baseline_calibration: false
+display:
+- platform: tm1637
+  id: readout
+  clk_pin: D1
+  dio_pin: D2
+  intensity: 3
+  update_interval: 1s
+  lambda: it.printf("%4.0f", id(co2meter_co2).state);
+output:
+- platform: esp8266_pwm
+  pin: D7
+  id: alert_buzzer_out
+rtttl:
+  output: alert_buzzer_out
+  id: alert_buzzer

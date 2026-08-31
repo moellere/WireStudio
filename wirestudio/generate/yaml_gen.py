@@ -6,6 +6,8 @@ from typing import Any
 import yaml
 from jinja2 import Environment, StrictUndefined, UndefinedError, select_autoescape
 
+from wirestudio.generate.display_intent import lower_show
+from wirestudio.intent import MELODIES
 from wirestudio.library import Library
 from wirestudio.model import Bus, Component, Design
 
@@ -201,6 +203,14 @@ def _lower_automations(design: Design, library: Library) -> dict[str, dict[str, 
             # value→transform→action): `{stepper.set_target: {id: motor, target: !lambda ...}}`.
             if act.args or act.transform:
                 inner = {"id": act.component_id, **act.args}
+                # `song` is a studio-side name from intent.MELODIES; the
+                # ESPHome action wants the full string under `rtttl`.
+                song = inner.pop("song", None)
+                if song is not None:
+                    melody = MELODIES.get(str(song))
+                    if melody is None:
+                        continue  # validator warned; don't emit a broken play
+                    inner["rtttl"] = melody
                 for arg_name, expr in act.transform.items():
                     inner[arg_name] = f"{_LAMBDA_SENTINEL}return {expr};"
                 action_list.append({accept.esphome: inner})
@@ -608,7 +618,14 @@ def build_yaml_dict(
             out.setdefault("one_wire", []).append(wire_entry)
 
     auto_params = _lower_automations(design, library)
+    show_patches, show_extras = lower_show(design, library)
+    if show_extras:
+        _deep_merge(out, show_extras)
     for comp in design.components:
+        if comp.id in show_patches:
+            comp = comp.model_copy(
+                update={"params": {**comp.params, **show_patches[comp.id]}}
+            )
         _deep_merge(out, _render_component(comp, design, library, auto_params))
 
     _emit_lorawan_blocks(out, design, library, lorawan_secrets=lorawan_secrets)

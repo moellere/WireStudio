@@ -28,6 +28,7 @@ esphome:
   yaml_template: |
     sensor:
       - platform: vl53l0x
+        id: {{ id }}
         i2c_id: {{ bus.id }}
         address: "{{ params.address | default('0x29') }}"
         name: "{{ label }} Distance"
