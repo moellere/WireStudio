@@ -52,6 +52,14 @@ tasmota:
   pins:
     PWM: PWM
 
+circuitpython:
+  imports: ["import pwmio", "from adafruit_motor import servo as motor_servo"]
+  deps: [adafruit_motor]
+  setup: |
+    {{ id }}_pwm = pwmio.PWMOut(P({{ pins.PWM }}), frequency=50)
+    {{ id }} = motor_servo.Servo({{ id }}_pwm)
+    {{ id }}.angle = 90
+
 params_schema:
   auto_detach_time:
     type: string

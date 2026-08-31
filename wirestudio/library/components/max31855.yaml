@@ -45,6 +45,15 @@ capability:
     - {event: on_value, kind: value}
     - {event: on_value_range, kind: event}
 
+circuitpython:
+  imports: ["import digitalio", "import adafruit_max31855"]
+  deps: [adafruit_max31855]
+  setup: |
+    {{ id }}_cs = digitalio.DigitalInOut(P({{ pins.CS }}))
+    {{ id }} = adafruit_max31855.MAX31855({{ bus_var }}, {{ id }}_cs)
+  loop: |
+    print("{{ label }}: %.1fC" % {{ id }}.temperature)
+
 params_schema:
   update_interval:
     type: string

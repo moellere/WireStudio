@@ -31,6 +31,12 @@ esphome:
         address: "{{ params.address | default('0x20') }}"
         pcf8575: {{ params.variant | default('pcf8574') == 'pcf8575' | string | lower }}
 
+circuitpython:
+  imports: ["import adafruit_pcf8574"]
+  deps: [adafruit_pcf8574]
+  setup: |
+    {{ id }} = adafruit_pcf8574.PCF8574({{ bus_var }}, address={{ params.address | default('0x20') }})
+
 params_schema:
   address:
     type: string

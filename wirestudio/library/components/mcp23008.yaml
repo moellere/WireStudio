@@ -35,6 +35,12 @@ esphome:
         address: "{{ params.address | default('0x20') }}"
         i2c_id: {{ bus.id }}
 
+circuitpython:
+  imports: ["from adafruit_mcp230xx.mcp23008 import MCP23008"]
+  deps: [adafruit_mcp230xx, adafruit_bus_device]
+  setup: |
+    {{ id }} = MCP23008({{ bus_var }}, address={{ params.address | default('0x20') }})
+
 params_schema:
   address:
     type: string

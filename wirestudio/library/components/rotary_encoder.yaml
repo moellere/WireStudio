@@ -66,6 +66,13 @@ capability:
     - {event: on_anticlockwise}
     - {event: on_value, kind: value}
 
+circuitpython:
+  imports: ["import rotaryio"]
+  setup: |
+    {{ id }} = rotaryio.IncrementalEncoder(P({{ pins.A }}), P({{ pins.B }}))
+  loop: |
+    print("{{ label }}: %d" % {{ id }}.position)
+
 params_schema:
   min_value:
     type: integer

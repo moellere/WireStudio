@@ -45,6 +45,16 @@ capability:
   provides:
     - {event: on_value, kind: value}
 
+circuitpython:
+  imports: ["import adafruit_scd4x"]
+  deps: [adafruit_scd4x, adafruit_bus_device]
+  setup: |
+    {{ id }} = adafruit_scd4x.SCD4X({{ bus_var }})
+    {{ id }}.start_periodic_measurement()
+  loop: |
+    if {{ id }}.data_ready:
+        print("{{ label }}: %d ppm CO2 %.1fC %.0f%%" % ({{ id }}.CO2, {{ id }}.temperature, {{ id }}.relative_humidity))
+
 params_schema:
   update_interval:
     type: string

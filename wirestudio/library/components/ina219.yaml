@@ -46,6 +46,14 @@ capability:
   provides:
     - {event: on_value, kind: value}
 
+circuitpython:
+  imports: ["import adafruit_ina219"]
+  deps: [adafruit_ina219, adafruit_bus_device, adafruit_register]
+  setup: |
+    {{ id }} = adafruit_ina219.INA219({{ bus_var }}, addr={{ params.address | default('0x40') }})
+  loop: |
+    print("{{ label }}: %.2fV %.0fmA" % ({{ id }}.bus_voltage, {{ id }}.current))
+
 params_schema:
   address:
     type: string

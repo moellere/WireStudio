@@ -50,6 +50,12 @@ capability:
     - {predicate: is_on,  esphome: switch.is_on}
     - {predicate: is_off, esphome: switch.is_off}
 
+circuitpython:
+  imports: ["import digitalio"]
+  setup: |
+    {{ id }} = digitalio.DigitalInOut(P({{ pins.OUT }}))
+    {{ id }}.direction = digitalio.Direction.OUTPUT
+
 params_schema:
   icon:
     type: string

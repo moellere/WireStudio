@@ -44,6 +44,14 @@ capability:
     - {event: on_value, kind: value}
     - {event: on_value_range, kind: event}
 
+circuitpython:
+  imports: ["import adafruit_bh1750"]
+  deps: [adafruit_bh1750, adafruit_bus_device, adafruit_register]
+  setup: |
+    {{ id }} = adafruit_bh1750.BH1750({{ bus_var }}, address={{ params.address | default('0x23') }})
+  loop: |
+    print("{{ label }}: %.0f lux" % {{ id }}.lux)
+
 params_schema:
   address:
     type: string
