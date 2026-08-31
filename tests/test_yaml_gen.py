@@ -189,16 +189,15 @@ def test_esp32_audio_i2s_bus_emits_singleton(esp32_audio_design, library):
     assert isinstance(parsed["i2s_audio"], dict)
     assert parsed["i2s_audio"]["i2s_lrclk_pin"] == "GPIO33"
     assert parsed["i2s_audio"]["i2s_bclk_pin"] == "GPIO25"
-    assert parsed["media_player"][0]["dac_type"] == "external"
-    assert parsed["media_player"][0]["i2s_dout_pin"] == "GPIO32"
+    # 2026.x removed the i2s_audio media_player; the DAC is now an
+    # i2s_audio speaker fronted by the speaker media_player.
+    assert parsed["speaker"][0]["dac_type"] == "external"
+    assert parsed["speaker"][0]["i2s_dout_pin"] == "GPIO32"
+    assert parsed["media_player"][0]["platform"] == "speaker"
+    assert parsed["media_player"][0]["announcement_pipeline"]["speaker"] == "amp_spk"
 
 
 def test_esp32_audio_uses_arduino_framework(esp32_audio_design, library):
-    # max98357a's media_player platform is arduino-only in upstream ESPHome
-    # (`cv.only_with_arduino`); the example used to set framework=esp-idf,
-    # which `esphome config` rejected. Revisit when esp-idf gains the
-    # platform or we route audio through speaker: + media_player: speaker
-    # chained.
     parsed = yaml.unsafe_load(render_yaml(esp32_audio_design, library))
     assert parsed["esp32"]["framework"]["type"] == "arduino"
 
