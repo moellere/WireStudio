@@ -48,6 +48,10 @@ capability:
     - {action: write,  esphome: servo.write}
     - {action: detach, esphome: servo.detach}
 
+tasmota:
+  pins:
+    PWM: PWM
+
 params_schema:
   auto_detach_time:
     type: string

@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Tasmota coverage for the library-sweep components.** Eight new
+  entries in the verified FUNC table (values recomputed from
+  `tasmota_template.h` enum indexes, anchors cross-checked against the
+  existing table): TM1637 CLK/DIO, MH-Z19 and PMS5003 Tx/Rx, Wiegand
+  D0/D1, LD2410 Tx/Rx, SN74HC595 Shift595 SER/SRCLK/RCLK/OE, and
+  ADC_CT_POWER for the CT clamp; the servo maps its pin to PWM. UART
+  parts map through the bus block like CSE7766. MicroPython added to
+  the target backlog (after Meshtastic config push and full
+  CircuitPython codegen).
+
+### Fixed
+
+- **Tasmota templates put ESP8266 D-labeled pins in the right slots.**
+  `D1` used to parse as GPIO1; it is GPIO5. The D0-D8/RX/TX/A0
+  convention now resolves to real GPIO numbers, fixing every D1
+  Mini / NodeMCU design's template.
+- **A component with two connections to one UART bus (TX and RX roles)
+  mapped the bus pins twice**, leaving spurious "already assigned"
+  warnings on the template.
+
 - **Library sweep: 18 new components** (65 -> 83), drawn from the
   maintainer fleet's real device configs plus the most-requested
   ESPHome hardware, each validated end-to-end through upstream

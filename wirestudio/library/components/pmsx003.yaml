@@ -37,6 +37,11 @@ capability:
   provides:
     - {event: on_value, kind: value}
 
+tasmota:
+  bus:
+    tx: PMS5003_TX
+    rx: PMS5003_RX
+
 params_schema:
   type:
     type: string

@@ -33,6 +33,13 @@ esphome:
     {%- endif %}
         sr_count: {{ params.sr_count | default(1) }}
 
+tasmota:
+  pins:
+    DATA: Shift595_SER
+    CLOCK: Shift595_SRCLK
+    LATCH: Shift595_RCLK
+    OE: Shift595_OE
+
 params_schema:
   sr_count:
     type: integer
