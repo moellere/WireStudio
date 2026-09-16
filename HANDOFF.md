@@ -18,13 +18,15 @@ Written 2026-08-26. Everything below is verified live unless marked otherwise.
 | DevEUI | Board | Slot | State |
 |---|---|---|---|
 | `10521cfffe66b6e0` | TTGO T-Beam | SLOT12 | 0.32.0 fw, joined, 24-byte payload |
-| `64b708fffeab8974` | Heltec V2 | SLOT19 | fine |
-| `8cfd49fffeb55758` | Heltec V4 GNSS | SLOT28 | fine; **no GNSS module seated** |
-| `500291fffe9df404` | TTGO LoRa32 v2 | — | **cable out**, on the air only |
+| `70b3baec29813d83` | Heltec V2 | SLOT19 | on loan to roboat P4 HIL since 2026-08-29, joins as monet-node in the `roboat` app; old EUI `64b708fffeab8974` is dead |
+| `8cfd49fffeb55758` | Heltec V4 GNSS | SLOT14 | L76K seated 2026-09-13; module reports ANTENNA OPEN and the fix is intermittent (7 sats on 09-14, none on 09-16); payload keeps last coords with satellites=0 when unfixed |
+| `500291fffe9df404` | TTGO LoRa32 v2 | SLOT31 | cable back in 2026-09-13; still needs the ADC-pin/divider reflash |
 | `c44f33fffe76e03d` | Heltec GPS | — | offline by choice since June |
 
-Identify boards by USB bridge, never by slot label (labels are positional):
-`10c4:ea60`=T-Beam, `1a86:55d4`=Heltec V2, `303a:1001`=V4/esp32s3.
+Identify boards by USB bridge, never by slot label (labels are positional; the
+bench was re-enumerated 2026-09-13 and the gate roster in the argocd repo
+matches the labels above): `10c4:ea60`=T-Beam and TTGO LoRa32 v2 (tell them
+apart by uplink size: 24 vs 4 bytes), `1a86:55d4`=Heltec V2, `303a:1001`=V4/esp32s3.
 
 ---
 
@@ -77,7 +79,7 @@ TX power check for radio boards.
   the board file keeps the floor and `design.json` carries a
   `board.flash_size_mb` override for a unit whose size has been measured.
   What remains is measurement, and it is still blocked — none of the four
-  boards named in the issue is on the bench (SLOT28 is a V4, already
+  boards named in the issue is on the bench (SLOT14 is a V4, already
   verified at 16 MB). Each is seconds of `esptool flash-id` once present.
 - **SensorsIot/Embedded-AI-Harness #29** — "MCP could reset a slot but never
   answer it". Open **18 days, no review**. Nudge or ping.
@@ -118,12 +120,13 @@ is tracked in `HANDOFF-METRICS.md` in the nomtom repo, not here.
 
 ## Hardware, needs a human at Wyola
 
-- **Reseat the TTGO LoRa32 v2's USB cable.** It is powered and uplinking
-  (fCnt ~4700) but absent from the bench, so it cannot be flashed. It still
-  needs the ADC-pin/divider reflash. The gate watches for its return — when it
-  reappears on any slot, the slots stage reports "unexpected board present" and
-  alerts, because positional labels mean the slot cannot be predicted.
-- **Seat a GNSS module** on the Heltec V4 (SLOT28) if its GPS is wanted.
+- **Reflash the TTGO LoRa32 v2** (SLOT31) with the ADC-pin/divider fix; it is
+  back on the bench and flashable.
+- **Fix the Heltec V4's GNSS antenna.** The L76K on SLOT14 reports ANTENNA
+  OPEN every cycle and sees ~9 satellites with only two at a usable SNR, so it
+  fixes only intermittently. Reseat the antenna connector or fit an external
+  antenna. Until then the uplink carries the last known coordinates with
+  `satellites=0`; consumers must treat that as stale.
 - **Heltec GPS** (`c44f33…`): when it returns it needs a rebuild, reflash and
   profile update before it decodes — `fix_age_min` moved its payload 17 → 19
   bytes, and a refreshed profile would reject the old firmware's 17-byte uplink.
