@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **HANDOFF.md bench table refreshed.** The bench was re-enumerated on
+  2026-09-13: the Heltec V4 is on SLOT14 with its L76K seated (antenna
+  open, fix intermittent), the TTGO LoRa32 v2 is back on SLOT31, and the
+  Heltec V2 joins under its roboat identity. Next-steps updated to match.
 - **ESPHome pin bumped 2025.12.7 -> 2026.6.5** (config gate, nightly
   compile smoke, matrix, README/CONTRIBUTING). Two schema breaks:
   2026.x reserves the id `spi0` internally, so the nine examples whose
