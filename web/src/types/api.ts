@@ -157,6 +157,26 @@ export interface SaveDesignResponse {
   saved_at: string;
 }
 
+export interface DashboardStatus {
+  available: boolean;
+  reason?: string | null;
+  url?: string | null;
+}
+
+export interface DashboardPushResponse {
+  filename: string;
+  created: boolean;
+  run_id?: string | null;
+}
+
+export interface DashboardRunStatus {
+  run_id: string;
+  filename: string;
+  verdict: string; // running | passed | failed
+  error: string | null;
+  started_at: string;
+}
+
 export interface FleetStatus {
   available: boolean;
   reason?: string | null;

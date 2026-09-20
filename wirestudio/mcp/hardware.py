@@ -127,6 +127,8 @@ def register_hardware_tools(
     *,
     workbench_factory: Optional[Callable[[], Any]] = None,
     fleet_factory: Optional[Callable[[], Any]] = None,
+    dashboard_factory: Optional[Callable[[], Any]] = None,
+    dashboard_jobs: Any = None,
 ) -> None:
     """Register the hardware tool surface on `mcp`.
 
@@ -167,6 +169,15 @@ def register_hardware_tools(
     _register_workbench_tools(mcp, jobs, _workbench, _fleet)
     _register_lorawan_tools(mcp, library, jobs, _load_model, _workbench)
     _register_fleet_tools(mcp, library, _load_model, _fleet)
+
+    def _dashboard() -> Any:
+        if dashboard_factory is not None:
+            return dashboard_factory()
+        from wirestudio.esphome_dashboard import DashboardClient
+        return DashboardClient()
+
+    from wirestudio.esphome_dashboard import DashboardJobs
+    _register_dashboard_tools(mcp, library, _load_model, _dashboard, dashboard_jobs or DashboardJobs())
 
 
 # ---------------------------------------------------------------------------
@@ -818,3 +829,98 @@ def _register_fleet_tools(
         except Exception as e:
             return _err(f"firmware not available for run {run_id}: {describe(e)}")
         return {"ok": True, "run_id": run_id, "factory": factory, "bytes": len(blob)}
+
+
+def _register_dashboard_tools(
+    mcp: MCPServer,
+    library: Library,
+    load_model: Callable[[Optional[str]], tuple[Optional[Design], Optional[dict]]],
+    dashboard: Callable[[], Any],
+    jobs: Any,
+) -> None:
+    """The other compile path: an ESPHome dashboard (HA add-on or
+    standalone) that schedules its own workers. Same tool shape as the
+    fleet trio so a client can poll either."""
+    _NOT_CONFIGURED = "ESPHome dashboard not configured (set ESPHOME_DASHBOARD_URL)"
+
+    @mcp.tool(
+        name="esphome_dashboard_status",
+        description=(
+            "Is an ESPHome dashboard configured and reachable? Check "
+            "before esphome_dashboard_push. This is the HA add-on / "
+            "standalone dashboard path; fleet_status covers fleet-for-esphome."
+        ),
+    )
+    async def esphome_dashboard_status() -> dict:
+        dc = dashboard()
+        if not dc.is_configured():
+            return {"ok": True, "available": False, "reason": "ESPHOME_DASHBOARD_URL not set", "url": None}
+        ok, reason = await dc.is_available()
+        return {"ok": True, "available": ok, "reason": reason, "url": dc.base_url}
+
+    @mcp.tool(
+        name="esphome_dashboard_push",
+        description=(
+            "Render a design to ESPHome YAML, write it to the dashboard as "
+            "<device>.yaml and, by default, start a compile there (the "
+            "dashboard dispatches to its own workers). Returns run_id for "
+            "esphome_dashboard_job_status / esphome_dashboard_job_log. The "
+            "run id is studio-local and does not survive a restart."
+        ),
+    )
+    async def esphome_dashboard_push(
+        design_id: Optional[str] = None,
+        device_name: Optional[str] = None,
+        compile: bool = True,
+    ) -> dict:
+        design, err = load_model(design_id)
+        if err:
+            return err
+        from wirestudio.targets import get_target
+
+        try:
+            yaml_text = get_target(design.target).generate(design, library).get("firmware.yaml")
+        except (FileNotFoundError, ValueError, KeyError) as e:
+            return _err(str(e))
+        if not yaml_text:
+            return _err(f"target '{design.target}' does not produce firmware.yaml")
+        name = (
+            device_name
+            or (design.fleet.device_name if design.fleet and design.fleet.device_name else None)
+            or design.id
+        )
+        dc = dashboard()
+        if not dc.is_configured():
+            return _err(_NOT_CONFIGURED)
+        try:
+            result = await dc.push_device(name, yaml_text)
+        except ValueError as e:
+            return _err(str(e))
+        except Exception as e:
+            return _err(f"dashboard unreachable: {describe(e)}")
+        run_id = jobs.start(dc, result.filename).run_id if compile else None
+        return {"ok": True, "filename": result.filename, "created": result.created, "run_id": run_id}
+
+    @mcp.tool(
+        name="esphome_dashboard_job_status",
+        description="Compile verdict for a dashboard run: running | passed | failed.",
+    )
+    async def esphome_dashboard_job_status(run_id: str) -> dict:
+        job = jobs.get(run_id)
+        if job is None:
+            return _err(f"no dashboard compile with run_id {run_id!r}")
+        return {"ok": True, "run_id": job.run_id, "filename": job.filename,
+                "verdict": job.verdict, "error": job.error, "started_at": job.started_at}
+
+    @mcp.tool(
+        name="esphome_dashboard_job_log",
+        description=(
+            "Read a dashboard build log incrementally. Pass offset=0 first, "
+            "then the returned offset to fetch only what is new."
+        ),
+    )
+    async def esphome_dashboard_job_log(run_id: str, offset: int = 0) -> dict:
+        chunk = jobs.log(run_id, offset=offset)
+        if chunk is None:
+            return _err(f"no dashboard compile with run_id {run_id!r}")
+        return {"ok": True, "run_id": run_id, "log": chunk.log, "offset": chunk.offset, "finished": chunk.finished}

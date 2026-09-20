@@ -43,6 +43,40 @@ python -m wirestudio.api
 set and the addon answers a probe; otherwise the UI surfaces the
 specific reason (URL missing, unauthorized, unreachable).
 
+## ESPHome dashboard
+
+The other compile path. **Push to ESPHome dashboard** writes the
+rendered YAML as `<device>.yaml` to a running ESPHome dashboard -- the
+Home Assistant add-on with its port exposed, or a standalone
+`esphome dashboard` -- and starts a compile there; the dashboard
+dispatches to its own build workers, the studio only submits. The log
+streams back over the dashboard's `/compile` websocket and the dialog
+shows the same passed / failed verdict the fleet path does. The push
+dialog offers both paths when both are configured and defaults to
+whichever one is.
+
+```sh
+export ESPHOME_DASHBOARD_URL=http://homeassistant.local:6052
+# only if the dashboard has a username/password set:
+export ESPHOME_DASHBOARD_USERNAME=... ESPHOME_DASHBOARD_PASSWORD=...
+python -m wirestudio.api
+```
+
+`GET /esphome/status` probes `/devices`; `POST /esphome/push` returns
+a studio-local `run_id` that `GET /esphome/jobs/{run_id}`,
+`.../log`, `.../log/stream` (SSE) and `.../firmware` poll -- the same
+shapes as the fleet routes, so a client can follow either. Run ids do
+not survive a studio restart: the dashboard keeps compiling, and a
+re-push starts a fresh run. The dashboard behind HA ingress alone (no
+exposed port) is not reachable this way, because ingress needs an HA
+session.
+
+The wire assumptions are four endpoints (`/devices`, `/edit`,
+`/compile`, `/download.bin`) and the `spawn` / `line` / `exit` frames
+on the websocket, all named in one place
+(`wirestudio/esphome_dashboard/__init__.py`), so a dashboard release
+that moves one is a one-line change.
+
 ## Enclosures
 
 Generate a parametric `.scad` shell from the board's mount-hole +

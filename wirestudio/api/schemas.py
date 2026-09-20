@@ -284,6 +284,33 @@ class FleetPushResponse(_S):
     enqueued: int = Field(default=0, description="Number of compile jobs enqueued.")
 
 
+class DashboardStatus(_S):
+    available: bool = Field(description="True when ESPHOME_DASHBOARD_URL is set and the dashboard answers /devices.")
+    reason: Optional[str] = Field(default=None, description="Why it is unavailable, when it is.")
+    url: Optional[str] = Field(default=None, description="The configured dashboard URL.")
+
+
+class DashboardPushRequest(_S):
+    design: dict = Field(description="The design.json to render and push to the dashboard.")
+    compile: bool = Field(default=True, description="Start a compile on the dashboard after writing the YAML.")
+    device_name: Optional[str] = Field(default=None, description="Filename stem on the dashboard; defaults to fleet.device_name, then the design id.")
+    strict: bool = Field(default=False, description="Refuse the push when warn/error compatibility issues remain.")
+
+
+class DashboardPushResponse(_S):
+    filename: str = Field(description="Filename the YAML was written under on the dashboard.")
+    created: bool = Field(description="True if the dashboard did not have this filename before.")
+    run_id: Optional[str] = Field(default=None, description="Compile run id (studio-local), when compile was requested.")
+
+
+class DashboardRunStatus(_S):
+    run_id: str
+    filename: str
+    verdict: str = Field(description="running | passed | failed.")
+    error: Optional[str] = Field(default=None, description="Relay-side failure, when the compile never produced an exit code.")
+    started_at: str
+
+
 class FleetJobLogResponse(_S):
     log: str = Field(description="Compile log text from the requested offset.")
     offset: int = Field(description="Byte offset to pass on the next poll to resume the log.")

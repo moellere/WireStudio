@@ -16,6 +16,9 @@ import type {
   InventoryEntry,
   BuyListResponse,
   ComponentCheckResponse,
+  DashboardPushResponse,
+  DashboardRunStatus,
+  DashboardStatus,
   InventoryCheckResponse,
   InventoryImportResult,
   FabStatus,
@@ -332,6 +335,13 @@ export const api = {
       body: JSON.stringify({ id }),
     }),
 
+  esphomeDashboardStatus: () => request<DashboardStatus>("/esphome/status"),
+  esphomeDashboardPush: (body: { design: Design; compile: boolean; device_name?: string; strict?: boolean }) =>
+    request<DashboardPushResponse>("/esphome/push", { method: "POST", body: JSON.stringify(body) }),
+  esphomeDashboardJobLog: (runId: string, offset: number) =>
+    request<FleetJobLogResponse>(`/esphome/jobs/${encodeURIComponent(runId)}/log?offset=${offset}`),
+  esphomeDashboardRunStatus: (runId: string) =>
+    request<DashboardRunStatus>(`/esphome/jobs/${encodeURIComponent(runId)}`),
   fleetStatus: () => request<FleetStatus>("/fleet/status"),
   fleetPush: (body: {
     design: Design;

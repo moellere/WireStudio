@@ -51,6 +51,10 @@ from wirestudio.api.schemas import (
     InventoryCheckResponse,
     InventoryEntryModel,
     ComponentCheckResponse,
+    DashboardRunStatus,
+    DashboardPushResponse,
+    DashboardPushRequest,
+    DashboardStatus,
     ComponentYamlRequest,
     InventoryPartCheckLine,
     InventorySubstitute,
@@ -131,6 +135,7 @@ from wirestudio.kicad.render import (
     render_schematic,
     render_status,
 )
+from wirestudio.esphome_dashboard import DashboardClient, DashboardJobs, DashboardUnavailable
 from wirestudio.inventory.buy import buy_list, buy_list_to_dict
 from wirestudio.jlcpcb import check_bom, jlcpcb_status, report_to_dict
 from wirestudio.recommend.recommender import Constraints, recommend_components
@@ -226,6 +231,8 @@ def create_app(
     sessions: Optional[SessionStore] = None,
     designs: Optional[DesignStore] = None,
     fleet_client_factory=None,
+    dashboard_client_factory=None,
+    dashboard_jobs: Optional[DashboardJobs] = None,
     event_bus: Optional[DesignEventBus] = None,
     active_design: Optional[ActiveDesignTracker] = None,
     inventory: Optional[InventoryStore] = None,
@@ -1326,6 +1333,115 @@ def create_app(
     # ---------------------------------------------------------------------
     # Fleet handoff (fleet-for-esphome ha-addon)
     # ---------------------------------------------------------------------
+
+    # ---------------------------------------------------------------------
+    # ESPHome dashboard: the other compile path (HA add-on / esphome dashboard)
+    # ---------------------------------------------------------------------
+    make_dashboard = dashboard_client_factory or DashboardClient
+    jobs = dashboard_jobs or DashboardJobs()
+
+    def _dashboard() -> DashboardClient:
+        dc = make_dashboard()
+        if not dc.is_configured():
+            raise HTTPException(status_code=503, detail="ESPHome dashboard not configured (set ESPHOME_DASHBOARD_URL)")
+        return dc
+
+    @app.get("/esphome/status", response_model=DashboardStatus, tags=["esphome"])
+    async def esphome_dashboard_status() -> DashboardStatus:
+        dc = make_dashboard()
+        if not dc.is_configured():
+            return DashboardStatus(available=False, reason="ESPHOME_DASHBOARD_URL not set", url=None)
+        ok, reason = await dc.is_available()
+        return DashboardStatus(available=ok, reason=reason, url=dc.base_url)
+
+    @app.post("/esphome/push", response_model=DashboardPushResponse, tags=["esphome"])
+    async def esphome_dashboard_push(req: DashboardPushRequest) -> DashboardPushResponse:
+        """Render the design and write it to the dashboard as <device>.yaml;
+        with compile, start a build there and hand back a run id the
+        /esphome/jobs routes poll. Same strict gate as the fleet push."""
+        d = _validate_design(req.design)
+        try:
+            artifacts = get_target(d.target).generate(d, lib)
+            yaml_text = artifacts.get("firmware.yaml")
+        except (FileNotFoundError, ValueError, KeyError) as e:
+            raise HTTPException(status_code=422, detail=str(e)) from e
+        if not yaml_text:
+            raise HTTPException(status_code=422, detail=f"target '{d.target}' does not produce firmware.yaml")
+        if req.strict or d.strict:
+            blockers = strict_blockers(req.design, lib)
+            if blockers:
+                raise HTTPException(status_code=422, detail={
+                    "error": "strict_mode_blocked",
+                    "message": f"strict mode refused the push: {len(blockers)} issue{'s' if len(blockers) != 1 else ''} need attention",
+                    "warnings": blockers,
+                })
+        name = req.device_name or (d.fleet.device_name if d.fleet and d.fleet.device_name else None) or d.id
+        dc = _dashboard()
+        try:
+            result = await dc.push_device(name, yaml_text)
+        except ValueError as e:
+            raise HTTPException(status_code=422, detail=str(e)) from e
+        except DashboardUnavailable as e:
+            raise HTTPException(status_code=502, detail=str(e)) from e
+        run_id = jobs.start(dc, result.filename).run_id if req.compile else None
+        return DashboardPushResponse(filename=result.filename, created=result.created, run_id=run_id)
+
+    @app.get("/esphome/jobs/{run_id}", response_model=DashboardRunStatus, tags=["esphome"])
+    async def esphome_dashboard_job_status(run_id: str) -> DashboardRunStatus:
+        job = jobs.get(run_id)
+        if job is None:
+            raise HTTPException(status_code=404, detail=f"no dashboard compile with run_id {run_id!r} (jobs do not survive a studio restart)")
+        return DashboardRunStatus(run_id=job.run_id, filename=job.filename, verdict=job.verdict,
+                                  error=job.error, started_at=job.started_at)
+
+    @app.get("/esphome/jobs/{run_id}/log", response_model=FleetJobLogResponse, tags=["esphome"])
+    async def esphome_dashboard_job_log(run_id: str, offset: int = 0) -> FleetJobLogResponse:
+        chunk = jobs.log(run_id, offset=offset)
+        if chunk is None:
+            raise HTTPException(status_code=404, detail=f"no dashboard compile with run_id {run_id!r}")
+        return FleetJobLogResponse(log=chunk.log, offset=chunk.offset, finished=chunk.finished)
+
+    @app.get("/esphome/jobs/{run_id}/log/stream", tags=["esphome"])
+    async def esphome_dashboard_job_log_stream(run_id: str) -> StreamingResponse:
+        """The same SSE shape as the fleet stream: `data:` chunks of
+        {log, offset, finished}, then `event: done`."""
+        if jobs.get(run_id) is None:
+            raise HTTPException(status_code=404, detail=f"no dashboard compile with run_id {run_id!r}")
+
+        async def _events():
+            offset = 0
+            while True:
+                chunk = jobs.log(run_id, offset=offset)
+                if chunk is None:
+                    yield "event: error\ndata: " + json.dumps({"message": "job vanished"}) + "\n\n"
+                    return
+                if chunk.log or chunk.finished:
+                    yield "data: " + json.dumps({"log": chunk.log, "offset": chunk.offset, "finished": chunk.finished}) + "\n\n"
+                offset = chunk.offset
+                if chunk.finished:
+                    yield "event: done\ndata: {}\n\n"
+                    return
+                await asyncio.sleep(0.5)
+
+        return StreamingResponse(_events(), media_type="text/event-stream",
+                                 headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+    @app.get("/esphome/jobs/{run_id}/firmware", tags=["esphome"])
+    async def esphome_dashboard_job_firmware(run_id: str, factory: bool = False) -> Response:
+        """The compiled image from the dashboard for a finished run, for
+        the WebSerial flasher. ?factory=true asks for the merged image."""
+        job = jobs.get(run_id)
+        if job is None:
+            raise HTTPException(status_code=404, detail=f"no dashboard compile with run_id {run_id!r}")
+        if not job.finished or not job.ok:
+            raise HTTPException(status_code=404, detail=f"run {run_id!r} has no successful build yet ({job.verdict})")
+        try:
+            blob = await _dashboard().firmware(job.filename, "firmware.factory.bin" if factory else "firmware.bin")
+        except DashboardUnavailable as e:
+            raise HTTPException(status_code=502, detail=str(e)) from e
+        if blob is None:
+            raise HTTPException(status_code=404, detail="the dashboard has no image for this configuration")
+        return Response(content=blob, media_type="application/octet-stream")
 
     @app.get("/fleet/status", response_model=FleetStatus, tags=["fleet"])
     async def fleet_status() -> FleetStatus:

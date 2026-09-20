@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Compile through an ESPHome dashboard** (roadmap item 8, the plain
+  ESPHome half). `ESPHOME_DASHBOARD_URL` points the studio at the HA
+  add-on (port exposed) or a standalone dashboard; the push dialog
+  gains a build-path switch and defaults to whichever of fleet or
+  dashboard is configured. The studio writes the YAML through the
+  dashboard's editor endpoint, starts a compile over its websocket --
+  the dashboard dispatches to its own workers -- buffers the log as an
+  in-process job, and serves it through `/esphome/jobs/{run_id}`
+  (status, incremental log, SSE stream, firmware), the same shapes as
+  the fleet routes. `esphome_dashboard_status` / `_push` /
+  `_job_status` / `_job_log` join the MCP hardware tools. The four wire
+  assumptions live in one module. Adds `websockets`.
+
 - **Superseded tool results are trimmed within an agent turn.** A turn
   that renders, edits and renders again used to carry every render's
   full YAML and ASCII to each later API call. Before each call the

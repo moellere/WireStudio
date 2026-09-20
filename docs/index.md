@@ -206,6 +206,14 @@ the flash dialog prefers design code over the board starter and
 surfaces deps + unmapped-component warnings. Unmapped parts degrade
 to a comment, never a broken file.
 
+**Compile through an ESPHome dashboard.** *Works.* A second build path
+beside fleet-for-esphome: `ESPHOME_DASHBOARD_URL` points at the HA
+add-on (port exposed) or a standalone dashboard; the push dialog and
+the `esphome_dashboard_*` MCP tools write the YAML, start a compile,
+stream the log and report the verdict with the same shapes as the
+fleet path. Wire assumptions are isolated in one module; see
+`docs/integrations.md`.
+
 **Target backlog.** Next: MicroPython (the CircuitPython pattern applied upstream: proxy the
 micropython.org release port per chip, flash via the unified dialog,
 generate a main.py scaffold — differs in stdlib/driver sourcing, since

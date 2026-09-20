@@ -74,6 +74,7 @@ def build_mcp_server(
     inventory: Optional[InventoryStore] = None,
     workbench_factory: Optional[Callable[[], Any]] = None,
     fleet_factory: Optional[Callable[[], Any]] = None,
+    dashboard_factory: Optional[Callable[[], Any]] = None,
 ) -> MCPServer:
     """Build an MCPServer with all wirestudio tools + resources registered.
 
@@ -104,6 +105,7 @@ def build_mcp_server(
             mcp, library, designs, tracker, JobRegistry(),
             workbench_factory=workbench_factory,
             fleet_factory=fleet_factory,
+            dashboard_factory=dashboard_factory,
         )
     return mcp
 

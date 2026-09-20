@@ -27,6 +27,10 @@ vi.mock("../api/client", async () => {
       fleetPush: vi.fn(),
       fleetJobLog: vi.fn(),
       fleetRunStatus: vi.fn(),
+      esphomeDashboardStatus: vi.fn(),
+      esphomeDashboardPush: vi.fn(),
+      esphomeDashboardJobLog: vi.fn(),
+      esphomeDashboardRunStatus: vi.fn(),
     },
   };
 });
@@ -36,6 +40,10 @@ const mockApi = api as unknown as {
   fleetPush: ReturnType<typeof vi.fn>;
   fleetJobLog: ReturnType<typeof vi.fn>;
   fleetRunStatus: ReturnType<typeof vi.fn>;
+  esphomeDashboardStatus: ReturnType<typeof vi.fn>;
+  esphomeDashboardPush: ReturnType<typeof vi.fn>;
+  esphomeDashboardJobLog: ReturnType<typeof vi.fn>;
+  esphomeDashboardRunStatus: ReturnType<typeof vi.fn>;
 };
 
 const design: Design = {
@@ -52,6 +60,10 @@ const design: Design = {
 } as Design;
 
 beforeEach(() => {
+  mockApi.esphomeDashboardStatus.mockReset().mockResolvedValue({ available: false, reason: "ESPHOME_DASHBOARD_URL not set", url: null });
+  mockApi.esphomeDashboardPush.mockReset();
+  mockApi.esphomeDashboardJobLog.mockReset();
+  mockApi.esphomeDashboardRunStatus.mockReset();
   mockApi.fleetStatus.mockReset();
   mockApi.fleetPush.mockReset();
   mockApi.fleetJobLog.mockReset();
@@ -348,5 +360,31 @@ describe("build-log multi-chunk polling", () => {
     await waitFor(() => screen.getByText(/log error: addon disconnected/i));
     expect(screen.getByText(/stopped/i)).toBeInTheDocument();
     expect(mockApi.fleetJobLog).toHaveBeenCalledTimes(1);
+  });
+});
+
+
+describe("ESPHome dashboard build path", () => {
+  it("defaults to the dashboard when only it is configured and pushes there", async () => {
+    mockApi.fleetStatus.mockResolvedValue({ available: false, reason: "FLEET_URL not set", url: null });
+    mockApi.esphomeDashboardStatus.mockResolvedValue({ available: true, reason: null, url: "http://ha:6052" });
+    mockApi.esphomeDashboardPush.mockResolvedValue({ filename: "garage-motion.yaml", created: true, run_id: null });
+    render(<PushToFleetDialog design={design} onClose={vi.fn()} />);
+    await waitFor(() => expect(screen.getByText(/connected · http:\/\/ha:6052/)).toBeInTheDocument());
+    expect(screen.getByRole("radio", { name: /ESPHome dashboard/i })).toHaveAttribute("aria-checked", "true");
+    await userEvent.click(screen.getByRole("button", { name: /push/i }));
+    await waitFor(() => expect(mockApi.esphomeDashboardPush).toHaveBeenCalled());
+    expect(mockApi.fleetPush).not.toHaveBeenCalled();
+    expect(mockApi.esphomeDashboardPush.mock.calls[0][0]).toMatchObject({ compile: false, device_name: "garage-motion" });
+  });
+
+  it("switching the build path re-probes its status", async () => {
+    mockApi.fleetStatus.mockResolvedValue({ available: true, reason: null, url: "http://addon" });
+    mockApi.esphomeDashboardStatus.mockResolvedValue({ available: false, reason: "ESPHOME_DASHBOARD_URL not set", url: null });
+    render(<PushToFleetDialog design={design} onClose={vi.fn()} />);
+    await waitFor(() => expect(screen.getByText(/connected · http:\/\/addon/)).toBeInTheDocument());
+    await userEvent.click(screen.getByRole("radio", { name: /ESPHome dashboard/i }));
+    await waitFor(() => expect(screen.getByText(/ESPHOME_DASHBOARD_URL not set/)).toBeInTheDocument());
+    expect(screen.getByText(/Set/).textContent).toContain("ESPHOME_DASHBOARD_URL");
   });
 });
