@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Components can be authored in the studio** (#272, first slice). The
+  Components tab gets *New component*; a component's inspector card
+  gets *Edit YAML* / *Delete* for a user component and *Copy as new* for
+  a bundled one. All three open an editor whose *Check* runs the same
+  gate `component_check` runs and whose *Create* / *Save* writes into
+  the user library. Listings carry `source` (`bundled` / `user`) and
+  the sidebar badges user components. `GET
+  /library/components/{id}/yaml` returns a component's source and
+  `DELETE /library/components/{id}` removes a user one (409 on a
+  bundled id); `component_delete` joins the MCP and agent tools.
+
+- **Subcircuit part values can be parametric** (#272). A part's
+  `kicad.value` may be a Jinja template over the instance params
+  (`"{{ params.r_led }}"`, with the default in `params_schema`), so one
+  block covers a 5 mA indicator and a 20 mA LED. `placed_parts` renders
+  it per instance for the schematic, PCB, BOM, CPL and inventory
+  check; the recommender and `component_check` render it with the
+  defaults, and the check fails a template that does not.
+
 - **Substitutions can be accepted, not only proposed** (#271). A design
   carries `part_overrides` (`"<component id>.<part id>" -> MPN`); the
   schematic, PCB, BOM, CPL and the inventory check all read the
@@ -32,6 +51,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   component by library id, a semiconductor by MPN, a passive by value
   and family -- and still list the shortfalls, unpriced, when the parts
   API is down. Both show on the inventory dialog.
+
+### Fixed
+
+- **A created component now appears in `/library/components` without a
+  restart.** The summary list was computed once at startup on the
+  assumption the library never changes; it is now rebuilt when the
+  user tree changes (`Library.version`), so `component_create` and the
+  sidebar agree.
 
 ## [0.34.0] — 2026-09-20
 

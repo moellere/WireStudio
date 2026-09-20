@@ -232,6 +232,7 @@ and persist back to `designs/<id>.json`.
 | `library_detail` | no | full component/board card on demand |
 | `component_check` | no | check a draft component YAML: schema, subcircuit nets, template render, KiCad symbols/pins/footprints when libraries are installed |
 | `component_create` | yes | `component_check`, then save into the user library (`LIBRARY_USER_DIR`); never a bundled id |
+| `component_delete` | yes | remove a user-library component; never a bundled id |
 | `recommend` | no | ranked capability search with rationale + constraints |
 | `render` | no | YAML + ASCII for a stored design |
 | `validate` | no | schema + library check |

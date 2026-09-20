@@ -170,6 +170,22 @@ after one of the component's pin roles (`VM`, `GND`, `IN1`) joins
 whatever that role connects to in the design. Any other name is a net
 private to the instance, emitted as `<component id>_<name>`.
 
+A part's `value` may be a Jinja template over the instance params, so
+one block covers a 5 mA indicator and a 20 mA LED:
+
+```yaml
+  - id: r_led
+    ref_prefix: R
+    kicad: {symbol_lib: Device, symbol: R, footprint: "...", value: "{{ params.r_led }}"}
+params_schema:
+  r_led: {type: string, default: "220"}
+```
+
+The schematic, PCB, BOM, CPL and inventory check render it per
+instance; the recommender and `component_check` render it with the
+`params_schema` defaults, and the check fails a template that does not
+render that way.
+
 A semiconductor part may add `requires:` -- what the circuit needs of
 it, as opposed to what the part it was designed with is rated for:
 

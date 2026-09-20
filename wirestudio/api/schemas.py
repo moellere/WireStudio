@@ -47,6 +47,7 @@ class ComponentSummary(_S):
     current_ma_peak: Optional[float] = Field(
         default=None, description="Peak current draw in mA, if characterised."
     )
+    source: str = Field(default="bundled", description="'bundled' ships with wirestudio; 'user' was created at runtime into LIBRARY_USER_DIR.")
 
 
 class ModuleSummary(_S):

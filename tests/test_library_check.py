@@ -216,3 +216,83 @@ def test_check_and_create_endpoints(client):
 
     r = client.post("/library/components", json={"yaml": "id: [", "overwrite": False})
     assert r.status_code == 422 and r.json()["errors"]
+
+
+def test_created_component_is_listed_and_deletable(client):
+    ids = lambda: {c["id"]: c for c in client.get("/library/components").json()}  # noqa: E731
+    assert "led_driver_npn" not in ids()
+    assert client.post("/library/components", json={"yaml": DRAFT}).status_code == 201
+    listed = ids()["led_driver_npn"]
+    assert listed["source"] == "user" and listed["category"] == "actuator"
+    assert ids()["bme280"]["source"] == "bundled"
+    assert client.get("/library/components?category=actuator").json()
+    assert client.get("/library/components/led_driver_npn/yaml").text == DRAFT
+    assert client.get("/library/components/hbridge_mosfet/yaml").text == HBRIDGE
+    assert client.get("/library/components/nope/yaml").status_code == 404
+
+    assert client.delete("/library/components/hbridge_mosfet").status_code == 409
+    assert client.delete("/library/components/nope").status_code == 404
+    assert client.delete("/library/components/led_driver_npn").json() == {"deleted": "led_driver_npn"}
+    assert "led_driver_npn" not in ids()
+    assert client.get("/library/components/led_driver_npn").status_code == 404
+
+
+def test_library_version_tracks_user_writes(lib):
+    v0 = lib.version
+    create_component(DRAFT, lib)
+    assert lib.version == v0 + 1
+    lib.delete_component("led_driver_npn")
+    assert lib.version == v0 + 2 and lib.component_source("led_driver_npn") == ""
+    with pytest.raises(PermissionError):
+        lib.delete_component("bme280")
+    with pytest.raises(FileNotFoundError):
+        lib.delete_component("led_driver_npn")
+
+
+PARAMETRIC = DRAFT.replace('value: "220"', 'value: "{{ params.r_led }}"').replace(
+    "kicad:\n  symbol_lib: Connector_Generic",
+    "params_schema:\n  r_led:\n    type: string\n    default: \"220\"\nkicad:\n  symbol_lib: Connector_Generic",
+)
+
+
+def test_parametric_part_values(lib):
+    from wirestudio.inventory import subcircuit_coverage
+    from wirestudio.kicad.netlist import placed_parts
+    from wirestudio.model import Design
+
+    report = check_component_yaml(PARAMETRIC, lib)
+    assert report.ok, report.errors
+    assert create_component(PARAMETRIC, lib).ok
+    comp = lib.component("led_driver_npn")
+    # Defaults stand in when no instance is around (recommender coverage).
+    assert subcircuit_coverage(comp, [])[1] == 4  # Q1, R1, R2, D1
+
+    def design(params):
+        return Design.model_validate({
+            "schema_version": "0.1", "id": "t", "name": "t",
+            "board": {"library_id": "esp32-devkitc-v4", "mcu": "esp32", "framework": "esp-idf"},
+            "power": {"supply": "usb-5v", "rail_voltage_v": 5.0, "budget_ma": 500},
+            "components": [{"id": "led", "library_id": "led_driver_npn", "label": "Status", "params": params}],
+            "buses": [], "requirements": [], "warnings": [], "connections": [],
+        })
+    values = {p.part_id: p.kicad.value for p in placed_parts(design({}), lib)}
+    assert values["r_led"] == "220" and values["r_base"] == "1k"
+    values = {p.part_id: p.kicad.value for p in placed_parts(design({"r_led": "1k"}), lib)}
+    assert values["r_led"] == "1k"
+    # The library object keeps the template; only the placed part is rendered.
+    assert comp.subcircuit.parts[2].kicad.value == "{{ params.r_led }}"
+
+    # An override still wins over a rendered value and records what it replaced.
+    d = design({"r_led": "330"})
+    d = d.model_copy(update={"part_overrides": {"led.r_led": "470"}})
+    r_led = next(p for p in placed_parts(d, lib) if p.part_id == "r_led")
+    assert r_led.kicad.value == "470" and r_led.substituted_for == "330"
+
+
+def test_parametric_value_without_a_default_is_an_error(lib):
+    no_default = DRAFT.replace('value: "220"', 'value: "{{ params.r_led }}"')
+    report = check_component_yaml(no_default, lib)
+    assert not report.ok
+    assert any("r_led" in e and "does not render" in e for e in report.errors)
+    bad_syntax = DRAFT.replace('value: "220"', 'value: "{{ params.r_led"')
+    assert any("does not render" in e for e in check_component_yaml(bad_syntax, lib).errors)
