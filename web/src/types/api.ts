@@ -23,6 +23,18 @@ export interface ComponentSummary {
   required_components: string[];
   current_ma_typical: number | null;
   current_ma_peak: number | null;
+  source: "bundled" | "user";
+}
+
+export interface ComponentCheckResponse {
+  ok: boolean;
+  library_id: string;
+  exists: "" | "bundled" | "user";
+  errors: string[];
+  warnings: string[];
+  unverified: string[];
+  not_checked: string[];
+  saved: string;
 }
 
 export interface ModuleSummary {

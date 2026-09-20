@@ -43,10 +43,14 @@ exercised by a bundled example, see
 
 A second tree at `LIBRARY_USER_DIR` (`/data/library` in the image) holds
 components written at runtime through `component_create` (MCP, the
-in-studio agent, or `POST /library/components`). They load like bundled
-ones; a bundled id always wins, so a user file cannot shadow a shipped
-component. `component_check` reports what it verified and what it never
-does: it is a structural gate, not a simulator.
+in-studio agent, `POST /library/components`, or the *New component*
+editor in the studio's Components tab). They load like bundled ones and
+carry `source: user` in listings; a bundled id always wins, so a user
+file cannot shadow a shipped component. `component_check` reports what
+it verified and what it never does: it is a structural gate, not a
+simulator. A user component's inspector card offers *Edit YAML* and
+*Delete*; a bundled one offers *Copy as new*, which opens the editor on
+its source with a fresh id.
 
 _Environmental sensors:_
 - `bme280` — Bosch temperature/humidity/pressure sensor (I2C)
@@ -112,6 +116,13 @@ _Actuators / power:_
 - `pwm_fan` — 12V 4-wire PWM fan with tachometer feedback
 - `hbridge` — two-input H-bridge DC motor driver (DRV8833 / TB6612 / L298N / relay pair); bare outputs, interlocked switches, or an hbridge fan
 - `hbridge_mosfet` — the same interface as a discrete IRF4905 / IRFZ44N bridge; its `subcircuit` expands into 15 parts in the schematic, PCB and BOM
+
+_Building blocks (discrete subcircuits, checked like any component; each expands into its parts in the schematic, PCB, BOM and inventory check):_
+- `led_indicator` — one LED and its series resistor on a GPIO (`r_led` sets the resistor)
+- `npn_low_side_driver` — 2N3904 low-side switch with base resistor, pull-down and flyback diode; relay coils, buzzers, loads to ~75 mA
+- `mosfet_low_side_driver` — IRLZ44N logic-level low-side switch with gate resistor, pull-down and Schottky flyback; motors, heaters, LED strips, optional PWM
+- `voltage_divider` — divider plus filter cap on an ADC pin; `r_top` / `r_bottom` set the BOM values and the multiply filter together
+- `level_shifter` — one BSS138 bidirectional line between 3.3 V and a 5 V device (no ESPHome config of its own)
 - `axp192` — X-Powers AXP192 PMIC (T-Beam battery/rail management; no ESPHome core component yet)
 
 _Light / audio / camera:_

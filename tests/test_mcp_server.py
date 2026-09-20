@@ -23,6 +23,7 @@ EXPECTED_TOOLS = {
     "library_detail",
     "component_check",
     "component_create",
+    "component_delete",
     "recommend",
     "render",
     "validate",

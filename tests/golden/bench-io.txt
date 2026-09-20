@@ -1,0 +1,41 @@
++-----------------------------------------------------------------------------------+
+|  ESP32-DevKitC-V4  ---  bench-io                                                  |
++-----------------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                              |
+|                                                                                   |
+|  status  [Indicator LED with series resistor]  -- Status                          |
+|    IN    -> GPIO25                                                                |
+|    GND   -> rail GND                                                              |
+|                                                                                   |
+|  relay  [NPN low-side driver (relay coil, buzzer, small load)]  -- Relay          |
+|    IN    -> GPIO16                                                                |
+|    VLOAD -> rail 5V                                                               |
+|    GND   -> rail GND                                                              |
+|                                                                                   |
+|  fan  [Logic-level MOSFET low-side driver (motor, heater, LED strip)]  -- Fan     |
+|    IN    -> GPIO17                                                                |
+|    VLOAD -> rail 5V                                                               |
+|    GND   -> rail GND                                                              |
+|                                                                                   |
+|  vin  [Voltage divider sense input (battery, supply monitor)]  -- Supply voltage  |
+|    IN    -> GPIO34                                                                |
+|    GND   -> rail GND                                                              |
+|                                                                                   |
+|  onewire_5v  [Bidirectional level shifter, one line (BSS138)]  -- 1-Wire 5 V      |
+|    LV    -> GPIO4                                                                 |
+|    VCC   -> rail 3V3                                                              |
+|    VHV   -> rail 5V                                                               |
+|    GND   -> rail GND                                                              |
+|                                                                                   |
+|  BOM:                                                                             |
+|    - ESP32-DevKitC-V4                                                             |
+|    - Indicator LED with series resistor  (status)                                 |
+|    - NPN low-side driver (relay coil, buzzer, small load)  (relay)                |
+|    - Logic-level MOSFET low-side driver (motor, heater, LED strip)  (fan)         |
+|    - Voltage divider sense input (battery, supply monitor)  (vin)                 |
+|    - Bidirectional level shifter, one line (BSS138)  (onewire_5v)                 |
+|                                                                                   |
+|  Power: ~9mA typical, ~17mA peak (budget 500mA)  OK                               |
+|                                                                                   |
+|  Warnings: none                                                                   |
++-----------------------------------------------------------------------------------+

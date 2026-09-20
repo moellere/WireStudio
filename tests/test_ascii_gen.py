@@ -139,3 +139,18 @@ def test_long_warning_text_wrapped(bluesonoff_design, library):
 def test_multi_temp_matches_golden(multi_temp_design, library, golden_dir):
     expected = (golden_dir / "multi-temp.txt").read_text().rstrip("\n")
     assert render_ascii(multi_temp_design, library) == expected
+
+
+def test_bench_io_matches_golden(library, golden_dir):
+    """The five subcircuit building blocks on one board: the BOM lists
+    every discrete part they expand into, with the parametric values."""
+    import json
+    from pathlib import Path
+
+    from wirestudio.generate.yaml_gen import render_yaml
+    from wirestudio.model import Design
+
+    design = Design.model_validate(json.loads(
+        (Path(__file__).resolve().parent.parent / "wirestudio" / "examples" / "bench-io.json").read_text()))
+    assert render_ascii(design, library) == (golden_dir / "bench-io.txt").read_text().rstrip("\n")
+    assert render_yaml(design, library) == (golden_dir / "bench-io.yaml").read_text()

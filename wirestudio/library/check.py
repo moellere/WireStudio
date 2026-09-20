@@ -17,13 +17,13 @@ from pathlib import Path
 from typing import Optional
 
 import yaml
-from jinja2 import Environment, TemplateSyntaxError
+from jinja2 import Environment, TemplateSyntaxError, UndefinedError
 from pydantic import ValidationError
 
 from wirestudio.generate.yaml_gen import render_component
 from wirestudio.kicad.importer import default_symbol_dirs
 from wirestudio.kicad.symbol_parser import KicadSymbol, load_symbols, resolve_symbol
-from wirestudio.library import Library, LibraryComponent
+from wirestudio.library import Library, LibraryComponent, part_value
 from wirestudio.model import Design
 
 _ID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
@@ -159,6 +159,16 @@ def _check_subcircuit(comp: LibraryComponent, report: ComponentCheck) -> None:
         if not part.kicad.value:
             report.warnings.append(
                 f"part {part.id}: no kicad.value, the BOM and inventory check will see the symbol name")
+        elif "{{" in part.kicad.value:
+            try:
+                rendered = part_value(part, {}, comp.params_schema)
+            except (UndefinedError, TemplateSyntaxError) as e:
+                report.errors.append(
+                    f"part {part.id}: value {part.kicad.value!r} does not render with the "
+                    f"params_schema defaults: {e}")
+            else:
+                if not rendered:
+                    report.errors.append(f"part {part.id}: value template renders to nothing")
         if part.requires is not None:
             allowed = _PREFIX_FAMILIES.get(part.ref_prefix)
             if allowed and part.requires.family not in allowed:

@@ -15,6 +15,7 @@ import type {
   FleetStatus,
   InventoryEntry,
   BuyListResponse,
+  ComponentCheckResponse,
   InventoryCheckResponse,
   InventoryImportResult,
   FabStatus,
@@ -129,6 +130,19 @@ export const api = {
     return request<ComponentSummary[]>(`/library/components${suffix}`);
   },
   getComponent: (id: string) => request<unknown>(`/library/components/${encodeURIComponent(id)}`),
+  getComponentYaml: (id: string) => requestText(`/library/components/${encodeURIComponent(id)}/yaml`),
+  checkComponentYaml: (yaml: string) =>
+    request<ComponentCheckResponse>("/library/components/check", {
+      method: "POST",
+      body: JSON.stringify({ yaml }),
+    }),
+  createComponent: (yaml: string, overwrite = false) =>
+    request<ComponentCheckResponse>("/library/components", {
+      method: "POST",
+      body: JSON.stringify({ yaml, overwrite }),
+    }),
+  deleteComponent: (id: string) =>
+    request<{ deleted: string }>(`/library/components/${encodeURIComponent(id)}`, { method: "DELETE" }),
 
   listModules: () => request<ModuleSummary[]>("/library/modules"),
   insertModule: (design: Design, moduleId: string) =>

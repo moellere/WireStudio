@@ -19,7 +19,7 @@ from wirestudio.inventory.match import (
 )
 from wirestudio.inventory.store import InventoryEntry
 from wirestudio.kicad.netlist import placed_parts
-from wirestudio.library import Library, LibraryComponent, PartRequirements
+from wirestudio.library import Library, LibraryComponent, PartRequirements, part_value
 from wirestudio.model import Design
 
 
@@ -309,7 +309,7 @@ def subcircuit_coverage(
     groups: dict[tuple[str, str], tuple[str, int]] = {}
     for part in component.subcircuit.parts:
         family = family_for_ref(part.ref_prefix)
-        value = part.kicad.value or ""
+        value = part_value(part, {}, component.params_schema)
         if not family or not value:
             continue
         group = (family, _group_key(family, value))

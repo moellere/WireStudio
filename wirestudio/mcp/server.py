@@ -32,6 +32,7 @@ from wirestudio.agent.tools import (
     _run_kicad_schematic,
     _run_component_check,
     _run_component_create,
+    _run_component_delete,
     _run_library_detail,
     _run_list_boards,
     _run_recommend,
@@ -192,6 +193,17 @@ def _register_library_tools(mcp: MCPServer, library: Library) -> None:
     )
     def component_create(yaml: str, overwrite: bool = False) -> dict:
         return _run_component_create({}, library, yaml=yaml, overwrite=overwrite)
+
+    @mcp.tool(
+        name="component_delete",
+        description=(
+            "Remove a component from the user library. Refuses a bundled "
+            "id. Designs that reference the id stop rendering until it is "
+            "recreated."
+        ),
+    )
+    def component_delete(library_id: str) -> dict:
+        return _run_component_delete({}, library, library_id=library_id)
 
 
 _DESIGN_ID_HINT = (

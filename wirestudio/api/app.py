@@ -178,8 +178,9 @@ def _board_summary(b: LibraryBoard) -> BoardSummary:
     )
 
 
-def _component_summary(c: LibraryComponent) -> ComponentSummary:
+def _component_summary(c: LibraryComponent, source: str = "bundled") -> ComponentSummary:
     return ComponentSummary(
+        source=source,
         id=c.id,
         name=c.name,
         category=c.category,
@@ -234,8 +235,18 @@ def create_app(
     lib = library or default_library()
 
     # Pre-compute component and board summaries to avoid re-parsing YAML
-    # and re-allocating models on every request. The library is immutable.
-    _precomputed_components = [_component_summary(c) for c in lib.list_components()]
+    # and re-allocating models on every request. Boards are immutable;
+    # the component list is rebuilt when the user tree changes.
+    _summaries: dict = {"version": None, "components": []}
+
+    def _components() -> list[ComponentSummary]:
+        if _summaries["version"] != lib.version:
+            _summaries["components"] = [
+                _component_summary(c, lib.component_source(c.id)) for c in lib.list_components()
+            ]
+            _summaries["version"] = lib.version
+        return _summaries["components"]
+
     _precomputed_boards = [_board_summary(b) for b in lib.list_boards()]
     # SESSIONS_DIR / DESIGNS_DIR env vars let the Docker image point
     # the stores at a /data volume without the caller plumbing args
@@ -364,10 +375,10 @@ def create_app(
         bus: Optional[str] = Query(default=None, description="Required bus, e.g. i2c, spi, uart, i2s"),
     ) -> list[ComponentSummary]:
         if not category and not use_case and not bus:
-            return _precomputed_components
+            return _components()
 
         out: list[ComponentSummary] = []
-        for c in _precomputed_components:
+        for c in _components():
             if category and c.category != category:
                 continue
             if use_case and use_case not in c.use_cases:
@@ -393,6 +404,27 @@ def create_app(
             clash = report.exists and any("already exists" in e or "bundled" in e for e in report.errors)
             response.status_code = 409 if clash else 422
         return ComponentCheckResponse(**report.as_dict())
+
+    @app.get("/library/components/{component_id}/yaml", response_class=PlainTextResponse,
+             tags=["library"])
+    def get_component_yaml(component_id: str) -> str:
+        """The component's YAML source, bundled or user, for reading or as
+        a starting point for a new one."""
+        try:
+            return lib.component_yaml(component_id)
+        except FileNotFoundError as e:
+            raise HTTPException(status_code=404, detail=str(e)) from e
+
+    @app.delete("/library/components/{component_id}", tags=["library"])
+    def delete_library_component(component_id: str) -> dict:
+        """Remove a user-library component. A bundled id is 409."""
+        try:
+            lib.delete_component(component_id)
+        except PermissionError as e:
+            raise HTTPException(status_code=409, detail=str(e)) from e
+        except FileNotFoundError as e:
+            raise HTTPException(status_code=404, detail=str(e)) from e
+        return {"deleted": component_id}
 
     @app.get("/library/components/{component_id}", response_model=LibraryComponent, tags=["library"])
     def get_component(component_id: str) -> LibraryComponent:

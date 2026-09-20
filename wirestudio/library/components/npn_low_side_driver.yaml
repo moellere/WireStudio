@@ -1,0 +1,91 @@
+id: npn_low_side_driver
+name: NPN low-side driver (relay coil, buzzer, small load)
+category: switch
+use_cases: [relay, buzzer, solenoid, small_load, low_side_switch]
+aliases: [relay_driver, transistor_switch, 2n3904_driver, bjt_driver]
+
+electrical:
+  vcc_min: 0.0
+  vcc_max: 0.0
+  current_ma_typical: 3
+  current_ma_peak: 3
+  # The GPIO only supplies base current: (3.3 - 0.7) / 1k = 2.6 mA. With the
+  # 2N3904's guaranteed hFE of 30 at 100 mA that saturates loads to about
+  # 75 mA -- a 5 V signal relay, a buzzer, an LED cluster. D1 clamps the coil
+  # flyback into VLOAD; leave it in for resistive loads, it costs nothing.
+  pins:
+  - {role: IN, kind: digital_out, voltage: 3.3}
+  - {role: VLOAD, kind: power}
+  - {role: GND, kind: ground}
+  passives: []
+
+esphome:
+  required_components: []
+  yaml_template: |
+    switch:
+      - platform: gpio
+        pin: {{ pins.IN | tojson }}
+        name: "{{ label }}"
+        id: {{ id }}
+        restore_mode: {{ params.restore_mode | default('ALWAYS_OFF') }}
+    {%- if params.icon is defined %}
+        icon: "{{ params.icon }}"
+    {%- endif %}
+
+capability:
+  role: output
+  provides:
+    - {event: on_turn_on}
+    - {event: on_turn_off}
+  accepts:
+    - {action: turn_on,  esphome: switch.turn_on}
+    - {action: turn_off, esphome: switch.turn_off}
+    - {action: toggle,   esphome: switch.toggle}
+  checks:
+    - {predicate: is_on,  esphome: switch.is_on}
+    - {predicate: is_off, esphome: switch.is_off}
+
+params_schema:
+  r_base:
+    type: string
+    default: "1k"
+  restore_mode:
+    type: string
+    enum: [RESTORE_DEFAULT_OFF, RESTORE_DEFAULT_ON, ALWAYS_OFF, ALWAYS_ON, DISABLED]
+    default: ALWAYS_OFF
+  icon:
+    type: string
+
+notes: "Loads to about 75 mA at up to 40 V, switched to ground; the load's other end goes to VLOAD
+  (the same 5 V the coil wants, or a separate supply sharing GND). The 10k pull-down keeps the
+  transistor off while the MCU boots. For a motor, heater or LED strip use mosfet_low_side_driver.
+  J1 is the load terminal."
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x03
+  footprint: Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical
+  value: NPN driver
+subcircuit:
+  parts:
+  - id: q_sw
+    ref_prefix: Q
+    kicad: {symbol_lib: Transistor_BJT, symbol: 2N3904, footprint: "Package_TO_SOT_THT:TO-92_Inline", value: 2N3904}
+    pins: {C: out, B: base, E: GND}
+    requires: {family: bjt, polarity: npn, v_min: 15, i_min: 0.15}
+  - id: r_base
+    ref_prefix: R
+    kicad: {symbol_lib: Device, symbol: R, footprint: "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal", value: "{{ params.r_base }}"}
+    pins: {"1": IN, "2": base}
+  - id: r_pd
+    ref_prefix: R
+    kicad: {symbol_lib: Device, symbol: R, footprint: "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal", value: "10k"}
+    pins: {"1": base, "2": GND}
+  - id: d_flyback
+    ref_prefix: D
+    kicad: {symbol_lib: Diode, symbol: 1N4148, footprint: "Diode_THT:D_DO-35_SOD27_P7.62mm_Horizontal", value: 1N4148}
+    pins: {K: VLOAD, A: out}
+    requires: {family: diode, v_min: 40, i_min: 0.15}
+  - id: j_load
+    ref_prefix: J
+    kicad: {symbol_lib: Connector_Generic, symbol: Conn_01x02, footprint: "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-2_1x02_P5.00mm_Horizontal", value: Load}
+    pins: {"1": VLOAD, "2": out}

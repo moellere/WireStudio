@@ -24,6 +24,7 @@ interface Props {
   onDeleteSaved: (id: string) => void;
   onSelectBoard: (id: string) => void;
   onSelectComponent: (id: string) => void;
+  onNewComponent: () => void;
   onInsertModule: (id: string) => void;
 }
 
@@ -98,7 +99,16 @@ export function LeftSidebar(props: Props) {
           <BoardsList items={props.boards} search={search} onSelect={props.onSelectBoard} />
         )}
         {tab === "components" && (
-          <ComponentsList items={props.components} search={search} onSelect={props.onSelectComponent} />
+          <>
+            <button
+              onClick={props.onNewComponent}
+              className="mb-2 w-full rounded-md border border-dashed border-line px-3 py-1.5 text-left text-xs text-ink-dim transition-colors hover:bg-surface-2 hover:text-ink"
+              title="Write a component as YAML; it is checked like a bundled one and saved into the user library"
+            >
+              + New component
+            </button>
+            <ComponentsList items={props.components} search={search} onSelect={props.onSelectComponent} />
+          </>
         )}
         {tab === "modules" && (
           <ModulesList items={props.modules} search={search} onInsert={props.onInsertModule} />
@@ -317,7 +327,14 @@ function ComponentsList({
             className="w-full rounded-md bg-surface-2/40 px-3 py-2 text-left transition-colors hover:bg-surface-2"
           >
             <div className="flex items-baseline justify-between gap-2">
-              <div className="truncate font-medium text-ink">{c.name}</div>
+              <div className="truncate font-medium text-ink">
+                {c.name}
+                {c.source === "user" && (
+                  <span className="ml-1.5 rounded bg-accent-500/10 px-1 py-0.5 text-[9px] font-medium uppercase tracking-wider text-accent-200 ring-1 ring-accent-500/30">
+                    user
+                  </span>
+                )}
+              </div>
               <div className="shrink-0 text-[10px] font-medium uppercase tracking-wider text-ink-faint">
                 {c.category}
               </div>

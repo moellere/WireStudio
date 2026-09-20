@@ -26,6 +26,7 @@ import { SchematicDialog } from "./components/SchematicDialog";
 import { FlashDialog } from "./components/FlashDialog";
 import { LorawanProvisionEsphomeDialog } from "./components/LorawanProvisionEsphomeDialog";
 import { InventoryDialog } from "./components/InventoryDialog";
+import { ComponentEditorDialog, NEW_COMPONENT_TEMPLATE } from "./components/ComponentEditorDialog";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { useDebouncedValue } from "./lib/debounce";
 import { useAdvancedMode } from "./lib/uiMode";
@@ -115,6 +116,7 @@ export default function App() {
   const [showFlashDialog, setShowFlashDialog] = useState(false);
   const [showProvisionEsphomeDialog, setShowProvisionEsphomeDialog] = useState(false);
   const [showInventoryDialog, setShowInventoryDialog] = useState(false);
+  const [componentEditor, setComponentEditor] = useState<{ title: string; yaml: string; overwrite: boolean } | null>(null);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [savingState, setSavingState] = useState<"idle" | "saving" | "saved">("idle");
 
@@ -156,6 +158,42 @@ export default function App() {
       }
     })();
   }, []);
+
+  async function refreshComponents() {
+    try {
+      setComponents(await api.listComponents());
+    } catch {
+      /* the list keeps its last value */
+    }
+  }
+
+  async function handleEditComponent(id: string, source: "bundled" | "user") {
+    try {
+      const yaml = await api.getComponentYaml(id);
+      if (source === "user") {
+        setComponentEditor({ title: `Edit ${id}`, yaml, overwrite: true });
+      } else {
+        setComponentEditor({
+          title: `New component from ${id}`,
+          yaml: yaml.replace(/^id: .*$/m, `id: ${id}_copy`),
+          overwrite: false,
+        });
+      }
+    } catch (e) {
+      setBootError(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  async function handleDeleteComponent(id: string) {
+    if (!window.confirm(`Remove ${id} from the user library? Designs that use it stop rendering.`)) return;
+    try {
+      await api.deleteComponent(id);
+      await refreshComponents();
+      setSelection((sel) => (sel.kind === "component" && sel.id === id ? { kind: "design" } : sel));
+    } catch (e) {
+      setBootError(e instanceof Error ? e.message : String(e));
+    }
+  }
 
   async function refreshSavedDesigns() {
     try {
@@ -757,6 +795,7 @@ export default function App() {
           onDeleteSaved={handleDeleteSaved}
           onSelectBoard={(id) => setSelection({ kind: "board", id })}
           onSelectComponent={(id) => setSelection({ kind: "component", id })}
+          onNewComponent={() => setComponentEditor({ title: "New component", yaml: NEW_COMPONENT_TEMPLATE, overwrite: false })}
           onInsertModule={handleInsertModule}
         />
         <DesignPane design={design} render={render} renderError={renderError} advancedMode={advancedMode} />
@@ -774,8 +813,23 @@ export default function App() {
           onDesignChange={handleDesignChange}
           onAddComponent={handleAddComponent}
           onRemoveComponent={handleRemoveComponent}
+          onEditComponent={handleEditComponent}
+          onDeleteComponent={handleDeleteComponent}
         />
       </main>
+      {componentEditor && (
+        <ComponentEditorDialog
+          title={componentEditor.title}
+          initialYaml={componentEditor.yaml}
+          overwrite={componentEditor.overwrite}
+          onClose={() => setComponentEditor(null)}
+          onSaved={async (id) => {
+            setComponentEditor(null);
+            await refreshComponents();
+            setSelection({ kind: "component", id });
+          }}
+        />
+      )}
       {showUsbDialog && (
         <UsbDetectDialog
           boards={boards}

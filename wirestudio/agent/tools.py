@@ -410,6 +410,21 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
             "additionalProperties": False,
         },
     },
+    {
+        "name": "component_delete",
+        "description": (
+            "Remove a component from the user library. Refuses a bundled id. "
+            "Designs that reference the id stop rendering until it is recreated."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "library_id": {"type": "string", "description": "The user component id to remove."},
+            },
+            "required": ["library_id"],
+            "additionalProperties": False,
+        },
+    },
 ]
 
 
@@ -800,6 +815,14 @@ def _run_set_part_override(design: dict, library: Library, *, key: str, mpn: str
     return {"ok": True, "set": {key: mpn}, "substituted_for": part.kicad.value}
 
 
+def _run_component_delete(_design: dict, library: Library, *, library_id: str) -> dict:
+    try:
+        library.delete_component(library_id)
+    except (PermissionError, FileNotFoundError) as e:
+        return {"ok": False, "error": str(e)}
+    return {"ok": True, "deleted": library_id}
+
+
 def _run_component_check(_design: dict, library: Library, *, yaml: str) -> dict:
     return check_component_yaml(yaml, library).as_dict()
 
@@ -846,6 +869,7 @@ TOOL_HANDLERS: dict[str, Callable[..., Any]] = {
     "set_part_override": _run_set_part_override,
     "component_check": _run_component_check,
     "component_create": _run_component_create,
+    "component_delete": _run_component_delete,
 }
 
 
