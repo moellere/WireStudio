@@ -51,6 +51,7 @@ from wirestudio.api.schemas import (
     InventoryCheckResponse,
     InventoryEntryModel,
     InventoryPartCheckLine,
+    InventorySubstitute,
     McpTokenResponse,
     ModuleSummary,
     FleetJobLogResponse,
@@ -1068,15 +1069,9 @@ def create_app(
     @app.post("/library/recommend", response_model=RecommendResponse, tags=["library"])
     def recommend(req: RecommendRequest) -> RecommendResponse:
         constraints = Constraints(**(req.constraints or {})) if req.constraints else Constraints()
-        on_hand = None
-        if req.use_inventory:
-            on_hand = {
-                e.library_id: e.quantity
-                for e in inventory_store.list()
-                if e.kind == "component"
-            }
         results = recommend_components(
-            lib, req.query, constraints=constraints, limit=req.limit, inventory=on_hand
+            lib, req.query, constraints=constraints, limit=req.limit,
+            inventory=inventory_store.list() if req.use_inventory else None,
         )
         return RecommendResponse(
             query=req.query,
@@ -1089,7 +1084,9 @@ def create_app(
                     current_ma_peak=r.current_ma_peak,
                     vcc_min=r.vcc_min, vcc_max=r.vcc_max,
                     score=r.score, in_examples=r.in_examples,
-                    rationale=r.rationale, on_hand=r.on_hand, notes=r.notes,
+                    rationale=r.rationale, on_hand=r.on_hand,
+                    parts_on_hand=r.parts_on_hand, parts_total=r.parts_total,
+                    notes=r.notes,
                 )
                 for r in results
             ],
@@ -1233,6 +1230,13 @@ def create_app(
                     value=ln.value, family=ln.family, refs=ln.refs,
                     needed=ln.needed, on_hand=ln.on_hand, status=ln.status,
                     matched=ln.matched, location=ln.location,
+                    substitutes=[
+                        InventorySubstitute(
+                            mpn=sub.mpn, key=sub.key, on_hand=sub.on_hand,
+                            location=sub.location, caveats=sub.caveats,
+                        )
+                        for sub in ln.substitutes
+                    ],
                 )
                 for ln in report.parts
             ],

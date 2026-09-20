@@ -392,3 +392,157 @@ def test_check_endpoint_reports_parts(client):
     assert body["parts_summary"]["have"] == 3
     irf = next(p for p in body["parts"] if p["value"] == "IRF4905")
     assert irf["status"] == "have" and irf["refs"] == ["Q1", "Q4"]
+
+
+# ---------------------------------------------------------------------------
+# Substitution (proposals only)
+# ---------------------------------------------------------------------------
+
+def _fet(mpn, polarity="p", v=55, i=74, qty=5, package="TO-220", pinout="G-D-S"):
+    return InventoryEntry(kind="part", mpn=mpn, family="mosfet", polarity=polarity,
+                          v_max=v, i_max=i, quantity=qty, package=package, pinout=pinout)
+
+
+def test_find_substitutes_applies_hard_constraints():
+    from wirestudio.inventory import find_substitutes
+    from wirestudio.library import PartRequirements
+
+    req = PartRequirements(family="mosfet", polarity="p", v_min=20, i_min=3)
+    drawer = [
+        _fet("IRF9540", v=100, i=19),
+        _fet("WRONG-POL", polarity="n"),
+        _fet("LOW-V", v=12),
+        _fet("LOW-I", i=2),
+        _fet("NO-RATING", v=None, i=None),
+        _fet("SMD", package="SOT-23"),
+        _fet("EMPTY", qty=0),
+        InventoryEntry(kind="part", mpn="BC327", family="bjt", polarity="pnp",
+                       v_max=45, i_max=0.8, quantity=10),
+    ]
+    subs = find_substitutes(
+        "IRF4905", drawer, requires=req,
+        footprint="Package_TO_SOT_THT:TO-220-3_Vertical")
+    assert [s.mpn for s in subs] == ["IRF9540"]
+    assert subs[0].on_hand == 5 and subs[0].key == "part:IRF9540"
+    assert subs[0].caveats == ["gate threshold and Rds(on) not compared"]
+
+
+def test_find_substitutes_flags_pinout_and_unknown_package():
+    from wirestudio.inventory import find_substitutes
+    from wirestudio.library import PartRequirements
+
+    req = PartRequirements(family="bjt", polarity="npn", v_min=10, i_min=0.05)
+    drawer = [
+        InventoryEntry(kind="part", mpn="2N3904", family="bjt", polarity="npn",
+                       v_max=40, i_max=0.2, quantity=1, package="TO-92", pinout="E-B-C"),
+        InventoryEntry(kind="part", mpn="BC337", family="bjt", polarity="npn",
+                       v_max=45, i_max=0.8, quantity=35, package="TO-92", pinout="C-B-E"),
+        InventoryEntry(kind="part", mpn="MYSTERY", family="bjt", polarity="npn",
+                       v_max=45, i_max=0.8, quantity=2),
+    ]
+    subs = {s.mpn: s for s in find_substitutes(
+        "2N3904", drawer, requires=req, footprint="Package_TO_SOT_THT:TO-92_Inline")}
+    assert set(subs) == {"BC337", "MYSTERY"}
+    assert "pinout C-B-E differs from E-B-C" in subs["BC337"].caveats
+    assert "package not recorded" in subs["MYSTERY"].caveats
+    # The original never proposes itself.
+    assert "2N3904" not in subs
+
+
+def test_find_substitutes_falls_back_to_the_original_parts_ratings():
+    """No `requires:` declared: compare against the fitted part's own
+    rating, and say so. IRF9540's 19 A is below IRF4905's 74 A, so under
+    that conservative basis it is no longer proposed."""
+    from wirestudio.inventory import find_substitutes
+
+    drawer = [_fet("IRF4905", qty=0), _fet("IRF9540", v=100, i=19), _fet("BIG", v=60, i=80)]
+    subs = find_substitutes("IRF4905", drawer)
+    assert [s.mpn for s in subs] == ["BIG"]
+    assert subs[0].caveats[0] == "ratings compared against IRF4905's own, not the circuit's need"
+    # Nothing to compare against at all: no proposals rather than guesses.
+    assert find_substitutes("IRF4905", [_fet("IRF9540")]) == []
+
+
+def test_check_parts_proposes_substitutes_for_short_semiconductors(library):
+    from wirestudio.inventory.check import check_parts
+
+    design = Design.model_validate(
+        json.loads((EXAMPLES_DIR / "motor-position.json").read_text()))
+    drawer = [e for e in _drawer() if e.mpn != "IRF4905"]
+    drawer.append(InventoryEntry(kind="part", mpn="2N3904", family="bjt", polarity="npn",
+                                 v_max=40, i_max=0.2, quantity=1, package="TO-92",
+                                 pinout="E-B-C"))
+    drawer = [e for e in drawer if not (e.mpn == "2N3904" and e.quantity == 35)]
+    by_value = {ln.value: ln for ln in check_parts(design, library, drawer)}
+
+    irf = by_value["IRF4905"]
+    assert irf.status == "need"
+    assert [s.mpn for s in irf.substitutes] == ["IRF9540"]
+
+    drv = by_value["2N3904"]
+    assert drv.status == "partial"
+    bc337 = next(s for s in drv.substitutes if s.mpn == "BC337")
+    assert "pinout C-B-E differs from E-B-C" in bc337.caveats
+
+    # Satisfied lines and passives carry no proposals.
+    assert by_value["IRFZ44N"].status == "have" and by_value["IRFZ44N"].substitutes == []
+    assert by_value["10k"].substitutes == []
+
+
+def test_subcircuit_coverage(library):
+    from wirestudio.inventory import subcircuit_coverage
+
+    bridge = library.component("hbridge_mosfet")
+    assert subcircuit_coverage(bridge, _drawer()) == (14, 14)
+    # Passives are assumed; the six transistors are missing.
+    assert subcircuit_coverage(bridge, []) == (8, 14)
+    thin = [InventoryEntry(kind="part", mpn="IRF4905", quantity=1, family="mosfet")]
+    assert subcircuit_coverage(bridge, thin) == (9, 14)
+    assert subcircuit_coverage(library.component("bme280"), _drawer()) == (0, 0)
+
+
+def test_recommender_scores_subcircuit_coverage(library):
+    from wirestudio.recommend.recommender import recommend_components
+
+    bare = next(r for r in recommend_components(library, "dc motor")
+                if r.library_id == "hbridge_mosfet")
+    stocked = next(r for r in recommend_components(library, "dc motor", inventory=_drawer())
+                   if r.library_id == "hbridge_mosfet")
+    assert stocked.score == bare.score + 5
+    assert stocked.parts_on_hand == 14 and stocked.parts_total == 14
+    assert "all 14 parts on hand" in stocked.rationale
+    assert bare.parts_total == 0 and "parts on hand" not in bare.rationale
+
+    half = next(r for r in recommend_components(library, "dc motor", inventory=[])
+                if r.library_id == "hbridge_mosfet")
+    assert half.parts_total == 0  # an empty drawer is no drawer
+
+
+def test_check_endpoint_reports_substitutes(client):
+    client.post("/inventory/import", json={"csv": FIXTURE_CSV.read_text()})
+    client.delete("/inventory/parts/IRF4905")
+    design = json.loads((EXAMPLES_DIR / "motor-position.json").read_text())
+    body = client.post("/design/inventory/check", json={"design": design}).json()
+    irf = next(p for p in body["parts"] if p["value"] == "IRF4905")
+    assert irf["status"] == "need"
+    assert [s["mpn"] for s in irf["substitutes"]] == ["IRF9540"]
+    assert irf["substitutes"][0]["caveats"] == ["gate threshold and Rds(on) not compared"]
+    have = next(p for p in body["parts"] if p["value"] == "IRFZ44N")
+    assert have["substitutes"] == []
+
+
+def test_recommend_endpoint_reports_part_coverage(client):
+    client.post("/inventory/import", json={"csv": FIXTURE_CSV.read_text()})
+    matches = client.post(
+        "/library/recommend", json={"query": "dc motor", "use_inventory": True}
+    ).json()["matches"]
+    bridge = next(m for m in matches if m["library_id"] == "hbridge_mosfet")
+    assert bridge["parts_on_hand"] == 14 and bridge["parts_total"] == 14
+
+
+def test_part_requirements_validate_family():
+    from pydantic import ValidationError
+
+    from wirestudio.library import PartRequirements
+    with pytest.raises(ValidationError):
+        PartRequirements(family="transistor")

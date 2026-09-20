@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
-from typing import Union
+from typing import Optional, Union
 
 from wirestudio.inventory.match import (
     family_for_ref,
@@ -19,7 +19,7 @@ from wirestudio.inventory.match import (
 )
 from wirestudio.inventory.store import InventoryEntry
 from wirestudio.kicad.netlist import placed_parts
-from wirestudio.library import Library
+from wirestudio.library import Library, LibraryComponent, PartRequirements
 from wirestudio.model import Design
 
 
@@ -36,6 +36,17 @@ class InventoryLine:
 
 
 @dataclass
+class Substitute:
+    """A drawer part that could stand in for one the design calls for.
+    Proposed, never applied: `caveats` says what was not compared."""
+    mpn: str
+    key: str
+    on_hand: int
+    location: str
+    caveats: list[str]
+
+
+@dataclass
 class InventoryPartLine:
     """One discrete part the board carries: a subcircuit part or a
     design passive, grouped by what you would buy."""
@@ -47,6 +58,7 @@ class InventoryPartLine:
     status: str  # have | partial | need | assumed | untracked
     matched: str = ""  # inventory key that satisfied it
     location: str = ""
+    substitutes: list[Substitute] = field(default_factory=list)
 
 
 @dataclass
@@ -158,28 +170,18 @@ def check_parts(
     `passives`. Semiconductors match an inventory part by MPN, passives
     by magnitude.
     """
-    entries = (
-        list(inventory.values()) if isinstance(inventory, Mapping) else list(inventory)
-    )
-    parts_only = [e for e in entries if e.kind == "part"]
-    by_mpn = {e.mpn.upper(): e for e in parts_only if e.mpn}
-    by_value: dict[tuple[str, str], InventoryEntry] = {}
-    for e in parts_only:
-        magnitude = normalize_value(e.value, e.family)
-        if magnitude is not None:
-            by_value[(e.family, _canon(magnitude))] = e
+    drawer = _Drawer(inventory)
 
     # (family, match key) -> [value as printed, refs]
     groups: dict[tuple[str, str], tuple[str, list[str]]] = {}
+    requirements: dict[tuple[str, str], list[PartRequirements]] = {}
+    footprints: dict[tuple[str, str], str] = {}
 
-    def add(family: str, value: str, ref: str) -> None:
-        if matches_by_value(family):
-            magnitude = normalize_value(value, family)
-            key = _canon(magnitude) if magnitude is not None else value.upper()
-        else:
-            key = value.upper()
-        slot = groups.setdefault((family, key), (value, []))
+    def add(family: str, value: str, ref: str) -> tuple[str, str]:
+        group = (family, _group_key(family, value))
+        slot = groups.setdefault(group, (value, []))
         slot[1].append(ref)
+        return group
 
     for part in placed_parts(design, library):
         if not part.part_id:
@@ -187,13 +189,18 @@ def check_parts(
         value = getattr(part.kicad, "value", None) or ""
         if not value:
             continue
-        add(family_for_ref(part.ref), value, part.ref)
+        group = add(family_for_ref(part.ref), value, part.ref)
+        footprints.setdefault(group, part.kicad.footprint or "")
+        spec = _part_spec(library, part.library_id, part.part_id)
+        if spec is not None and spec.requires is not None:
+            requirements.setdefault(group, []).append(spec.requires)
 
     for passive in design.passives:
         add(passive.kind, passive.value, passive.id)
 
     out: list[InventoryPartLine] = []
-    for (family, key), (value, refs) in groups.items():
+    for group, (value, refs) in groups.items():
+        family, key = group
         needed = len(refs)
         if not family:
             out.append(InventoryPartLine(
@@ -201,24 +208,190 @@ def check_parts(
                 on_hand=0, status="untracked",
             ))
             continue
-        entry = (
-            by_value.get((family, key))
-            if matches_by_value(family)
-            else by_mpn.get(key)
-        )
+        entry = drawer.lookup(family, key)
         on_hand = entry.quantity if entry else 0
-        if on_hand >= needed:
-            status = "have"
-        elif on_hand > 0:
-            status = "partial"
-        elif is_common(normalize_value(value, family), family):
-            status = "assumed"
-        else:
-            status = "need"
-        out.append(InventoryPartLine(
+        status = _status(family, value, needed, on_hand)
+        line = InventoryPartLine(
             value=value, family=family, refs=refs, needed=needed,
             on_hand=on_hand, status=status,
             matched=entry.key if entry else "",
             location=entry.location if entry else "",
-        ))
+        )
+        if status in ("need", "partial") and not matches_by_value(family):
+            line.substitutes = find_substitutes(
+                value, drawer.parts,
+                requires=_merge_requirements(requirements.get(group, [])),
+                footprint=footprints.get(group, ""),
+            )
+        out.append(line)
     return sorted(out, key=lambda ln: (ln.family, ln.value))
+
+
+def subcircuit_coverage(
+    component: LibraryComponent,
+    inventory: Union[Mapping[str, InventoryEntry], Iterable[InventoryEntry]],
+) -> tuple[int, int]:
+    """(parts on hand, parts tracked) for a component's subcircuit, before
+    it is placed in any design. Common passives count as on hand; parts
+    the drawer does not track (connectors) are left out of both."""
+    if component is None or component.subcircuit is None:
+        return (0, 0)
+    drawer = _Drawer(inventory)
+    groups: dict[tuple[str, str], tuple[str, int]] = {}
+    for part in component.subcircuit.parts:
+        family = family_for_ref(part.ref_prefix)
+        value = part.kicad.value or ""
+        if not family or not value:
+            continue
+        group = (family, _group_key(family, value))
+        groups[group] = (value, groups.get(group, (value, 0))[1] + 1)
+    covered = tracked = 0
+    for (family, key), (value, needed) in groups.items():
+        entry = drawer.lookup(family, key)
+        on_hand = entry.quantity if entry else 0
+        status = _status(family, value, needed, on_hand)
+        covered += needed if status in ("have", "assumed") else on_hand
+        tracked += needed
+    return (covered, tracked)
+
+
+class _Drawer:
+    """Part entries indexed the two ways a board part matches them."""
+
+    def __init__(
+        self, inventory: Union[Mapping[str, InventoryEntry], Iterable[InventoryEntry]]
+    ) -> None:
+        entries = (
+            list(inventory.values()) if isinstance(inventory, Mapping) else list(inventory)
+        )
+        self.parts = [e for e in entries if e.kind == "part"]
+        self.by_mpn = {e.mpn.upper(): e for e in self.parts if e.mpn}
+        self.by_value: dict[tuple[str, str], InventoryEntry] = {}
+        for e in self.parts:
+            magnitude = normalize_value(e.value, e.family)
+            if magnitude is not None:
+                self.by_value[(e.family, _canon(magnitude))] = e
+
+    def lookup(self, family: str, key: str) -> Optional[InventoryEntry]:
+        if matches_by_value(family):
+            return self.by_value.get((family, key))
+        return self.by_mpn.get(key)
+
+
+def _group_key(family: str, value: str) -> str:
+    if matches_by_value(family):
+        magnitude = normalize_value(value, family)
+        if magnitude is not None:
+            return _canon(magnitude)
+    return value.upper()
+
+
+def _status(family: str, value: str, needed: int, on_hand: int) -> str:
+    if on_hand >= needed:
+        return "have"
+    if on_hand > 0:
+        return "partial"
+    if is_common(normalize_value(value, family), family):
+        return "assumed"
+    return "need"
+
+
+def _part_spec(library: Library, library_id: str, part_id: str):
+    try:
+        comp = library.component(library_id)
+    except FileNotFoundError:
+        return None
+    if comp.subcircuit is None:
+        return None
+    return next((p for p in comp.subcircuit.parts if p.id == part_id), None)
+
+
+def _merge_requirements(reqs: list[PartRequirements]) -> Optional[PartRequirements]:
+    """The most demanding of several declarations for one MPN."""
+    if not reqs:
+        return None
+    v = [r.v_min for r in reqs if r.v_min is not None]
+    i = [r.i_min for r in reqs if r.i_min is not None]
+    return PartRequirements(
+        family=reqs[0].family, polarity=reqs[0].polarity,
+        v_min=max(v) if v else None, i_min=max(i) if i else None,
+    )
+
+
+# Footprint name fragment -> the package a drawer records. Anything else
+# leaves the package unknown and substitution says so.
+_PACKAGES = ("TO-220", "TO-247", "TO-252", "TO-92", "TO-126", "SOT-23", "SOT-223", "SOT-89")
+
+
+def package_for_footprint(footprint: str) -> str:
+    upper = (footprint or "").upper()
+    return next((pkg for pkg in _PACKAGES if pkg in upper), "")
+
+
+_NOT_COMPARED = {
+    "mosfet": "gate threshold and Rds(on) not compared",
+    "bjt": "gain and saturation voltage not compared",
+    "diode": "forward voltage and recovery time not compared",
+}
+
+
+def find_substitutes(
+    mpn: str,
+    parts: Iterable[InventoryEntry],
+    *,
+    requires: Optional[PartRequirements] = None,
+    footprint: str = "",
+) -> list[Substitute]:
+    """Drawer parts that could stand in for `mpn`.
+
+    Hard constraints: same family and polarity, same package (from the
+    board footprint when it names one), voltage and current ratings at
+    least what the circuit asks. The ask comes from `requires` when the
+    library declares it; otherwise from the ratings of `mpn`'s own
+    drawer entry, which is conservative and is called out as a caveat.
+    A candidate whose rating is unrecorded fails rather than passes.
+    Anything this does not compare is listed in each substitute's
+    caveats. Nothing here is a verdict.
+    """
+    parts = [e for e in parts if e.kind == "part" and e.mpn]
+    original = next((e for e in parts if e.mpn.upper() == mpn.upper()), None)
+    if requires is not None:
+        family, polarity = requires.family, requires.polarity
+        v_min, i_min = requires.v_min, requires.i_min
+        basis = ""
+    elif original is not None and original.family:
+        family, polarity = original.family, original.polarity
+        v_min, i_min = original.v_max, original.i_max
+        basis = f"ratings compared against {original.mpn}'s own, not the circuit's need"
+    else:
+        return []
+
+    package = package_for_footprint(footprint) or (original.package if original else "")
+    pinout = original.pinout if original else ""
+
+    out: list[Substitute] = []
+    for e in parts:
+        if e.mpn.upper() == mpn.upper() or e.quantity <= 0:
+            continue
+        if e.family != family or (polarity and e.polarity != polarity):
+            continue
+        if package and e.package and e.package.upper() != package.upper():
+            continue
+        if v_min is not None and (e.v_max is None or e.v_max < v_min):
+            continue
+        if i_min is not None and (e.i_max is None or e.i_max < i_min):
+            continue
+        caveats: list[str] = []
+        if package and not e.package:
+            caveats.append("package not recorded")
+        if pinout and e.pinout and e.pinout.upper() != pinout.upper():
+            caveats.append(f"pinout {e.pinout} differs from {pinout}")
+        if basis:
+            caveats.append(basis)
+        caveats.append(_NOT_COMPARED.get(
+            family, "only family, polarity, package and ratings compared"))
+        out.append(Substitute(
+            mpn=e.mpn, key=e.key, on_hand=e.quantity,
+            location=e.location, caveats=caveats,
+        ))
+    return sorted(out, key=lambda sub: (-sub.on_hand, sub.mpn))

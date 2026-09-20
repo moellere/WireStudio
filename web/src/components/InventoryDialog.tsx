@@ -10,6 +10,8 @@ const STATUS_STYLE: Record<string, string> = {
   have: "text-emerald-300 bg-emerald-500/10 ring-emerald-500/30",
   partial: "text-amber-300 bg-amber-500/10 ring-amber-500/30",
   need: "text-rose-300 bg-rose-500/10 ring-rose-500/30",
+  assumed: "text-sky-300 bg-sky-500/10 ring-sky-500/30",
+  untracked: "text-ink-faint bg-white/5 ring-white/10",
 };
 
 /** "What's in my drawer": list/add/edit/remove inventory entries, and check the
@@ -347,6 +349,50 @@ export function InventoryDialog({ design, onClose }: { design?: Design | null; o
                       </li>
                     ))}
                   </ul>
+                  {check.parts.length > 0 && (
+                    <>
+                      <div className="flex items-center justify-between pt-1">
+                        <span className="text-xs font-medium text-ink-dim">Discrete parts</span>
+                        <div className="flex gap-2 text-[11px]">
+                          {(["have", "partial", "need", "assumed"] as const).map((s) =>
+                            check.parts_summary[s] ? (
+                              <span key={s} className={`rounded px-1.5 py-0.5 ring-1 ${STATUS_STYLE[s]}`}>
+                                {check.parts_summary[s]} {s}
+                              </span>
+                            ) : null,
+                          )}
+                        </div>
+                      </div>
+                      <ul className="divide-y divide-line rounded-md border border-line">
+                        {check.parts.map((ln) => (
+                          <li key={`${ln.family}:${ln.value}`} className="px-2 py-1 text-xs">
+                            <div className="flex items-center justify-between">
+                              <span className="text-ink">
+                                {ln.value}
+                                <span className="ml-1 text-ink-faint">{ln.refs.join(", ")}</span>
+                              </span>
+                              <span className="flex items-center gap-2 text-ink-dim">
+                                <span>{ln.on_hand}/{ln.needed}</span>
+                                <span className={`rounded px-1.5 py-0.5 text-[10px] ring-1 ${STATUS_STYLE[ln.status] ?? ""}`}>
+                                  {ln.status}
+                                </span>
+                              </span>
+                            </div>
+                            {ln.substitutes.length > 0 && (
+                              <ul className="mt-1 space-y-0.5 border-l border-line pl-2 text-[11px]">
+                                {ln.substitutes.map((sub) => (
+                                  <li key={sub.key} className="text-ink-dim">
+                                    <span className="text-ink">{sub.mpn}</span> could substitute ({sub.on_hand} on hand
+                                    {sub.location ? `, ${sub.location}` : ""}). {sub.caveats.join("; ")}.
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
                 </div>
               )}
             </section>

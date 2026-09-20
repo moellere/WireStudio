@@ -198,6 +198,8 @@ export interface Recommendation {
   in_examples: number;
   rationale: string;
   on_hand: number;
+  parts_on_hand: number;
+  parts_total: number;
   notes: string | null;
 }
 
@@ -267,10 +269,32 @@ export interface InventoryCheckLine {
   note: string;
 }
 
+export interface InventorySubstitute {
+  mpn: string;
+  key: string;
+  on_hand: number;
+  location: string;
+  caveats: string[];
+}
+
+export interface InventoryPartCheckLine {
+  value: string;
+  family: string;
+  refs: string[];
+  needed: number;
+  on_hand: number;
+  status: string; // "have" | "partial" | "need" | "assumed" | "untracked"
+  matched: string;
+  location: string;
+  substitutes: InventorySubstitute[];
+}
+
 export interface InventoryCheckResponse {
   design_id: string;
   lines: InventoryCheckLine[];
   summary: Record<string, number>;
+  parts: InventoryPartCheckLine[];
+  parts_summary: Record<string, number>;
 }
 
 export interface RecommendConstraints {

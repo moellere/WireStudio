@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Literal, Optional
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class _Strict(BaseModel):
@@ -273,6 +273,33 @@ class KicadSymbolRef(_Strict):
     pin_map: dict[str, str] = Field(default_factory=dict)
 
 
+# Families a discrete part can belong to. Coarse on purpose: this is what
+# substitution matching compares, not a taxonomy. Shared with the inventory.
+FAMILIES = (
+    "bjt", "mosfet", "resistor", "capacitor", "inductor", "diode",
+    "regulator", "connector", "ic", "other",
+)
+
+
+class PartRequirements(_Strict):
+    """What the circuit needs of a semiconductor part, as opposed to what
+    the part it was designed with happens to be rated for. The inventory
+    check proposes drawer substitutes against these: same family and
+    polarity, ratings at least `v_min` / `i_min`. Magnitudes: polarity
+    carries the sign, so a P-FET needs `v_min: 20`, not -20."""
+    family: str
+    polarity: str = ""
+    v_min: Optional[float] = None
+    i_min: Optional[float] = None
+
+    @field_validator("family")
+    @classmethod
+    def _known_family(cls, v: str) -> str:
+        if v not in FAMILIES:
+            raise ValueError(f"family must be one of {', '.join(FAMILIES)}")
+        return v
+
+
 class SubcircuitPart(_Strict):
     """One discrete part inside a component's subcircuit.
 
@@ -285,6 +312,7 @@ class SubcircuitPart(_Strict):
     ref_prefix: str
     kicad: KicadSymbolRef
     pins: dict[str, str]
+    requires: Optional[PartRequirements] = None
 
 
 class Subcircuit(_Strict):

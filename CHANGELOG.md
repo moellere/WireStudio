@@ -23,6 +23,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The inventory check proposes substitutes, and the recommender
+  counts drawer parts** (#263 items 4 and 5). A `need` or `partial`
+  semiconductor on the parts report now carries `substitutes`: drawer
+  parts of the same family, polarity and package (read off the board
+  footprint) whose voltage and current ratings clear what the circuit
+  asks. The ask comes from a new optional `requires:` block on a
+  subcircuit part (`family`, `polarity`, `v_min`, `i_min`) -- the
+  circuit's need, not the fitted part's rating, so an IRF9540 at 19 A
+  stands in for an IRF4905 in a 1 A bridge. Without `requires:` the
+  original part's own drawer rating is the bar, and the proposal says
+  so. Every proposal lists what was not compared (gate threshold,
+  Rds(on), gain, a differing pinout); nothing is applied. A candidate
+  with no recorded rating fails rather than passes.
+
+  `recommend` used to give a flat boost only to components held as a
+  unit. A subcircuit component now earns that boost scaled by the
+  fraction of its discrete parts the drawer covers (`parts_on_hand` /
+  `parts_total`, common passives assumed), so a bridge you have the
+  FETs for outranks one you would order for. The inventory dialog's
+  check lists the parts report with proposals under each short line.
+
 - **The inventory check sees discrete parts** (#263 item 3). It used to
   group a design into library components and modules only, so the
   fifteen parts an `hbridge_mosfet` puts on the board were invisible to

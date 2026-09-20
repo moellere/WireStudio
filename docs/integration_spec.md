@@ -169,6 +169,21 @@ the symbol doesn't name its pins (`Device:R`, connectors). A net named
 after one of the component's pin roles (`VM`, `GND`, `IN1`) joins
 whatever that role connects to in the design. Any other name is a net
 private to the instance, emitted as `<component id>_<name>`.
+
+A semiconductor part may add `requires:` -- what the circuit needs of
+it, as opposed to what the part it was designed with is rated for:
+
+```yaml
+    requires: {family: mosfet, polarity: p, v_min: 20, i_min: 3}
+```
+
+The inventory check uses it to propose drawer substitutes: same
+`family` and `polarity`, same package as the footprint, ratings at
+least `v_min` / `i_min` (magnitudes; polarity carries the sign). Size
+these for the load with margin, not for the fitted part, or nothing in
+a hobby drawer will ever qualify. Without `requires:` the fitted part's
+own drawer rating is the bar. Proposals list what they did not compare
+(gate threshold, Rds(on), gain, pinout) and are never applied.
 [`hbridge_mosfet`](../wirestudio/library/components/hbridge_mosfet.yaml)
 is the worked example.
 
