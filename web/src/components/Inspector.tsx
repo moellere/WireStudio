@@ -652,6 +652,8 @@ function ComponentInstanceInspector({
         ) : null}
       </Section>
 
+      <DiscretePartsSection design={design} instanceId={inst.id} />
+
       {mineWarnings.length > 0 ? (
         <Section title={`Compatibility (${mineWarnings.length})`}>
           <CompatibilityList warnings={mineWarnings} />
@@ -671,6 +673,57 @@ function ComponentInstanceInspector({
  * kind (rail/gpio/bus/expander_pin/component); Pinout is a faster
  * gpio-only surface for board-pin-heavy designs.
  */
+/**
+ * The discrete parts a component expands into on the board. Components
+ * with a `subcircuit:` block (the H-bridges) emit a dozen-plus
+ * designators that the schematic, PCB and BOM all carry but the
+ * inspector used to hide, showing one line for fifteen parts.
+ *
+ * Designators come from the server because they are design-global:
+ * adding a component upstream renumbers everything after it.
+ */
+function DiscretePartsSection({
+  design, instanceId,
+}: { design: Design | null; instanceId: string }) {
+  // Refs depend on the component set and its order, not on params, so
+  // editing a parameter must not refetch.
+  const signature = useMemo(
+    () => (design ? readComponents(design).map((c) => `${c.id}:${c.library_id}`).join(",") : ""),
+    [design],
+  );
+  const data = useFetched(
+    () => (design ? api.designParts(design) : Promise.resolve(null)),
+    [signature],
+  );
+  const mine = useMemo(
+    () => (data?.parts ?? []).filter((p) => p.component_id === instanceId && p.part_id),
+    [data, instanceId],
+  );
+  if (mine.length === 0) return null;
+
+  return (
+    <Section title={`Discrete parts (${mine.length})`}>
+      <ul className="space-y-1">
+        {mine.map((p) => (
+          <li
+            key={p.ref}
+            className="flex items-baseline gap-2 rounded-md border border-line bg-surface-2/40 px-2 py-1"
+          >
+            <span className="w-10 shrink-0 font-mono text-xs text-ink">{p.ref}</span>
+            <span className="font-mono text-xs text-ink-dim">{p.value || p.part_id}</span>
+            <span className="ml-auto truncate text-[10px] text-ink-faint" title={p.footprint}>
+              {p.footprint.split(":").pop()}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <div className="mt-1 text-[10px] text-ink-faint">
+        These land on the schematic, PCB and BOM under these designators.
+      </div>
+    </Section>
+  );
+}
+
 function ConnectionsPane({
   rows, design, boardData, instance, libraryComponents,
   onConnectionChange, onLockedPinChange,

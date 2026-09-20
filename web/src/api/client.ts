@@ -37,6 +37,7 @@ import type {
   SolvePinsResponse,
   ValidateResponse,
   Design,
+  DesignPartsResponse,
   WorkbenchStatus,
   WorkbenchSlot,
   WorkbenchFlashEvent,
@@ -167,6 +168,13 @@ export const api = {
     request<InventoryImportResult>("/inventory/import", {
       method: "POST",
       body: JSON.stringify({ csv }),
+    }),
+
+  /** Every part the board carries, with designators; subcircuits expanded. */
+  designParts: (design: Design) =>
+    request<DesignPartsResponse>("/design/parts", {
+      method: "POST",
+      body: JSON.stringify(design),
     }),
 
   validate: (design: Design) =>

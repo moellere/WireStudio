@@ -22,10 +22,13 @@ vi.mock("../api/client", async () => {
   const actual = await vi.importActual<typeof import("../api/client")>("../api/client");
   return {
     ...actual,
-    api: { ...actual.api, getComponent: vi.fn() },
+    api: { ...actual.api, getComponent: vi.fn(), designParts: vi.fn() },
   };
 });
-const mockApi = api as unknown as { getComponent: ReturnType<typeof vi.fn> };
+const mockApi = api as unknown as {
+  getComponent: ReturnType<typeof vi.fn>;
+  designParts: ReturnType<typeof vi.fn>;
+};
 
 const boardData = {
   rails: [{ name: "5V", voltage: 5 }, { name: "3V3", voltage: 3.3 }, { name: "GND", voltage: 0 }],
@@ -272,5 +275,67 @@ describe("DesignInspector composition", () => {
     );
     expect(screen.getByText(/Components \(0\)/)).toBeInTheDocument();
     expect(screen.getByText(/no components/i)).toBeInTheDocument();
+  });
+});
+
+describe("discrete parts (subcircuit expansion)", () => {
+  const instanceSelection: Selection = { kind: "component_instance", id: "bridge" };
+
+  function bridgeDesign(): Design {
+    return design({
+      components: [{ id: "bridge", library_id: "hbridge_mosfet", label: "Damper", params: {} }],
+      connections: [],
+    });
+  }
+
+  beforeEach(() => {
+    mockApi.getComponent.mockReset().mockResolvedValue({
+      id: "hbridge_mosfet", name: "Discrete MOSFET H-bridge", params_schema: {},
+    });
+    mockApi.designParts.mockReset();
+  });
+
+  it("lists each discrete part with its designator", async () => {
+    mockApi.designParts.mockResolvedValue({
+      count: 2,
+      parts: [
+        { ref: "Q1", component_id: "bridge", library_id: "hbridge_mosfet", part_id: "q_hi_a",
+          name: "x", value: "IRF4905", footprint: "Package_TO_SOT_THT:TO-220-3_Vertical",
+          symbol: "Transistor_FET:IRF4905" },
+        { ref: "R1", component_id: "bridge", library_id: "hbridge_mosfet", part_id: "r_gate_a",
+          name: "x", value: "470", footprint: "Resistor_THT:R_Axial_DIN0207", symbol: "Device:R" },
+      ],
+    });
+    render(<Inspector selection={instanceSelection} design={bridgeDesign()} boardData={boardData}
+      libraryBoards={libraryBoards} libraryComponents={[]} compatibilityWarnings={[]} {...noopProps()} />);
+    expect(await screen.findByText("Discrete parts (2)")).toBeInTheDocument();
+    expect(screen.getByText("Q1")).toBeInTheDocument();
+    expect(screen.getByText("IRF4905")).toBeInTheDocument();
+    expect(screen.getByText("R1")).toBeInTheDocument();
+    expect(screen.getByText("470")).toBeInTheDocument();
+  });
+
+  it("shows nothing for a component that maps to a single symbol", async () => {
+    mockApi.designParts.mockResolvedValue({
+      count: 1,
+      parts: [{ ref: "U1", component_id: "bridge", library_id: "hbridge_mosfet", part_id: null,
+        name: "x", value: "H-bridge", footprint: "", symbol: "" }],
+    });
+    render(<Inspector selection={instanceSelection} design={bridgeDesign()} boardData={boardData}
+      libraryBoards={libraryBoards} libraryComponents={[]} compatibilityWarnings={[]} {...noopProps()} />);
+    expect(await screen.findByText("Parameters")).toBeInTheDocument();
+    expect(screen.queryByText(/Discrete parts/)).not.toBeInTheDocument();
+  });
+
+  it("does not list another component's parts", async () => {
+    mockApi.designParts.mockResolvedValue({
+      count: 1,
+      parts: [{ ref: "Q9", component_id: "other", library_id: "hbridge_mosfet", part_id: "q_hi_a",
+        name: "x", value: "IRF4905", footprint: "", symbol: "" }],
+    });
+    render(<Inspector selection={instanceSelection} design={bridgeDesign()} boardData={boardData}
+      libraryBoards={libraryBoards} libraryComponents={[]} compatibilityWarnings={[]} {...noopProps()} />);
+    expect(await screen.findByText("Parameters")).toBeInTheDocument();
+    expect(screen.queryByText(/Discrete parts/)).not.toBeInTheDocument();
   });
 });

@@ -206,6 +206,23 @@ export interface RecommendResponse {
   matches: Recommendation[];
 }
 
+// --- Board parts (subcircuit expansion) -----------------------------------
+export interface DesignPart {
+  ref: string; // reference designator, design-global (R1, Q3)
+  component_id: string;
+  library_id: string;
+  part_id: string | null; // null when the component maps to one symbol itself
+  name: string;
+  value: string;
+  footprint: string;
+  symbol: string;
+}
+
+export interface DesignPartsResponse {
+  count: number;
+  parts: DesignPart[];
+}
+
 // --- Local component inventory --------------------------------------------
 export interface InventoryEntry {
   key: string; // library_id, or "part:<mpn>" for a discrete part
