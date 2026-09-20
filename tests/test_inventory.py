@@ -7,7 +7,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 from wirestudio.api.app import create_app
+import json
+
 from wirestudio.inventory import check_inventory, entries_from_csv, entries_to_csv
+from wirestudio.model import Design
 from wirestudio.inventory.store import FileInventoryStore, InventoryEntry
 
 
@@ -152,6 +155,7 @@ def test_inventory_import_reports_unknown_library_id(client):
 # --- discrete parts -------------------------------------------------------
 
 FIXTURE_CSV = Path(__file__).resolve().parent / "fixtures" / "transistor_inventory.csv"
+EXAMPLES_DIR = Path(__file__).resolve().parent.parent / "wirestudio" / "examples"
 
 
 def test_part_entry_validation():
@@ -268,3 +272,123 @@ def test_part_endpoint_validation(client):
     assert client.put(
         "/inventory/parts/NOT-IN-ANY-LIBRARY", json={"quantity": 1}
     ).status_code == 200
+
+
+# --- matching discrete parts ---------------------------------------------
+
+
+def _drawer():
+    return entries_from_csv(FIXTURE_CSV.read_text()).entries
+
+
+@pytest.mark.parametrize(
+    "raw,family,expected",
+    [
+        ("470", "resistor", 470.0),
+        ("470R", "resistor", 470.0),
+        ("470 ohm", "resistor", 470.0),
+        ("4R7", "resistor", 4.7),
+        ("1k", "resistor", 1000.0),
+        ("4k7", "resistor", 4700.0),
+        ("10K", "resistor", 10000.0),
+        ("1M", "resistor", 1e6),
+        ("100nF", "capacitor", 1e-7),
+        ("100n", "capacitor", 1e-7),
+        ("0.1uF", "capacitor", 1e-7),
+        ("22pF", "capacitor", 22e-12),
+        ("IRF4905", "resistor", None),  # an MPN is not a value
+        ("", "resistor", None),
+    ],
+)
+def test_normalize_value(raw, family, expected):
+    from wirestudio.inventory.match import normalize_value
+
+    got = normalize_value(raw, family)
+    if expected is None:
+        assert got is None
+    else:
+        assert got == pytest.approx(expected)
+
+
+def test_family_comes_from_the_designator():
+    from wirestudio.inventory.match import family_for_ref
+
+    assert family_for_ref("R3") == "resistor"
+    assert family_for_ref("C12") == "capacitor"
+    assert family_for_ref("Q1") == "transistor"
+    assert family_for_ref("U2") == "ic"
+    assert family_for_ref("J1") == ""  # a connector isn't drawer stock
+
+
+def test_check_parts_matches_the_hbridge_against_the_real_drawer(library):
+    """The circuit #262 built from this drawer now reads back against it."""
+    from wirestudio.inventory.check import check_parts
+
+    design = Design.model_validate(
+        json.loads((EXAMPLES_DIR / "motor-position.json").read_text()))
+    by_value = {ln.value: ln for ln in check_parts(design, library, _drawer())}
+
+    # Semiconductors match by MPN, with the quantity the bridge needs.
+    for mpn, on_hand in (("IRF4905", 5), ("IRFZ44N", 5), ("2N3904", 35)):
+        line = by_value[mpn]
+        assert line.status == "have" and line.needed == 2
+        assert line.on_hand == on_hand and line.matched == f"part:{mpn}"
+        assert len(line.refs) == 2
+
+    # Common passives aren't inventoried but aren't missing either.
+    assert by_value["10k"].status == "assumed"
+    assert by_value["10k"].refs == ["R3", "R6"]
+    assert by_value["100nF"].status == "assumed"
+    # A motor connector is not drawer stock; saying "need" would be noise.
+    assert by_value["Motor"].status == "untracked"
+
+
+def test_check_parts_reports_short_and_missing_stock(library):
+    from wirestudio.inventory.check import check_parts
+
+    design = Design.model_validate(
+        json.loads((EXAMPLES_DIR / "motor-position.json").read_text()))
+    thin = [
+        InventoryEntry(kind="part", mpn="IRF4905", quantity=1, family="mosfet"),
+        # IRFZ44N absent entirely; 2N3904 absent entirely.
+    ]
+    by_value = {ln.value: ln for ln in check_parts(design, library, thin)}
+    assert by_value["IRF4905"].status == "partial"  # needs 2, has 1
+    assert by_value["IRFZ44N"].status == "need"
+    assert by_value["2N3904"].status == "need"
+
+
+def test_check_parts_matches_passives_by_magnitude(library):
+    """0.1uF in the drawer satisfies a 100nF on the board."""
+    from wirestudio.inventory.check import check_parts
+
+    design = Design.model_validate(
+        json.loads((EXAMPLES_DIR / "motor-position.json").read_text()))
+    drawer = [
+        InventoryEntry(kind="part", mpn="C-0.1uF", quantity=50,
+                       family="capacitor", value="0.1uF"),
+    ]
+    line = next(
+        ln for ln in check_parts(design, library, drawer) if ln.value == "100nF")
+    assert line.status == "have" and line.on_hand == 50
+    assert line.matched == "part:C-0.1uF"
+
+
+def test_check_inventory_carries_parts(library):
+    design = Design.model_validate(
+        json.loads((EXAMPLES_DIR / "motor-position.json").read_text()))
+    report = check_inventory(design, library, _drawer())
+    assert report.parts_summary["have"] == 3
+    assert report.parts_summary["assumed"] == 5
+    assert report.parts_summary["need"] == 0
+    # The component-level lines are unchanged in shape.
+    assert all(hasattr(ln, "library_id") for ln in report.lines)
+
+
+def test_check_endpoint_reports_parts(client):
+    client.post("/inventory/import", json={"csv": FIXTURE_CSV.read_text()})
+    design = json.loads((EXAMPLES_DIR / "motor-position.json").read_text())
+    body = client.post("/design/inventory/check", json={"design": design}).json()
+    assert body["parts_summary"]["have"] == 3
+    irf = next(p for p in body["parts"] if p["value"] == "IRF4905")
+    assert irf["status"] == "have" and irf["refs"] == ["Q1", "Q4"]
