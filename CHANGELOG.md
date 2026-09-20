@@ -27,6 +27,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the default. Also: a test that an Anthropic 429 surfaces as an agent
   error event once the SDK gives up retrying.
 
+- **Meshtastic configuration from the flash dialog.** After flashing
+  the factory image (or against any node already on a serial port),
+  the dialog pushes region, modem preset, owner names and the primary
+  channel as protobufs through `@meshtastic/core` over
+  `@meshtastic/transport-web-serial`. The flash session now hands its
+  WebSerial port back (`FlashSession.release`) so the client reuses it
+  without a second port picker. The channel key is generated or pasted
+  in the dialog and goes to the device only -- never into the design.
+  Defaults come from the design: the device name, and a LoRaWAN region
+  mapped to its Meshtastic counterpart. The client loads on demand, so
+  the rest of the studio does not carry it.
+
 - **Blocks declare the electrical rules they are held to** (#274). A
   component may carry `verify.checks`: `led_current`, `base_drive`,
   `gate_drive` and `divider`, each one line of arithmetic over the

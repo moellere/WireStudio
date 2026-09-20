@@ -3,6 +3,10 @@ import { Radio, UploadCloud, Zap } from "lucide-react";
 import type { BoardSummary, Design, WorkbenchSlot, WorkbenchStatus } from "../types/api";
 import { api, ApiError } from "../api/client";
 import { flashToTarget, type FlashSession, type FlashTarget } from "../lib/flash";
+import {
+  defaultSettings, enumOptions, generatePsk, loadMeshtastic, pskProblem, pushMeshtasticConfig, shortNameFor,
+  type MeshtasticNode, type MeshtasticSettings,
+} from "../lib/meshtastic";
 import { tasmotaConfigCommands, type TasmotaTemplate } from "../lib/tasmota";
 import { Button, Dialog, FieldLabel, Input } from "./ui";
 import { LorawanFlashDialog } from "./LorawanFlashDialog";
@@ -13,7 +17,7 @@ const FRAMEWORKS: Array<{ id: Framework; label: string; note: string; disabled?:
   { id: "esphome", label: "ESPHome", note: "OTA via fleet-for-esphome; no serial flash needed" },
   { id: "tasmota", label: "Tasmota", note: "official release image + template push over serial" },
   { id: "lorawan", label: "LoRaWAN", note: "compile RadioLib firmware, flash, provision" },
-  { id: "meshtastic", label: "Meshtastic", note: "official release image; configure via client.meshtastic.org" },
+  { id: "meshtastic", label: "Meshtastic", note: "official release image; region, owner and channel pushed over serial" },
   { id: "circuitpython", label: "CircuitPython", note: "official release image + starter code.py for the CIRCUITPY drive" },
 ];
 
@@ -196,7 +200,7 @@ export function FlashDialog({ design, boards, onClose, onOpenFleet }: Props) {
   );
 }
 
-type MeshtasticPhase = "idle" | "fetching" | "flashing" | "flashed";
+type MeshtasticPhase = "idle" | "fetching" | "flashing" | "flashed" | "configuring" | "configured";
 
 function MeshtasticFlash({ design, boards }: { design: Design | null; boards: BoardSummary[] | null }) {
   const [status, setStatus] = useState<{
@@ -212,6 +216,54 @@ function MeshtasticFlash({ design, boards }: { design: Design | null; boards: Bo
   const [serial, setSerial] = useState<string>("");
   const [target, setTarget] = useState<FlashTarget>({ kind: "usb" });
   const sessionRef = useRef<FlashSession | null>(null);
+  const [enums, setEnums] = useState<{ regions: Array<[string, number]>; presets: Array<[string, number]> } | null>(null);
+  const [settings, setSettings] = useState<MeshtasticSettings | null>(null);
+  const [configured, setConfigured] = useState<MeshtasticNode | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadMeshtastic()
+      .then(({ Protobuf }) => {
+        if (cancelled) return;
+        const regions = enumOptions(Protobuf.Config.Config_LoRaConfig_RegionCode);
+        const presets = enumOptions(Protobuf.Config.Config_LoRaConfig_ModemPreset);
+        setEnums({ regions, presets });
+        setSettings(defaultSettings(design, Object.fromEntries(regions)));
+      })
+      .catch(() => { /* the flash half still works without the client */ });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function pushConfig(getPort: () => Promise<SerialPort>) {
+    if (!settings) return;
+    const problem = pskProblem(settings.psk);
+    if (problem) { setError(problem); return; }
+    setError(null);
+    setPhase("configuring");
+    try {
+      const port = await getPort();
+      const node = await pushMeshtasticConfig(port, settings, appendLog);
+      setConfigured(node);
+      setPhase("configured");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setPhase(sessionRef.current ? "flashed" : "idle");
+    }
+  }
+
+  async function pushToFlashed() {
+    const session = sessionRef.current;
+    if (!session) return;
+    sessionRef.current = null;
+    setSerial("");
+    await pushConfig(() => session.release());
+  }
+
+  async function pushToConnected() {
+    await pushConfig(() =>
+      (navigator as Navigator & { serial: { requestPort: () => Promise<SerialPort> } }).serial.requestPort());
+  }
 
   const boardLibraryId = String((design?.board as Record<string, unknown> | undefined)?.library_id ?? "");
   const board = useMemo(
@@ -300,20 +352,100 @@ function MeshtasticFlash({ design, boards }: { design: Design | null; boards: Bo
         </pre>
       )}
 
-      {phase === "flashed" && (
+      {settings && enums && (
+        <div className="space-y-2 rounded-lg border border-line bg-surface-2/40 p-3" data-testid="meshtastic-config">
+          <div className="text-xs font-medium text-ink">Configure over serial</div>
+          <div className="text-[11px] text-ink-faint">
+            Region, modem preset, owner and the primary channel go to the node as Meshtastic protobufs.
+            The channel key goes to the device only; copy it to the other nodes yourself.
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <label className="flex flex-col gap-0.5">
+              <span className="text-ink-dim">Region</span>
+              <select
+                aria-label="Region"
+                value={settings.region}
+                onChange={(e) => setSettings({ ...settings, region: Number(e.target.value) })}
+                className="rounded-md border border-line bg-surface-1 px-2 py-1 text-ink"
+              >
+                {enums.regions.map(([name, value]) => <option key={value} value={value}>{name}</option>)}
+              </select>
+            </label>
+            <label className="flex flex-col gap-0.5">
+              <span className="text-ink-dim">Modem preset</span>
+              <select
+                aria-label="Modem preset"
+                value={settings.modemPreset}
+                onChange={(e) => setSettings({ ...settings, modemPreset: Number(e.target.value) })}
+                className="rounded-md border border-line bg-surface-1 px-2 py-1 text-ink"
+              >
+                {enums.presets.map(([name, value]) => <option key={value} value={value}>{name}</option>)}
+              </select>
+            </label>
+            <label className="flex flex-col gap-0.5">
+              <span className="text-ink-dim">Long name</span>
+              <input aria-label="Long name" value={settings.longName} maxLength={39}
+                onChange={(e) => setSettings({ ...settings, longName: e.target.value, shortName: shortNameFor(e.target.value) })}
+                className="rounded-md border border-line bg-surface-1 px-2 py-1 font-mono text-ink" />
+            </label>
+            <label className="flex flex-col gap-0.5">
+              <span className="text-ink-dim">Short name (4)</span>
+              <input aria-label="Short name" value={settings.shortName} maxLength={4}
+                onChange={(e) => setSettings({ ...settings, shortName: e.target.value.toUpperCase() })}
+                className="rounded-md border border-line bg-surface-1 px-2 py-1 font-mono text-ink" />
+            </label>
+            <label className="flex flex-col gap-0.5">
+              <span className="text-ink-dim">Primary channel name</span>
+              <input aria-label="Channel name" value={settings.channelName} maxLength={11} placeholder="(default)"
+                onChange={(e) => setSettings({ ...settings, channelName: e.target.value })}
+                className="rounded-md border border-line bg-surface-1 px-2 py-1 font-mono text-ink" />
+            </label>
+            <label className="flex flex-col gap-0.5">
+              <span className="flex items-center justify-between text-ink-dim">
+                Channel key (base64)
+                <button type="button" className="text-accent-300 hover:underline"
+                  onClick={() => setSettings({ ...settings, psk: generatePsk() })}>
+                  generate
+                </button>
+              </span>
+              <input aria-label="Channel key" value={settings.psk} placeholder="empty = Meshtastic default key"
+                onChange={(e) => setSettings({ ...settings, psk: e.target.value })}
+                className="rounded-md border border-line bg-surface-1 px-2 py-1 font-mono text-ink" />
+            </label>
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] text-ink-faint">
+              {phase === "flashed"
+                ? "Pushes to the node just flashed, over the same port."
+                : "Or pick an already-flashed node on its serial port."}
+            </span>
+            <span className="flex gap-1.5">
+              {phase === "flashed" && (
+                <Button variant="primary" size="sm" onClick={pushToFlashed} disabled={target.kind !== "usb"}>
+                  Push config
+                </Button>
+              )}
+              <Button size="sm" onClick={pushToConnected} disabled={phase === "flashing" || phase === "fetching" || phase === "configuring"}>
+                {phase === "configuring" ? "Configuring…" : "Configure connected node"}
+              </Button>
+            </span>
+          </div>
+          {configured && (
+            <div className="text-xs text-emerald-300">
+              Node !{configured.nodeNum.toString(16)} ({configured.longName}) configured; it reboots to apply the region.
+            </div>
+          )}
+        </div>
+      )}
+
+      {phase === "flashed" && target.kind !== "usb" && (
         <div className="rounded-lg border border-line bg-surface-2/40 p-3 text-xs text-ink-dim">
-          Device flashed. Meshtastic configuration (region, channels) is
-          protobuf over serial, not console commands — set it up in the
-          official client at{" "}
-          <a
-            href="https://client.meshtastic.org"
-            target="_blank"
-            rel="noreferrer"
-            className="text-accent-400 underline decoration-accent-500/40 hover:text-accent-300"
-          >
+          Flashed on a workbench slot, so there is no serial session here to
+          configure through; plug the node in and use <em>Configure connected node</em>, or{" "}
+          <a href="https://client.meshtastic.org" target="_blank" rel="noreferrer"
+            className="text-accent-400 underline decoration-accent-500/40 hover:text-accent-300">
             client.meshtastic.org
-          </a>{" "}
-          (Serial connection) after closing this dialog to free the port.
+          </a>.
         </div>
       )}
 
