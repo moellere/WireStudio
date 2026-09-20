@@ -104,6 +104,8 @@ sub-directories:
 - `/data/designs` — saved-design store backing the UI's **Saved** tab.
 - `/data/library` — user library: components the agent creates via `component_create` (`LIBRARY_USER_DIR`).
 
+Set `DESIGNS_DB=/data/designs.db` and/or `SESSIONS_DB=/data/sessions.db` to keep designs or conversation history in one SQLite file each instead of the directories above (one file to back up; replicas can share it on a common volume).
+
 Secrets are env vars and never baked into the image:
 
 | Env var | What it gates |

@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Superseded tool results are trimmed within an agent turn.** A turn
+  that renders, edits and renders again used to carry every render's
+  full YAML and ASCII to each later API call. Before each call the
+  agent now replaces a read-only tool's earlier result with a one-line
+  digest when a later call with the same input supersedes it (render,
+  validate, the KiCad and fab tools, search, recommend, library_detail,
+  component_check); the latest stays verbatim and mutating tools are
+  never touched. A three-render turn sends under half the context it
+  did. Persisted history was already text-only and is unchanged.
+
+- **SQLite-backed design and session stores.** `DESIGNS_DB` /
+  `SESSIONS_DB` point the studio at one SQLite file each instead of the
+  JSON / JSONL directories, for a deployment that would rather back up
+  a database or run replicas on shared storage. Same protocols, same
+  behaviour (the parity tests run both backends); the file stores stay
+  the default. Also: a test that an Anthropic 429 surfaces as an agent
+  error event once the SDK gives up retrying.
+
 - **Blocks declare the electrical rules they are held to** (#274). A
   component may carry `verify.checks`: `led_current`, `base_drive`,
   `gate_drive` and `divider`, each one line of arithmetic over the

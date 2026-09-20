@@ -63,3 +63,52 @@ class FileSessionStore(SessionStore):
         with self.path(session_id).open("a") as f:
             f.write(json.dumps(entry) + "\n")
         return entry
+
+
+class SqliteSessionStore(SessionStore):
+    """Append-only history in one SQLite file; same entries as the JSONL
+    store, one row each, in insertion order."""
+
+    def __init__(self, path: Path) -> None:
+        self.path = Path(path)
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        with self._connect() as db:
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS messages ("
+                "seq INTEGER PRIMARY KEY AUTOINCREMENT, session_id TEXT NOT NULL, "
+                "role TEXT NOT NULL, content TEXT NOT NULL, timestamp TEXT NOT NULL)"
+            )
+            db.execute("CREATE INDEX IF NOT EXISTS messages_session ON messages (session_id, seq)")
+
+    def _connect(self):
+        import sqlite3
+        db = sqlite3.connect(self.path, timeout=10)
+        db.execute("PRAGMA journal_mode=WAL")
+        return db
+
+    def exists(self, session_id: str) -> bool:
+        with self._connect() as db:
+            return db.execute(
+                "SELECT 1 FROM messages WHERE session_id = ? LIMIT 1", (session_id,)).fetchone() is not None
+
+    def load(self, session_id: str) -> list[dict]:
+        with self._connect() as db:
+            rows = db.execute(
+                "SELECT role, content, timestamp FROM messages WHERE session_id = ? ORDER BY seq",
+                (session_id,)).fetchall()
+        return [{"role": r, "content": c, "timestamp": t} for r, c, t in rows]
+
+    def append(self, session_id: str, role: str, content: str) -> dict:
+        if not session_id:
+            raise ValueError("invalid session_id: ''")
+        entry = {
+            "role": role,
+            "content": content,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        with self._connect() as db:
+            db.execute(
+                "INSERT INTO messages (session_id, role, content, timestamp) VALUES (?, ?, ?, ?)",
+                (session_id, role, content, entry["timestamp"]),
+            )
+        return entry
