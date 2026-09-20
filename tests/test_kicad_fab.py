@@ -108,3 +108,56 @@ def test_bom_lists_subcircuit_parts_not_the_host_component(lib):
     assert rows["IRFZ44N"][1] == "Q2,Q5"
     assert rows["470"][1] == "R1,R4"
     assert "MOSFET H-bridge" not in rows
+
+
+def test_design_parts_endpoint_expands_subcircuits():
+    """The UI reads designators from here, so it can't drift from the BOM."""
+    from fastapi.testclient import TestClient
+
+    from wirestudio.api.app import create_app
+
+    client = TestClient(create_app())
+    design = json.loads((EXAMPLES_DIR / "motor-position.json").read_text())
+    body = client.post("/design/parts", json=design).json()
+
+    bridge = [p for p in body["parts"] if p["part_id"]]
+    assert len(bridge) == 15  # hbridge_mosfet: 15 discrete parts
+    refs = [p["ref"] for p in bridge]
+    assert len(set(refs)) == len(refs)  # designators are unique
+    by_part = {p["part_id"]: p for p in bridge}
+    assert by_part["q_hi_a"]["value"] == "IRF4905"
+    assert by_part["q_lo_a"]["value"] == "IRFZ44N"  # IRLZ44N symbol, IRFZ44N value
+    assert by_part["r_gate_a"]["value"] == "470"
+    assert by_part["q_hi_a"]["symbol"] == "Transistor_FET:IRF4905"
+    assert by_part["q_hi_a"]["footprint"].startswith("Package_TO_SOT_THT:")
+
+
+def test_design_parts_matches_the_bom():
+    """Same seam: every designator the BOM lists appears here, and vice versa."""
+    from fastapi.testclient import TestClient
+
+    from wirestudio.api.app import create_app
+    from wirestudio.kicad.netlist import BOARD_KEY, assign_refs
+    from wirestudio.library import default_library
+    from wirestudio.model import Design
+
+    client = TestClient(create_app())
+    raw = json.loads((EXAMPLES_DIR / "motor-position.json").read_text())
+    parts = client.post("/design/parts", json=raw).json()["parts"]
+
+    design = Design.model_validate(raw)
+    refs = assign_refs(design, default_library())
+    # Every ref except the board's own belongs to exactly one listed part.
+    expected = {r for k, r in refs.items() if k != BOARD_KEY}
+    assert {p["ref"] for p in parts} == expected
+
+
+def test_design_parts_leaves_plain_components_unexpanded():
+    from fastapi.testclient import TestClient
+
+    from wirestudio.api.app import create_app
+
+    client = TestClient(create_app())
+    design = json.loads((EXAMPLES_DIR / "garage-motion.json").read_text())
+    parts = client.post("/design/parts", json=design).json()["parts"]
+    assert parts and all(p["part_id"] is None for p in parts)

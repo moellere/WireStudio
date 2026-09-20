@@ -108,6 +108,7 @@ from wirestudio.kicad.fab import (
     generate_bom,
     generate_cpl,
 )
+from wirestudio.kicad.netlist import placed_parts
 from wirestudio.kicad.pcb import PcbUnavailable, generate_kicad_pcb, pcb_status
 from wirestudio.kicad.route import (
     RouteError,
@@ -727,6 +728,34 @@ def create_app(
         the footprint libraries, Gerbers also need kicad-cli, routed Gerbers
         also need the Freerouting toolchain."""
         return fab_status()
+
+    @app.post("/design/parts", tags=["design"])
+    def design_parts(design: dict) -> dict:
+        """Every part the board carries, with its reference designator.
+
+        A component with a `subcircuit:` block expands into its discrete
+        parts here -- the same expansion the schematic, PCB, BOM and CPL
+        use, so the UI cannot drift from the fab outputs. Designators are
+        design-global, which is why this can't be derived client-side
+        from the component's library entry.
+        """
+        d = _validate_design(design)
+        out = []
+        for part in placed_parts(d, lib):
+            kicad = part.kicad
+            out.append({
+                "ref": part.ref,
+                "component_id": part.component_id,
+                "library_id": part.library_id,
+                "part_id": part.part_id,
+                "name": part.name,
+                "value": getattr(kicad, "value", None) or "",
+                "footprint": getattr(kicad, "footprint", None) or "",
+                "symbol": (
+                    f"{kicad.symbol_lib}:{kicad.symbol}" if kicad is not None else ""
+                ),
+            })
+        return {"count": len(out), "parts": out}
 
     @app.post("/design/fab/bom", tags=["design"])
     def design_fab_bom(design: dict) -> PlainTextResponse:

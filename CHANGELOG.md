@@ -23,6 +23,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The inspector shows what a subcircuit expands into.** A component
+  carrying a `subcircuit:` block (the H-bridges from #262) puts a
+  dozen-plus designators on the board, and the inspector showed one
+  line for all of them. `POST /design/parts` returns the same
+  `placed_parts` expansion the schematic, PCB, BOM and CPL use -- so
+  the panel cannot drift from the fab outputs -- and the component
+  inspector lists its parts with the designators they carry. It goes
+  through the server because refs are design-global: adding a
+  component upstream renumbers everything after it.
+
 - **Inventory accepts discrete parts, not only library components**
   (#263, first slice). A drawer is mostly things with no
   `library/components/<id>.yaml`: transistors, MOSFETs, passives,
