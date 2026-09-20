@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Literal, Optional
 
@@ -439,23 +440,56 @@ class LibraryModule(_Strict):
 
 
 class Library:
-    """Lazy loader for board, component, and module definitions."""
+    """Lazy loader for board, component, and module definitions.
 
-    def __init__(self, root: Path):
+    `user_dir` is a second components tree (`<user_dir>/components/*.yaml`)
+    for components authored at runtime. The bundled tree wins on an id
+    clash, so a user file can never shadow a shipped component."""
+
+    def __init__(self, root: Path, user_dir: Optional[Path] = None):
         self.root = Path(root)
+        self.user_dir = Path(user_dir) if user_dir else None
         self._components: dict[str, LibraryComponent] = {}
         self._boards: dict[str, LibraryBoard] = {}
         self._modules: dict[str, LibraryModule] = {}
 
+    def component_source(self, library_id: str) -> str:
+        """'bundled', 'user' or '' for where a component id resolves."""
+        if (self.root / "components" / f"{library_id}.yaml").exists():
+            return "bundled"
+        if self.user_dir and (self.user_dir / "components" / f"{library_id}.yaml").exists():
+            return "user"
+        return ""
+
     def component(self, library_id: str) -> LibraryComponent:
         if library_id not in self._components:
-            path = self.root / "components" / f"{library_id}.yaml"
-            if not path.exists():
+            source = self.component_source(library_id)
+            base = self.root if source == "bundled" else self.user_dir
+            path = (base or self.root) / "components" / f"{library_id}.yaml"
+            if not source:
                 raise FileNotFoundError(f"Unknown component '{library_id}' (looked at {path})")
             with path.open() as f:
                 data = yaml.safe_load(f)
             self._components[library_id] = LibraryComponent.model_validate(data)
         return self._components[library_id]
+
+    def register(self, component: LibraryComponent) -> None:
+        """Make a component resolvable without a file, for checking a
+        draft against the generators before it is saved."""
+        self._components[component.id] = component
+
+    def save_component(self, library_id: str, text: str) -> Path:
+        """Write a component's YAML source into the user tree. Refuses a
+        bundled id. The source text is kept verbatim so comments survive."""
+        if self.user_dir is None:
+            raise PermissionError("no user library directory configured (LIBRARY_USER_DIR)")
+        if (self.root / "components" / f"{library_id}.yaml").exists():
+            raise FileExistsError(f"'{library_id}' is a bundled component")
+        path = self.user_dir / "components" / f"{library_id}.yaml"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text)
+        self._components.pop(library_id, None)
+        return path
 
     def board(self, library_id: str) -> LibraryBoard:
         if library_id not in self._boards:
@@ -468,7 +502,10 @@ class Library:
         return self._boards[library_id]
 
     def list_components(self) -> list[LibraryComponent]:
-        return [self.component(p.stem) for p in sorted((self.root / "components").glob("*.yaml"))]
+        ids = {p.stem for p in (self.root / "components").glob("*.yaml")}
+        if self.user_dir:
+            ids |= {p.stem for p in (self.user_dir / "components").glob("*.yaml")}
+        return [self.component(i) for i in sorted(ids)]
 
     def list_boards(self) -> list[LibraryBoard]:
         return [self.board(p.stem) for p in sorted((self.root / "boards").glob("*.yaml"))]
@@ -490,5 +527,7 @@ class Library:
 def default_library() -> Library:
     # The bundled component + board YAMLs live alongside this module
     # (wirestudio/library/components/, wirestudio/library/boards/) so
-    # they ship inside the wheel.
-    return Library(Path(__file__).resolve().parent)
+    # they ship inside the wheel. LIBRARY_USER_DIR adds a writable tree
+    # for components authored at runtime (/data/library in the image).
+    user_dir = os.environ.get("LIBRARY_USER_DIR")
+    return Library(Path(__file__).resolve().parent, Path(user_dir) if user_dir else None)

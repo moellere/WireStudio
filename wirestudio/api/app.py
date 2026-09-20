@@ -50,6 +50,8 @@ from wirestudio.api.schemas import (
     InventoryCheckRequest,
     InventoryCheckResponse,
     InventoryEntryModel,
+    ComponentCheckResponse,
+    ComponentYamlRequest,
     InventoryPartCheckLine,
     InventorySubstitute,
     McpTokenResponse,
@@ -136,6 +138,7 @@ from wirestudio.library import (
     LibraryModule,
     default_library,
 )
+from wirestudio.library.check import check_component_yaml, create_component
 from wirestudio.designs.seed import insert_module
 from wirestudio.model import Design
 from wirestudio.seed import seed_onboard_components
@@ -370,6 +373,23 @@ def create_app(
                 continue
             out.append(c)
         return out
+
+    @app.post("/library/components/check", response_model=ComponentCheckResponse, tags=["library"])
+    def check_component(req: ComponentYamlRequest) -> ComponentCheckResponse:
+        """Check a draft component YAML without saving it."""
+        return ComponentCheckResponse(**check_component_yaml(req.yaml, lib).as_dict())
+
+    @app.post("/library/components", response_model=ComponentCheckResponse, tags=["library"],
+              status_code=201)
+    def create_library_component(req: ComponentYamlRequest, response: Response) -> ComponentCheckResponse:
+        """Check, then save a component into the user library
+        (LIBRARY_USER_DIR). A failed check comes back 422 with the report;
+        a clash with a bundled or existing user id comes back 409."""
+        report = create_component(req.yaml, lib, overwrite=req.overwrite)
+        if not report.ok:
+            clash = report.exists and any("already exists" in e or "bundled" in e for e in report.errors)
+            response.status_code = 409 if clash else 422
+        return ComponentCheckResponse(**report.as_dict())
 
     @app.get("/library/components/{component_id}", response_model=LibraryComponent, tags=["library"])
     def get_component(component_id: str) -> LibraryComponent:

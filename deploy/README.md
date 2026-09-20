@@ -102,6 +102,7 @@ sub-directories:
 
 - `/data/sessions` — agent conversation history (one JSONL per session).
 - `/data/designs` — saved-design store backing the UI's **Saved** tab.
+- `/data/library` — user library: components the agent creates via `component_create` (`LIBRARY_USER_DIR`).
 
 Secrets are env vars and never baked into the image:
 

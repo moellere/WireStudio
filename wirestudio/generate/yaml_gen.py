@@ -263,7 +263,7 @@ def _lower_automations(design: Design, library: Library) -> dict[str, dict[str, 
     return out
 
 
-def _render_component(
+def render_component(
     comp: Component, design: Design, library: Library,
     auto_params: dict[str, dict[str, list]] | None = None,
 ) -> dict[str, Any]:
@@ -626,7 +626,7 @@ def build_yaml_dict(
             comp = comp.model_copy(
                 update={"params": {**comp.params, **show_patches[comp.id]}}
             )
-        _deep_merge(out, _render_component(comp, design, library, auto_params))
+        _deep_merge(out, render_component(comp, design, library, auto_params))
 
     _emit_lorawan_blocks(out, design, library, lorawan_secrets=lorawan_secrets)
 

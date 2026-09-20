@@ -23,6 +23,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Components can be authored and checked at runtime** (#263, last
+  phase). `component_check` takes a component YAML and reports what a
+  reviewer would otherwise eyeball: the file validates against the
+  library model, subcircuit part ids are unique and every internal net
+  is touched by at least two pins, every pin role reaches a part, the
+  ESPHome template parses and renders against a synthetic design (bus
+  pins tried on a bus and as bare GPIOs), and -- when the KiCad
+  libraries are installed -- every symbol, symbol pin name and
+  footprint it names exists. Every report ends with what could not be
+  verified here and what is never checked: nothing is simulated.
+  Every bundled component passes the same gate, which is the test.
+
+  `component_create` runs the check and saves the text verbatim into a
+  user library (`LIBRARY_USER_DIR`, `/data/library` in the image) that
+  loads alongside the bundled one; a bundled id always wins, so a user
+  file cannot shadow a shipped component. Exposed as MCP and in-studio
+  agent tools and as `POST /library/components/check` and
+  `POST /library/components`.
+
 - **The inventory check proposes substitutes, and the recommender
   counts drawer parts** (#263 items 4 and 5). A `need` or `partial`
   semiconductor on the parts report now carries `substitutes`: drawer

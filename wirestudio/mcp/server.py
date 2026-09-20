@@ -30,6 +30,8 @@ from wirestudio.agent.tools import (
     _run_fab_status,
     _run_kicad_pcb,
     _run_kicad_schematic,
+    _run_component_check,
+    _run_component_create,
     _run_library_detail,
     _run_list_boards,
     _run_recommend,
@@ -159,6 +161,35 @@ def _register_library_tools(mcp: MCPServer, library: Library) -> None:
     )
     def library_detail(library_id: str, kind: str = "component") -> dict:
         return _run_library_detail({}, library, library_id=library_id, kind=kind)
+
+    @mcp.tool(
+        name="component_check",
+        description=(
+            "Check a draft library component (full YAML text, same shape "
+            "as wirestudio/library/components/*.yaml) before saving it: "
+            "the file validates, subcircuit nets hang together, the "
+            "ESPHome template renders, and -- when KiCad libraries are "
+            "installed -- every symbol, pin name and footprint exists. "
+            "Returns errors, warnings, what could not be verified here, "
+            "and what is never checked (nothing is simulated). Read-only."
+        ),
+    )
+    def component_check(yaml: str) -> dict:
+        return _run_component_check({}, library, yaml=yaml)
+
+    @mcp.tool(
+        name="component_create",
+        description=(
+            "Run component_check and, if it passes, save the YAML into "
+            "the user library so the component can be added to designs. "
+            "Refuses a bundled id; refuses an existing user id unless "
+            "overwrite is true. Relay the warnings and not_checked list: "
+            "this proves the file is well-formed and its parts exist, "
+            "not that the circuit works."
+        ),
+    )
+    def component_create(yaml: str, overwrite: bool = False) -> dict:
+        return _run_component_create({}, library, yaml=yaml, overwrite=overwrite)
 
 
 _DESIGN_ID_HINT = (
