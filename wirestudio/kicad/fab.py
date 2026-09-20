@@ -22,7 +22,7 @@ import zipfile
 from pathlib import Path
 from typing import Optional
 
-from wirestudio.kicad.netlist import BOARD_KEY, assign_refs
+from wirestudio.kicad.netlist import BOARD_KEY, assign_refs, placed_parts
 from wirestudio.kicad.pcb import (
     PcbUnavailable,
     _resolve_footprint_dir,
@@ -109,13 +109,12 @@ def generate_bom(design: Design, library: Library) -> str:
     if board is not None and board.kicad is not None:
         key = (board.kicad.value or board.name or board.id, board.kicad.footprint or "")
         groups.setdefault(key, []).append(refs[BOARD_KEY])
-    for c in design.components:
-        lib_comp = library.component(c.library_id)
-        if lib_comp.kicad is None:
+    for part in placed_parts(design, library):
+        if part.kicad is None:
             continue
-        comment = lib_comp.kicad.value or lib_comp.name or c.library_id
-        key = (comment, lib_comp.kicad.footprint or "")
-        groups.setdefault(key, []).append(refs[c.id])
+        comment = part.kicad.value or part.name or part.library_id
+        key = (comment, part.kicad.footprint or "")
+        groups.setdefault(key, []).append(part.ref)
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow(["Comment", "Designator", "Footprint", "JLCPCB Part #"])

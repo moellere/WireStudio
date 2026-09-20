@@ -1,0 +1,96 @@
+id: hbridge
+name: H-bridge DC motor driver (2 GPIO inputs)
+category: actuator
+use_cases: [motor, dc_motor, actuator, linear_actuator, reversible_load]
+aliases: [h-bridge, drv8833, tb6612, l298n, l9110, mx1508, motor_driver]
+
+electrical:
+  vcc_min: 2.7
+  vcc_max: 12.0
+  current_ma_typical: 300
+  current_ma_peak: 1000
+  # One channel of any two-input bridge: IN1 high / IN2 low runs the load one
+  # way, the opposite runs it the other, equal inputs stop it. VM is the load
+  # supply; the draw is the load's, not the driver's, so set it per design.
+  pins:
+  - {role: IN1, kind: digital_out, voltage: 3.3}
+  - {role: IN2, kind: digital_out, voltage: 3.3}
+  - {role: VM, kind: power}
+  - {role: GND, kind: ground}
+  passives:
+  - {kind: resistor, value: "10k", between: [IN1, GND], purpose: "holds the input low while the MCU boots"}
+  - {kind: resistor, value: "10k", between: [IN2, GND], purpose: "holds the input low while the MCU boots"}
+  - {kind: capacitor, value: "470uF", between: [VM, GND], purpose: "bulk decoupling for motor start and reversal"}
+
+esphome:
+  required_components: []
+  yaml_template: |
+    {%- set pwm = params.pwm | default(false) or params.expose | default('none') == 'fan' %}
+    {%- if params.expose | default('none') == 'switches' %}
+    switch:
+      - platform: gpio
+        pin: {{ pins.IN1 | tojson }}
+        name: "{{ label }} forward"
+        id: {{ id }}_in1
+        restore_mode: ALWAYS_OFF
+        interlock: [{{ id }}_in2]
+        interlock_wait_time: {{ params.interlock_wait_time | default('100ms') }}
+      - platform: gpio
+        pin: {{ pins.IN2 | tojson }}
+        name: "{{ label }} reverse"
+        id: {{ id }}_in2
+        restore_mode: ALWAYS_OFF
+        interlock: [{{ id }}_in1]
+        interlock_wait_time: {{ params.interlock_wait_time | default('100ms') }}
+    {%- else %}
+    output:
+    {%- for n in ['IN1', 'IN2'] %}
+      - platform: {{ ('ledc' if board and board.chip_variant.startswith('esp32') else 'esp8266_pwm') if pwm else 'gpio' }}
+        pin: {{ pins[n] | tojson }}
+        id: {{ id }}_{{ n | lower }}
+    {%- if pwm %}
+        frequency: {{ params.frequency | default('1000 Hz') }}
+    {%- endif %}
+    {%- endfor %}
+    {%- endif %}
+    {%- if params.expose | default('none') == 'fan' %}
+    fan:
+      - platform: hbridge
+        pin_a: {{ id }}_in1
+        pin_b: {{ id }}_in2
+        name: "{{ label }}"
+        id: {{ id }}
+        decay_mode: {{ params.decay_mode | default('slow') }}
+    {%- endif %}
+
+params_schema:
+  expose:
+    type: string
+    enum: [none, switches, fan]
+    default: none
+  pwm:
+    type: boolean
+    default: false
+  frequency:
+    type: string
+    default: "1000 Hz"
+  decay_mode:
+    type: string
+    enum: [slow, fast]
+    default: slow
+  interlock_wait_time:
+    type: string
+    default: "100ms"
+
+notes: "Covers one channel of a DRV8833 / TB6612 / L298N / L9110 / MX1508 board, a pair of SPDT relays,
+  or a discrete bridge (see hbridge_mosfet). expose=none emits two outputs <id>_in1 / <id>_in2 for a
+  lambda or automation to drive (a position loop, say); switches emits two interlocked forward/reverse
+  switches; fan emits ESPHome's hbridge fan on PWM outputs for speed and direction. For an active-low
+  relay board set inverted on both connections. Never energise one input straight after the other on a
+  bridge without its own dead time: go through both-off first. The L298N drops about 2 V, which matters
+  on a 5 V load."
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x04
+  footprint: Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical
+  value: H-bridge

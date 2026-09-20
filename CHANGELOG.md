@@ -23,6 +23,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Library subcircuits.** A component can now be built from discrete
+  parts: a `subcircuit:` block lists parts (symbol, footprint, value,
+  ref prefix) and wires their pins to nets. A net named after one of
+  the component's pin roles joins that role's design connection; any
+  other name is private to the instance. The expansion lives in
+  `kicad/netlist.py` (`placed_parts`), so the SKiDL schematic, the
+  `.kicad_pcb`, the BOM and the CPL all emit the same parts, designators
+  and nets. Everything else still sees one component. The footprint
+  gate checks subcircuit footprints too.
+- **`hbridge` and `hbridge_mosfet` components.** `hbridge` is one
+  channel of any two-input bridge (DRV8833, TB6612, L298N, a relay
+  pair): `expose: none` emits two outputs for a control loop to drive,
+  `switches` two interlocked forward/reverse switches, `fan` ESPHome's
+  hbridge fan on PWM outputs. `hbridge_mosfet` is the same interface as
+  a discrete 5 V bridge (IRF4905 + IRFZ44N per leg, one 2N3904 driving
+  the shared gate node) and is the first subcircuit component. New
+  examples `motor-position` and `vent-damper` cover both.
 - **Display content intent: `params.show`.** Adding a display used to
   produce a dark panel unless the user hand-wrote the ESPHome lambda.
   `show` is a declarative widget list (text / value / time) lowered to

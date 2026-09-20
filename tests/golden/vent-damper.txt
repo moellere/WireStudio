@@ -1,0 +1,26 @@
++-----------------------------------------------------------------------------------------------+
+|  ESP32-C3 SuperMini  ---  vent-damper                                                         |
++-----------------------------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                                          |
+|                                                                                               |
+|  damper  [H-bridge DC motor driver (2 GPIO inputs)]  -- Damper motor                          |
+|    IN1   -> GPIO6                                                                             |
+|    IN2   -> GPIO7                                                                             |
+|    VM    -> rail 5V                                                                           |
+|    GND   -> rail GND                                                                          |
+|                                                                                               |
+|  Passives:                                                                                    |
+|    r1: 10k resistor, damper.IN1  <->  GND   (holds the input low while the MCU boots)         |
+|    r2: 10k resistor, damper.IN2  <->  GND   (holds the input low while the MCU boots)         |
+|    c1: 470uF capacitor, damper.VM  <->  GND   (bulk decoupling for motor start and reversal)  |
+|                                                                                               |
+|  BOM:                                                                                         |
+|    - ESP32-C3 SuperMini                                                                       |
+|    - H-bridge DC motor driver (2 GPIO inputs)  (damper)                                       |
+|    - 2x 10k resistor                                                                          |
+|    - 1x 470uF capacitor                                                                       |
+|                                                                                               |
+|  Power: ~300mA typical, ~1000mA peak (budget 2000mA)  OK                                      |
+|                                                                                               |
+|  Warnings: none                                                                               |
++-----------------------------------------------------------------------------------------------+

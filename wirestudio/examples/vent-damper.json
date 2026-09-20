@@ -1,0 +1,110 @@
+{
+  "schema_version": "0.1",
+  "id": "vent-damper",
+  "name": "Vent damper",
+  "description": "DRV8833-class H-bridge module running a damper gearmotor, exposed to Home Assistant as a reversible variable-speed fan entity.",
+  "board": {
+    "library_id": "esp32-c3-supermini",
+    "mcu": "esp32",
+    "framework": "esp-idf"
+  },
+  "power": {
+    "supply": "usb-5v",
+    "rail_voltage_v": 5.0,
+    "regulator": "onboard-ams1117",
+    "budget_ma": 2000
+  },
+  "requirements": [],
+  "components": [
+    {
+      "id": "damper",
+      "library_id": "hbridge",
+      "label": "Damper motor",
+      "params": {
+        "expose": "fan"
+      }
+    }
+  ],
+  "buses": [],
+  "connections": [
+    {
+      "component_id": "damper",
+      "pin_role": "IN1",
+      "target": {
+        "kind": "gpio",
+        "pin": "GPIO6"
+      }
+    },
+    {
+      "component_id": "damper",
+      "pin_role": "IN2",
+      "target": {
+        "kind": "gpio",
+        "pin": "GPIO7"
+      }
+    },
+    {
+      "component_id": "damper",
+      "pin_role": "VM",
+      "target": {
+        "kind": "rail",
+        "rail": "5V"
+      }
+    },
+    {
+      "component_id": "damper",
+      "pin_role": "GND",
+      "target": {
+        "kind": "rail",
+        "rail": "GND"
+      }
+    }
+  ],
+  "passives": [
+    {
+      "id": "r1",
+      "kind": "resistor",
+      "value": "10k",
+      "between": [
+        "damper.IN1",
+        "GND"
+      ],
+      "purpose": "holds the input low while the MCU boots"
+    },
+    {
+      "id": "r2",
+      "kind": "resistor",
+      "value": "10k",
+      "between": [
+        "damper.IN2",
+        "GND"
+      ],
+      "purpose": "holds the input low while the MCU boots"
+    },
+    {
+      "id": "c1",
+      "kind": "capacitor",
+      "value": "470uF",
+      "between": [
+        "damper.VM",
+        "GND"
+      ],
+      "purpose": "bulk decoupling for motor start and reversal"
+    }
+  ],
+  "warnings": [],
+  "esphome_extras": {
+    "logger": {}
+  },
+  "fleet": {
+    "device_name": "vent-damper",
+    "tags": [
+      "hvac"
+    ],
+    "secrets_ref": {
+      "wifi_ssid": "!secret wifi_ssid",
+      "wifi_password": "!secret wifi_password",
+      "api_key": "!secret api_key"
+    }
+  }
+}

@@ -147,6 +147,31 @@ If no upstream KiCad symbol exists, name the closest generic symbol
 (e.g. `Connector_Generic:Conn_01x04`) and set `value` so the
 schematic prints the real part name.
 
+A component that is built from discrete parts on the board, rather than
+bought as one part, adds a `subcircuit:` block. The schematic, PCB, BOM
+and CPL then emit those parts instead of the single `kicad:` symbol;
+the pin solver, validator, ESPHome YAML and wiring diagram still see
+one component with its `electrical.pins`. Keep the `kicad:` block too,
+as the one-part view.
+
+```yaml
+subcircuit:
+  parts:
+  - id: q_hi_a                # unique within the component
+    ref_prefix: Q             # designators count per prefix across the design
+    kicad: {symbol_lib: Transistor_FET, symbol: IRF4905,
+            footprint: "Package_TO_SOT_THT:TO-220-3_Vertical", value: IRF4905}
+    pins: {G: gate_a, D: out_a, S: VM}
+```
+
+`pins` maps the symbol's pin name to a net; use the pad number where
+the symbol doesn't name its pins (`Device:R`, connectors). A net named
+after one of the component's pin roles (`VM`, `GND`, `IN1`) joins
+whatever that role connects to in the design. Any other name is a net
+private to the instance, emitted as `<component id>_<name>`.
+[`hbridge_mosfet`](../wirestudio/library/components/hbridge_mosfet.yaml)
+is the worked example.
+
 ## Board spec (`boards/<id>.yaml`)
 
 Dev boards and modules that host the MCU.

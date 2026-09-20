@@ -235,3 +235,40 @@ def test_py_var_handles_hyphens_and_digits():
     assert _py_var("3w") == "_3w"
     assert _py_var("foo.bar.baz") == "foo_bar_baz"
     assert _py_var("ads1115_channel") == "ads1115_channel"
+
+
+# ---------------------------------------------------------------------------
+# Subcircuits
+# ---------------------------------------------------------------------------
+
+def test_subcircuit_expands_into_its_parts(lib):
+    script = generate_skidl(_design("motor-position"), lib)
+    compile(script, "motor-position.skidl.py", "exec")
+    assert 'Part("Transistor_FET", "IRF4905", ref="Q1"' in script
+    assert 'Part("Connector_Generic", "Conn_01x02", ref="J1", value="Motor"' in script
+    assert 'value="MOSFET H-bridge"' not in script
+
+
+def test_subcircuit_nodes_share_one_net_handle(lib):
+    script = generate_skidl(_design("motor-position"), lib)
+    assert script.count('Net("bridge_gate_a")') == 1
+    for part in ("q_hi_a", "q_lo_a"):
+        assert f'c_bridge_{part}["G"] += n_bridge_gate_a' in script
+    assert 'c_bridge_q_drv_a["C"] += n_bridge_gate_a' in script
+
+
+def test_subcircuit_host_roles_join_the_design_connection(lib):
+    script = generate_skidl(_design("motor-position"), lib)
+    assert 'n_bridge_IN1 = Net("GPIO_GPIO18")' in script
+    assert 'c_bridge_r_base_a["1"] += n_bridge_IN1' in script
+    assert 'c_bridge_q_hi_a["S"] += NET_PLUS__5V' in script
+    assert 'c_bridge_q_lo_a["S"] += GND' in script
+
+
+def test_subcircuit_refs_do_not_disturb_other_prefixes(lib):
+    from wirestudio.kicad.netlist import assign_refs, part_key
+    refs = assign_refs(_design("motor-position"), lib)
+    assert "bridge" not in refs
+    assert refs[part_key("bridge", "q_hi_a")] == "Q1"
+    assert refs[part_key("bridge", "r_gate_a")] == "R1"
+    assert refs["feedback"] == "U1"

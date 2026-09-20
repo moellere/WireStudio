@@ -1,0 +1,94 @@
+{
+  "schema_version": "0.1",
+  "id": "motor-position",
+  "name": "Motor position controller",
+  "description": "Discrete MOSFET H-bridge driving a small 5 V gearmotor, with the actuator's feedback potentiometer on an ADC pin. The bridge is exposed as two plain outputs for a position loop to drive.",
+  "board": {
+    "library_id": "esp32-devkitc-v4",
+    "mcu": "esp32",
+    "framework": "esp-idf"
+  },
+  "power": {
+    "supply": "usb-5v",
+    "rail_voltage_v": 5.0,
+    "regulator": "onboard-ams1117",
+    "budget_ma": 2000
+  },
+  "requirements": [],
+  "components": [
+    {
+      "id": "bridge",
+      "library_id": "hbridge_mosfet",
+      "label": "Actuator motor",
+      "params": {}
+    },
+    {
+      "id": "feedback",
+      "library_id": "adc",
+      "label": "Actuator position",
+      "params": {
+        "attenuation": "12db",
+        "update_interval": "100ms"
+      }
+    }
+  ],
+  "buses": [],
+  "connections": [
+    {
+      "component_id": "bridge",
+      "pin_role": "IN1",
+      "target": {
+        "kind": "gpio",
+        "pin": "GPIO18"
+      }
+    },
+    {
+      "component_id": "bridge",
+      "pin_role": "IN2",
+      "target": {
+        "kind": "gpio",
+        "pin": "GPIO19"
+      }
+    },
+    {
+      "component_id": "bridge",
+      "pin_role": "VM",
+      "target": {
+        "kind": "rail",
+        "rail": "5V"
+      }
+    },
+    {
+      "component_id": "bridge",
+      "pin_role": "GND",
+      "target": {
+        "kind": "rail",
+        "rail": "GND"
+      }
+    },
+    {
+      "component_id": "feedback",
+      "pin_role": "IN",
+      "target": {
+        "kind": "gpio",
+        "pin": "GPIO34"
+      }
+    }
+  ],
+  "passives": [],
+  "warnings": [],
+  "esphome_extras": {
+    "logger": {}
+  },
+  "fleet": {
+    "device_name": "motor-position",
+    "tags": [
+      "actuator"
+    ],
+    "secrets_ref": {
+      "wifi_ssid": "!secret wifi_ssid",
+      "wifi_password": "!secret wifi_password",
+      "api_key": "!secret api_key"
+    }
+  }
+}
