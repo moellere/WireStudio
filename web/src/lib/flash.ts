@@ -51,6 +51,10 @@ export interface FlashSession {
   write: (text: string) => Promise<void>;
   /** Stop the serial monitor and release the port. */
   close: () => Promise<void>;
+  /** Stop the serial monitor and hand back the closed SerialPort so another
+   * protocol client (the Meshtastic transport) can reopen it without a
+   * second port picker. The session is unusable afterwards. */
+  release: () => Promise<SerialPort>;
 }
 
 /**
@@ -148,18 +152,23 @@ export async function flashFirmware(opts: FlashOptions): Promise<FlashSession> {
   await transport.setRTS(false); // EN high: release -> app boots into setup()
 
   const encoder = new TextEncoder();
+  const close = async () => {
+    closed = true;
+    try {
+      await transport.disconnect();
+    } catch {
+      // intentionally ignored: transport may already be closing
+    }
+    await monitor;
+  };
   return {
     chipName,
     mac,
     write: (text: string) => transport.write(encoder.encode(text)),
-    close: async () => {
-      closed = true;
-      try {
-        await transport.disconnect();
-      } catch {
-        // intentionally ignored: transport may already be closing
-      }
-      await monitor;
+    close,
+    release: async () => {
+      await close();
+      return port as SerialPort;
     },
   };
 }

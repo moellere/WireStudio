@@ -30,7 +30,7 @@
 # ---------------------------------------------------------------------------
 # Stage 1: build the SPA bundle.
 # ---------------------------------------------------------------------------
-FROM node:20-alpine AS web-builder
+FROM --platform=$BUILDPLATFORM node:20-alpine AS web-builder
 WORKDIR /web
 
 # Cache npm install separately from sources -- a code-only change

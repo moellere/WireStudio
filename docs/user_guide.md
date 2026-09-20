@@ -34,7 +34,9 @@
   and offers a post-flash template + WiFi push over serial,
   **LoRaWAN** compiles and flashes the RadioLib firmware,
   **Meshtastic** flashes the official factory image for the mapped
-  radio boards (config happens at client.meshtastic.org), and
+  radio boards and then pushes region, modem preset, owner and the
+  primary channel (with a generated or pasted key) over the same serial
+  port, and
   **CircuitPython** flashes the official release image and serves a
   generated starter `code.py` (save-to-CIRCUITPY or download).
 - **LoRaWAN (radio boards).** Two flows for US915 radio boards (TTGO
