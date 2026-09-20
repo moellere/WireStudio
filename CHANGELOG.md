@@ -28,6 +28,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   check; the recommender and `component_check` render it with the
   defaults, and the check fails a template that does not.
 
+- **Five discrete building blocks** (#272): `led_indicator`,
+  `npn_low_side_driver`, `mosfet_low_side_driver`, `voltage_divider`
+  and `level_shifter`, each a checked subcircuit with `requires:` on
+  its semiconductors and parametric resistor values, so the agent
+  composes a driver or a sense input from blocks that already pass
+  the gate instead of authoring one from scratch. The `bench-io`
+  example puts all five on one board and pins their YAML and BOM.
+
 - **Substitutions can be accepted, not only proposed** (#271). A design
   carries `part_overrides` (`"<component id>.<part id>" -> MPN`); the
   schematic, PCB, BOM, CPL and the inventory check all read the

@@ -1,0 +1,104 @@
+id: mosfet_low_side_driver
+name: Logic-level MOSFET low-side driver (motor, heater, LED strip)
+category: switch
+use_cases: [motor, heater, led_strip, pump, fan, high_current_load, low_side_switch, pwm_load]
+aliases: [mosfet_driver, irlz44n_driver, fet_switch, power_switch]
+
+electrical:
+  vcc_min: 0.0
+  vcc_max: 0.0
+  current_ma_typical: 0
+  current_ma_peak: 1
+  # The gate is driven straight from the 3.3 V GPIO through 100 ohm, which
+  # is why the part has to be a logic-level FET: the IRLZ44N is fully on at
+  # 3.3 V (about 35 mOhm), a standard-threshold IRFZ44N is not and will
+  # cook at a few amps. The 10k pull-down keeps the load off during boot.
+  pins:
+  - {role: IN, kind: digital_out, voltage: 3.3}
+  - {role: VLOAD, kind: power}
+  - {role: GND, kind: ground}
+  passives: []
+
+esphome:
+  required_components: []
+  yaml_template: |
+    {%- if params.pwm | default(false) %}
+    output:
+      - platform: {{ 'ledc' if board and board.chip_variant.startswith('esp32') else 'esp8266_pwm' }}
+        pin: {{ pins.IN | tojson }}
+        id: {{ id }}_out
+        frequency: {{ params.frequency | default('1000 Hz') }}
+    light:
+      - platform: monochromatic
+        output: {{ id }}_out
+        name: "{{ label }}"
+        id: {{ id }}
+    {%- else %}
+    switch:
+      - platform: gpio
+        pin: {{ pins.IN | tojson }}
+        name: "{{ label }}"
+        id: {{ id }}
+        restore_mode: {{ params.restore_mode | default('ALWAYS_OFF') }}
+    {%- endif %}
+
+capability:
+  role: output
+  provides:
+    - {event: on_turn_on}
+    - {event: on_turn_off}
+  accepts:
+    - {action: turn_on,  esphome: switch.turn_on}
+    - {action: turn_off, esphome: switch.turn_off}
+    - {action: toggle,   esphome: switch.toggle}
+  checks:
+    - {predicate: is_on,  esphome: switch.is_on}
+    - {predicate: is_off, esphome: switch.is_off}
+
+params_schema:
+  pwm:
+    type: boolean
+    default: false
+  frequency:
+    type: string
+    default: "1000 Hz"
+  restore_mode:
+    type: string
+    enum: [RESTORE_DEFAULT_OFF, RESTORE_DEFAULT_ON, ALWAYS_OFF, ALWAYS_ON, DISABLED]
+    default: ALWAYS_OFF
+
+notes: "Switches a load to ground; the load's other end goes to VLOAD, up to about 30 V. A few amps
+  need no heatsink at 3.3 V gate drive; beyond that, or at high PWM frequency, the FET warms up and
+  wants one. D1 is a Schottky flyback clamp for motors and coils. pwm: true exposes it as a dimmable
+  light on an LEDC / esp8266_pwm output instead of a switch. The gate drive is the constraint on
+  substitution: the FET must be logic-level (Vgs(th) well under 2 V), which the drawer's ratings do
+  not record -- read the datasheet before accepting a proposal. J1 is the load terminal."
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x03
+  footprint: Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical
+  value: MOSFET driver
+subcircuit:
+  parts:
+  - id: q_sw
+    ref_prefix: Q
+    kicad: {symbol_lib: Transistor_FET, symbol: IRLZ44N, footprint: "Package_TO_SOT_THT:TO-220-3_Vertical", value: IRLZ44N}
+    pins: {G: gate, D: out, S: GND}
+    requires: {family: mosfet, polarity: n, v_min: 30, i_min: 10}
+  - id: r_gate
+    ref_prefix: R
+    kicad: {symbol_lib: Device, symbol: R, footprint: "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal", value: "100"}
+    pins: {"1": IN, "2": gate}
+  - id: r_pd
+    ref_prefix: R
+    kicad: {symbol_lib: Device, symbol: R, footprint: "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal", value: "10k"}
+    pins: {"1": gate, "2": GND}
+  - id: d_flyback
+    ref_prefix: D
+    kicad: {symbol_lib: Diode, symbol: 1N5819, footprint: "Diode_THT:D_DO-41_SOD81_P10.16mm_Horizontal", value: 1N5819}
+    pins: {K: VLOAD, A: out}
+    requires: {family: diode, v_min: 30, i_min: 1}
+  - id: j_load
+    ref_prefix: J
+    kicad: {symbol_lib: Connector_Generic, symbol: Conn_01x02, footprint: "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-2_1x02_P5.00mm_Horizontal", value: Load}
+    pins: {"1": VLOAD, "2": out}

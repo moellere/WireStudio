@@ -1,0 +1,51 @@
+esphome:
+  name: bench-io
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+  flash_size: 4MB
+logger: {}
+api:
+  encryption:
+    key: !secret api_key
+ota:
+- platform: esphome
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+output:
+- platform: gpio
+  pin: GPIO25
+  id: status_out
+- platform: ledc
+  pin: GPIO17
+  id: fan_out
+  frequency: 25000 Hz
+light:
+- platform: binary
+  output: status_out
+  name: Status
+  id: status
+- platform: monochromatic
+  output: fan_out
+  name: Fan
+  id: fan
+switch:
+- platform: gpio
+  pin: GPIO16
+  name: Relay
+  id: relay
+  restore_mode: ALWAYS_OFF
+  icon: mdi:electric-switch
+sensor:
+- platform: adc
+  pin: GPIO34
+  name: Supply voltage
+  id: vin
+  unit_of_measurement: V
+  accuracy_decimals: 2
+  update_interval: 10s
+  attenuation: 12db
+  filters:
+  - multiply: 4.7037
