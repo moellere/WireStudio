@@ -63,6 +63,9 @@ esphome:
     {%- endif %}
 
 params_schema:
+  load_ma:
+    type: number
+    default: 1000
   expose:
     type: string
     enum: [none, switches, fan]
@@ -81,6 +84,13 @@ params_schema:
     type: string
     default: "100ms"
 
+verify:
+  # The gates swing to VM through the 470 ohm pull-ups, so VM is the gate
+  # drive; a standard-threshold IRF4905 wants 4.5 V or more of it. Each
+  # driver NPN sinks the pull-up current, VM / 470.
+  checks:
+  - {kind: gate_drive, drive: {pin: VM}, vgs_on_v: 4.5, rds_on_ohm: 0.02, load: load_ma, max_w: 1.0, max_ma: 20000}
+  - {kind: base_drive, resistor: r_base_a, drive: {pin: IN1}, vbe_v: 0.7, hfe_min: 30, load: 11, max_ma: 200}
 notes: "Sized for a small 5-6 V gearmotor (about 1 A). The shared gate node switches through a 470 ohm
   pull-up, so both FETs of a leg are partly on for a few microseconds per edge: fine for on/off and
   position control, keep PWM at a few hundred Hz. The KiCad symbol library has no IRFZ44N; the low

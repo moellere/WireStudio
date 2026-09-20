@@ -43,6 +43,9 @@ capability:
     - {event: on_value_range, kind: event}
 
 params_schema:
+  sense_v:
+    type: number
+    default: 12
   r_top:
     type: number
     default: 100000
@@ -57,6 +60,11 @@ params_schema:
     type: string
     default: "10s"
 
+verify:
+  # sense_v is the highest voltage the instance will see; 3.1 V is the
+  # ESP32 ADC ceiling at 12 dB attenuation.
+  checks:
+  - {kind: divider, r_top: r_top, r_bottom: r_bottom, sense: sense_v, max_pin_v: 3.1}
 notes: "r_top and r_bottom are in ohms and set both the BOM values and the multiply filter, so the
   sensor reports the sensed voltage directly. Keep the pair around 100k so a battery is not drained
   through it. On an ESP8266 the pin is A0 and reads 0-1 V through the board's own divider; size the

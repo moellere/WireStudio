@@ -203,6 +203,40 @@ own drawer rating is the bar. Proposals list what they did not compare
 [`hbridge_mosfet`](../wirestudio/library/components/hbridge_mosfet.yaml)
 is the worked example.
 
+### Declaring electrical checks
+
+A block may declare rules about itself under `verify:`; each is one line
+of arithmetic over the block's stated assumptions and the instance's
+params, and the report prints the numbers it used:
+
+```yaml
+verify:
+  checks:
+  - {kind: led_current, resistor: r_led, drive: {pin: IN}, vf_v: 2.0, min_ma: 1, max_ma: 12}
+  - {kind: base_drive, resistor: r_base, drive: {pin: IN}, vbe_v: 0.7, hfe_min: 30, load: load_ma, max_ma: 200}
+  - {kind: gate_drive, drive: {pin: VM}, vgs_on_v: 4.5, rds_on_ohm: 0.02, load: load_ma, max_w: 1.0, max_ma: 20000}
+  - {kind: divider, r_top: r_top, r_bottom: r_bottom, sense: sense_v, max_pin_v: 3.1}
+```
+
+- `led_current`: (drive - Vf) / R against `min_ma`..`max_ma`.
+- `base_drive`: base current through `resistor` times `hfe_min` is what
+  the transistor saturates; the load must sit under that and `max_ma`.
+- `gate_drive`: the gate voltage must reach `vgs_on_v`, and the load's
+  I^2 R through `rds_on_ohm` must stay under `max_w`.
+- `divider`: the sensed voltage scaled by the pair must stay under
+  `max_pin_v`; the bleed current is reported.
+
+`drive` is a number or `{pin: ROLE}`: a signal pin's declared `voltage`,
+or, inside a design, the rail a power pin is wired to. `load` / `sense`
+are a number or the name of an instance param (give it a default so
+the block is checked at its own defaults). `component_check` runs the
+rules at the defaults and lists passes under `verified` -- a block whose
+defaults fail its own rule is an error -- and a rule needing a rail only
+a design knows lands in `unverified`. `validate` runs them per instance
+with the real params and rails and warns on a failure
+(`electrical_<kind>`). What a block does not declare stays uncovered,
+and `not_checked` says so per block.
+
 ### Checking a draft
 
 `python -c` is not the review. `component_check` (MCP and agent tool;
@@ -219,7 +253,10 @@ reports:
 - `unverified` -- checks this server could not run, such as symbol
   lookup without `KICAD8_SYMBOL_DIR` (the `-full` image ships the KiCad
   libraries and runs these; the slim image reports them here);
-- `not_checked` -- what no check covers: nothing is simulated.
+- `verified` -- the block's own `verify:` rules that pass at its defaults,
+  with the numbers used;
+- `not_checked` -- what no check covers: nothing is simulated beyond the
+  declared rules.
 
 `component_create` runs the same check and, if clean, writes the text
 verbatim into `LIBRARY_USER_DIR/components/<id>.yaml`. It refuses a

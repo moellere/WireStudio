@@ -56,6 +56,9 @@ capability:
     - {predicate: is_off, esphome: switch.is_off}
 
 params_schema:
+  load_ma:
+    type: number
+    default: 2000
   pwm:
     type: boolean
     default: false
@@ -67,6 +70,11 @@ params_schema:
     enum: [RESTORE_DEFAULT_OFF, RESTORE_DEFAULT_ON, ALWAYS_OFF, ALWAYS_ON, DISABLED]
     default: ALWAYS_OFF
 
+verify:
+  # IRLZ44N: Rds(on) about 35 mOhm at Vgs = 3.3 V once past ~3 V; a bare
+  # TO-220 sheds about 1 W. load_ma is the instance's continuous load.
+  checks:
+  - {kind: gate_drive, drive: {pin: IN}, vgs_on_v: 3.0, rds_on_ohm: 0.035, load: load_ma, max_w: 1.0, max_ma: 10000}
 notes: "Switches a load to ground; the load's other end goes to VLOAD, up to about 30 V. A few amps
   need no heatsink at 3.3 V gate drive; beyond that, or at high PWM frequency, the FET warms up and
   wants one. D1 is a Schottky flyback clamp for motors and coils. pwm: true exposes it as a dimmable

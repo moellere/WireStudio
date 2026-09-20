@@ -115,6 +115,7 @@ export function ComponentEditorDialog({
             {report.saved ? ` — saved to ${report.saved}` : ""}
           </p>
           {report.errors.map((line) => <p key={line} className="text-rose-300">✕ {line}</p>)}
+          {report.verified.map((line) => <p key={line} className="text-emerald-300">✓ {line}</p>)}
           {report.warnings.map((line) => <p key={line} className="text-amber-300">! {line}</p>)}
           {report.unverified.map((line) => <p key={line} className="text-ink-dim">? {line}</p>)}
           {report.not_checked.map((line) => <p key={line} className="text-ink-faint">– {line}</p>)}

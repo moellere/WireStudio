@@ -49,6 +49,9 @@ params_schema:
   r_base:
     type: string
     default: "1k"
+  load_ma:
+    type: number
+    default: 50
   restore_mode:
     type: string
     enum: [RESTORE_DEFAULT_OFF, RESTORE_DEFAULT_ON, ALWAYS_OFF, ALWAYS_ON, DISABLED]
@@ -56,6 +59,11 @@ params_schema:
   icon:
     type: string
 
+verify:
+  # 2N3904: hFE >= 30 at Ic = 100 mA, Ic(max) 200 mA. load_ma is what the
+  # instance actually switches; the default is a signal relay coil.
+  checks:
+  - {kind: base_drive, resistor: r_base, drive: {pin: IN}, vbe_v: 0.7, hfe_min: 30, load: load_ma, max_ma: 200}
 notes: "Loads to about 75 mA at up to 40 V, switched to ground; the load's other end goes to VLOAD
   (the same 5 V the coil wants, or a separate supply sharing GND). The 10k pull-down keeps the
   transistor off while the MCU boots. For a motor, heater or LED strip use mosfet_low_side_driver.
