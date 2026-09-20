@@ -20,17 +20,12 @@ from pathlib import Path
 from typing import Optional, Protocol
 
 from wirestudio.designs.store import DESIGNS_DIR_DEFAULT
+from wirestudio.library import FAMILIES
 
 INVENTORY_PATH_DEFAULT = DESIGNS_DIR_DEFAULT.parent / "inventory.json"
 
 _KINDS = ("component", "module", "part")
 
-# Families a `part` can belong to. Coarse on purpose: this is what
-# substitution matching compares, not a taxonomy.
-FAMILIES = (
-    "bjt", "mosfet", "resistor", "capacitor", "inductor", "diode",
-    "regulator", "connector", "ic", "other",
-)
 
 
 @dataclass

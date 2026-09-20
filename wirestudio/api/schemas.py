@@ -195,6 +195,8 @@ class Recommendation(_S):
     in_examples: int = Field(description="Number of bundled examples that use this component.")
     rationale: str = Field(description="Human-readable explanation of why it was recommended.")
     on_hand: int = Field(default=0, description="Quantity of this part in the local inventory.")
+    parts_on_hand: int = Field(default=0, description="For a subcircuit component: how many of its discrete parts the inventory covers.")
+    parts_total: int = Field(default=0, description="For a subcircuit component: how many discrete parts the drawer would track.")
     notes: Optional[str] = Field(default=None, description="Extra caveats or usage notes, if any.")
 
 
@@ -344,6 +346,15 @@ class InventoryCheckLine(_S):
     note: str = Field(default="", description="Inventory note for the part, if recorded.")
 
 
+class InventorySubstitute(_S):
+    """A drawer part proposed in place of one the design calls for. Never applied."""
+    mpn: str = Field(description="Manufacturer part number of the candidate.")
+    key: str = Field(description="Inventory key, 'part:<mpn>'.")
+    on_hand: int = Field(description="Quantity of the candidate in the local inventory.")
+    location: str = Field(default="", description="Inventory location, if recorded.")
+    caveats: list[str] = Field(description="What the comparison did not cover; read before swapping.")
+
+
 class InventoryPartCheckLine(_S):
     """One discrete part the board carries: a subcircuit part or a design passive."""
     value: str = Field(description="Value as printed on the board, e.g. 'IRF4905' or '10k'.")
@@ -354,6 +365,10 @@ class InventoryPartCheckLine(_S):
     status: str = Field(description="'have', 'partial', 'need', 'assumed' (common passive, not inventoried) or 'untracked'.")
     matched: str = Field(default="", description="Inventory key that satisfied the line, if any.")
     location: str = Field(default="", description="Inventory location for the part, if recorded.")
+    substitutes: list[InventorySubstitute] = Field(
+        default_factory=list,
+        description="Drawer parts that pass family, polarity, package and rating checks for a 'need' or 'partial' semiconductor. Proposals only.",
+    )
 
 
 class InventoryCheckResponse(_S):
