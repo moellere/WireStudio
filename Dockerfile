@@ -18,6 +18,7 @@
 # both subdirs on first launch; mount a named volume or host path here.
 #
 # Secrets (all optional): ANTHROPIC_API_KEY, FLEET_URL, FLEET_TOKEN,
+#     ESPHOME_DASHBOARD_URL (+ _USERNAME/_PASSWORD),
 # THINGIVERSE_API_KEY. Pass at runtime via -e or --env-file; never bake
 # them into the image.
 #

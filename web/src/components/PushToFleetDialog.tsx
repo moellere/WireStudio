@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../api/client";
-import type { Design, FleetPushResponse, FleetRunStatus, FleetStatus } from "../types/api";
+import type { Design, FleetPushResponse, FleetRunStatus, DashboardPushResponse,
+  DashboardStatus,
+  FleetJobLogResponse,
+  FleetStatus } from "../types/api";
 import { Button, Dialog, FieldLabel, Input } from "./ui";
 
 const LOG_POLL_INTERVAL_MS = 1500;
@@ -39,7 +42,46 @@ interface Props {
  * Status is fetched on open so we can disable the button + show why the
  * fleet isn't reachable when it isn't.
  */
+/** Where the YAML goes and who compiles it. Both answer the same
+ * status / push / log / verdict calls, so the dialog only swaps the table. */
+type Backend = "fleet" | "dashboard";
+
+const BACKENDS: Record<Backend, {
+  label: string;
+  subtitle: string;
+  envHint: string;
+  status: () => Promise<FleetStatus | DashboardStatus>;
+  push: (body: { design: Design; compile: boolean; device_name?: string; strict: boolean }) => Promise<FleetPushResponse | DashboardPushResponse>;
+  jobLog: (runId: string, offset: number) => Promise<FleetJobLogResponse>;
+  runStatus: (runId: string) => Promise<{ verdict: string }>;
+  streamPath: (runId: string) => string;
+}> = {
+  fleet: {
+    label: "fleet-for-esphome",
+    subtitle: "Send the rendered YAML to fleet-for-esphome (ha-addon).",
+    envHint: "FLEET_URL and FLEET_TOKEN",
+    status: () => api.fleetStatus(),
+    push: (body) => api.fleetPush(body),
+    jobLog: (runId, offset) => api.fleetJobLog(runId, offset),
+    runStatus: (runId) => api.fleetRunStatus(runId),
+    streamPath: (runId) => `/api/fleet/jobs/${encodeURIComponent(runId)}/log/stream`,
+  },
+  dashboard: {
+    label: "ESPHome dashboard",
+    subtitle: "Write the rendered YAML to an ESPHome dashboard (HA add-on or standalone) and compile there.",
+    envHint: "ESPHOME_DASHBOARD_URL",
+    status: () => api.esphomeDashboardStatus(),
+    push: (body) => api.esphomeDashboardPush(body),
+    jobLog: (runId, offset) => api.esphomeDashboardJobLog(runId, offset),
+    runStatus: (runId) => api.esphomeDashboardRunStatus(runId),
+    streamPath: (runId) => `/api/esphome/jobs/${encodeURIComponent(runId)}/log/stream`,
+  },
+};
+
 export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
+  const [backend, setBackend] = useState<Backend>("fleet");
+  const [dashboardStatus, setDashboardStatus] = useState<DashboardStatus | null>(null);
+  const be = BACKENDS[backend];
   const [status, setStatus] = useState<FleetStatus | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
   const fleet = (design.fleet as Record<string, unknown> | undefined) ?? undefined;
@@ -64,8 +106,19 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
     let cancelled = false;
     (async () => {
       try {
-        const s = await api.fleetStatus();
-        if (!cancelled) setStatus(s);
+        const [fleetS, dashS] = await Promise.all([
+          api.fleetStatus(),
+          api.esphomeDashboardStatus().catch(() => ({ available: false, reason: "unreachable" } as DashboardStatus)),
+        ]);
+        if (cancelled) return;
+        setDashboardStatus(dashS);
+        // Default to whichever path is actually configured.
+        if (!fleetS.available && dashS.available) {
+          setBackend("dashboard");
+          setStatus(dashS);
+        } else {
+          setStatus(fleetS);
+        }
       } catch (e) {
         if (cancelled) return;
         const msg = e instanceof ApiError ? `${e.status}: ${e.message}` :
@@ -82,6 +135,19 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
   }, []);
 
   // Auto-scroll the log viewer when new content lands.
+  async function switchBackend(next: Backend) {
+    setBackend(next);
+    setResult(null);
+    setVerdict(null);
+    setLogText("");
+    setPushError(null);
+    try {
+      setStatus(await BACKENDS[next].status());
+    } catch (e) {
+      setStatusError(e instanceof Error ? e.message : String(e));
+    }
+  }
+
   useEffect(() => {
     if (logScrollRef.current) {
       logScrollRef.current.scrollTop = logScrollRef.current.scrollHeight;
@@ -97,8 +163,8 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
     let cancelled = false;
     (async () => {
       try {
-        const v = await api.fleetRunStatus(runId);
-        if (!cancelled) setVerdict(v);
+        const v = await be.runStatus(runId);
+        if (!cancelled) setVerdict(v as FleetRunStatus);
       } catch {
         // verdict unavailable -- leave it unset
       }
@@ -126,7 +192,7 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
     setLogFinished(false);
     setLogError(null);
     setLogTransport("sse");
-    const es = new EventSource(`/api/fleet/jobs/${encodeURIComponent(runId)}/log/stream`);
+    const es = new EventSource(be.streamPath(runId));
     eventSourceRef.current = es;
     let lastOffset = 0;
 
@@ -191,7 +257,7 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
     setLogTransport("poll");
     while (!abort.stop) {
       try {
-        const chunk = await api.fleetJobLog(runId, offset);
+        const chunk = await be.jobLog(runId, offset);
         if (abort.stop) return;
         if (chunk.log) setLogText((prev) => prev + chunk.log);
         offset = chunk.offset;
@@ -224,13 +290,13 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
     setResult(null);
     setVerdict(null);
     try {
-      const r = await api.fleetPush({
+      const r = await be.push({
         design,
         compile,
         device_name: deviceName.trim() || undefined,
         strict,
       });
-      setResult(r);
+      setResult(r as FleetPushResponse);
       if (r.run_id) {
         // Fire-and-forget: SSE first, polling as a fallback. Both paths
         // respect the abort/event-source refs cleaned up on unmount.
@@ -268,8 +334,8 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
 
   return (
     <Dialog
-      title="Push to fleet"
-      subtitle="Send the rendered YAML to fleet-for-esphome (ha-addon)."
+      title={backend === "fleet" ? "Push to fleet" : "Push to ESPHome dashboard"}
+      subtitle={be.subtitle}
       onClose={onClose}
       maxWidth="max-w-xl"
       footer={
@@ -282,23 +348,40 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
       }
     >
       <div className="space-y-4 text-sm">
+        <div className="flex gap-1 rounded-md bg-surface-2/60 p-1 text-xs" role="radiogroup" aria-label="Build path">
+          {(Object.keys(BACKENDS) as Backend[]).map((key) => (
+            <button
+              key={key}
+              type="button"
+              role="radio"
+              aria-checked={backend === key}
+              onClick={() => backend !== key && void switchBackend(key)}
+              className={`flex-1 rounded px-2 py-1 ${backend === key ? "bg-surface-1 text-ink shadow-pop" : "text-ink-dim hover:text-ink"}`}
+            >
+              {BACKENDS[key].label}
+              {key === "dashboard" && dashboardStatus?.available && backend !== key && (
+                <span className="ml-1 text-emerald-400">•</span>
+              )}
+            </button>
+          ))}
+        </div>
+
         {/* Status section */}
         <div className="rounded-md border border-line bg-surface-2/40 p-3">
-          <div className="text-[11px] uppercase tracking-wider text-ink-faint">fleet status</div>
+          <div className="text-[11px] uppercase tracking-wider text-ink-faint">{be.label} status</div>
           {statusError ? (
             <div className="mt-1 text-xs text-rose-400">error: {statusError}</div>
           ) : status === null ? (
             <div className="mt-1 text-xs text-ink-faint">checking…</div>
           ) : status.available ? (
             <div className="mt-1 text-xs text-emerald-400">
-              connected · {status.url || "fleet"}
+              connected · {status.url || be.label}
             </div>
           ) : (
             <div className="mt-1 space-y-1 text-xs">
               <div className="text-amber-300">unavailable: {status.reason || "unknown"}</div>
               <div className="text-ink-faint">
-                Set <code className="rounded-md bg-surface-2 px-1">FLEET_URL</code> and{" "}
-                <code className="rounded-md bg-surface-2 px-1">FLEET_TOKEN</code> in the API server's
+                Set <code className="rounded-md bg-surface-2 px-1">{be.envHint}</code> in the API server's
                 environment, then restart it.
               </div>
             </div>
@@ -317,7 +400,7 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
             className="font-mono text-xs"
           />
           <p className="text-[11px] text-ink-faint">
-            Will be saved on the fleet as <code>{deviceName.trim() || "<name>"}.yaml</code>.
+            Will be saved on the {backend === "fleet" ? "fleet" : "dashboard"} as <code>{deviceName.trim() || "<name>"}.yaml</code>.
             Lowercase letters, digits, and hyphens only (max 64).
           </p>
         </div>
