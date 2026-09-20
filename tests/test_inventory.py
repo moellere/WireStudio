@@ -546,3 +546,211 @@ def test_part_requirements_validate_family():
     from wirestudio.library import PartRequirements
     with pytest.raises(ValidationError):
         PartRequirements(family="transistor")
+
+
+# ---------------------------------------------------------------------------
+# Applied substitutions (part_overrides)
+# ---------------------------------------------------------------------------
+
+def _bridge_design(**overrides):
+    raw = json.loads((EXAMPLES_DIR / "motor-position.json").read_text())
+    raw["part_overrides"] = overrides
+    return Design.model_validate(raw)
+
+
+def test_part_override_changes_the_printed_value_only(library):
+    from wirestudio.kicad.netlist import placed_parts
+
+    design = _bridge_design(**{"bridge.q_hi_a": "IRF9540"})
+    by_key = {p.key: p for p in placed_parts(design, library)}
+    q1, q4 = by_key["bridge.q_hi_a"], by_key["bridge.q_hi_b"]
+    assert q1.kicad.value == "IRF9540" and q1.substituted_for == "IRF4905"
+    assert q1.kicad.symbol == "IRF4905" and q1.kicad.footprint == q4.kicad.footprint
+    assert q4.kicad.value == "IRF4905" and q4.substituted_for == ""
+    # The library object itself is untouched.
+    assert library.component("hbridge_mosfet").subcircuit.parts[0].kicad.value == "IRF4905"
+
+
+def test_check_parts_follows_overrides_and_offers_keys(library):
+    from wirestudio.inventory.check import check_parts
+
+    design = _bridge_design(**{"bridge.q_hi_a": "IRF9540", "bridge.q_hi_b": "IRF9540"})
+    drawer = [e for e in _drawer() if e.mpn != "IRF4905"]
+    by_value = {ln.value: ln for ln in check_parts(design, library, drawer)}
+    assert "IRF4905" not in by_value
+    line = by_value["IRF9540"]
+    assert line.status == "have" and line.refs == ["Q1", "Q4"]
+    assert line.keys == ["bridge.q_hi_a", "bridge.q_hi_b"]
+    assert line.substituted_for == ["IRF4905"]
+    # Unmodified lines still carry their keys, so a proposal can be applied.
+    assert by_value["2N3904"].keys == ["bridge.q_drv_a", "bridge.q_drv_b"]
+    assert by_value["10k"].keys == ["bridge.r_pd_a", "bridge.r_pd_b"]
+
+
+def test_check_part_overrides_records_each_substitution(library):
+    from wirestudio.validate import check_part_overrides
+
+    design = _bridge_design(**{"bridge.q_hi_a": "IRF9540", "bridge.nope": "X", "bridge.q_lo_a": "IRFZ44N"})
+    warnings = {w.code: w for w in check_part_overrides(design, library)}
+    sub = warnings["part_substituted"]
+    assert sub.level == "info"
+    assert sub.text.startswith("Q1 (bridge.q_hi_a): IRF9540 substituted for IRF4905; ")
+    assert "gate threshold" in sub.text
+    unknown = warnings["part_override_unknown"]
+    assert unknown.level == "warn" and "bridge.nope" in unknown.text
+    # Overriding a part with its own value is a no-op, not a substitution.
+    assert len(check_part_overrides(design, library)) == 2
+    assert check_part_overrides(_bridge_design(), library) == []
+
+
+def test_set_part_override_tool(library):
+    from wirestudio.agent.tools import execute_tool
+
+    raw = json.loads((EXAMPLES_DIR / "motor-position.json").read_text())
+    out, err = execute_tool("set_part_override", {"key": "bridge.q_hi_a", "mpn": "IRF9540"}, raw, library)
+    assert not err and json.loads(out) == {
+        "ok": True, "set": {"bridge.q_hi_a": "IRF9540"}, "substituted_for": "IRF4905"}
+    assert raw["part_overrides"] == {"bridge.q_hi_a": "IRF9540"}
+    out, _ = execute_tool("set_part_override", {"key": "bridge.q_hi_a"}, raw, library)
+    assert json.loads(out)["removed"] == "bridge.q_hi_a" and raw["part_overrides"] == {}
+    out, _ = execute_tool("set_part_override", {"key": "bridge.q_hi_z", "mpn": "X"}, raw, library)
+    assert json.loads(out)["ok"] is False
+    out, _ = execute_tool("set_part_override", {"key": "zz.q", "mpn": "X"}, raw, library)
+    assert json.loads(out)["ok"] is False
+
+
+def test_override_reaches_the_parts_endpoint_and_validate(client):
+    design = json.loads((EXAMPLES_DIR / "motor-position.json").read_text())
+    design["part_overrides"] = {"bridge.q_hi_a": "IRF9540"}
+    parts = client.post("/design/parts", json=design).json()["parts"]
+    q1 = next(p for p in parts if p["ref"] == "Q1")
+    assert q1["value"] == "IRF9540" and q1["symbol"] == "Transistor_FET:IRF4905"
+    body = client.post("/design/validate", json=design).json()
+    assert any(w["code"] == "part_substituted" for w in body["warnings"])
+    check = client.post("/design/inventory/check", json={"design": design}).json()
+    line = next(p for p in check["parts"] if p["value"] == "IRF9540")
+    assert line["keys"] == ["bridge.q_hi_a"] and line["substituted_for"] == ["IRF4905"]
+
+
+# ---------------------------------------------------------------------------
+# Pick list
+# ---------------------------------------------------------------------------
+
+def test_pick_list_groups_by_drawer_location(library):
+    design = Design.model_validate(
+        json.loads((EXAMPLES_DIR / "motor-position.json").read_text()))
+    groups = check_inventory(design, library, _drawer()).pick_list
+    by_kind = {}
+    for g in groups:
+        by_kind.setdefault(g.kind, []).append(g)
+
+    locations = {g.location: {i.label: i for i in g.items} for g in by_kind["location"]}
+    assert locations["TO-220 24x5 kit"]["IRF4905"].refs == ["Q1", "Q4"]
+    assert locations["TO-220 24x5 kit"]["IRFZ44N"].needed == 2
+    assert locations["2N series box (10-15 ea)"]["2N3904"].inventory_key == "part:2N3904"
+    # Locations sort by name; special groups follow in a fixed order.
+    assert [g.kind for g in groups] == ["location", "location", "assumed", "missing"]
+    assert [g.location for g in groups[:2]] == ["2N series box (10-15 ea)", "TO-220 24x5 kit"]
+
+    assumed = {i.label for i in by_kind["assumed"][0].items}
+    assert assumed == {"470", "1k", "10k", "100nF", "470uF"}
+    # The bridge itself is built from the parts above, so it is not
+    # listed as a missing component; the ADC input is.
+    missing = {i.label: i for i in by_kind["missing"][0].items}
+    assert "Discrete MOSFET H-bridge (IRF4905 / IRFZ44N, 5 V)" not in missing
+    assert next(iter(missing.values())).refs == ["feedback"]
+    # Connectors are not stock and never appear.
+    assert not any(i.label == "Motor" for g in groups for i in g.items)
+
+
+def test_pick_list_carries_unlocated_stock_and_component_instances(garage_motion_design, library):
+    stock = [
+        InventoryEntry(library_id="bme280", kind="component", quantity=5, location="bin A"),
+        InventoryEntry(library_id="hc-sr501", kind="component", quantity=1),
+    ]
+    groups = {g.kind: g for g in check_inventory(garage_motion_design, library, stock).pick_list}
+    assert groups["location"].location == "bin A"
+    assert groups["location"].items[0].refs  # the component instance id(s)
+    assert groups["unlocated"].items[0].inventory_key == "hc-sr501"
+
+
+def test_check_endpoint_returns_pick_list(client):
+    client.post("/inventory/import", json={"csv": FIXTURE_CSV.read_text()})
+    design = json.loads((EXAMPLES_DIR / "motor-position.json").read_text())
+    body = client.post("/design/inventory/check", json={"design": design}).json()
+    kit = next(g for g in body["pick_list"] if g["location"] == "TO-220 24x5 kit")
+    assert kit["kind"] == "location"
+    assert {i["label"] for i in kit["items"]} == {"IRF4905", "IRFZ44N"}
+
+
+# ---------------------------------------------------------------------------
+# Buy list
+# ---------------------------------------------------------------------------
+
+def _jlc(catalog):
+    import httpx
+    from wirestudio.jlcpcb.client import JlcpcbClient
+
+    def handler(request):
+        q = request.url.params["q"]
+        return httpx.Response(200, json={"components": catalog.get(q, [])})
+    return JlcpcbClient(base_url="http://jlc.test", transport=httpx.MockTransport(handler))
+
+
+def test_buy_list_prices_the_shortfalls(library):
+    from wirestudio.inventory.buy import buy_list
+
+    design = Design.model_validate(
+        json.loads((EXAMPLES_DIR / "motor-position.json").read_text()))
+    thin = [InventoryEntry(kind="part", mpn="IRF4905", quantity=1, family="mosfet"),
+            InventoryEntry(kind="part", mpn="2N3904", quantity=9, family="bjt")]
+    client = _jlc({
+        "IRF4905": [{"lcsc": 1, "mfr": "IRF4905PBF", "package": "TO-220", "stock": 120, "price": 1.1}],
+        "IRFZ44N": [{"lcsc": 2, "mfr": "IRFZ44NPBF", "package": "TO-220", "stock": 0, "price": 0.9}],
+    })
+    result = buy_list(design, library, thin, client)
+    assert result.available and result.api_url == "http://jlc.test"
+    by_label = {ln.label: ln for ln in result.lines}
+    # Shortfall, not need: one IRF4905 is on hand.
+    assert by_label["IRF4905"].shortfall == 1 and by_label["IRF4905"].refs == ["Q1", "Q4"]
+    assert by_label["IRF4905"].status == "ok" and by_label["IRF4905"].lcsc == "C1"
+    assert by_label["IRF4905"].price == 1.1 and by_label["IRF4905"].package == "TO-220"
+    assert by_label["IRFZ44N"].status == "out_of_stock" and by_label["IRFZ44N"].shortfall == 2
+    # A library component the drawer lacks is searched by id.
+    adc = by_label["Generic analog input"]
+    assert adc.kind == "component" and adc.query == "adc" and adc.status == "not_found"
+    # Enough 2N3904s; common passives are assumed; neither is bought.
+    assert "2N3904" not in by_label and "10k" not in by_label
+    assert result.summary == {"ok": 1, "out_of_stock": 1, "not_found": 1}
+
+
+def test_buy_list_survives_a_down_api(library):
+    import httpx
+    from wirestudio.inventory.buy import buy_list
+    from wirestudio.jlcpcb.client import JlcpcbClient
+
+    design = Design.model_validate(
+        json.loads((EXAMPLES_DIR / "motor-position.json").read_text()))
+    down = JlcpcbClient(base_url="http://jlc.test",
+                        transport=httpx.MockTransport(lambda r: httpx.Response(503)))
+    result = buy_list(design, library, [], down)
+    assert result.available is False and "503" in (result.reason or "")
+    # The shortfalls are still listed, just unpriced.
+    assert {ln.label for ln in result.lines} >= {"IRF4905", "IRFZ44N", "2N3904"}
+    assert all(ln.status == "not_found" and "unavailable" in ln.note for ln in result.lines)
+
+
+def test_buy_list_endpoint_and_tool(client, monkeypatch):
+    import wirestudio.api.app as appmod
+    from wirestudio.inventory.buy import BuyList, BuyLine
+
+    fake = BuyList(design_id="x", available=True, api_url="u", lines=[
+        BuyLine(label="IRF4905", kind="part", family="mosfet", shortfall=2,
+                refs=["Q1", "Q4"], query="IRF4905", status="ok", note="C1 — 9 in stock",
+                lcsc="C1", stock=9, price=1.0),
+    ])
+    monkeypatch.setattr(appmod, "buy_list", lambda d, lib, inv: fake)
+    design = json.loads((EXAMPLES_DIR / "motor-position.json").read_text())
+    body = client.post("/design/buy-list", json={"design": design}).json()
+    assert body["summary"] == {"ok": 1, "out_of_stock": 0, "not_found": 0}
+    assert body["lines"][0]["lcsc"] == "C1" and body["lines"][0]["refs"] == ["Q1", "Q4"]

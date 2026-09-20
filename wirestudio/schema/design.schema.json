@@ -168,6 +168,12 @@
       }
     },
 
+    "part_overrides": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "Drawer substitutions for subcircuit parts: '<component id>.<part id>' -> MPN. Changes the printed value only; symbol and footprint stay."
+    },
+
     "passives": {
       "type": "array",
       "items": {

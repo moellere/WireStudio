@@ -8,6 +8,8 @@ MPN. Feeds the recommender so designs prefer parts already in the drawer.
 from wirestudio.inventory.check import (
     InventoryLine,
     InventoryReport,
+    PickGroup,
+    PickItem,
     Substitute,
     check_inventory,
     find_substitutes,
@@ -35,6 +37,8 @@ __all__ = [
     "InventoryLine",
     "InventoryReport",
     "InventoryStore",
+    "PickGroup",
+    "PickItem",
     "RejectedRow",
     "Substitute",
     "check_inventory",

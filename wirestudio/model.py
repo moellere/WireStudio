@@ -312,6 +312,11 @@ class Design(_Strict):
     buses: list[Bus] = Field(default_factory=list)
     connections: list[Connection] = Field(default_factory=list)
     passives: list[Passive] = Field(default_factory=list)
+    # Drawer substitutions accepted for subcircuit parts: "<component id>.
+    # <part id>" -> MPN. Only the value printed on the part changes; the
+    # symbol and footprint stay, which is what same-package substitution
+    # means. The validator records each one with what was not compared.
+    part_overrides: dict[str, str] = Field(default_factory=dict)
     # Behavioral graph: trigger -> actions wiring lowered into ESPHome
     # automations by the generator. Parallel to the physical `connections`
     # graph; optional, default empty so existing designs are unaffected.
