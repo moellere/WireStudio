@@ -34,8 +34,8 @@ from wirestudio.mcp import (
 
 from wirestudio import __version__
 from wirestudio.agent.agent import is_available as agent_available, run_turn, stream_turn_events
-from wirestudio.agent.session import SessionStore, FileSessionStore
-from wirestudio.designs.store import DesignStore, FileDesignStore
+from wirestudio.agent.session import SessionStore, FileSessionStore, SqliteSessionStore
+from wirestudio.designs.store import DesignStore, FileDesignStore, SqliteDesignStore
 from wirestudio.api.schemas import (
     AgentSession,
     AgentSessionMessage,
@@ -251,8 +251,15 @@ def create_app(
     # SESSIONS_DIR / DESIGNS_DIR env vars let the Docker image point
     # the stores at a /data volume without the caller plumbing args
     # through. Falls back to the package-local default in dev.
-    sessions_store = sessions or FileSessionStore(root=_os.environ.get("SESSIONS_DIR") or None)
-    inner_designs = designs or FileDesignStore(root=_os.environ.get("DESIGNS_DIR") or None)
+    # SESSIONS_DB / DESIGNS_DB pick the single-file SQLite stores instead.
+    sessions_store = sessions or (
+        SqliteSessionStore(Path(_os.environ["SESSIONS_DB"])) if _os.environ.get("SESSIONS_DB")
+        else FileSessionStore(root=_os.environ.get("SESSIONS_DIR") or None)
+    )
+    inner_designs = designs or (
+        SqliteDesignStore(Path(_os.environ["DESIGNS_DB"])) if _os.environ.get("DESIGNS_DB")
+        else FileDesignStore(root=_os.environ.get("DESIGNS_DIR") or None)
+    )
     bus = event_bus or DesignEventBus()
     # Every write goes through the wrapper so MCP tools, HTTP endpoints,
     # and any future CLI all fan out to subscribed browser tabs without

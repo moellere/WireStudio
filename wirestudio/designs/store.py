@@ -127,3 +127,78 @@ class FileDesignStore(DesignStore):
             return False
         path.unlink()
         return True
+
+
+class SqliteDesignStore(DesignStore):
+    """The same store in one SQLite file: for a deployment that would
+    rather back up one database than a directory of JSON, or that runs
+    more than one replica against shared storage. The JSON document is
+    stored whole; nothing here reads inside it except for the listing."""
+
+    def __init__(self, path: Path) -> None:
+        self.path = Path(path)
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        with self._connect() as db:
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS designs ("
+                "id TEXT PRIMARY KEY, document TEXT NOT NULL, saved_at TEXT NOT NULL)"
+            )
+
+    def _connect(self):
+        import sqlite3
+        db = sqlite3.connect(self.path, timeout=10)
+        db.execute("PRAGMA journal_mode=WAL")
+        return db
+
+    def exists(self, design_id: str) -> bool:
+        with self._connect() as db:
+            return db.execute("SELECT 1 FROM designs WHERE id = ?", (design_id,)).fetchone() is not None
+
+    def list(self) -> list[SavedDesignSummary]:
+        out: list[SavedDesignSummary] = []
+        with self._connect() as db:
+            rows = db.execute("SELECT id, document, saved_at FROM designs ORDER BY saved_at DESC").fetchall()
+        for design_id, document, saved_at in rows:
+            try:
+                data = json.loads(document)
+            except json.JSONDecodeError:
+                continue
+            board = data.get("board") or {}
+            out.append(SavedDesignSummary(
+                id=design_id,
+                name=str(data.get("name", "")),
+                description=str(data.get("description", "")),
+                board_library_id=str(board.get("library_id", "")),
+                chip_family=str(board.get("mcu", "")),
+                saved_at=saved_at,
+                component_count=len(data.get("components") or []),
+            ))
+        return out
+
+    def load(self, design_id: str) -> dict:
+        with self._connect() as db:
+            row = db.execute("SELECT document FROM designs WHERE id = ?", (design_id,)).fetchone()
+        if row is None:
+            raise FileNotFoundError(f"no saved design with id {design_id!r}")
+        return json.loads(row[0])
+
+    def save(self, design: dict, design_id: Optional[str] = None) -> tuple[str, str]:
+        if design_id is None:
+            raw = design.get("id")
+            if not raw:
+                raise ValueError("design has no `id` field; pass design_id explicitly")
+            design_id = sanitize_id(str(raw))
+        else:
+            design_id = sanitize_id(design_id)
+        saved_at = datetime.now(timezone.utc).isoformat()
+        with self._connect() as db:
+            db.execute(
+                "INSERT INTO designs (id, document, saved_at) VALUES (?, ?, ?) "
+                "ON CONFLICT(id) DO UPDATE SET document = excluded.document, saved_at = excluded.saved_at",
+                (design_id, json.dumps(design, default=str), saved_at),
+            )
+        return design_id, saved_at
+
+    def delete(self, design_id: str) -> bool:
+        with self._connect() as db:
+            return db.execute("DELETE FROM designs WHERE id = ?", (design_id,)).rowcount > 0

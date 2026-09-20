@@ -10,6 +10,7 @@ fake the Anthropic client here and drive each branch.
 """
 from __future__ import annotations
 
+import copy
 import json
 from pathlib import Path
 from types import SimpleNamespace
@@ -274,3 +275,86 @@ def test_run_turn_collapses_stream_to_result(monkeypatch, design, store):
     assert result.assistant_text == "done"
     assert result.stop_reason == "end_turn"
     assert result.session_id
+
+
+# ---------------------------------------------------------------------------
+# Within-turn context compaction
+# ---------------------------------------------------------------------------
+
+def _turn(tool_id, name, input_, result):
+    return [
+        {"role": "assistant", "content": [{"type": "tool_use", "id": tool_id, "name": name, "input": input_}]},
+        {"role": "user", "content": [{"type": "tool_result", "tool_use_id": tool_id, "content": result, "is_error": False}]},
+    ]
+
+
+def test_compact_tool_results_keeps_only_the_latest_of_each_read():
+    from wirestudio.agent.agent import compact_tool_results
+
+    big = "x" * 5000
+    messages = [{"role": "user", "content": "Current design state: ..."}]
+    messages += _turn("t1", "render", {}, big)
+    messages += _turn("t2", "library_detail", {"library_id": "bme280"}, big)
+    messages += _turn("t3", "set_param", {"instance_id": "a", "key": "k", "value": 1}, big)
+    messages += _turn("t4", "render", {}, big)
+    messages += _turn("t5", "library_detail", {"library_id": "adc"}, big)
+    messages += _turn("t6", "validate", {}, "ok")  # small: never worth a digest
+
+    removed = compact_tool_results(messages)
+    results = {m["content"][0]["tool_use_id"]: m["content"][0]["content"]
+               for m in messages if m["role"] == "user" and isinstance(m["content"], list)}
+    assert results["t1"].startswith("[superseded render result trimmed (5000 chars)")
+    assert results["t4"] == big  # the latest render is verbatim
+    assert results["t2"] == big and results["t5"] == big  # different ids: both current
+    assert results["t3"] == big  # a mutating tool's result is never touched
+    assert results["t6"] == "ok"
+    assert removed == 5000 - len(results["t1"])
+    # Idempotent: a second pass finds nothing more to trim.
+    assert compact_tool_results(messages) == 0
+
+
+def test_stream_trims_superseded_renders_before_the_next_call(monkeypatch, design, store):
+    """Three renders in one turn: by the final call only the last render's
+    YAML and ASCII are still in the context."""
+    seen: list[list[dict]] = []
+    original_stream = _FakeMessages.stream
+
+    def recording_stream(self, **kwargs):
+        seen.append(copy.deepcopy(kwargs["messages"]))
+        return original_stream(self, **kwargs)
+    monkeypatch.setattr(_FakeMessages, "stream", recording_stream)
+
+    steps = [
+        _FakeStream([], _message([_tool_use_block(f"r{i}", "render", {})], "tool_use"))
+        for i in range(3)
+    ] + [_FakeStream([_text_delta("done")], _message([_text_block("done")], "end_turn"))]
+    _install_client(monkeypatch, steps)
+    events = _collect(design, store)
+    assert events[-1]["type"] == "turn_complete"
+
+    last = seen[-1]
+    results = [b for m in last if m["role"] == "user" and isinstance(m["content"], list)
+               for b in m["content"] if b["type"] == "tool_result"]
+    assert len(results) == 3
+    assert results[0]["content"].startswith("[superseded render result trimmed")
+    assert results[1]["content"].startswith("[superseded render result trimmed")
+    assert results[2]["content"].startswith("{") and "esphome" in results[2]["content"]
+    full = sum(len(b["content"]) for b in results)
+    untrimmed = 3 * len(results[2]["content"])
+    assert full < untrimmed / 2
+
+
+def test_stream_reports_a_429_with_its_status(monkeypatch, design, store):
+    """The SDK retries 429s itself; once it gives up the stream reports it
+    as an error event rather than raising through the SSE generator."""
+    request = httpx.Request("POST", "https://api.anthropic.com/v1/messages")
+    err = anthropic.RateLimitError(
+        "rate limited", response=httpx.Response(429, request=request), body=None,
+    )
+    _install_client(monkeypatch, [err])
+    events = _collect(design, store)
+    assert events[-1]["type"] == "error"
+    assert "agent API call failed" in events[-1]["message"]
+    assert "429" in events[-1]["message"] or "rate limited" in events[-1]["message"]
+    with pytest.raises(RuntimeError):
+        run_turn(design=design, user_message="hi", sessions=store)

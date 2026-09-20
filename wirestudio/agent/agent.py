@@ -169,6 +169,55 @@ def _process_tool_calls(response, working_design: dict, library: Library, tool_c
     return tool_results, events
 
 
+# Read-only tools whose latest result supersedes every earlier one in
+# the same turn. A turn that renders, edits and renders again would
+# otherwise carry both full YAML+ASCII bodies to every later call.
+_SUPERSEDABLE = {
+    "render", "validate", "kicad_schematic", "kicad_pcb", "fab_bom", "fab_cpl",
+    "fab_status", "list_boards", "search_components", "recommend", "library_detail",
+    "component_check",
+}
+_TRIM_FLOOR = 400  # chars; below this a result costs less than its digest
+
+
+def compact_tool_results(messages: list[dict[str, Any]]) -> int:
+    """Replace superseded results of read-only tools with a one-line digest,
+    in place. Two calls supersede each other when they name the same tool
+    with the same input (`render` twice; `library_detail` of the same id).
+    The latest stays verbatim. Returns the number of characters removed."""
+    calls: dict[str, tuple[str, str]] = {}  # tool_use_id -> (tool, key)
+    for msg in messages:
+        if msg.get("role") != "assistant" or not isinstance(msg.get("content"), list):
+            continue
+        for block in msg["content"]:
+            if isinstance(block, dict) and block.get("type") == "tool_use" and block.get("name") in _SUPERSEDABLE:
+                key = block["name"] + json.dumps(block.get("input") or {}, sort_keys=True, default=str)
+                calls[block["id"]] = (block["name"], key)
+    latest: dict[str, str] = {}
+    for tool_id, (_tool, key) in calls.items():
+        latest[key] = tool_id  # dict order is message order, so the last wins
+    keep = set(latest.values())
+    removed = 0
+    for msg in messages:
+        if msg.get("role") != "user" or not isinstance(msg.get("content"), list):
+            continue
+        for block in msg["content"]:
+            if not (isinstance(block, dict) and block.get("type") == "tool_result"):
+                continue
+            tool_id = block.get("tool_use_id")
+            content = block.get("content")
+            if tool_id not in calls or tool_id in keep or not isinstance(content, str):
+                continue
+            if len(content) <= _TRIM_FLOOR or content.startswith("[superseded "):
+                continue
+            tool = calls[tool_id][0]
+            block["content"] = (
+                f"[superseded {tool} result trimmed ({len(content)} chars); "
+                f"a later {tool} call with the same input is current]")
+            removed += len(content) - len(block["content"])
+    return removed
+
+
 def _serialize_assistant_block(block: object) -> dict:
     """Strip SDK-side parser metadata from a content block before feeding
     it back as conversation history.
@@ -237,6 +286,7 @@ def stream_turn_events(
 
     try:
         for _ in range(max_iterations):
+            compact_tool_results(messages)
             with client.messages.stream(
                 model=resolved_model,
                 max_tokens=4096,
