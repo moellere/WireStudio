@@ -117,7 +117,7 @@ _Actuators / power:_
 - `hbridge` — two-input H-bridge DC motor driver (DRV8833 / TB6612 / L298N / relay pair); bare outputs, interlocked switches, or an hbridge fan
 - `hbridge_mosfet` — the same interface as a discrete IRF4905 / IRFZ44N bridge; its `subcircuit` expands into 15 parts in the schematic, PCB and BOM
 
-_Building blocks (discrete subcircuits, checked like any component; each expands into its parts in the schematic, PCB, BOM and inventory check):_
+_Building blocks (discrete subcircuits, checked like any component; each expands into its parts in the schematic, PCB, BOM and inventory check, and declares the electrical rules it is held to under `verify:`):_
 - `led_indicator` — one LED and its series resistor on a GPIO (`r_led` sets the resistor)
 - `npn_low_side_driver` — 2N3904 low-side switch with base resistor, pull-down and flyback diode; relay coils, buzzers, loads to ~75 mA
 - `mosfet_low_side_driver` — IRLZ44N logic-level low-side switch with gate resistor, pull-down and Schottky flyback; motors, heaters, LED strips, optional PWM

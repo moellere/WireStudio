@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Blocks declare the electrical rules they are held to** (#274). A
+  component may carry `verify.checks`: `led_current`, `base_drive`,
+  `gate_drive` and `divider`, each one line of arithmetic over the
+  block's stated assumptions (Vf, hFE, Vgs(on), Rds(on)) and the
+  instance's params, printed with the numbers it used. `component_check`
+  runs them at the block's defaults and lists passes under `verified`
+  (a block whose defaults fail its own rule is an error); `validate`
+  runs them per instance with the real params and the rails it is
+  wired to, warning on a failure. A rule that needs a rail only a design
+  knows reports as not evaluated rather than passing. The five building
+  blocks and `hbridge_mosfet` declare theirs, and `not_checked` now
+  says per block what lies beyond them: nothing is simulated.
+
 - **Components can be authored in the studio** (#272, first slice). The
   Components tab gets *New component*; a component's inspector card
   gets *Edit YAML* / *Delete* for a user component and *Copy as new* for

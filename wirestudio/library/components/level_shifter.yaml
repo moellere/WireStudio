@@ -29,6 +29,11 @@ params_schema:
     type: string
     default: "10k"
 
+verify:
+  # BSS138 is on with 2 V or more on the gate; the gate sits on VCC, so
+  # the check resolves once a design wires VCC to a rail.
+  checks:
+  - {kind: gate_drive, drive: {pin: VCC}, vgs_on_v: 2.0, rds_on_ohm: 3.5, load: 5, max_w: 0.3}
 notes: "Passes one open-drain or push-pull logic line between the MCU's 3.3 V (VCC) and a 5 V device
   (VHV) in both directions; emits no ESPHome config of its own because the line belongs to whatever
   device sits on the far side. 10k pull-ups suit 1-Wire and 100 kHz I2C; drop to 4.7k for 400 kHz.

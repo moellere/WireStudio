@@ -24,6 +24,7 @@ from wirestudio.generate.yaml_gen import render_component
 from wirestudio.kicad.importer import default_symbol_dirs
 from wirestudio.kicad.symbol_parser import KicadSymbol, load_symbols, resolve_symbol
 from wirestudio.library import Library, LibraryComponent, part_value
+from wirestudio.library.electrical import run_checks
 from wirestudio.model import Design
 
 _ID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
@@ -72,6 +73,7 @@ class ComponentCheck:
     warnings: list[str] = field(default_factory=list)
     unverified: list[str] = field(default_factory=list)
     not_checked: list[str] = field(default_factory=lambda: list(NOT_CHECKED))
+    verified: list[str] = field(default_factory=list)
     component: Optional[LibraryComponent] = None
     saved: str = ""
 
@@ -80,7 +82,7 @@ class ComponentCheck:
             "ok": self.ok, "library_id": self.library_id, "exists": self.exists,
             "errors": self.errors, "warnings": self.warnings,
             "unverified": self.unverified, "not_checked": self.not_checked,
-            "saved": self.saved,
+            "verified": self.verified, "saved": self.saved,
         }
 
 
@@ -113,8 +115,26 @@ def check_component_yaml(text: str, library: Library) -> ComponentCheck:
         _check_subcircuit(comp, report)
     _check_template(comp, library, report)
     _check_kicad(comp, report)
+    _check_electrical(comp, report)
     report.ok = not report.errors
     return report
+
+
+def _check_electrical(comp: LibraryComponent, report: ComponentCheck) -> None:
+    """The block's declared rules, evaluated at its own defaults: a block
+    whose defaults fail its own rules is wrong. Pin voltages are the
+    declared signal levels; a rail only a design knows is unverified."""
+    if comp.verify is None:
+        return
+    declared = {p.role: p.voltage for p in comp.electrical.pins}
+    results, unresolved = run_checks(comp, {}, lambda role: declared.get(role))
+    for r in results:
+        (report.verified if r.ok else report.errors).append(f"{r.kind}: {r.text}")
+    report.unverified.extend(f"not evaluated here, {u}" for u in unresolved)
+    n = len(comp.verify.checks)
+    report.not_checked[0] = (
+        f"electrical behaviour beyond the {n} declared check{'s' if n != 1 else ''}: "
+        "nothing is simulated; ratings are only compared where requires: declares them")
 
 
 def create_component(text: str, library: Library, *, overwrite: bool = False) -> ComponentCheck:

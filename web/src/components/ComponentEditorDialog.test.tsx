@@ -19,7 +19,7 @@ import { ApiError, api } from "../api/client";
 const clean: ComponentCheckResponse = {
   ok: true, library_id: "my_component", exists: "", errors: [], warnings: ["pin role 'GND' is not connected to any subcircuit part"],
   unverified: ["KiCad symbols not checked: no symbol library found (set KICAD8_SYMBOL_DIR)"],
-  not_checked: ["electrical behaviour: nothing is simulated"], saved: "",
+  not_checked: ["electrical behaviour: nothing is simulated"], verified: [], saved: "",
 };
 
 describe("ComponentEditorDialog", () => {

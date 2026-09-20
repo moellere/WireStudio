@@ -54,6 +54,9 @@ params_schema:
     type: string
     enum: [RESTORE_DEFAULT_OFF, RESTORE_DEFAULT_ON, ALWAYS_OFF, ALWAYS_ON]
 
+verify:
+  checks:
+  - {kind: led_current, resistor: r_led, drive: {pin: IN}, vf_v: 2.0, min_ma: 1, max_ma: 12}
 notes: "One LED sourced straight from a GPIO. r_led sets the series resistor: 220 ohm is a visible
   indicator, 1k a dim one that barely loads the pin. For anything brighter than a panel light drive it
   through npn_low_side_driver instead."

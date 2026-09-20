@@ -34,6 +34,7 @@ export interface ComponentCheckResponse {
   warnings: string[];
   unverified: string[];
   not_checked: string[];
+  verified: string[];
   saved: string;
 }
 

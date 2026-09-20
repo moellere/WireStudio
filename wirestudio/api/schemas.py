@@ -178,6 +178,7 @@ class ComponentCheckResponse(_S):
     warnings: list[str] = Field(default_factory=list, description="Suspicious but not blocking.")
     unverified: list[str] = Field(default_factory=list, description="Checks this server could not run (missing KiCad libraries).")
     not_checked: list[str] = Field(default_factory=list, description="What no check here ever covers.")
+    verified: list[str] = Field(default_factory=list, description="Declared electrical rules that passed at the block's defaults, with the numbers used.")
     saved: str = Field(default="", description="Path written, when created.")
 
 
