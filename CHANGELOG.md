@@ -23,6 +23,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Inventory accepts discrete parts, not only library components**
+  (#263, first slice). A drawer is mostly things with no
+  `library/components/<id>.yaml`: transistors, MOSFETs, passives,
+  regulators. Inventory entries gain a `part` kind whose identity is an
+  MPN, carrying typed specs (`family`, `polarity`, `package`, `pinout`,
+  `value`, `v_max`, `i_max`). Parts key under `part:<mpn>`, so a drawer
+  part named `adc` cannot shadow the `adc` component; existing
+  `inventory.json` files load unchanged.
+- **CSV import keeps every row.** It finds the header wherever it
+  starts (a real export has summary rows above it), maps the column
+  names people actually use (Part, Family, Polarity / Type, Total Qty,
+  Package, Pinout, Kit Locations, Notes), normalises families and
+  polarities, and lifts a leading `55V, 110A` out of a spec note into
+  `v_max` / `i_max`. Anything it cannot use comes back in `rejected`
+  with a row number and a reason -- previously unknown rows were
+  dropped silently. `POST /inventory/import` now reports
+  `imported / updated / rejected / header_row`, and
+  `PUT|DELETE /inventory/parts/{mpn}` manage parts directly.
+- **Inventory on the MCP surface**: `inventory_list`, `inventory_set`,
+  `inventory_import` and `inventory_check`. The REST routes sit behind
+  SSO in production, so this is the only way a headless client can push
+  a drawer into the studio.
+
 - **Library subcircuits.** A component can now be built from discrete
   parts: a `subcircuit:` block lists parts (symbol, footprint, value,
   ref prefix) and wires their pins to nets. A net named after one of

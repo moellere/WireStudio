@@ -79,15 +79,15 @@ export function InventoryDialog({ design, onClose }: { design?: Design | null; o
   async function addPart(p: Part) {
     try {
       const entry = await api.setInventory(p.id, { kind: p.kind, quantity: 1 });
-      setEntries((es) => [...es, entry].sort((a, b) => a.library_id.localeCompare(b.library_id)));
+      setEntries((es) => [...es, entry].sort((a, b) => a.key.localeCompare(b.key)));
       setSearch("");
     } catch (e) {
       fail(e);
     }
   }
 
-  function patch(id: string, fields: Partial<InventoryEntry>) {
-    setEntries((es) => es.map((e) => (e.library_id === id ? { ...e, ...fields } : e)));
+  function patch(key: string, fields: Partial<InventoryEntry>) {
+    setEntries((es) => es.map((e) => (e.key === key ? { ...e, ...fields } : e)));
   }
 
   async function persist(entry: InventoryEntry) {
@@ -99,16 +99,16 @@ export function InventoryDialog({ design, onClose }: { design?: Design | null; o
         location: entry.location,
         note: entry.note,
       });
-      setEntries((es) => es.map((e) => (e.library_id === saved.library_id ? saved : e)));
+      setEntries((es) => es.map((e) => (e.key === saved.key ? saved : e)));
     } catch (e) {
       fail(e);
     }
   }
 
-  async function remove(id: string) {
+  async function remove(key: string) {
     try {
-      await api.deleteInventory(id);
-      setEntries((es) => es.filter((e) => e.library_id !== id));
+      await api.deleteInventory(key);
+      setEntries((es) => es.filter((e) => e.key !== key));
     } catch (e) {
       fail(e);
     }
@@ -143,8 +143,12 @@ export function InventoryDialog({ design, onClose }: { design?: Design | null; o
     try {
       const res = await api.importInventoryCsv(await file.text());
       setEntries(await api.listInventory());
+      const done = `imported ${res.imported}, updated ${res.updated}`;
       setError(
-        res.skipped.length ? `imported ${res.imported}; skipped unknown: ${res.skipped.join(", ")}` : null,
+        res.rejected.length
+          ? `${done}; ${res.rejected.length} row(s) not used: ` +
+            res.rejected.map((r) => (r.row ? `row ${r.row}: ${r.reason}` : r.reason)).join("; ")
+          : null,
       );
     } catch (e) {
       fail(e);
@@ -244,11 +248,14 @@ export function InventoryDialog({ design, onClose }: { design?: Design | null; o
                 </thead>
                 <tbody className="align-top">
                   {entries.map((e) => (
-                    <tr key={e.library_id} className="border-t border-line">
+                    <tr key={e.key} className="border-t border-line">
                       <td className="py-1.5 pr-2 text-ink">
-                        {nameOf(e.library_id)}
-                        {e.kind === "module" && (
-                          <span className="ml-1 rounded bg-surface-2 px-1 py-0.5 text-[10px] text-ink-dim">module</span>
+                        {e.kind === "part" ? e.mpn : nameOf(e.library_id)}
+                        {e.kind !== "component" && (
+                          <span className="ml-1 rounded bg-surface-2 px-1 py-0.5 text-[10px] text-ink-dim">{e.kind}</span>
+                        )}
+                        {e.kind === "part" && e.package && (
+                          <span className="ml-1 text-[10px] text-ink-faint">{[e.family, e.polarity, e.package].filter(Boolean).join(" · ")}</span>
                         )}
                         {e.low_stock && (
                           <span className="ml-1 rounded bg-amber-500/10 px-1 py-0.5 text-[10px] text-amber-300 ring-1 ring-amber-500/30">low</span>
@@ -259,7 +266,7 @@ export function InventoryDialog({ design, onClose }: { design?: Design | null; o
                           type="number"
                           min={0}
                           value={e.quantity}
-                          onChange={(ev) => patch(e.library_id, { quantity: Number(ev.target.value) })}
+                          onChange={(ev) => patch(e.key, { quantity: Number(ev.target.value) })}
                           onBlur={() => persist(e)}
                           className={`w-14 rounded-md border bg-surface-1 px-1.5 py-1 text-ink transition-colors focus:outline-none ${e.low_stock ? "border-amber-500/50 focus:border-amber-400" : "border-line focus:border-accent-500/60"}`}
                         />
@@ -270,7 +277,7 @@ export function InventoryDialog({ design, onClose }: { design?: Design | null; o
                           min={0}
                           value={e.min_quantity}
                           title="Low-stock threshold (0 = none)"
-                          onChange={(ev) => patch(e.library_id, { min_quantity: Number(ev.target.value) })}
+                          onChange={(ev) => patch(e.key, { min_quantity: Number(ev.target.value) })}
                           onBlur={() => persist(e)}
                           className="w-14 rounded-md border border-line bg-surface-1 px-1.5 py-1 text-ink-faint transition-colors focus:border-accent-500/60 focus:text-ink focus:outline-none"
                         />
@@ -278,7 +285,7 @@ export function InventoryDialog({ design, onClose }: { design?: Design | null; o
                       <td className="py-1 pr-2">
                         <input
                           value={e.location}
-                          onChange={(ev) => patch(e.library_id, { location: ev.target.value })}
+                          onChange={(ev) => patch(e.key, { location: ev.target.value })}
                           onBlur={() => persist(e)}
                           placeholder="bin / drawer"
                           className="w-full rounded-md border border-line bg-surface-1 px-1.5 py-1 text-ink placeholder:text-ink-ghost transition-colors focus:border-accent-500/60 focus:outline-none"
@@ -287,7 +294,7 @@ export function InventoryDialog({ design, onClose }: { design?: Design | null; o
                       <td className="py-1 pr-2">
                         <input
                           value={e.note}
-                          onChange={(ev) => patch(e.library_id, { note: ev.target.value })}
+                          onChange={(ev) => patch(e.key, { note: ev.target.value })}
                           onBlur={() => persist(e)}
                           placeholder="—"
                           className="w-full rounded-md border border-line bg-surface-1 px-1.5 py-1 text-ink placeholder:text-ink-ghost transition-colors focus:border-accent-500/60 focus:outline-none"
@@ -295,7 +302,7 @@ export function InventoryDialog({ design, onClose }: { design?: Design | null; o
                       </td>
                       <td className="py-1.5 text-right">
                         <button
-                          onClick={() => remove(e.library_id)}
+                          onClick={() => remove(e.key)}
                           aria-label={`Remove ${nameOf(e.library_id)}`}
                           className="rounded-md p-1 text-ink-faint transition-colors hover:bg-surface-2 hover:text-rose-300"
                         >
