@@ -54,6 +54,8 @@ from wirestudio.api.schemas import (
     ComponentYamlRequest,
     InventoryPartCheckLine,
     InventorySubstitute,
+    PickGroupModel,
+    PickItemModel,
     McpTokenResponse,
     ModuleSummary,
     FleetJobLogResponse,
@@ -95,7 +97,7 @@ from wirestudio.csp.compatibility import check_pin_compatibility, strict_blocker
 from wirestudio.csp.pin_solver import solve_pins as run_solve_pins
 from wirestudio.generate.display_intent import validate_show
 from wirestudio.intent import MELODIES, validate_automations
-from wirestudio.validate import check_board_flash
+from wirestudio.validate import check_board_flash, check_part_overrides
 from wirestudio.enclosure import (
     EnclosureUnavailable,
     default_sources,
@@ -129,6 +131,7 @@ from wirestudio.kicad.render import (
     render_schematic,
     render_status,
 )
+from wirestudio.inventory.buy import buy_list, buy_list_to_dict
 from wirestudio.jlcpcb import check_bom, jlcpcb_status, report_to_dict
 from wirestudio.recommend.recommender import Constraints, recommend_components
 from wirestudio.library import (
@@ -466,7 +469,7 @@ def create_app(
         # (warnings, not blocks) so a half-authored automation can render.
         target_warnings = get_target(d.target).validate(d, lib)
         automation_warnings = validate_automations(d, lib) + validate_show(d, lib)
-        board_warnings = check_board_flash(d, lib)
+        board_warnings = check_board_flash(d, lib) + check_part_overrides(d, lib)
         # In strict mode, warn/error compatibility entries and design warnings
         # flip ok to false (the render/push gates refuse the same design).
         # Permissive mode always reports ok -- warnings are guidance, not blocks.
@@ -859,6 +862,14 @@ def create_app(
         """
         d = _validate_design(design)
         return report_to_dict(check_bom(d, lib))
+
+    @app.post("/design/buy-list", tags=["inventory"])
+    def design_buy_list(req: InventoryCheckRequest) -> dict:
+        """What the drawer is short for this design, priced on JLCPCB.
+        Always 200: with the API down the shortfalls still come back,
+        marked `available: false`."""
+        d = _validate_design(req.design)
+        return buy_list_to_dict(buy_list(d, lib, inventory_store.list()))
 
     @app.get("/enclosure/search/status", tags=["enclosure"])
     def enclosure_search_status() -> dict:
@@ -1257,10 +1268,19 @@ def create_app(
                         )
                         for sub in ln.substitutes
                     ],
+                    keys=ln.keys, substituted_for=ln.substituted_for,
                 )
                 for ln in report.parts
             ],
             parts_summary=report.parts_summary,
+            pick_list=[
+                PickGroupModel(kind=g.kind, location=g.location, items=[
+                    PickItemModel(label=i.label, needed=i.needed, on_hand=i.on_hand,
+                                  refs=i.refs, status=i.status, inventory_key=i.inventory_key)
+                    for i in g.items
+                ])
+                for g in report.pick_list
+            ],
         )
 
     # ---------------------------------------------------------------------

@@ -14,6 +14,7 @@ import type {
   FleetRunStatus,
   FleetStatus,
   InventoryEntry,
+  BuyListResponse,
   InventoryCheckResponse,
   InventoryImportResult,
   FabStatus,
@@ -158,6 +159,11 @@ export const api = {
         : `/inventory/${encodeURIComponent(key)}`,
       { method: "DELETE" },
     ),
+  buyList: (design: Design) =>
+    request<BuyListResponse>("/design/buy-list", {
+      method: "POST",
+      body: JSON.stringify({ design }),
+    }),
   checkDesignInventory: (design: Design) =>
     request<InventoryCheckResponse>("/design/inventory/check", {
       method: "POST",

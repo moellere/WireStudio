@@ -287,6 +287,48 @@ export interface InventoryPartCheckLine {
   matched: string;
   location: string;
   substitutes: InventorySubstitute[];
+  keys: string[];
+  substituted_for: string[];
+}
+
+export interface PickItem {
+  label: string;
+  needed: number;
+  on_hand: number;
+  refs: string[];
+  status: string;
+  inventory_key: string;
+}
+
+export interface PickGroup {
+  kind: "location" | "unlocated" | "assumed" | "missing";
+  location: string;
+  items: PickItem[];
+}
+
+export interface BuyLine {
+  label: string;
+  kind: string;
+  family: string;
+  shortfall: number;
+  refs: string[];
+  query: string;
+  status: "ok" | "out_of_stock" | "not_found";
+  note: string;
+  lcsc: string;
+  mfr: string;
+  package: string;
+  stock: number;
+  price: number | null;
+}
+
+export interface BuyListResponse {
+  design_id: string;
+  available: boolean;
+  api_url: string;
+  reason: string | null;
+  summary: Record<string, number>;
+  lines: BuyLine[];
 }
 
 export interface InventoryCheckResponse {
@@ -295,6 +337,7 @@ export interface InventoryCheckResponse {
   summary: Record<string, number>;
   parts: InventoryPartCheckLine[];
   parts_summary: Record<string, number>;
+  pick_list: PickGroup[];
 }
 
 export interface RecommendConstraints {

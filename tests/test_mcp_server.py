@@ -30,6 +30,7 @@ EXPECTED_TOOLS = {
     "add_component",
     "remove_component",
     "set_param",
+    "set_part_override",
     "set_connection",
     "set_strict",
     "add_bus",
@@ -46,6 +47,7 @@ EXPECTED_TOOLS = {
     "inventory_set",
     "inventory_import",
     "inventory_check",
+    "buy_list",
 }
 
 HARDWARE_TOOLS = {
@@ -404,3 +406,23 @@ async def test_component_check_and_create_over_mcp(tmp_path: Path):
     bundled = _content_to_dict(await server.call_tool(
         "component_create", {"yaml": (BUNDLED / "components" / "bme280.yaml").read_text()}))
     assert not bundled["ok"] and any("bundled" in e for e in bundled["errors"])
+
+
+async def test_buy_list_tool_uses_the_store_and_inventory(mcp_server, monkeypatch):
+    import wirestudio.mcp.server as servermod
+    from wirestudio.inventory.buy import BuyList
+
+    server, store = mcp_server
+    seen = {}
+
+    def fake(design, library, inventory):
+        seen["design"] = design.id
+        seen["inventory"] = list(inventory)
+        return BuyList(design_id=design.id, available=False, api_url="u", reason="down")
+    monkeypatch.setattr(servermod, "buy_list", fake)
+    design_id = _seed_design(store)
+    body = _content_to_dict(await server.call_tool("buy_list", {"design_id": design_id}))
+    assert body["available"] is False and body["reason"] == "down"
+    assert seen["design"] == design_id and seen["inventory"] == []
+    missing = _content_to_dict(await server.call_tool("buy_list", {"design_id": "nope"}))
+    assert "error" in missing

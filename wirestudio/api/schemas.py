@@ -385,6 +385,23 @@ class InventoryPartCheckLine(_S):
         default_factory=list,
         description="Drawer parts that pass family, polarity, package and rating checks for a 'need' or 'partial' semiconductor. Proposals only.",
     )
+    keys: list[str] = Field(default_factory=list, description="Subcircuit part keys ('<component id>.<part id>') behind `refs`; the targets for `part_overrides`.")
+    substituted_for: list[str] = Field(default_factory=list, description="Library values a part_override replaced on this line.")
+
+
+class PickItemModel(_S):
+    label: str = Field(description="Component name, or the value printed on a part.")
+    needed: int
+    on_hand: int
+    refs: list[str] = Field(description="Designators, or component instance ids.")
+    status: str
+    inventory_key: str = Field(default="", description="Inventory entry that satisfies the item, if any.")
+
+
+class PickGroupModel(_S):
+    kind: str = Field(description="'location' (a drawer location), 'unlocated' (in stock, no location recorded), 'assumed' (common value nobody inventories) or 'missing'.")
+    location: str = Field(default="", description="The drawer location for kind 'location'.")
+    items: list[PickItemModel]
 
 
 class InventoryCheckResponse(_S):
@@ -398,4 +415,8 @@ class InventoryCheckResponse(_S):
     parts_summary: dict[str, int] = Field(
         default_factory=dict,
         description="Counts keyed by status across `parts`.",
+    )
+    pick_list: list[PickGroupModel] = Field(
+        default_factory=list,
+        description="What to pull, grouped by where it is: drawer locations first, then unlocated stock, assumed common values, and what is missing.",
     )

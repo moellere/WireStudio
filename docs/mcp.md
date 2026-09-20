@@ -239,6 +239,7 @@ and persist back to `designs/<id>.json`.
 | `add_component` | yes | append a component instance |
 | `remove_component` | yes | drop component + its originating connections |
 | `set_param` | yes | per-instance param set (`value: null` deletes) |
+| `set_part_override` | yes | accept a drawer substitution for one subcircuit part (`part_overrides[key] = mpn`; empty mpn removes) |
 | `set_connection` | yes | retarget a single connection |
 | `set_strict` | yes | toggle `design.strict` (violations block generation) |
 | `add_bus` | yes | append an i2c / spi / uart / 1wire / i2s bus |
@@ -254,7 +255,8 @@ and persist back to `designs/<id>.json`.
 | `inventory_list` | no | what is on hand; `kind="part"` for the discrete drawer |
 | `inventory_set` | yes | upsert one entry: `mpn` for a discrete part, `library_id` for a library component/module |
 | `inventory_import` | yes | bulk-load spreadsheet CSV; unusable rows come back in `rejected` with a reason |
-| `inventory_check` | no | cross-check a design's BOM against the drawer; short semiconductors carry `substitutes` with caveats (proposals, never applied) |
+| `inventory_check` | no | cross-check a design's BOM against the drawer; short semiconductors carry `substitutes` with caveats (proposals until `set_part_override`); `pick_list` groups what to pull by drawer location |
+| `buy_list` | no | the check's shortfalls priced on JLCPCB (LCSC id, stock, price, or not found); shortfalls still listed when the API is down |
 
 Every design-bound tool accepts an optional `design_id`; omit it to use
 the active design.
