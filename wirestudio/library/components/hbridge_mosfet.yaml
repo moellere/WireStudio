@@ -94,20 +94,26 @@ kicad:
   symbol: Conn_01x04
   footprint: Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical
   value: MOSFET H-bridge
+# `requires` is the circuit's need (5 V rail, ~1 A motor, with margin for
+# stall and flyback), not the fitted part's rating: a drawer FET rated well
+# below an IRF4905 still substitutes if it clears these.
 subcircuit:
   parts:
   - id: q_hi_a
     ref_prefix: Q
     kicad: {symbol_lib: Transistor_FET, symbol: IRF4905, footprint: "Package_TO_SOT_THT:TO-220-3_Vertical", value: IRF4905}
     pins: {G: gate_a, D: out_a, S: VM}
+    requires: {family: mosfet, polarity: p, v_min: 20, i_min: 3}
   - id: q_lo_a
     ref_prefix: Q
     kicad: {symbol_lib: Transistor_FET, symbol: IRLZ44N, footprint: "Package_TO_SOT_THT:TO-220-3_Vertical", value: IRFZ44N}
     pins: {G: gate_a, D: out_a, S: GND}
+    requires: {family: mosfet, polarity: n, v_min: 20, i_min: 3}
   - id: q_drv_a
     ref_prefix: Q
     kicad: {symbol_lib: Transistor_BJT, symbol: 2N3904, footprint: "Package_TO_SOT_THT:TO-92_Inline", value: 2N3904}
     pins: {C: gate_a, B: base_a, E: GND}
+    requires: {family: bjt, polarity: npn, v_min: 10, i_min: 0.05}
   - id: r_gate_a
     ref_prefix: R
     kicad: {symbol_lib: Device, symbol: R, footprint: "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal", value: "470"}
@@ -124,14 +130,17 @@ subcircuit:
     ref_prefix: Q
     kicad: {symbol_lib: Transistor_FET, symbol: IRF4905, footprint: "Package_TO_SOT_THT:TO-220-3_Vertical", value: IRF4905}
     pins: {G: gate_b, D: out_b, S: VM}
+    requires: {family: mosfet, polarity: p, v_min: 20, i_min: 3}
   - id: q_lo_b
     ref_prefix: Q
     kicad: {symbol_lib: Transistor_FET, symbol: IRLZ44N, footprint: "Package_TO_SOT_THT:TO-220-3_Vertical", value: IRFZ44N}
     pins: {G: gate_b, D: out_b, S: GND}
+    requires: {family: mosfet, polarity: n, v_min: 20, i_min: 3}
   - id: q_drv_b
     ref_prefix: Q
     kicad: {symbol_lib: Transistor_BJT, symbol: 2N3904, footprint: "Package_TO_SOT_THT:TO-92_Inline", value: 2N3904}
     pins: {C: gate_b, B: base_b, E: GND}
+    requires: {family: bjt, polarity: npn, v_min: 10, i_min: 0.05}
   - id: r_gate_b
     ref_prefix: R
     kicad: {symbol_lib: Device, symbol: R, footprint: "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal", value: "470"}

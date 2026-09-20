@@ -252,7 +252,7 @@ and persist back to `designs/<id>.json`.
 | `inventory_list` | no | what is on hand; `kind="part"` for the discrete drawer |
 | `inventory_set` | yes | upsert one entry: `mpn` for a discrete part, `library_id` for a library component/module |
 | `inventory_import` | yes | bulk-load spreadsheet CSV; unusable rows come back in `rejected` with a reason |
-| `inventory_check` | no | cross-check a design's BOM against the drawer |
+| `inventory_check` | no | cross-check a design's BOM against the drawer; short semiconductors carry `substitutes` with caveats (proposals, never applied) |
 
 Every design-bound tool accepts an optional `design_id`; omit it to use
 the active design.

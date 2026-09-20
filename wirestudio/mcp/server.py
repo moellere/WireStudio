@@ -16,6 +16,8 @@ its `streamable_http_app()` into the parent FastAPI app and arranging
 """
 from __future__ import annotations
 
+from dataclasses import asdict
+
 from typing import Any, Callable, Optional
 
 from mcp.server.mcpserver import MCPServer
@@ -632,8 +634,12 @@ def _register_inventory_tools(
             "into plus the design's passives, matched by MPN for "
             "semiconductors and by magnitude for passives. A part lands "
             "as 'have', 'partial', 'need', 'assumed' (a common passive "
-            "value nobody inventories) or 'untracked'. Defaults to the "
-            "active design."
+            "value nobody inventories) or 'untracked'. A 'need' or "
+            "'partial' semiconductor carries 'substitutes': drawer parts "
+            "of the same family, polarity and package whose ratings "
+            "clear what the circuit asks. These are proposals with "
+            "explicit caveats, not verdicts; relay the caveats. Defaults "
+            "to the active design."
         ),
     )
     def inventory_check(design_id: str = "") -> dict:
@@ -660,7 +666,8 @@ def _register_inventory_tools(
                 {"value": ln.value, "family": ln.family, "refs": ln.refs,
                  "needed": ln.needed, "on_hand": ln.on_hand,
                  "status": ln.status, "matched": ln.matched,
-                 "location": ln.location}
+                 "location": ln.location,
+                 "substitutes": [asdict(sub) for sub in ln.substitutes]}
                 for ln in report.parts
             ],
         }
