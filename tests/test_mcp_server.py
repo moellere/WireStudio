@@ -21,6 +21,8 @@ EXPECTED_TOOLS = {
     "search_components",
     "list_boards",
     "library_detail",
+    "component_check",
+    "component_create",
     "recommend",
     "render",
     "validate",
@@ -381,3 +383,24 @@ async def test_inventory_check_reports_against_a_design(mcp_server):
     missing = _content_to_dict(
         await server.call_tool("inventory_check", {"design_id": "nope"}))
     assert "error" in missing
+
+
+async def test_component_check_and_create_over_mcp(tmp_path: Path):
+    from wirestudio.library import Library
+    from tests.test_library_check import BUNDLED, DRAFT
+
+    library = Library(BUNDLED, tmp_path / "user")
+    server = build_mcp_server(
+        library, FileDesignStore(root=tmp_path / "designs"),
+        inventory=FileInventoryStore(path=tmp_path / "inventory.json"),
+    )
+    report = _content_to_dict(await server.call_tool("component_check", {"yaml": DRAFT}))
+    assert report["ok"] and report["saved"] == "" and report["not_checked"]
+
+    created = _content_to_dict(await server.call_tool("component_create", {"yaml": DRAFT}))
+    assert created["ok"] and created["saved"].endswith("led_driver_npn.yaml")
+    assert library.component_source("led_driver_npn") == "user"
+
+    bundled = _content_to_dict(await server.call_tool(
+        "component_create", {"yaml": (BUNDLED / "components" / "bme280.yaml").read_text()}))
+    assert not bundled["ok"] and any("bundled" in e for e in bundled["errors"])

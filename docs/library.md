@@ -41,6 +41,13 @@ exercised by a bundled example, see
 
 `wirestudio/library/components/`
 
+A second tree at `LIBRARY_USER_DIR` (`/data/library` in the image) holds
+components written at runtime through `component_create` (MCP, the
+in-studio agent, or `POST /library/components`). They load like bundled
+ones; a bundled id always wins, so a user file cannot shadow a shipped
+component. `component_check` reports what it verified and what it never
+does: it is a structural gate, not a simulator.
+
 _Environmental sensors:_
 - `bme280` — Bosch temperature/humidity/pressure sensor (I2C)
 - `bmp180` — Bosch BMP180/BMP085 barometric pressure + temperature (I2C)

@@ -75,7 +75,7 @@ COPY --from=web-builder /web/dist /app/web-dist
 
 # Persistence root. sessions/ + designs/ live under here so a single
 # `-v <volume>:/data` survives upgrades.
-RUN mkdir -p /data/sessions /data/designs && \
+RUN mkdir -p /data/sessions /data/designs /data/library/components && \
     useradd -m -s /bin/bash appuser && \
     chown -R appuser:appuser /app /data
 
@@ -118,6 +118,7 @@ ENV PYTHONUNBUFFERED=1 \
     SESSIONS_DIR=/data/sessions \
     DESIGNS_DIR=/data/designs \
     INVENTORY_PATH=/data/inventory.json \
+    LIBRARY_USER_DIR=/data/library \
     WIRESTUDIO_FW_CACHE=/data/firmware-cache
 
 EXPOSE 8765
