@@ -15,6 +15,7 @@ import type {
   FleetStatus,
   InventoryEntry,
   InventoryCheckResponse,
+  InventoryImportResult,
   FabStatus,
   KicadPcbStatus,
   KicadPcbRenderStatus,
@@ -149,8 +150,13 @@ export const api = {
       method: "PUT",
       body: JSON.stringify(body),
     }),
-  deleteInventory: (libraryId: string) =>
-    request<{ deleted: string }>(`/inventory/${encodeURIComponent(libraryId)}`, { method: "DELETE" }),
+  deleteInventory: (key: string) =>
+    request<{ deleted: string }>(
+      key.startsWith("part:")
+        ? `/inventory/parts/${encodeURIComponent(key.slice(5))}`
+        : `/inventory/${encodeURIComponent(key)}`,
+      { method: "DELETE" },
+    ),
   checkDesignInventory: (design: Design) =>
     request<InventoryCheckResponse>("/design/inventory/check", {
       method: "POST",
@@ -158,7 +164,7 @@ export const api = {
     }),
   exportInventoryCsv: () => requestText("/inventory/export.csv"),
   importInventoryCsv: (csv: string) =>
-    request<{ imported: number; skipped: string[] }>("/inventory/import", {
+    request<InventoryImportResult>("/inventory/import", {
       method: "POST",
       body: JSON.stringify({ csv }),
     }),

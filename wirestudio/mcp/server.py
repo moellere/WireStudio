@@ -44,6 +44,13 @@ from wirestudio.agent.tools import (
 )
 from wirestudio.designs.active import ActiveDesignTracker
 from wirestudio.designs.store import DesignStore
+from wirestudio.inventory import check_inventory, entries_from_csv
+from wirestudio.inventory.store import (
+    FAMILIES,
+    InventoryEntry,
+    InventoryStore,
+    default_inventory_store,
+)
 from wirestudio.generate.ascii_gen import render_ascii
 from wirestudio.generate.yaml_gen import render_yaml
 from wirestudio.library import Library
@@ -57,6 +64,7 @@ def build_mcp_server(
     name: str = "wirestudio",
     active: Optional[ActiveDesignTracker] = None,
     hardware: bool = True,
+    inventory: Optional[InventoryStore] = None,
     workbench_factory: Optional[Callable[[], Any]] = None,
     fleet_factory: Optional[Callable[[], Any]] = None,
 ) -> MCPServer:
@@ -78,6 +86,8 @@ def build_mcp_server(
     _register_library_tools(mcp, library)
     _register_design_tools(mcp, library, designs, tracker)
     _register_active_tools(mcp, tracker, designs)
+    _register_inventory_tools(
+        mcp, library, designs, tracker, inventory or default_inventory_store())
     _register_resources(mcp, library, designs)
     if hardware:
         from wirestudio.mcp.hardware import register_hardware_tools
@@ -487,6 +497,160 @@ def _register_design_tools(
         if design is None:
             return _NO_DESIGN_ERROR
         return _run_fab_cpl(design, library)
+
+
+def _register_inventory_tools(
+    mcp: MCPServer,
+    library: Library,
+    designs: DesignStore,
+    tracker: ActiveDesignTracker,
+    inventory: InventoryStore,
+) -> None:
+    """The parts drawer over MCP.
+
+    The REST inventory routes sit behind SSO in production, so these are
+    the only way a headless client gets a drawer into the studio.
+    """
+
+    def _wire(e: InventoryEntry) -> dict:
+        return {k: v for k, v in {
+            "key": e.key, "label": e.label, "kind": e.kind,
+            "library_id": e.library_id, "mpn": e.mpn,
+            "quantity": e.quantity, "min_quantity": e.min_quantity,
+            "low_stock": e.low_stock, "location": e.location, "note": e.note,
+            "family": e.family, "polarity": e.polarity, "package": e.package,
+            "pinout": e.pinout, "value": e.value,
+            "v_max": e.v_max, "i_max": e.i_max,
+        }.items() if v not in ("", None)}
+
+    @mcp.tool(
+        name="inventory_list",
+        description=(
+            "List what is physically on hand. Entries are library "
+            "components/modules (keyed by library_id) or discrete parts "
+            "with no library file -- transistors, passives, regulators -- "
+            "keyed 'part:<mpn>'. Filter with kind='part' to see only the "
+            "drawer. Check here before designing a circuit from discretes."
+        ),
+    )
+    def inventory_list(kind: str = "") -> dict:
+        entries = inventory.list()
+        if kind:
+            entries = [e for e in entries if e.kind == kind]
+        return {"count": len(entries), "entries": [_wire(e) for e in entries]}
+
+    @mcp.tool(
+        name="inventory_set",
+        description=(
+            "Add or update one inventory entry. Pass mpn for a discrete "
+            "part (kind defaults to 'part'), or library_id for a library "
+            f"component/module. Families: {', '.join(FAMILIES)}. v_max / "
+            "i_max are magnitudes in volts / amps; polarity carries the "
+            "sign ('pnp', 'p')."
+        ),
+    )
+    def inventory_set(
+        mpn: str = "",
+        library_id: str = "",
+        kind: str = "",
+        quantity: int = 0,
+        min_quantity: int = 0,
+        location: str = "",
+        note: str = "",
+        family: str = "",
+        polarity: str = "",
+        package: str = "",
+        pinout: str = "",
+        value: str = "",
+        v_max: Optional[float] = None,
+        i_max: Optional[float] = None,
+    ) -> dict:
+        resolved = kind or ("part" if mpn else "component")
+        if resolved != "part":
+            try:
+                (library.module if resolved == "module" else library.component)(
+                    library_id)
+            except FileNotFoundError:
+                return {"error": f"no {resolved} with library id {library_id!r}"}
+        try:
+            entry = InventoryEntry(
+                library_id=library_id if resolved != "part" else "",
+                mpn=mpn if resolved == "part" else "",
+                kind=resolved, quantity=quantity, min_quantity=min_quantity,
+                location=location, note=note, family=family, polarity=polarity,
+                package=package, pinout=pinout, value=value,
+                v_max=v_max, i_max=i_max,
+            )
+        except ValueError as e:
+            return {"error": str(e)}
+        return {"entry": _wire(inventory.set(entry))}
+
+    @mcp.tool(
+        name="inventory_import",
+        description=(
+            "Bulk-load inventory from spreadsheet CSV text. Finds the "
+            "header wherever it starts and maps common column names "
+            "(Part, Family, Polarity, Qty, Package, Pinout, Kit "
+            "Locations, Notes). Rows it cannot use come back in "
+            "'rejected' with a reason -- nothing is dropped silently."
+        ),
+    )
+    def inventory_import(csv: str) -> dict:
+        result = entries_from_csv(csv)
+        rejected = [
+            {"row": r.row, "reason": r.reason, "raw": r.raw}
+            for r in result.rejected
+        ]
+        imported = updated = 0
+        for entry in result.entries:
+            if entry.kind != "part":
+                try:
+                    (library.module if entry.kind == "module"
+                     else library.component)(entry.library_id)
+                except FileNotFoundError:
+                    rejected.append({
+                        "row": 0,
+                        "reason": f"no {entry.kind} with library id "
+                                  f"{entry.library_id!r}",
+                        "raw": {"library_id": entry.library_id},
+                    })
+                    continue
+            if inventory.get(entry.key) is not None:
+                updated += 1
+            else:
+                imported += 1
+            inventory.set(entry)
+        return {"imported": imported, "updated": updated,
+                "rejected": rejected, "header_row": result.header_row}
+
+    @mcp.tool(
+        name="inventory_check",
+        description=(
+            "Cross-check a design's BOM against what is on hand. Each "
+            "part lands as 'have', 'partial' or 'need'. Defaults to the "
+            "active design."
+        ),
+    )
+    def inventory_check(design_id: str = "") -> dict:
+        resolved = design_id or tracker.get()
+        if not resolved:
+            return {"error": "no design_id given and no active design"}
+        try:
+            raw = designs.load(resolved)
+        except FileNotFoundError as e:
+            return {"error": str(e)}
+        report = check_inventory(
+            Design.model_validate(raw), library, inventory.list())
+        return {
+            "design_id": report.design_id,
+            "summary": report.summary,
+            "lines": [
+                {"library_id": ln.library_id, "kind": ln.kind, "name": ln.name,
+                 "needed": ln.needed, "on_hand": ln.on_hand,
+                 "status": ln.status, "location": ln.location}
+                for ln in report.lines
+            ],
+        }
 
 
 def _register_active_tools(

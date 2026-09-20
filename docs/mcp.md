@@ -249,9 +249,21 @@ and persist back to `designs/<id>.json`.
 | `fab_cpl` | no | JLCPCB CPL CSV |
 | `set_active_design` | — | set the active-design pointer (validates the id exists) |
 | `get_active_design` | — | read the active-design pointer |
+| `inventory_list` | no | what is on hand; `kind="part"` for the discrete drawer |
+| `inventory_set` | yes | upsert one entry: `mpn` for a discrete part, `library_id` for a library component/module |
+| `inventory_import` | yes | bulk-load spreadsheet CSV; unusable rows come back in `rejected` with a reason |
+| `inventory_check` | no | cross-check a design's BOM against the drawer |
 
 Every design-bound tool accepts an optional `design_id`; omit it to use
 the active design.
+
+The inventory tools matter for headless use specifically: the REST
+`/inventory/*` routes sit behind SSO in a deployed studio, so MCP is
+the only way a client without a browser session can load a parts
+drawer. A `part` entry needs no library file -- it is an MPN plus
+optional specs (`family`, `polarity`, `package`, `pinout`, `value`,
+`v_max`, `i_max`) -- and keys under `part:<mpn>` so it cannot collide
+with a library id.
 
 ### Hardware tools
 

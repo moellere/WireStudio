@@ -9,6 +9,7 @@ import httpx
 import pytest
 
 from wirestudio.designs.store import FileDesignStore
+from wirestudio.inventory.store import FileInventoryStore
 from wirestudio.library import default_library
 from wirestudio.mcp.server import build_mcp_server
 
@@ -39,6 +40,10 @@ EXPECTED_TOOLS = {
     "fab_cpl",
     "set_active_design",
     "get_active_design",
+    "inventory_list",
+    "inventory_set",
+    "inventory_import",
+    "inventory_check",
 }
 
 HARDWARE_TOOLS = {
@@ -90,7 +95,10 @@ def _content_to_dict(result: Any) -> dict:
 @pytest.fixture
 def mcp_server(tmp_path: Path):
     store = FileDesignStore(root=tmp_path / "designs")
-    server = build_mcp_server(default_library(), store)
+    server = build_mcp_server(
+        default_library(), store,
+        inventory=FileInventoryStore(path=tmp_path / "inventory.json"),
+    )
     return server, store
 
 
@@ -107,6 +115,7 @@ async def test_hardware_tools_can_be_left_off(tmp_path: Path):
         default_library(),
         FileDesignStore(root=tmp_path / "designs"),
         hardware=False,
+        inventory=FileInventoryStore(path=tmp_path / "inventory.json"),
     )
     names = {t.name for t in await server.list_tools()}
     assert names == EXPECTED_TOOLS
@@ -330,3 +339,45 @@ async def test_prod_wrapper_gates_api_mcp(monkeypatch, tmp_path: Path):
             headers={"Accept": "application/json, text/event-stream"},
         )
         assert mcp_unauthed.status_code == 401, mcp_unauthed.text
+
+
+FIXTURE_CSV = Path(__file__).resolve().parent / "fixtures" / "transistor_inventory.csv"
+
+
+async def test_inventory_tools_load_a_real_drawer(mcp_server):
+    """The REST inventory sits behind SSO, so MCP is the headless path in."""
+    server, _ = mcp_server
+    out = _content_to_dict(
+        await server.call_tool("inventory_import", {"csv": FIXTURE_CSV.read_text()})
+    )
+    assert out["imported"] == 63 and out["updated"] == 0
+    assert [r["reason"] for r in out["rejected"]] == ["looks like a summary row"]
+
+    listed = _content_to_dict(await server.call_tool("inventory_list", {"kind": "part"}))
+    assert listed["count"] == 63
+    irf = next(e for e in listed["entries"] if e["mpn"] == "IRF4905")
+    assert irf["family"] == "mosfet" and irf["polarity"] == "p" and irf["v_max"] == 55.0
+
+
+async def test_inventory_set_part_and_reject_unknown_library_id(mcp_server):
+    server, _ = mcp_server
+    out = _content_to_dict(await server.call_tool("inventory_set", {
+        "mpn": "IRF9540N", "quantity": 5, "family": "mosfet", "polarity": "p",
+    }))
+    assert out["entry"]["key"] == "part:IRF9540N" and out["entry"]["kind"] == "part"
+    # A library-kind entry still has to name something real.
+    bad = _content_to_dict(await server.call_tool(
+        "inventory_set", {"library_id": "not-a-component", "quantity": 1}))
+    assert "no component with library id" in bad["error"]
+
+
+async def test_inventory_check_reports_against_a_design(mcp_server):
+    server, store = mcp_server
+    design_id = _seed_design(store)
+    await server.call_tool("inventory_set", {"library_id": "bme280", "quantity": 4})
+    out = _content_to_dict(
+        await server.call_tool("inventory_check", {"design_id": design_id}))
+    assert out["design_id"] == design_id and "summary" in out
+    missing = _content_to_dict(
+        await server.call_tool("inventory_check", {"design_id": "nope"}))
+    assert "error" in missing

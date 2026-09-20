@@ -208,13 +208,35 @@ export interface RecommendResponse {
 
 // --- Local component inventory --------------------------------------------
 export interface InventoryEntry {
-  library_id: string;
-  kind: string; // "component" | "module"
+  key: string; // library_id, or "part:<mpn>" for a discrete part
+  library_id: string; // empty for the "part" kind
+  mpn: string; // empty for the "component" / "module" kinds
+  kind: string; // "component" | "module" | "part"
   quantity: number;
   min_quantity: number; // low-stock threshold; 0 = none
   low_stock: boolean;
   location: string;
   note: string;
+  family: string;
+  polarity: string;
+  package: string;
+  pinout: string;
+  value: string;
+  v_max: number | null;
+  i_max: number | null;
+}
+
+export interface InventoryImportRejection {
+  row: number; // 1-based line in the source CSV; 0 when the row parsed but the id is unknown
+  reason: string;
+  raw: Record<string, string>;
+}
+
+export interface InventoryImportResult {
+  imported: number;
+  updated: number;
+  rejected: InventoryImportRejection[];
+  header_row: number;
 }
 
 export interface InventoryCheckLine {

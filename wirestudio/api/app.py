@@ -67,6 +67,7 @@ from wirestudio.api.schemas import (
     SaveDesignResponse,
     SavedDesignSummary,
     SetInventoryRequest,
+    SetPartRequest,
     SolvePinsResponse,
     SolverWarning,
     UseCaseEntry,
@@ -78,7 +79,11 @@ from wirestudio.inventory import (
     entries_from_csv,
     entries_to_csv,
 )
-from wirestudio.inventory.store import InventoryStore, default_inventory_store
+from wirestudio.inventory.store import (
+    InventoryStore,
+    default_inventory_store,
+    part_key,
+)
 from wirestudio.designs.active import ActiveDesignTracker
 from wirestudio.designs.events import DesignEventBus, EventEmittingDesignStore
 from wirestudio.fleet.client import FleetClient, FleetUnavailable
@@ -250,6 +255,7 @@ def create_app(
     mcp_server = (
         build_mcp_server(
             lib, designs_store, active=active,
+            inventory=inventory_store,
             workbench_factory=workbench_client_factory,
             fleet_factory=make_fleet,
         )
@@ -1065,14 +1071,40 @@ def create_app(
 
     def _entry_wire(e: InventoryEntry) -> InventoryEntryModel:
         return InventoryEntryModel(
-            library_id=e.library_id, kind=e.kind, quantity=e.quantity,
-            min_quantity=e.min_quantity, low_stock=e.low_stock,
-            location=e.location, note=e.note,
+            key=e.key, library_id=e.library_id, mpn=e.mpn, kind=e.kind,
+            quantity=e.quantity, min_quantity=e.min_quantity,
+            low_stock=e.low_stock, location=e.location, note=e.note,
+            family=e.family, polarity=e.polarity, package=e.package,
+            pinout=e.pinout, value=e.value, v_max=e.v_max, i_max=e.i_max,
         )
 
     @app.get("/inventory", response_model=list[InventoryEntryModel], tags=["inventory"])
     def list_inventory() -> list[InventoryEntryModel]:
         return [_entry_wire(e) for e in inventory_store.list()]
+
+    @app.put("/inventory/parts/{mpn}", response_model=InventoryEntryModel,
+             tags=["inventory"])
+    def set_inventory_part(mpn: str, req: SetPartRequest) -> InventoryEntryModel:
+        """Upsert a discrete part -- something with no library file."""
+        try:
+            entry = InventoryEntry(
+                mpn=mpn, kind="part", quantity=req.quantity,
+                min_quantity=req.min_quantity, location=req.location,
+                note=req.note, family=req.family, polarity=req.polarity,
+                package=req.package, pinout=req.pinout, value=req.value,
+                v_max=req.v_max, i_max=req.i_max,
+            )
+        except ValueError as e:
+            raise HTTPException(status_code=422, detail=str(e)) from e
+        return _entry_wire(inventory_store.set(entry))
+
+    @app.delete("/inventory/parts/{mpn}", tags=["inventory"])
+    def delete_inventory_part(mpn: str) -> dict:
+        if not inventory_store.remove(part_key(mpn)):
+            raise HTTPException(
+                status_code=404, detail=f"no inventory entry for part {mpn!r}"
+            )
+        return {"deleted": part_key(mpn)}
 
     @app.put("/inventory/{library_id}", response_model=InventoryEntryModel, tags=["inventory"])
     def set_inventory(library_id: str, req: SetInventoryRequest) -> InventoryEntryModel:
@@ -1114,22 +1146,41 @@ def create_app(
 
     @app.post("/inventory/import", tags=["inventory"])
     def import_inventory(body: dict) -> dict:
-        """Upsert entries from a CSV body ({"csv": "..."}). Rows naming a part
-        not in the library are skipped (reported), not failed."""
-        try:
-            entries = entries_from_csv(str(body.get("csv", "")))
-        except ValueError as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
-        imported, skipped = 0, []
-        for entry in entries:
-            try:
-                (lib.module if entry.kind == "module" else lib.component)(entry.library_id)
-            except FileNotFoundError:
-                skipped.append(entry.library_id)
-                continue
+        """Upsert entries from a CSV body ({"csv": "..."}).
+
+        Every row lands or is reported: a `part` row needs no library
+        file, and a component/module row naming an unknown library id
+        comes back in `rejected` with a reason rather than vanishing.
+        """
+        result = entries_from_csv(str(body.get("csv", "")))
+        rejected = [
+            {"row": r.row, "reason": r.reason, "raw": r.raw}
+            for r in result.rejected
+        ]
+        imported = updated = 0
+        for entry in result.entries:
+            if entry.kind != "part":
+                try:
+                    (lib.module if entry.kind == "module" else lib.component)(
+                        entry.library_id)
+                except FileNotFoundError:
+                    rejected.append({
+                        "row": 0,
+                        "reason": f"no {entry.kind} with library id "
+                                  f"{entry.library_id!r}",
+                        "raw": {"library_id": entry.library_id},
+                    })
+                    continue
+            existing = inventory_store.get(entry.key) is not None
             inventory_store.set(entry)
-            imported += 1
-        return {"imported": imported, "skipped": skipped}
+            if existing:
+                updated += 1
+            else:
+                imported += 1
+        return {
+            "imported": imported, "updated": updated,
+            "rejected": rejected, "header_row": result.header_row,
+        }
 
     @app.post("/design/inventory/check", response_model=InventoryCheckResponse,
               tags=["inventory"])

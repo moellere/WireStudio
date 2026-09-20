@@ -36,7 +36,8 @@ under upstream ESPHome.
   ├─ wirestudio.seed          board onboard-peripheral auto-placement
   ├─ wirestudio.intent        automation (trigger/action) validation + lowering, melody map;
   │                           display-content (`show`) lowering in wirestudio.generate
-  ├─ wirestudio.inventory     owned-parts inventory store
+  ├─ wirestudio.inventory     owned-parts inventory: library components/modules
+  │                           plus discrete `part` records (MPN + specs)
   ├─ wirestudio.agent         Claude tool-using agent + session store
   ├─ wirestudio.designs       file-backed designs/<id>.json store
   ├─ wirestudio.fleet         fleet-for-esphome HTTP client
