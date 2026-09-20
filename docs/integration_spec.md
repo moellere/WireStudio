@@ -187,6 +187,27 @@ own drawer rating is the bar. Proposals list what they did not compare
 [`hbridge_mosfet`](../wirestudio/library/components/hbridge_mosfet.yaml)
 is the worked example.
 
+### Checking a draft
+
+`python -c` is not the review. `component_check` (MCP and agent tool;
+`POST /library/components/check` over REST) takes the YAML text and
+reports:
+
+- `errors` -- the file does not validate, the id is not a filename, a
+  subcircuit part id repeats, the ESPHome template has a syntax error
+  or does not render against a synthetic design, or (with KiCad
+  libraries installed) a symbol, symbol pin or footprint does not exist;
+- `warnings` -- an internal net touched by one pin, a pin role no part
+  connects to, `requires.family` that does not fit the designator
+  prefix;
+- `unverified` -- checks this server could not run, such as symbol
+  lookup without `KICAD8_SYMBOL_DIR`;
+- `not_checked` -- what no check covers: nothing is simulated.
+
+`component_create` runs the same check and, if clean, writes the text
+verbatim into `LIBRARY_USER_DIR/components/<id>.yaml`. It refuses a
+bundled id and an existing user id unless told to overwrite.
+
 ## Board spec (`boards/<id>.yaml`)
 
 Dev boards and modules that host the MCU.

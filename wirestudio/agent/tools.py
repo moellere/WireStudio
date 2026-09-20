@@ -20,6 +20,7 @@ from wirestudio.kicad import generate_skidl
 from wirestudio.kicad.fab import fab_status, generate_bom, generate_cpl
 from wirestudio.kicad.pcb import PcbUnavailable, generate_kicad_pcb
 from wirestudio.library import Library
+from wirestudio.library.check import check_component_yaml, create_component
 from wirestudio.model import Design
 from wirestudio.recommend.recommender import Constraints, recommend_components
 from wirestudio.validate import check_board_flash
@@ -344,6 +345,48 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                 },
             },
             "required": ["library_id"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "component_check",
+        "description": (
+            "Check a draft library component (full YAML text, same shape as "
+            "wirestudio/library/components/*.yaml) before saving it: the file "
+            "validates, subcircuit nets hang together, the ESPHome template "
+            "renders, and -- when KiCad libraries are installed -- every symbol, "
+            "pin name and footprint exists. Returns errors, warnings, what could "
+            "not be verified here, and what is never checked (nothing is "
+            "simulated). Read-only."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "yaml": {"type": "string", "description": "The component YAML text."},
+            },
+            "required": ["yaml"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "component_create",
+        "description": (
+            "Run component_check and, if it passes, save the YAML into the user "
+            "library so the component can be added to designs. Refuses a bundled "
+            "id; refuses an existing user id unless overwrite is true. Relay the "
+            "warnings and not_checked list to the user: this proves the file is "
+            "well-formed and its parts exist, not that the circuit works."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "yaml": {"type": "string", "description": "The component YAML text."},
+                "overwrite": {
+                    "type": "boolean",
+                    "description": "Replace an existing user-library component with the same id.",
+                },
+            },
+            "required": ["yaml"],
             "additionalProperties": False,
         },
     },
@@ -717,6 +760,16 @@ def _run_library_detail(
     return {"ok": True, "kind": kind, "library_id": library_id, "detail": entry.model_dump()}
 
 
+def _run_component_check(_design: dict, library: Library, *, yaml: str) -> dict:
+    return check_component_yaml(yaml, library).as_dict()
+
+
+def _run_component_create(
+    _design: dict, library: Library, *, yaml: str, overwrite: bool = False,
+) -> dict:
+    return create_component(yaml, library, overwrite=overwrite).as_dict()
+
+
 def _run_fab_cpl(design: dict, library: Library) -> dict:
     try:
         d = Design.model_validate(design)
@@ -750,6 +803,8 @@ TOOL_HANDLERS: dict[str, Callable[..., Any]] = {
     "fab_bom": _run_fab_bom,
     "fab_cpl": _run_fab_cpl,
     "library_detail": _run_library_detail,
+    "component_check": _run_component_check,
+    "component_create": _run_component_create,
 }
 
 

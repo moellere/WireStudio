@@ -164,6 +164,22 @@ class UseCaseEntry(_S):
     )
 
 
+class ComponentYamlRequest(_S):
+    yaml: str = Field(description="Full component YAML text, the shape of wirestudio/library/components/*.yaml.")
+    overwrite: bool = Field(default=False, description="Replace an existing user-library component with the same id.")
+
+
+class ComponentCheckResponse(_S):
+    ok: bool = Field(description="No errors. Warnings and unverified items may still be present.")
+    library_id: str = Field(default="", description="The component id the YAML declares.")
+    exists: str = Field(default="", description="'bundled', 'user' or '' for where the id already resolves.")
+    errors: list[str] = Field(default_factory=list, description="Problems that block saving.")
+    warnings: list[str] = Field(default_factory=list, description="Suspicious but not blocking.")
+    unverified: list[str] = Field(default_factory=list, description="Checks this server could not run (missing KiCad libraries).")
+    not_checked: list[str] = Field(default_factory=list, description="What no check here ever covers.")
+    saved: str = Field(default="", description="Path written, when created.")
+
+
 class RecommendRequest(_S):
     query: str = Field(description="Free-text capability query, e.g. 'temperature humidity'.")
     limit: int = Field(default=10, description="Maximum number of matches to return.")
