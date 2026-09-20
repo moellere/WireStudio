@@ -11,6 +11,23 @@ import { FlashDialog } from "./FlashDialog";
 import { api } from "../api/client";
 import type { BoardSummary, Design } from "../types/api";
 
+const meshPush = vi.fn();
+vi.mock("../lib/meshtastic", async () => {
+  const actual = await vi.importActual<typeof import("../lib/meshtastic")>("../lib/meshtastic");
+  return {
+    ...actual,
+    loadMeshtastic: vi.fn(async () => ({
+      Protobuf: {
+        Config: {
+          Config_LoRaConfig_RegionCode: { UNSET: 0, US: 1, EU_868: 3 },
+          Config_LoRaConfig_ModemPreset: { LONG_FAST: 0, SHORT_FAST: 4 },
+        },
+      },
+    })),
+    pushMeshtasticConfig: (...args: unknown[]) => meshPush(...args),
+  };
+});
+
 vi.mock("../api/client", async () => {
   const actual = await vi.importActual<typeof import("../api/client")>("../api/client");
   return {
@@ -186,5 +203,39 @@ describe("FlashDialog", () => {
       expect(screen.getByRole("button", { name: /flash meshtastic/i })).toBeEnabled(),
     );
     expect(screen.getByText(/v2\.6\.11\.60ec05e/)).toBeInTheDocument();
+  });
+});
+
+
+describe("meshtastic configuration", () => {
+  it("pushes the form's settings to a connected node", async () => {
+    meshPush.mockReset().mockResolvedValue({ nodeNum: 0xabcd, longName: "garage-motion" });
+    const requestPort = vi.fn(async () => ({}));
+    Object.defineProperty(navigator, "serial", { value: { requestPort }, configurable: true });
+    renderDialog();
+    await userEvent.click(screen.getByRole("button", { name: /meshtastic/i }));
+    await waitFor(() => expect(screen.getByTestId("meshtastic-config")).toBeInTheDocument());
+    expect(screen.getByRole("option", { name: "EU_868" })).toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByLabelText("Region"), "3");
+    await userEvent.clear(screen.getByLabelText("Channel name"));
+    await userEvent.type(screen.getByLabelText("Channel name"), "home");
+    await userEvent.click(screen.getByRole("button", { name: /configure connected node/i }));
+    await waitFor(() => expect(screen.getByText(/Node !abcd/)).toBeInTheDocument());
+    expect(requestPort).toHaveBeenCalled();
+    const settings = meshPush.mock.calls[0][1] as { region: number; channelName: string; psk: string };
+    expect(settings.region).toBe(3);
+    expect(settings.channelName).toBe("home");
+    expect(settings.psk).toBe("");
+  });
+
+  it("refuses a malformed channel key before touching the port", async () => {
+    meshPush.mockReset();
+    renderDialog();
+    await userEvent.click(screen.getByRole("button", { name: /meshtastic/i }));
+    await waitFor(() => expect(screen.getByTestId("meshtastic-config")).toBeInTheDocument());
+    await userEvent.type(screen.getByLabelText("Channel key"), "nope!!");
+    await userEvent.click(screen.getByRole("button", { name: /configure connected node/i }));
+    await waitFor(() => expect(screen.getByText(/PSK is not base64/)).toBeInTheDocument());
+    expect(meshPush).not.toHaveBeenCalled();
   });
 });

@@ -170,9 +170,18 @@ fetches the official Meshtastic release factory image through the
 server proxy (`GET /meshtastic/firmware`, board-to-variant map for
 Heltec V2/V3/V4, T-Beam, TTGO LoRa32) and flashes it at 0x0 over the
 same WebSerial path. Not a target plugin -- devices run stock firmware,
-nothing is generated from the design. Region/channel config is protobuf
-over serial, so the dialog links to client.meshtastic.org; an in-studio
-config push via `@meshtastic/js` stays in the backlog.
+nothing is generated from the design.
+
+**Meshtastic config push.** *Works.* After the flash (or against any
+node already on a serial port) the dialog pushes region, modem preset,
+owner names and the primary channel as protobufs through
+`@meshtastic/core` over `@meshtastic/transport-web-serial`, reusing the
+port the flash session hands back so there is no second port picker.
+The channel key is generated or pasted in the dialog and goes to the
+device only; it is never written into the design. Defaults come from
+the design (device name, a LoRaWAN region mapped to its Meshtastic
+counterpart). A workbench-slot flash has no serial session to push
+through; plug the node in and use *Configure connected node*.
 
 **CircuitPython flashing (0.24).** *Works.* The unified flash
 dialog gains a CircuitPython framework: `GET /circuitpython/firmware`
@@ -197,9 +206,7 @@ the flash dialog prefers design code over the board starter and
 surfaces deps + unmapped-component warnings. Unmapped parts degrade
 to a comment, never a broken file.
 
-**Target backlog.** Next: Meshtastic config push (`@meshtastic/js`
-region/channel/key setup over the existing serial session), then
-MicroPython (the CircuitPython pattern applied upstream: proxy the
+**Target backlog.** Next: MicroPython (the CircuitPython pattern applied upstream: proxy the
 micropython.org release port per chip, flash via the unified dialog,
 generate a main.py scaffold — differs in stdlib/driver sourcing, since
 there is no single blessed bundle like Adafruit's).
