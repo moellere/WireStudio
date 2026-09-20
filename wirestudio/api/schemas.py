@@ -344,7 +344,27 @@ class InventoryCheckLine(_S):
     note: str = Field(default="", description="Inventory note for the part, if recorded.")
 
 
+class InventoryPartCheckLine(_S):
+    """One discrete part the board carries: a subcircuit part or a design passive."""
+    value: str = Field(description="Value as printed on the board, e.g. 'IRF4905' or '10k'.")
+    family: str = Field(description="Part family; empty when the designator names something the drawer doesn't track.")
+    refs: list[str] = Field(description="Reference designators needing this part.")
+    needed: int = Field(description="Quantity the design needs.")
+    on_hand: int = Field(description="Quantity in the local inventory.")
+    status: str = Field(description="'have', 'partial', 'need', 'assumed' (common passive, not inventoried) or 'untracked'.")
+    matched: str = Field(default="", description="Inventory key that satisfied the line, if any.")
+    location: str = Field(default="", description="Inventory location for the part, if recorded.")
+
+
 class InventoryCheckResponse(_S):
     design_id: str = Field(description="Id of the checked design.")
     lines: list[InventoryCheckLine] = Field(description="One line per distinct BOM part.")
     summary: dict[str, int] = Field(description="Counts keyed by status: have / partial / need.")
+    parts: list[InventoryPartCheckLine] = Field(
+        default_factory=list,
+        description="Discrete parts: subcircuit expansions and design passives.",
+    )
+    parts_summary: dict[str, int] = Field(
+        default_factory=dict,
+        description="Counts keyed by status across `parts`.",
+    )

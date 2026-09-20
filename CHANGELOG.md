@@ -23,6 +23,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The inventory check sees discrete parts** (#263 item 3). It used to
+  group a design into library components and modules only, so the
+  fifteen parts an `hbridge_mosfet` puts on the board were invisible to
+  it. The report now carries a `parts` section covering subcircuit
+  expansions and the design's own `passives`: semiconductors match an
+  inventory part by MPN, passives by magnitude, so `0.1uF` in the
+  drawer satisfies a `100nF` on the board and `10k` / `10K` / `10000`
+  are one resistor. Which one a part is comes from its reference
+  designator rather than a guess at its value.
+
+  Two statuses beyond have/partial/need, because the alternative is a
+  report nobody reads: a common passive value (E12 resistors, the usual
+  capacitors) reports `assumed` rather than `need` -- nobody
+  inventories 10k resistors -- and a designator the drawer doesn't
+  track, like a motor connector, reports `untracked`. Both stay
+  distinct from `have` so the distinction is visible. Surfaced on
+  `POST /design/inventory/check` and the `inventory_check` MCP tool.
+
 - **The inspector shows what a subcircuit expands into.** A component
   carrying a `subcircuit:` block (the H-bridges from #262) puts a
   dozen-plus designators on the board, and the inspector showed one

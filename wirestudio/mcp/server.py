@@ -626,8 +626,13 @@ def _register_inventory_tools(
     @mcp.tool(
         name="inventory_check",
         description=(
-            "Cross-check a design's BOM against what is on hand. Each "
-            "part lands as 'have', 'partial' or 'need'. Defaults to the "
+            "Cross-check a design's BOM against what is on hand. "
+            "'lines' covers library components and modules; 'parts' "
+            "covers the discrete parts a subcircuit component expands "
+            "into plus the design's passives, matched by MPN for "
+            "semiconductors and by magnitude for passives. A part lands "
+            "as 'have', 'partial', 'need', 'assumed' (a common passive "
+            "value nobody inventories) or 'untracked'. Defaults to the "
             "active design."
         ),
     )
@@ -649,6 +654,14 @@ def _register_inventory_tools(
                  "needed": ln.needed, "on_hand": ln.on_hand,
                  "status": ln.status, "location": ln.location}
                 for ln in report.lines
+            ],
+            "parts_summary": report.parts_summary,
+            "parts": [
+                {"value": ln.value, "family": ln.family, "refs": ln.refs,
+                 "needed": ln.needed, "on_hand": ln.on_hand,
+                 "status": ln.status, "matched": ln.matched,
+                 "location": ln.location}
+                for ln in report.parts
             ],
         }
 

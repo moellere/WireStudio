@@ -50,6 +50,7 @@ from wirestudio.api.schemas import (
     InventoryCheckRequest,
     InventoryCheckResponse,
     InventoryEntryModel,
+    InventoryPartCheckLine,
     McpTokenResponse,
     ModuleSummary,
     FleetJobLogResponse,
@@ -1227,6 +1228,15 @@ def create_app(
                 for ln in report.lines
             ],
             summary=report.summary,
+            parts=[
+                InventoryPartCheckLine(
+                    value=ln.value, family=ln.family, refs=ln.refs,
+                    needed=ln.needed, on_hand=ln.on_hand, status=ln.status,
+                    matched=ln.matched, location=ln.location,
+                )
+                for ln in report.parts
+            ],
+            parts_summary=report.parts_summary,
         )
 
     # ---------------------------------------------------------------------
