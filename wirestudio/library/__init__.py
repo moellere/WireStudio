@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 from collections.abc import Mapping
-from typing import Literal, Optional
+from typing import Literal, Optional, Union
 
 import yaml
 from jinja2 import Environment, StrictUndefined
@@ -183,6 +183,56 @@ class CircuitPythonSpec(_Strict):
     loop: Optional[str] = None
 
 
+class PinRef(_Strict):
+    """A voltage taken from one of the component's pins: a signal pin's
+    declared `voltage`, or, inside a design, the rail a power pin is
+    connected to."""
+    pin: str
+
+
+_CHECK_FIELDS = {
+    "led_current": ("resistor", "drive", "vf_v", "max_ma"),
+    "base_drive": ("resistor", "drive", "hfe_min", "load", "max_ma"),
+    "gate_drive": ("drive", "vgs_on_v", "rds_on_ohm", "load", "max_w"),
+    "divider": ("r_top", "r_bottom", "sense", "max_pin_v"),
+}
+
+
+class ElectricalCheck(_Strict):
+    """One rule a block declares about itself. The numbers are the block
+    designer's assumptions (Vf, hFE, Vgs(on), Rds(on)) and the report
+    prints them, so a reader can disagree with the premise as well as
+    the arithmetic. `load` / `sense` are a fixed value or the name of an
+    instance param that carries it."""
+    kind: Literal["led_current", "base_drive", "gate_drive", "divider"]
+    resistor: Optional[str] = None
+    r_top: Optional[str] = None
+    r_bottom: Optional[str] = None
+    drive: Optional[Union[float, PinRef]] = None
+    vf_v: Optional[float] = None
+    vbe_v: float = 0.7
+    hfe_min: Optional[float] = None
+    vgs_on_v: Optional[float] = None
+    rds_on_ohm: Optional[float] = None
+    load: Optional[Union[float, str]] = None
+    sense: Optional[Union[float, str]] = None
+    min_ma: float = 0.0
+    max_ma: Optional[float] = None
+    max_w: Optional[float] = None
+    max_pin_v: Optional[float] = None
+
+    @model_validator(mode="after")
+    def _fields_for_kind(self) -> "ElectricalCheck":
+        missing = [f for f in _CHECK_FIELDS[self.kind] if getattr(self, f) is None]
+        if missing:
+            raise ValueError(f"{self.kind} check needs {', '.join(missing)}")
+        return self
+
+
+class Verify(_Strict):
+    checks: list[ElectricalCheck]
+
+
 class LibraryComponent(_Strict):
     id: str
     name: str
@@ -197,6 +247,7 @@ class LibraryComponent(_Strict):
     notes: Optional[str] = None
     kicad: Optional[KicadSymbolRef] = None
     subcircuit: Optional["Subcircuit"] = None
+    verify: Optional[Verify] = None
     tasmota: Optional[TasmotaSpec] = None
     circuitpython: Optional[CircuitPythonSpec] = None
 
