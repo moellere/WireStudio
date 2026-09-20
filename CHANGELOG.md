@@ -103,6 +103,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and family -- and still list the shortfalls, unpriced, when the parts
   API is down. Both show on the inventory dialog.
 
+### Changed
+
+- **The web bundle is built on the build platform.** The image's
+  web-builder stage now runs under `--platform=$BUILDPLATFORM`: the
+  bundle is the same bytes for every target, and building it natively
+  instead of under QEMU takes the arm64 image build from tens of
+  minutes on a cold npm cache to the amd64 time.
+
 ### Fixed
 
 - **A created component now appears in `/library/components` without a
