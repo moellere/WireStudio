@@ -201,12 +201,31 @@ reports:
   connects to, `requires.family` that does not fit the designator
   prefix;
 - `unverified` -- checks this server could not run, such as symbol
-  lookup without `KICAD8_SYMBOL_DIR`;
+  lookup without `KICAD8_SYMBOL_DIR` (the `-full` image ships the KiCad
+  libraries and runs these; the slim image reports them here);
 - `not_checked` -- what no check covers: nothing is simulated.
 
 `component_create` runs the same check and, if clean, writes the text
 verbatim into `LIBRARY_USER_DIR/components/<id>.yaml`. It refuses a
 bundled id and an existing user id unless told to overwrite.
+
+### Accepting a substitution
+
+The inventory check proposes drawer substitutes for a short part; a
+design accepts one through `part_overrides`:
+
+```json
+"part_overrides": { "bridge.q_hi_a": "IRF9540", "bridge.q_hi_b": "IRF9540" }
+```
+
+The key is `<component id>.<part id>` (the check reports it as `keys`
+on each line). Only the value printed on the part changes: the BOM, CPL,
+schematic and PCB keep the library symbol and footprint, which is what
+same-package substitution means. `validate` records every override as
+an info warning naming both parts and what the drawer comparison never
+covered, and warns on a key that names no part. The `set_part_override`
+tool (MCP and agent) and the *Use for Q1, Q4* button on the check
+dialog write the map.
 
 ## Board spec (`boards/<id>.yaml`)
 

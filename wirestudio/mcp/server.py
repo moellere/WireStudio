@@ -42,6 +42,7 @@ from wirestudio.agent.tools import (
     _run_set_board,
     _run_set_connection,
     _run_set_param,
+    _run_set_part_override,
     _run_set_strict,
     _run_solve_pins,
     _run_validate,
@@ -49,6 +50,7 @@ from wirestudio.agent.tools import (
 from wirestudio.designs.active import ActiveDesignTracker
 from wirestudio.designs.store import DesignStore
 from wirestudio.inventory import check_inventory, entries_from_csv
+from wirestudio.inventory.buy import buy_list, buy_list_to_dict
 from wirestudio.inventory.store import (
     FAMILIES,
     InventoryEntry,
@@ -332,6 +334,30 @@ def _register_design_tools(
             design, library, instance_id=instance_id, key=key, value=value
         )
         _save(rid, design)
+        return result
+
+    @mcp.tool(
+        name="set_part_override",
+        description=(
+            "Accept a drawer substitution for one subcircuit part: set "
+            "part_overrides['<component id>.<part id>'] to an MPN so the "
+            "BOM, CPL and schematic print that part instead of the "
+            "library's. Only the value changes; symbol and footprint "
+            "stay, so the substitute must be the same package. Use the "
+            "`keys` and `substitutes` an inventory_check line reports; "
+            "validate then records the substitution with its caveats. "
+            "Pass an empty mpn to remove." + _DESIGN_ID_HINT
+        ),
+    )
+    def set_part_override(
+        key: str, mpn: str = "", design_id: Optional[str] = None,
+    ) -> dict:
+        rid, design = _load(design_id)
+        if design is None:
+            return _NO_DESIGN_ERROR
+        result = _run_set_part_override(design, library, key=key, mpn=mpn)
+        if result.get("ok"):
+            _save(rid, design)
         return result
 
     @mcp.tool(
@@ -669,8 +695,10 @@ def _register_inventory_tools(
             "'partial' semiconductor carries 'substitutes': drawer parts "
             "of the same family, polarity and package whose ratings "
             "clear what the circuit asks. These are proposals with "
-            "explicit caveats, not verdicts; relay the caveats. Defaults "
-            "to the active design."
+            "explicit caveats, not verdicts; relay the caveats. "
+            "'pick_list' groups everything to pull by drawer location, "
+            "then unlocated stock, assumed common values, and what is "
+            "missing. Defaults to the active design."
         ),
     )
     def inventory_check(design_id: str = "") -> dict:
@@ -697,11 +725,38 @@ def _register_inventory_tools(
                 {"value": ln.value, "family": ln.family, "refs": ln.refs,
                  "needed": ln.needed, "on_hand": ln.on_hand,
                  "status": ln.status, "matched": ln.matched,
-                 "location": ln.location,
+                 "location": ln.location, "keys": ln.keys,
+                 "substituted_for": ln.substituted_for,
                  "substitutes": [asdict(sub) for sub in ln.substitutes]}
                 for ln in report.parts
             ],
+            "pick_list": [asdict(g) for g in report.pick_list],
         }
+
+
+    @mcp.tool(
+        name="buy_list",
+        description=(
+            "What the drawer is short for a design, priced on JLCPCB: "
+            "the inventory check's need/partial lines (components by "
+            "library id, semiconductors by MPN, passives by value and "
+            "family) each with the best JLCPCB match, LCSC id, stock and "
+            "price, or 'not_found'. Common passives the check assumes on "
+            "hand are not listed. With the parts API down the shortfalls "
+            "still come back, marked available=false. Defaults to the "
+            "active design."
+        ),
+    )
+    def buy_list_tool(design_id: str = "") -> dict:
+        resolved = design_id or tracker.get()
+        if not resolved:
+            return {"error": "no design_id given and no active design"}
+        try:
+            raw = designs.load(resolved)
+        except FileNotFoundError as e:
+            return {"error": str(e)}
+        return buy_list_to_dict(
+            buy_list(Design.model_validate(raw), library, inventory.list()))
 
 
 def _register_active_tools(

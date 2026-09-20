@@ -103,6 +103,7 @@ class PlacedPart:
     part_id: str | None
     kicad: object | None
     name: str
+    substituted_for: str = ""  # the library value a part_override replaced
 
 
 def placed_parts(design: Design, library) -> list[PlacedPart]:
@@ -125,9 +126,14 @@ def placed_parts(design: Design, library) -> list[PlacedPart]:
             continue
         for part in sub.parts:
             key = part_key(c.id, part.id)
+            kicad, original = part.kicad, ""
+            mpn = design.part_overrides.get(key)
+            if mpn and mpn != kicad.value:
+                kicad, original = kicad.model_copy(update={"value": mpn}), kicad.value or ""
             out.append(PlacedPart(
                 key=key, ref=refs[key], component_id=c.id, library_id=c.library_id,
-                part_id=part.id, kicad=part.kicad, name=f"{lib_comp.name}: {part.id}",
+                part_id=part.id, kicad=kicad, name=f"{lib_comp.name}: {part.id}",
+                substituted_for=original,
             ))
     return out
 

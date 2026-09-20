@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Substitutions can be accepted, not only proposed** (#271). A design
+  carries `part_overrides` (`"<component id>.<part id>" -> MPN`); the
+  schematic, PCB, BOM, CPL and the inventory check all read the
+  override through `placed_parts`, so accepting an IRF9540 for the
+  bridge's high side changes what every fab output prints. Only the
+  value changes: symbol and footprint stay, which is what same-package
+  substitution means. `validate` records each override as an info line
+  naming both parts and what the drawer comparison never covered, and
+  warns on a key that names nothing. Check lines now carry `keys` and
+  `substituted_for`; the check dialog gets a *Use for Q1, Q4* button on
+  each proposal; `set_part_override` lands on the MCP and agent tool
+  surfaces.
+
+- **Pick list and buy list on the inventory check** (#271). The check
+  report gains `pick_list`: everything to pull, grouped by drawer
+  location, then stock with no location recorded, then common values
+  nobody inventories, then what is missing. A component built from a
+  subcircuit is covered by its parts and not listed twice; connectors
+  are not stock and are left out. `POST /design/buy-list` and the
+  `buy_list` MCP tool price the check's shortfalls on JLCPCB -- a
+  component by library id, a semiconductor by MPN, a passive by value
+  and family -- and still list the shortfalls, unpriced, when the parts
+  API is down. Both show on the inventory dialog.
+
 ## [0.34.0] — 2026-09-20
 
 ### Changed

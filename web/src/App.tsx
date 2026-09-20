@@ -840,7 +840,23 @@ export default function App() {
         />
       )}
       {showInventoryDialog && (
-        <InventoryDialog design={design} onClose={() => setShowInventoryDialog(false)} />
+        <InventoryDialog
+          design={design}
+          onClose={() => setShowInventoryDialog(false)}
+          onApplySubstitute={(keys, mpn) =>
+            setDesign((d) =>
+              d
+                ? {
+                    ...d,
+                    part_overrides: {
+                      ...((d.part_overrides as Record<string, string> | undefined) ?? {}),
+                      ...Object.fromEntries(keys.map((k) => [k, mpn])),
+                    },
+                  }
+                : d,
+            )
+          }
+        />
       )}
       {showSettingsDialog && <SettingsDialog onClose={() => setShowSettingsDialog(false)} />}
       <AgentSidebar

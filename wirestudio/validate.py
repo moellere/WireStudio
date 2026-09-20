@@ -11,6 +11,9 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from wirestudio.inventory.check import NOT_COMPARED
+from wirestudio.inventory.match import family_for_ref
+from wirestudio.kicad.netlist import assign_refs, part_key
 from wirestudio.library import Library
 from wirestudio.model import Design, DesignWarning
 
@@ -73,3 +76,39 @@ def dry_run(yaml_path: Path) -> tuple[bool, str]:
         check=False,
     )
     return proc.returncode == 0, proc.stdout + proc.stderr
+
+
+def check_part_overrides(design: Design, library: Library) -> list[DesignWarning]:
+    """Every accepted substitution stays visible: an info line naming the
+    designator, both parts and what the drawer comparison never covered.
+    A key that names no subcircuit part is a warn, since the override
+    then does nothing."""
+    if not design.part_overrides:
+        return []
+    refs = assign_refs(design, library)
+    parts = {}
+    for c in design.components:
+        try:
+            sub = library.component(c.library_id).subcircuit
+        except FileNotFoundError:
+            continue
+        if sub is not None:
+            parts.update({part_key(c.id, p.id): p for p in sub.parts})
+    out: list[DesignWarning] = []
+    for key, mpn in design.part_overrides.items():
+        part = parts.get(key)
+        if part is None:
+            out.append(DesignWarning(
+                level="warn", code="part_override_unknown",
+                text=f"part_overrides[{key!r}] names no subcircuit part; nothing is substituted",
+            ))
+            continue
+        if not mpn or mpn == part.kicad.value:
+            continue
+        family = part.requires.family if part.requires else family_for_ref(part.ref_prefix)
+        caveat = NOT_COMPARED.get(family, "only family, polarity, package and ratings compared")
+        out.append(DesignWarning(
+            level="info", code="part_substituted",
+            text=f"{refs[key]} ({key}): {mpn} substituted for {part.kicad.value}; {caveat}",
+        ))
+    return out

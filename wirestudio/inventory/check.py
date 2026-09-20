@@ -33,6 +33,8 @@ class InventoryLine:
     status: str  # have | partial | need
     location: str = ""
     note: str = ""
+    instances: list[str] = field(default_factory=list)
+    subcircuit: bool = False  # built from parts; the parts report covers it
 
 
 @dataclass
@@ -59,6 +61,27 @@ class InventoryPartLine:
     matched: str = ""  # inventory key that satisfied it
     location: str = ""
     substitutes: list[Substitute] = field(default_factory=list)
+    keys: list[str] = field(default_factory=list)  # part keys, for part_overrides
+    substituted_for: list[str] = field(default_factory=list)
+
+
+@dataclass
+class PickItem:
+    label: str  # component name, or the value printed on a part
+    needed: int
+    on_hand: int
+    refs: list[str]  # designators, or component instance ids
+    status: str
+    inventory_key: str = ""
+
+
+@dataclass
+class PickGroup:
+    """One place to go: a drawer location, or one of the three places a
+    part can be when it is not in the drawer."""
+    kind: str  # location | unlocated | assumed | missing
+    location: str
+    items: list[PickItem] = field(default_factory=list)
 
 
 @dataclass
@@ -81,11 +104,44 @@ class InventoryReport:
             out[ln.status] = out.get(ln.status, 0) + 1
         return out
 
+    @property
+    def pick_list(self) -> list[PickGroup]:
+        """What to pull, grouped by where it is. Drawer locations first,
+        then stock with no recorded location, then common values nobody
+        inventories, then what is missing. A component built from a
+        subcircuit is covered by its parts and not listed twice;
+        untracked designators (connectors) are not stock and are left out."""
+        groups: dict[tuple[str, str], PickGroup] = {}
 
-def _bom_parts(design: Design) -> list[tuple[str, str, int]]:
-    """(kind, library_id, quantity) per distinct BOM part, in design order."""
-    counts: dict[tuple[str, str], int] = {}
-    order: list[tuple[str, str]] = []
+        def put(status: str, location: str, item: PickItem) -> None:
+            if status in ("have", "partial"):
+                key = ("location", location) if location else ("unlocated", "")
+            elif status == "assumed":
+                key = ("assumed", "")
+            else:
+                key = ("missing", "")
+            groups.setdefault(key, PickGroup(kind=key[0], location=key[1])).items.append(item)
+
+        for ln in self.lines:
+            if ln.subcircuit:
+                continue
+            put(ln.status, ln.location, PickItem(
+                label=ln.name, needed=ln.needed, on_hand=ln.on_hand,
+                refs=ln.instances, status=ln.status, inventory_key=ln.library_id))
+        for ln in self.parts:
+            if ln.status == "untracked":
+                continue
+            put(ln.status, ln.location, PickItem(
+                label=ln.value, needed=ln.needed, on_hand=ln.on_hand,
+                refs=ln.refs, status=ln.status, inventory_key=ln.matched))
+        order = {"location": 0, "unlocated": 1, "assumed": 2, "missing": 3}
+        return sorted(groups.values(), key=lambda g: (order[g.kind], g.location.lower()))
+
+
+def _bom_parts(design: Design) -> list[tuple[str, str, list[str]]]:
+    """(kind, library_id, instance ids) per distinct BOM part, in design
+    order. A module counts once per insertion, under its instance id."""
+    instances: dict[tuple[str, str], list[str]] = {}
     seen_instances: set[str] = set()
     for comp in design.components:
         mod = comp.module
@@ -93,13 +149,11 @@ def _bom_parts(design: Design) -> list[tuple[str, str, int]]:
             if mod.instance in seen_instances:
                 continue
             seen_instances.add(mod.instance)
-            key = ("module", mod.module_id)
+            key, ident = ("module", mod.module_id), mod.instance
         else:
-            key = ("component", comp.library_id)
-        if key not in counts:
-            order.append(key)
-        counts[key] = counts.get(key, 0) + 1
-    return [(kind, lid, counts[(kind, lid)]) for kind, lid in order]
+            key, ident = ("component", comp.library_id), comp.id
+        instances.setdefault(key, []).append(ident)
+    return [(kind, lid, ids) for (kind, lid), ids in instances.items()]
 
 
 def _name(library: Library, kind: str, library_id: str) -> str:
@@ -131,7 +185,8 @@ def check_inventory(
 
     report = InventoryReport(design_id=design.id or "design")
     report.parts = check_parts(design, library, entries)
-    for kind, library_id, needed in _bom_parts(design):
+    for kind, library_id, instances in _bom_parts(design):
+        needed = len(instances)
         entry = by_key.get(library_id)
         on_hand = entry.quantity if entry else 0
         if on_hand >= needed:
@@ -149,8 +204,17 @@ def check_inventory(
             status=status,
             location=entry.location if entry else "",
             note=entry.note if entry else "",
+            instances=instances,
+            subcircuit=kind == "component" and _has_subcircuit(library, library_id),
         ))
     return report
+
+
+def _has_subcircuit(library: Library, library_id: str) -> bool:
+    try:
+        return library.component(library_id).subcircuit is not None
+    except FileNotFoundError:
+        return False
 
 
 def _canon(value: float) -> str:
@@ -172,15 +236,19 @@ def check_parts(
     """
     drawer = _Drawer(inventory)
 
-    # (family, match key) -> [value as printed, refs]
-    groups: dict[tuple[str, str], tuple[str, list[str]]] = {}
+    # (family, match key) -> [value as printed, refs, part keys, originals]
+    groups: dict[tuple[str, str], tuple[str, list[str], list[str], list[str]]] = {}
     requirements: dict[tuple[str, str], list[PartRequirements]] = {}
     footprints: dict[tuple[str, str], str] = {}
 
-    def add(family: str, value: str, ref: str) -> tuple[str, str]:
+    def add(family: str, value: str, ref: str, key: str = "", original: str = "") -> tuple[str, str]:
         group = (family, _group_key(family, value))
-        slot = groups.setdefault(group, (value, []))
+        slot = groups.setdefault(group, (value, [], [], []))
         slot[1].append(ref)
+        if key:
+            slot[2].append(key)
+        if original and original not in slot[3]:
+            slot[3].append(original)
         return group
 
     for part in placed_parts(design, library):
@@ -189,7 +257,7 @@ def check_parts(
         value = getattr(part.kicad, "value", None) or ""
         if not value:
             continue
-        group = add(family_for_ref(part.ref), value, part.ref)
+        group = add(family_for_ref(part.ref), value, part.ref, part.key, part.substituted_for)
         footprints.setdefault(group, part.kicad.footprint or "")
         spec = _part_spec(library, part.library_id, part.part_id)
         if spec is not None and spec.requires is not None:
@@ -199,13 +267,13 @@ def check_parts(
         add(passive.kind, passive.value, passive.id)
 
     out: list[InventoryPartLine] = []
-    for group, (value, refs) in groups.items():
+    for group, (value, refs, keys, originals) in groups.items():
         family, key = group
         needed = len(refs)
         if not family:
             out.append(InventoryPartLine(
                 value=value, family="", refs=refs, needed=needed,
-                on_hand=0, status="untracked",
+                on_hand=0, status="untracked", keys=keys, substituted_for=originals,
             ))
             continue
         entry = drawer.lookup(family, key)
@@ -216,6 +284,7 @@ def check_parts(
             on_hand=on_hand, status=status,
             matched=entry.key if entry else "",
             location=entry.location if entry else "",
+            keys=keys, substituted_for=originals,
         )
         if status in ("need", "partial") and not matches_by_value(family):
             line.substitutes = find_substitutes(
@@ -328,7 +397,7 @@ def package_for_footprint(footprint: str) -> str:
     return next((pkg for pkg in _PACKAGES if pkg in upper), "")
 
 
-_NOT_COMPARED = {
+NOT_COMPARED = {
     "mosfet": "gate threshold and Rds(on) not compared",
     "bjt": "gain and saturation voltage not compared",
     "diode": "forward voltage and recovery time not compared",
@@ -388,7 +457,7 @@ def find_substitutes(
             caveats.append(f"pinout {e.pinout} differs from {pinout}")
         if basis:
             caveats.append(basis)
-        caveats.append(_NOT_COMPARED.get(
+        caveats.append(NOT_COMPARED.get(
             family, "only family, polarity, package and ratings compared"))
         out.append(Substitute(
             mpn=e.mpn, key=e.key, on_hand=e.quantity,

@@ -23,7 +23,7 @@ from wirestudio.library import Library
 from wirestudio.library.check import check_component_yaml, create_component
 from wirestudio.model import Design
 from wirestudio.recommend.recommender import Constraints, recommend_components
-from wirestudio.validate import check_board_flash
+from wirestudio.validate import check_board_flash, check_part_overrides
 
 
 # ---------------------------------------------------------------------------
@@ -349,6 +349,26 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
         },
     },
     {
+        "name": "set_part_override",
+        "description": (
+            "Accept a drawer substitution for one subcircuit part: set "
+            "part_overrides['<component id>.<part id>'] to an MPN so the BOM, "
+            "CPL and schematic print that part instead of the library's. Only "
+            "the value changes; symbol and footprint stay, so the substitute "
+            "must be the same package. Use the keys and substitutes an "
+            "inventory_check line reports. Pass an empty mpn to remove."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "key": {"type": "string", "description": "'<component id>.<part id>' from inventory_check `keys`."},
+                "mpn": {"type": "string", "description": "Substitute MPN, or '' to remove the override."},
+            },
+            "required": ["key"],
+            "additionalProperties": False,
+        },
+    },
+    {
         "name": "component_check",
         "description": (
             "Check a draft library component (full YAML text, same shape as "
@@ -637,7 +657,7 @@ def _run_validate(design: dict, library: Library) -> dict:
     except (FileNotFoundError, ValueError) as e:
         return {"ok": False, "error": str(e), "schema_ok": True}
     compat = check_pin_compatibility(design, library)
-    board_warnings = check_board_flash(d, library)
+    board_warnings = check_board_flash(d, library) + check_part_overrides(d, library)
     # Strict blockers are surfaced regardless of mode so the caller can see
     # what *would* block; in strict mode their presence also flips ok=False.
     blockers = strict_blockers(design, library)
@@ -760,6 +780,26 @@ def _run_library_detail(
     return {"ok": True, "kind": kind, "library_id": library_id, "detail": entry.model_dump()}
 
 
+def _run_set_part_override(design: dict, library: Library, *, key: str, mpn: str = "") -> dict:
+    component_id, _, part_id = key.partition(".")
+    comp = next((c for c in design.get("components") or [] if c["id"] == component_id), None)
+    if comp is None:
+        return {"ok": False, "error": f"unknown component '{component_id}' in key {key!r}"}
+    try:
+        sub = library.component(comp["library_id"]).subcircuit
+    except FileNotFoundError as e:
+        return {"ok": False, "error": str(e)}
+    part = next((p for p in (sub.parts if sub else []) if p.id == part_id), None)
+    if part is None:
+        return {"ok": False, "error": f"'{comp['library_id']}' has no subcircuit part '{part_id}'"}
+    overrides = design.setdefault("part_overrides", {})
+    if not mpn:
+        overrides.pop(key, None)
+        return {"ok": True, "removed": key, "value": part.kicad.value}
+    overrides[key] = mpn
+    return {"ok": True, "set": {key: mpn}, "substituted_for": part.kicad.value}
+
+
 def _run_component_check(_design: dict, library: Library, *, yaml: str) -> dict:
     return check_component_yaml(yaml, library).as_dict()
 
@@ -803,6 +843,7 @@ TOOL_HANDLERS: dict[str, Callable[..., Any]] = {
     "fab_bom": _run_fab_bom,
     "fab_cpl": _run_fab_cpl,
     "library_detail": _run_library_detail,
+    "set_part_override": _run_set_part_override,
     "component_check": _run_component_check,
     "component_create": _run_component_create,
 }

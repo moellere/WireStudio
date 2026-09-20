@@ -1542,6 +1542,8 @@ agent never has to *guess* what hardware you have — the device tells us.
       "text": "Estimated 320mA peak vs 500mA budget — OK." }
   ],
 
+  "part_overrides": { "bridge.q_hi_a": "IRF9540" },
+
   "esphome_extras": {
     "captive_portal": {},
     "logger": { "level": "INFO" }

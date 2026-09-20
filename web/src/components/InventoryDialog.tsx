@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Boxes, Download, Search, Trash2, Upload, X } from "lucide-react";
 import { api } from "../api/client";
-import type { Design, InventoryCheckResponse, InventoryEntry } from "../types/api";
+import type { Design, BuyListResponse, InventoryCheckResponse, InventoryEntry } from "../types/api";
 import { Button } from "./ui";
 
 type Part = { id: string; name: string; kind: "component" | "module" };
@@ -14,13 +14,30 @@ const STATUS_STYLE: Record<string, string> = {
   untracked: "text-ink-faint bg-white/5 ring-white/10",
 };
 
+const PICK_GROUP_LABEL: Record<string, string> = {
+  location: "",
+  unlocated: "In stock, no location recorded",
+  assumed: "Common values (not inventoried)",
+  missing: "Not in the drawer",
+};
+
 /** "What's in my drawer": list/add/edit/remove inventory entries, and check the
  *  open design's BOM against what's on hand (have / partial / need). */
-export function InventoryDialog({ design, onClose }: { design?: Design | null; onClose: () => void }) {
+export function InventoryDialog({
+  design,
+  onClose,
+  onApplySubstitute,
+}: {
+  design?: Design | null;
+  onClose: () => void;
+  onApplySubstitute?: (keys: string[], mpn: string) => void;
+}) {
   const [entries, setEntries] = useState<InventoryEntry[]>([]);
   const [parts, setParts] = useState<Part[]>([]);
   const [search, setSearch] = useState("");
   const [check, setCheck] = useState<InventoryCheckResponse | null>(null);
+  const [buy, setBuy] = useState<BuyListResponse | null>(null);
+  const [buying, setBuying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -122,6 +139,18 @@ export function InventoryDialog({ design, onClose }: { design?: Design | null; o
       setCheck(await api.checkDesignInventory(design));
     } catch (e) {
       fail(e);
+    }
+  }
+
+  async function runBuyList() {
+    if (!design) return;
+    setBuying(true);
+    try {
+      setBuy(await api.buyList(design));
+    } catch (e) {
+      fail(e);
+    } finally {
+      setBuying(false);
     }
   }
 
@@ -323,10 +352,45 @@ export function InventoryDialog({ design, onClose }: { design?: Design | null; o
             <section className="border-t border-line pt-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-medium text-ink-dim">Check the open design</span>
-                <Button size="sm" onClick={runCheck}>
-                  Check BOM
-                </Button>
+                <span className="flex gap-1.5">
+                  <Button size="sm" onClick={runCheck}>
+                    Check BOM
+                  </Button>
+                  <Button size="sm" variant="secondary" onClick={runBuyList} disabled={buying}
+                    title="What the drawer is short, priced on JLCPCB">
+                    {buying ? "Pricing…" : "Buy list"}
+                  </Button>
+                </span>
               </div>
+              {buy && (
+                <div className="mt-2 space-y-1 text-xs">
+                  {!buy.available && (
+                    <p className="text-amber-300">JLCPCB unavailable{buy.reason ? `: ${buy.reason}` : ""}. Shortfalls listed unpriced.</p>
+                  )}
+                  {buy.lines.length === 0 ? (
+                    <p className="text-ink-faint">Nothing to buy: the drawer covers this design.</p>
+                  ) : (
+                    <ul className="divide-y divide-line rounded-md border border-line">
+                      {buy.lines.map((ln) => (
+                        <li key={`${ln.kind}:${ln.label}`} className="flex items-center justify-between px-2 py-1">
+                          <span className="text-ink">
+                            {ln.shortfall}× {ln.label}
+                            <span className="ml-1 text-ink-faint">{ln.refs.join(", ")}</span>
+                          </span>
+                          <span className="text-ink-dim">
+                            {ln.status === "ok" && ln.lcsc ? (
+                              <a className="text-accent-300 hover:underline" href={`https://jlcpcb.com/partdetail/${ln.lcsc}`} target="_blank" rel="noreferrer">
+                                {ln.lcsc}
+                              </a>
+                            ) : null}
+                            <span className="ml-1">{ln.note}</span>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
               {check && (
                 <div className="mt-2 space-y-2">
                   <div className="flex gap-2 text-[11px]">
@@ -370,6 +434,9 @@ export function InventoryDialog({ design, onClose }: { design?: Design | null; o
                               <span className="text-ink">
                                 {ln.value}
                                 <span className="ml-1 text-ink-faint">{ln.refs.join(", ")}</span>
+                                {ln.substituted_for.length > 0 && (
+                                  <span className="ml-1 text-ink-faint">(for {ln.substituted_for.join(", ")})</span>
+                                )}
                               </span>
                               <span className="flex items-center gap-2 text-ink-dim">
                                 <span>{ln.on_hand}/{ln.needed}</span>
@@ -384,10 +451,40 @@ export function InventoryDialog({ design, onClose }: { design?: Design | null; o
                                   <li key={sub.key} className="text-ink-dim">
                                     <span className="text-ink">{sub.mpn}</span> could substitute ({sub.on_hand} on hand
                                     {sub.location ? `, ${sub.location}` : ""}). {sub.caveats.join("; ")}.
+                                    {onApplySubstitute && ln.keys.length > 0 && (
+                                      <button
+                                        type="button"
+                                        className="ml-1 text-accent-300 hover:underline"
+                                        title={`Set part_overrides for ${ln.keys.join(", ")}; the BOM, CPL and schematic print ${sub.mpn}. Re-run the check afterwards.`}
+                                        onClick={() => onApplySubstitute(ln.keys, sub.mpn)}
+                                      >
+                                        Use for {ln.refs.join(", ")}
+                                      </button>
+                                    )}
                                   </li>
                                 ))}
                               </ul>
                             )}
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+                  {check.pick_list.length > 0 && (
+                    <>
+                      <div className="pt-1 text-xs font-medium text-ink-dim">Pick list</div>
+                      <ul className="space-y-1.5">
+                        {check.pick_list.map((g) => (
+                          <li key={`${g.kind}:${g.location}`} className="rounded-md border border-line px-2 py-1 text-xs">
+                            <div className="text-ink">{PICK_GROUP_LABEL[g.kind] ?? g.location}{g.kind === "location" ? g.location : ""}</div>
+                            <ul className="mt-0.5 text-[11px] text-ink-dim">
+                              {g.items.map((i) => (
+                                <li key={`${i.label}:${i.refs.join(",")}`}>
+                                  {i.needed}× <span className="text-ink">{i.label}</span>
+                                  <span className="ml-1 text-ink-faint">{i.refs.join(", ")}</span>
+                                </li>
+                              ))}
+                            </ul>
                           </li>
                         ))}
                       </ul>

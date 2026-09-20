@@ -42,7 +42,7 @@ class BomReport:
         return out
 
 
-def _classify(library_id: str, name: str, query: str, quantity: int,
+def classify(library_id: str, name: str, query: str, quantity: int,
               parts: list[JlcpcbPart]) -> BomLine:
     if not parts:
         return BomLine(library_id, name, quantity, query, "not_found",
@@ -88,7 +88,7 @@ def check_bom(design: Design, library: Library,
             report.reason = str(exc)
             return report
         report.lines.append(
-            _classify(library_id, name, library_id, counts[library_id], parts)
+            classify(library_id, name, library_id, counts[library_id], parts)
         )
     return report
 
