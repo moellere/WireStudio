@@ -1,6 +1,8 @@
 """Local component inventory: store, design cross-check, and API."""
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -107,15 +109,20 @@ def test_csv_roundtrip():
         InventoryEntry(library_id="bme280", quantity=3, min_quantity=1, location="A1", note="porch"),
         InventoryEntry(library_id="oled-encoder", kind="module", quantity=1),
     ]
-    back = entries_from_csv(entries_to_csv(entries))
+    back = entries_from_csv(entries_to_csv(entries)).entries
     assert [e.library_id for e in back] == ["bme280", "oled-encoder"]
     assert back[0].min_quantity == 1 and back[0].location == "A1" and back[0].note == "porch"
     assert back[1].kind == "module"
 
 
-def test_csv_bad_row_raises():
-    with pytest.raises(ValueError):
-        entries_from_csv("library_id,quantity\nbme280,-1\n")
+def test_csv_bad_row_is_rejected_not_raised():
+    # A row that can't validate is reported with its line number and reason,
+    # so a bad cell in row 40 doesn't cost the other 62 rows.
+    result = entries_from_csv("library_id,quantity\nbme280,-1\nssd1306,2\n")
+    assert [e.library_id for e in result.entries] == ["ssd1306"]
+    assert len(result.rejected) == 1
+    assert result.rejected[0].row == 2
+    assert "quantity" in result.rejected[0].reason
 
 
 def test_set_inventory_low_stock_in_response(client):
@@ -134,6 +141,130 @@ def test_inventory_csv_export_import(client):
     assert restored["library_id"] == "bme280" and restored["min_quantity"] == 1
 
 
-def test_inventory_import_skips_unknown(client):
+def test_inventory_import_reports_unknown_library_id(client):
     r = client.post("/inventory/import", json={"csv": "library_id,quantity\nnot-a-part,2\n"})
-    assert r.json() == {"imported": 0, "skipped": ["not-a-part"]}
+    body = r.json()
+    assert body["imported"] == 0 and body["updated"] == 0
+    assert len(body["rejected"]) == 1
+    assert "not-a-part" in body["rejected"][0]["reason"]
+
+
+# --- discrete parts -------------------------------------------------------
+
+FIXTURE_CSV = Path(__file__).resolve().parent / "fixtures" / "transistor_inventory.csv"
+
+
+def test_part_entry_validation():
+    part = InventoryEntry(kind="part", mpn="IRF4905", quantity=5, family="mosfet")
+    assert part.key == "part:IRF4905" and part.label == "IRF4905"
+    with pytest.raises(ValueError):
+        InventoryEntry(kind="part", quantity=1)  # no mpn
+    with pytest.raises(ValueError):
+        InventoryEntry(kind="part", mpn="X", library_id="bme280")  # both ids
+    with pytest.raises(ValueError):
+        InventoryEntry(library_id="bme280", mpn="X")  # component carrying an mpn
+    with pytest.raises(ValueError):
+        InventoryEntry(kind="part", mpn="X", family="sorcery")
+    with pytest.raises(ValueError):
+        InventoryEntry(kind="part", mpn="X", v_max=-5)
+
+
+def test_part_key_cannot_shadow_a_library_id(tmp_path):
+    # A drawer part happening to be named 'adc' must not overwrite the
+    # 'adc' component entry.
+    store = FileInventoryStore(path=tmp_path / "inventory.json")
+    store.set(InventoryEntry(library_id="adc", quantity=1))
+    store.set(InventoryEntry(kind="part", mpn="adc", quantity=99))
+    assert store.get("adc").quantity == 1
+    assert store.get("part:adc").quantity == 99
+    assert len(store.list()) == 2
+
+
+def test_old_inventory_json_still_loads(tmp_path):
+    # Files written before parts existed carry only library_id/kind/quantity.
+    path = tmp_path / "inventory.json"
+    path.write_text(
+        '{"schema_version": "0.1", "entries": ['
+        '{"library_id": "bme280", "kind": "component", "quantity": 3, '
+        '"min_quantity": 0, "location": "A1", "note": ""}]}'
+    )
+    entry = FileInventoryStore(path=path).get("bme280")
+    assert entry.quantity == 3 and entry.location == "A1"
+    assert entry.family == "" and entry.v_max is None
+
+
+def test_real_drawer_csv_imports_every_row():
+    """The 63-part transistor drawer: every row lands, nothing is dropped."""
+    result = entries_from_csv(FIXTURE_CSV.read_text())
+    # The header is on line 5 -- four rows of summary preamble precede it.
+    assert result.header_row == 5
+    assert len(result.entries) == 63
+    assert sum(e.quantity for e in result.entries) == 720  # matches the sheet
+    assert all(e.kind == "part" for e in result.entries)
+    # The trailing "Total Inventory, 720" row is reported, not silently kept.
+    assert len(result.rejected) == 1
+    assert result.rejected[0].reason == "looks like a summary row"
+    assert result.rejected[0].row == 69
+
+
+def test_real_drawer_csv_maps_specs():
+    by_mpn = {e.mpn: e for e in entries_from_csv(FIXTURE_CSV.read_text()).entries}
+    # P-channel MOSFET: family/polarity normalised, V/A lifted from the note.
+    irf = by_mpn["IRF4905"]
+    assert irf.family == "mosfet" and irf.polarity == "p"
+    assert irf.package == "TO-220" and irf.pinout == "G-D-S"
+    assert irf.v_max == 55.0 and irf.i_max == 74.0  # magnitudes; note says -55V, -74A
+    assert irf.quantity == 5 and "TO-220 24x5 kit" in irf.location
+    # 'BJT Darlington' collapses to the bjt family.
+    assert by_mpn["BC517"].family == "bjt" and by_mpn["BC517"].polarity == "npn"
+    # A regulator's "Polarity / Type" column isn't a polarity; kept verbatim.
+    assert by_mpn["L7805CV"].family == "regulator"
+    assert by_mpn["L7805CV"].polarity == "+5 v linear"
+    # Every part the hbridge_mosfet subcircuit needs is in this drawer.
+    assert {"IRF4905", "IRFZ44N", "2N3904"} <= set(by_mpn)
+
+
+def test_drawer_csv_roundtrips_through_export():
+    entries = entries_from_csv(FIXTURE_CSV.read_text()).entries
+    back = entries_from_csv(entries_to_csv(entries))
+    assert back.rejected == []
+    assert {e.key: e for e in back.entries} == {e.key: e for e in entries}
+
+
+def test_import_endpoint_keeps_every_drawer_row(client):
+    body = client.post(
+        "/inventory/import", json={"csv": FIXTURE_CSV.read_text()}
+    ).json()
+    assert body["imported"] == 63 and body["updated"] == 0
+    assert [r["reason"] for r in body["rejected"]] == ["looks like a summary row"]
+    assert len(client.get("/inventory").json()) == 63
+    # Re-importing the same sheet updates rather than duplicating.
+    again = client.post(
+        "/inventory/import", json={"csv": FIXTURE_CSV.read_text()}
+    ).json()
+    assert again["imported"] == 0 and again["updated"] == 63
+
+
+def test_part_crud_endpoints(client):
+    r = client.put("/inventory/parts/IRF4905", json={
+        "quantity": 5, "family": "mosfet", "polarity": "p",
+        "package": "TO-220", "pinout": "G-D-S", "v_max": 55, "i_max": 74,
+    })
+    assert r.status_code == 200
+    body = r.json()
+    assert body["key"] == "part:IRF4905" and body["mpn"] == "IRF4905"
+    assert body["library_id"] == "" and body["kind"] == "part"
+    assert body["v_max"] == 55 and body["family"] == "mosfet"
+    assert client.delete("/inventory/parts/IRF4905").json() == {"deleted": "part:IRF4905"}
+    assert client.delete("/inventory/parts/IRF4905").status_code == 404
+
+
+def test_part_endpoint_validation(client):
+    assert client.put("/inventory/parts/X", json={"quantity": -1}).status_code == 422
+    assert client.put(
+        "/inventory/parts/X", json={"quantity": 1, "family": "sorcery"}
+    ).status_code == 422
+    # A part needs no library file -- that is the whole point.
+    assert client.put(
+        "/inventory/parts/NOT-IN-ANY-LIBRARY", json={"quantity": 1}
+    ).status_code == 200

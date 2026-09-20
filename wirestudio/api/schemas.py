@@ -288,13 +288,22 @@ class FleetRunStatus(_S):
 
 
 class InventoryEntryModel(_S):
-    library_id: str = Field(description="Library id of the part: a component or a composite module.")
-    kind: str = Field(default="component", description="Part kind: 'component' or 'module'.")
+    key: str = Field(default="", description="Store key: the library id, or 'part:<mpn>' for a discrete part.")
+    library_id: str = Field(default="", description="Library id, for the 'component' and 'module' kinds.")
+    mpn: str = Field(default="", description="Manufacturer part number, for the 'part' kind.")
+    kind: str = Field(default="component", description="Part kind: 'component', 'module' or 'part'.")
     quantity: int = Field(description="Number of this part on hand. Non-negative.")
     min_quantity: int = Field(default=0, description="Low-stock threshold; 0 = none. Low when quantity <= this.")
     low_stock: bool = Field(default=False, description="True when on hand is at/below the threshold.")
     location: str = Field(default="", description="Free-text bin/location, e.g. 'drawer 3'.")
     note: str = Field(default="", description="Free-text note about the part.")
+    family: str = Field(default="", description="Part family: bjt, mosfet, resistor, capacitor, inductor, diode, regulator, connector, ic, other.")
+    polarity: str = Field(default="", description="npn / pnp for BJTs, n / p for MOSFETs; free text otherwise.")
+    package: str = Field(default="", description="Package, e.g. 'TO-220', 'TO-92'.")
+    pinout: str = Field(default="", description="Pin order as printed, e.g. 'G-D-S'.")
+    value: str = Field(default="", description="Value for passives, e.g. '470', '10k', '100nF'.")
+    v_max: Optional[float] = Field(default=None, description="Maximum voltage magnitude, volts.")
+    i_max: Optional[float] = Field(default=None, description="Maximum current magnitude, amps.")
 
 
 class SetInventoryRequest(_S):
@@ -303,6 +312,21 @@ class SetInventoryRequest(_S):
     min_quantity: int = Field(default=0, description="Low-stock threshold; 0 = none.")
     location: str = Field(default="", description="Free-text bin/location.")
     note: str = Field(default="", description="Free-text note about the part.")
+
+
+class SetPartRequest(_S):
+    """A discrete part with no library file: transistors, passives, regulators."""
+    quantity: int = Field(description="Number of this part on hand. Non-negative.")
+    min_quantity: int = Field(default=0, description="Low-stock threshold; 0 = none.")
+    location: str = Field(default="", description="Free-text bin/location.")
+    note: str = Field(default="", description="Free-text note about the part.")
+    family: str = Field(default="", description="Part family: bjt, mosfet, resistor, capacitor, inductor, diode, regulator, connector, ic, other.")
+    polarity: str = Field(default="", description="npn / pnp for BJTs, n / p for MOSFETs.")
+    package: str = Field(default="", description="Package, e.g. 'TO-220'.")
+    pinout: str = Field(default="", description="Pin order as printed, e.g. 'G-D-S'.")
+    value: str = Field(default="", description="Value for passives, e.g. '10k'.")
+    v_max: Optional[float] = Field(default=None, description="Maximum voltage magnitude, volts.")
+    i_max: Optional[float] = Field(default=None, description="Maximum current magnitude, amps.")
 
 
 class InventoryCheckRequest(_S):
