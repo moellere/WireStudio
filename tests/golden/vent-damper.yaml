@@ -1,0 +1,33 @@
+esphome:
+  name: vent-damper
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: esp-idf
+  variant: ESP32C3
+  flash_size: 4MB
+logger: {}
+api:
+  encryption:
+    key: !secret api_key
+ota:
+- platform: esphome
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+output:
+- platform: ledc
+  pin: GPIO6
+  id: damper_in1
+  frequency: 1000 Hz
+- platform: ledc
+  pin: GPIO7
+  id: damper_in2
+  frequency: 1000 Hz
+fan:
+- platform: hbridge
+  pin_a: damper_in1
+  pin_b: damper_in2
+  name: Damper motor
+  id: damper
+  decay_mode: slow

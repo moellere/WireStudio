@@ -193,6 +193,7 @@ class LibraryComponent(_Strict):
     params_schema: dict = Field(default_factory=dict)
     notes: Optional[str] = None
     kicad: Optional[KicadSymbolRef] = None
+    subcircuit: Optional["Subcircuit"] = None
     tasmota: Optional[TasmotaSpec] = None
     circuitpython: Optional[CircuitPythonSpec] = None
 
@@ -270,6 +271,28 @@ class KicadSymbolRef(_Strict):
     footprint: Optional[str] = None
     value: Optional[str] = None
     pin_map: dict[str, str] = Field(default_factory=dict)
+
+
+class SubcircuitPart(_Strict):
+    """One discrete part inside a component's subcircuit.
+
+    `pins` maps the KiCad symbol's pin name (or pad number for a
+    `Connector_Generic` symbol) to a net. A net named after one of the host
+    component's pin roles joins whatever that role is connected to in the
+    design; any other name is a net local to the component instance.
+    """
+    id: str
+    ref_prefix: str
+    kicad: KicadSymbolRef
+    pins: dict[str, str]
+
+
+class Subcircuit(_Strict):
+    """Discrete parts that realise a component on the board. When present the
+    KiCad schematic, PCB, BOM and CPL emit these parts in place of the
+    component's single `kicad:` symbol; every other generator still sees one
+    component with its electrical pins."""
+    parts: list[SubcircuitPart]
 
 
 class RadioPins(_Strict):

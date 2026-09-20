@@ -24,7 +24,10 @@ mappings (symbol, footprint, pin_map applied) appear verbatim.
 """
 from __future__ import annotations
 
-from wirestudio.kicad.netlist import BOARD_KEY, _py_var, assign_refs, net_name
+from wirestudio.kicad.netlist import (
+    BOARD_KEY, _py_var, assign_refs, is_bound, local_net_name, net_name,
+    part_key, placed_parts,
+)
 from wirestudio.library import KicadSymbolRef, Library
 from wirestudio.model import Design
 
@@ -239,20 +242,15 @@ def _render_components(
             lines.append(_emit_placeholder(var, ref, board.id))
         ref_index[BOARD_KEY] = var
 
-    # Components.
-    for c in design.components:
-        var = f"c_{_py_var(c.id)}"
-        try:
-            lib_comp = library.component(c.library_id)
-        except FileNotFoundError:
-            lib_comp = None
-        ref = refs[c.id]
-        if lib_comp is None or lib_comp.kicad is None:
-            lines.append(_emit_placeholder(var, ref, c.library_id))
+    # Components; a subcircuit component expands to one Part per part.
+    for part in placed_parts(design, library):
+        var = f"c_{_py_var(part.key)}"
+        if part.kicad is None:
+            lines.append(_emit_placeholder(var, part.ref, part.library_id))
         else:
-            lines.append(_emit_part(var, ref, lib_comp.kicad,
-                                     comment=f"{c.id} ({lib_comp.name})"))
-        ref_index[c.id] = var
+            lines.append(_emit_part(var, part.ref, part.kicad,
+                                     comment=f"{part.key} ({part.name})"))
+        ref_index[part.key] = var
 
     return "\n".join(lines), ref_index
 
@@ -274,7 +272,17 @@ def _render_connections(
     here, so the script lines up with the component's KiCad symbol."""
     lines: list[str] = []
     by_id = {c.id: c for c in design.components}
+    subcircuits = {}
+    for c in design.components:
+        try:
+            sub = library.component(c.library_id).subcircuit
+        except FileNotFoundError:
+            sub = None
+        if sub is not None:
+            subcircuits[c.id] = sub
     for conn in design.connections:
+        if conn.component_id in subcircuits:
+            continue
         comp_var = ref_index.get(conn.component_id)
         if comp_var is None:
             lines.append(f'# skipped: {conn.component_id}.{conn.pin_role} (component not in design)')
@@ -298,7 +306,41 @@ def _render_connections(
             continue
         net_expr = _net_handle_for(conn.target, design, ref_index)
         lines.append(f'{comp_var}[{_quote(pin_name)}] += {net_expr}')
+    for comp_id, sub in subcircuits.items():
+        lines.extend(_render_subcircuit(comp_id, sub, design, ref_index))
     return "\n".join(lines)
+
+
+def _render_subcircuit(comp_id: str, sub, design: Design, ref_index: dict[str, str]) -> list[str]:
+    """Wire a subcircuit's parts. Each node gets one net handle shared by every
+    pin on it (an inline ``Net(name)`` per pin would make SKiDL create a fresh
+    net each time). A node named after a host role the design has connected
+    reuses that connection's net; anything else is local to the instance."""
+    role_targets = {
+        conn.pin_role: conn.target for conn in design.connections
+        if conn.component_id == comp_id and is_bound(conn.target)
+    }
+    nodes: list[str] = []
+    for part in sub.parts:
+        for node in part.pins.values():
+            if node not in nodes:
+                nodes.append(node)
+    lines: list[str] = [f"# {comp_id}: subcircuit"]
+    handle: dict[str, str] = {}
+    for node in nodes:
+        target = role_targets.get(node)
+        if target is not None and target.kind in ("rail", "bus"):
+            handle[node] = _net_handle_for(target, design, ref_index)
+            continue
+        var = f"n_{_py_var(comp_id)}_{_py_var(node)}"
+        name = net_name(target) if target is not None else local_net_name(comp_id, node)
+        lines.append(f'{var} = Net({_quote(name)})')
+        handle[node] = var
+    for part in sub.parts:
+        var = ref_index[part_key(comp_id, part.id)]
+        for pin, node in part.pins.items():
+            lines.append(f'{var}[{_quote(pin)}] += {handle[node]}')
+    return lines
 
 
 def _net_handle_for(target, design: Design, ref_index: dict[str, str]) -> str:

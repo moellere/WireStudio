@@ -127,3 +127,31 @@ def test_pcb_every_radio_and_sensor_example_emits(lib):
         pcb = generate_kicad_pcb(_design(name), lib)
         assert pcb.count("(") == pcb.count(")"), name
         assert pcb.startswith("(kicad_pcb"), name
+
+
+# ---------------------------------------------------------------------------
+# Subcircuits
+# ---------------------------------------------------------------------------
+
+def test_build_netlist_expands_subcircuit_nodes(lib):
+    nets = {n.name: n for n in build_netlist(_design("motor-position"), lib)}
+    gate = {(p.ref, p.pin_role) for p in nets["bridge_gate_a"].pads}
+    assert gate == {("Q1", "G"), ("Q2", "G"), ("Q3", "C"), ("R1", "2")}
+    assert {(p.ref, p.pin_role) for p in nets["GPIO_GPIO18"].pads} == {("R2", "1"), ("R3", "1")}
+    assert {p.ref for p in nets["bridge_out_a"].pads} == {"Q1", "Q2", "C2", "J1"}
+    assert all(p.part_id for p in nets["bridge_gate_a"].pads)
+
+
+@libs_required
+def test_pcb_binds_every_subcircuit_pad(lib):
+    import re
+    pcb = generate_kicad_pcb(_design("motor-position"), lib)
+    blocks = {
+        re.search(r'"Reference" "([^"]+)"', b).group(1): b
+        for b in re.split(r"\n\t\(footprint ", pcb)[1:]
+    }
+    assert {"Q1", "Q6", "R1", "R6", "C1", "C2", "J1"} <= set(blocks)
+    for ref in ("Q1", "R1", "C2", "J1"):
+        pads = len(re.findall(r'\(pad "\d+"', blocks[ref]))
+        assert len(re.findall(r'\(net \d+ "', blocks[ref])) == pads
+    assert '(net ' in blocks["R1"] and '"bridge_gate_a"' in blocks["R1"]

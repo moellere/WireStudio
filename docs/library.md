@@ -103,6 +103,8 @@ _Generic IO:_
 _Actuators / power:_
 - `uln2003` — ULN2003 stepper driver for the 28BYJ-48 geared stepper
 - `pwm_fan` — 12V 4-wire PWM fan with tachometer feedback
+- `hbridge` — two-input H-bridge DC motor driver (DRV8833 / TB6612 / L298N / relay pair); bare outputs, interlocked switches, or an hbridge fan
+- `hbridge_mosfet` — the same interface as a discrete IRF4905 / IRFZ44N bridge; its `subcircuit` expands into 15 parts in the schematic, PCB and BOM
 - `axp192` — X-Powers AXP192 PMIC (T-Beam battery/rail management; no ESPHome core component yet)
 
 _Light / audio / camera:_

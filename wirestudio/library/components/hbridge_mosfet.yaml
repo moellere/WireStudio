@@ -1,0 +1,158 @@
+id: hbridge_mosfet
+name: Discrete MOSFET H-bridge (IRF4905 / IRFZ44N, 5 V)
+category: actuator
+use_cases: [motor, dc_motor, actuator, linear_actuator, reversible_load]
+aliases: [mosfet_bridge, discrete_hbridge, irf4905, irfz44n]
+
+electrical:
+  vcc_min: 4.5
+  vcc_max: 5.5
+  current_ma_typical: 300
+  current_ma_peak: 1000
+  # Same two-input interface as `hbridge`, built on the board. Each leg is a
+  # P-FET to VM and an N-FET to GND sharing one gate node, which a small NPN
+  # pulls low: input high -> leg output at VM, input low -> leg output at GND.
+  # No input combination conducts through a leg. VM is tied to the gate
+  # pull-ups, so it has to stay near the FETs' gate drive: 5 V.
+  pins:
+  - {role: IN1, kind: digital_out, voltage: 3.3}
+  - {role: IN2, kind: digital_out, voltage: 3.3}
+  - {role: VM, kind: power}
+  - {role: GND, kind: ground}
+  passives: []
+
+esphome:
+  required_components: []
+  yaml_template: |
+    {%- set pwm = params.pwm | default(false) or params.expose | default('none') == 'fan' %}
+    {%- if params.expose | default('none') == 'switches' %}
+    switch:
+      - platform: gpio
+        pin: {{ pins.IN1 | tojson }}
+        name: "{{ label }} forward"
+        id: {{ id }}_in1
+        restore_mode: ALWAYS_OFF
+        interlock: [{{ id }}_in2]
+        interlock_wait_time: {{ params.interlock_wait_time | default('100ms') }}
+      - platform: gpio
+        pin: {{ pins.IN2 | tojson }}
+        name: "{{ label }} reverse"
+        id: {{ id }}_in2
+        restore_mode: ALWAYS_OFF
+        interlock: [{{ id }}_in1]
+        interlock_wait_time: {{ params.interlock_wait_time | default('100ms') }}
+    {%- else %}
+    output:
+    {%- for n in ['IN1', 'IN2'] %}
+      - platform: {{ ('ledc' if board and board.chip_variant.startswith('esp32') else 'esp8266_pwm') if pwm else 'gpio' }}
+        pin: {{ pins[n] | tojson }}
+        id: {{ id }}_{{ n | lower }}
+    {%- if pwm %}
+        frequency: {{ params.frequency | default('200 Hz') }}
+    {%- endif %}
+    {%- endfor %}
+    {%- endif %}
+    {%- if params.expose | default('none') == 'fan' %}
+    fan:
+      - platform: hbridge
+        pin_a: {{ id }}_in1
+        pin_b: {{ id }}_in2
+        name: "{{ label }}"
+        id: {{ id }}
+        decay_mode: {{ params.decay_mode | default('slow') }}
+    {%- endif %}
+
+params_schema:
+  expose:
+    type: string
+    enum: [none, switches, fan]
+    default: none
+  pwm:
+    type: boolean
+    default: false
+  frequency:
+    type: string
+    default: "200 Hz"
+  decay_mode:
+    type: string
+    enum: [slow, fast]
+    default: slow
+  interlock_wait_time:
+    type: string
+    default: "100ms"
+
+notes: "Sized for a small 5-6 V gearmotor (about 1 A). The shared gate node switches through a 470 ohm
+  pull-up, so both FETs of a leg are partly on for a few microseconds per edge: fine for on/off and
+  position control, keep PWM at a few hundred Hz. The KiCad symbol library has no IRFZ44N; the low
+  side uses the pin-compatible IRLZ44N symbol, which is also the better part (logic-level gate). An
+  IRF9540N substitutes for the IRF4905. The FET body diodes carry the flyback current. J1 is the
+  motor terminal."
+# Header view for generators that place one part per component; the KiCad
+# schematic, PCB and BOM emit the subcircuit below instead.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x04
+  footprint: Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical
+  value: MOSFET H-bridge
+subcircuit:
+  parts:
+  - id: q_hi_a
+    ref_prefix: Q
+    kicad: {symbol_lib: Transistor_FET, symbol: IRF4905, footprint: "Package_TO_SOT_THT:TO-220-3_Vertical", value: IRF4905}
+    pins: {G: gate_a, D: out_a, S: VM}
+  - id: q_lo_a
+    ref_prefix: Q
+    kicad: {symbol_lib: Transistor_FET, symbol: IRLZ44N, footprint: "Package_TO_SOT_THT:TO-220-3_Vertical", value: IRFZ44N}
+    pins: {G: gate_a, D: out_a, S: GND}
+  - id: q_drv_a
+    ref_prefix: Q
+    kicad: {symbol_lib: Transistor_BJT, symbol: 2N3904, footprint: "Package_TO_SOT_THT:TO-92_Inline", value: 2N3904}
+    pins: {C: gate_a, B: base_a, E: GND}
+  - id: r_gate_a
+    ref_prefix: R
+    kicad: {symbol_lib: Device, symbol: R, footprint: "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal", value: "470"}
+    pins: {"1": VM, "2": gate_a}
+  - id: r_base_a
+    ref_prefix: R
+    kicad: {symbol_lib: Device, symbol: R, footprint: "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal", value: "1k"}
+    pins: {"1": IN1, "2": base_a}
+  - id: r_pd_a
+    ref_prefix: R
+    kicad: {symbol_lib: Device, symbol: R, footprint: "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal", value: "10k"}
+    pins: {"1": IN1, "2": GND}
+  - id: q_hi_b
+    ref_prefix: Q
+    kicad: {symbol_lib: Transistor_FET, symbol: IRF4905, footprint: "Package_TO_SOT_THT:TO-220-3_Vertical", value: IRF4905}
+    pins: {G: gate_b, D: out_b, S: VM}
+  - id: q_lo_b
+    ref_prefix: Q
+    kicad: {symbol_lib: Transistor_FET, symbol: IRLZ44N, footprint: "Package_TO_SOT_THT:TO-220-3_Vertical", value: IRFZ44N}
+    pins: {G: gate_b, D: out_b, S: GND}
+  - id: q_drv_b
+    ref_prefix: Q
+    kicad: {symbol_lib: Transistor_BJT, symbol: 2N3904, footprint: "Package_TO_SOT_THT:TO-92_Inline", value: 2N3904}
+    pins: {C: gate_b, B: base_b, E: GND}
+  - id: r_gate_b
+    ref_prefix: R
+    kicad: {symbol_lib: Device, symbol: R, footprint: "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal", value: "470"}
+    pins: {"1": VM, "2": gate_b}
+  - id: r_base_b
+    ref_prefix: R
+    kicad: {symbol_lib: Device, symbol: R, footprint: "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal", value: "1k"}
+    pins: {"1": IN2, "2": base_b}
+  - id: r_pd_b
+    ref_prefix: R
+    kicad: {symbol_lib: Device, symbol: R, footprint: "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal", value: "10k"}
+    pins: {"1": IN2, "2": GND}
+  - id: c_bulk
+    ref_prefix: C
+    kicad: {symbol_lib: Device, symbol: C_Polarized, footprint: "Capacitor_THT:CP_Radial_D8.0mm_P3.50mm", value: 470uF}
+    pins: {"1": VM, "2": GND}
+  - id: c_motor
+    ref_prefix: C
+    kicad: {symbol_lib: Device, symbol: C, footprint: "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm", value: 100nF}
+    pins: {"1": out_a, "2": out_b}
+  - id: j_motor
+    ref_prefix: J
+    kicad: {symbol_lib: Connector_Generic, symbol: Conn_01x02, footprint: "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-2_1x02_P5.00mm_Horizontal", value: Motor}
+    pins: {"1": out_a, "2": out_b}
