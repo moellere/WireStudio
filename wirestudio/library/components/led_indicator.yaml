@@ -1,0 +1,74 @@
+id: led_indicator
+name: Indicator LED with series resistor
+category: light
+use_cases: [indicator, status_led, led, heartbeat]
+aliases: [status_led, panel_led, led_resistor]
+
+electrical:
+  vcc_min: 0.0
+  vcc_max: 0.0
+  current_ma_typical: 6
+  current_ma_peak: 12
+  # A 3.3 V GPIO sources the LED through R1: (3.3 - Vf) / R. 220 ohm gives
+  # about 6 mA with a red or green LED (Vf ~2 V), 3 mA with a blue or white
+  # one (Vf ~3 V). Stay under the GPIO's 12 mA source limit.
+  pins:
+  - {role: IN, kind: digital_out, voltage: 3.3}
+  - {role: GND, kind: ground}
+  passives: []
+
+esphome:
+  required_components: []
+  yaml_template: |
+    output:
+      - platform: gpio
+        pin: {{ pins.IN | tojson }}
+        id: {{ id }}_out
+    light:
+      - platform: binary
+        output: {{ id }}_out
+        name: "{{ label }}"
+        id: {{ id }}
+    {%- if params.restore_mode is defined %}
+        restore_mode: {{ params.restore_mode }}
+    {%- endif %}
+
+capability:
+  role: output
+  provides:
+    - {event: on_turn_on}
+    - {event: on_turn_off}
+  accepts:
+    - {action: turn_on,  esphome: light.turn_on}
+    - {action: turn_off, esphome: light.turn_off}
+    - {action: toggle,   esphome: light.toggle}
+  checks:
+    - {predicate: is_on,  esphome: light.is_on}
+    - {predicate: is_off, esphome: light.is_off}
+
+params_schema:
+  r_led:
+    type: string
+    default: "220"
+  restore_mode:
+    type: string
+    enum: [RESTORE_DEFAULT_OFF, RESTORE_DEFAULT_ON, ALWAYS_OFF, ALWAYS_ON]
+
+notes: "One LED sourced straight from a GPIO. r_led sets the series resistor: 220 ohm is a visible
+  indicator, 1k a dim one that barely loads the pin. For anything brighter than a panel light drive it
+  through npn_low_side_driver instead."
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x02
+  footprint: Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical
+  value: LED
+subcircuit:
+  parts:
+  - id: r_led
+    ref_prefix: R
+    kicad: {symbol_lib: Device, symbol: R, footprint: "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal", value: "{{ params.r_led }}"}
+    pins: {"1": IN, "2": led_a}
+  - id: d_led
+    ref_prefix: D
+    kicad: {symbol_lib: Device, symbol: LED, footprint: "LED_THT:LED_D5.0mm", value: LED}
+    pins: {A: led_a, K: GND}

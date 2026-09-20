@@ -11,6 +11,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
+from wirestudio.library import part_value
 from wirestudio.model import Design
 
 _PY_IDENT_RE = re.compile(r"[^A-Za-z0-9_]")
@@ -127,9 +128,12 @@ def placed_parts(design: Design, library) -> list[PlacedPart]:
         for part in sub.parts:
             key = part_key(c.id, part.id)
             kicad, original = part.kicad, ""
+            value = part_value(part, c.params, lib_comp.params_schema)
+            if value != kicad.value:
+                kicad = kicad.model_copy(update={"value": value})
             mpn = design.part_overrides.get(key)
-            if mpn and mpn != kicad.value:
-                kicad, original = kicad.model_copy(update={"value": mpn}), kicad.value or ""
+            if mpn and mpn != value:
+                kicad, original = kicad.model_copy(update={"value": mpn}), value
             out.append(PlacedPart(
                 key=key, ref=refs[key], component_id=c.id, library_id=c.library_id,
                 part_id=part.id, kicad=kicad, name=f"{lib_comp.name}: {part.id}",

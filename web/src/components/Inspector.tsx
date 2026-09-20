@@ -47,12 +47,15 @@ interface Props {
   onDesignChange: (updater: (d: Design) => Design) => void;
   onAddComponent: (libraryId: string) => void;
   onRemoveComponent: (instanceId: string) => void;
+  onEditComponent: (libraryId: string, source: "bundled" | "user") => void;
+  onDeleteComponent: (libraryId: string) => void;
 }
 
 export function Inspector({
   selection, design, boardData, libraryBoards, libraryComponents,
   compatibilityWarnings,
   onSelect, onParamChange, onConnectionChange, onLockedPinChange, onDesignChange,
+  onEditComponent, onDeleteComponent,
   onAddComponent, onRemoveComponent,
 }: Props) {
   return (
@@ -95,8 +98,11 @@ export function Inspector({
         {selection.kind === "component" && (
           <LibraryComponentInspector
             id={selection.id}
+            source={libraryComponents?.find((c) => c.id === selection.id)?.source ?? "bundled"}
             designReady={!!design}
             onAdd={onAddComponent}
+            onEdit={onEditComponent}
+            onDelete={onDeleteComponent}
           />
         )}
         {selection.kind === "component_instance" && (
@@ -539,11 +545,14 @@ function BoardInspector({ id }: { id: string }) {
 }
 
 function LibraryComponentInspector({
-  id, designReady, onAdd,
+  id, source, designReady, onAdd, onEdit, onDelete,
 }: {
   id: string;
+  source: "bundled" | "user";
   designReady: boolean;
   onAdd: (libraryId: string) => void;
+  onEdit: (libraryId: string, source: "bundled" | "user") => void;
+  onDelete: (libraryId: string) => void;
 }) {
   const comp = useFetched(() => api.getComponent(id), [id]);
   if (!comp) return <Loading />;
@@ -569,6 +578,25 @@ function LibraryComponentInspector({
       >
         Add to design
       </button>
+
+      <div className="flex gap-2 text-xs">
+        <button
+          onClick={() => onEdit(id, source)}
+          className="rounded-md bg-surface-2 px-2 py-1 text-ink-dim ring-1 ring-inset ring-line hover:bg-surface-3 hover:text-ink"
+          title={source === "user" ? "Edit this component's YAML" : "Start a new component from this one's YAML"}
+        >
+          {source === "user" ? "Edit YAML" : "Copy as new"}
+        </button>
+        {source === "user" && (
+          <button
+            onClick={() => onDelete(id)}
+            className="rounded-md bg-surface-2 px-2 py-1 text-rose-300 ring-1 ring-inset ring-line hover:bg-surface-3"
+            title="Remove from the user library"
+          >
+            Delete
+          </button>
+        )}
+      </div>
 
       <div className="rounded-md border border-line bg-surface-2/40 p-4 text-xs">
         {c.notes ? (

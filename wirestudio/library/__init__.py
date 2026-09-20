@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from collections.abc import Mapping
 from typing import Literal, Optional
 
 import yaml
+from jinja2 import Environment, StrictUndefined
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
@@ -316,6 +318,25 @@ class SubcircuitPart(_Strict):
     requires: Optional[PartRequirements] = None
 
 
+def part_value(part: SubcircuitPart, params: Mapping[str, object], params_schema: Mapping[str, object]) -> str:
+    """The value printed on a subcircuit part. A value containing `{{`
+    is a Jinja template over the instance params (schema defaults
+    filled in), so one block can cover a 5 mA and a 20 mA LED; anything
+    else is printed as is. Raises on an undefined param or bad syntax."""
+    raw = part.kicad.value or ""
+    if "{{" not in raw:
+        return raw
+    merged = {
+        key: spec["default"] for key, spec in params_schema.items()
+        if isinstance(spec, dict) and "default" in spec
+    }
+    merged.update(params)
+    return _value_env.from_string(raw).render(params=merged).strip()
+
+
+_value_env = Environment(undefined=StrictUndefined, autoescape=False)
+
+
 class Subcircuit(_Strict):
     """Discrete parts that realise a component on the board. When present the
     KiCad schematic, PCB, BOM and CPL emit these parts in place of the
@@ -449,6 +470,9 @@ class Library:
     def __init__(self, root: Path, user_dir: Optional[Path] = None):
         self.root = Path(root)
         self.user_dir = Path(user_dir) if user_dir else None
+        # Bumped on every user-tree write so callers caching a listing
+        # (the API's component summaries) know when to rebuild.
+        self.version = 0
         self._components: dict[str, LibraryComponent] = {}
         self._boards: dict[str, LibraryBoard] = {}
         self._modules: dict[str, LibraryModule] = {}
@@ -489,6 +513,27 @@ class Library:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text)
         self._components.pop(library_id, None)
+        self.version += 1
+        return path
+
+    def component_yaml(self, library_id: str) -> str:
+        source = self.component_source(library_id)
+        if not source:
+            raise FileNotFoundError(f"Unknown component '{library_id}'")
+        base = self.root if source == "bundled" else self.user_dir
+        return (base / "components" / f"{library_id}.yaml").read_text()
+
+    def delete_component(self, library_id: str) -> Path:
+        """Remove a user component. A bundled id is refused."""
+        source = self.component_source(library_id)
+        if source == "bundled":
+            raise PermissionError(f"'{library_id}' is a bundled component")
+        if source != "user":
+            raise FileNotFoundError(f"Unknown component '{library_id}'")
+        path = self.user_dir / "components" / f"{library_id}.yaml"
+        path.unlink()
+        self._components.pop(library_id, None)
+        self.version += 1
         return path
 
     def board(self, library_id: str) -> LibraryBoard:

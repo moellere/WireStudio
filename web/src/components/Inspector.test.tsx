@@ -53,12 +53,12 @@ const libraryComponents: ComponentSummary[] = [
   {
     id: "bme280", name: "BME280", category: "sensor",
     use_cases: ["temperature"], aliases: [], required_components: ["i2c"],
-    current_ma_typical: 0.6, current_ma_peak: 4,
+    current_ma_typical: 0.6, current_ma_peak: 4, source: "bundled",
   },
   {
     id: "hc-sr501", name: "PIR", category: "binary_sensor",
     use_cases: ["motion"], aliases: [], required_components: [],
-    current_ma_typical: 50, current_ma_peak: 65,
+    current_ma_typical: 50, current_ma_peak: 65, source: "bundled",
   },
 ];
 
@@ -93,6 +93,8 @@ function noopProps() {
     onDesignChange: vi.fn(),
     onAddComponent: vi.fn(),
     onRemoveComponent: vi.fn(),
+    onEditComponent: vi.fn(),
+    onDeleteComponent: vi.fn(),
   };
 }
 

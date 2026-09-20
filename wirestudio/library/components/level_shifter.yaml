@@ -1,0 +1,59 @@
+id: level_shifter
+name: Bidirectional level shifter, one line (BSS138)
+category: bus
+use_cases: [level_shift, 5v_device, 1wire_5v, i2c_5v, logic_translation]
+aliases: [bss138, logic_level_converter, level_converter]
+
+electrical:
+  vcc_min: 3.0
+  vcc_max: 3.6
+  current_ma_typical: 0
+  current_ma_peak: 1
+  # The classic single-FET shifter: gate at 3.3 V, source on the low side,
+  # drain on the high side, a pull-up on each. Either side can pull the
+  # line low and the other follows; released, each side rests at its own
+  # rail. One line per block -- I2C needs two.
+  pins:
+  - {role: LV, kind: digital_in, voltage: 3.3}
+  - {role: VCC, kind: power}
+  - {role: VHV, kind: power}
+  - {role: GND, kind: ground}
+  passives: []
+
+esphome:
+  required_components: []
+  yaml_template: ""
+
+params_schema:
+  r_pullup:
+    type: string
+    default: "10k"
+
+notes: "Passes one open-drain or push-pull logic line between the MCU's 3.3 V (VCC) and a 5 V device
+  (VHV) in both directions; emits no ESPHome config of its own because the line belongs to whatever
+  device sits on the far side. 10k pull-ups suit 1-Wire and 100 kHz I2C; drop to 4.7k for 400 kHz.
+  J1 carries the high-side line and its rail."
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x04
+  footprint: Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical
+  value: Level shifter
+subcircuit:
+  parts:
+  - id: q_shift
+    ref_prefix: Q
+    kicad: {symbol_lib: Transistor_FET, symbol: BSS138, footprint: "Package_TO_SOT_SMD:SOT-23", value: BSS138}
+    pins: {G: VCC, S: LV, D: hv}
+    requires: {family: mosfet, polarity: n, v_min: 20, i_min: 0.1}
+  - id: r_lv
+    ref_prefix: R
+    kicad: {symbol_lib: Device, symbol: R, footprint: "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal", value: "{{ params.r_pullup }}"}
+    pins: {"1": VCC, "2": LV}
+  - id: r_hv
+    ref_prefix: R
+    kicad: {symbol_lib: Device, symbol: R, footprint: "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal", value: "{{ params.r_pullup }}"}
+    pins: {"1": VHV, "2": hv}
+  - id: j_hv
+    ref_prefix: J
+    kicad: {symbol_lib: Connector_Generic, symbol: Conn_01x03, footprint: "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical", value: HV side}
+    pins: {"1": VHV, "2": hv, "3": GND}

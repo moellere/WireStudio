@@ -1,0 +1,81 @@
+{
+  "schema_version": "0.1",
+  "id": "bench-io",
+  "name": "Bench I/O board",
+  "description": "The discrete building blocks on one board: a status LED, an NPN driver for a 5 V relay coil, a logic-level MOSFET driver for a 12 V fan on PWM, a divider to read the 12 V supply, and a level shifter for a 5 V 1-Wire line.",
+  "board": {
+    "library_id": "esp32-devkitc-v4",
+    "mcu": "esp32",
+    "framework": "esp-idf"
+  },
+  "power": {
+    "supply": "usb-5v",
+    "rail_voltage_v": 5.0,
+    "regulator": "onboard-ams1117",
+    "budget_ma": 500
+  },
+  "requirements": [],
+  "components": [
+    {
+      "id": "status",
+      "library_id": "led_indicator",
+      "label": "Status",
+      "params": {"r_led": "330"}
+    },
+    {
+      "id": "relay",
+      "library_id": "npn_low_side_driver",
+      "label": "Relay",
+      "params": {"icon": "mdi:electric-switch"}
+    },
+    {
+      "id": "fan",
+      "library_id": "mosfet_low_side_driver",
+      "label": "Fan",
+      "params": {"pwm": true, "frequency": "25000 Hz"}
+    },
+    {
+      "id": "vin",
+      "library_id": "voltage_divider",
+      "label": "Supply voltage",
+      "params": {"r_top": 100000, "r_bottom": 27000}
+    },
+    {
+      "id": "onewire_5v",
+      "library_id": "level_shifter",
+      "label": "1-Wire 5 V",
+      "params": {"r_pullup": "4.7k"}
+    }
+  ],
+  "buses": [],
+  "connections": [
+    {"component_id": "status", "pin_role": "IN", "target": {"kind": "gpio", "pin": "GPIO25"}},
+    {"component_id": "status", "pin_role": "GND", "target": {"kind": "rail", "rail": "GND"}},
+    {"component_id": "relay", "pin_role": "IN", "target": {"kind": "gpio", "pin": "GPIO16"}},
+    {"component_id": "relay", "pin_role": "VLOAD", "target": {"kind": "rail", "rail": "5V"}},
+    {"component_id": "relay", "pin_role": "GND", "target": {"kind": "rail", "rail": "GND"}},
+    {"component_id": "fan", "pin_role": "IN", "target": {"kind": "gpio", "pin": "GPIO17"}},
+    {"component_id": "fan", "pin_role": "VLOAD", "target": {"kind": "rail", "rail": "5V"}},
+    {"component_id": "fan", "pin_role": "GND", "target": {"kind": "rail", "rail": "GND"}},
+    {"component_id": "vin", "pin_role": "IN", "target": {"kind": "gpio", "pin": "GPIO34"}},
+    {"component_id": "vin", "pin_role": "GND", "target": {"kind": "rail", "rail": "GND"}},
+    {"component_id": "onewire_5v", "pin_role": "LV", "target": {"kind": "gpio", "pin": "GPIO4"}},
+    {"component_id": "onewire_5v", "pin_role": "VCC", "target": {"kind": "rail", "rail": "3V3"}},
+    {"component_id": "onewire_5v", "pin_role": "VHV", "target": {"kind": "rail", "rail": "5V"}},
+    {"component_id": "onewire_5v", "pin_role": "GND", "target": {"kind": "rail", "rail": "GND"}}
+  ],
+  "passives": [],
+  "warnings": [],
+  "esphome_extras": {
+    "logger": {}
+  },
+  "fleet": {
+    "device_name": "bench-io",
+    "tags": ["bench"],
+    "secrets_ref": {
+      "wifi_ssid": "!secret wifi_ssid",
+      "wifi_password": "!secret wifi_password",
+      "api_key": "!secret api_key"
+    }
+  }
+}
