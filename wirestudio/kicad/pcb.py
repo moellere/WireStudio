@@ -33,7 +33,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-from wirestudio.kicad.netlist import BOARD_KEY, assign_refs, build_netlist
+from wirestudio.kicad.netlist import BOARD_KEY, assign_refs, build_netlist, placed_parts
 from wirestudio.kicad.symbol_parser import load_symbols, resolve_symbol
 from wirestudio.library import Library
 from wirestudio.model import Design
@@ -142,7 +142,12 @@ def _resolve_pad_number(
     if kicad.symbol_lib == "Connector_Generic":
         roles = [p.role for p in lib_comp.electrical.pins]
         return str(roles.index(role) + 1) if role in roles else None
-    pin_name = kicad.pin_map.get(role, role)
+    return _symbol_pad_number(kicad, kicad.pin_map.get(role, role), sym_dir, sym_cache)
+
+
+def _symbol_pad_number(kicad, pin_name: str, sym_dir: Path, sym_cache: dict) -> Optional[str]:
+    """Pad number for a symbol pin given by name, or by number when the symbol
+    doesn't name its pins usefully (``Device:R`` calls both of them ``~``)."""
     syms = sym_cache.get(kicad.symbol_lib)
     if syms is None:
         path = sym_dir / f"{kicad.symbol_lib}.kicad_sym"
@@ -150,8 +155,12 @@ def _resolve_pad_number(
         sym_cache[kicad.symbol_lib] = syms
     if kicad.symbol not in syms:
         return None
-    for name, number in resolve_symbol(syms, kicad.symbol).pins:
+    pins = resolve_symbol(syms, kicad.symbol).pins
+    for name, number in pins:
         if name == pin_name:
+            return number
+    for _, number in pins:
+        if number == pin_name:
             return number
     return None
 
@@ -256,11 +265,10 @@ def plan_placements(design: Design, library: Library, fp_dir: Path) -> list[Plac
         entries.append(
             (refs[BOARD_KEY], board.kicad.footprint, board.kicad.value or board.id, True)
         )
-    for c in design.components:
-        lib_comp = library.component(c.library_id)
-        if lib_comp.kicad is not None and lib_comp.kicad.footprint:
+    for part in placed_parts(design, library):
+        if part.kicad is not None and part.kicad.footprint:
             entries.append(
-                (refs[c.id], lib_comp.kicad.footprint, lib_comp.kicad.value or c.library_id, False)
+                (part.ref, part.kicad.footprint, part.kicad.value or part.library_id, False)
             )
 
     loaded: list[tuple[str, str, str, bool, str, float, float]] = []
@@ -324,7 +332,11 @@ def generate_kicad_pcb(
             if comp is None:
                 continue
             lib_comp = library.component(comp.library_id)
-            num = _resolve_pad_number(pad.pin_role, lib_comp, sym_dir, sym_cache)
+            if pad.part_id is not None:
+                part = next(p for p in lib_comp.subcircuit.parts if p.id == pad.part_id)
+                num = _symbol_pad_number(part.kicad, pad.pin_role, sym_dir, sym_cache)
+            else:
+                num = _resolve_pad_number(pad.pin_role, lib_comp, sym_dir, sym_cache)
             if num is not None:
                 pad_nets_by_ref.setdefault(pad.ref, {})[num] = (
                     net_index[net.name], net.name,

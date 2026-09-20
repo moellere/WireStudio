@@ -55,17 +55,87 @@ def _category_for(c, library) -> str:
     return lib_comp.category
 
 
+def _subcircuit(c, library):
+    try:
+        return library.component(c.library_id).subcircuit
+    except FileNotFoundError:
+        return None
+
+
+def part_key(component_id: str, part_id: str) -> str:
+    """Ref-map key for one part of a component's subcircuit."""
+    return f"{component_id}.{part_id}"
+
+
 def assign_refs(design: Design, library) -> dict[str, str]:
     """Map each component id -> KiCad reference designator, plus ``BOARD_KEY``
     -> ``BOARD_REF``. Allocation order matches the schematic exactly: board
-    first, then components in design order, with a per-prefix counter."""
+    first, then components in design order, with a per-prefix counter.
+
+    A component with a ``subcircuit`` has no designator of its own; each of
+    its parts gets one under ``part_key(component_id, part_id)``."""
     refs: dict[str, str] = {BOARD_KEY: BOARD_REF}
     counter: dict[str, int] = {}
-    for c in design.components:
-        prefix = _REF_PREFIX.get(_category_for(c, library), "U")
+
+    def take(prefix: str) -> str:
         counter[prefix] = counter.get(prefix, 0) + 1
-        refs[c.id] = f"{prefix}{counter[prefix]}"
+        return f"{prefix}{counter[prefix]}"
+
+    for c in design.components:
+        sub = _subcircuit(c, library)
+        if sub is None:
+            refs[c.id] = take(_REF_PREFIX.get(_category_for(c, library), "U"))
+            continue
+        for part in sub.parts:
+            refs[part_key(c.id, part.id)] = take(part.ref_prefix)
     return refs
+
+
+@dataclass(frozen=True)
+class PlacedPart:
+    """One symbol/footprint the KiCad artifacts emit: either a component's own
+    ``kicad:`` mapping (``part_id`` None, ``kicad`` None when unmapped) or one
+    part of its subcircuit."""
+    key: str
+    ref: str
+    component_id: str
+    library_id: str
+    part_id: str | None
+    kicad: object | None
+    name: str
+
+
+def placed_parts(design: Design, library) -> list[PlacedPart]:
+    """Every part the schematic, PCB, BOM and CPL emit for the design's
+    components, in ref-allocation order. The board is not included."""
+    refs = assign_refs(design, library)
+    out: list[PlacedPart] = []
+    for c in design.components:
+        try:
+            lib_comp = library.component(c.library_id)
+        except FileNotFoundError:
+            lib_comp = None
+        sub = lib_comp.subcircuit if lib_comp is not None else None
+        if sub is None:
+            out.append(PlacedPart(
+                key=c.id, ref=refs[c.id], component_id=c.id, library_id=c.library_id,
+                part_id=None, kicad=lib_comp.kicad if lib_comp is not None else None,
+                name=lib_comp.name if lib_comp is not None else c.library_id,
+            ))
+            continue
+        for part in sub.parts:
+            key = part_key(c.id, part.id)
+            out.append(PlacedPart(
+                key=key, ref=refs[key], component_id=c.id, library_id=c.library_id,
+                part_id=part.id, kicad=part.kicad, name=f"{lib_comp.name}: {part.id}",
+            ))
+    return out
+
+
+def local_net_name(component_id: str, name: str) -> str:
+    """Net local to one subcircuit instance: an internal node, or a host pin
+    role the design leaves unconnected (a motor output, say)."""
+    return f"{_py_var(component_id)}_{name}"
 
 
 def net_name(target) -> str:
@@ -97,10 +167,14 @@ def net_name(target) -> str:
 class NetPad:
     """One landing of a net: a component's reference designator plus the
     design pin role to bind. The role -> pad-number resolution against the
-    KiCad symbol/footprint happens in the PCB emitter, not here."""
+    KiCad symbol/footprint happens in the PCB emitter, not here.
+
+    For a subcircuit part ``part_id`` is set and ``pin_role`` holds the part
+    symbol's pin name or number rather than a component role."""
     ref: str
     component_id: str
     pin_role: str
+    part_id: str | None = None
 
 
 @dataclass
@@ -118,7 +192,16 @@ def build_netlist(design: Design, library) -> list[Net]:
     for stable, diffable output."""
     refs = assign_refs(design, library)
     by_name: dict[str, Net] = {}
+    subcircuits = {
+        c.id: sub for c in design.components
+        if (sub := _subcircuit(c, library)) is not None
+    }
+    role_nets: dict[tuple[str, str], str] = {}
     for conn in design.connections:
+        if conn.component_id in subcircuits:
+            if is_bound(conn.target):
+                role_nets[(conn.component_id, conn.pin_role)] = net_name(conn.target)
+            continue
         ref = refs.get(conn.component_id)
         if ref is None:
             continue
@@ -127,4 +210,22 @@ def build_netlist(design: Design, library) -> list[Net]:
         net.pads.append(
             NetPad(ref=ref, component_id=conn.component_id, pin_role=conn.pin_role)
         )
+    for comp_id, sub in subcircuits.items():
+        for part in sub.parts:
+            ref = refs[part_key(comp_id, part.id)]
+            for pin, node in part.pins.items():
+                name = role_nets.get((comp_id, node)) or local_net_name(comp_id, node)
+                net = by_name.setdefault(name, Net(name=name))
+                net.pads.append(
+                    NetPad(ref=ref, component_id=comp_id, pin_role=pin, part_id=part.id)
+                )
     return [by_name[n] for n in sorted(by_name)]
+
+
+def is_bound(target) -> bool:
+    """False for a gpio / bus target the pin solver hasn't filled in yet."""
+    if target.kind == "gpio":
+        return bool(target.pin)
+    if target.kind == "bus":
+        return bool(target.bus_id)
+    return True

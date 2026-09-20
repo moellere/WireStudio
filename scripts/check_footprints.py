@@ -87,7 +87,11 @@ def main(argv: list[str] | None = None) -> int:
     lib = default_library()
     entries: list[tuple[str, str, object]] = []
     for path in sorted((LIB_ROOT / "components").glob("*.yaml")):
-        entries.append(("component", path.stem, lib.component(path.stem)))
+        comp = lib.component(path.stem)
+        entries.append(("component", path.stem, comp))
+        if comp.subcircuit is not None:
+            for part in comp.subcircuit.parts:
+                entries.append(("part", f"{path.stem}.{part.id}", part))
     for path in sorted((LIB_ROOT / "boards").glob("*.yaml")):
         entries.append(("board", path.stem, lib.board(path.stem)))
 

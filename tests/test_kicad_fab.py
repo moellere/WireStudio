@@ -100,3 +100,11 @@ def test_fab_status_shape():
 def _fp_dir() -> Path:
     from wirestudio.kicad.pcb import _resolve_footprint_dir
     return _resolve_footprint_dir()
+
+
+def test_bom_lists_subcircuit_parts_not_the_host_component(lib):
+    rows = {r[0]: r for r in _rows(generate_bom(_design("motor-position"), lib))}
+    assert rows["IRF4905"][1] == "Q1,Q4"
+    assert rows["IRFZ44N"][1] == "Q2,Q5"
+    assert rows["470"][1] == "R1,R4"
+    assert "MOSFET H-bridge" not in rows

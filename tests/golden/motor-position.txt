@@ -1,0 +1,23 @@
++----------------------------------------------------------------------------------+
+|  ESP32-DevKitC-V4  ---  motor-position                                           |
++----------------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                             |
+|                                                                                  |
+|  bridge  [Discrete MOSFET H-bridge (IRF4905 / IRFZ44N, 5 V)]  -- Actuator motor  |
+|    IN1   -> GPIO18                                                               |
+|    IN2   -> GPIO19                                                               |
+|    VM    -> rail 5V                                                              |
+|    GND   -> rail GND                                                             |
+|                                                                                  |
+|  feedback  [Generic analog input]  -- Actuator position                          |
+|    IN    -> GPIO34                                                               |
+|                                                                                  |
+|  BOM:                                                                            |
+|    - ESP32-DevKitC-V4                                                            |
+|    - Discrete MOSFET H-bridge (IRF4905 / IRFZ44N, 5 V)  (bridge)                 |
+|    - Generic analog input  (feedback)                                            |
+|                                                                                  |
+|  Power: ~300mA typical, ~1000mA peak (budget 2000mA)  OK                         |
+|                                                                                  |
+|  Warnings: none                                                                  |
++----------------------------------------------------------------------------------+
