@@ -27,9 +27,19 @@
   parametric OpenSCAD enclosure (`.scad`), and a SKiDL Python script
   the user runs locally to produce a `.kicad_sch`. Bundled examples
   pinned as goldens.
+- **Parts.** A component can be a subcircuit of discrete parts; the
+  inspector shows what it expands into and the part values follow the
+  instance's params. **Inventory** (header button) cross-references the BOM
+  against what is on hand (library modules plus a drawer of discrete
+  parts, imported from a spreadsheet), proposes same-package
+  substitutes with their caveats, applies one with *Use for ...*, and
+  ends in a pick list by drawer location and a buy list priced on
+  JLCPCB. **New component** and a user component's *Edit YAML* open an
+  editor whose *Check* runs the same gate the bundled library passes.
 - **Flash.** One flash dialog (**Flash firmware**, radio icon) covers
   five frameworks over the same WebSerial + esptool-js mechanism:
-  **ESPHome** hands off to the fleet push (OTA, no serial flash),
+  **ESPHome** hands off to a fleet push or an ESPHome dashboard
+  compile (OTA, no serial flash),
   **Tasmota** fetches the official release image for the design's chip
   and offers a post-flash template + WiFi push over serial,
   **LoRaWAN** compiles and flashes the RadioLib firmware,
@@ -109,6 +119,9 @@ pinned via `WIRESTUDIO_MCP_TOKEN`). See [the MCP guide](mcp.md#auth).
 | `GET`  | `/fleet/jobs/{run_id}` | aggregated compile verdict for a Push-to-fleet run |
 | `GET`  | `/fleet/jobs/{run_id}/log?offset=N` | poll the addon's build log for a compile run; returns `{log, offset, finished}` |
 | `GET`  | `/fleet/jobs/{run_id}/log/stream` | Server-Sent Events relay over the same log endpoint; ~300ms cadence, exits with `event: done` when the build finishes |
+| `GET`  | `/esphome/status` | check whether `ESPHOME_DASHBOARD_URL` reaches an ESPHome dashboard |
+| `POST` | `/esphome/push` | render `design.json`, write it to the dashboard as `<device_name>.yaml`, optionally start a compile there |
+| `GET`  | `/esphome/jobs/{run_id}` · `/log` · `/log/stream` · `/firmware` | verdict, incremental log, SSE relay and firmware download for a dashboard compile, the same shapes as the fleet routes |
 | `POST` | `/tasmota/template` | emit a Tasmota device template (solved pins → GPIO function ids) |
 | `GET`  | `/tasmota/firmware?chip=` | proxy the official Tasmota release image for the chip (`/tasmota/firmware/status` gates it) |
 | `GET`  | `/meshtastic/firmware?board=` | proxy the official Meshtastic factory image for a mapped radio board (`/meshtastic/firmware/status` gates it) |
@@ -122,8 +135,10 @@ auto-generated OpenAPI docs, which are authoritative.
 The HTTP API is a thin layer over the studio's pure-function modules
 (`wirestudio.generate`, `wirestudio.csp`, `wirestudio.recommend`, `wirestudio.fleet`,
 `wirestudio.enclosure`, `wirestudio.kicad`). Server state is limited to the
-agent session log + the saved-design store — both file-backed under
-`/data` (via `SESSIONS_DIR` / `DESIGNS_DIR`). Permissive CORS for
+agent session log and the saved-design store (file-backed under
+`/data` via `SESSIONS_DIR` / `DESIGNS_DIR`, or one SQLite file each via
+`SESSIONS_DB` / `DESIGNS_DB`), the inventory (`INVENTORY_PATH`) and the
+user component library (`LIBRARY_USER_DIR`). Permissive CORS for
 `localhost:5173` / `localhost:3000` so the dev Vite server can hit
 it without a proxy. Browse the auto-generated OpenAPI docs at
 <http://127.0.0.1:8765/docs>.
