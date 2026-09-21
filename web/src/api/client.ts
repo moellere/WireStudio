@@ -282,6 +282,32 @@ export const api = {
       "/circuitpython/code",
       { method: "POST", body: JSON.stringify(design) },
     ),
+  micropythonFirmwareStatus: () =>
+    request<{
+      available: boolean;
+      version: string | null;
+      boards: string[];
+      images: Record<string, string>;
+      offsets: Record<string, number>;
+      reason: string | null;
+    }>("/micropython/firmware/status"),
+  micropythonFirmware: async (board: string): Promise<{ data: Uint8Array; offset: number; version: string | null }> => {
+    const res = await fetch(`${API_BASE}/micropython/firmware?board=${encodeURIComponent(board)}`);
+    if (!res.ok) {
+      let body: unknown = undefined;
+      try { body = await res.json(); } catch { /* not json */ }
+      throw new ApiError(res.status, apiErrorMessage("GET", "/micropython/firmware", res.status, body), body);
+    }
+    const offset = parseInt(res.headers.get("x-flash-offset") ?? "0", 10) || 0;
+    return { data: new Uint8Array(await res.arrayBuffer()), offset, version: res.headers.get("x-firmware-version") };
+  },
+  micropythonCode: (board: string) =>
+    requestText(`/micropython/code?board=${encodeURIComponent(board)}`),
+  micropythonDesignCode: (design: Design) =>
+    request<{ code: string; deps: string[]; warnings: string[] }>(
+      "/micropython/code",
+      { method: "POST", body: JSON.stringify(design) },
+    ),
   workbenchStatus: () => request<WorkbenchStatus>("/workbench/status"),
   workbenchSlots: () => request<{ slots: WorkbenchSlot[] }>("/workbench/slots"),
   kicadRouteStatus: () =>

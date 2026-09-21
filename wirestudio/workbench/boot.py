@@ -55,6 +55,15 @@ BOOT_CHECKS: dict[str, BootCheck] = {
 # The ESPHome external-component path boots like any ESPHome device.
 BOOT_CHECKS["lorawan-esphome"] = BOOT_CHECKS["esphome"]
 
+# MicroPython prints its banner ("MicroPython v1.25.0 on 2025-04-15; ...")
+# on the REPL at every reset. Documented behaviour, not yet observed on
+# the bench.
+BOOT_CHECKS["micropython"] = BootCheck(
+    pattern="MicroPython v",
+    proves="MicroPython booted to the REPL",
+    timeout_s=30.0,
+)
+
 
 # Joined: the device reached the network. Deliberately separate from
 # booting, because the first join after a flash reliably fails and only

@@ -7,11 +7,12 @@ import {
   defaultSettings, enumOptions, generatePsk, loadMeshtastic, pskProblem, pushMeshtasticConfig, shortNameFor,
   type MeshtasticNode, type MeshtasticSettings,
 } from "../lib/meshtastic";
+import { pushMainPy } from "../lib/micropython";
 import { tasmotaConfigCommands, type TasmotaTemplate } from "../lib/tasmota";
 import { Button, Dialog, FieldLabel, Input } from "./ui";
 import { LorawanFlashDialog } from "./LorawanFlashDialog";
 
-type Framework = "esphome" | "tasmota" | "lorawan" | "meshtastic" | "circuitpython";
+type Framework = "esphome" | "tasmota" | "lorawan" | "meshtastic" | "circuitpython" | "micropython";
 
 const FRAMEWORKS: Array<{ id: Framework; label: string; note: string; disabled?: boolean }> = [
   { id: "esphome", label: "ESPHome", note: "OTA via fleet-for-esphome; no serial flash needed" },
@@ -19,6 +20,7 @@ const FRAMEWORKS: Array<{ id: Framework; label: string; note: string; disabled?:
   { id: "lorawan", label: "LoRaWAN", note: "compile RadioLib firmware, flash, provision" },
   { id: "meshtastic", label: "Meshtastic", note: "official release image; region, owner and channel pushed over serial" },
   { id: "circuitpython", label: "CircuitPython", note: "official release image + starter code.py for the CIRCUITPY drive" },
+  { id: "micropython", label: "MicroPython", note: "official release image; main.py generated from the design and pushed over serial" },
 ];
 
 interface Props {
@@ -194,6 +196,10 @@ export function FlashDialog({ design, boards, onClose, onOpenFleet }: Props) {
 
         {framework === "circuitpython" && (
           <CircuitPythonFlash design={design} boards={boards} />
+        )}
+
+        {framework === "micropython" && (
+          <MicroPythonFlash design={design} boards={boards} />
         )}
       </div>
     </Dialog>
@@ -675,6 +681,228 @@ function CircuitPythonFlash({ design, boards }: { design: Design | null; boards:
               </div>
             </>
           )}
+        </div>
+      )}
+
+      {serial && (
+        <pre className="max-h-40 overflow-auto rounded-lg bg-surface-0 p-2 font-mono text-[11px] leading-snug text-emerald-300/90 ring-1 ring-line">
+          {serial}
+        </pre>
+      )}
+
+      {error && (
+        <div className="rounded-lg border border-rose-500/40 bg-rose-500/10 p-3 text-xs text-rose-200 whitespace-pre-wrap">
+          {error}
+        </div>
+      )}
+    </div>
+  );
+}
+
+type MicroPythonPhase = "idle" | "fetching" | "flashing" | "flashed" | "pushing" | "pushed";
+
+function MicroPythonFlash({ design, boards }: { design: Design | null; boards: BoardSummary[] | null }) {
+  const [status, setStatus] = useState<{
+    available: boolean;
+    version: string | null;
+    boards: string[];
+    images: Record<string, string>;
+    offsets: Record<string, number>;
+    reason: string | null;
+  } | null>(null);
+  const [phase, setPhase] = useState<MicroPythonPhase>("idle");
+  const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<number>(0);
+  const [log, setLog] = useState<string[]>([]);
+  const [serial, setSerial] = useState<string>("");
+  const [code, setCode] = useState<string | null>(null);
+  const [codeDeps, setCodeDeps] = useState<string[]>([]);
+  const [codeWarnings, setCodeWarnings] = useState<string[]>([]);
+  const [fromDesign, setFromDesign] = useState(false);
+  const [target, setTarget] = useState<FlashTarget>({ kind: "usb" });
+  const sessionRef = useRef<FlashSession | null>(null);
+
+  const boardLibraryId = String((design?.board as Record<string, unknown> | undefined)?.library_id ?? "");
+  const board = useMemo(
+    () => (boards ?? []).find((b) => b.id === boardLibraryId) ?? null,
+    [boards, boardLibraryId],
+  );
+  const supported = status?.boards.includes(boardLibraryId) ?? false;
+  const image = status?.images[boardLibraryId];
+
+  useEffect(() => {
+    let cancelled = false;
+    api.micropythonFirmwareStatus()
+      .then((s) => { if (!cancelled) setStatus(s); })
+      .catch((e) => {
+        if (!cancelled) {
+          setStatus({ available: false, version: null, boards: [], images: {}, offsets: {}, reason: e instanceof Error ? e.message : String(e) });
+        }
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!supported) { setCode(null); return; }
+    let cancelled = false;
+    const fallback = () =>
+      api.micropythonCode(boardLibraryId)
+        .then((c) => { if (!cancelled) { setCode(c); setCodeDeps([]); setCodeWarnings([]); setFromDesign(false); } })
+        .catch(() => { if (!cancelled) setCode(null); });
+    if (design && (design.components as unknown[] | undefined)?.length) {
+      api.micropythonDesignCode(design)
+        .then((r) => {
+          if (cancelled) return;
+          setCode(r.code);
+          setCodeDeps(r.deps);
+          setCodeWarnings(r.warnings);
+          setFromDesign(true);
+        })
+        .catch(() => { if (!cancelled) void fallback(); });
+    } else {
+      void fallback();
+    }
+    return () => { cancelled = true; };
+  }, [supported, boardLibraryId, design]);
+
+  useEffect(() => () => { void sessionRef.current?.close(); }, []);
+
+  function appendLog(line: string) {
+    setLog((l) => [...l.slice(-200), line]);
+  }
+
+  async function handleFlash() {
+    setError(null);
+    setPhase("fetching");
+    try {
+      const { data, offset, version } = await api.micropythonFirmware(boardLibraryId);
+      appendLog(`fetched MicroPython ${version ?? status?.version ?? "release"} image (${(data.length / 1024).toFixed(0)} KiB), flashing at 0x${offset.toString(16)}`);
+      setPhase("flashing");
+      const session = await flashToTarget(target, {
+        images: [{ data, address: offset }],
+        eraseAll: true,
+        chip: board?.chip_variant,
+        onProgress: (written, total) => setProgress(total ? written / total : 0),
+        onLog: appendLog,
+        onSerial: (text) => setSerial((s) => (s + text).slice(-8000)),
+      });
+      sessionRef.current = session;
+      setPhase("flashed");
+    } catch (e) {
+      setError(e instanceof ApiError ? `${e.status}: ${e.message}` : e instanceof Error ? e.message : String(e));
+      setPhase("idle");
+    }
+  }
+
+  async function push(getPort: () => Promise<SerialPort>) {
+    if (!code) return;
+    setError(null);
+    setPhase("pushing");
+    try {
+      const port = await getPort();
+      await pushMainPy(port, code, appendLog);
+      setPhase("pushed");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setPhase(sessionRef.current ? "flashed" : "idle");
+    }
+  }
+
+  async function pushToFlashed() {
+    const session = sessionRef.current;
+    if (!session) return;
+    sessionRef.current = null;
+    setSerial("");
+    await push(() => session.release());
+  }
+
+  async function pushToConnected() {
+    await push(() =>
+      (navigator as Navigator & { serial: { requestPort: () => Promise<SerialPort> } }).serial.requestPort());
+  }
+
+  function handleDownload() {
+    if (!code) return;
+    const url = URL.createObjectURL(new Blob([code], { type: "text/x-python" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "main.py";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  const busy = phase === "fetching" || phase === "flashing" || phase === "pushing";
+
+  return (
+    <div className="space-y-3">
+      {status !== null && !status.available && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+          <div className="font-semibold">Firmware download unavailable</div>
+          <div className="mt-1">{status.reason}</div>
+        </div>
+      )}
+
+      <FlashTargetPicker target={target} onChange={setTarget} disabled={busy} />
+
+      <div className="flex items-center justify-between gap-3 text-xs text-ink-dim">
+        <div>
+          {!design
+            ? "Open a design to flash its board."
+            : supported
+              ? <>Flashing MicroPython {status?.version ?? ""} (<code className="font-mono text-ink">{image}</code>) for <code className="font-mono text-ink">{board?.name ?? boardLibraryId}</code>, full-chip erase. Pins are GPIO numbers, so the generic port image fits every board.</>
+              : <>No MicroPython port for <code className="font-mono text-ink">{board?.name ?? boardLibraryId}</code>.</>}
+        </div>
+        <Button
+          variant="primary"
+          disabled={!supported || !status?.available || busy}
+          onClick={handleFlash}
+        >
+          <Zap className="h-3.5 w-3.5" />
+          {phase === "fetching" ? "Fetching…" : phase === "flashing" ? `Flashing ${(progress * 100).toFixed(0)}%` : "Flash MicroPython"}
+        </Button>
+      </div>
+
+      {log.length > 0 && (
+        <pre className="max-h-32 overflow-auto rounded-lg bg-surface-0 p-2 font-mono text-[11px] leading-snug text-ink-dim ring-1 ring-line">
+          {log.join("\n")}
+        </pre>
+      )}
+
+      {code && (
+        <div className="space-y-2 rounded-lg border border-line bg-surface-2/40 p-3 text-xs text-ink-dim">
+          <div className="text-xs font-medium text-ink">
+            {fromDesign ? "main.py generated from this design" : "Starter main.py for this board"}
+          </div>
+          {fromDesign && codeDeps.length > 0 && (
+            <div className="text-[10px] text-ink-faint">
+              Drivers to install once the board is online:{" "}
+              <code className="font-mono text-ink-dim">{codeDeps.map((d) => `mip.install("${d}")`).join("  ")}</code>
+            </div>
+          )}
+          {fromDesign && codeWarnings.length > 0 && (
+            <ul className="text-[10px] text-amber-200">
+              {codeWarnings.map((w, i) => <li key={i}>{w}</li>)}
+            </ul>
+          )}
+          <pre className="max-h-40 overflow-auto rounded-md bg-surface-0 p-2 font-mono text-[10px] text-ink-dim ring-1 ring-line">
+            {code}
+          </pre>
+          <div className="flex flex-wrap items-center gap-2">
+            {phase === "flashed" || phase === "pushing" ? (
+              <Button variant="primary" disabled={busy} onClick={pushToFlashed}>
+                <UploadCloud className="h-3.5 w-3.5" />
+                {phase === "pushing" ? "Pushing…" : "Push main.py to the flashed board"}
+              </Button>
+            ) : (
+              <Button variant="primary" disabled={busy || target.kind !== "usb"} onClick={pushToConnected}
+                title={target.kind !== "usb" ? "A workbench slot has no serial session here; plug the board in locally" : undefined}>
+                <UploadCloud className="h-3.5 w-3.5" />
+                Push main.py to a connected board
+              </Button>
+            )}
+            <Button onClick={handleDownload}>Download main.py</Button>
+            {phase === "pushed" && <span className="text-[10px] text-emerald-300/90">main.py is on the board and running.</span>}
+          </div>
         </div>
       )}
 

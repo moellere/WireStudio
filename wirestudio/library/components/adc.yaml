@@ -61,6 +61,17 @@ circuitpython:
   loop: |
     print("{{ label }}: %.2fV" % ({{ id }}.value * {{ id }}.reference_voltage / 65535))
 
+micropython:
+  imports: ["from machine import ADC"]
+  setup: |
+    {{ id }} = ADC(Pin({{ pins.IN }}))
+    try:
+        {{ id }}.atten(ADC.ATTN_11DB)  # ESP32 family: full 0-3.3 V range
+    except AttributeError:
+        pass
+  loop: |
+    print("{{ label }}: %d / 65535" % {{ id }}.read_u16())
+
 params_schema:
   attenuation:
     type: string

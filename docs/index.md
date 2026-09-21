@@ -48,8 +48,8 @@ under upstream ESPHome.
   ├─ wirestudio.kicad         SKiDL schematic emitter, PCB emit/route, .kicad_sym importer
   ├─ wirestudio.jlcpcb        fab outputs (BOM / CPL / Gerber + drill)
   ├─ wirestudio.mcp           MCP server over the agent tool surface
-  └─ wirestudio.api           FastAPI HTTP layer (mounts everything above,
-                              plus the meshtastic + circuitpython firmware proxies)
+  └─ wirestudio.api           FastAPI HTTP layer (mounts everything above, plus the
+                              meshtastic, circuitpython + micropython firmware proxies)
                           serve.py adds the production wrapper:
                           API at /api/*, web bundle at /
 ```
@@ -240,12 +240,27 @@ fleet path. The wire format was validated against a live 2026.6.5
 dashboard, with and without a password, and is isolated in one module;
 see `docs/integrations.md`.
 
-**Target backlog.** Next: MicroPython (the CircuitPython pattern applied upstream: proxy the
-micropython.org release port per chip, flash via the unified dialog,
-generate a main.py scaffold — differs in stdlib/driver sourcing, since
-there is no single blessed bundle like Adafruit's).
-Deliberately deferred: generic Arduino/PlatformIO scaffolds (per-driver
-maintenance sinkhole), Zephyr, Zigbee/Thread on the C6.
+**MicroPython flashing + codegen.** *Works.* The CircuitPython pattern
+applied upstream. `GET /micropython/firmware` proxies the newest stable
+micropython.org image for the board's chip: every library board maps to
+a generic port image (`ESP32_GENERIC`, `_S3`, `_C3`, `_C6`,
+`ESP8266_GENERIC`, with the SPIRAM / FLASH_1M variants where the board
+needs them), because MicroPython addresses pins by GPIO number and
+nothing depends on a board-specific build; the site publishes no index,
+so the version is read off the board's download page. `main.py` is
+generated from the design over the `machine` API from per-component
+`micropython:` fragments (sixteen components so far: GPIO in/out, PIR
+and radar, ADC, PWM servo and fan, DHT, DS18B20, NeoPixel, HC-SR04,
+rotary encoder, SSD1306, BME280); buses are `SoftI2C` / `SoftSPI` so the
+same file runs on ESP32 and ESP8266. Drivers outside the firmware are
+`mip` specs listed at the top of the file. The flash dialog pushes the
+file through the raw REPL over the port the flash session hands back,
+so no drive or IDE is involved. The workbench boot check knows the
+banner. Unmapped components degrade to a comment, as with CircuitPython.
+
+**Target backlog.** Deliberately deferred: generic Arduino/PlatformIO
+scaffolds (per-driver maintenance sinkhole), Zephyr, Zigbee/Thread on
+the C6.
 
 **MCP tool surface — hardware gap (closed).** The design/KiCad/fab tools
 used to stop at the artifact: an MCP client could produce a design and a

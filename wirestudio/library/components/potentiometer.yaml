@@ -60,6 +60,17 @@ circuitpython:
   loop: |
     print("{{ label }}: %d%%" % ({{ id }}.value * 100 // 65535))
 
+micropython:
+  imports: ["from machine import ADC"]
+  setup: |
+    {{ id }} = ADC(Pin({{ pins.WIPER }}))
+    try:
+        {{ id }}.atten(ADC.ATTN_11DB)  # ESP32 family: full 0-3.3 V range
+    except AttributeError:
+        pass
+  loop: |
+    print("{{ label }}: %d / 65535" % {{ id }}.read_u16())
+
 params_schema:
   update_interval:
     type: string

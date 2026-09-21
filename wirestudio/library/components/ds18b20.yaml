@@ -52,6 +52,17 @@ circuitpython:
   loop: |
     print("{{ label }}: %.1fC" % {{ id }}.temperature)
 
+micropython:
+  imports: ["import onewire", "import ds18x20"]
+  setup: |
+    {{ id }} = ds18x20.DS18X20(onewire.OneWire(Pin({{ pins.DATA }})))
+    {{ id }}_roms = {{ id }}.scan()
+  loop: |
+    {{ id }}.convert_temp()
+    time.sleep_ms(750)
+    for rom in {{ id }}_roms:
+        print("{{ label }}: %.1fC" % {{ id }}.read_temp(rom))
+
 params_schema:
   address:
     type: string

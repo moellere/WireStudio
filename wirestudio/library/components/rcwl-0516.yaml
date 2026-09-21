@@ -53,6 +53,12 @@ circuitpython:
   loop: |
     print("{{ label }}: motion" if {{ id }}.value else "{{ label }}: clear")
 
+micropython:
+  setup: |
+    {{ id }} = Pin({{ pins.OUT }}, Pin.IN)
+  loop: |
+    print("{{ label }}: motion" if {{ id }}.value() else "{{ label }}: clear")
+
 params_schema: {}
 
 notes: |
