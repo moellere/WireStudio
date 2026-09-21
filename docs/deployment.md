@@ -11,24 +11,24 @@ FastAPI serves the API and the built SPA from one process.
 docker run --rm -p 8765:8765 \
   -e ANTHROPIC_API_KEY=sk-ant-... \
   -v wirestudio-data:/data \
-  ghcr.io/moellere/wirestudio:0.27.1
+  ghcr.io/moellere/wirestudio:0.35.0
 ```
 
 Open <http://localhost:8765>. The image bundles the FastAPI server +
 the built web UI in one process; `/api/*` is the JSON API, `/` is the
-SPA. `/data` holds the agent's session log + saved designs across
-upgrades.
+SPA. `/data` holds the agent's session log, saved designs, the
+inventory and the user component library across upgrades.
 
 Available tags:
 
 | Tag | What it tracks |
 |---|---|
-| `:0.27.1` / `:0.27` / `:latest` | the v0.27.1 release |
+| `:0.35.0` / `:0.35` / `:latest` | the v0.35.0 release |
 | `:main` | latest commit on `main` (rolling) |
 | `:sha-<short>` | a specific commit |
-| `:<tag>-lorawan` (e.g. `:main-lorawan`, `:0.27.1-lorawan`) | same image **plus** the LoRaWAN compile worker (PlatformIO baked in) — see below |
-| `:<tag>-pcb` (e.g. `:main-pcb`, `:0.27.1-pcb`) | the PCB toolchain variant: KiCad 8 (kicad-cli + pcbnew), the pinned symbol/footprint libraries, a JRE, and Freerouting — everything the board/fab/autoroute endpoints gate on — see below |
-| `:<tag>-full` (e.g. `:main-full`, `:0.27.1-full`) | the every-feature image prod runs: `-pcb` **plus** the LoRaWAN compile worker (PlatformIO + prewarmed espressif32) |
+| `:<tag>-lorawan` (e.g. `:main-lorawan`, `:0.35.0-lorawan`) | same image **plus** the LoRaWAN compile worker (PlatformIO baked in) — see below |
+| `:<tag>-pcb` (e.g. `:main-pcb`, `:0.35.0-pcb`) | the PCB toolchain variant: KiCad 8 (kicad-cli + pcbnew), the pinned symbol/footprint libraries, a JRE, and Freerouting — everything the board/fab/autoroute endpoints gate on — see below |
+| `:<tag>-full` (e.g. `:main-full`, `:0.35.0-full`) | the every-feature image prod runs: `-pcb` **plus** the LoRaWAN compile worker (PlatformIO + prewarmed espressif32) |
 
 All feature-gating env vars are optional — the studio runs without any
 of them, just with the corresponding feature turned off. See
@@ -41,6 +41,11 @@ of them, just with the corresponding feature turned off. See
 | `THINGIVERSE_API_KEY` | enclosure search (`/enclosure/search`) |
 | `WIRESTUDIO_MCP_TOKEN` | bearer token for the `/mcp` endpoint (auto-generated if unset) |
 | `CHIRPSTACK_API_URL` + `CHIRPSTACK_API_TOKEN` | LoRaWAN device provisioning against ChirpStack (`/lorawan/provision`, `/lorawan/provision-esphome`) |
+| `ESPHOME_DASHBOARD_URL` (+ `ESPHOME_DASHBOARD_USERNAME` / `_PASSWORD`) | compile through an ESPHome dashboard (`/esphome/*`); the port-exposed add-on or a standalone dashboard, not the HA ingress path |
+| `WORKBENCH_URL` (+ `WORKBENCH_TOKEN`) | remote flash + LoRaWAN bring-up against an Embedded AI Harness (`/workbench/*`) |
+| `LIBRARY_USER_DIR` | where studio-authored components are saved (`/data/library` in the image) |
+| `INVENTORY_PATH` | the inventory file (`/data/inventory.json` in the image) |
+| `DESIGNS_DB` / `SESSIONS_DB` | one SQLite file each in place of the `DESIGNS_DIR` / `SESSIONS_DIR` directories |
 
 ### PCB toolchain (`-pcb` variant)
 
@@ -97,7 +102,7 @@ so both run side by side from one source tree with independent PVCs.
 
 | App | Overlay | Image | Upgrades when |
 |---|---|---|---|
-| `wirestudio-prod` | `deploy/overlays/prod` | pinned release, e.g. `:0.27.1-full` | the tag changes in git (bump by hand or via image-updater) |
+| `wirestudio-prod` | `deploy/overlays/prod` | pinned release, e.g. `:0.35.0-full` | the tag changes in git (bump by hand or via image-updater) |
 | `wirestudio-dev` | `deploy/overlays/dev` | rolling `:main-lorawan` | image-updater digest-pins a new `main` build |
 
 ```sh
