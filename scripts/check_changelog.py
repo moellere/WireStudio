@@ -31,6 +31,7 @@ VALID = ["Added", "Changed", "Deprecated", "Removed", "Fixed", "Security"]
 
 _RELEASE = re.compile(r"^## ", re.M)
 _HEADING = re.compile(r"^### +(.+?)\s*$", re.M)
+_MARKER = re.compile(r"^(<<<<<<< |=======$|>>>>>>> )", re.M)
 
 
 def unreleased_section(text: str) -> str | None:
@@ -49,6 +50,9 @@ def main() -> int:
     args = ap.parse_args()
 
     text = args.changelog.read_text()
+    if _MARKER.search(text):
+        print("::error::CHANGELOG.md still carries merge conflict markers.", file=sys.stderr)
+        return 1
     section = unreleased_section(text)
     if section is None:
         print("::error::CHANGELOG.md has no '## [Unreleased]' section.", file=sys.stderr)
