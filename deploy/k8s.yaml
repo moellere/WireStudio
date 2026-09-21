@@ -124,6 +124,15 @@ spec:
                   name: wirestudio-secrets
                   key: chirpstack-api-token
                   optional: true
+            # Bearer token for the REST surface (/api/*). Unset leaves the
+            # API open, which is only acceptable behind a cluster-internal
+            # Service; set it before publishing anything but /mcp.
+            - name: WIRESTUDIO_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: wirestudio-secrets
+                  key: api-token
+                  optional: true
             # Uncomment to use a TLS gRPC channel to ChirpStack.
             # - name: CHIRPSTACK_API_TLS
             #   value: "true"

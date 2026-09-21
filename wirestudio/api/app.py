@@ -10,6 +10,8 @@ from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+
+from wirestudio.api.auth import ApiTokenMiddleware, api_token_from_env
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.responses import (
     HTMLResponse,
@@ -237,6 +239,7 @@ def create_app(
     active_design: Optional[ActiveDesignTracker] = None,
     inventory: Optional[InventoryStore] = None,
     workbench_client_factory=None,
+    api_token: Optional[str] = None,
 ) -> FastAPI:
     import os as _os
     lib = library or default_library()
@@ -334,6 +337,12 @@ def create_app(
         origins = [o.strip() for o in allowed_origins.split(",")]
     else:
         origins = ["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"]
+
+    # Added before CORS so CORS stays outermost: a 401 still carries the
+    # dev origin's headers, and preflight never reaches the token check.
+    token = api_token if api_token is not None else api_token_from_env()
+    if token:
+        app.add_middleware(ApiTokenMiddleware, token=token)
 
     app.add_middleware(
         CORSMiddleware,

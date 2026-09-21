@@ -53,6 +53,40 @@ import type {
 // API is served from the same origin under /api/.
 const API_BASE = import.meta.env.VITE_API_BASE ?? "/api";
 
+const TOKEN_KEY = "wirestudio.apiToken";
+const TOKEN_COOKIE = "wirestudio_api_token";
+/** Fired on the window when the API answers 401, so the app can ask for a token. */
+export const UNAUTHORIZED_EVENT = "wirestudio:unauthorized";
+
+/** The API token the studio was given (WIRESTUDIO_API_TOKEN on the server).
+ *  Kept in localStorage and mirrored into a cookie, because EventSource
+ *  cannot set headers and the SSE routes read the cookie instead. */
+export function getApiToken(): string {
+  try { return localStorage.getItem(TOKEN_KEY) ?? ""; } catch { return ""; }
+}
+
+export function setApiToken(token: string): void {
+  const value = token.trim();
+  try {
+    if (value) localStorage.setItem(TOKEN_KEY, value);
+    else localStorage.removeItem(TOKEN_KEY);
+  } catch { /* storage blocked: the header still works for this session */ }
+  const expiry = value ? "" : "; max-age=0";
+  document.cookie = `${TOKEN_COOKIE}=${encodeURIComponent(value)}; path=/; SameSite=Strict${expiry}`;
+}
+
+function authHeaders(): Record<string, string> {
+  const token = getApiToken();
+  return token ? { authorization: `Bearer ${token}` } : {};
+}
+
+/** fetch with the API token attached; a 401 also raises the unauthorized event. */
+async function apiFetch(url: string, init?: RequestInit): Promise<Response> {
+  const res = await fetch(url, { ...init, headers: { ...authHeaders(), ...(init?.headers ?? {}) } });
+  if (res.status === 401) window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
+  return res;
+}
+
 class ApiError extends Error {
   status: number;
   body: unknown;
@@ -72,7 +106,7 @@ function apiErrorMessage(method: string, path: string, status: number, body: unk
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await apiFetch(`${API_BASE}${path}`, {
     headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
     ...init,
   });
@@ -88,7 +122,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
  *  enclosure download). Errors still come back as JSON, so the failure
  *  parsing is shared. */
 async function requestText(path: string, init?: RequestInit): Promise<string> {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await apiFetch(`${API_BASE}${path}`, {
     headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
     ...init,
   });
@@ -103,7 +137,7 @@ async function requestText(path: string, init?: RequestInit): Promise<string> {
 /** Like `request` but expects a binary response (used for the fab-package
  *  zip). Errors still come back as JSON. */
 async function requestBlob(path: string, init?: RequestInit): Promise<Blob> {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await apiFetch(`${API_BASE}${path}`, {
     headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
     ...init,
   });
@@ -233,7 +267,7 @@ export const api = {
   tasmotaFirmwareStatus: () =>
     request<{ available: boolean; chips: string[]; reason: string | null }>("/tasmota/firmware/status"),
   tasmotaFirmware: async (chip: string): Promise<{ data: Uint8Array; offset: number }> => {
-    const res = await fetch(`${API_BASE}/tasmota/firmware?chip=${encodeURIComponent(chip)}`);
+    const res = await apiFetch(`${API_BASE}/tasmota/firmware?chip=${encodeURIComponent(chip)}`);
     if (!res.ok) {
       let body: unknown = undefined;
       try { body = await res.json(); } catch { /* not json */ }
@@ -247,7 +281,7 @@ export const api = {
       "/meshtastic/firmware/status",
     ),
   meshtasticFirmware: async (board: string): Promise<{ data: Uint8Array; offset: number }> => {
-    const res = await fetch(`${API_BASE}/meshtastic/firmware?board=${encodeURIComponent(board)}`);
+    const res = await apiFetch(`${API_BASE}/meshtastic/firmware?board=${encodeURIComponent(board)}`);
     if (!res.ok) {
       let body: unknown = undefined;
       try { body = await res.json(); } catch { /* not json */ }
@@ -266,7 +300,7 @@ export const api = {
       reason: string | null;
     }>("/circuitpython/firmware/status"),
   circuitpythonFirmware: async (board: string): Promise<{ data: Uint8Array; offset: number }> => {
-    const res = await fetch(`${API_BASE}/circuitpython/firmware?board=${encodeURIComponent(board)}`);
+    const res = await apiFetch(`${API_BASE}/circuitpython/firmware?board=${encodeURIComponent(board)}`);
     if (!res.ok) {
       let body: unknown = undefined;
       try { body = await res.json(); } catch { /* not json */ }
@@ -404,7 +438,7 @@ export const api = {
     const path = `/fleet/jobs/${encodeURIComponent(runId)}/firmware${
       opts.factory ? "?factory=true" : ""
     }`;
-    const res = await fetch(`${API_BASE}${path}`);
+    const res = await apiFetch(`${API_BASE}${path}`);
     if (!res.ok) {
       let body: unknown = undefined;
       try { body = await res.json(); } catch { /* not json */ }
@@ -448,7 +482,7 @@ export const api = {
     request<LorawanActivationResponse>(`/lorawan/activation/${encodeURIComponent(devEui)}`),
   /** Download a built firmware image by its compile cache_key. */
   lorawanFirmware: async (cacheKey: string): Promise<Uint8Array> => {
-    const res = await fetch(`${API_BASE}/lorawan/firmware/${encodeURIComponent(cacheKey)}`);
+    const res = await apiFetch(`${API_BASE}/lorawan/firmware/${encodeURIComponent(cacheKey)}`);
     if (!res.ok) {
       let body: unknown = undefined;
       try { body = await res.json(); } catch { /* not json */ }
@@ -459,7 +493,7 @@ export const api = {
   /** Download the merged factory image (bootloader+partitions+app, flash at
    *  0x0) for blank-board flashing. 404 if the build produced no factory image. */
   lorawanFactory: async (cacheKey: string): Promise<Uint8Array> => {
-    const res = await fetch(`${API_BASE}/lorawan/firmware/${encodeURIComponent(cacheKey)}/factory`);
+    const res = await apiFetch(`${API_BASE}/lorawan/firmware/${encodeURIComponent(cacheKey)}/factory`);
     if (!res.ok) {
       let body: unknown = undefined;
       try { body = await res.json(); } catch { /* not json */ }
@@ -494,7 +528,7 @@ export async function* agentStream(body: {
   design: Design;
   message: string;
 }): AsyncGenerator<AgentStreamEvent> {
-  const res = await fetch(`${API_BASE}/agent/stream`, {
+  const res = await apiFetch(`${API_BASE}/agent/stream`, {
     method: "POST",
     headers: { "content-type": "application/json", accept: "text/event-stream" },
     body: JSON.stringify(body),
@@ -545,7 +579,7 @@ export async function* agentStream(body: {
  * with. Throws ApiError on non-2xx and Error on an `event: error` frame.
  */
 export async function* kicadRoute(design: Design): AsyncGenerator<KicadRouteEvent> {
-  const res = await fetch(`${API_BASE}/design/kicad/route`, {
+  const res = await apiFetch(`${API_BASE}/design/kicad/route`, {
     method: "POST",
     headers: { "content-type": "application/json", accept: "text/event-stream" },
     body: JSON.stringify(design),
@@ -596,7 +630,7 @@ async function* parseSse<T>(body: ReadableStream<Uint8Array>): AsyncGenerator<T>
 }
 
 export async function* lorawanCompile(design: Design): AsyncGenerator<LorawanCompileEvent> {
-  const res = await fetch(`${API_BASE}/lorawan/compile`, {
+  const res = await apiFetch(`${API_BASE}/lorawan/compile`, {
     method: "POST",
     headers: { "content-type": "application/json", accept: "text/event-stream" },
     body: JSON.stringify(design),
@@ -623,7 +657,7 @@ export async function* workbenchFlash(body: {
   erase: boolean;
   images: Array<{ offset: string; data: string }>;
 }): AsyncGenerator<WorkbenchFlashEvent> {
-  const res = await fetch(`${API_BASE}/workbench/flash`, {
+  const res = await apiFetch(`${API_BASE}/workbench/flash`, {
     method: "POST",
     headers: { "content-type": "application/json", accept: "text/event-stream" },
     body: JSON.stringify(body),

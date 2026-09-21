@@ -183,9 +183,13 @@ Bearer token, always required on the MCP endpoint. Resolution order:
    at INFO.
 
 The token gates `/mcp` only. The rest of the API (`/design/*`,
-`/agent/*`, `/library/*`) keeps its existing unauthenticated,
-CORS-gated, rate-limited model — hardening those is a separate effort.
-The header comparison uses `secrets.compare_digest`, so a bad token
+`/agent/*`, `/library/*`, the flashing and provisioning routes) has its
+own, separate gate: set `WIRESTUDIO_API_TOKEN` and every other route
+wants `Authorization: Bearer <api token>` (see
+[Deployment](deployment.md)); unset, it stays open and CORS-gated as
+before. The two tokens do not stack: an MCP client needs the MCP token
+alone, and `GET /mcp/token` (the reveal the web UI uses) counts as API
+surface. Both comparisons use `secrets.compare_digest`, so a bad token
 can't be brute-forced by timing.
 
 ### Viewing and rotating the token

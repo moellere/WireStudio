@@ -284,11 +284,14 @@ also means a `job_id` and a `run_id` are not interchangeable. Firmware
 bytes stay server-side: `workbench_flash` takes a `fleet_run_id` and
 fetches the artifact itself.
 
-Still open, and worth doing regardless: the REST surface has no auth at
-all. `/workbench/flash` and `/lorawan/provision` are reachable by
-anything that can route to the pod. That is survivable while the only
-exposure is a cluster-internal Service, and is the reason the ingress
-publishes `/mcp` alone.
+Closed since: the REST surface takes a bearer token of its own
+(`WIRESTUDIO_API_TOKEN`; `/health` and `/mcp` excepted, the latter
+keeping its own token). Unset it stays open, so a dev loop or a
+single-user docker run is unchanged; set, `/workbench/flash` and
+`/lorawan/provision` are no longer reachable by anything that can route
+to the pod, and the ingress can publish the whole API instead of
+`/mcp` alone. The web UI asks for the token once and keeps it in the
+browser.
 
 **Workbench featureset (phases 1–3 shipped).** Integrate an
 [Embedded AI Harness](https://github.com/SensorsIot/Embedded-AI-Harness)

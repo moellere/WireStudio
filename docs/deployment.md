@@ -40,6 +40,7 @@ of them, just with the corresponding feature turned off. See
 | `FLEET_URL` + `FLEET_TOKEN` | fleet-for-esphome push (`/fleet/*`) |
 | `THINGIVERSE_API_KEY` | enclosure search (`/enclosure/search`) |
 | `WIRESTUDIO_MCP_TOKEN` | bearer token for the `/mcp` endpoint (auto-generated if unset) |
+| `WIRESTUDIO_API_TOKEN` | bearer token for everything else under the API (`/health` and `/mcp` excepted). Unset leaves the REST surface open, as before; set it before exposing the studio beyond a private network. The web UI asks for it once and keeps it in the browser |
 | `CHIRPSTACK_API_URL` + `CHIRPSTACK_API_TOKEN` | LoRaWAN device provisioning against ChirpStack (`/lorawan/provision`, `/lorawan/provision-esphome`) |
 | `ESPHOME_DASHBOARD_URL` (+ `ESPHOME_DASHBOARD_USERNAME` / `_PASSWORD`) | compile through an ESPHome dashboard (`/esphome/*`); the port-exposed add-on or a standalone dashboard, not the HA ingress path |
 | `WORKBENCH_URL` (+ `WORKBENCH_TOKEN`) | remote flash + LoRaWAN bring-up against an Embedded AI Harness (`/workbench/*`) |

@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A bearer token for the REST surface.** `WIRESTUDIO_API_TOKEN` gates
+  every route but `/health` and `/mcp` (which keeps its own token); a
+  request presents it as `Authorization: Bearer` or, for the browser's
+  EventSource on the SSE routes, as the `wirestudio_api_token` cookie
+  the web UI sets for itself. Unset, the API stays open as before, so
+  the dev loop and the docker quickstart are unchanged. The web UI asks
+  for the token when the API answers 401 and keeps it in the browser;
+  Settings shows and clears it. The roadmap's standing caveat that
+  `/workbench/flash` and `/lorawan/provision` were reachable by
+  anything that could route to the pod is closed, and an ingress can
+  publish the whole API rather than `/mcp` alone. `create_app` takes
+  `api_token=` for tests; the Kubernetes manifest reads the `api-token`
+  key of `wirestudio-secrets` when present.
+
 - **MicroPython target.** The last framework on the backlog, the
   CircuitPython pattern applied upstream. `GET /micropython/firmware`
   proxies the newest stable micropython.org image for the board's chip
