@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.36.0] — 2026-09-21
+
 ### Added
 
 - **A bearer token for the REST surface.** `WIRESTUDIO_API_TOKEN` gates
@@ -2372,7 +2374,8 @@ ConnectionForm, EnclosureDialog, Inspector, CapabilityPickerDialog,
 PinoutView, PushToFleetDialog, SchematicDialog. ruff + tsc + vite
 build clean across the whole arc.
 
-[Unreleased]: https://github.com/moellere/wirestudio/compare/v0.35.0...HEAD
+[Unreleased]: https://github.com/moellere/wirestudio/compare/v0.36.0...HEAD
+[0.36.0]: https://github.com/moellere/wirestudio/compare/v0.35.0...v0.36.0
 [0.35.0]: https://github.com/moellere/wirestudio/compare/v0.34.0...v0.35.0
 [0.34.0]: https://github.com/moellere/wirestudio/compare/v0.33.1...v0.34.0
 [0.33.1]: https://github.com/moellere/wirestudio/compare/v0.33.0...v0.33.1
