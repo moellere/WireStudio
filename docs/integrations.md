@@ -71,11 +71,16 @@ re-push starts a fresh run. The dashboard behind HA ingress alone (no
 exposed port) is not reachable this way, because ingress needs an HA
 session.
 
-The wire assumptions are four endpoints (`/devices`, `/edit`,
-`/compile`, `/download.bin`) and the `spawn` / `line` / `exit` frames
-on the websocket, all named in one place
-(`wirestudio/esphome_dashboard/__init__.py`), so a dashboard release
-that moves one is a one-line change.
+The wire format is validated against `esphome dashboard` 2026.6.5,
+open and password-protected: `/devices` (configs by `configuration`),
+`POST /edit?configuration=` with the raw YAML, the `/compile` websocket
+(`spawn`, then `line` / `exit` frames), `/downloads` for the artifact
+names (ESP32 builds ship `firmware.factory.bin` and `firmware.ota.bin`,
+ESP8266 `firmware.bin`) and `/download.bin?file=`. With a password the
+login form is xsrf-protected, every POST carries the token, and the
+websocket carries the session cookie; the client does all of that. Every
+path is named in one place (`wirestudio/esphome_dashboard/__init__.py`),
+so a dashboard release that moves one is a one-line change.
 
 ## Enclosures
 

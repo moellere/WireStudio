@@ -18,27 +18,47 @@ EXAMPLES = Path(__file__).resolve().parent.parent / "wirestudio" / "examples"
 
 
 class FakeDashboard:
-    """The four endpoints the studio uses, as an httpx transport plus a
-    websocket connector, with the requests it saw."""
+    """The dashboard endpoints the studio uses, as an httpx transport plus
+    a websocket connector, with the requests it saw. Mirrors esphome
+    2026.6.5: `/devices` names configs by `configuration`; with a
+    password every POST is xsrf-checked and the websocket wants the
+    auth cookie; `/downloads` lists the built artifacts."""
 
-    def __init__(self, *, devices=("existing.yaml",), exit_code=0, lines=("Compiling…", "Linking", "[SUCCESS]")):
+    def __init__(self, *, devices=("existing.yaml",), exit_code=0,
+                 lines=("Compiling…", "Linking", "[SUCCESS]"), password=None):
         self.devices = list(devices)
         self.exit_code = exit_code
         self.lines = list(lines)
+        self.password = password
         self.written: dict[str, str] = {}
         self.spawned: list[dict] = []
-        self.firmware: dict[str, bytes] = {}
+        self.firmware: dict[str, dict[str, bytes]] = {}
         self.logins = 0
+        self.ws_headers: list[dict] = []
+
+    def _authed(self, req: httpx.Request) -> bool:
+        return self.password is None or "authenticated=yes" in req.headers.get("cookie", "")
 
     def transport(self) -> httpx.MockTransport:
         def handler(req: httpx.Request) -> httpx.Response:
             path, q = req.url.path, dict(req.url.params)
-            if req.method == "POST" and path == "/login":
+            if path == "/login":
+                if req.method == "GET":
+                    return httpx.Response(200, text="<form>", headers={"set-cookie": "_xsrf=tok; Path=/"})
+                form = dict(httpx.QueryParams(req.content.decode()))
                 self.logins += 1
-                return httpx.Response(200, headers={"set-cookie": "authenticated=1; Path=/"})
+                if form.get("_xsrf") != "tok":
+                    return httpx.Response(403)
+                if form.get("password") != self.password:
+                    return httpx.Response(401)
+                return httpx.Response(302, headers={"location": "./", "set-cookie": "authenticated=yes; Path=/"})
+            if not self._authed(req):
+                return httpx.Response(302, headers={"location": "./login"})
+            if self.password and req.method == "POST" and req.headers.get("x-xsrftoken") != "tok":
+                return httpx.Response(403)
             if req.method == "GET" and path == "/devices":
                 return httpx.Response(200, json={
-                    "configured": [{"name": d[:-5], "filename": d} for d in self.devices],
+                    "configured": [{"name": d[:-5], "configuration": d, "target_platform": None} for d in self.devices],
                     "importable": [],
                 })
             if req.method == "POST" and path == "/edit":
@@ -46,16 +66,24 @@ class FakeDashboard:
                 if q["configuration"] not in self.devices:
                     self.devices.append(q["configuration"])
                 return httpx.Response(200)
-            if req.method == "GET" and path == "/download.bin":
-                blob = self.firmware.get(q["configuration"])
-                if blob is None or "file" not in q:
+            if req.method == "GET" and path == "/downloads":
+                built = self.firmware.get(q["configuration"])
+                if built is None:
                     return httpx.Response(404)
-                return httpx.Response(200, content=blob)
+                return httpx.Response(200, json=[
+                    {"title": name, "description": "", "file": name, "download": f"x-{name}"} for name in built
+                ])
+            if req.method == "GET" and path == "/download.bin":
+                blob = (self.firmware.get(q["configuration"]) or {}).get(q.get("file", ""))
+                return httpx.Response(404) if blob is None else httpx.Response(200, content=blob)
             return httpx.Response(404)
         return httpx.MockTransport(handler)
 
-    async def ws_connect(self, url: str):
+    async def ws_connect(self, url: str, headers: dict):
         assert url.endswith("/compile") and url.startswith("ws://")
+        self.ws_headers.append(headers)
+        if self.password and "authenticated=yes" not in headers.get("Cookie", ""):
+            raise ConnectionError("no close frame received or sent")
         dash = self
 
         class Socket:
@@ -106,11 +134,14 @@ async def test_client_compile_relays_lines_and_exit():
     assert last["ok"] is False and "before exit" in last["reason"]
 
 
-async def test_client_firmware_and_unavailable_states():
+async def test_client_firmware_picks_ota_or_factory_and_unavailable_states():
     dash = FakeDashboard()
-    dash.firmware["garage-motion.yaml"] = b"\xe9binary"
+    dash.firmware["garage-motion.yaml"] = {"firmware.factory.bin": b"\xe9merged", "firmware.ota.bin": b"\xe9ota"}
+    dash.firmware["d1.yaml"] = {"firmware.bin": b"\xe9only"}
     client = dash.client()
-    assert await client.firmware("garage-motion.yaml") == b"\xe9binary"
+    assert await client.firmware("garage-motion.yaml") == b"\xe9ota"
+    assert await client.firmware("garage-motion.yaml", factory=True) == b"\xe9merged"
+    assert await client.firmware("d1.yaml", factory=True) == b"\xe9only"
     assert await client.firmware("nope.yaml") is None
     assert not DashboardClient("").is_configured()
     down = DashboardClient("http://dash.test", transport=httpx.MockTransport(lambda r: httpx.Response(502)))
@@ -121,12 +152,27 @@ async def test_client_firmware_and_unavailable_states():
     assert ok is False and "not answer JSON" in reason
 
 
-async def test_client_logs_in_when_credentials_are_set():
-    dash = FakeDashboard()
+async def test_client_logs_in_once_with_xsrf_and_carries_the_cookie_everywhere():
+    dash = FakeDashboard(password="p")
     client = DashboardClient("http://dash.test", username="u", password="p",
                              transport=dash.transport(), ws_connect=dash.ws_connect)
-    await client.list_devices()
+    assert await client.list_devices() == ["existing.yaml"]
+    assert await client.push_device("new-node", "esphome:\n") == PushResult("new-node.yaml", True)
+    events = [e async for e in client.compile("new-node.yaml")]
+    assert events[-1]["ok"] is True
     assert dash.logins == 1
+    assert "authenticated=yes" in dash.ws_headers[-1]["Cookie"]
+
+
+async def test_client_reports_missing_or_wrong_credentials():
+    dash = FakeDashboard(password="p")
+    anon = DashboardClient("http://dash.test", transport=dash.transport(), ws_connect=dash.ws_connect)
+    ok, reason = await anon.is_available()
+    assert ok is False and "ESPHOME_DASHBOARD_USERNAME" in reason
+    wrong = DashboardClient("http://dash.test", username="u", password="nope",
+                            transport=dash.transport(), ws_connect=dash.ws_connect)
+    ok, reason = await wrong.is_available()
+    assert ok is False and "rejected" in reason
 
 
 async def test_jobs_buffer_the_log_and_settle_a_verdict():
@@ -145,7 +191,7 @@ async def test_jobs_buffer_the_log_and_settle_a_verdict():
     await failed.task
     assert failed.verdict == "failed"
 
-    async def boom(url):
+    async def boom(url, headers):
         raise OSError("refused")
     broken = jobs.start(DashboardClient("http://dash.test", ws_connect=boom), "x.yaml")
     await broken.task
@@ -211,8 +257,9 @@ async def test_push_compile_poll_and_firmware(monkeypatch, tmp_path):
     assert status["verdict"] == "passed" and status["filename"] == "garage-motion.yaml"
 
     assert client.get(f"/esphome/jobs/{run_id}/firmware").status_code == 404  # dashboard has no image
-    dash.firmware["garage-motion.yaml"] = b"\xe9img"
+    dash.firmware["garage-motion.yaml"] = {"firmware.factory.bin": b"\xe9merged", "firmware.ota.bin": b"\xe9img"}
     assert client.get(f"/esphome/jobs/{run_id}/firmware").content == b"\xe9img"
+    assert client.get(f"/esphome/jobs/{run_id}/firmware?factory=true").content == b"\xe9merged"
 
     # The SSE stream replays the buffered log and closes with done.
     text = client.get(f"/esphome/jobs/{run_id}/log/stream").text

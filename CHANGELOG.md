@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The ESPHome dashboard client now matches the dashboard.** 0.35.0
+  shipped it against an unverified wire format; running it against
+  `esphome dashboard` 2026.6.5 found four gaps. `/devices` names a
+  config by `configuration`, not `filename`, so every push reported
+  `created`. A password-protected dashboard xsrf-checks its login form
+  and every POST, so login failed with HTTP 403; the client now takes
+  the `_xsrf` token from the login page and sends it as `X-XSRFToken`.
+  The compile websocket is authenticated too, so a protected dashboard
+  closed it before the spawn; the session cookie now rides the
+  connection. ESP32 builds ship `firmware.factory.bin` and
+  `firmware.ota.bin` (ESP8266 `firmware.bin`), never `firmware.bin` on
+  ESP32; the client reads `/downloads` and picks the OTA or factory
+  entry. A dashboard that redirects to `/login` is reported as needing
+  credentials rather than as "HTTP 302".
+
 ## [0.35.0] — 2026-09-20
 
 ### Added
