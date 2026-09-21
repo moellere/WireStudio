@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { api, ApiError } from "./api/client";
+import { api, ApiError, UNAUTHORIZED_EVENT } from "./api/client";
+import { ApiTokenDialog } from "./components/ApiTokenDialog";
 import type {
   BoardSummary,
   ComponentSummary,
@@ -70,6 +71,8 @@ export default function App() {
   const [components, setComponents] = useState<ComponentSummary[] | null>(null);
   const [modules, setModules] = useState<ModuleSummary[] | null>(null);
   const [bootError, setBootError] = useState<string | null>(null);
+  const [bootNonce, setBootNonce] = useState(0);
+  const [showTokenDialog, setShowTokenDialog] = useState(false);
   const [version, setVersion] = useState<string | null>(null);
 
   const [selectedExample, setSelectedExample] = useState<string | null>(null);
@@ -131,6 +134,14 @@ export default function App() {
     return Array.from(types);
   }, [design]);
 
+  // A 401 anywhere means the studio wants its API token; ask once and
+  // retry the boot with it.
+  useEffect(() => {
+    const onUnauthorized = () => setShowTokenDialog(true);
+    window.addEventListener(UNAUTHORIZED_EVENT, onUnauthorized);
+    return () => window.removeEventListener(UNAUTHORIZED_EVENT, onUnauthorized);
+  }, []);
+
   // Bootstrap.
   useEffect(() => {
     (async () => {
@@ -157,7 +168,14 @@ export default function App() {
         setBootError(msg);
       }
     })();
-  }, []);
+  }, [bootNonce]);
+
+  const tokenDialog = showTokenDialog && (
+    <ApiTokenDialog
+      onSaved={() => { setShowTokenDialog(false); setBootError(null); setBootNonce((n) => n + 1); }}
+      onClose={() => setShowTokenDialog(false)}
+    />
+  );
 
   async function refreshComponents() {
     try {
@@ -513,15 +531,23 @@ export default function App() {
   }
 
   if (bootError) {
+    const unauthorized = bootError.startsWith("401:");
     return (
       <div className="flex h-full items-center justify-center p-6 text-sm">
         <div className="max-w-lg rounded-md border border-rose-500/40 bg-rose-500/10 p-4">
-          <div className="mb-2 font-semibold text-rose-300">Could not reach the studio API.</div>
+          <div className="mb-2 font-semibold text-rose-300">
+            {unauthorized ? "The studio API wants its token." : "Could not reach the studio API."}
+          </div>
           <div className="text-ink-dim">{bootError}</div>
           <div className="mt-3 text-xs text-ink-faint">
-            Start it with <code className="rounded-md bg-surface-2 px-1.5 py-0.5 font-mono">python -m wirestudio.api</code> and refresh.
+            {unauthorized ? (
+              <button className="underline" onClick={() => setShowTokenDialog(true)}>Enter the API token</button>
+            ) : (
+              <>Start it with <code className="rounded-md bg-surface-2 px-1.5 py-0.5 font-mono">python -m wirestudio.api</code> and refresh.</>
+            )}
           </div>
         </div>
+        {tokenDialog}
       </div>
     );
   }
@@ -913,6 +939,7 @@ export default function App() {
         />
       )}
       {showSettingsDialog && <SettingsDialog onClose={() => setShowSettingsDialog(false)} />}
+      {tokenDialog}
       <AgentSidebar
         open={showAgent}
         design={design}

@@ -28,6 +28,7 @@ services:
       - ESPHOME_DASHBOARD_URL
       - ESPHOME_DASHBOARD_USERNAME
       - ESPHOME_DASHBOARD_PASSWORD
+      - WIRESTUDIO_API_TOKEN
       - THINGIVERSE_API_KEY
       # Empty WIRESTUDIO_STATIC_DIR -> serve.py falls back to bare-API mode
       # (routes at root). nginx proxies /api/* here after stripping the

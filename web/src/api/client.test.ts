@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { api, lorawanCompile } from "./client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { api, lorawanCompile, setApiToken, UNAUTHORIZED_EVENT } from "./client";
 import type { Design, LorawanCompileEvent } from "../types/api";
 
 function jsonResponse(data: unknown, ok = true): Response {
@@ -170,5 +170,37 @@ describe("lorawan provision-esphome + activation (W3)", () => {
     expect(fetchMock.mock.calls[0][0]).toContain("/lorawan/activation/70b3d57ed0001234");
     expect(r.joined).toBe(true);
     expect(r.dev_addr).toBe("01020304");
+  });
+});
+
+describe("api token plumbing", () => {
+  const fetchMock = vi.fn();
+
+  beforeEach(() => {
+    setApiToken("");
+    vi.stubGlobal("fetch", fetchMock);
+    fetchMock.mockReset();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("sends the bearer header once a token is stored, and none before", async () => {
+    fetchMock.mockImplementation(async () => new Response(JSON.stringify([]), { status: 200 }));
+    await api.listExamples();
+    expect((fetchMock.mock.calls[0][1] as RequestInit).headers).not.toHaveProperty("authorization");
+    setApiToken("s3cret");
+    await api.listExamples();
+    expect((fetchMock.mock.calls[1][1] as RequestInit).headers).toMatchObject({ authorization: "Bearer s3cret" });
+  });
+
+  it("raises the unauthorized event on a 401 and still throws", async () => {
+    fetchMock.mockImplementation(async () => new Response(JSON.stringify({ detail: "missing or invalid API token" }), { status: 401 }));
+    const seen = vi.fn();
+    window.addEventListener(UNAUTHORIZED_EVENT, seen);
+    await expect(api.listExamples()).rejects.toMatchObject({ status: 401 });
+    expect(seen).toHaveBeenCalledOnce();
+    window.removeEventListener(UNAUTHORIZED_EVENT, seen);
   });
 });

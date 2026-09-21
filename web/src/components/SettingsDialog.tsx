@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Check, Copy, Eye, EyeOff, KeyRound, RotateCcw } from "lucide-react";
-import { ApiError, api, type McpTokenInfo } from "../api/client";
+import { ApiError, api, getApiToken, setApiToken, type McpTokenInfo } from "../api/client";
 import { Button, Dialog } from "./ui";
 
 type LoadState =
@@ -24,6 +24,13 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const [confirmRotate, setConfirmRotate] = useState(false);
   const [rotating, setRotating] = useState(false);
   const [rotateError, setRotateError] = useState<string | null>(null);
+  const [apiToken, setApiTokenField] = useState(getApiToken());
+  const [apiTokenSaved, setApiTokenSaved] = useState<string | null>(null);
+
+  function saveApiToken() {
+    setApiToken(apiToken);
+    setApiTokenSaved(apiToken.trim() ? "Saved. Requests now carry this token." : "Cleared.");
+  }
 
   useEffect(() => {
     let live = true;
@@ -171,6 +178,33 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
               )}
             </>
           )}
+        </section>
+        <section className="rounded-md border border-line bg-surface-2/40 p-3">
+          <div className="flex items-center gap-2">
+            <KeyRound className="h-4 w-4 text-ink-dim" />
+            <span className="text-[11px] uppercase tracking-wider text-ink-faint">
+              API token (this browser)
+            </span>
+          </div>
+          <p className="mt-1 text-xs text-ink-dim">
+            When the server runs with <code className="rounded bg-surface-2 px-1">WIRESTUDIO_API_TOKEN</code>, every
+            request from this browser carries the token stored here. Leave it empty on an open studio.
+          </p>
+          <div className="mt-3 flex items-stretch gap-2">
+            <input
+              type="password"
+              aria-label="API token"
+              value={apiToken}
+              placeholder="not set"
+              onChange={(e) => { setApiTokenField(e.target.value); setApiTokenSaved(null); }}
+              className="flex-1 rounded-md border border-line bg-surface-1 px-2 py-1.5 font-mono text-xs text-ink"
+            />
+            <Button onClick={saveApiToken}>Save</Button>
+            <Button onClick={() => { setApiTokenField(""); setApiToken(""); setApiTokenSaved("Cleared."); }} disabled={!apiToken}>
+              Clear
+            </Button>
+          </div>
+          {apiTokenSaved && <div className="mt-2 text-xs text-emerald-300/90">{apiTokenSaved}</div>}
         </section>
       </div>
     </Dialog>
