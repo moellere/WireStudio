@@ -1771,6 +1771,8 @@ def create_app(
     from wirestudio.api.circuitpython import router as circuitpython_router
 
     app.include_router(circuitpython_router(lib), prefix="/circuitpython")
+    from wirestudio.api.micropython import router as micropython_router
+    app.include_router(micropython_router(lib), prefix="/micropython")
 
     # The workbench is a destination for firmware, not a source of it --
     # the image still comes from whichever framework proxy serves it.

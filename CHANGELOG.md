@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **MicroPython target.** The last framework on the backlog, the
+  CircuitPython pattern applied upstream. `GET /micropython/firmware`
+  proxies the newest stable micropython.org image for the board's chip
+  (every library board maps to a generic port image, ESP8266 included;
+  the version is read off the board's download page since the site has
+  no index API) with the flash offset in a header, 0x1000 on the classic
+  ESP32. `POST /micropython/code` generates `main.py` from the design
+  over the `machine` API: sixteen components carry a `micropython:`
+  block, buses are `SoftI2C` / `SoftSPI` so one file runs on every port,
+  and drivers outside the firmware are listed as `mip` specs. The flash
+  dialog gains the framework and, after flashing, pushes the file through
+  the raw REPL over the same serial port (or to any connected board), so
+  nothing is copied by hand. The workbench boot check knows the
+  MicroPython banner. Unmapped components degrade to a comment.
+
 ### Fixed
 
 - **The ESPHome dashboard client now matches the dashboard.** 0.35.0

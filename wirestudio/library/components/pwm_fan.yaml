@@ -130,3 +130,9 @@ kicad:
     GND: '1'
     TACH: '3'
     PWM: '4'
+
+micropython:
+  imports: ["from machine import PWM"]
+  setup: |
+    {{ id }} = PWM(Pin({{ pins.PWM }}), freq=25000)
+    {{ id }}.duty_u16(32768)  # half speed

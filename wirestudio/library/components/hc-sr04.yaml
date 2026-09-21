@@ -58,6 +58,20 @@ circuitpython:
     except RuntimeError:
         print("{{ label }}: no echo")
 
+micropython:
+  imports: ["from machine import time_pulse_us"]
+  setup: |
+    {{ id }}_trig = Pin({{ pins.TRIGGER }}, Pin.OUT)
+    {{ id }}_echo = Pin({{ pins.ECHO }}, Pin.IN)
+  loop: |
+    {{ id }}_trig.value(0)
+    time.sleep_us(2)
+    {{ id }}_trig.value(1)
+    time.sleep_us(10)
+    {{ id }}_trig.value(0)
+    {{ id }}_us = time_pulse_us({{ id }}_echo, 1, 30000)
+    print("{{ label }}: %.1f cm" % ({{ id }}_us / 58.0) if {{ id }}_us > 0 else "{{ label }}: no echo")
+
 params_schema:
   update_interval: { type: string, default: "60s" }
   unit_of_measurement: { type: string, default: "m" }

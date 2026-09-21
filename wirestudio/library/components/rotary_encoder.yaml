@@ -73,6 +73,22 @@ circuitpython:
   loop: |
     print("{{ label }}: %d" % {{ id }}.position)
 
+micropython:
+  setup: |
+    {{ id }}_a = Pin({{ pins.A }}, Pin.IN, Pin.PULL_UP)
+    {{ id }}_b = Pin({{ pins.B }}, Pin.IN, Pin.PULL_UP)
+    {{ id }}_count = 0
+
+
+    def {{ id }}_step(pin):
+        global {{ id }}_count
+        {{ id }}_count += 1 if {{ id }}_a.value() != {{ id }}_b.value() else -1
+
+
+    {{ id }}_a.irq(trigger=Pin.IRQ_FALLING, handler={{ id }}_step)
+  loop: |
+    print("{{ label }}:", {{ id }}_count)
+
 params_schema:
   min_value:
     type: integer

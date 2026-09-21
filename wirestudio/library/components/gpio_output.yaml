@@ -56,6 +56,10 @@ circuitpython:
     {{ id }} = digitalio.DigitalInOut(P({{ pins.OUT }}))
     {{ id }}.direction = digitalio.Direction.OUTPUT
 
+micropython:
+  setup: |
+    {{ id }} = Pin({{ pins.OUT }}, Pin.OUT)
+
 params_schema:
   icon:
     type: string

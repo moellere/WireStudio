@@ -74,6 +74,14 @@ circuitpython:
   loop: |
     print("{{ label }}: %.1fC %.0f%% %.1fhPa" % ({{ id }}.temperature, {{ id }}.relative_humidity, {{ id }}.pressure))
 
+micropython:
+  imports: ["import bme280_float as bme280"]
+  deps: ["github:robert-hh/BME280/bme280_float.py"]
+  setup: |
+    {{ id }} = bme280.BME280(i2c={{ bus_var }}, address={{ params.address | default('0x76') }})
+  loop: |
+    print("{{ label }}:", *{{ id }}.values)
+
 params_schema:
   address:
     type: string

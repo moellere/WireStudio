@@ -35,6 +35,13 @@ circuitpython:
     {{ id }} = neopixel.NeoPixel(P({{ pins.DIN }}), {{ params.num_leds | default(1) }}, auto_write=True)
     {{ id }}.fill((0, 8, 0))
 
+micropython:
+  imports: ["import neopixel"]
+  setup: |
+    {{ id }} = neopixel.NeoPixel(Pin({{ pins.DIN }}), {{ params.num_leds | default(1) }})
+    {{ id }}.fill((0, 8, 0))
+    {{ id }}.write()
+
 params_schema:
   rgb_order:
     type: string

@@ -48,7 +48,10 @@
   primary channel (with a generated or pasted key) over the same serial
   port, and
   **CircuitPython** flashes the official release image and serves a
-  generated starter `code.py` (save-to-CIRCUITPY or download).
+  generated starter `code.py` (save-to-CIRCUITPY or download), and
+  **MicroPython** flashes the official port image for the board's chip
+  and pushes a `main.py` generated from the design over the same serial
+  port through the raw REPL (or against any connected board).
 - **LoRaWAN (radio boards).** Two flows for US915 radio boards (TTGO
   LoRa32 / T-Beam, Heltec WiFi LoRa 32 V2 / V3 / V4):
   - **Flash LoRaWAN firmware** (radio icon, advanced mode) builds the
@@ -127,6 +130,8 @@ pinned via `WIRESTUDIO_MCP_TOKEN`). See [the MCP guide](mcp.md#auth).
 | `GET`  | `/meshtastic/firmware?board=` | proxy the official Meshtastic factory image for a mapped radio board (`/meshtastic/firmware/status` gates it) |
 | `GET`  | `/circuitpython/firmware?board=` | proxy the official CircuitPython release image for an ESP32-family board (`/circuitpython/firmware/status` gates it, and flags generic-image fallbacks) |
 | `GET`  | `/circuitpython/code?board=` | starter `code.py` generated from the board's library metadata |
+| `GET`  | `/micropython/firmware?board=` | proxy the newest stable micropython.org image for the board's chip (`/micropython/firmware/status` lists the image and flash offset per board); `X-Flash-Offset` is 0x1000 on the classic ESP32 |
+| `GET`/`POST` | `/micropython/code` | `?board=` serves a starter `main.py`; a posted `design.json` returns `{code, deps, warnings}` with `deps` as `mip` package specs |
 
 The table above is a working subset — schematic/PCB/fab/route, LoRaWAN,
 designs, seed, inventory, and agent endpoints are all in the

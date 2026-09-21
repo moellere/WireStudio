@@ -125,3 +125,11 @@ kicad:
   symbol: Conn_01x05
   footprint: Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical
   value: SSD1306
+
+micropython:
+  imports: ["import ssd1306"]
+  deps: [ssd1306]
+  setup: |
+    {{ id }} = ssd1306.SSD1306_I2C(128, {{ 32 if '128x32' in (params.model | default('SSD1306 128x64')) else 64 }}, {{ bus_var }}, addr={{ params.address | default('0x3C') }})
+    {{ id }}.text("{{ label }}", 0, 0)
+    {{ id }}.show()
