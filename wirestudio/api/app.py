@@ -1436,7 +1436,7 @@ def create_app(
         if not job.finished or not job.ok:
             raise HTTPException(status_code=404, detail=f"run {run_id!r} has no successful build yet ({job.verdict})")
         try:
-            blob = await _dashboard().firmware(job.filename, "firmware.factory.bin" if factory else "firmware.bin")
+            blob = await _dashboard().firmware(job.filename, factory=factory)
         except DashboardUnavailable as e:
             raise HTTPException(status_code=502, detail=str(e)) from e
         if blob is None:
