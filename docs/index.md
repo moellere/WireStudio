@@ -28,7 +28,8 @@ under upstream ESPHome.
         │
         ▼
   ┌─ wirestudio.model         pydantic models mirroring the schema
-  ├─ wirestudio.library       loads boards/ + components/ YAML
+  ├─ wirestudio.library       loads boards/ + components/ YAML (bundled + user dir);
+  │                           component check gate, per-block electrical rules
   ├─ wirestudio.generate      design + library → ESPHome YAML + ASCII
   ├─ wirestudio.targets       generation targets: esphome (wraps generate) + lorawan + tasmota
   ├─ wirestudio.csp           pin solver + port-compatibility checker
@@ -37,10 +38,12 @@ under upstream ESPHome.
   ├─ wirestudio.intent        automation (trigger/action) validation + lowering, melody map;
   │                           display-content (`show`) lowering in wirestudio.generate
   ├─ wirestudio.inventory     owned-parts inventory: library components/modules
-  │                           plus discrete `part` records (MPN + specs)
+  │                           plus discrete `part` records (MPN + specs); BOM check,
+  │                           substitutes, pick list, JLCPCB-priced buy list
   ├─ wirestudio.agent         Claude tool-using agent + session store
   ├─ wirestudio.designs       file-backed designs/<id>.json store
   ├─ wirestudio.fleet         fleet-for-esphome HTTP client
+  ├─ wirestudio.esphome_dashboard  ESPHome dashboard client + in-process compile jobs
   ├─ wirestudio.enclosure     parametric OpenSCAD + Thingiverse search
   ├─ wirestudio.kicad         SKiDL schematic emitter, PCB emit/route, .kicad_sym importer
   ├─ wirestudio.jlcpcb        fab outputs (BOM / CPL / Gerber + drill)
@@ -93,11 +96,12 @@ through upstream `esphome config`. Shipped: the `esphome config` CI
 gate over every bundled example; a nightly `esphome compile` smoke;
 the component-coverage matrix ([`library-coverage.md`](library-coverage.md))
 with a `--strict` no-regression gate holding **zero unexplained gaps** —
-every board and every component but one is exercised (esphome examples,
-or the lorawan firmware build for radio boards); the sole exception,
-`axp192`, is a permanent baseline entry, since the T-Beam's PMIC has no
-standalone ESPHome platform and is materialized implicitly by the
-LoRaWAN generator rather than named by any example — see
+every board and every component but two is exercised (esphome examples,
+or the lorawan firmware build for radio boards); the two exceptions,
+`axp192` and `battery_adc`, are permanent baseline entries, since the
+T-Beam's PMIC and the Heltec battery divider are board properties with
+no standalone ESPHome platform, materialized by the generators rather
+than named by any example — see
 [`library-coverage.md`](library-coverage.md) for the live counts; a
 pinned ESPHome version called out in the README + workflow; an
 [`esphome-matrix`](../.github/workflows/esphome-matrix.yml) compatibility
@@ -205,6 +209,27 @@ output. `POST /circuitpython/code` returns {code, deps, warnings};
 the flash dialog prefers design code over the board starter and
 surfaces deps + unmapped-component warnings. Unmapped parts degrade
 to a comment, never a broken file.
+
+**Inventory and circuit building (0.33 -- 0.35).** *Works.* The
+library goes below the module level: a component may be a
+**subcircuit** of discrete parts (`hbridge`, `hbridge_mosfet`, and five
+building blocks -- `led_indicator`, `npn_low_side_driver`,
+`mosfet_low_side_driver`, `voltage_divider`, `level_shifter`) whose
+parts carry real KiCad symbols and footprints, parametric values, and
+`requires:` ratings. One seam, `placed_parts`, feeds the schematic,
+PCB, BOM, CPL and inventory check, so the same expansion prints
+everywhere. Blocks declare `verify.checks` (LED current, base drive,
+gate drive, divider) and `validate` runs them per instance; nothing is
+simulated, and each block says what lies beyond its rules. The
+**inventory** holds library modules and a drawer of discrete parts
+(lenient CSV import); the check cross-references a design's BOM,
+proposes same-package substitutes with caveats, accepts one as a
+`part_override`, and ends in a pick list by location plus a buy list
+priced on JLCPCB. Components are **authored in the studio** or by the
+agent (`component_check` / `component_create`) into a user library
+that overlays the bundled one. Next: apply a substitution across a
+whole design at once, and a ratings-aware recommender for discrete
+parts.
 
 **Compile through an ESPHome dashboard.** *Works.* A second build path
 beside fleet-for-esphome: `ESPHOME_DASHBOARD_URL` points at the HA
