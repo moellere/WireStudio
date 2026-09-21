@@ -60,6 +60,12 @@ circuitpython:
     {{ id }} = motor_servo.Servo({{ id }}_pwm)
     {{ id }}.angle = 90
 
+micropython:
+  imports: ["from machine import PWM"]
+  setup: |
+    {{ id }} = PWM(Pin({{ pins.PWM }}), freq=50)
+    {{ id }}.duty_u16(4915)  # 1.5 ms pulse: centre
+
 params_schema:
   auto_detach_time:
     type: string

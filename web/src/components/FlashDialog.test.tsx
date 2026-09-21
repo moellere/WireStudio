@@ -42,6 +42,10 @@ vi.mock("../api/client", async () => {
       circuitpythonFirmwareStatus: vi.fn(),
       circuitpythonFirmware: vi.fn(),
       circuitpythonCode: vi.fn(),
+      micropythonFirmwareStatus: vi.fn(),
+      micropythonFirmware: vi.fn(),
+      micropythonCode: vi.fn(),
+      micropythonDesignCode: vi.fn(),
     },
   };
 });
@@ -59,6 +63,10 @@ const mockApi = api as unknown as {
   circuitpythonFirmwareStatus: ReturnType<typeof vi.fn>;
   circuitpythonFirmware: ReturnType<typeof vi.fn>;
   circuitpythonCode: ReturnType<typeof vi.fn>;
+  micropythonFirmwareStatus: ReturnType<typeof vi.fn>;
+  micropythonFirmware: ReturnType<typeof vi.fn>;
+  micropythonCode: ReturnType<typeof vi.fn>;
+  micropythonDesignCode: ReturnType<typeof vi.fn>;
 };
 
 const design: Design = {
@@ -105,6 +113,16 @@ beforeEach(() => {
     reason: null,
   });
   mockApi.circuitpythonCode.mockReset().mockResolvedValue("import board\n");
+  mockApi.micropythonFirmwareStatus.mockReset().mockResolvedValue({
+    available: true,
+    version: "1.25.0",
+    boards: ["d1-mini", "heltec-wifi-lora32-v3"],
+    images: { "d1-mini": "ESP8266_GENERIC", "heltec-wifi-lora32-v3": "ESP32_GENERIC_S3" },
+    offsets: { "d1-mini": 0, "heltec-wifi-lora32-v3": 0 },
+    reason: null,
+  });
+  mockApi.micropythonCode.mockReset().mockResolvedValue("from machine import Pin\n");
+  mockApi.micropythonDesignCode.mockReset().mockResolvedValue({ code: "from machine import Pin\n", deps: [], warnings: [] });
 });
 
 function renderDialog(overrides: Partial<Parameters<typeof FlashDialog>[0]> = {}) {
@@ -187,6 +205,31 @@ describe("FlashDialog", () => {
       expect(screen.getByRole("button", { name: /flash circuitpython/i })).toBeEnabled(),
     );
     expect(screen.getByText(/no official circuitpython build/i)).toBeInTheDocument();
+  });
+
+  it("micropython covers the esp8266 board and offers the starter main.py", async () => {
+    renderDialog();
+    await userEvent.click(screen.getByRole("button", { name: /^micropython/i }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /flash micropython/i })).toBeEnabled(),
+    );
+    expect(screen.getByText(/ESP8266_GENERIC/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText(/starter main.py for this board/i)).toBeInTheDocument());
+    expect(mockApi.micropythonCode).toHaveBeenCalledWith("d1-mini");
+    expect(screen.getByRole("button", { name: /push main.py to a connected board/i })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /download main.py/i })).toBeInTheDocument();
+  });
+
+  it("micropython generates main.py from a design with components and lists the mip installs", async () => {
+    mockApi.micropythonDesignCode.mockResolvedValue({
+      code: "import bme280_float as bme280\n", deps: ["github:robert-hh/BME280/bme280_float.py"], warnings: ["x: skipped"],
+    });
+    const withParts = { ...design, components: [{ id: "c1", library_id: "bme280" }] } as unknown as Design;
+    renderDialog({ design: withParts });
+    await userEvent.click(screen.getByRole("button", { name: /^micropython/i }));
+    await waitFor(() => expect(screen.getByText(/main.py generated from this design/i)).toBeInTheDocument());
+    expect(screen.getByText(/mip.install\("github:robert-hh/)).toBeInTheDocument();
+    expect(screen.getByText("x: skipped")).toBeInTheDocument();
   });
 
   it("meshtastic enables flashing for a supported board", async () => {

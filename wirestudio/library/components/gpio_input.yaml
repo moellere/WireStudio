@@ -67,6 +67,12 @@ circuitpython:
   loop: |
     print("{{ label }}:", "open" if {{ id }}.value else "closed")
 
+micropython:
+  setup: |
+    {{ id }} = Pin({{ pins.IN }}, Pin.IN, Pin.PULL_UP)
+  loop: |
+    print("{{ label }}:", {{ id }}.value())
+
 params_schema:
   device_class:
     type: string

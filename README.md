@@ -44,15 +44,17 @@ join-status polling all from the web UI. Both paths target US915 radio
 boards (TTGO T-Beam / LoRa32, Heltec WiFi LoRa 32 V2 / V3 / V4) and
 provision against ChirpStack.
 
-One flash dialog covers five firmware frameworks over the same
+One flash dialog covers six firmware frameworks over the same
 WebSerial + esptool-js mechanism: **ESPHome** (built by
 fleet-for-esphome or by an ESPHome dashboard, then OTA), **Tasmota**
 (official release image + template push over serial), **LoRaWAN**
 (compiled RadioLib firmware), **Meshtastic** (official release factory
 image for the radio boards, then region, preset, owner and channel
-pushed over the same port), and **CircuitPython**
-(official release image plus a generated starter `code.py` for the
-CIRCUITPY drive).
+pushed over the same port), **CircuitPython** (official release image
+plus a generated `code.py` for the CIRCUITPY drive), and
+**MicroPython** (official release image for every board's chip, plus a
+`main.py` generated from the design and pushed over the same port
+through the raw REPL).
 
 WebSerial needs the board on the end of a cable. A **remote workbench**
 removes that: point the studio at a
@@ -117,6 +119,7 @@ Tiers, in priority order:
 | **Works (hardware-validated)** | Remote workbench | flash a board on a bench slot, and run the whole LoRaWAN bring-up (flash → register → key push → verify) headlessly | wire format verified against a reference bench; flashing and LoRaWAN bring-up exercised repeatedly on a live Pi bench with an ESP32-S3. Transport tests in `tests/test_workbench.py` use wire-level fakes; no automated live-bench gate |
 | **Verified** | Tasmota target | emit a Tasmota device template (`/tasmota/template`) mapping solved pins to Tasmota GPIO function ids | function ids + per-chip layouts sourced from `tasmota_template.h`; unit tests pin the Sonoff S31 template convention for the smart-plug example |
 | **Works (lighter checks)** | Meshtastic flashing + config | proxy the official release factory image (`/meshtastic/firmware`) for the radio boards, flash it via the unified WebSerial dialog, then push region, modem preset, owner and primary channel as protobufs over the same port | endpoint tests with mocked upstream; board-to-variant map checked against `meshtastic/firmware` variants; config push tested against a fake device; no live-flash gate |
+| **Works (lighter checks)** | MicroPython flashing + main.py | proxy the official release image for the board's chip (`/micropython/firmware`; every library board maps to a generic port image, ESP8266 included), flash via the unified dialog, generate `main.py` from the design over the `machine` API (`/micropython/code`) and push it through the raw REPL over the same serial port | endpoint tests with a captured download page; every board's starter and every example's main.py parse as Python; the raw-REPL push is tested against a fake board; the micropython.org page format could not be fetched from the build session, so the first live flash validates it; no live-flash gate |
 | **Works (lighter checks)** | Component authoring | write a component YAML in the studio or through `component_create`; the same gate as `component_check` (schema, subcircuit nets, template render, KiCad symbols / pins / footprint) before it lands in the user library | gate tests in `tests/test_library_check.py`; KiCad resolution runs only where the toolchain is present; a user component is not compiled through `esphome config` in CI |
 | **Works (lighter checks)** | ESPHome dashboard compile | push the rendered YAML to a running ESPHome dashboard (`/esphome/push`), start a compile there, stream the log and serve the firmware, with the same job shapes as the fleet path | client + route tests against a fake dashboard in `tests/test_esphome_dashboard.py` that mirrors `esphome dashboard` 2026.6.5, open and password-protected, after the client was run against both live; no live dashboard in CI |
 | **Works (lighter checks)** | CircuitPython flashing | proxy the official release image (`/circuitpython/firmware`) for ESP32/S3/C3/C6 boards, flash via the unified dialog, serve a generated starter `code.py` (`/circuitpython/code`) | endpoint tests with mocked upstream; every board-id mapping verified against downloads.circuitpython.org; generated starters parse as valid Python; no live-flash gate |

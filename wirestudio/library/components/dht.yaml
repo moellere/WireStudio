@@ -108,6 +108,14 @@ circuitpython:
     except RuntimeError as e:
         print("{{ label }}:", e)
 
+micropython:
+  imports: ["import dht"]
+  setup: |
+    {{ id }} = dht.{{ 'DHT11' if (params.model | default('DHT22')) == 'DHT11' else 'DHT22' }}(Pin({{ pins.DATA }}))
+  loop: |
+    {{ id }}.measure()
+    print("{{ label }}: %.1fC %.0f%%" % ({{ id }}.temperature(), {{ id }}.humidity()))
+
 params_schema:
   model:
     type: string
