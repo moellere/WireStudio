@@ -50,7 +50,7 @@ from wirestudio.agent.tools import (
 )
 from wirestudio.designs.active import ActiveDesignTracker
 from wirestudio.designs.store import DesignStore
-from wirestudio.inventory import check_inventory, entries_from_csv
+from wirestudio.inventory import apply_substitutions, check_inventory, entries_from_csv
 from wirestudio.inventory.buy import buy_list, buy_list_to_dict
 from wirestudio.inventory.store import (
     FAMILIES,
@@ -746,6 +746,36 @@ def _register_inventory_tools(
             ],
             "pick_list": [asdict(g) for g in report.pick_list],
         }
+
+    @mcp.tool(
+        name="apply_substitutions",
+        description=(
+            "Accept the best-ranked drawer substitute on every short "
+            "semiconductor line of the inventory check at once, setting "
+            "part_overrides for each affected part key. Proposals are "
+            "ranked by known pinout and package, then no marginal rating "
+            "(under 20% headroom), then quantity on hand; each applied "
+            "entry carries the caveats of the comparison, relay them. "
+            "Lines without a proposal, and design passives, are left "
+            "alone. Use set_part_override to pick a different candidate "
+            "or to undo one. Defaults to the active design."
+        ),
+    )
+    def apply_substitutions_tool(design_id: str = "") -> dict:
+        resolved = design_id or tracker.get()
+        if not resolved:
+            return {"error": "no design_id given and no active design"}
+        try:
+            raw = designs.load(resolved)
+        except FileNotFoundError as e:
+            return {"error": str(e)}
+        design = Design.model_validate(raw)
+        report = check_inventory(design, library, inventory.list())
+        updated, applied = apply_substitutions(design, report.parts)
+        if applied:
+            designs.save(resolved, updated.model_dump(mode="json", exclude_none=True))
+        return {"ok": True, "design_id": resolved, "applied": applied,
+                "part_overrides": updated.part_overrides}
 
 
     @mcp.tool(

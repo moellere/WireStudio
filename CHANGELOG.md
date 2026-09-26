@@ -35,6 +35,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   drivers on one net, fails the PR. `POST /design/kicad/erc` (and `/erc/status`) run the same
   check on demand; `python -m wirestudio.kicad.erc design.json` prints
   it.
+- **Substitutes are ranked, and all of them can be accepted at once.**
+  A short semiconductor's proposals now come ordered: a known-matching
+  pinout and package first, then no marginal rating (under 20% headroom
+  on voltage or current, which is added to the caveats), then quantity
+  on hand; each carries `headroom` (candidate rating over the circuit's
+  need) and its `rank`. *Use all suggested substitutes* in the inventory
+  dialog, `POST /design/inventory/apply-substitutions` and the
+  `apply_substitutions` MCP tool set `part_overrides` to the best-ranked
+  proposal on every short line in one step and report what was applied
+  with its caveats; lines without a proposal and design passives are
+  left alone, and `set_part_override` still picks or undoes one.
 
 ## [0.36.0] — 2026-09-21
 

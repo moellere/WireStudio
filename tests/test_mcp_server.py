@@ -48,6 +48,7 @@ EXPECTED_TOOLS = {
     "inventory_set",
     "inventory_import",
     "inventory_check",
+    "apply_substitutions",
     "buy_list",
 }
 
@@ -430,4 +431,16 @@ async def test_buy_list_tool_uses_the_store_and_inventory(mcp_server, monkeypatc
     assert body["available"] is False and body["reason"] == "down"
     assert seen["design"] == design_id and seen["inventory"] == []
     missing = _content_to_dict(await server.call_tool("buy_list", {"design_id": "nope"}))
+    assert "error" in missing
+
+
+async def test_apply_substitutions_sets_overrides_on_the_saved_design(mcp_server):
+    server, store = mcp_server
+    design_id = _seed_design(store)
+    out = _content_to_dict(
+        await server.call_tool("apply_substitutions", {"design_id": design_id}))
+    assert out["ok"] is True and out["design_id"] == design_id
+    assert isinstance(out["applied"], list) and isinstance(out["part_overrides"], dict)
+    missing = _content_to_dict(
+        await server.call_tool("apply_substitutions", {"design_id": "nope"}))
     assert "error" in missing

@@ -395,6 +395,11 @@ class InventorySubstitute(_S):
     """A drawer part proposed in place of one the design calls for. Never applied."""
     mpn: str = Field(description="Manufacturer part number of the candidate.")
     key: str = Field(description="Inventory key, 'part:<mpn>'.")
+    headroom: dict[str, Optional[float]] = Field(
+        default_factory=dict,
+        description="Candidate rating over the circuit's need, keyed 'v' and 'i'; null when either side is unknown.",
+    )
+    rank: int = Field(default=0, description="Order among the line's proposals, 0 first: known pinout and package, then no marginal rating, then quantity on hand.")
     on_hand: int = Field(description="Quantity of the candidate in the local inventory.")
     location: str = Field(default="", description="Inventory location, if recorded.")
     caveats: list[str] = Field(description="What the comparison did not cover; read before swapping.")
@@ -416,6 +421,19 @@ class InventoryPartCheckLine(_S):
     )
     keys: list[str] = Field(default_factory=list, description="Subcircuit part keys ('<component id>.<part id>') behind `refs`; the targets for `part_overrides`.")
     substituted_for: list[str] = Field(default_factory=list, description="Library values a part_override replaced on this line.")
+
+
+class AppliedSubstitution(_S):
+    value: str = Field(description="The part the design called for, as printed.")
+    mpn: str = Field(description="The drawer part now overriding it.")
+    keys: list[str] = Field(description="part_overrides keys that were set.")
+    refs: list[str] = Field(description="Designators affected.")
+    caveats: list[str] = Field(description="What the comparison did not cover.")
+
+
+class InventoryApplyResponse(_S):
+    design: dict = Field(description="The design with part_overrides updated.")
+    applied: list[AppliedSubstitution] = Field(description="One entry per line that received its best-ranked substitute.")
 
 
 class PickItemModel(_S):
