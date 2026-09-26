@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Boxes, Download, Search, Trash2, Upload, X } from "lucide-react";
 import { api } from "../api/client";
-import type { Design, BuyListResponse, InventoryCheckResponse, InventoryEntry } from "../types/api";
+import type { AppliedSubstitution, Design, BuyListResponse, InventoryCheckResponse, InventoryEntry, InventorySubstitute } from "../types/api";
 import { Button } from "./ui";
 
 type Part = { id: string; name: string; kind: "component" | "module" };
@@ -23,14 +23,23 @@ const PICK_GROUP_LABEL: Record<string, string> = {
 
 /** "What's in my drawer": list/add/edit/remove inventory entries, and check the
  *  open design's BOM against what's on hand (have / partial / need). */
+function headroomText(sub: InventorySubstitute): string {
+  const parts: string[] = [];
+  if (typeof sub.headroom?.v === "number") parts.push(`${sub.headroom.v.toFixed(1)}× V`);
+  if (typeof sub.headroom?.i === "number") parts.push(`${sub.headroom.i.toFixed(1)}× I`);
+  return parts.length ? `, ${parts.join(" ")} headroom` : "";
+}
+
 export function InventoryDialog({
   design,
   onClose,
   onApplySubstitute,
+  onApplyAll,
 }: {
   design?: Design | null;
   onClose: () => void;
   onApplySubstitute?: (keys: string[], mpn: string) => void;
+  onApplyAll?: (applied: AppliedSubstitution[]) => void;
 }) {
   const [entries, setEntries] = useState<InventoryEntry[]>([]);
   const [parts, setParts] = useState<Part[]>([]);
@@ -38,6 +47,8 @@ export function InventoryDialog({
   const [check, setCheck] = useState<InventoryCheckResponse | null>(null);
   const [buy, setBuy] = useState<BuyListResponse | null>(null);
   const [buying, setBuying] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const [appliedNote, setAppliedNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -130,6 +141,25 @@ export function InventoryDialog({
       setEntries((es) => es.filter((e) => e.key !== key));
     } catch (e) {
       fail(e);
+    }
+  }
+
+  async function applyAll() {
+    if (!design) return;
+    setApplying(true);
+    setError(null);
+    try {
+      const r = await api.applyInventorySubstitutions(design);
+      onApplyAll?.(r.applied);
+      setAppliedNote(
+        r.applied.length === 0
+          ? "Nothing to apply: no line has a proposal."
+          : `Applied ${r.applied.length}: ${r.applied.map((a) => `${a.mpn} for ${a.refs.join(", ")}`).join("; ")}. Re-run the check to see the drawer against the new BOM.`,
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setApplying(false);
     }
   }
 
@@ -417,7 +447,18 @@ export function InventoryDialog({
                     <>
                       <div className="flex items-center justify-between pt-1">
                         <span className="text-xs font-medium text-ink-dim">Discrete parts</span>
-                        <div className="flex gap-2 text-[11px]">
+                        <div className="flex items-center gap-2 text-[11px]">
+                          {onApplyAll && check.parts.some((ln) => ln.substitutes.length > 0 && ln.keys.length > 0) && (
+                            <button
+                              type="button"
+                              className="text-accent-300 hover:underline disabled:opacity-50"
+                              disabled={applying}
+                              title="Set part_overrides to the best-ranked proposal on every short line at once"
+                              onClick={applyAll}
+                            >
+                              {applying ? "Applying…" : "Use all suggested substitutes"}
+                            </button>
+                          )}
                           {(["have", "partial", "need", "assumed"] as const).map((s) =>
                             check.parts_summary[s] ? (
                               <span key={s} className={`rounded px-1.5 py-0.5 ring-1 ${STATUS_STYLE[s]}`}>
@@ -427,6 +468,7 @@ export function InventoryDialog({
                           )}
                         </div>
                       </div>
+                      {appliedNote && <p className="text-[11px] text-emerald-300/90">{appliedNote}</p>}
                       <ul className="divide-y divide-line rounded-md border border-line">
                         {check.parts.map((ln) => (
                           <li key={`${ln.family}:${ln.value}`} className="px-2 py-1 text-xs">
@@ -450,7 +492,7 @@ export function InventoryDialog({
                                 {ln.substitutes.map((sub) => (
                                   <li key={sub.key} className="text-ink-dim">
                                     <span className="text-ink">{sub.mpn}</span> could substitute ({sub.on_hand} on hand
-                                    {sub.location ? `, ${sub.location}` : ""}). {sub.caveats.join("; ")}.
+                                    {sub.location ? `, ${sub.location}` : ""}{headroomText(sub)}). {sub.caveats.join("; ")}.
                                     {onApplySubstitute && ln.keys.length > 0 && (
                                       <button
                                         type="button"

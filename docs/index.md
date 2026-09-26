@@ -240,9 +240,15 @@ proposes same-package substitutes with caveats, accepts one as a
 `part_override`, and ends in a pick list by location plus a buy list
 priced on JLCPCB. Components are **authored in the studio** or by the
 agent (`component_check` / `component_create`) into a user library
-that overlays the bundled one. Next: apply a substitution across a
-whole design at once, and a ratings-aware recommender for discrete
-parts.
+that overlays the bundled one. Proposals are ranked, not just listed:
+a known-matching pinout and package first, then no marginal rating
+(under 20% headroom on voltage or current, which is called out), then
+quantity on hand, and each carries its headroom over the circuit's
+need. *Use all suggested substitutes* (`POST
+/design/inventory/apply-substitutions`, `apply_substitutions` on MCP)
+accepts the best-ranked proposal on every short line at once, so a
+board whose drawer is one part off is fixed in one click and the
+check re-run shows the new BOM.
 
 **Compile through an ESPHome dashboard.** *Works.* A second build path
 beside fleet-for-esphome: `ESPHOME_DASHBOARD_URL` points at the HA

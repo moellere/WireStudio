@@ -40,12 +40,21 @@ class InventoryLine:
 @dataclass
 class Substitute:
     """A drawer part that could stand in for one the design calls for.
-    Proposed, never applied: `caveats` says what was not compared."""
+    Proposed, never applied: `caveats` says what was not compared.
+    `headroom` is the candidate's rating over the circuit's need (v, i);
+    `rank` orders proposals, 0 first: a known-matching pinout and
+    package and at least 20% headroom on every compared rating beat
+    the rest, and more on hand breaks ties."""
     mpn: str
     key: str
     on_hand: int
     location: str
     caveats: list[str]
+    headroom: dict[str, Optional[float]] = field(default_factory=dict)
+    rank: int = 0
+
+
+MARGINAL_HEADROOM = 1.2
 
 
 @dataclass
@@ -455,12 +464,60 @@ def find_substitutes(
             caveats.append("package not recorded")
         if pinout and e.pinout and e.pinout.upper() != pinout.upper():
             caveats.append(f"pinout {e.pinout} differs from {pinout}")
+        headroom = {
+            "v": (e.v_max / v_min) if v_min and e.v_max is not None else None,
+            "i": (e.i_max / i_min) if i_min and e.i_max is not None else None,
+        }
+        # Against the original's own rating every candidate sits near 1.0x, so
+        # "marginal" only means something when the circuit stated its need.
+        marginal = [] if basis else [k for k, r in headroom.items() if r is not None and r < MARGINAL_HEADROOM]
+        if marginal:
+            caveats.append(
+                "marginal " + " and ".join("voltage" if k == "v" else "current" for k in marginal)
+                + " headroom (under 20%)"
+            )
         if basis:
             caveats.append(basis)
         caveats.append(NOT_COMPARED.get(
             family, "only family, polarity, package and ratings compared"))
         out.append(Substitute(
             mpn=e.mpn, key=e.key, on_hand=e.quantity,
-            location=e.location, caveats=caveats,
+            location=e.location, caveats=caveats, headroom=headroom,
         ))
-    return sorted(out, key=lambda sub: (-sub.on_hand, sub.mpn))
+    ordered = sorted(out, key=lambda sub: (
+        any(c.startswith("pinout ") for c in sub.caveats),
+        "package not recorded" in sub.caveats,
+        any(c.startswith("marginal ") for c in sub.caveats),
+        -sub.on_hand,
+        sub.mpn,
+    ))
+    for rank, sub in enumerate(ordered):
+        sub.rank = rank
+    return ordered
+
+
+def apply_substitutions(
+    design: Design, parts: Iterable[InventoryPartLine],
+) -> tuple[Design, list[dict]]:
+    """Accept the best-ranked substitute on every short semiconductor line
+    at once: `part_overrides[key] = mpn` for each of the line's keys.
+    Returns the updated design and what was applied, one entry per line.
+    Lines without keys (design passives) or without a proposal are left
+    alone; a line already overridden to its best proposal is not
+    repeated."""
+    overrides = dict(design.part_overrides)
+    applied: list[dict] = []
+    for line in parts:
+        if line.status not in ("need", "partial") or not line.keys or not line.substitutes:
+            continue
+        best = line.substitutes[0]
+        keys = [k for k in line.keys if overrides.get(k) != best.mpn]
+        if not keys:
+            continue
+        for k in keys:
+            overrides[k] = best.mpn
+        applied.append({
+            "value": line.value, "mpn": best.mpn, "keys": keys,
+            "refs": list(line.refs), "caveats": list(best.caveats),
+        })
+    return design.model_copy(update={"part_overrides": overrides}), applied

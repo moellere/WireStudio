@@ -754,3 +754,67 @@ def test_buy_list_endpoint_and_tool(client, monkeypatch):
     body = client.post("/design/buy-list", json={"design": design}).json()
     assert body["summary"] == {"ok": 1, "out_of_stock": 0, "not_found": 0}
     assert body["lines"][0]["lcsc"] == "C1" and body["lines"][0]["refs"] == ["Q1", "Q4"]
+
+
+# ---------------------------------------------------------------------------
+# Ranking by headroom, and applying every proposal at once
+# ---------------------------------------------------------------------------
+
+def test_find_substitutes_ranks_by_pinout_then_headroom_then_stock():
+    from wirestudio.inventory import find_substitutes
+    from wirestudio.library import PartRequirements
+
+    req = PartRequirements(family="mosfet", polarity="p", v_min=50, i_min=10)
+    drawer = [
+        _fet("IRF4905", qty=0),  # the fitted part: out of stock, but it fixes the pinout to compare
+        _fet("PLENTY", v=100, i=30, qty=2),
+        _fet("MARGINAL", v=55, i=11, qty=20),
+        _fet("MANY", v=100, i=30, qty=9),
+        _fet("FLIPPED", v=100, i=30, qty=50, pinout="S-D-G"),
+    ]
+    subs = find_substitutes("IRF4905", drawer, requires=req, footprint="Package_TO_SOT_THT:TO-220-3_Vertical")
+    assert [s.mpn for s in subs] == ["MANY", "PLENTY", "MARGINAL", "FLIPPED"]
+    assert [s.rank for s in subs] == [0, 1, 2, 3]
+    assert subs[0].headroom == {"v": 2.0, "i": 3.0}
+    marginal = next(s for s in subs if s.mpn == "MARGINAL")
+    assert "marginal voltage and current headroom (under 20%)" in marginal.caveats
+    assert marginal.headroom["v"] == 1.1
+
+
+def test_apply_substitutions_takes_the_best_proposal_on_every_short_line():
+    from wirestudio.inventory import apply_substitutions
+    from wirestudio.inventory.check import InventoryPartLine, Substitute
+
+    design = Design.model_validate(
+        json.loads((EXAMPLES_DIR / "motor-position.json").read_text()))
+    sub_a = Substitute(mpn="IRF9540", key="part:IRF9540", on_hand=5, location="A1", caveats=["x"], rank=0)
+    sub_b = Substitute(mpn="OTHER", key="part:OTHER", on_hand=1, location="", caveats=[], rank=1)
+    lines = [
+        InventoryPartLine(value="IRF4905", family="mosfet", refs=["Q1", "Q4"], needed=2, on_hand=0,
+                          status="need", keys=["bridge.q1", "bridge.q4"], substitutes=[sub_a, sub_b]),
+        InventoryPartLine(value="10k", family="resistor", refs=["R1"], needed=1, on_hand=0,
+                          status="need", keys=["bridge.r1"]),  # no proposal
+        InventoryPartLine(value="1N4148", family="diode", refs=["D1"], needed=1, on_hand=0,
+                          status="need", substitutes=[sub_b]),  # a design passive: no keys
+    ]
+    updated, applied = apply_substitutions(design, lines)
+    assert updated.part_overrides == {"bridge.q1": "IRF9540", "bridge.q4": "IRF9540"}
+    assert design.part_overrides == {}  # the input is untouched
+    assert applied == [{"value": "IRF4905", "mpn": "IRF9540", "keys": ["bridge.q1", "bridge.q4"],
+                        "refs": ["Q1", "Q4"], "caveats": ["x"]}]
+    again, applied_again = apply_substitutions(updated, lines)
+    assert applied_again == [] and again.part_overrides == updated.part_overrides
+
+
+def test_apply_endpoint_updates_overrides_and_reports(client):
+    client.post("/inventory/import", json={"csv": FIXTURE_CSV.read_text()})
+    client.delete("/inventory/parts/IRF4905")
+    design = json.loads((EXAMPLES_DIR / "motor-position.json").read_text())
+    body = client.post("/design/inventory/apply-substitutions", json={"design": design}).json()
+    assert [a["mpn"] for a in body["applied"]] == ["IRF9540"]
+    assert set(body["applied"][0]["keys"]) == set(body["design"]["part_overrides"])
+    assert all(v == "IRF9540" for v in body["design"]["part_overrides"].values())
+    check = client.post("/design/inventory/check", json={"design": body["design"]}).json()
+    irf = next(p for p in check["parts"] if p["value"] == "IRF9540")
+    assert irf["status"] == "have" and irf["substituted_for"] == ["IRF4905"]
+    assert irf["substitutes"] == []

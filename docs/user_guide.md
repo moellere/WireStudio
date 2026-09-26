@@ -32,9 +32,10 @@
   instance's params. **Inventory** (header button) cross-references the BOM
   against what is on hand (library modules plus a drawer of discrete
   parts, imported from a spreadsheet), proposes same-package
-  substitutes with their caveats, applies one with *Use for ...*, and
-  ends in a pick list by drawer location and a buy list priced on
-  JLCPCB. **New component** and a user component's *Edit YAML* open an
+  substitutes ranked by pinout, package, rating headroom and stock,
+  applies one with *Use for ...* or every best proposal with *Use all
+  suggested substitutes*, and ends in a pick list by drawer location
+  and a buy list priced on JLCPCB. **New component** and a user component's *Edit YAML* open an
   editor whose *Check* runs the same gate the bundled library passes.
 - **Flash.** One flash dialog (**Flash firmware**, radio icon) covers
   five frameworks over the same WebSerial + esptool-js mechanism:

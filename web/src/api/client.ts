@@ -19,6 +19,7 @@ import type {
   DashboardPushResponse,
   DashboardRunStatus,
   DashboardStatus,
+  InventoryApplyResponse,
   InventoryCheckResponse,
   InventoryImportResult,
   FabStatus,
@@ -214,6 +215,11 @@ export const api = {
     ),
   buyList: (design: Design) =>
     request<BuyListResponse>("/design/buy-list", {
+      method: "POST",
+      body: JSON.stringify({ design }),
+    }),
+  applyInventorySubstitutions: (design: Design) =>
+    request<InventoryApplyResponse>("/design/inventory/apply-substitutions", {
       method: "POST",
       body: JSON.stringify({ design }),
     }),

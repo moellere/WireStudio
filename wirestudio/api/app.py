@@ -50,6 +50,8 @@ from wirestudio.api.schemas import (
     ExampleSummary,
     InventoryCheckLine,
     InventoryCheckRequest,
+    AppliedSubstitution,
+    InventoryApplyResponse,
     InventoryCheckResponse,
     InventoryEntryModel,
     ComponentCheckResponse,
@@ -86,6 +88,7 @@ from wirestudio.api.schemas import (
     ValidateResponse,
 )
 from wirestudio.inventory import (
+    apply_substitutions,
     InventoryEntry,
     check_inventory,
     entries_from_csv,
@@ -1317,6 +1320,21 @@ def create_app(
             "rejected": rejected, "header_row": result.header_row,
         }
 
+    @app.post("/design/inventory/apply-substitutions", response_model=InventoryApplyResponse,
+              tags=["inventory"])
+    def apply_design_substitutions(req: InventoryCheckRequest) -> InventoryApplyResponse:
+        """Accept the best-ranked drawer substitute on every short
+        semiconductor line at once. Returns the design with
+        `part_overrides` updated and what was applied; re-run the check
+        to see the drawer against the new BOM."""
+        design = _validate_design(req.design)
+        report = check_inventory(design, lib, inventory_store.list())
+        updated, applied = apply_substitutions(design, report.parts)
+        return InventoryApplyResponse(
+            design=updated.model_dump(mode="json", exclude_none=True),
+            applied=[AppliedSubstitution(**a) for a in applied],
+        )
+
     @app.post("/design/inventory/check", response_model=InventoryCheckResponse,
               tags=["inventory"])
     def check_design_inventory(req: InventoryCheckRequest) -> InventoryCheckResponse:
@@ -1342,6 +1360,7 @@ def create_app(
                         InventorySubstitute(
                             mpn=sub.mpn, key=sub.key, on_hand=sub.on_hand,
                             location=sub.location, caveats=sub.caveats,
+                            headroom=sub.headroom, rank=sub.rank,
                         )
                         for sub in ln.substitutes
                     ],
