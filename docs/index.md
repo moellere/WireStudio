@@ -122,9 +122,19 @@ render as labeled generic headers. The
 pipeline the rest of the way — SKiDL script → `.kicad_sch` →
 `kicad-cli sch export svg` on real KiCad 8 — catching what only
 kicad-cli's parser sees (schematic grammar, embedded `lib_symbols`,
-toolchain env), which the netlist gate cannot. Next: ERC on the
-generated netlist; pin-solver property tests on randomized designs;
-compatibility-checker fuzzing.
+toolchain env), which the netlist gate cannot. The same job now runs
+`kicad-cli sch erc` on the rendered schematics
+([`scripts/check_erc.py`](../scripts/check_erc.py)): KiCad's own
+judgement of the wiring, held to a baseline
+([`erc_baseline.yaml`](../scripts/erc_baseline.yaml)) of the two
+violation types the generator cannot avoid (no PWR_FLAG symbols, so
+power-input pins read as undriven; open pins on generic headers and
+unused optional pins), each with its reason, and a stale-entry rule so
+the list shrinks as the generator improves. Anything else, an output
+driving an output, an input left floating, fails the PR.
+`POST /design/kicad/erc` runs the same check on demand. Next:
+pin-solver property tests on randomized designs; compatibility-checker
+fuzzing.
 
 **Priority 3 — Enclosures.** *Verified.* Parametric OpenSCAD
 generator + Thingiverse search relay shipped. The

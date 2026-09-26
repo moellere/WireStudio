@@ -208,6 +208,17 @@ maps a connected pin role to a pin the symbol lacks. This is the
 **Verified** bar for the schematic: not "the emitted Python parses" but
 "it builds a netlist against KiCad's own symbols."
 
+`.github/workflows/kicad-render.yml` carries representative examples
+through `kicad-cli` on real KiCad 8, first to an SVG and then through
+`scripts/check_erc.py`, which runs `kicad-cli sch erc` on the rendered
+schematic. Every violation type ERC reports must be listed in
+`scripts/erc_baseline.yaml` with the reason the generator cannot avoid
+it, and an entry no example raises any more fails the run, so a change
+that lets ERC pass a class of violation must also remove it from the
+baseline. A new violation type means the generator or a library
+`kicad:` block is wiring something wrong; fix that before reaching for
+the baseline.
+
 `tests/test_kicad.py` covers the emitter's structure (well-formed
 Python, expected nets, pin-map application) without needing KiCad;
 `tests/test_schematics_gate.py` mirrors the netlist gate and skips

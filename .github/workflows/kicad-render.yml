@@ -13,12 +13,18 @@ on:
     paths:
       - 'wirestudio/kicad/**'
       - 'wirestudio/library/**'
+      - 'wirestudio/examples/**'
+      - 'scripts/check_erc.py'
+      - 'scripts/erc_baseline.yaml'
       - '.github/workflows/kicad-render.yml'
   push:
     branches: [main]
     paths:
       - 'wirestudio/kicad/**'
       - 'wirestudio/library/**'
+      - 'wirestudio/examples/**'
+      - 'scripts/check_erc.py'
+      - 'scripts/erc_baseline.yaml'
       - '.github/workflows/kicad-render.yml'
   workflow_dispatch:
 
@@ -88,6 +94,19 @@ jobs:
           EOF
           python -m wirestudio.kicad.render unsolved.json -o unsolved.svg
           ls -la unsolved.svg
+
+      - name: ERC the generated schematics
+        env:
+          KICAD8_SYMBOL_DIR: ${{ github.workspace }}/kicad-symbols
+        run: python scripts/check_erc.py --report erc-reports
+
+      - name: Upload ERC reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: erc-reports
+          path: erc-reports/
+          if-no-files-found: ignore
 
       - name: Upload rendered SVGs
         if: always()
