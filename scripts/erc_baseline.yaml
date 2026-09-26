@@ -1,0 +1,33 @@
+# Violation types `kicad-cli sch erc` reports on the generated schematics
+# that the generator cannot avoid, each with the reason. Anything not
+# listed fails `scripts/check_erc.py`; an entry no example raises any
+# more fails it too, so the list stays a statement of fact.
+#
+# Counts observed on KiCad 8.0.9 over the representative set, for scale:
+# garage-motion 50 errors / 9 warnings, analog-node 55 / 10, bench-io
+# 45 / 41. All of it is the five types below.
+allowed:
+  power_pin_not_driven: >-
+    The schematic emits no PWR_FLAG symbols. Rails come from the board's
+    own pins, which ERC does not treat as a power source, so every
+    power-input pin on a part reports as undriven.
+  pin_not_connected: >-
+    Parts KiCad ships no symbol for render as generic headers, and library
+    symbols carry pins the design does not use (optional address, reset
+    and interrupt pins). ERC flags each open pin.
+  pin_not_driven: >-
+    The board is drawn as its bare module symbol, so inputs the devkit
+    drives on-board (EN; the input-only SENSOR_VP, SENSOR_VN, IO34 and
+    IO35 when unused) have no driver in the schematic, and analog inputs
+    or chip selects reach their sensors through generic headers whose
+    pins are passive rather than outputs.
+  global_label_dangling: >-
+    SKiDL's schematic placer connects some nets with a global label at one
+    end and a wire at the other, which ERC reads as a label used once. The
+    kicad-schematic gate proves the netlist connectivity that ERC cannot
+    see from the label alone.
+  lib_symbol_issues: >-
+    kicad-cli runs in CI without a symbol library table, so every symbol,
+    whose definition is embedded in the file, reports its source library
+    as not configured. A sym-lib-table pointing at KICAD8_SYMBOL_DIR
+    would retire this entry.
