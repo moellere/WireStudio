@@ -108,10 +108,10 @@ def test_gate_judges_against_the_baseline():
     results = {"garage-motion": summarize(REPORT)}
     failures, stale = mod.judge(results, allowed, check_stale=True)
     assert failures == ["garage-motion: [error] pin_to_pin: Pins of type Output and Output are connected (Symbol U1 Pin 7)"]
-    assert stale == []
+    assert stale == sorted(set(allowed) - {"power_pin_not_driven", "pin_not_connected"})
     only_power = {"x": summarize({"sheets": [{"path": "/", "violations": [REPORT["sheets"][0]["violations"][0]]}]})}
     failures, stale = mod.judge(only_power, allowed, check_stale=True)
-    assert failures == [] and stale == ["pin_not_connected"]
+    assert failures == [] and stale == sorted(set(allowed) - {"power_pin_not_driven"})
     assert mod.judge(only_power, allowed, check_stale=False) == ([], [])
 
 
