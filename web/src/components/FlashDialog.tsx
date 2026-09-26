@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Radio, UploadCloud, Zap } from "lucide-react";
-import type { BoardSummary, Design, WorkbenchSlot, WorkbenchStatus } from "../types/api";
+import type { BoardSummary, Design, WorkbenchBootResult, WorkbenchSlot, WorkbenchStatus } from "../types/api";
 import { api, ApiError } from "../api/client";
 import { flashToTarget, type FlashSession, type FlashTarget } from "../lib/flash";
 import {
@@ -206,6 +206,27 @@ export function FlashDialog({ design, boards, onClose, onOpenFleet }: Props) {
   );
 }
 
+/** The bench's boot verdict after a slot flash. Nothing renders for a USB
+ *  flash, where the serial monitor itself is the evidence. */
+export function BootStatus({ result }: { result: WorkbenchBootResult | null }) {
+  if (!result) return null;
+  if (result.error) {
+    return (
+      <div className="rounded-lg border border-line bg-surface-2/40 p-2 text-xs text-ink-dim">
+        Boot not verified: {result.error}
+      </div>
+    );
+  }
+  const boot = result.checks?.find((c) => c.stage === "boot");
+  return (
+    <div className={`rounded-lg border p-2 text-xs ${result.booted ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-200" : "border-amber-500/40 bg-amber-500/10 text-amber-200"}`}>
+      {result.booted
+        ? <>Booted: {boot?.proves ?? "boot marker seen"}{boot?.line ? <> (<code className="font-mono">{boot.line}</code>)</> : null}</>
+        : <>No boot marker within {boot?.timeout_s ?? "the"} s: expected <code className="font-mono">{boot?.pattern}</code>. The flash wrote, but the firmware did not report starting.</>}
+    </div>
+  );
+}
+
 type MeshtasticPhase = "idle" | "fetching" | "flashing" | "flashed" | "configuring" | "configured";
 
 function MeshtasticFlash({ design, boards }: { design: Design | null; boards: BoardSummary[] | null }) {
@@ -220,6 +241,7 @@ function MeshtasticFlash({ design, boards }: { design: Design | null; boards: Bo
   const [progress, setProgress] = useState<number>(0);
   const [log, setLog] = useState<string[]>([]);
   const [serial, setSerial] = useState<string>("");
+  const [boot, setBoot] = useState<WorkbenchBootResult | null>(null);
   const [target, setTarget] = useState<FlashTarget>({ kind: "usb" });
   const sessionRef = useRef<FlashSession | null>(null);
   const [enums, setEnums] = useState<{ regions: Array<[string, number]>; presets: Array<[string, number]> } | null>(null);
@@ -299,11 +321,14 @@ function MeshtasticFlash({ design, boards }: { design: Design | null; boards: Bo
   async function handleFlash() {
     setError(null);
     setPhase("fetching");
+    setBoot(null);
     try {
       const { data, offset } = await api.meshtasticFirmware(boardLibraryId);
       appendLog(`fetched ${status?.version ?? "release"} factory image (${(data.length / 1024).toFixed(0)} KiB)`);
       setPhase("flashing");
       const session = await flashToTarget(target, {
+        framework: "meshtastic",
+        onBoot: setBoot,
         images: [{ data, address: offset }],
         eraseAll: true,
         chip: board?.chip_variant,
@@ -455,6 +480,8 @@ function MeshtasticFlash({ design, boards }: { design: Design | null; boards: Bo
         </div>
       )}
 
+      <BootStatus result={boot} />
+
       {serial && (
         <pre className="max-h-40 overflow-auto rounded-lg bg-surface-0 p-2 font-mono text-[11px] leading-snug text-emerald-300/90 ring-1 ring-line">
           {serial}
@@ -486,6 +513,7 @@ function CircuitPythonFlash({ design, boards }: { design: Design | null; boards:
   const [progress, setProgress] = useState<number>(0);
   const [log, setLog] = useState<string[]>([]);
   const [serial, setSerial] = useState<string>("");
+  const [boot, setBoot] = useState<WorkbenchBootResult | null>(null);
   const [starter, setStarter] = useState<string | null>(null);
   const [codeDeps, setCodeDeps] = useState<string[]>([]);
   const [codeWarnings, setCodeWarnings] = useState<string[]>([]);
@@ -547,11 +575,14 @@ function CircuitPythonFlash({ design, boards }: { design: Design | null; boards:
   async function handleFlash() {
     setError(null);
     setPhase("fetching");
+    setBoot(null);
     try {
       const { data, offset } = await api.circuitpythonFirmware(boardLibraryId);
       appendLog(`fetched CircuitPython ${status?.version ?? "release"} image (${(data.length / 1024).toFixed(0)} KiB)`);
       setPhase("flashing");
       const session = await flashToTarget(target, {
+        framework: "circuitpython",
+        onBoot: setBoot,
         images: [{ data, address: offset }],
         eraseAll: true,
         chip: board?.chip_variant,
@@ -684,6 +715,8 @@ function CircuitPythonFlash({ design, boards }: { design: Design | null; boards:
         </div>
       )}
 
+      <BootStatus result={boot} />
+
       {serial && (
         <pre className="max-h-40 overflow-auto rounded-lg bg-surface-0 p-2 font-mono text-[11px] leading-snug text-emerald-300/90 ring-1 ring-line">
           {serial}
@@ -715,6 +748,7 @@ function MicroPythonFlash({ design, boards }: { design: Design | null; boards: B
   const [progress, setProgress] = useState<number>(0);
   const [log, setLog] = useState<string[]>([]);
   const [serial, setSerial] = useState<string>("");
+  const [boot, setBoot] = useState<WorkbenchBootResult | null>(null);
   const [code, setCode] = useState<string | null>(null);
   const [codeDeps, setCodeDeps] = useState<string[]>([]);
   const [codeWarnings, setCodeWarnings] = useState<string[]>([]);
@@ -774,11 +808,14 @@ function MicroPythonFlash({ design, boards }: { design: Design | null; boards: B
   async function handleFlash() {
     setError(null);
     setPhase("fetching");
+    setBoot(null);
     try {
       const { data, offset, version } = await api.micropythonFirmware(boardLibraryId);
       appendLog(`fetched MicroPython ${version ?? status?.version ?? "release"} image (${(data.length / 1024).toFixed(0)} KiB), flashing at 0x${offset.toString(16)}`);
       setPhase("flashing");
       const session = await flashToTarget(target, {
+        framework: "micropython",
+        onBoot: setBoot,
         images: [{ data, address: offset }],
         eraseAll: true,
         chip: board?.chip_variant,
@@ -906,6 +943,8 @@ function MicroPythonFlash({ design, boards }: { design: Design | null; boards: B
         </div>
       )}
 
+      <BootStatus result={boot} />
+
       {serial && (
         <pre className="max-h-40 overflow-auto rounded-lg bg-surface-0 p-2 font-mono text-[11px] leading-snug text-emerald-300/90 ring-1 ring-line">
           {serial}
@@ -930,6 +969,7 @@ function TasmotaFlash({ design, boards }: { design: Design | null; boards: Board
   const [progress, setProgress] = useState<number>(0);
   const [log, setLog] = useState<string[]>([]);
   const [serial, setSerial] = useState<string>("");
+  const [boot, setBoot] = useState<WorkbenchBootResult | null>(null);
   const [template, setTemplate] = useState<TasmotaTemplate | null>(null);
   const [templateWarnings, setTemplateWarnings] = useState<string[]>([]);
   const [ssid, setSsid] = useState("");
@@ -977,11 +1017,14 @@ function TasmotaFlash({ design, boards }: { design: Design | null; boards: Board
     if (!chip) return;
     setError(null);
     setPhase("fetching");
+    setBoot(null);
     try {
       const { data, offset } = await api.tasmotaFirmware(chip);
       appendLog(`fetched release image (${(data.length / 1024).toFixed(0)} KiB) for ${chip}`);
       setPhase("flashing");
       const session = await flashToTarget(target, {
+        framework: "tasmota",
+        onBoot: setBoot,
         images: [{ data, address: offset }],
         eraseAll: true,
         chip: board?.chip_variant,
@@ -1101,6 +1144,8 @@ function TasmotaFlash({ design, boards }: { design: Design | null; boards: Board
           </div>
         </div>
       )}
+
+      <BootStatus result={boot} />
 
       {serial && (
         <pre className="max-h-40 overflow-auto rounded-lg bg-surface-0 p-2 font-mono text-[11px] leading-snug text-emerald-300/90 ring-1 ring-line">

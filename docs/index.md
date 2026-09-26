@@ -356,8 +356,12 @@ caveats still stand.
    CircuitPython are explicitly unsupported with the reason rather than
    approximated. Joining is a separate opt-in check, because the first
    join after a flash reliably fails and only the retry succeeds.
-   Still to do: stream that serial into the flash dialog so a human
-   watches the boot.
+   The client half followed: after a slot flash the dialog relays the
+   slot's recorder for twenty seconds, so a human watches the boot, and
+   shows the bench's verdict (booted with the line that proved it, no
+   marker within the timeout, or why the framework cannot be verified).
+   `GET /workbench/slots/{slot}/output` and `POST /workbench/verify-boot`
+   are the routes behind it. MicroPython's banner joined the markers.
 3. **Nightly hardware gate — shipped in 0.30.0.** A scheduled job
    asserts the bench and every board on it: the portal answers, each
    configured slot is present and flashable, its serial recorder is

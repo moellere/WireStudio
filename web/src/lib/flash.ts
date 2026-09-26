@@ -13,6 +13,7 @@
  * wiped NVS is fine. This module is image-agnostic -- the caller picks.
  */
 import { isWebSerialSupported } from "./usb-detect";
+import type { WorkbenchBootResult } from "../types/api";
 
 /** ESP32 Arduino/ESPHome partition layout puts the app image here. */
 export const APP_PARTITION_OFFSET = 0x10000;
@@ -180,15 +181,25 @@ export async function flashFirmware(opts: FlashOptions): Promise<FlashSession> {
  */
 export type FlashTarget = { kind: "usb" } | { kind: "workbench"; slot: string };
 
+export interface WatchOptions {
+  /** Framework id for the bench's boot marker (esphome, lorawan, micropython, ...). */
+  framework?: string;
+  /** Boot verdict from the bench, or a reason it could not be verified. */
+  onBoot?: (result: WorkbenchBootResult) => void;
+  /** How long to relay the slot's serial after the flash. */
+  watchSeconds?: number;
+}
+
 /**
  * Flash to either target. Returns a FlashSession for USB; returns null for
  * the workbench, which has no serial session to hand back -- the bench owns
- * the port and only answers once the flash is done. Boot output over a slot
- * is phase 2.
+ * the port and only answers once the flash is done. On a slot, the boot
+ * output is relayed to `onSerial` from the bench's recorder for a while
+ * after the flash, and `onBoot` gets the bench's boot-marker verdict.
  */
 export async function flashToTarget(
   target: FlashTarget,
-  opts: FlashOptions & { chip?: string },
+  opts: FlashOptions & { chip?: string } & WatchOptions,
 ): Promise<FlashSession | null> {
   if (target.kind === "usb") {
     return flashFirmware(opts);
@@ -197,6 +208,7 @@ export async function flashToTarget(
     throw new Error("nothing to flash: no firmware images provided");
   }
 
+  const since = Date.now() / 1000;
   const { workbenchFlash } = await import("../api/client");
   for await (const event of workbenchFlash({
     slot: target.slot,
@@ -212,7 +224,34 @@ export async function flashToTarget(
   // The bench reports bytes only in its log, so there is no honest
   // incremental progress to report -- jump to complete rather than fake it.
   opts.onProgress?.(1, 1);
+  if (opts.onSerial || opts.onBoot) void watchSlot(target.slot, since, opts);
   return null;
+}
+
+/** Relay the recorder's lines since the flash and, when a framework is
+ *  named, ask the bench whether its boot marker appeared. Runs after
+ *  flashToTarget returns so the flash phase ends when the flash does. */
+export async function watchSlot(slot: string, since: number, opts: WatchOptions & Pick<FlashOptions, "onSerial">): Promise<void> {
+  const { api } = await import("../api/client");
+  if (opts.framework && opts.onBoot) {
+    api.workbenchVerifyBoot({ slot, framework: opts.framework, since })
+      .then(opts.onBoot)
+      .catch((e) => opts.onBoot?.({ ok: false, framework: opts.framework ?? "", error: e instanceof Error ? e.message : String(e) }));
+  }
+  if (!opts.onSerial) return;
+  const deadline = Date.now() + (opts.watchSeconds ?? 20) * 1000;
+  let emitted = 0;
+  while (Date.now() < deadline) {
+    try {
+      const { lines } = await api.workbenchOutput(slot, since);
+      for (const line of lines.slice(emitted)) opts.onSerial(line.text.endsWith("\n") ? line.text : line.text + "\n");
+      emitted = Math.max(emitted, lines.length);
+    } catch (e) {
+      opts.onSerial(`\n[slot output unavailable: ${e instanceof Error ? e.message : String(e)}]\n`);
+      return;
+    }
+    await sleep(1000);
+  }
 }
 
 function toBase64(bytes: Uint8Array): string {
