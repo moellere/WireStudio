@@ -46,6 +46,8 @@ import type {
   WorkbenchStatus,
   WorkbenchSlot,
   WorkbenchFlashEvent,
+  WorkbenchBootResult,
+  WorkbenchOutputLine,
 } from "../types/api";
 
 // In dev, Vite proxies /api/* to the studio API on :8765 (see vite.config.ts).
@@ -344,6 +346,12 @@ export const api = {
     ),
   workbenchStatus: () => request<WorkbenchStatus>("/workbench/status"),
   workbenchSlots: () => request<{ slots: WorkbenchSlot[] }>("/workbench/slots"),
+  workbenchOutput: (slot: string, since: number) =>
+    request<{ slot: string; lines: WorkbenchOutputLine[] }>(
+      `/workbench/slots/${encodeURIComponent(slot)}/output?since=${since}`,
+    ),
+  workbenchVerifyBoot: (body: { slot: string; framework: string; since?: number; check_join?: boolean }) =>
+    request<WorkbenchBootResult>("/workbench/verify-boot", { method: "POST", body: JSON.stringify(body) }),
   kicadRouteStatus: () =>
     request<KicadRouteStatus>("/design/kicad/route/status"),
   kicadRoutedBoard: (cacheKey: string) =>

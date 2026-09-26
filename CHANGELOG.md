@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Boot output and verdict in the flash dialog after a slot flash**
+  (workbench phase 2, client half). Flashing a bench slot used to end at
+  "written": the bench owns the port, so the dialog had no serial to
+  show and the roadmap's "still to do" stood since 0.29. Now the dialog
+  relays the slot's recorder for twenty seconds after the flash and
+  asks the bench for its boot verdict: booted, with the line that proved
+  it; no marker within the framework's timeout; or why the framework
+  cannot be verified (CircuitPython enumerates a drive, Meshtastic has no
+  established banner). `GET /workbench/slots/{slot}/output` and
+  `POST /workbench/verify-boot` carry it; `workbench_verify_boot` on
+  MCP was already there.
+
 - **ERC on the generated schematics.** The `kicad-render` job now runs
   `kicad-cli sch erc` on the rendered schematics of representative
   examples (`scripts/check_erc.py`). Every violation type ERC reports

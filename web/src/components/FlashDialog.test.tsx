@@ -7,7 +7,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { FlashDialog } from "./FlashDialog";
+import { BootStatus, FlashDialog } from "./FlashDialog";
 import { api } from "../api/client";
 import type { BoardSummary, Design } from "../types/api";
 
@@ -280,5 +280,18 @@ describe("meshtastic configuration", () => {
     await userEvent.click(screen.getByRole("button", { name: /configure connected node/i }));
     await waitFor(() => expect(screen.getByText(/PSK is not base64/)).toBeInTheDocument());
     expect(meshPush).not.toHaveBeenCalled();
+  });
+});
+
+describe("BootStatus", () => {
+  it("renders nothing without a verdict, then booted, not booted, and not verifiable", () => {
+    const { container, rerender } = render(<BootStatus result={null} />);
+    expect(container).toBeEmptyDOMElement();
+    rerender(<BootStatus result={{ ok: true, framework: "esphome", booted: true, checks: [{ stage: "boot", matched: true, proves: "every ESPHome component initialised", line: "[I][app:117]: setup() finished successfully!" }] }} />);
+    expect(screen.getByText(/booted: every esphome component initialised/i)).toBeInTheDocument();
+    rerender(<BootStatus result={{ ok: false, framework: "lorawan", booted: false, checks: [{ stage: "boot", matched: false, pattern: "wirestudio lorawan:", timeout_s: 45 }] }} />);
+    expect(screen.getByText(/no boot marker within 45 s/i)).toBeInTheDocument();
+    rerender(<BootStatus result={{ ok: false, framework: "circuitpython", error: "success is CIRCUITPY enumerating as USB mass storage" }} />);
+    expect(screen.getByText(/boot not verified: success is circuitpy/i)).toBeInTheDocument();
   });
 });

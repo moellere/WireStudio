@@ -469,6 +469,31 @@ export interface WorkbenchSlot {
 
 /** The bench buffers esptool, so every `log` arrives at completion --
  *  there is no incremental progress to render. */
+export interface WorkbenchOutputLine {
+  ts: number | null;
+  text: string;
+}
+
+export interface WorkbenchBootCheck {
+  stage: "boot" | "join";
+  pattern?: string;
+  proves?: string;
+  matched: boolean | null;
+  line?: string | null;
+  via?: "buffer" | "monitor";
+  timeout_s?: number;
+  skipped?: string;
+}
+
+export interface WorkbenchBootResult {
+  ok: boolean;
+  framework: string;
+  booted?: boolean;
+  joined?: boolean | null;
+  checks?: WorkbenchBootCheck[];
+  error?: string;
+}
+
 export type WorkbenchFlashEvent =
   | { type: "log"; data: string }
   | { type: "done"; ok: boolean; slot: string; returncode: number | null };

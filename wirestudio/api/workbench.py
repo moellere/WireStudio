@@ -93,6 +93,47 @@ def router(client_factory: Optional[Callable[[], WorkbenchClient]] = None) -> AP
             ],
         }
 
+    @router.get("/slots/{slot}/output")
+    async def workbench_slot_output(slot: str, since: float = 0, lines: int = 500) -> dict:
+        """Lines the bench's recorder captured on `slot` after `since`
+        (epoch seconds). Read-only: the recorder taps the port without
+        touching the device."""
+        wc = make_client()
+        if not wc.is_configured():
+            raise HTTPException(status_code=503, detail="workbench not configured (set WORKBENCH_URL)")
+        try:
+            entries = await wc.output(slot, lines=lines, since=since)
+        except WorkbenchUnavailable as e:
+            raise HTTPException(status_code=502, detail=str(e)) from e
+        return {"slot": slot, "lines": [
+            {"ts": e.get("ts"), "text": str(e.get("text", ""))} for e in entries if isinstance(e, dict)
+        ]}
+
+    @router.post("/verify-boot")
+    async def workbench_verify_boot(body: dict = Body(...)) -> dict:
+        """Assert the firmware on a slot booted: watch its serial for the
+        framework's boot marker, searching what the recorder already
+        captured since `since` before waiting on new output. A board
+        that flashed but did not boot is a result, not an error."""
+        from wirestudio.workbench.boot import verify_boot
+
+        slot = str(body.get("slot") or "")
+        framework = str(body.get("framework") or "")
+        if not slot or not framework:
+            raise HTTPException(status_code=422, detail="slot and framework are required")
+        since = body.get("since")
+        wc = make_client()
+        if not wc.is_configured():
+            raise HTTPException(status_code=503, detail="workbench not configured (set WORKBENCH_URL)")
+        try:
+            return await verify_boot(
+                wc, slot, framework,
+                since=float(since) if since is not None else None,
+                check_join=bool(body.get("check_join", False)),
+            )
+        except WorkbenchUnavailable as e:
+            raise HTTPException(status_code=502, detail=str(e)) from e
+
     @router.post("/flash")
     async def workbench_flash(body: dict = Body(...)) -> StreamingResponse:
         """Flash a slot, streaming the bench's esptool output as SSE.
