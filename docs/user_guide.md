@@ -113,6 +113,7 @@ pinned via `WIRESTUDIO_MCP_TOKEN`). See [the MCP guide](mcp.md#auth).
 | `POST` | `/design/render` | parse + render a `design.json` to `{yaml, ascii}` |
 | `POST` | `/design/enclosure/openscad` | generate a parametric `.scad` shell for the design's board |
 | `POST` | `/design/kicad/schematic` | generate a SKiDL Python script the user runs locally to produce a `.kicad_sch` |
+| `POST` | `/design/kicad/erc` | run `kicad-cli sch erc` on the generated schematic; violations with per-type counts (`/design/kicad/erc/status` gates it on SKiDL + kicad-cli) |
 | `GET`  | `/enclosure/search?library_id=...&query=...` | search community-uploaded enclosure models (Thingiverse) |
 | `GET`  | `/enclosure/search/status` | per-source availability + configure hints |
 | `GET`  | `/examples` | list bundled examples |

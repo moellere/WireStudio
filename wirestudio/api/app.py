@@ -129,6 +129,7 @@ from wirestudio.kicad.route import (
     route_events,
     route_status,
 )
+from wirestudio.kicad.erc import erc_status, run_erc
 from wirestudio.kicad.render import (
     RenderError,
     RenderUnavailable,
@@ -694,6 +695,26 @@ def create_app(
             raise HTTPException(status_code=500, detail=str(e)) from e
         media = "image/svg+xml" if format == "svg" else "image/png"
         return Response(content=data, media_type=media)
+
+    @app.get("/design/kicad/erc/status", tags=["design"])
+    def design_kicad_erc_status() -> dict:
+        """Probe whether ERC (SKiDL + kicad-cli) is available."""
+        return erc_status()
+
+    @app.post("/design/kicad/erc", tags=["design"])
+    def design_kicad_erc(design: dict) -> dict:
+        """Run KiCad's electrical rules check on the design's generated
+        schematic and return the violations with per-type counts. 503
+        when the tools are not installed."""
+        d = _validate_design(design)
+        try:
+            return run_erc(d, lib)
+        except RenderUnavailable as e:
+            raise HTTPException(status_code=503, detail=str(e)) from e
+        except FileNotFoundError as e:
+            raise HTTPException(status_code=422, detail=str(e)) from e
+        except RenderError as e:
+            raise HTTPException(status_code=500, detail=str(e)) from e
 
     @app.get("/design/kicad/pcb/status", tags=["design"])
     def design_kicad_pcb_status() -> dict:
