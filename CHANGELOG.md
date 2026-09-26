@@ -13,12 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `kicad-cli sch erc` on the rendered schematics of representative
   examples (`scripts/check_erc.py`). Every violation type ERC reports
   must be listed in `scripts/erc_baseline.yaml` with the reason the
-  generator cannot avoid it; today that is the undriven power-input
-  pins (no PWR_FLAG symbols are emitted) and the open pins on generic
-  headers and unused optional pins. An entry no example raises any more
-  fails the run, so the baseline shrinks as the generator improves.
-  Anything else, an output driving an output, a floating input, fails
-  the PR. `POST /design/kicad/erc` (and `/erc/status`) run the same
+  generator cannot avoid it; today that is five types: undriven
+  power-input pins (no PWR_FLAG symbols are emitted), open and undriven
+  pins on the bare module symbol and the passive generic headers,
+  single-ended global labels from SKiDL's placer, and the library-table
+  warning kicad-cli raises without a sym-lib-table. An entry no example
+  raises any more fails the run, so the baseline shrinks as the
+  generator improves. Anything else, an output driving an output, two
+  drivers on one net, fails the PR. `POST /design/kicad/erc` (and `/erc/status`) run the same
   check on demand; `python -m wirestudio.kicad.erc design.json` prints
   it.
 

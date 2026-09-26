@@ -126,12 +126,15 @@ toolchain env), which the netlist gate cannot. The same job now runs
 `kicad-cli sch erc` on the rendered schematics
 ([`scripts/check_erc.py`](../scripts/check_erc.py)): KiCad's own
 judgement of the wiring, held to a baseline
-([`erc_baseline.yaml`](../scripts/erc_baseline.yaml)) of the two
-violation types the generator cannot avoid (no PWR_FLAG symbols, so
-power-input pins read as undriven; open pins on generic headers and
-unused optional pins), each with its reason, and a stale-entry rule so
-the list shrinks as the generator improves. Anything else, an output
-driving an output, an input left floating, fails the PR.
+([`erc_baseline.yaml`](../scripts/erc_baseline.yaml)) of the five
+violation types the generator cannot avoid today, each with its reason:
+undriven power-input pins (no PWR_FLAG symbols are emitted), open and
+undriven pins on the bare module symbol and the passive generic
+headers, single-ended global labels from SKiDL's placer, and the
+library-table warning kicad-cli raises when run without a
+sym-lib-table. A stale-entry rule shrinks the list as the generator
+improves. Anything else, an output driving an output, two drivers on
+one net, fails the PR.
 `POST /design/kicad/erc` runs the same check on demand. Next:
 pin-solver property tests on randomized designs; compatibility-checker
 fuzzing.
