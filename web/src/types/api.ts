@@ -308,6 +308,21 @@ export interface InventorySubstitute {
   on_hand: number;
   location: string;
   caveats: string[];
+  headroom: { v?: number | null; i?: number | null };
+  rank: number;
+}
+
+export interface AppliedSubstitution {
+  value: string;
+  mpn: string;
+  keys: string[];
+  refs: string[];
+  caveats: string[];
+}
+
+export interface InventoryApplyResponse {
+  design: Design;
+  applied: AppliedSubstitution[];
 }
 
 export interface InventoryPartCheckLine {

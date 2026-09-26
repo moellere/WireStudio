@@ -923,6 +923,19 @@ export default function App() {
         <InventoryDialog
           design={design}
           onClose={() => setShowInventoryDialog(false)}
+          onApplyAll={(applied) =>
+            setDesign((d) =>
+              d
+                ? {
+                    ...d,
+                    part_overrides: {
+                      ...((d.part_overrides as Record<string, string> | undefined) ?? {}),
+                      ...Object.fromEntries(applied.flatMap((a) => a.keys.map((k) => [k, a.mpn]))),
+                    },
+                  }
+                : d,
+            )
+          }
           onApplySubstitute={(keys, mpn) =>
             setDesign((d) =>
               d
