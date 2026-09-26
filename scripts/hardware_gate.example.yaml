@@ -27,14 +27,19 @@ devices:
     dev_eui: 10521cfffe66b6e0
 
   - slot: SLOT19
-    name: Heltec WiFi LoRa 32 V2
-    framework: lorawan
+    name: TTGO T3 v1.6.1 spare (battery)
+    framework: lorawan-esphome
     dev_eui: 64b708fffeab8974
 
-  - slot: SLOT28
+  - slot: SLOT14
     name: Heltec WiFi LoRa 32 V4 GNSS
     framework: lorawan-esphome
     dev_eui: 8cfd49fffeb55758
+
+  - slot: SLOT31
+    name: Heltec V2 (roboat monet-node)
+    framework: lorawan-esphome
+    dev_eui: 70b3baec29813d83
 
   # A board that is powered and transmitting but whose USB cable is out.
   # `on_bench: false` drops it from the slots and serial stages -- failing
