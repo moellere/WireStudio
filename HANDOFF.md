@@ -7,7 +7,9 @@ Written 2026-08-26. Everything below is verified live unless marked otherwise.
 - **wirestudio 0.32.0** — tagged, on PyPI + ghcr, prod running `0.32.0-full`.
   Nothing unreleased; `[Unreleased]` in CHANGELOG is empty.
 - **Bench** (`10.254.0.44`, address by IP) on upstream **Embedded-AI-Harness v1.0.1**.
-  Hostname pinned to `wyola-workbench` by a local patch (below).
+  Merged onto the ChirpStack host `wyolora` 2026-09-26: `10.254.0.44` and
+  `10.254.0.11` are aliases of one machine. ChirpStack holds `:8080`, so the
+  workbench portal is on **`:8081`** (`WORKBENCH_URL=http://10.254.0.44:8081`).
 - **Nightly hardware gate** runs 03:30 America/Denver, currently 11/11 green.
   Run on demand:
   `kubectl create job -n wirestudio gate-x --from=cronjob/wirestudio-hardware-gate`
@@ -18,15 +20,18 @@ Written 2026-08-26. Everything below is verified live unless marked otherwise.
 | DevEUI | Board | Slot | State |
 |---|---|---|---|
 | `10521cfffe66b6e0` | TTGO T-Beam | SLOT12 | 0.32.0 fw, joined, 24-byte payload |
-| `70b3baec29813d83` | Heltec V2 | SLOT19 | on loan to roboat P4 HIL since 2026-08-29, joins as monet-node in the `roboat` app; old EUI `64b708fffeab8974` is dead |
-| `8cfd49fffeb55758` | Heltec V4 GNSS | SLOT14 | L76K seated 2026-09-13; module reports ANTENNA OPEN and the fix is intermittent (7 sats on 09-14, none on 09-16); payload keeps last coords with satellites=0 when unfixed |
-| `500291fffe9df404` | TTGO LoRa32 v2 | SLOT31 | cable back in 2026-09-13; still needs the ADC-pin/divider reflash |
-| `c44f33fffe76e03d` | Heltec GPS | — | offline by choice since June |
+| `8cfd49fffeb55758` | Heltec V4 GNSS | SLOT14 | ESPHome build, 12-byte payload (lat, lon, sats); no fix at all on 09-26 (NaN coords, 0 sats) -- L76K reports ANTENNA OPEN |
+| `64b708fffeab8974` | TTGO T3 v1.6.1 spare (battery) | SLOT19 | ESPHome, 8-byte payload; took over the old Heltec V2 identity |
+| `70b3baec29813d83` | Heltec V2 | SLOT31 | on loan to roboat P4 HIL since 2026-08-29, joins as monet-node in the `roboat` app, 20-byte payload on fport 10 |
+| `500291fffe9df404` | TTGO LoRa32 v2 | off bench | on the air (4-byte payload, 5 min) but USB cable out; `on_bench: false` in the gate; still needs the ADC-pin/divider reflash |
+| `c44f33fffe76e03d` | Heltec GPS | — | not on USB; ChirpStack last saw it 2026-09-26 21:49 UTC |
 
-Identify boards by USB bridge, never by slot label (labels are positional; the
-bench was re-enumerated 2026-09-13 and the gate roster in the argocd repo
-matches the labels above): `10c4:ea60`=T-Beam and TTGO LoRa32 v2 (tell them
-apart by uplink size: 24 vs 4 bytes), `1a86:55d4`=Heltec V2, `303a:1001`=V4/esp32s3.
+Identify boards by USB bridge and payload, never by slot label (labels are
+positional; the bench was re-enumerated 2026-09-26 and the gate roster in the
+argocd repo and the ChirpStack `slot` tags match the labels above):
+`10c4:ea60` CP2104=T-Beam, `10c4:ea60` CP2102=Heltec V2, `1a86:55d4`=TTGO T3,
+`303a:1001`=V4/esp32s3. When two boards share a bridge, match the slot's serial
+log timestamps against each DevEUI's uplink times in ChirpStack.
 
 ---
 
@@ -120,13 +125,13 @@ is tracked in `HANDOFF-METRICS.md` in the nomtom repo, not here.
 
 ## Hardware, needs a human at Wyola
 
-- **Reflash the TTGO LoRa32 v2** (SLOT31) with the ADC-pin/divider fix; it is
-  back on the bench and flashable.
+- **Reflash the TTGO LoRa32 v2** with the ADC-pin/divider fix; its USB cable
+  is out again, so plug it in first (it will appear as an unclaimed slot).
 - **Fix the Heltec V4's GNSS antenna.** The L76K on SLOT14 reports ANTENNA
   OPEN every cycle and sees ~9 satellites with only two at a usable SNR, so it
-  fixes only intermittently. Reseat the antenna connector or fit an external
-  antenna. Until then the uplink carries the last known coordinates with
-  `satellites=0`; consumers must treat that as stale.
+  fixes only intermittently -- on 2026-09-26 not at all. Reseat the antenna
+  connector or fit an external antenna. Unfixed uplinks carry NaN coordinates
+  with `satellites=0`.
 - **Heltec GPS** (`c44f33…`): when it returns it needs a rebuild, reflash and
   profile update before it decodes — `fix_age_min` moved its payload 17 → 19
   bytes, and a refreshed profile would reject the old firmware's 17-byte uplink.
