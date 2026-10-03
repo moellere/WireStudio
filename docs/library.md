@@ -100,9 +100,12 @@ _Touch / input:_
 _IO expanders + ADC hubs:_
 - `mcp23008` — 8-bit I2C GPIO expander (Microchip)
 - `mcp23017` — 16-bit I2C GPIO expander (Microchip)
+- `mcp23s17` — 16-bit SPI GPIO expander (Microchip); same pins and `mcp23xxx:` discriminator as the MCP23017, hardware address 0-7 on one CS
 - `pcf8574` — NXP PCF8574 / PCF8575 8-/16-bit I2C GPIO expander (cheap, weak open-drain)
 - `ads1115` — TI 4-channel 16-bit ADC (I2C) hub; rescues ESP32 designs from the ADC2/WiFi conflict
 - `ads1115_channel` — one logical reading on an ADS1115 hub (multiplexer + gain + update_interval per channel)
+- `mcp3008` — Microchip 8-channel 10-bit ADC (SPI) hub; VREF pin sets full scale
+- `mcp3008_channel` — one single-ended reading on an MCP3008 hub (number + reference_voltage + update_interval per channel)
 
 _Generic IO:_
 - `gpio_input` — generic binary_sensor on a GPIO or expander pin (buttons, limit switches, door/window/motion sensors)
