@@ -44,7 +44,7 @@ def test_emitted_script_compiles(lib):
     """Every bundled example must produce a Python-syntax-valid script."""
     for name in ("garage-motion", "wasserpir", "oled", "bluemotion",
                  "distance-sensor", "rc522", "esp32-audio", "wemosgps",
-                 "ttgo-lora32", "multi-temp"):
+                 "ttgo-lora32", "multi-temp", "spi-io-node"):
         script = generate_skidl(_design(name), lib)
         compile(script, f"<{name}>", "exec")  # raises SyntaxError if bad
 

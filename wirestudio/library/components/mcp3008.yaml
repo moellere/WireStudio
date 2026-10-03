@@ -1,0 +1,61 @@
+id: mcp3008
+name: MCP3008 8-channel 10-bit ADC hub (SPI)
+category: sensor
+use_cases: [adc, analog_in, voltage, potentiometer, ldr]
+aliases: ["mcp3004", "mcp3208", "spi adc"]
+
+electrical:
+  vcc_min: 2.7
+  vcc_max: 5.5
+  current_ma_typical: 0.5
+  current_ma_peak: 0.6
+  pins:
+  - {role: VCC, kind: power}
+  - {role: VREF, kind: power}
+  - {role: GND, kind: ground}
+  - {role: CLK, kind: spi_clk}
+  - {role: MOSI, kind: spi_mosi}
+  - {role: MISO, kind: spi_miso}
+  - {role: CS, kind: spi_cs}
+  passives:
+  - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+  - {kind: capacitor, value: "1uF", between: [VREF, GND], purpose: "reference decoupling"}
+
+esphome:
+  required_components: [spi]
+  yaml_template: |
+    mcp3008:
+      - id: {{ id }}_hub
+        spi_id: {{ bus.id }}
+        cs_pin: {{ pins.CS | tojson }}
+
+circuitpython:
+  imports: ["import digitalio", "import adafruit_mcp3xxx.mcp3008 as MCP"]
+  deps: [adafruit_mcp3xxx, adafruit_bus_device]
+  setup: |
+    {{ id }}_cs = digitalio.DigitalInOut(P({{ pins.CS }}))
+    {{ id }} = MCP.MCP3008({{ bus_var }}, {{ id }}_cs)
+
+params_schema: {}
+
+notes: |
+  Hub-only component. Each reading is a separate `mcp3008_channel`
+  pointing at this hub via a HUB connection, so every channel carries
+  its own reference voltage, update interval and inspector row. 8
+  single-ended channels, 10 bits, 200 ksps at 5 V (75 ksps at 2.7 V).
+  VREF sets full scale and is what `reference_voltage` on each channel
+  must match; tying it to the same rail as VDD is the usual choice.
+  Logic levels follow VDD: a 5 V-powered chip drives Dout at 5 V, so run
+  it from 3V3 when the MCU is 3.3 V unless you want the extra range and
+  add a level shifter on MISO.
+kicad:
+  symbol_lib: Analog_ADC
+  symbol: MCP3008
+  footprint: Package_DIP:DIP-16_W7.62mm
+  pin_map:
+    VCC: Vdd
+    VREF: Vref
+    GND: DGND
+    MOSI: Din
+    MISO: Dout
+    CS: ~{CS}/SHDN
