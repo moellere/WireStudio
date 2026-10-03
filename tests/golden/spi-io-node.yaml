@@ -1,0 +1,71 @@
+esphome:
+  name: spi-io-node
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+  flash_size: 4MB
+logger: {}
+api:
+  encryption:
+    key: !secret api_key
+ota:
+- platform: esphome
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+captive_portal: {}
+spi:
+- id: spi_bus
+  clk_pin: GPIO18
+  miso_pin: GPIO19
+  mosi_pin: GPIO23
+mcp23s17:
+- id: io_hub
+  spi_id: spi_bus
+  cs_pin: GPIO5
+  deviceaddress: 0
+binary_sensor:
+- platform: gpio
+  pin:
+    mcp23xxx: io_hub
+    number: 0
+    mode: INPUT_PULLUP
+    inverted: true
+  name: Front Door
+  id: front_door
+  device_class: door
+- platform: gpio
+  pin:
+    mcp23xxx: io_hub
+    number: 1
+    mode: INPUT_PULLUP
+    inverted: true
+  name: Back Door
+  id: back_door
+  device_class: door
+switch:
+- platform: gpio
+  pin:
+    mcp23xxx: io_hub
+    number: 8
+    mode: OUTPUT
+  name: Siren
+  id: siren
+mcp3008:
+- id: adc_hub_hub
+  spi_id: spi_bus
+  cs_pin: GPIO17
+sensor:
+- platform: mcp3008
+  mcp3008_id: adc_hub_hub
+  number: 0
+  reference_voltage: 3.3V
+  name: Tank Level
+  update_interval: 30s
+- platform: mcp3008
+  mcp3008_id: adc_hub_hub
+  number: 7
+  reference_voltage: 3.3V
+  name: Ambient Light
+  update_interval: 10s

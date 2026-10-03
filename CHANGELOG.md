@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **MCP23S17 and MCP3008 library components.** `mcp23s17` is the SPI
+  sibling of the MCP23017: same sixteen GPIOs, same `mcp23xxx:` pin
+  discriminator on downstream platforms, a `deviceaddress` param for the
+  A0-A2 hardware address, and its own CS. `mcp3008` is an 8-channel
+  10-bit SPI ADC hub with a VREF pin, read through `mcp3008_channel`
+  instances (channel number, reference voltage, update interval) the
+  same way `ads1115_channel` hangs off `ads1115`. Example `spi-io-node`
+  puts both on one SPI bus.
+
 ## [0.37.0] — 2026-09-26
 
 ### Added

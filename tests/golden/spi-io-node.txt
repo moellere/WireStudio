@@ -1,0 +1,57 @@
++-------------------------------------------------------------------------------+
+|  ESP32-DevKitC-V4  ---  spi-io-node                                           |
++-------------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                          |
+|                                                                               |
+|  io_hub  [Microchip MCP23S17 (16-bit SPI GPIO expander)]  -- SPI IO expander  |
+|    VCC   -> rail 3V3                                                          |
+|    GND   -> rail GND                                                          |
+|    SCK   -> spi_bus (GPIO18)                                                  |
+|    MOSI  -> spi_bus (GPIO23)                                                  |
+|    MISO  -> spi_bus (GPIO19)                                                  |
+|    CS    -> GPIO5                                                             |
+|    RESET -> rail 3V3                                                          |
+|                                                                               |
+|  front_door  [Generic GPIO binary sensor]  -- Front Door                      |
+|    IN    -> io_hub.0 INPUT_PULLUP inverted                                    |
+|                                                                               |
+|  back_door  [Generic GPIO binary sensor]  -- Back Door                        |
+|    IN    -> io_hub.1 INPUT_PULLUP inverted                                    |
+|                                                                               |
+|  siren  [Generic GPIO switch / relay output]  -- Siren                        |
+|    OUT   -> io_hub.8 OUTPUT                                                   |
+|                                                                               |
+|  adc_hub  [MCP3008 8-channel 10-bit ADC hub (SPI)]  -- SPI ADC                |
+|    VCC   -> rail 3V3                                                          |
+|    VREF  -> rail 3V3                                                          |
+|    GND   -> rail GND                                                          |
+|    CLK   -> spi_bus (GPIO18)                                                  |
+|    MOSI  -> spi_bus (GPIO23)                                                  |
+|    MISO  -> spi_bus (GPIO19)                                                  |
+|    CS    -> GPIO17                                                            |
+|                                                                               |
+|  tank_level  [MCP3008 channel]  -- Tank Level                                 |
+|                                                                               |
+|  light  [MCP3008 channel]  -- Ambient Light                                   |
+|                                                                               |
+|  Passives:                                                                    |
+|    c1: 100nF capacitor, io_hub.VCC  <->  GND   (decoupling io_hub)            |
+|    c2: 100nF capacitor, adc_hub.VCC  <->  GND   (decoupling adc_hub)          |
+|    c3: 1uF capacitor, adc_hub.VREF  <->  GND   (reference decoupling)         |
+|                                                                               |
+|  BOM:                                                                         |
+|    - ESP32-DevKitC-V4                                                         |
+|    - Microchip MCP23S17 (16-bit SPI GPIO expander)  (io_hub)                  |
+|    - Generic GPIO binary sensor  (front_door)                                 |
+|    - Generic GPIO binary sensor  (back_door)                                  |
+|    - Generic GPIO switch / relay output  (siren)                              |
+|    - MCP3008 8-channel 10-bit ADC hub (SPI)  (adc_hub)                        |
+|    - MCP3008 channel  (tank_level)                                            |
+|    - MCP3008 channel  (light)                                                 |
+|    - 2x 100nF capacitor                                                       |
+|    - 1x 1uF capacitor                                                         |
+|                                                                               |
+|  Power: ~1mA typical, ~65mA peak (budget 500mA)  OK                           |
+|                                                                               |
+|  Warnings: none                                                               |
++-------------------------------------------------------------------------------+

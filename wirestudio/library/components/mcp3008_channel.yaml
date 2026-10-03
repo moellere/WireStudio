@@ -1,0 +1,68 @@
+id: mcp3008_channel
+name: MCP3008 channel
+category: sensor
+use_cases: [adc, analog_in, voltage, potentiometer, ldr]
+aliases: ["mcp3008_sensor"]
+
+electrical:
+  current_ma_typical: 0
+  current_ma_peak: 0
+  pins:
+    - role: HUB
+      kind: hub_ref
+      parent_library_id: mcp3008
+  passives: []
+
+esphome:
+  required_components: []
+  yaml_template: |
+    sensor:
+      - platform: mcp3008
+        mcp3008_id: {{ parent.id }}_hub
+        number: {{ params.number | default(0) }}
+        reference_voltage: {{ params.reference_voltage | default('3.3V') }}
+        name: "{{ label }}"
+        update_interval: {{ params.update_interval | default('60s') }}
+    {%- if params.filters is defined %}
+        filters: {{ params.filters | tojson }}
+    {%- endif %}
+    {%- if params.on_value is defined %}
+        on_value: {{ params.on_value | tojson }}
+    {%- endif %}
+    {%- if params.on_value_range is defined %}
+        on_value_range: {{ params.on_value_range | tojson }}
+    {%- endif %}
+
+capability:
+  role: sensor
+  provides:
+    - {event: on_value, kind: value}
+    - {event: on_value_range, kind: event}
+
+params_schema:
+  number:
+    type: integer
+    enum: [0, 1, 2, 3, 4, 5, 6, 7]
+    default: 0
+    description: "Input channel CH0-CH7"
+  reference_voltage:
+    type: string
+    default: "3.3V"
+    description: "Voltage on the hub's VREF pin; full-scale reading. Must match what VREF is wired to."
+  update_interval:
+    type: string
+    default: "60s"
+
+notes: |
+  One single-ended reading from an MCP3008 hub. Add an `mcp3008` first,
+  then one `mcp3008_channel` per input; each HUB connection auto-binds
+  to the only hub in the design. `reference_voltage` is not measured, it
+  is the scale factor ESPHome multiplies the 10-bit count by, so it has
+  to agree with the hub's VREF wiring. Reports volts; add
+  `filters: [calibrate_linear: ...]` to turn a divider or sensor into
+  engineering units.
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x01
+  footprint: Connector_PinHeader_2.54mm:PinHeader_1x01_P2.54mm_Vertical
+  value: MCP3008 channel

@@ -180,6 +180,27 @@ def test_rc522_spi_block_emitted(rc522_design, library):
     assert parsed["rc522_spi"]["spi_id"] == "spi_bus"
 
 
+def test_spi_io_node_matches_golden(spi_io_node_design, library, golden_dir):
+    expected = (golden_dir / "spi-io-node.yaml").read_text()
+    assert render_yaml(spi_io_node_design, library) == expected
+
+
+def test_mcp23s17_uses_unified_mcp23xxx_pin_key(spi_io_node_design, library):
+    parsed = yaml.unsafe_load(render_yaml(spi_io_node_design, library))
+    assert parsed["mcp23s17"][0] == {"id": "io_hub", "spi_id": "spi_bus", "cs_pin": "GPIO5", "deviceaddress": 0}
+    assert parsed["binary_sensor"][0]["pin"]["mcp23xxx"] == "io_hub"
+    assert parsed["switch"][0]["pin"]["mcp23xxx"] == "io_hub"
+
+
+def test_mcp3008_channels_point_at_hub(spi_io_node_design, library):
+    parsed = yaml.unsafe_load(render_yaml(spi_io_node_design, library))
+    assert parsed["mcp3008"][0] == {"id": "adc_hub_hub", "spi_id": "spi_bus", "cs_pin": "GPIO17"}
+    sensors = {s["name"]: s for s in parsed["sensor"] if s.get("platform") == "mcp3008"}
+    assert sensors["Tank Level"]["mcp3008_id"] == "adc_hub_hub"
+    assert sensors["Tank Level"]["number"] == 0
+    assert sensors["Ambient Light"]["number"] == 7
+
+
 def test_esp32_audio_matches_golden(esp32_audio_design, library, golden_dir):
     expected = (golden_dir / "esp32-audio.yaml").read_text()
     assert render_yaml(esp32_audio_design, library) == expected

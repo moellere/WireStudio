@@ -74,6 +74,11 @@ def rc522_design() -> Design:
 
 
 @pytest.fixture
+def spi_io_node_design() -> Design:
+    return Design.model_validate(json.loads((REPO_ROOT / "wirestudio" / "examples" / "spi-io-node.json").read_text()))
+
+
+@pytest.fixture
 def esp32_audio_design() -> Design:
     return Design.model_validate(json.loads((REPO_ROOT / "wirestudio" / "examples" / "esp32-audio.json").read_text()))
 

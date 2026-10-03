@@ -1,0 +1,68 @@
+id: mcp23s17
+name: Microchip MCP23S17 (16-bit SPI GPIO expander)
+category: io_expander
+use_cases: [gpio_expansion, switch_inputs, led_outputs, security_sensors]
+aliases: [mcp23s08, "spi expander"]
+
+electrical:
+  vcc_min: 1.8
+  vcc_max: 5.5
+  current_ma_typical: 1
+  current_ma_peak: 65
+  pins:
+  - {role: VCC, kind: power}
+  - {role: GND, kind: ground}
+  - {role: SCK, kind: spi_clk}
+  - {role: MOSI, kind: spi_mosi}
+  - {role: MISO, kind: spi_miso}
+  - {role: CS, kind: spi_cs}
+  - {role: RESET, kind: digital_in, voltage: 3.3}
+  passives:
+  - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
+
+esphome:
+  required_components: [spi]
+  # Same pin discriminator as the I2C MCP23008/MCP23017: ESPHome keys every
+  # MCP23xxx hub as `mcp23xxx:` on downstream pin blocks.
+  expander_pin_key: mcp23xxx
+  yaml_template: |
+    mcp23s17:
+      - id: {{ id }}
+        spi_id: {{ bus.id }}
+        cs_pin: {{ pins.CS | tojson }}
+        deviceaddress: {{ params.deviceaddress | default(0) }}
+
+circuitpython:
+  imports: ["import digitalio", "from adafruit_mcp230xx.mcp23s17 import MCP23S17"]
+  deps: [adafruit_mcp230xx, adafruit_bus_device]
+  setup: |
+    {{ id }}_cs = digitalio.DigitalInOut(P({{ pins.CS }}))
+    {{ id }} = MCP23S17({{ bus_var }}, {{ id }}_cs, address={{ params.deviceaddress | default(0) }})
+
+params_schema:
+  deviceaddress:
+    type: integer
+    enum: [0, 1, 2, 3, 4, 5, 6, 7]
+    default: 0
+    description: "Hardware address set by the A0-A2 pins. Up to eight chips can share one CS line."
+
+notes: |
+  SPI sibling of the MCP23017: same 16 GPIOs (A0-A7, B0-B7, numbered
+  0-15), same register map, same `mcp23xxx: <id>` pin discriminator on
+  downstream platforms, but 10 MHz SPI instead of 1.7 MHz I2C. The
+  A0-A2 pins select a hardware address (0-7) so up to eight chips can
+  share one CS; tie them to GND for address 0. RESET must be pulled to
+  VCC if it isn't driven. Powers from 1.8-5.5 V; at 5 V the SO pin
+  swings to 5 V, so keep a 5 V chip off a 3.3 V MISO without a level
+  shifter.
+kicad:
+  symbol_lib: Interface_Expansion
+  symbol: MCP23S17_SP
+  footprint: Package_DIP:DIP-28_W7.62mm
+  pin_map:
+    VCC: VDD
+    GND: VSS
+    MOSI: SI
+    MISO: SO
+    CS: ~{CS}
+    RESET: ~{RESET}

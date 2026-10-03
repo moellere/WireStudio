@@ -95,6 +95,11 @@ def test_rc522_matches_golden(rc522_design, library, golden_dir):
     assert render_ascii(rc522_design, library) == expected
 
 
+def test_spi_io_node_matches_golden(spi_io_node_design, library, golden_dir):
+    expected = (golden_dir / "spi-io-node.txt").read_text().rstrip("\n")
+    assert render_ascii(spi_io_node_design, library) == expected
+
+
 def test_esp32_audio_matches_golden(esp32_audio_design, library, golden_dir):
     expected = (golden_dir / "esp32-audio.txt").read_text().rstrip("\n")
     assert render_ascii(esp32_audio_design, library) == expected
