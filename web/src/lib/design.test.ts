@@ -18,6 +18,7 @@ import {
   removeComponent,
   removeRequirement,
   removeWarning,
+  setBoardFlashSize,
   setBoardLibraryId,
   setFleetField,
   setLockedPin,
@@ -166,6 +167,21 @@ describe("board + fleet", () => {
       mcu: "esp32",
       framework: "arduino",
     });
+  });
+
+  it("setBoardLibraryId drops a flash_size_mb override", () => {
+    const d: Design = clone(baseDesign);
+    (d.board as Record<string, unknown>).flash_size_mb = 32;
+    const next = setBoardLibraryId(d, "esp32-devkitc-v4", "esp32");
+    expect(next.board).not.toHaveProperty("flash_size_mb");
+  });
+
+  it("setBoardFlashSize sets the override and null removes it", () => {
+    const set = setBoardFlashSize(baseDesign, 32);
+    expect((set.board as Record<string, unknown>).flash_size_mb).toBe(32);
+    const cleared = setBoardFlashSize(set, null);
+    expect(cleared.board).not.toHaveProperty("flash_size_mb");
+    expect(cleared.board).toEqual(baseDesign.board);
   });
 
   it("setFleetField patches a single key", () => {
