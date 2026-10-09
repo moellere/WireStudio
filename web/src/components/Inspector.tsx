@@ -17,7 +17,9 @@ import {
   addWarning,
   removeRequirement,
   removeWarning,
+  setBoardFlashSize,
   setBoardLibraryId,
+  FLASH_SIZE_OVERRIDES_MB,
   setFleetField,
   updateRequirement,
   updateWarning,
@@ -157,6 +159,11 @@ function DesignInspector({
           options={libraryBoards}
           onChange={(libId, mcu) => onDesignChange((d) => setBoardLibraryId(d, libId, mcu))}
         />
+        <FlashSizeOverride
+          libraryBoard={libraryBoards?.find((b) => b.id === board.library_id)}
+          override={typeof board.flash_size_mb === "number" ? board.flash_size_mb : null}
+          onChange={(size) => onDesignChange((d) => setBoardFlashSize(d, size))}
+        />
       </Section>
 
       <Section title={`Components (${components.length})`}>
@@ -290,6 +297,46 @@ function AddComponentControl({
       >
         Add
       </button>
+    </div>
+  );
+}
+
+function FlashSizeOverride({
+  libraryBoard, override, onChange,
+}: {
+  libraryBoard: BoardSummary | undefined;
+  override: number | null;
+  onChange: (sizeMb: number | null) => void;
+}) {
+  // Mirrors the backend: only ESP32-family boards emit a flash size.
+  if (!libraryBoard?.chip_variant.startsWith("esp32")) return null;
+  const boardSize = libraryBoard.flash_size_mb;
+  const raised = override !== null && boardSize !== null && override > boardSize;
+  return (
+    <div className="mt-2">
+      <label htmlFor="flash-size-override" className="block text-[11px] text-ink-faint">
+        flash size
+      </label>
+      <select
+        id="flash-size-override"
+        value={override === null ? "" : String(override)}
+        onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
+        className="mt-0.5 w-full rounded-md border border-line bg-surface-1 px-2 py-1 text-xs text-ink focus:border-accent-500/60 focus:outline-none"
+      >
+        <option value="">
+          {boardSize ? `Board default (${boardSize}MB)` : "Board default"}
+        </option>
+        {FLASH_SIZE_OVERRIDES_MB.map((mb) => (
+          <option key={mb} value={mb}>{mb}MB</option>
+        ))}
+      </select>
+      {raised && (
+        <p className="mt-1 text-[11px] text-amber-300">
+          Above the board file's {boardSize}MB. Declaring more flash than the
+          chip has boot-loops it. Confirm with <code>esptool flash-id</code> or
+          the bootloader's "SPI Flash Size" line first.
+        </p>
+      )}
     </div>
   );
 }

@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Flash size override in the Inspector.** ESP32 boards get a flash size
+  select under the board picker: "Board default (NMB)" or 4/8/16/32 MB,
+  writing `board.flash_size_mb`. Raising it above the board file's value
+  shows an inline boot-loop caution, matching the
+  `flash_size_override_above_board` warning (#219).
+
+### Fixed
+
+- **Switching boards in the web UI drops `board.flash_size_mb`**, as the
+  agent's `set_board` already did. A size measured on one board was being
+  carried to the next.
+
 ## [0.38.0] — 2026-10-03
 
 ### Added

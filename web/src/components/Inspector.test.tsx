@@ -49,6 +49,12 @@ const libraryBoards: BoardSummary[] = [
   },
 ];
 
+const s3Board: BoardSummary = {
+  id: "esp32-s3-devkitc-1", name: "ESP32-S3-DevKitC-1",
+  mcu: "esp32", chip_variant: "esp32s3", framework: "arduino",
+  platformio_board: "esp32-s3-devkitc-1", flash_size_mb: 8, rail_names: ["5V", "3V3", "GND"], image: "",
+};
+
 const libraryComponents: ComponentSummary[] = [
   {
     id: "bme280", name: "BME280", category: "sensor",
@@ -339,5 +345,56 @@ describe("discrete parts (subcircuit expansion)", () => {
       libraryBoards={libraryBoards} libraryComponents={[]} compatibilityWarnings={[]} {...noopProps()} />);
     expect(await screen.findByText("Parameters")).toBeInTheDocument();
     expect(screen.queryByText(/Discrete parts/)).not.toBeInTheDocument();
+  });
+});
+
+describe("flash size override", () => {
+  function renderWith(board: Record<string, unknown>, props = noopProps()) {
+    render(
+      <Inspector
+        {...props}
+        selection={designSelection}
+        design={design({ board } as Partial<Design>)}
+        boardData={boardData}
+        libraryBoards={[...libraryBoards, s3Board]}
+        libraryComponents={libraryComponents}
+        compatibilityWarnings={[]}
+      />,
+    );
+    return props;
+  }
+
+  it("is hidden on a non-ESP32 board", () => {
+    renderWith({ library_id: "wemos-d1-mini", mcu: "esp8266" });
+    expect(screen.queryByLabelText(/flash size/i)).not.toBeInTheDocument();
+  });
+
+  it("defaults to the board file's size", () => {
+    renderWith({ library_id: "esp32-s3-devkitc-1", mcu: "esp32" });
+    const select = screen.getByLabelText(/flash size/i) as HTMLSelectElement;
+    expect(select.value).toBe("");
+    expect(screen.getByRole("option", { name: "Board default (8MB)" })).toBeInTheDocument();
+    expect(screen.queryByText(/boot-loops/)).not.toBeInTheDocument();
+  });
+
+  it("selecting a size writes the override; board default clears it", async () => {
+    const props = renderWith({ library_id: "esp32-s3-devkitc-1", mcu: "esp32", flash_size_mb: 4 });
+    const select = screen.getByLabelText(/flash size/i);
+    await userEvent.selectOptions(select, "32");
+    await userEvent.selectOptions(select, "");
+    const [setUpdater, clearUpdater] = props.onDesignChange.mock.calls.map((c) => c[0]);
+    const base = design({ board: { library_id: "esp32-s3-devkitc-1", mcu: "esp32", flash_size_mb: 4 } } as Partial<Design>);
+    expect((setUpdater(base).board as Record<string, unknown>).flash_size_mb).toBe(32);
+    expect(clearUpdater(base).board).not.toHaveProperty("flash_size_mb");
+  });
+
+  it("warns when the override is above the board file", () => {
+    renderWith({ library_id: "esp32-s3-devkitc-1", mcu: "esp32", flash_size_mb: 32 });
+    expect(screen.getByText(/boot-loops/)).toBeInTheDocument();
+  });
+
+  it("does not warn when the override is below the board file", () => {
+    renderWith({ library_id: "esp32-s3-devkitc-1", mcu: "esp32", flash_size_mb: 4 });
+    expect(screen.queryByText(/boot-loops/)).not.toBeInTheDocument();
   });
 });

@@ -233,8 +233,20 @@ export function removeWarning(d: Design, index: number): Design {
 }
 
 export function setBoardLibraryId(d: Design, libraryId: string, mcu: string): Design {
-  const board = (d.board as Record<string, unknown> | undefined) ?? {};
+  // A flash size measured on the old board says nothing about the new one,
+  // and carrying it over is the direction that boot-loops.
+  const board = { ...((d.board as Record<string, unknown> | undefined) ?? {}) };
+  delete board.flash_size_mb;
   return { ...d, board: { ...board, library_id: libraryId, mcu } };
+}
+
+export const FLASH_SIZE_OVERRIDES_MB = [4, 8, 16, 32] as const;
+
+export function setBoardFlashSize(d: Design, sizeMb: number | null): Design {
+  const board = { ...((d.board as Record<string, unknown> | undefined) ?? {}) };
+  if (sizeMb === null) delete board.flash_size_mb;
+  else board.flash_size_mb = sizeMb;
+  return { ...d, board };
 }
 
 export function setFleetField(d: Design, key: string, value: unknown): Design {
