@@ -72,6 +72,11 @@ from wirestudio.api.schemas import (
     FleetPushResponse,
     FleetRunStatus,
     FleetStatus,
+    EnclosurePrintJob,
+    EnclosurePrintRequest,
+    EnclosurePrintResponse,
+    EnclosurePrintStatus,
+    PrintWardenPrinter,
     PinAssignment,
     Recommendation as RecommendationWire,
     RecommendRequest,
@@ -102,6 +107,12 @@ from wirestudio.inventory.store import (
 from wirestudio.designs.active import ActiveDesignTracker
 from wirestudio.designs.events import DesignEventBus, EventEmittingDesignStore
 from wirestudio.fleet.client import FleetClient, FleetUnavailable
+from wirestudio.printwarden import (
+    PrintWardenClient,
+    PrintWardenRejected,
+    PrintWardenUnavailable,
+    submit_enclosure,
+)
 from wirestudio.csp.compatibility import check_pin_compatibility, strict_blockers
 from wirestudio.csp.pin_solver import solve_pins as run_solve_pins
 from wirestudio.generate.display_intent import validate_show
@@ -232,6 +243,13 @@ def _validate_design(design: dict) -> Design:
     except ValidationError as e:
         raise HTTPException(status_code=422, detail=e.errors()) from e
 
+_PRINT_STARTS = (
+    "staged on print-warden; it starts only when the operator taps Start on "
+    "the phone notification (or the printer's auto_start policy passes), "
+    "never from wirestudio"
+)
+
+
 def create_app(
     library: Optional[Library] = None,
     sessions: Optional[SessionStore] = None,
@@ -243,6 +261,7 @@ def create_app(
     active_design: Optional[ActiveDesignTracker] = None,
     inventory: Optional[InventoryStore] = None,
     workbench_client_factory=None,
+    printwarden_client_factory=None,
     api_token: Optional[str] = None,
 ) -> FastAPI:
     import os as _os
@@ -286,6 +305,7 @@ def create_app(
     # Tests substitute a factory that returns a FleetClient bound to an
     # httpx.MockTransport so we never hit the network in CI.
     make_fleet: callable = fleet_client_factory or (lambda: FleetClient())
+    make_printwarden: callable = printwarden_client_factory or (lambda: PrintWardenClient())
 
     limiter = Limiter(key_func=get_remote_address)
 
@@ -299,6 +319,7 @@ def create_app(
             inventory=inventory_store,
             workbench_factory=workbench_client_factory,
             fleet_factory=make_fleet,
+            printwarden_factory=make_printwarden,
         )
         if mcp_enabled
         else None
@@ -967,6 +988,108 @@ def create_app(
                 for s in (src.status() for src in default_sources())
             ],
         }
+
+    @app.get("/enclosure/print/status", response_model=EnclosurePrintStatus, tags=["enclosure"])
+    async def enclosure_print_status() -> EnclosurePrintStatus:
+        """Is print-warden configured and reachable, and what can it print
+        on. Printers come from the warden's own `list_printers`; when that
+        call fails the warden is still reported reachable (healthz is
+        open, the MCP surface is token-gated) with the reason."""
+        pw = make_printwarden()
+        ok, reason, version = await pw.is_available()
+        if not ok:
+            return EnclosurePrintStatus(available=False, reason=reason, url=pw.base_url or None)
+        try:
+            raw = await pw.list_printers()
+        except PrintWardenUnavailable as e:
+            return EnclosurePrintStatus(available=False, reason=str(e), url=pw.base_url, version=version)
+        printers = [
+            PrintWardenPrinter(
+                name=str(p.get("name")),
+                location=p.get("location"),
+                state=p.get("state"),
+                klippy=p.get("klippy"),
+                loaded_material=p.get("loaded_material"),
+                materials=list(p.get("materials") or []),
+                qualities=list(p.get("qualities") or []),
+                bed=p.get("bed"),
+            )
+            for p in raw
+            if isinstance(p, dict) and p.get("name")
+        ]
+        locations = sorted({p.location for p in printers if p.location})
+        return EnclosurePrintStatus(
+            available=True, url=pw.base_url, version=version,
+            printers=printers, locations=locations,
+        )
+
+    @app.post("/design/enclosure/print", response_model=EnclosurePrintResponse, tags=["enclosure"])
+    async def design_enclosure_print(req: EnclosurePrintRequest) -> EnclosurePrintResponse:
+        """Generate the design's enclosure shell and hand it to print-warden:
+        the warden renders the .scad (tunables as -D overrides), slices,
+        checks and queues it for the printer. The job is offered to the
+        operator's phone; this route never starts a print. 422 when the
+        board has no enclosure block, a tunable is unknown, or the warden
+        refuses (unknown printer, material or a model that does not fit);
+        503 unconfigured; 502 unreachable.
+        """
+        d = _validate_design(req.design)
+        pw = make_printwarden()
+        if not pw.is_configured():
+            raise HTTPException(status_code=503, detail="print-warden not configured (set PRINT_WARDEN_URL)")
+        try:
+            job = await submit_enclosure(
+                pw, d, lib,
+                where=req.where, material=req.material, quality=req.quality,
+                tunables=req.tunables, copies=req.copies,
+            )
+        except (EnclosureUnavailable, FileNotFoundError, ValueError, PrintWardenRejected) as e:
+            raise HTTPException(status_code=422, detail=str(e)) from e
+        except PrintWardenUnavailable as e:
+            raise HTTPException(status_code=502, detail=str(e)) from e
+        return EnclosurePrintResponse(
+            job_id=str(job.get("id")),
+            name=job.get("name"),
+            printer=str(job.get("printer")),
+            routed=bool(job.get("routed")),
+            state=str(job.get("state")),
+            material=str(job.get("material") or req.material),
+            quality=str(job.get("quality") or req.quality),
+            est_seconds=job.get("est_seconds"),
+            est_human=job.get("est_human"),
+            filament_g=job.get("filament_g"),
+            preview_url=job.get("preview_url"),
+            warnings=list(job.get("warnings") or []),
+            slice_blockers=list(job.get("slice_blockers") or []),
+            queue=job.get("queue"),
+            starts=_PRINT_STARTS,
+        )
+
+    @app.get("/enclosure/print/jobs/{job_id}", response_model=EnclosurePrintJob, tags=["enclosure"])
+    async def enclosure_print_job(job_id: str) -> EnclosurePrintJob:
+        """The warden's view of one job: state, transition log and whether
+        its start policy passes right now."""
+        pw = make_printwarden()
+        if not pw.is_configured():
+            raise HTTPException(status_code=503, detail="print-warden not configured (set PRINT_WARDEN_URL)")
+        try:
+            job = await pw.job_status(job_id)
+        except PrintWardenRejected as e:
+            raise HTTPException(status_code=404, detail=str(e)) from e
+        except PrintWardenUnavailable as e:
+            raise HTTPException(status_code=502, detail=str(e)) from e
+        return EnclosurePrintJob(
+            job_id=str(job.get("id") or job_id),
+            printer=str(job.get("printer")),
+            state=str(job.get("state")),
+            est_human=job.get("est_human"),
+            preview_url=job.get("preview_url"),
+            can_start=bool(job.get("can_start")),
+            blockers=list(job.get("blockers") or []),
+            warnings=list(job.get("warnings") or []),
+            slice_blockers=list(job.get("slice_blockers") or []),
+            log=list(job.get("log") or []),
+        )
 
     @app.get("/enclosure/search", tags=["enclosure"])
     def enclosure_search(

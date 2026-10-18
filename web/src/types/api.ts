@@ -541,6 +541,68 @@ export interface EnclosureSearchResponse {
   results: EnclosureHit[];
 }
 
+// --- print-warden handoff ---------------------------------------------------
+
+export interface PrintWardenPrinter {
+  name: string;
+  location: string | null;
+  state: string | null;
+  klippy: string | null;
+  loaded_material: string | null;
+  materials: string[];
+  qualities: string[];
+  bed: string | null;
+}
+
+export interface EnclosurePrintStatus {
+  available: boolean;
+  reason: string | null;
+  url: string | null;
+  version: string | null;
+  printers: PrintWardenPrinter[];
+  locations: string[];
+}
+
+export interface EnclosurePrintRequest {
+  design: Design;
+  where: string;
+  material: string;
+  quality?: string;
+  tunables?: Record<string, number>;
+  copies?: number;
+}
+
+export interface EnclosurePrintResponse {
+  job_id: string;
+  name: string | null;
+  printer: string;
+  routed: boolean;
+  state: string;
+  material: string;
+  quality: string;
+  est_seconds: number | null;
+  est_human: string | null;
+  filament_g: number | null;
+  preview_url: string | null;
+  warnings: string[];
+  slice_blockers: string[];
+  queue: Record<string, unknown> | null;
+  starts: string;
+}
+
+export interface EnclosurePrintJob {
+  job_id: string;
+  printer: string;
+  state: string;
+  est_human: string | null;
+  preview_url: string | null;
+  can_start: boolean;
+  blockers: string[];
+  warnings: string[];
+  slice_blockers: string[];
+  log: unknown[];
+}
+
 // --- LoRaWAN target -------------------------------------------------------
 
 export interface LorawanCompileStatus {

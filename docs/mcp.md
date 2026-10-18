@@ -298,6 +298,9 @@ addon. They are registered by default; pass `hardware=False` to
 | `fleet_job_status` | no | compile verdict for a run |
 | `fleet_job_log` | no | incremental build log |
 | `fleet_firmware_info` | no | artifact size + availability (never the bytes) |
+| `print_warden_status` | no | is print-warden configured and reachable; its printers and locations |
+| `print_enclosure` | yes | generate the enclosure shell, upload, slice and queue it on print-warden → warden `job_id`; never starts the print |
+| `print_job_status` | no | a warden job's state, log and start-policy verdict |
 | `job_status` | no | poll a `job_id` |
 | `job_events` | no | incremental event log for a `job_id` |
 | `job_list` | no | jobs this process is holding |

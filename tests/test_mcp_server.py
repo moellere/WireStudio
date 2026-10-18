@@ -76,6 +76,9 @@ HARDWARE_TOOLS = {
     "fleet_job_status",
     "fleet_job_log",
     "fleet_firmware_info",
+    "print_warden_status",
+    "print_enclosure",
+    "print_job_status",
 }
 
 
