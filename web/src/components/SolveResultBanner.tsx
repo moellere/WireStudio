@@ -64,5 +64,6 @@ function summarize(target: Record<string, unknown>): string {
   if (kind === "rail") return `rail ${target.rail}`;
   if (kind === "bus") return `bus ${target.bus_id}`;
   if (kind === "expander_pin") return `${target.expander_id}.${target.number}`;
+  if (kind === "net") return `net ${target.component_id}.${target.net}`;
   return JSON.stringify(target);
 }

@@ -34,7 +34,7 @@ import os
 import sys
 from pathlib import Path
 
-from wirestudio.library import default_library
+from wirestudio.library import default_library, render_param_template
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 LIB_ROOT = REPO_ROOT / "wirestudio" / "library"
@@ -62,6 +62,23 @@ def _resolves(footprint: str, fp_dir: Path) -> bool:
         return False
     lib, name = footprint.split(":", 1)
     return (fp_dir / f"{lib}.pretty" / f"{name}.kicad_mod").is_file()
+
+
+def _footprints(kind: str, entry) -> list[str]:
+    """The footprint strings an entry can place. A templated component
+    footprint is rendered at the schema defaults and once per value of every
+    enum param, so a `family` switch is checked in all its positions."""
+    kicad = entry.kicad
+    raw = kicad.footprint or ""
+    if "{{" not in raw or kind != "component":
+        return [raw]
+    schema = entry.params_schema
+    variants = [render_param_template(raw, {}, schema)]
+    for key, spec in schema.items():
+        if isinstance(spec, dict) and spec.get("enum"):
+            for value in spec["enum"]:
+                variants.append(render_param_template(raw, {key: value}, schema))
+    return list(dict.fromkeys(variants))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -107,8 +124,9 @@ def main(argv: list[str] | None = None) -> int:
         if not kicad.footprint:
             missing.append(f"{kind} {lib_id}: no footprint")
             continue
-        if not _resolves(kicad.footprint, fp_dir):
-            unresolved.append(f"{kind} {lib_id}: {kicad.footprint}")
+        bad = [fp for fp in _footprints(kind, entry) if not _resolves(fp, fp_dir)]
+        if bad:
+            unresolved.extend(f"{kind} {lib_id}: {fp}" for fp in bad)
             continue
         ok += 1
 

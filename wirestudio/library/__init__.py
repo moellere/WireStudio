@@ -390,7 +390,13 @@ def part_value(part: SubcircuitPart, params: Mapping[str, object], params_schema
     is a Jinja template over the instance params (schema defaults
     filled in), so one block can cover a 5 mA and a 20 mA LED; anything
     else is printed as is. Raises on an undefined param or bad syntax."""
-    raw = part.kicad.value or ""
+    return render_param_template(part.kicad.value or "", params, params_schema)
+
+
+def render_param_template(raw: str, params: Mapping[str, object], params_schema: Mapping[str, object]) -> str:
+    """`raw` as is, or, when it contains `{{`, rendered as a Jinja template
+    over the instance params with the schema defaults filled in. Raises on
+    an undefined param or bad syntax."""
     if "{{" not in raw:
         return raw
     merged = {
@@ -399,6 +405,15 @@ def part_value(part: SubcircuitPart, params: Mapping[str, object], params_schema
     }
     merged.update(params)
     return _value_env.from_string(raw).render(params=merged).strip()
+
+
+def component_footprint(comp: LibraryComponent, params: Mapping[str, object]) -> str:
+    """The footprint a component instance places: the `kicad.footprint`
+    string, or its template rendered over the params (`family` on a
+    connector picks JST-XH, JST-PH, a pin header or a screw terminal)."""
+    if comp.kicad is None or not comp.kicad.footprint:
+        return ""
+    return render_param_template(comp.kicad.footprint, params, comp.params_schema)
 
 
 _value_env = Environment(undefined=StrictUndefined, autoescape=False)

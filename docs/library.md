@@ -129,6 +129,9 @@ _Building blocks (discrete subcircuits, checked like any component; each expands
 - `level_shifter` — one BSS138 bidirectional line between 3.3 V and a 5 V device (no ESPHome config of its own)
 - `axp192` — X-Powers AXP192 PMIC (T-Beam battery/rail management; no ESPHome core component yet)
 
+_Connectors (passthrough positions; each takes a rail or a `net` target onto another component's role or subcircuit node, and the `family` param picks the JST-XH / JST-PH / pin-header / screw-terminal footprint):_
+- `connector_1x03`, `connector_1x04`, `connector_1x08` — wire-to-board connectors for a harness, a breakout or a panel pigtail; the schematic, PCB, BOM and CPL put each position's pad on the net it names
+
 _Light / audio / camera:_
 - `ws2812b` — WS2812B / SK6812 addressable RGB LED (1-wire NeoPixel; bit-banged or ESP8266-DMA)
 - `esp32_rmt_led_strip` — same WS2812 / SK6812 silicon, ESP32 RMT-driven (preferred on ESP32 / S2 / S3 / C3)

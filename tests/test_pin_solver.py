@@ -319,3 +319,19 @@ def test_interrupt_input_avoids_no_interrupt_pin(library):
     result = solve_pins(d, library)
     chosen = next(a for a in result.assigned if a.pin_role == "PULSE").new_target["pin"]
     assert chosen != "D0"
+
+
+def test_net_targets_are_neither_solved_nor_conflicts(library):
+    """A passthrough pin pointing at a role's GPIO shares that pin on purpose;
+    the solver leaves net targets alone and reports no gpio conflict."""
+    import json
+    from pathlib import Path
+
+    from wirestudio.csp.pin_solver import solve_pins
+    raw = json.loads((Path(__file__).resolve().parent.parent / "wirestudio" / "examples" / "actuator-harness.json").read_text())
+    before = [c for c in raw["connections"] if c["target"]["kind"] == "net"]
+    result = solve_pins(raw, library)
+    after = [c for c in result.design["connections"] if c["target"]["kind"] == "net"]
+    assert after == before
+    assert result.assigned == []
+    assert not [w for w in result.warnings if w.code == "gpio_conflict"]

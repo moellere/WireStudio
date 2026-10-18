@@ -23,7 +23,7 @@ from wirestudio.library import Library
 from wirestudio.library.check import check_component_yaml, create_component
 from wirestudio.model import Design
 from wirestudio.recommend.recommender import Constraints, recommend_components
-from wirestudio.validate import check_board_flash, check_electrical, check_part_overrides
+from wirestudio.validate import check_board_flash, check_electrical, check_net_targets, check_part_overrides
 
 
 # ---------------------------------------------------------------------------
@@ -136,7 +136,10 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
             "design.json schema: rail = {kind:'rail', rail:'5V'}, gpio = "
             "{kind:'gpio', pin:'GPIO13'}, bus = {kind:'bus', bus_id:'i2c0'}, "
             "expander_pin = {kind:'expander_pin', expander_id:'mcp_hub', "
-            "number:0, mode:'INPUT_PULLUP', inverted:true}."
+            "number:0, mode:'INPUT_PULLUP', inverted:true}, net = "
+            "{kind:'net', component_id:'bridge', net:'out_a'} (a passthrough "
+            "connector pin landing on another component's connected role or "
+            "subcircuit node)."
         ),
         "input_schema": {
             "type": "object",
@@ -673,7 +676,7 @@ def _run_validate(design: dict, library: Library) -> dict:
         return {"ok": False, "error": str(e), "schema_ok": True}
     compat = check_pin_compatibility(design, library)
     board_warnings = (check_board_flash(d, library) + check_part_overrides(d, library)
-                      + check_electrical(d, library))
+                      + check_electrical(d, library) + check_net_targets(d, library))
     # Strict blockers are surfaced regardless of mode so the caller can see
     # what *would* block; in strict mode their presence also flips ok=False.
     blockers = strict_blockers(design, library)

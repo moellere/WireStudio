@@ -111,3 +111,29 @@ def test_dry_run_failure() -> None:
             text=True,
             check=False,
         )
+
+
+def _harness_raw() -> dict:
+    import json
+    return json.loads((Path(__file__).resolve().parent.parent / "wirestudio" / "examples" / "actuator-harness.json").read_text())
+
+
+def test_net_targets_that_resolve_are_silent() -> None:
+    from wirestudio.validate import check_net_targets
+    assert check_net_targets(Design.model_validate(_harness_raw()), default_library()) == []
+
+
+def test_net_target_warnings() -> None:
+    from wirestudio.validate import check_net_targets
+    raw = _harness_raw()
+    for c in raw["connections"]:
+        if c["component_id"] == "harness" and c["pin_role"] == "P1":
+            c["target"] = {"kind": "net", "component_id": "bridge", "net": "nope"}
+        if c["component_id"] == "harness" and c["pin_role"] == "P2":
+            c["target"] = {"kind": "net", "component_id": "", "net": ""}
+        if c["component_id"] == "btn" and c["pin_role"] == "IN":
+            c["target"] = {"kind": "net", "component_id": "dial", "net": "A"}
+    codes = {(w.code, w.level) for w in check_net_targets(Design.model_validate(raw), default_library())}
+    assert ("net_unresolved", "warn") in codes
+    assert ("net_unassigned", "info") in codes
+    assert ("net_target_on_signal_pin", "warn") in codes

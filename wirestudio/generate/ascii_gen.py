@@ -60,6 +60,11 @@ def render_ascii(design: Design, library: Library) -> str:
                 mode = f" {t.mode}" if t.mode else ""
                 inv = " inverted" if t.inverted else ""
                 lines.append(f"  {conn.pin_role:<5} -> {t.expander_id}.{t.number}{mode}{inv}")
+            elif t.kind == "net":
+                if t.component_id and t.net:
+                    lines.append(f"  {conn.pin_role:<5} -> net {t.component_id}.{t.net}")
+                else:
+                    lines.append(f"  {conn.pin_role:<5} -> net (unassigned)")
         lines.append("")
 
     if design.passives:

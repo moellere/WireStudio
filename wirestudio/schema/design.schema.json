@@ -161,6 +161,16 @@
                   "kind": { "const": "component" },
                   "component_id": { "type": "string" }
                 }
+              },
+              {
+                "type": "object",
+                "required": ["kind"],
+                "additionalProperties": false,
+                "properties": {
+                  "kind": { "const": "net" },
+                  "component_id": { "type": "string" },
+                  "net": { "type": "string" }
+                }
               }
             ]
           }
