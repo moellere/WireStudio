@@ -113,11 +113,15 @@ async def _exercise(url: str, example: str, yaml_text: str, password: str | None
     entries = await client.downloads(first.filename)
     names = [str(e["file"]) for e in entries]
     check(bool(names), f"downloads: /downloads lists the artifacts ({', '.join(names) or 'none'})")
-    for factory in (False, True):
-        image = await client.firmware(first.filename, factory=factory)
-        kind = "factory" if factory else "ota"
-        check(image is not None and image[0] == ESP_IMAGE_MAGIC and len(image) > 100_000,
-              f"download: the {kind} image is an ESP image ({len(image or b'')} bytes)")
+    ota = await client.firmware(first.filename) or b""
+    check(bool(ota) and ota[0] == ESP_IMAGE_MAGIC and len(ota) > 100_000,
+          f"download: the ota image is an ESP app image ({len(ota)} bytes)")
+    # The factory image is the flash from offset 0: bootloader, partition
+    # table and the app, so it embeds the ota image and its first byte is
+    # padding on chips whose bootloader sits at 0x1000.
+    factory = await client.firmware(first.filename, factory=True) or b""
+    check(bool(ota) and len(factory) > len(ota) and ota in factory,
+          f"download: the factory image embeds the ota image ({len(factory)} bytes)")
     return failures
 
 
