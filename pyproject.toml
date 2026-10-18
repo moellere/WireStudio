@@ -41,6 +41,7 @@ lorawan = [
     "grpcio>=1.60",
     "chirpstack-api>=4.7,<5",
     "paho-mqtt>=1.6",
+    "pyserial>=3.5",
 ]
 # Pip-installable half of the KiCad pipeline (schematic generation +
 # PNG rasterize). kicad-cli, pcbnew, and the footprint/symbol libraries
