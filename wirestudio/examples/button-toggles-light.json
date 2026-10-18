@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.1",
+  "schema_version": "0.2",
   "id": "button-toggles-light",
   "name": "Porch button toggles porch light",
   "description": "Phase 1 worked example for intent-to-device synthesis: one GPIO button toggles one GPIO switch (relay/LED/mosfet). The trigger -> action wiring lives in `automations` (not as a raw `params.on_press` blob), so the generator lowers it from the library's `capability` blocks into ESPHome's `on_press: [{switch.toggle: porch_light}]`.",

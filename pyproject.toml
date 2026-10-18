@@ -52,6 +52,7 @@ pcb = [
 
 [project.scripts]
 wirestudio-generate = "wirestudio.generate.__main__:main"
+wirestudio-migrate = "wirestudio.migrate:main"
 wirestudio-api = "wirestudio.api.__main__:main"
 wirestudio-hardware-gate = "wirestudio.workbench.gate:main"
 

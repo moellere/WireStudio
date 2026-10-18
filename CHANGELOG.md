@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`wirestudio.migrate`: design.json migrations** (roadmap 0.42). A
+  design carries a `schema_version`, and a chain of per-version steps
+  brings an older document to the current one before anything reads
+  it: the file and SQLite design stores on load, every REST endpoint
+  that takes a design and `POST /designs` before it writes, the MCP
+  `create_design` tool, and the generate CLI. Each step changes only
+  what it is about and leaves the rest of the document as it was, so a
+  migrated file diffs as the change it carries. `python -m
+  wirestudio.migrate design.json` prints the migrated document,
+  `--write` rewrites the file, `--check` exits non-zero when a file is
+  behind (the examples are held to it in tests); `wirestudio-migrate`
+  is the console script. A document with no version, or one from a
+  newer release, is refused with a message that says so rather than a
+  validation error on a field that does not exist yet.
+- **Schema version 0.2.** The first step, `0.1 -> 0.2`, rewrites the
+  deprecated `lorawan.gps` / `dht22` / `oled` blocks into the `uart_gps`,
+  `dht` and `ssd1306` components, buses and connections they stood for,
+  the same lowering the generators have applied since 0.40. Every
+  bundled example and the web UI's new designs are at 0.2; 0.1 stays
+  accepted on input. The `1.0` step, which drops the blocks from the
+  model, is cut at release.
+
+
 - **The rest of the connector family, and a netlist golden.** `connector_1x02`,
   `1x05`, `1x06`, `1x07` with the same `family` switch, and
   `connector_2x05_idc`, a shrouded 2x5 box header for a 10-way ribbon.

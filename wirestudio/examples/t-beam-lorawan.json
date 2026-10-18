@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.1",
+  "schema_version": "0.2",
   "id": "t-beam-lorawan",
   "name": "LilyGO TTGO T-Beam LoRaWAN (GPS + DHT22 + OLED)",
   "description": "T-Beam uplinking GPS position, cell voltage from the onboard AXP192 PMIC, and temperature/humidity from a DHT22, with an SSD1306 showing live status. Standalone RadioLib firmware; keys arrive over the serial prompt at runtime.",

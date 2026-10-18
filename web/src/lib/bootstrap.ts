@@ -43,7 +43,7 @@ export function candidateBoardsFor(boards: BoardSummary[], chipName: string): Bo
 export function bootstrapDesign(board: BoardSummary, chip: DetectedChip): Design {
   const macSuffix = chip.mac ? `, MAC ${chip.mac}` : "";
   return {
-    schema_version: "0.1",
+    schema_version: "0.2",
     id: "new-device",
     name: "New device",
     description: `Bootstrapped via USB device detection from a ${chip.chipName}.`,

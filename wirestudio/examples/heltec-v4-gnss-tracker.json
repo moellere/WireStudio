@@ -1,5 +1,5 @@
 {
- "schema_version": "0.1",
+ "schema_version": "0.2",
  "id": "heltec-v4-gnss-tracker",
  "name": "Heltec V4 GNSS tracker",
  "description": "Heltec WiFi LoRa 32 V4 with its SH1.25-8 GNSS module (L76K, 9600 baud), uplinking latitude/longitude/satellites over LoRaWAN via lorawan-for-esphome. Field order matches the wirestudio-esphome-us915-sub2-gnss ChirpStack profile codec. Bench-validated 2026-08-30: module TX is GPIO39 (MCU rx), module RX GPIO38; power-up order VEXT(36 low) -> EN(34 low) -> RST(42 high) -> STANDBY/wake(40 high), ~1 s warmup. An undriven standby leaves the module mute with TX held low.",
