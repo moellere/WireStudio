@@ -24,6 +24,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Per-framework coverage baselines** (roadmap section 3). The
+  coverage matrix now says which generators can use each component:
+  a `circuitpython:` / `micropython:` block, or the tasmota / lorawan
+  target listing it (Tasmota autodetects I2C parts without a block).
+  `scripts/framework_baseline.yaml` carries one reason per missing
+  block, of three kinds: `deferred:` names the fragment or template
+  rule still to write, `no driver upstream` means the framework's own
+  library has nothing to wrap, `no meaning on this framework` means
+  the part has no code there at all. `coverage_matrix.py --strict`
+  (the esphome-config gate and `tests/test_coverage_baseline.py`)
+  fails on an unexplained gap, a stale entry or a reason outside the
+  three, and `docs/library-coverage.md` lists every gap under
+  "Framework gaps". The starting ledger: circuitpython 64, micropython
+  86, tasmota 51 and lorawan 97 gaps out of 102, every one explained.
 - **Three "Works" rows promoted to Verified** (roadmap section 2), and
   the test suite in CI. No workflow ran pytest or vitest before: a row
   that cited `tests/test_x.py` cited a file in the tree. `tests.yml`
