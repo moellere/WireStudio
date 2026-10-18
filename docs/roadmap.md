@@ -69,9 +69,9 @@ The middle tier today, and what moves each row.
 | Meshtastic flash + config | nightly flash of a radio board, boot verdict by banner once one is established upstream, config read back | demote to *Experimental* |
 | CircuitPython flash + code.py | nightly flash, boot verdict by the CIRCUITPY drive enumerating on the bench, `code.py` runs without a traceback on the serial console | demote |
 | MicroPython flash + main.py | nightly flash, REPL banner, `main.py` runs without a traceback | demote |
-| Component authoring | a user component compiled through `esphome config` in CI, not only the static gate; the check gate run on a corpus of bad components it must reject | stays *Works* only if the compile step is impossible, which it is not |
-| ESPHome dashboard compile | a dashboard container in CI, a real compile of one example, the four wire assumptions asserted against it | demote to *Experimental* with the 2026.6.5 validation noted |
-| MCP server | an MCP client in CI that connects, lists tools, drives one design from `create_design` to `render` and reads a resource | this is a test, not hardware; it lands |
+| Component authoring | **promoted.** A user component goes through `esphome config` in the config gate; `tests/test_component_corpus.py` holds the check gate to a corpus of bad components | |
+| ESPHome dashboard compile | **promoted.** The nightly `dashboard` job runs a real `esphome dashboard`, open and password-protected, and pushes, compiles and fetches through the studio's client with the wire assumptions asserted | |
+| MCP server | **promoted.** `tests/test_mcp_client.py` drives the mounted server with the `mcp` package's client, every PR; the suite itself now runs in CI (`tests.yml`), which no row could claim before | |
 | Thingiverse relay | nothing; third-party ranking | stays *Experimental* |
 | Agent | the eval harness (section 5) | stays *Experimental* |
 

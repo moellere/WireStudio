@@ -24,6 +24,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Three "Works" rows promoted to Verified** (roadmap section 2), and
+  the test suite in CI. No workflow ran pytest or vitest before: a row
+  that cited `tests/test_x.py` cited a file in the tree. `tests.yml`
+  runs both on every PR. On top of it:
+  - **MCP server.** `tests/test_mcp_client.py` starts the studio under
+    uvicorn and drives the mounted server with the `mcp` package's own
+    Streamable HTTP client and the bearer token: lists the tools, takes
+    a design from `create_design` through `add_component`, `solve_pins`,
+    `validate` and `render`, and reads the `design://` and `library://`
+    resources. A client without the token is refused.
+  - **Component authoring.** `scripts/check_examples.py --component
+    draft.yaml` runs a user-authored component through `component_check`
+    and its synthetic design through upstream `esphome config`; the
+    config gate does so for `tests/fixtures/components/led_driver_npn.yaml`
+    on every PR. `tests/fixtures/bad_components/` is a corpus of that
+    draft with one defect each and the error the gate must name;
+    `tests/test_component_corpus.py` holds the gate to it.
+  - **ESPHome dashboard compile.** `scripts/check_dashboard.py` starts
+    the pinned `esphome dashboard` on a free port, open and then
+    password-protected, and pushes, compiles and fetches one example
+    through the studio's `DashboardClient`, asserting the wire
+    assumptions the client encodes (`/devices` naming, the xsrf token
+    and auth cookie, the compile stream's exit event, `/downloads`).
+    The nightly `esphome-compile` workflow runs it as a second job.
 - **`design.schema.json` says what each field is for.** The fields the
   audit kept but no generator reads are documented as the design's
   record rather than removed: `power.supply` / `rail_voltage_v` /

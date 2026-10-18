@@ -26,7 +26,8 @@ import tempfile
 from pathlib import Path
 
 from wirestudio.generate.yaml_gen import render_yaml
-from wirestudio.library import default_library
+from wirestudio.library import Library, default_library
+from wirestudio.library.check import create_component, synthetic_design
 from wirestudio.model import Design
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -66,14 +67,30 @@ def _write_secrets(yaml_text: str, dest: Path) -> None:
 
 
 def _check_one(example: Path, workdir: Path, subcommand: str) -> tuple[bool, str]:
-    library = default_library()
-    design_dict = json.loads(example.read_text())
-    design = Design.model_validate(design_dict)
+    design = Design.model_validate(json.loads(example.read_text()))
+    return _check_design(example.stem, design, default_library(), workdir, subcommand)
+
+
+def _user_component(path: Path, workdir: Path) -> tuple[str, Design, Library]:
+    """A component YAML as a user would author it, through the same gate
+    `component_create` runs, placed on the synthetic design the gate
+    renders it against. The user library lives under `workdir`."""
+    library = Library(default_library().root, workdir / "user-library")
+    report = create_component(path.read_text(), library)
+    if not report.ok:
+        raise SystemExit(f"{path}: component_check failed:\n  " + "\n  ".join(report.errors))
+    design = synthetic_design(library.component(report.library_id), library, on_buses=True)
+    return f"component-{report.library_id}", design, library
+
+
+def _check_design(
+    name: str, design: Design, library: Library, workdir: Path, subcommand: str,
+) -> tuple[bool, str]:
     yaml_text = render_yaml(design, library)
 
-    out_dir = workdir / example.stem
+    out_dir = workdir / name
     out_dir.mkdir(parents=True, exist_ok=True)
-    yaml_path = out_dir / f"{example.stem}.yaml"
+    yaml_path = out_dir / f"{name}.yaml"
     yaml_path.write_text(yaml_text)
     _write_secrets(yaml_text, out_dir / "secrets.yaml")
 
@@ -117,8 +134,35 @@ def main(argv: list[str] | None = None) -> int:
             "for the nightly compile-smoke job, not per-PR)."
         ),
     )
+    parser.add_argument(
+        "--component",
+        type=Path,
+        action="append",
+        default=[],
+        metavar="YAML",
+        help=(
+            "instead of examples: a user component YAML, run through "
+            "component_check and placed on the gate's synthetic design"
+        ),
+    )
     args = parser.parse_args(argv)
     subcommand = "compile" if args.compile else "config"
+
+    if args.component:
+        if args.names:
+            print("--component takes no example names", file=sys.stderr)
+            return 2
+        with tempfile.TemporaryDirectory() as tmp:
+            failures = []
+            for path in args.component:
+                name, design, library = _user_component(path, Path(tmp))
+                ok, detail = _check_design(name, design, library, Path(tmp), subcommand)
+                print(f"  {'PASS' if ok else 'FAIL'}  {path}")
+                if not ok:
+                    failures.append((str(path), detail))
+        for name, detail in failures:
+            print(f"\n--- {name} ---\n{detail}")
+        return 1 if failures else 0
 
     if args.names:
         examples = [EXAMPLES_DIR / f"{n}.json" for n in args.names]

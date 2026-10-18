@@ -233,7 +233,7 @@ def _check_template(comp: LibraryComponent, library: Library, report: ComponentC
     failures: list[str] = []
     for on_buses in (True, False):
         try:
-            design = _synthetic_design(comp, library, on_buses=on_buses)
+            design = synthetic_design(comp, library, on_buses=on_buses)
         except FileNotFoundError as e:
             report.unverified.append(f"template not rendered: {e}")
             return
@@ -249,7 +249,7 @@ def _check_template(comp: LibraryComponent, library: Library, report: ComponentC
         f"esphome.yaml_template does not render against a synthetic design: {failures[0]}")
 
 
-def _synthetic_design(comp: LibraryComponent, library: Library, *, on_buses: bool) -> Design:
+def synthetic_design(comp: LibraryComponent, library: Library, *, on_buses: bool) -> Design:
     """One instance of the component on a known board, every signal pin
     on its own GPIO, bus pins on a bus of their type (or on GPIOs when
     `on_buses` is off), power pins on rails, params at their defaults."""
