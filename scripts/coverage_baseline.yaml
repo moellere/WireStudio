@@ -20,7 +20,17 @@
 # GPIO37/3.2, TTGO LoRa32 GPIO35/2.0) that the LoRaWAN generator materializes
 # from `onboard_peripherals`, so no example names it by id either. Its ESPHome
 # template is empty -- battery sense on the ESPHome path is the `adc` platform.
+# The connector sizes share one code path (passthrough pins, positional
+# pads, a footprint per `family`); `actuator-harness` exercises it through
+# connector_1x08 and connector_1x04, `usbc-led-strip` through connector_1x03.
+# The rest differ only in pin count. An example that needs one closes its
+# entry here.
 components:
   - axp192
   - battery_adc
+  - connector_1x02
+  - connector_1x05
+  - connector_1x06
+  - connector_1x07
+  - connector_2x05_idc
 boards: []

@@ -328,6 +328,7 @@
         },
         "gps": {
           "type": "object",
+          "description": "Deprecated: sugar for a `uart_gps` component on a UART bus. Lowered to that component before generation; removed at 1.0.",
           "required": ["rx_pin", "tx_pin"],
           "additionalProperties": false,
           "properties": {
@@ -338,12 +339,14 @@
         },
         "dht22": {
           "type": "object",
+          "description": "Deprecated: sugar for a `dht` component with DATA on `pin`. Lowered before generation; removed at 1.0.",
           "required": ["pin"],
           "additionalProperties": false,
           "properties": { "pin": { "type": "string" } }
         },
         "oled": {
           "type": "object",
+          "description": "Deprecated: sugar for an `ssd1306` component on the board's I2C bus. Lowered before generation; removed at 1.0.",
           "additionalProperties": false,
           "properties": { "enabled": { "type": "boolean", "default": true } }
         }

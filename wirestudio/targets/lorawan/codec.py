@@ -51,13 +51,14 @@ def _pin(value) -> Optional[int]:
 
 
 # Onboard peripherals the LoRaWAN firmware materializes implicitly when the
-# board declares them (or the design's `lorawan.*` config asks for them) and
-# the user hasn't already added the matching component. Order here is the
-# *payload* field order, fixed to keep the uplink byte layout (and ChirpStack
-# decode) stable: GPS, battery, DHT. (Firmware setup() reorders to a hardware
-# init order -- PMIC first -- see firmware_gen._SETUP_PRIORITY.) `tag` is the
-# device-profile suffix the field set historically carried, so provisioned
-# devices keep their profile names.
+# board declares them and the user hasn't already added the matching
+# component. Order here is the *payload* field order among synthesized
+# peripherals, fixed to keep the uplink byte layout (and ChirpStack decode)
+# stable: GPS, battery. (Firmware setup() reorders to a hardware init order --
+# PMIC first -- see firmware_gen._SETUP_PRIORITY.) `tag` is the device-profile
+# suffix a sensor contributes whether it is synthesized or a design component,
+# so provisioned devices keep their profile names; the DHT row exists for its
+# tag alone, since no board carries one.
 _ONBOARD = [
     ("uart_gps", "gps_neo6m", "gps", "GPS", "gps"),
     ("axp192", "axp192", "axp192", "PMIC", "batt"),
@@ -72,20 +73,22 @@ _PROFILE_ORDER = ["gps", "batt", "dht"]
 
 
 def resolve_components(design, library) -> list:
-    """The full LoRaWAN component set: the design's own components plus the
-    board's onboard peripherals (and `lorawan.*`-requested sensors) synthesized
-    as components, so firmware_gen and the codec assemble from one inventory and
-    can't drift. Synthesized peripherals carry pin/config params (pins
-    normalized to bare ints) and a stable id; an onboard peripheral whose
-    library component the user already added is not duplicated."""
+    """The full LoRaWAN component set: the design's own components (with the
+    deprecated `lorawan.gps` / `dht22` / `oled` blocks lowered to components
+    first) plus the board's onboard peripherals synthesized as components, so
+    firmware_gen and the codec assemble from one inventory and can't drift.
+    Synthesized peripherals carry pin/config params (pins normalized to bare
+    ints) and a stable id; an onboard peripheral whose library component the
+    user already added is not duplicated."""
     from wirestudio.model import Component
+    from wirestudio.targets.lorawan.lower import lower_lorawan_sugar
 
+    design = lower_lorawan_sugar(design, library)
     components = list(design.components)
     present = {c.library_id for c in components}
     used_ids = {c.id for c in components}
     board = library.board(design.board.library_id)
     onboard = board.onboard_peripherals or {}
-    lw = getattr(design, "lorawan", None)
 
     synth: list = []
     for lib_id, onboard_key, inst_id, label, _tag in _ONBOARD:
@@ -93,7 +96,7 @@ def resolve_components(design, library) -> list:
         # synthesized id collide with an existing component's id.
         if lib_id in present or inst_id in used_ids:
             continue
-        params = _synth_params(lib_id, onboard_key, onboard, lw)
+        params = _synth_params(lib_id, onboard_key, onboard)
         if params is None:
             continue
         synth.append(Component(id=inst_id, library_id=lib_id, label=label, params=params))
@@ -101,44 +104,31 @@ def resolve_components(design, library) -> list:
     return components + synth
 
 
-def _synth_params(lib_id, onboard_key, onboard, lw):
-    """Params for a synthesized onboard peripheral, or None when the board /
-    design doesn't call for it. Pin params are normalized to bare ints."""
+def _synth_params(lib_id, onboard_key, onboard):
+    """Params for a synthesized onboard peripheral, or None when the board
+    doesn't carry it. Pin params are normalized to bare ints."""
     on = onboard_key in onboard if onboard_key else False
+    if not on:
+        return None
+    ob = onboard[onboard_key] or {}
     if lib_id == "axp192":
-        return {} if on else None
+        return {}
     if lib_id == "battery_adc":
         # A PMIC already reports the cell; adding the divider too would collide
         # on the batt_mv field name (fields_for raises on duplicates).
-        if not on or "axp192" in onboard:
+        if "axp192" in onboard:
             return None
-        ob = onboard[onboard_key]
         return {"pin": _pin(ob.get("pin")), "divider": ob.get("divider", 2.0)}
     if lib_id == "uart_gps":
-        gps = getattr(lw, "gps", None)
-        if gps is not None:
-            return {"rx_pin": _pin(gps.rx_pin), "tx_pin": _pin(gps.tx_pin), "baud": gps.baud}
-        if on:
-            ob = onboard[onboard_key]
-            # The peripheral's TX is the MCU's RX (and vice-versa).
-            return {"rx_pin": _pin(ob.get("tx")), "tx_pin": _pin(ob.get("rx")),
-                    "baud": ob.get("baud", 9600)}
-        return None
-    if lib_id == "dht":
-        dht = getattr(lw, "dht22", None)
-        return {"pin": _pin(dht.pin), "model": "DHT22"} if dht is not None else None
+        # The peripheral's TX is the MCU's RX (and vice-versa).
+        return {"rx_pin": _pin(ob.get("tx")), "tx_pin": _pin(ob.get("rx")),
+                "baud": ob.get("baud", 9600)}
     if lib_id == "ssd1306":
-        oled = getattr(lw, "oled", None)
-        if not on and oled is None:
-            return None
-        params: dict = {}
-        ob = onboard.get(onboard_key) or {}
-        if ob:
-            params["address"] = ob.get("address", "0x3C")
-            if ob.get("reset"):
-                params["reset_pin"] = _pin(ob["reset"])
-            if ob.get("vext"):
-                params["vext_pin"] = _pin(ob["vext"])
+        params: dict = {"address": ob.get("address", "0x3C")}
+        if ob.get("reset"):
+            params["reset_pin"] = _pin(ob["reset"])
+        if ob.get("vext"):
+            params["vext_pin"] = _pin(ob["vext"])
         return params
     return None
 

@@ -78,25 +78,45 @@ class LorawanTarget(TargetPlugin):
                     ),
                 )
             )
-        # On the classic ESP32, U0RXD/U0TXD are GPIO3/GPIO1 -- the USB-serial
-        # console the provisioning prompt reads. A GPS UART there floods the
-        # prompt with garbage and the device never joins.
-        gps = design.lorawan.gps if design.lorawan else None
-        if gps and board.chip_variant == "esp32" and (
-            {gps.rx_pin, gps.tx_pin} & {"GPIO1", "GPIO3"}
-        ):
+        from wirestudio.targets.lorawan.lower import lower_lorawan_sugar, sugar_in_use
+
+        for field in sugar_in_use(design):
             warnings.append(
                 DesignWarning(
-                    level="warn",
-                    code="lorawan_gps_on_console_uart",
+                    level="info",
+                    code="lorawan_sugar_lowered",
                     text=(
-                        f"GPS UART on {gps.rx_pin}/{gps.tx_pin} overlaps the USB-serial "
-                        "console (U0RXD/U0TXD) on the classic ESP32 -- the GPS floods the "
-                        "provisioning prompt and the device can't join. Use other pins "
-                        "(e.g. GPIO23/GPIO17)."
+                        f"lorawan.{field} is deprecated: it is lowered to a library "
+                        "component with its bus and connections before generation, "
+                        "and the 1.0 migrator rewrites it. Add the component instead."
                     ),
                 )
             )
+        design = lower_lorawan_sugar(design, library)
+        # On the classic ESP32, U0RXD/U0TXD are GPIO3/GPIO1 -- the USB-serial
+        # console the provisioning prompt reads. A GPS UART there floods the
+        # prompt with garbage and the device never joins.
+        if board.chip_variant == "esp32":
+            gps_buses = {
+                c.target.bus_id for c in design.connections
+                if c.target.kind == "bus" and any(
+                    comp.id == c.component_id and comp.library_id == "uart_gps"
+                    for comp in design.components)
+            }
+            for bus in design.buses:
+                if bus.id in gps_buses and {bus.rx, bus.tx} & {"GPIO1", "GPIO3"}:
+                    warnings.append(
+                        DesignWarning(
+                            level="warn",
+                            code="lorawan_gps_on_console_uart",
+                            text=(
+                                f"GPS UART on {bus.rx}/{bus.tx} overlaps the USB-serial "
+                                "console (U0RXD/U0TXD) on the classic ESP32 -- the GPS "
+                                "floods the provisioning prompt and the device can't "
+                                "join. Use other pins (e.g. GPIO23/GPIO17)."
+                            ),
+                        )
+                    )
         return warnings
 
 

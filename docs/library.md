@@ -130,7 +130,8 @@ _Building blocks (discrete subcircuits, checked like any component; each expands
 - `axp192` — X-Powers AXP192 PMIC (T-Beam battery/rail management; no ESPHome core component yet)
 
 _Connectors (passthrough positions; each takes a rail or a `net` target onto another component's role or subcircuit node, and the `family` param picks the JST-XH / JST-PH / pin-header / screw-terminal footprint):_
-- `connector_1x03`, `connector_1x04`, `connector_1x08` — wire-to-board connectors for a harness, a breakout or a panel pigtail; the schematic, PCB, BOM and CPL put each position's pad on the net it names
+- `connector_1x02` … `connector_1x08` — wire-to-board connectors for a harness, a breakout or a panel pigtail (`family` picks JST-XH, JST-PH, pin header or screw terminal); the schematic, PCB, BOM and CPL put each position's pad on the net it names
+- `connector_2x05_idc` — shrouded 2x5 box header for a 10-way ribbon
 
 _Light / audio / camera:_
 - `ws2812b` — WS2812B / SK6812 addressable RGB LED (1-wire NeoPixel; bit-banged or ESP8266-DMA)
