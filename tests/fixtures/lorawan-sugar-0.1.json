@@ -1,0 +1,35 @@
+{
+  "schema_version": "0.1",
+  "id": "field-node",
+  "name": "Field node",
+  "description": "A 0.1 design from the quick-flash dialog: an external GPS, a DHT22 and the onboard OLED asked for by block.",
+  "target": "lorawan",
+  "board": {
+    "library_id": "heltec-wifi-lora32-v3",
+    "mcu": "esp32",
+    "framework": "arduino"
+  },
+  "power": {
+    "supply": "usb-5v",
+    "rail_voltage_v": 5.0,
+    "budget_ma": 500
+  },
+  "requirements": [],
+  "components": [
+    { "id": "btn", "library_id": "gpio_input", "label": "User button", "params": {} }
+  ],
+  "buses": [],
+  "connections": [
+    { "component_id": "btn", "pin_role": "IN", "target": { "kind": "gpio", "pin": "GPIO0" } }
+  ],
+  "passives": [],
+  "warnings": [],
+  "lorawan": {
+    "region": "US915",
+    "sub_band": 2,
+    "provisioning": "runtime_serial",
+    "gps": { "rx_pin": "GPIO23", "tx_pin": "GPIO17", "baud": 9600 },
+    "dht22": { "pin": "GPIO13" },
+    "oled": { "enabled": true }
+  }
+}

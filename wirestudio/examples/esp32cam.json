@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.1",
+  "schema_version": "0.2",
   "id": "esp32cam",
   "name": "AI-Thinker ESP32-CAM",
   "description": "AI-Thinker ESP32-CAM (OV2640) wired to the board's fixed camera pinout -- the standard parallel DVP camera bus (8 data lines + XCLK/PCLK/VSYNC/HREF) plus the SCCB control I2C. Streams over the built-in camera web server.",

@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.1",
+  "schema_version": "0.2",
   "id": "presence-media-node",
   "name": "mmWave presence + IR remote receiver",
   "description": "ESP32-DevKitC-V4 media-room node: an LD2410 mmWave sensor on UART2 (256000 baud) for still-presence detection, and a TSOP38238 IR receiver on GPIO25 to learn and react to remote-control codes.",

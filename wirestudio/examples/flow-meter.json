@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.1",
+  "schema_version": "0.2",
   "id": "flow-meter",
   "name": "Pulse flow meter + DotStar + buzzer",
   "description": "ESP32-DevKitC counting pulses from a flow/tachometer sensor, an APA102 (DotStar) RGB strip for status, and a piezo buzzer playing RTTTL alerts. A water-flow / RPM monitor with visual + audible feedback.",

@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.1",
+  "schema_version": "0.2",
   "id": "atom-lite",
   "name": "M5Stack Atom Lite (onboard)",
   "description": "M5Stack Atom Lite with its onboard SK6812 RGB LED, the front button, and the I2S PDM microphone auto-populated.",

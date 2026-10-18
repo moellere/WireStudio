@@ -38,6 +38,7 @@ from wirestudio import __version__
 from wirestudio.agent.agent import is_available as agent_available, run_turn, stream_turn_events
 from wirestudio.agent.session import SessionStore, FileSessionStore, SqliteSessionStore
 from wirestudio.designs.store import DesignStore, FileDesignStore, SqliteDesignStore
+from wirestudio.migrate import MigrationError, migrate
 from wirestudio.api.schemas import (
     AgentSession,
     AgentSessionMessage,
@@ -238,9 +239,18 @@ def _example_summary(path: Path) -> ExampleSummary:
 
 
 
-def _validate_design(design: dict) -> Design:
+def _migrate_document(design: dict, library: Library) -> dict:
+    """A request's document at the current schema version, so a design from
+    an older release is accepted everywhere a current one is."""
     try:
-        return Design.model_validate(design)
+        return migrate(design, library).document
+    except MigrationError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+
+
+def _validate_document(design: dict, library: Library) -> Design:
+    try:
+        return Design.model_validate(_migrate_document(design, library))
     except ValidationError as e:
         raise HTTPException(status_code=422, detail=e.errors()) from e
 
@@ -267,6 +277,12 @@ def create_app(
 ) -> FastAPI:
     import os as _os
     lib = library or default_library()
+
+    def _validate_design(design: dict) -> Design:
+        return _validate_document(design, lib)
+
+    def _migrate(design: dict) -> dict:
+        return _migrate_document(design, lib)
 
     # Pre-compute component and board summaries to avoid re-parsing YAML
     # and re-allocating models on every request. Boards are immutable;
@@ -1197,7 +1213,8 @@ def create_app(
         # Validate the body shape first so we don't write garbage to disk.
         _validate_design(req.design)
         try:
-            design_id, saved_at = designs_store.save(req.design, design_id=req.design_id)
+            document = _migrate(req.design)
+            design_id, saved_at = designs_store.save(document, design_id=req.design_id)
         except ValueError as e:
             raise HTTPException(status_code=422, detail=str(e)) from e
         return SaveDesignResponse(id=design_id, saved_at=saved_at)

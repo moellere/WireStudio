@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.1",
+  "schema_version": "0.2",
   "id": "smart-plug-v1",
   "name": "Athom v1 / Sonoff POW R1 smart plug (HLW8012)",
   "description": "ESP8285 1MB module with the older HLW8012 / BL0937 power-meter chip -- three pulse outputs (SEL drives the chip's mode, CF + CF1 carry the pulse rates back to the MCU). Same physical plug topology as smart-plug.json but the cse7766 UART is replaced by the HLW8012 multiplexed-pulse interface.",

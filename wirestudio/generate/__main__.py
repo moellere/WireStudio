@@ -9,6 +9,7 @@ from wirestudio.csp.compatibility import strict_blockers
 from wirestudio.generate.ascii_gen import render_ascii
 from wirestudio.generate.yaml_gen import render_yaml
 from wirestudio.library import default_library
+from wirestudio.migrate import MigrationError, migrate
 from wirestudio.model import Design
 
 
@@ -29,8 +30,13 @@ def main(argv: list[str] | None = None) -> int:
 
     with args.design.open() as f:
         data = json.load(f)
-    design = Design.model_validate(data)
     library = default_library()
+    try:
+        data = migrate(data, library).document
+    except MigrationError as e:
+        sys.stderr.write(f"{args.design}: {e}\n")
+        return 2
+    design = Design.model_validate(data)
 
     if args.strict or design.strict:
         blockers = strict_blockers(data, library)

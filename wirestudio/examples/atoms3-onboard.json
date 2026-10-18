@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.1",
+  "schema_version": "0.2",
   "id": "atoms3-onboard",
   "name": "M5Stack AtomS3 (onboard peripherals)",
   "description": "M5Stack AtomS3 with its built-in parts pre-placed: the 0.85\" 128x128 ST7789 LCD on the internal SPI bus, the programmable front button, and the MPU6886 6-axis IMU on I2C. This is exactly what the studio auto-populates when you pick or USB-detect an AtomS3.",

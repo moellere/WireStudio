@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.1",
+  "schema_version": "0.2",
   "id": "tuya-smart-plug",
   "name": "Tuya MCU smart plug (relay + energy DPs)",
   "description": "ESP8285 1MB module (the typical Tuya plug radio side) talking to its onboard Tuya MCU over UART0. The MCU owns the relay + the metering chip; ESPHome reaches them through datapoints: DP 1 toggles the relay, DP 17 streams instantaneous power, DP 18 streams cumulative energy.",

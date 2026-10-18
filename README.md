@@ -164,7 +164,10 @@ pip install wirestudio                       # from PyPI
 python -m wirestudio.generate wirestudio/examples/garage-motion.json
 ```
 
-Prints rendered YAML and the ASCII wiring block to stdout.
+Prints rendered YAML and the ASCII wiring block to stdout. A
+`design.json` from an older release is migrated on load everywhere
+the studio reads one; `python -m wirestudio.migrate --write
+design.json` rewrites the file itself, and `--check` makes a gate of it.
 
 ### HTTP API
 

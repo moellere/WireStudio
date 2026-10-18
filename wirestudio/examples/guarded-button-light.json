@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.1",
+  "schema_version": "0.2",
   "id": "guarded-button-light",
   "name": "Button toggles a light only when the enable switch is on",
   "description": "Phase-5 worked example for intent-to-device synthesis: a button press toggles a light, BUT only when an enable switch is on (a manual override / safety interlock). Exercises condition gating -- the trigger fires AND every condition in the list must hold. The generator wraps the action list in `if: { condition: { switch.is_on: enable }, then: [switch.toggle: light] }`. Pairing the button-toggles-light shape with a single is_on condition is the simplest demonstration that composition between the trigger graph and the condition graph works without touching either side.",

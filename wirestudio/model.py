@@ -315,7 +315,9 @@ class LoRaWAN(_Strict):
 
 
 class Design(_Strict):
-    schema_version: Literal["0.1"]
+    # Every version `wirestudio.migrate` can read; a document is brought to
+    # `migrate.CURRENT_SCHEMA_VERSION` before it is validated here.
+    schema_version: Literal["0.1", "0.2"]
     id: str
     name: str
     description: Optional[str] = ""
