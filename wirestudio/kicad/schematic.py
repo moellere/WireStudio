@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Optional
 
 from wirestudio.kicad.importer import default_symbol_dirs
-from wirestudio.kicad.netlist import BOARD_KEY, assign_refs, build_netlist, placed_parts
+from wirestudio.kicad.netlist import BOARD_KEY, assign_refs, build_netlist, local_net_name, placed_parts
 from wirestudio.kicad.symbol_parser import (
     QStr, SymbolPin, dump_sexpr, embed_symbol, load_symbol_trees, symbol_bbox, symbol_pins,
 )
@@ -266,8 +266,7 @@ class Sheet:
         if net in _POWER_SYMBOLS and dy != 0:
             self.power(syms, net, ex, ey, _power_rot(net, dx, dy))
             return
-        rot = {(1, 0): 0, (-1, 0): 180, (0, -1): 90, (0, 1): 270}.get((dx, dy), 0)
-        self.label(net, ex, ey, rot)
+        self.label(net, ex, ey, _LABEL_ROT.get((dx, dy), 0))
 
 
 # ---------------------------------------------------------------------------
@@ -290,6 +289,9 @@ class Block:
     wires: list[list[Point]] = field(default_factory=list)
     ports: list[tuple[str, float, float, str, int]] = field(default_factory=list)
     loose: Optional[list[tuple[Symbol, SymbolPin, str]]] = None
+
+
+_LABEL_ROT = {(1, 0): 0, (-1, 0): 180, (0, -1): 90, (0, 1): 270}
 
 
 def _label_room(name: str) -> float:
@@ -324,11 +326,13 @@ def _stacked_block(key: str, syms: list[Symbol], pin_nets: dict[tuple[str, str],
 def _laid_out_block(
     key: str, layout: SchematicLayout, parts: dict[str, Symbol],
     node_nets: dict[str, str], part_pin_nodes: dict[str, dict[str, str]],
-    notes: list[str],
+    internal: set[str], shared: set[str], notes: list[str],
 ) -> Block:
-    """A block drawn from its library layout. Pins the layout's wires miss
-    are terminated on their own so the drawing is never electrically
-    short of the netlist."""
+    """A block drawn from its library layout. A port on an `internal` node
+    is drawn only when something outside the block uses the node
+    (`shared`). Pins the layout's wires miss are terminated on their own,
+    and a shared node without a port gets a label at one of its pins, so
+    the drawing is never electrically short of the netlist."""
     syms: list[Symbol] = []
     for part_id, place in layout.parts.items():
         s = parts[part_id]
@@ -341,6 +345,8 @@ def _laid_out_block(
         touched.update(pl)
     ports: list[tuple[str, float, float, str, int]] = []
     for node, plist in layout.nodes.items():
+        if node in internal and node not in shared:
+            continue
         net = node_nets.get(node)
         if net is None:
             notes.append(f"{key}: layout port for node {node!r}, which is not connected")
@@ -348,6 +354,7 @@ def _laid_out_block(
         for port in plist:
             ports.append((net, _r(port.at[0] * GRID), _r(port.at[1] * GRID), port.kind, port.rot))
     loose: list[tuple[Symbol, SymbolPin, str]] = []
+    unported = sorted(shared - set(layout.nodes))
     for part_id, s in parts.items():
         if part_id not in layout.parts:
             continue
@@ -355,6 +362,11 @@ def _laid_out_block(
             node = part_pin_nodes[part_id].get(p.name) or part_pin_nodes[part_id].get(p.number)
             if node is None or node not in node_nets:
                 continue
+            if node in unported:
+                unported.remove(node)
+                x, y = s.pin_at(p)
+                ports.append((node_nets[node], x, y, "label", _LABEL_ROT.get(s.pin_out(p), 0)))
+                notes.append(f"{key}: node {node!r} is used outside the block and the layout has no port for it; labelled at {s.ref}.{p.number}")
             pt = s.pin_at(p)
             if pt in touched or any(_on_segment(pt, a, b) for pl in wires for a, b in zip(pl, pl[1:])):
                 continue
@@ -473,7 +485,11 @@ def build_sheet(design: Design, library: Library, *, symbol_dir: Optional[Path] 
                 for pin in _pins_for(s, pin_name, None, False):
                     if (s.ref, pin.number) in pin_nets:
                         node_nets.setdefault(node, pin_nets[(s.ref, pin.number)])
-        blocks.append(_laid_out_block(comp_id, sub.schematic, by_part, node_nets, part_pin_nodes, sheet.notes))
+        inside = {s.ref for s in by_part.values()}
+        outside = {net for (ref, _), net in pin_nets.items() if ref not in inside}
+        shared = {node for node, net in node_nets.items() if net in outside}
+        internal = {node for node, net in node_nets.items() if net == local_net_name(comp_id, node)}
+        blocks.append(_laid_out_block(comp_id, sub.schematic, by_part, node_nets, part_pin_nodes, internal, shared, sheet.notes))
         leftovers = [by_part[pid] for pid in by_part if pid not in sub.schematic.parts]
         if leftovers:
             sheet.notes.append(f"{comp_id}: {len(leftovers)} part(s) have no place in the layout; stacked beside it")

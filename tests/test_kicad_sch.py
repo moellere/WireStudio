@@ -252,3 +252,78 @@ def test_sch_routes(monkeypatch):
     monkeypatch.setattr(A, "generate_kicad_sch", unavailable)
     assert client.post("/design/kicad/sch", json=design).status_code == 503
     assert client.post("/design/kicad/sch", json={"id": "broken"}).status_code == 422
+
+
+# --- shared internal nodes ----------------------------------------------------
+
+_DIVIDER = {
+    "parts": [
+        {"id": "r_top", "ref_prefix": "R", "kicad": {"symbol_lib": "Device", "symbol": "R", "value": "10k"},
+         "pins": {"1": "vsense", "2": "IN"}},
+        {"id": "r_bottom", "ref_prefix": "R", "kicad": {"symbol_lib": "Device", "symbol": "R", "value": "10k"},
+         "pins": {"1": "IN", "2": "GND"}},
+    ],
+    "schematic": {
+        "parts": {"r_top": {"at": [0, 0]}, "r_bottom": {"at": [0, 10]}},
+        "wires": [[[0, -5], [0, -3]], [[0, 3], [0, 7]], [[0, 13], [0, 15]]],
+        "nodes": {"IN": [{"at": [0, 5]}], "GND": [{"at": [0, 15], "kind": "power"}],
+                  "vsense": [{"at": [0, -5], "rot": 90}]},
+    },
+}
+
+
+def _divider_design(tap: bool) -> Design:
+    comps = [{"id": "div", "library_id": "voltage_divider", "label": "Divider"}]
+    conns = [
+        {"component_id": "div", "pin_role": "IN", "target": {"kind": "rail", "rail": "5V"}},
+        {"component_id": "div", "pin_role": "GND", "target": {"kind": "rail", "rail": "GND"}},
+    ]
+    if tap:
+        comps.append({"id": "tap", "library_id": "connector_1x03", "label": "Tap", "params": {"family": "pin_header"}})
+        conns.append({"component_id": "tap", "pin_role": "P1",
+                      "target": {"kind": "net", "component_id": "div", "net": "vsense"}})
+    return Design.model_validate({
+        "schema_version": "0.1", "id": "div", "name": "Divider",
+        "board": {"library_id": "esp32-devkitc-v4", "mcu": "esp32", "framework": "arduino"},
+        "power": {"supply": "usb-5v", "rail_voltage_v": 5.0, "budget_ma": 500},
+        "components": comps, "buses": [], "connections": conns,
+    })
+
+
+def _divider_library(monkeypatch, sub: dict):
+    lib = default_library()
+    boards = {b.id: b for b in lib.list_boards()}
+    monkeypatch.setattr(lib, "board", lambda bid: boards[bid].model_copy(update={"kicad": None}))
+    real = lib.component
+    divider = real("voltage_divider").model_copy(update={"subcircuit": Subcircuit.model_validate(sub)})
+    monkeypatch.setattr(lib, "component", lambda cid: divider if cid == "voltage_divider" else real(cid))
+    return lib
+
+
+def _labels(sheet: S.Sheet) -> list[str]:
+    return [name for name, *_ in sheet.labels]
+
+
+def test_internal_node_port_is_drawn_only_when_shared(sym_dir, monkeypatch):
+    lib = _divider_library(monkeypatch, _DIVIDER)
+    alone = S.build_sheet(_divider_design(tap=False), lib, symbol_dir=sym_dir)
+    assert "div_vsense" not in _labels(alone)
+    assert not alone.notes
+
+    tapped = S.build_sheet(_divider_design(tap=True), lib, symbol_dir=sym_dir)
+    assert _labels(tapped).count("div_vsense") == 2      # the layout's port and the tap's pin
+    assert not tapped.notes
+    group = next(g for g in S.expected_connectivity(tapped) if ("R1", "1") in g)
+    assert len(group) == 2                               # the divider's top pin and the tap's
+
+
+def test_shared_node_without_a_port_is_labelled_at_a_pin(sym_dir, monkeypatch):
+    sub = {**_DIVIDER, "schematic": {**_DIVIDER["schematic"], "nodes": {
+        k: v for k, v in _DIVIDER["schematic"]["nodes"].items() if k != "vsense"}}}
+    lib = _divider_library(monkeypatch, sub)
+    sheet = S.build_sheet(_divider_design(tap=True), lib, symbol_dir=sym_dir)
+    assert _labels(sheet).count("div_vsense") == 2
+    r1 = next(s for s in sheet.symbols if s.ref == "R1")
+    pin1 = next(p for p in r1.pins if p.number == "1")
+    assert (("div_vsense",) + r1.pin_at(pin1)) in {lab[:3] for lab in sheet.labels}
+    assert any("no port" in n and "R1.1" in n for n in sheet.notes)

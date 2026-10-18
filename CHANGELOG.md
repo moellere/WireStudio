@@ -50,8 +50,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   placements, wire polylines, ports, in grid units) and is then drawn as
   a circuit, with junctions computed where three things meet; the MOSFET
   H-bridge has the first one and comes out as two legs with the motor
-  between them. Pins a layout misses are still labelled, so a partial
-  layout is incomplete, never wrong. Symbols are embedded from the pinned
+  between them. Pins a layout misses are still labelled, and an internal
+  node a connector's `net` target reaches gets a label (at the layout's
+  port for it, else at one of its pins), so a partial layout is
+  incomplete, never wrong. Symbols are embedded from the pinned
   KiCad library with `extends` resolved, so the file opens with no
   library setup, and output is deterministic down to the UUIDs. The
   render and ERC features now need the symbol libraries on the server

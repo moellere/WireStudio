@@ -226,3 +226,5 @@ subcircuit:
       GND: [{at: [34, 48], kind: power}, {at: [10, 8], kind: power}]
       IN1: [{at: [6, 38], rot: 180}]
       IN2: [{at: [42, 38], rot: 180}]
+      out_a: [{at: [40, 18], rot: 270}]
+      out_b: [{at: [54, 18], rot: 270}]

@@ -134,7 +134,10 @@ symbol; the peripherals in columns beside it; and each subcircuit as a
 block. A subcircuit whose library entry carries a `schematic:` layout
 (part placements, wire polylines and ports, in 1.27 mm grid units) is
 drawn as a circuit — the MOSFET H-bridge comes out as two legs with the
-motor between them — and one without is stacked with labels. Symbols
+motor between them — and one without is stacked with labels. A port on
+one of a layout's internal nodes is drawn only when something outside
+the block uses that net (a connector pin with a `net` target); a shared
+node the layout has no port for is labelled at one of its pins. Symbols
 are embedded from the pinned KiCad library, so the file opens with no
 library setup; output is deterministic down to the UUIDs, so a diff
 means the design changed. `/design/kicad/render` and `/design/kicad/erc`
