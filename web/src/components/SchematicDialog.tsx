@@ -15,6 +15,7 @@ import type {
   KicadPcbStatus,
   KicadRenderStatus,
   KicadRouteStatus,
+  KicadSchStatus,
 } from "../types/api";
 import { Button, Dialog } from "./ui";
 
@@ -47,6 +48,11 @@ export function SchematicDialog({ design, onClose }: Props) {
   const [downloaded, setDownloaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [schStatus, setSchStatus] = useState<KicadSchStatus | null>(null);
+  const [schDownloading, setSchDownloading] = useState(false);
+  const [schDownloaded, setSchDownloaded] = useState(false);
+  const [schError, setSchError] = useState<string | null>(null);
+
   const [renderStatus, setRenderStatus] = useState<KicadRenderStatus | null>(null);
   const [rendering, setRendering] = useState(false);
   const [svgUrl, setSvgUrl] = useState<string | null>(null);
@@ -75,8 +81,14 @@ export function SchematicDialog({ design, onClose }: Props) {
       .kicadRenderStatus()
       .then((s) => live && setRenderStatus(s))
       .catch(() => live && setRenderStatus({
-        available: false, kicad_cli: false, skidl: false, png: false,
+        available: false, kicad_cli: false, symbols: false, png: false,
         reason: "render status unavailable",
+      }));
+    api
+      .kicadSchStatus()
+      .then((s) => live && setSchStatus(s))
+      .catch(() => live && setSchStatus({
+        available: false, symbol_dir: null, reason: "schematic status unavailable",
       }));
     api
       .kicadPcbStatus()
@@ -137,6 +149,20 @@ export function SchematicDialog({ design, onClose }: Props) {
       setError(formatError(e));
     } finally {
       setDownloading(false);
+    }
+  }
+
+  async function handleDownloadSch() {
+    setSchDownloading(true);
+    setSchDownloaded(false);
+    setSchError(null);
+    try {
+      saveBlob(await api.kicadSch(design), `${design.id ?? "design"}.kicad_sch`, "application/octet-stream");
+      setSchDownloaded(true);
+    } catch (e) {
+      setSchError(formatError(e));
+    } finally {
+      setSchDownloading(false);
     }
   }
 
@@ -236,7 +262,7 @@ export function SchematicDialog({ design, onClose }: Props) {
   return (
     <Dialog
       title="KiCad export"
-      subtitle="Preview the schematic, download a SKiDL script, or export a PCB board."
+      subtitle="Preview the schematic, download it for KiCad, or export a PCB board."
       onClose={onClose}
       maxWidth="max-w-3xl"
     >
@@ -266,12 +292,47 @@ export function SchematicDialog({ design, onClose }: Props) {
             </>
           ) : (
             <div className="rounded-md border border-line bg-surface-2/40 px-2 py-1.5 text-xs text-ink-dim">
-              Inline preview needs <code className="text-ink">kicad-cli</code> and{" "}
-              <code className="text-ink">skidl</code> on the server.
+              Inline preview needs <code className="text-ink">kicad-cli</code> and the
+              KiCad symbol libraries on the server.
               {renderStatus.reason && (
                 <span className="text-ink-faint"> ({renderStatus.reason})</span>
               )}{" "}
               Download the script below and render it locally instead.
+            </div>
+          )}
+        </section>
+
+        {/* --- Download the schematic (.kicad_sch) ------------------- */}
+        <section className="space-y-3 border-t border-line pt-3">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
+            Download schematic
+          </div>
+          <p className="text-xs leading-relaxed text-ink-dim">
+            A KiCad 8 <code className="text-ink">.kicad_sch</code> drawn by the studio:
+            the board with every pin labelled or flagged, peripherals beside it,
+            and each subcircuit drawn as a circuit where its library entry has a
+            layout. Symbols are embedded, so it opens with no library setup.
+          </p>
+          {schStatus === null ? (
+            <div className="text-xs text-ink-faint">Checking symbol libraries…</div>
+          ) : schStatus.available ? (
+            <Button variant="primary" onClick={handleDownloadSch} disabled={schDownloading}>
+              {schDownloading
+                ? "Writing…"
+                : schDownloaded
+                  ? "Downloaded ✓ — write again"
+                  : "Download .kicad_sch →"}
+            </Button>
+          ) : (
+            <div className="rounded-md border border-line bg-surface-2/40 px-2 py-1.5 text-xs text-ink-dim">
+              Writing the schematic needs the KiCad symbol libraries on the server.
+              {schStatus.reason && <span className="text-ink-faint"> ({schStatus.reason})</span>}{" "}
+              The SKiDL script below works without them.
+            </div>
+          )}
+          {schError && (
+            <div className="rounded-md bg-rose-500/10 px-2 py-1.5 text-xs text-rose-200 ring-1 ring-rose-500/30">
+              {schError}
             </div>
           )}
         </section>

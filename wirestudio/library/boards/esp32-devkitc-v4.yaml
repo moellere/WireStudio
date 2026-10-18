@@ -81,3 +81,34 @@ kicad:
   symbol_lib: RF_Module
   symbol: ESP32-WROOM-32
   footprint: RF_Module:ESP32-WROOM-32
+  # Board roles (GPIO ids, rail names) -> module symbol pin names. The
+  # symbol is the WROOM module, so the devkit's 5V has no pin here.
+  pin_map:
+    GPIO0: IO0
+    GPIO1: TXD0/IO1
+    GPIO2: IO2
+    GPIO3: RXD0/IO3
+    GPIO4: IO4
+    GPIO5: IO5
+    GPIO12: IO12
+    GPIO13: IO13
+    GPIO14: IO14
+    GPIO15: IO15
+    GPIO16: IO16
+    GPIO17: IO17
+    GPIO18: IO18
+    GPIO19: IO19
+    GPIO21: IO21
+    GPIO22: IO22
+    GPIO23: IO23
+    GPIO25: IO25
+    GPIO26: IO26
+    GPIO27: IO27
+    GPIO32: IO32
+    GPIO33: IO33
+    GPIO34: IO34
+    GPIO35: IO35
+    GPIO36: SENSOR_VP
+    GPIO39: SENSOR_VN
+    3V3: VDD
+    GND: GND

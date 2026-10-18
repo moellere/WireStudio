@@ -28,6 +28,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Example `actuator-harness` puts a bridge, a pot and a tach switch on
   one 8-way plug and an encoder and button on a 4-way pigtail;
   `usbc-led-strip` gains the strip's 3-way plug (#300).
+- **Enclosure → print-warden handoff.** The Enclosure dialog gains a
+  **Print** tab, the API `POST /design/enclosure/print` (with
+  `GET /enclosure/print/status` and `GET /enclosure/print/jobs/{id}`),
+  and the MCP tools `print_warden_status`, `print_enclosure`,
+  `print_job_status`. wirestudio generates the shell, uploads the `.scad`
+  to the warden and stages it through the warden's own MCP `submit_job`;
+  fit tunables (wall, clearance, standoff height ...) travel as OpenSCAD
+  `-D` overrides, so the warden renders and slices exactly what the
+  Generate tab downloads. Nothing on this side can start a print: the job
+  is offered to the operator's phone or started by the warden's
+  `auto_start` policy. Configured with `PRINT_WARDEN_URL` and, when the
+  warden has one, `PRINT_WARDEN_TOKEN`; unset leaves the tab explaining
+  what to set.
+- **wirestudio draws the schematic.** `POST /design/kicad/sch`, the
+  **Download schematic** button and the `kicad_sch` tool write a KiCad 8
+  `.kicad_sch` directly, and `/design/kicad/render` and `/design/kicad/erc`
+  run kicad-cli on that file instead of a SKiDL placement. The sheet is
+  built, not solved: the board on the left with every pin labelled,
+  flagged no-connect or on a rail symbol, the peripherals in columns
+  beside it, each subcircuit as a block, one PWR_FLAG per rail. A
+  subcircuit's library entry can carry a `schematic:` layout (part
+  placements, wire polylines, ports, in grid units) and is then drawn as
+  a circuit, with junctions computed where three things meet; the MOSFET
+  H-bridge has the first one and comes out as two legs with the motor
+  between them. Pins a layout misses are still labelled, and an internal
+  node a connector's `net` target reaches gets a label (at the layout's
+  port for it, else at one of its pins), so a partial layout is
+  incomplete, never wrong. Symbols are embedded from the pinned
+  KiCad library with `extends` resolved, so the file opens with no
+  library setup, and output is deterministic down to the UUIDs. The
+  render and ERC features now need the symbol libraries on the server
+  (`KICAD8_SYMBOL_DIR`) rather than SKiDL; the SKiDL script export and
+  its netlist gate stay as they were.
+- **`scripts/check_sch.py`.** For every example, kicad-cli reads the
+  netlist back from the written sheet's geometry and it is compared with
+  the design's: a wire that misses a pin, a label on the wrong net or a
+  missing junction shows up as a split or merged group. Runs in the
+  `kicad-render` workflow.
+
+### Fixed
+
+- **The board is wired in the schematic and PCB.** The SKiDL script
+  placed the dev board's symbol and never connected a pin of it: every
+  `GPIO_*` net had one member, the peripheral, and the MCU sat on the
+  sheet as an island with the labels floating beside it (the PCB had the
+  same gap, documented as a known limitation). Boards drawn with a module
+  symbol now carry a `kicad.pin_map` (board role -> symbol pin:
+  `GPIO36: SENSOR_VP`, `D2: SDA/D2`, `3V3: VDD`), and
+  `netlist.board_bindings` turns the design's gpio, rail and bus
+  connections into board pins for both artifacts, buses through the
+  bus's own pins or the board's default bus. GPIO nets are declared once
+  in the script so the peripheral and the board land on the same net,
+  and a role the symbol has no pin for (a module's 5V) is noted in the
+  script instead of invented. Covers the ESP32-WROOM-32, ESP-12E and
+  WeMos D1 mini symbols; boards drawn as generic headers still float and
+  say so.
 
 ## [0.39.0] — 2026-10-18
 
