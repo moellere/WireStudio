@@ -17,8 +17,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   through the dev board's own USB port. No ESPHome config of its own.
   Example `usbc-led-strip` feeds a WS2812B strip from one.
 
-### Added
-
 - **Flash size override in the Inspector.** ESP32 boards get a flash size
   select under the board picker: "Board default (NMB)" or 4/8/16/32 MB,
   writing `board.flash_size_mb`. Raising it above the board file's value
