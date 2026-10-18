@@ -124,6 +124,20 @@ spec:
                   name: wirestudio-secrets
                   key: chirpstack-api-token
                   optional: true
+            # print-warden handoff (Enclosure -> Print). The URL gates the
+            # feature; the token is only needed when the warden has one.
+            - name: PRINT_WARDEN_URL
+              valueFrom:
+                secretKeyRef:
+                  name: wirestudio-secrets
+                  key: print-warden-url
+                  optional: true
+            - name: PRINT_WARDEN_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: wirestudio-secrets
+                  key: print-warden-token
+                  optional: true
             # Bearer token for the REST surface (/api/*). Unset leaves the
             # API open, which is only acceptable behind a cluster-internal
             # Service; set it before publishing anything but /mcp.

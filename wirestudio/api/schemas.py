@@ -284,6 +284,70 @@ class FleetPushResponse(_S):
     enqueued: int = Field(default=0, description="Number of compile jobs enqueued.")
 
 
+class PrintWardenPrinter(_S):
+    name: str = Field(description="Printer name as the warden knows it, e.g. 'garagex4'.")
+    location: Optional[str] = Field(default=None, description="Where the printer is; also accepted as `where`.")
+    state: Optional[str] = Field(default=None, description="Klipper print state (standby, printing, ...).")
+    klippy: Optional[str] = Field(default=None, description="Klipper host state (ready, shutdown, ...).")
+    loaded_material: Optional[str] = Field(default=None, description="Material of the active spool.")
+    materials: list[str] = Field(default_factory=list, description="Materials the printer has slicer profiles for.")
+    qualities: list[str] = Field(default_factory=list, description="Slicing qualities the printer offers.")
+    bed: Optional[str] = Field(default=None, description="Bed record: clear, occupied or unknown.")
+
+
+class EnclosurePrintStatus(_S):
+    available: bool = Field(description="True when PRINT_WARDEN_URL is set and the warden answers /healthz.")
+    reason: Optional[str] = Field(default=None, description="Why the warden is unavailable, when available is false.")
+    url: Optional[str] = Field(default=None, description="Configured warden base URL (token is never returned).")
+    version: Optional[str] = Field(default=None, description="The warden's reported version.")
+    printers: list[PrintWardenPrinter] = Field(default_factory=list, description="Printers under the warden's watch.")
+    locations: list[str] = Field(default_factory=list, description="Distinct printer locations, usable as `where`.")
+
+
+class EnclosurePrintRequest(_S):
+    design: dict = Field(description="The design.json whose board's enclosure shell to print.")
+    where: str = Field(description="A warden printer name or a location ('covington'); a location is routed.")
+    material: str = Field(description="Filament material, e.g. 'PETG'; must match what the printer has loaded to start.")
+    quality: str = Field(default="standard", description="Slicing quality the printer offers (draft, standard, fine, ...).")
+    tunables: dict[str, float] = Field(
+        default_factory=dict,
+        description="OpenSCAD tunables overriding the shell's defaults (wall, floor, clearance, standoff_h, "
+        "standoff_d, standoff_hole, port_clearance, component_h), in mm.",
+    )
+    copies: int = Field(default=1, ge=1, le=20, description="Copies arranged on one plate.")
+
+
+class EnclosurePrintResponse(_S):
+    job_id: str = Field(description="The warden's job id; poll it with GET /enclosure/print/jobs/{job_id}.")
+    name: Optional[str] = Field(default=None, description="Job name on the warden.")
+    printer: str = Field(description="Printer the job was staged on.")
+    routed: bool = Field(default=False, description="True when `where` was a location and the warden chose the printer.")
+    state: str = Field(description="Job state on the warden (staged, awaiting_approval, ...).")
+    material: str = Field(description="Material the job was sliced for.")
+    quality: str = Field(description="Quality the job was sliced at.")
+    est_seconds: Optional[float] = Field(default=None, description="Slicer's print-time estimate.")
+    est_human: Optional[str] = Field(default=None, description="Estimate corrected by the printer's history, readable.")
+    filament_g: Optional[float] = Field(default=None, description="Filament the slice uses, grams.")
+    preview_url: Optional[str] = Field(default=None, description="Top-down preview of the sliced plate.")
+    warnings: list[str] = Field(default_factory=list, description="Advisory notes from the warden's checks.")
+    slice_blockers: list[str] = Field(default_factory=list, description="Findings that stop the start until the operator waives them.")
+    queue: Optional[dict] = Field(default=None, description="What the printer's queue did with the job (offered or why not).")
+    starts: str = Field(description="How the print starts; never from here.")
+
+
+class EnclosurePrintJob(_S):
+    job_id: str = Field(description="The warden's job id.")
+    printer: str = Field(description="Printer the job belongs to.")
+    state: str = Field(description="Job state on the warden.")
+    est_human: Optional[str] = Field(default=None, description="Corrected estimate, readable.")
+    preview_url: Optional[str] = Field(default=None, description="Top-down preview of the sliced plate.")
+    can_start: bool = Field(description="The warden's start policy verdict right now.")
+    blockers: list[str] = Field(default_factory=list, description="Why can_start is false.")
+    warnings: list[str] = Field(default_factory=list, description="Advisory notes from the warden's checks.")
+    slice_blockers: list[str] = Field(default_factory=list, description="Findings awaiting the operator's waiver.")
+    log: list = Field(default_factory=list, description="The job's transition log.")
+
+
 class DashboardStatus(_S):
     available: bool = Field(description="True when ESPHOME_DASHBOARD_URL is set and the dashboard answers /devices.")
     reason: Optional[str] = Field(default=None, description="Why it is unavailable, when it is.")

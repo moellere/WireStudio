@@ -102,6 +102,29 @@ block, not the design's components — so the gate walks boards, not
 examples. Boards without a clear PCB outline (modules like the ESP-01S)
 have no `enclosure:` block and are skipped by design.
 
+### Printing it through print-warden
+
+With a [print-warden](https://github.com/moellere/print-warden) reachable,
+the Enclosure dialog's **Print** tab (and the `print_enclosure` MCP tool,
+`POST /design/enclosure/print`) hands the same shell straight to the
+printer: wirestudio uploads the `.scad` to the warden, which renders it
+(fit tunables become OpenSCAD `-D` overrides), slices it for the chosen
+printer or location, runs its bed/temperature checks and queues the job.
+
+```sh
+export PRINT_WARDEN_URL=http://10.0.0.29:8710
+export PRINT_WARDEN_TOKEN=...   # only if the warden has PRINT_WARDEN_TOKEN set
+python -m wirestudio.api
+```
+
+The warden's trust gradient is kept intact: wirestudio speaks the warden's
+own MCP surface (`list_printers`, `submit_job`, `job_status`) and never
+calls a start. The job is offered to the operator's phone, or starts under
+the warden's `auto_start` policy; `GET /enclosure/print/jobs/{id}` and
+`print_job_status` show its state and the start-policy verdict.
+`GET /enclosure/print/status` lists the printers and locations usable as
+`where`.
+
 ## KiCad export
 
 `POST /design/kicad/schematic` (and the **Schematic** header button)

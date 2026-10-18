@@ -32,6 +32,9 @@ vi.mock("../api/client", async () => {
       enclosureScad: vi.fn(),
       enclosureSearch: vi.fn(),
       enclosureSearchStatus: vi.fn(),
+      enclosurePrintStatus: vi.fn(),
+      enclosurePrint: vi.fn(),
+      enclosurePrintJob: vi.fn(),
     },
   };
 });
@@ -40,6 +43,9 @@ const mockApi = api as unknown as {
   enclosureScad: ReturnType<typeof vi.fn>;
   enclosureSearch: ReturnType<typeof vi.fn>;
   enclosureSearchStatus: ReturnType<typeof vi.fn>;
+  enclosurePrintStatus: ReturnType<typeof vi.fn>;
+  enclosurePrint: ReturnType<typeof vi.fn>;
+  enclosurePrintJob: ReturnType<typeof vi.fn>;
 };
 
 const design: Design = {
@@ -58,6 +64,9 @@ beforeEach(() => {
   mockApi.enclosureScad.mockReset();
   mockApi.enclosureSearch.mockReset();
   mockApi.enclosureSearchStatus.mockReset();
+  mockApi.enclosurePrintStatus.mockReset();
+  mockApi.enclosurePrint.mockReset();
+  mockApi.enclosurePrintJob.mockReset();
 
   // jsdom lacks URL.createObjectURL/revokeObjectURL; stub them so the
   // Generate tab's <a download> click doesn't throw.
@@ -241,5 +250,103 @@ describe("Search tab", () => {
     await waitFor(() => expect(screen.getAllByText(/THINGIVERSE_API_KEY/).length).toBeGreaterThan(0));
     expect(screen.getByText(/thingiverse.com\/developers/)).toBeInTheDocument();
     expect(screen.getByText(/No search source is configured/i)).toBeInTheDocument();
+  });
+});
+
+
+describe("Print tab", () => {
+  const status = {
+    available: true, reason: null, url: "http://warden:8710", version: "0.6.0",
+    locations: ["covington", "wyola"],
+    printers: [
+      { name: "garagex4", location: "covington", state: "standby", klippy: "ready",
+        loaded_material: "PETG", materials: ["ABS", "PETG", "PLA"],
+        qualities: ["draft", "fine", "standard", "strength"], bed: "clear" },
+      { name: "wyolax1", location: "wyola", state: "standby", klippy: "shutdown",
+        loaded_material: "PLA", materials: ["PETG", "PLA"],
+        qualities: ["draft", "optimal", "standard"], bed: "unknown" },
+    ],
+  };
+
+  async function openPrintTab() {
+    render(
+      <EnclosureDialog
+        design={design}
+        boardLibraryId="esp32-devkitc-v4"
+        boardName="ESP32-DevKitC-V4"
+        onClose={() => {}}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: /Print \(print-warden\)/ }));
+  }
+
+  it("shows why the warden is unavailable and how to configure it", async () => {
+    mockApi.enclosurePrintStatus.mockResolvedValue({
+      ...status, available: false, reason: "PRINT_WARDEN_URL not set", printers: [], locations: [],
+    });
+    await openPrintTab();
+    await screen.findByText(/PRINT_WARDEN_URL not set/);
+    expect(screen.queryByRole("button", { name: /Send to print-warden/ })).toBeNull();
+  });
+
+  it("defaults where to the first location and material to what is loaded there", async () => {
+    mockApi.enclosurePrintStatus.mockResolvedValue(status);
+    await openPrintTab();
+    const where = (await screen.findByLabelText("where")) as HTMLSelectElement;
+    expect(where.value).toBe("covington");
+    const material = screen.getByLabelText("material") as HTMLSelectElement;
+    await waitFor(() => expect(material.value).toBe("PETG"));
+    expect((screen.getByLabelText("quality") as HTMLSelectElement).value).toBe("standard");
+
+    await userEvent.selectOptions(where, "wyolax1");
+    await waitFor(() => expect(material.value).toBe("PLA"));
+    expect(Array.from(material.options).map((o) => o.value)).toEqual(["PETG", "PLA"]);
+  });
+
+  it("sends the design with only the changed tunables and renders the staged job", async () => {
+    mockApi.enclosurePrintStatus.mockResolvedValue(status);
+    mockApi.enclosurePrint.mockResolvedValue({
+      job_id: "job7", name: "garage-motion-enclosure", printer: "garagex4", routed: true,
+      state: "staged", material: "PETG", quality: "fine", est_seconds: 4260, est_human: "1h 11m",
+      filament_g: 31.2, preview_url: "http://warden/files/jobs/job7/preview.png",
+      warnings: ["slice reused from cache"], slice_blockers: [],
+      queue: { offered: true }, starts: "staged on print-warden; it starts only from the phone",
+    });
+    await openPrintTab();
+    await screen.findByLabelText("where");
+    await userEvent.selectOptions(screen.getByLabelText("quality"), "fine");
+    await userEvent.click(screen.getByText("Fit tunables"));
+    const wall = screen.getByLabelText("wall");
+    await userEvent.clear(wall);
+    await userEvent.type(wall, "2.4");
+    await userEvent.click(screen.getByRole("button", { name: /Send to print-warden/ }));
+
+    await waitFor(() => expect(mockApi.enclosurePrint).toHaveBeenCalledTimes(1));
+    expect(mockApi.enclosurePrint).toHaveBeenCalledWith({
+      design, where: "covington", material: "PETG", quality: "fine", copies: 1,
+      tunables: { wall: 2.4 },
+    });
+    await screen.findByText(/job7/);
+    expect(screen.getByText(/est 1h 11m/)).toBeTruthy();
+    expect(screen.getByText(/slice reused from cache/)).toBeTruthy();
+    expect(screen.getByText(/starts only from the phone/)).toBeTruthy();
+    expect(screen.getByRole("img", { name: /preview/ }).getAttribute("src")).toContain("job7");
+  });
+
+  it("surfaces a warden refusal in a rose banner", async () => {
+    const { ApiError } = await vi.importActual<typeof import("../api/client")>("../api/client");
+    mockApi.enclosurePrintStatus.mockResolvedValue(status);
+    mockApi.enclosurePrint.mockRejectedValue(
+      new ApiError(422, "POST /design/enclosure/print -> 422", {
+        detail: "model 60x40x30 does not fit the bed",
+      }),
+    );
+    await openPrintTab();
+    await screen.findByLabelText("where");
+    await userEvent.click(screen.getByRole("button", { name: /Send to print-warden/ }));
+    await screen.findByText(/does not fit the bed/);
+    expect(mockApi.enclosurePrint).toHaveBeenCalledWith(
+      expect.objectContaining({ tunables: undefined }),
+    );
   });
 });
