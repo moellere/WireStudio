@@ -244,7 +244,79 @@ def build_netlist(design: Design, library) -> list[Net]:
                 net.pads.append(
                     NetPad(ref=ref, component_id=comp_id, pin_role=pin, part_id=part.id)
                 )
+    board_pins, _ = board_bindings(design, library)
+    for bp in board_pins:
+        name = net_name(bp.target)
+        net = by_name.setdefault(name, Net(name=name))
+        net.pads.append(NetPad(ref=refs[BOARD_KEY], component_id=BOARD_KEY, pin_role=bp.pin))
     return [by_name[n] for n in sorted(by_name)]
+
+
+_BUS_PINS = ("sda", "scl", "clk", "miso", "mosi", "cs", "rx", "tx")
+
+
+@dataclass(frozen=True)
+class BoardPin:
+    """One board symbol pin and the connection target whose net it joins."""
+    pin: str
+    role: str
+    target: object
+
+
+def board_bindings(design: Design, library) -> tuple[list[BoardPin], list[str]]:
+    """Which board symbol pins join which nets: every bound gpio and rail
+    target in the design's connections, plus the board GPIOs each bus runs
+    on (the bus's own pins, else the board's default bus of that type). The
+    roles come from the design (``GPIO13``, ``D2``, ``3V3``) and the board's
+    ``kicad.pin_map`` turns them into symbol pin names.
+
+    The second item lists what could not be placed, for the artifact to note:
+    a role the pin_map lacks (a module symbol has no 5V pin), or a board with
+    no pin_map at all, whose pins stay unconnected as before."""
+    try:
+        board = library.board(design.board.library_id)
+    except FileNotFoundError:
+        return [], []
+    kicad = board.kicad
+    if kicad is None:
+        return [], []
+    if not kicad.pin_map:
+        return [], [
+            f"board {board.id}: no kicad.pin_map, so its pins are left unconnected "
+            f"(add one to library/boards/{board.id}.yaml)"
+        ]
+    buses = {b.id: b for b in design.buses}
+    wanted: dict[str, object] = {}
+    for conn in design.connections:
+        t = conn.target
+        if not is_bound(t):
+            continue
+        if t.kind == "gpio":
+            wanted.setdefault(t.pin, t)
+        elif t.kind == "rail":
+            role = "GND" if t.rail.lower() in ("gnd", "ground") else t.rail
+            wanted.setdefault(role, t)
+        elif t.kind == "bus":
+            bus = buses.get(t.bus_id)
+            if bus is None:
+                continue
+            defaults = board.default_buses.get(bus.type) or {}
+            for name in _BUS_PINS:
+                gpio = getattr(bus, name, None) or defaults.get(name)
+                if gpio:
+                    wanted.setdefault(gpio, t)
+    pins: list[BoardPin] = []
+    notes: list[str] = []
+    for role, target in wanted.items():
+        pin = kicad.pin_map.get(role)
+        if pin is None:
+            notes.append(
+                f"{role}: no pin on {kicad.symbol_lib}:{kicad.symbol} "
+                f"(board {board.id} pin_map)"
+            )
+            continue
+        pins.append(BoardPin(pin=pin, role=role, target=target))
+    return pins, notes
 
 
 def is_bound(target) -> bool:

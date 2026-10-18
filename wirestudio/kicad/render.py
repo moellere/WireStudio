@@ -1,16 +1,13 @@
-"""Render a design's schematic to an image via SKiDL + kicad-cli.
+"""Render a design's schematic to an image via kicad-cli.
 
-Pipeline: design -> SKiDL script (`generate_skidl`) -> run the script in a
-subprocess (produces a `.kicad_sch`) -> `kicad-cli sch export svg` -> SVG.
-`--png` rasterizes the SVG with whatever converter is on the system.
+Pipeline: design -> `.kicad_sch` (`wirestudio.kicad.schematic`, in
+process) -> `kicad-cli sch export svg` -> SVG. `--png` rasterizes the
+SVG with whatever converter is on the system.
 
-SKiDL is never imported into wirestudio's process -- the generated script
-is run as a subprocess with `sys.executable`, the same way a user would
-run it by hand. That keeps numpy + the EDA-toolchain weight out of the
-import graph (see `wirestudio/kicad/generator.py`). The whole feature is
-optional: `render_status()` probes for the tools, and the API / web UI
-gate the preview on it the same way the agent and fleet features gate on
-their own config.
+The sheet writer needs the pinned KiCad symbol libraries to embed the
+symbols, so the feature gates on those plus kicad-cli: `render_status()`
+probes for both, and the API / web UI gate the preview on it the same
+way the agent and fleet features gate on their own config.
 
 CLI: `python -m wirestudio.kicad.render <design.json> [-o out.svg] [--png]`.
 """
@@ -25,24 +22,20 @@ import sys
 import tempfile
 from pathlib import Path
 
-from wirestudio.kicad.generator import generate_skidl
 from wirestudio.kicad.pcb import generate_kicad_pcb, pcb_status
+from wirestudio.kicad.schematic import SchematicUnavailable, generate_kicad_sch, sch_status
 from wirestudio.library import Library, default_library
 from wirestudio.model import Design
 
-_TIMEOUT = 120  # seconds, per subprocess -- SKiDL and kicad-cli are both slow
+_TIMEOUT = 120  # seconds, per subprocess -- kicad-cli is slow to start
 
 
 class RenderUnavailable(RuntimeError):
-    """A required tool (kicad-cli / skidl / a PNG converter) is not installed."""
+    """A required tool (kicad-cli / symbol libraries / a PNG converter) is not installed."""
 
 
 class RenderError(RuntimeError):
     """The render pipeline ran but a step failed (nonzero exit / no output)."""
-
-
-def _skidl_importable() -> bool:
-    return importlib.util.find_spec("skidl") is not None
 
 
 def _png_converter() -> str | None:
@@ -64,24 +57,37 @@ def render_status() -> dict:
     Shape mirrors the other feature-gate status endpoints: `available`
     is the headline the UI keys off, the rest explains what's missing."""
     kicad_cli = shutil.which("kicad-cli") is not None
-    skidl = _skidl_importable()
+    symbols = sch_status()
     png = _png_converter() is not None
-    available = kicad_cli and skidl
+    available = kicad_cli and symbols["available"]
     reason = None
     if not available:
         missing = []
         if not kicad_cli:
             missing.append("kicad-cli not on PATH")
-        if not skidl:
-            missing.append(f"skidl not importable by {sys.executable}")
+        if not symbols["available"]:
+            missing.append(symbols["reason"])
         reason = "; ".join(missing)
     return {
         "available": available,
         "kicad_cli": kicad_cli,
-        "skidl": skidl,
+        "symbols": symbols["available"],
         "png": png,
         "reason": reason,
     }
+
+
+def write_schematic(design: Design, library: Library, directory: Path) -> Path:
+    """The design's `.kicad_sch` in `directory`. Raises RenderUnavailable
+    without the symbol libraries, FileNotFoundError for a symbol the
+    library lacks."""
+    try:
+        text = generate_kicad_sch(design, library)
+    except SchematicUnavailable as e:
+        raise RenderUnavailable(str(e)) from e
+    path = directory / f"{design.id}.kicad_sch"
+    path.write_text(text)
+    return path
 
 
 def render_schematic(design: Design, library: Library, *, fmt: str = "svg") -> bytes:
@@ -96,40 +102,21 @@ def render_schematic(design: Design, library: Library, *, fmt: str = "svg") -> b
     status = render_status()
     if not status["kicad_cli"]:
         raise RenderUnavailable("kicad-cli not found on PATH")
-    if not status["skidl"]:
-        raise RenderUnavailable(f"skidl not importable by {sys.executable}")
+    if not status["symbols"]:
+        raise RenderUnavailable(sch_status()["reason"])
     if fmt == "png" and not status["png"]:
         raise RenderUnavailable(
             "no SVG->PNG converter found (install cairosvg, rsvg-convert, "
             "or ImageMagick)"
         )
 
-    script = generate_skidl(design, library)
-
     with tempfile.TemporaryDirectory(prefix="wirestudio-render-") as td:
         tmp = Path(td)
-        (tmp / "schematic.py").write_text(script)
-
-        skidl_run = subprocess.run(
-            [sys.executable, "schematic.py"],
-            cwd=td,
-            capture_output=True,
-            text=True,
-            timeout=_TIMEOUT,
-        )
-        if skidl_run.returncode != 0:
-            raise RenderError(
-                "SKiDL script failed:\n" + (skidl_run.stderr or "")[-2000:]
-            )
-
-        sch = sorted(tmp.glob("*.kicad_sch"))
-        if not sch:
-            raise RenderError("SKiDL produced no .kicad_sch file")
-
+        sch = write_schematic(design, library, tmp)
         out_dir = tmp / "out"
         out_dir.mkdir()
         cli_run = subprocess.run(
-            ["kicad-cli", "sch", "export", "svg", "--output", str(out_dir), str(sch[0])],
+            ["kicad-cli", "sch", "export", "svg", "--output", str(out_dir), str(sch)],
             capture_output=True,
             text=True,
             timeout=_TIMEOUT,

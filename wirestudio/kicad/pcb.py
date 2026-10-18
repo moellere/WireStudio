@@ -18,10 +18,10 @@ Determinism: same ``design.json`` + same pinned libraries -> byte-identical
 board. Reference designators and net names come from ``wirestudio.kicad.netlist``
 so the board and the schematic agree.
 
-Known limitation (step 2): the dev board's own pads aren't bound to nets -- the
-library models boards as generic headers with no GPIO-name -> pad map, so the
-board footprint is placed but its pins float, exactly as in the schematic. Nets
-shared between components (rails, buses, expander/hub pins) get a ratsnest.
+The dev board's pads are bound through its ``kicad.pin_map`` (board role ->
+symbol pin name, see ``netlist.board_bindings``); a board whose library entry
+has no pin_map -- the ones drawn as generic headers -- is placed with its pins
+floating, as before.
 """
 from __future__ import annotations
 
@@ -326,8 +326,17 @@ def generate_kicad_pcb(
     components_by_id = {c.id: c for c in design.components}
     pad_nets_by_ref: dict[str, dict[str, tuple[int, str]]] = {}
     sym_cache: dict[str, dict] = {}
+    try:
+        board_kicad = library.board(design.board.library_id).kicad
+    except FileNotFoundError:
+        board_kicad = None
     for net in nets:
         for pad in net.pads:
+            if pad.component_id == BOARD_KEY:
+                num = board_kicad and _symbol_pad_number(board_kicad, pad.pin_role, sym_dir, sym_cache)
+                if num is not None:
+                    pad_nets_by_ref.setdefault(pad.ref, {})[num] = (net_index[net.name], net.name)
+                continue
             comp = components_by_id.get(pad.component_id)
             if comp is None:
                 continue

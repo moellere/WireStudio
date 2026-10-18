@@ -419,12 +419,54 @@ def component_footprint(comp: LibraryComponent, params: Mapping[str, object]) ->
 _value_env = Environment(undefined=StrictUndefined, autoescape=False)
 
 
+class SchematicPlacement(_Strict):
+    """Where one subcircuit part sits in its drawn block: `at` is the symbol
+    anchor in grid units (1.27 mm, x right, y down, block origin top-left),
+    `rot` turns it counter-clockwise, `mirror` flips it about that axis
+    before the turn, as KiCad does."""
+    at: tuple[float, float]
+    rot: Literal[0, 90, 180, 270] = 0
+    mirror: Optional[Literal["x", "y"]] = None
+
+
+class SchematicPort(_Strict):
+    """Where a subcircuit node is brought out of the drawing: a power symbol
+    (for a node on a rail) or a global label carrying the net's name, at a
+    wire end or vertex in grid units. `rot` 0 points a label right and a
+    power symbol its natural way up; 180 the opposite."""
+    at: tuple[float, float]
+    kind: Literal["label", "power"] = "label"
+    rot: Literal[0, 90, 180, 270] = 0
+
+
+class SchematicLayout(_Strict):
+    """How the schematic draws this subcircuit as a circuit rather than a
+    pile of parts: part placements, the wires between their pins as
+    polylines (grid units), and the ports where host nodes leave the block.
+    A pin no wire reaches is still connected -- it gets a stub and a label
+    with the net's name -- so a partial layout is never wrong, only less
+    pretty; `check_sch` reports such pins."""
+    parts: dict[str, SchematicPlacement]
+    wires: list[list[tuple[float, float]]] = Field(default_factory=list)
+    nodes: dict[str, list[SchematicPort]] = Field(default_factory=dict)
+
+
 class Subcircuit(_Strict):
     """Discrete parts that realise a component on the board. When present the
     KiCad schematic, PCB, BOM and CPL emit these parts in place of the
     component's single `kicad:` symbol; every other generator still sees one
     component with its electrical pins."""
     parts: list[SubcircuitPart]
+    schematic: Optional[SchematicLayout] = None
+
+    @model_validator(mode="after")
+    def _layout_names_parts(self):
+        if self.schematic is not None:
+            ids = {p.id for p in self.parts}
+            unknown = sorted(set(self.schematic.parts) - ids)
+            if unknown:
+                raise ValueError(f"schematic layout places unknown parts: {', '.join(unknown)}")
+        return self
 
 
 class RadioPins(_Strict):

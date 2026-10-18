@@ -431,8 +431,14 @@ export interface EnclosureSearchStatus {
 export interface KicadRenderStatus {
   available: boolean;
   kicad_cli: boolean;
-  skidl: boolean;
+  symbols: boolean;
   png: boolean;
+  reason: string | null;
+}
+
+export interface KicadSchStatus {
+  available: boolean;
+  symbol_dir: string | null;
   reason: string | null;
 }
 
