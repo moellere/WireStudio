@@ -55,7 +55,7 @@ jobs:
         # build; netlisting needs only skidl + graphviz + simp_sexp.
         run: |
           pip install -e .
-          pip install --no-deps skidl graphviz simp_sexp
+          pip install --no-deps skidl==2.3.0 graphviz simp_sexp
 
       - name: Cache KiCad symbol libraries
         id: cache-symbols
