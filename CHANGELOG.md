@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`usb_c_power_in` library component.** A power-only USB-C sink as a
+  subcircuit: the 16-pin USB 2.0 receptacle, a 5.1k Rd pull-down on each
+  CC line (without them a C-to-C cable from a compliant source never
+  turns VBUS on) and a bulk cap, wired VBUS -> 5 V rail, GND -> GND.
+  For designs whose load, a motor bridge or an LED strip, should not run
+  through the dev board's own USB port. No ESPHome config of its own.
+  Example `usbc-led-strip` feeds a WS2812B strip from one.
+
+### Added
+
 - **Flash size override in the Inspector.** ESP32 boards get a flash size
   select under the board picker: "Board default (NMB)" or 4/8/16/32 MB,
   writing `board.flash_size_mb`. Raising it above the board file's value
