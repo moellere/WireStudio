@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.1",
+  "schema_version": "0.2",
   "id": "temp-turns-on-fan",
   "name": "Temperature turns on the fan",
   "description": "Phase-3 worked example for intent-to-device synthesis: a BME280's temperature channel triggers a switch action when its on_value fires. Exercises the multi-channel sensor trigger path -- the trigger carries a `channel: temperature` selector that the lowering combines with the event to land `on_value:` inside the `temperature:` sub-block (vs. the bme280's humidity / pressure siblings, which stay clear). Complements the single-channel sensor examples by proving the lowering picks the right sub-block on a multi-output sensor.",

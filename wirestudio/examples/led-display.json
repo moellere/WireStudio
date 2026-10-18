@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.1",
+  "schema_version": "0.2",
   "id": "led-display",
   "name": "MAX7219 matrix + TM1638 module",
   "description": "ESP32-DevKitC driving a MAX7219 8x8 LED matrix over SPI and a TM1638 LED&KEY module (8 seven-segment digits + 8 LEDs + 8 buttons) over its own 3-wire interface. Two cheap numeric/segment displays on one board.",

@@ -1,0 +1,177 @@
+{
+  "schema_version": "0.2",
+  "id": "field-node",
+  "name": "Field node",
+  "description": "A 0.1 design from the quick-flash dialog: an external GPS, a DHT22 and the onboard OLED asked for by block.",
+  "target": "lorawan",
+  "board": {
+    "library_id": "heltec-wifi-lora32-v3",
+    "mcu": "esp32",
+    "framework": "arduino"
+  },
+  "power": {
+    "supply": "usb-5v",
+    "rail_voltage_v": 5.0,
+    "budget_ma": 500
+  },
+  "requirements": [],
+  "components": [
+    {
+      "id": "btn",
+      "library_id": "gpio_input",
+      "label": "User button",
+      "params": {}
+    },
+    {
+      "id": "gps",
+      "library_id": "uart_gps",
+      "label": "GPS",
+      "params": {}
+    },
+    {
+      "id": "dht1",
+      "library_id": "dht",
+      "label": "DHT",
+      "params": {
+        "model": "DHT22"
+      }
+    },
+    {
+      "id": "oled",
+      "library_id": "ssd1306",
+      "label": "OLED",
+      "params": {
+        "address": "0x3C",
+        "vext_pin": "GPIO36"
+      }
+    }
+  ],
+  "buses": [
+    {
+      "id": "gps_uart",
+      "type": "uart",
+      "baud_rate": 9600,
+      "rx": "GPIO23",
+      "tx": "GPIO17"
+    },
+    {
+      "id": "i2c0",
+      "type": "i2c",
+      "sda": "GPIO17",
+      "scl": "GPIO18"
+    }
+  ],
+  "connections": [
+    {
+      "component_id": "btn",
+      "pin_role": "IN",
+      "target": {
+        "kind": "gpio",
+        "pin": "GPIO0"
+      }
+    },
+    {
+      "component_id": "gps",
+      "pin_role": "VCC",
+      "target": {
+        "kind": "rail",
+        "rail": "3V3"
+      }
+    },
+    {
+      "component_id": "gps",
+      "pin_role": "GND",
+      "target": {
+        "kind": "rail",
+        "rail": "GND"
+      }
+    },
+    {
+      "component_id": "gps",
+      "pin_role": "TX",
+      "target": {
+        "kind": "bus",
+        "bus_id": "gps_uart"
+      }
+    },
+    {
+      "component_id": "gps",
+      "pin_role": "RX",
+      "target": {
+        "kind": "bus",
+        "bus_id": "gps_uart"
+      }
+    },
+    {
+      "component_id": "dht1",
+      "pin_role": "VCC",
+      "target": {
+        "kind": "rail",
+        "rail": "3V3"
+      }
+    },
+    {
+      "component_id": "dht1",
+      "pin_role": "GND",
+      "target": {
+        "kind": "rail",
+        "rail": "GND"
+      }
+    },
+    {
+      "component_id": "dht1",
+      "pin_role": "DATA",
+      "target": {
+        "kind": "gpio",
+        "pin": "GPIO13"
+      }
+    },
+    {
+      "component_id": "oled",
+      "pin_role": "VCC",
+      "target": {
+        "kind": "rail",
+        "rail": "3V3"
+      }
+    },
+    {
+      "component_id": "oled",
+      "pin_role": "GND",
+      "target": {
+        "kind": "rail",
+        "rail": "GND"
+      }
+    },
+    {
+      "component_id": "oled",
+      "pin_role": "SDA",
+      "target": {
+        "kind": "bus",
+        "bus_id": "i2c0"
+      }
+    },
+    {
+      "component_id": "oled",
+      "pin_role": "SCL",
+      "target": {
+        "kind": "bus",
+        "bus_id": "i2c0"
+      }
+    },
+    {
+      "component_id": "oled",
+      "pin_role": "RESET",
+      "target": {
+        "kind": "gpio",
+        "pin": "GPIO21"
+      }
+    }
+  ],
+  "passives": [],
+  "warnings": [],
+  "lorawan": {
+    "region": "US915",
+    "sub_band": 2,
+    "provisioning": "runtime_serial"
+  }
+}

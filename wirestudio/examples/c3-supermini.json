@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.1",
+  "schema_version": "0.2",
   "id": "c3-supermini",
   "name": "ESP32-C3 SuperMini (onboard)",
   "description": "ESP32-C3 SuperMini with its onboard parts pre-placed: the addressable status LED and the BOOT button.",

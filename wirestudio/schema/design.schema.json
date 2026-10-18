@@ -6,7 +6,7 @@
   "required": ["schema_version", "id", "name", "board", "power"],
   "additionalProperties": false,
   "properties": {
-    "schema_version": { "type": "string", "const": "0.1" },
+    "schema_version": { "type": "string", "enum": ["0.1", "0.2"], "description": "0.2 is current; 0.1 is accepted and migrated on load (the lorawan.gps / dht22 / oled blocks become components)." },
     "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
     "name": { "type": "string" },
     "description": { "type": "string" },
