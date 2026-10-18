@@ -37,6 +37,7 @@ EXPECTED_TOOLS = {
     "add_bus",
     "solve_pins",
     "kicad_schematic",
+    "kicad_sch",
     "kicad_pcb",
     "route_pcb",
     "fab_status",

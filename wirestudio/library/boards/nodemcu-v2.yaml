@@ -59,3 +59,20 @@ kicad:
   symbol_lib: RF_Module
   symbol: ESP-12E
   footprint: RF_Module:ESP-12E
+  # NodeMCU Dn labels -> the ESP-12E module pins behind them; the module
+  # has no 5V pin.
+  pin_map:
+    D0: GPIO16
+    D1: GPIO5
+    D2: GPIO4
+    D3: GPIO0
+    D4: GPIO2
+    D5: GPIO14
+    D6: GPIO12
+    D7: GPIO13
+    D8: GPIO15
+    D9: GPIO3/RXD
+    D10: GPIO1/TXD
+    A0: ADC
+    3V3: VCC
+    GND: GND

@@ -65,3 +65,19 @@ kicad:
   symbol_lib: MCU_Module
   symbol: WeMos_D1_mini
   footprint: Module:WEMOS_D1_mini_light
+  pin_map:
+    D0: D0
+    D1: SCL/D1
+    D2: SDA/D2
+    D3: D3
+    D4: D4
+    D5: SCK/D5
+    D6: MISO/D6
+    D7: MOSI/D7
+    D8: CS/D8
+    RX: RX
+    TX: TX
+    A0: A0
+    5V: 5V
+    3V3: 3V3
+    GND: GND

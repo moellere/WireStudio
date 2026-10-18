@@ -1,11 +1,11 @@
 name: kicad-render
 
-# End-to-end render gate: SKiDL script -> .kicad_sch -> `kicad-cli sch
+# End-to-end render gate: wirestudio's own .kicad_sch -> `kicad-cli sch
 # export svg` on real KiCad 8 -- the exact pipeline behind
-# /design/kicad/render. The kicad-schematic gate stops at the netlist;
-# this one catches what only kicad-cli's parser sees (schematic grammar,
-# embedded lib_symbols, toolchain env), which is where three render bugs
-# in a row shipped from.
+# /design/kicad/render. The kicad-schematic gate stops at the SKiDL
+# netlist; this one catches what only kicad-cli sees: the schematic
+# grammar and embedded lib_symbols (render), whether the drawn wires and
+# labels carry the netlist (check_sch), and ERC against the baseline.
 
 on:
   pull_request:
@@ -15,6 +15,7 @@ on:
       - 'wirestudio/library/**'
       - 'wirestudio/examples/**'
       - 'scripts/check_erc.py'
+      - 'scripts/check_sch.py'
       - 'scripts/erc_baseline.yaml'
       - '.github/workflows/kicad-render.yml'
   push:
@@ -24,6 +25,7 @@ on:
       - 'wirestudio/library/**'
       - 'wirestudio/examples/**'
       - 'scripts/check_erc.py'
+      - 'scripts/check_sch.py'
       - 'scripts/erc_baseline.yaml'
       - '.github/workflows/kicad-render.yml'
   workflow_dispatch:
@@ -49,10 +51,8 @@ jobs:
           python-version: "3.11"
           cache: pip
 
-      - name: Install studio + SKiDL
-        run: |
-          pip install -e .
-          pip install --no-deps skidl==2.3.0 graphviz simp_sexp deprecation
+      - name: Install studio
+        run: pip install -e .
 
       - name: Install KiCad 8
         run: |
@@ -95,10 +95,23 @@ jobs:
           python -m wirestudio.kicad.render unsolved.json -o unsolved.svg
           ls -la unsolved.svg
 
+      - name: Every example's sheet carries its netlist
+        env:
+          KICAD8_SYMBOL_DIR: ${{ github.workspace }}/kicad-symbols
+        run: python scripts/check_sch.py --out sheets
+
       - name: ERC the generated schematics
         env:
           KICAD8_SYMBOL_DIR: ${{ github.workspace }}/kicad-symbols
         run: python scripts/check_erc.py --report erc-reports
+
+      - name: Upload written sheets
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kicad-sheets
+          path: sheets/
+          if-no-files-found: ignore
 
       - name: Upload ERC reports
         if: always()
