@@ -251,6 +251,7 @@ and persist back to `designs/<id>.json`.
 | `add_bus` | yes | append an i2c / spi / uart / 1wire / i2s bus |
 | `solve_pins` | yes | auto-assign unbound connections |
 | `kicad_schematic` | no | SKiDL script summary |
+| `kicad_sch` | no | write the `.kicad_sch` the studio draws; summary (symbols, labels, notes); the file comes from `POST /design/kicad/sch` |
 | `kicad_pcb` | no | board emit summary (size, footprints, nets, routed) |
 | `route_pcb` | no | Freerouting autoroute; returns segments/vias/cache_key, board via `GET /design/kicad/route/{cache_key}` |
 | `fab_status` | no | server fab capabilities (BOM/CPL/Gerbers/route) |

@@ -175,3 +175,54 @@ subcircuit:
     ref_prefix: J
     kicad: {symbol_lib: Connector_Generic, symbol: Conn_01x02, footprint: "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-2_1x02_P5.00mm_Horizontal", value: Motor}
     pins: {"1": out_a, "2": out_b}
+  # The drawing: two legs, VM rail across the top, GND rail along the
+  # bottom, the motor and its snubber between the outputs, a driver under
+  # each leg. Grid units (1.27 mm), x right, y down. The P-FETs are
+  # mirrored top-for-bottom so their sources sit on the rail with the
+  # gates still facing left.
+  schematic:
+    parts:
+      c_bulk:   {at: [10, 3]}
+      r_gate_a: {at: [20, 3]}
+      q_hi_a:   {at: [24, 10], mirror: x}
+      q_lo_a:   {at: [24, 26]}
+      q_drv_a:  {at: [18, 38]}
+      r_base_a: {at: [9, 38], rot: 90}
+      r_pd_a:   {at: [6, 42]}
+      r_gate_b: {at: [56, 3]}
+      q_hi_b:   {at: [60, 10], mirror: x}
+      q_lo_b:   {at: [60, 26]}
+      q_drv_b:  {at: [54, 38]}
+      r_base_b: {at: [45, 38], rot: 90}
+      r_pd_b:   {at: [42, 42]}
+      j_motor:  {at: [46, 10], rot: 90}
+      c_motor:  {at: [47, 24], rot: 90}
+    wires:
+      - [[10, 0], [20, 0], [26, 0], [34, 0], [56, 0], [62, 0]]      # VM rail
+      - [[10, 6], [10, 8]]                                          # C1 to its GND
+      - [[20, 6], [20, 10], [20, 26], [20, 34]]                     # gate_a
+      - [[26, 0], [26, 6]]                                          # VM to Q1 source
+      - [[26, 14], [26, 18], [26, 22]]                              # out_a between the FETs
+      - [[26, 18], [44, 18], [46, 18], [46, 14]]                    # out_a to the motor
+      - [[26, 30], [26, 48]]                                        # Q2 source to GND
+      - [[20, 42], [20, 48]]                                        # Q3 emitter to GND
+      - [[12, 38], [14, 38]]                                        # R2 to Q3 base
+      - [[6, 38], [6, 39]]                                          # IN1 to R3
+      - [[6, 45], [6, 48]]                                          # R3 to GND
+      - [[6, 48], [20, 48], [26, 48], [34, 48], [42, 48], [56, 48], [62, 48]]   # GND rail
+      - [[56, 6], [56, 10], [56, 26], [56, 34]]                     # gate_b
+      - [[62, 0], [62, 6]]                                          # VM to Q4 source
+      - [[62, 14], [62, 18], [62, 22]]                              # out_b between the FETs
+      - [[62, 18], [50, 18], [48, 18], [48, 14]]                    # out_b to the motor
+      - [[62, 30], [62, 48]]                                        # Q5 source to GND
+      - [[56, 42], [56, 48]]                                        # Q6 emitter to GND
+      - [[48, 38], [50, 38]]                                        # R5 to Q6 base
+      - [[42, 38], [42, 39]]                                        # IN2 to R6
+      - [[42, 45], [42, 48]]                                        # R6 to GND
+      - [[44, 24], [44, 18]]                                        # C2 across the outputs
+      - [[50, 24], [50, 18]]
+    nodes:
+      VM:  [{at: [34, 0], kind: power}]
+      GND: [{at: [34, 48], kind: power}, {at: [10, 8], kind: power}]
+      IN1: [{at: [6, 38], rot: 180}]
+      IN2: [{at: [42, 38], rot: 180}]

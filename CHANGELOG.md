@@ -39,6 +39,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `auto_start` policy. Configured with `PRINT_WARDEN_URL` and, when the
   warden has one, `PRINT_WARDEN_TOKEN`; unset leaves the tab explaining
   what to set.
+- **wirestudio draws the schematic.** `POST /design/kicad/sch`, the
+  **Download schematic** button and the `kicad_sch` tool write a KiCad 8
+  `.kicad_sch` directly, and `/design/kicad/render` and `/design/kicad/erc`
+  run kicad-cli on that file instead of a SKiDL placement. The sheet is
+  built, not solved: the board on the left with every pin labelled,
+  flagged no-connect or on a rail symbol, the peripherals in columns
+  beside it, each subcircuit as a block, one PWR_FLAG per rail. A
+  subcircuit's library entry can carry a `schematic:` layout (part
+  placements, wire polylines, ports, in grid units) and is then drawn as
+  a circuit, with junctions computed where three things meet; the MOSFET
+  H-bridge has the first one and comes out as two legs with the motor
+  between them. Pins a layout misses are still labelled, so a partial
+  layout is incomplete, never wrong. Symbols are embedded from the pinned
+  KiCad library with `extends` resolved, so the file opens with no
+  library setup, and output is deterministic down to the UUIDs. The
+  render and ERC features now need the symbol libraries on the server
+  (`KICAD8_SYMBOL_DIR`) rather than SKiDL; the SKiDL script export and
+  its netlist gate stay as they were.
+- **`scripts/check_sch.py`.** For every example, kicad-cli reads the
+  netlist back from the written sheet's geometry and it is compared with
+  the design's: a wire that misses a pin, a label on the wrong net or a
+  missing junction shows up as a split or merged group. Runs in the
+  `kicad-render` workflow.
 
 ### Fixed
 

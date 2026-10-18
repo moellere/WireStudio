@@ -29,6 +29,7 @@ from wirestudio.agent.tools import (
     _run_fab_cpl,
     _run_fab_status,
     _run_kicad_pcb,
+    _run_kicad_sch,
     _run_kicad_schematic,
     _run_component_check,
     _run_component_create,
@@ -548,6 +549,22 @@ def _register_design_tools(
         if design is None:
             return _NO_DESIGN_ERROR
         return _run_kicad_schematic(design, library)
+
+    @mcp.tool(
+        name="kicad_sch",
+        description=(
+            "Write the named design's KiCad 8 .kicad_sch (board, peripherals "
+            "and subcircuit blocks placed; every pin labelled, flagged or "
+            "wired) and return a summary (size, symbols, labels, notes). The "
+            "file itself is downloaded via POST /design/kicad/sch. Needs the "
+            "KiCad symbol libraries on the server. Read-only." + _DESIGN_ID_HINT
+        ),
+    )
+    def kicad_sch(design_id: Optional[str] = None) -> dict:
+        rid, design = _load(design_id)
+        if design is None:
+            return _NO_DESIGN_ERROR
+        return _run_kicad_sch(design, library)
 
     @mcp.tool(
         name="kicad_pcb",

@@ -30,6 +30,7 @@ import type {
   KicadPcbStatus,
   KicadPcbRenderStatus,
   KicadRenderStatus,
+  KicadSchStatus,
   KicadRouteEvent,
   KicadRouteStatus,
   LorawanCompileEvent,
@@ -259,6 +260,10 @@ export const api = {
     requestText("/design/enclosure/openscad", { method: "POST", body: JSON.stringify(design) }),
   kicadSchematic: (design: Design) =>
     requestText("/design/kicad/schematic", { method: "POST", body: JSON.stringify(design) }),
+  kicadSchStatus: () =>
+    request<KicadSchStatus>("/design/kicad/sch/status"),
+  kicadSch: (design: Design) =>
+    requestText("/design/kicad/sch", { method: "POST", body: JSON.stringify(design) }),
   kicadRenderStatus: () =>
     request<KicadRenderStatus>("/design/kicad/render/status"),
   kicadRender: (design: Design) =>

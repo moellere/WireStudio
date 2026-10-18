@@ -1,14 +1,13 @@
-"""Electrical rules check on the generated schematic via kicad-cli.
+"""Electrical rules check on the written schematic via kicad-cli.
 
-The render pipeline's sibling: design -> SKiDL script -> `.kicad_sch` ->
-`kicad-cli sch erc`. Where the netlist gate proves every symbol and pin
-resolves and the render gate proves KiCad parses the file, ERC is
-KiCad's own judgement of the wiring: unconnected inputs, outputs tied
-together, power pins nothing drives. Some of that is structural to how
-the schematic is generated (no PWR_FLAG symbols, generic headers for
-parts KiCad has no symbol for), so `scripts/check_erc.py` holds a
-baseline of the violation types the generator cannot avoid and fails on
-anything else.
+The render pipeline's sibling: design -> `.kicad_sch` -> `kicad-cli sch
+erc`. Where the netlist gate proves every symbol and pin resolves and
+`check_sch` proves the drawing carries the netlist, ERC is KiCad's own
+judgement of the wiring: unconnected inputs, outputs tied together,
+power pins nothing drives. Some of that is structural to how the sheet
+is drawn (generic headers for parts KiCad has no symbol for), so
+`scripts/check_erc.py` holds a baseline of the violation types the
+writer cannot avoid and fails on anything else.
 
 CLI: `python -m wirestudio.kicad.erc <design.json> [--json]`.
 """
@@ -22,19 +21,20 @@ import tempfile
 from collections import Counter
 from pathlib import Path
 
-from wirestudio.kicad.generator import generate_skidl
-from wirestudio.kicad.render import _TIMEOUT, RenderError, RenderUnavailable, render_status
+from wirestudio.kicad.render import (
+    _TIMEOUT, RenderError, RenderUnavailable, render_status, write_schematic,
+)
 from wirestudio.library import Library, default_library
 from wirestudio.model import Design
 
 
 def erc_status() -> dict:
     status = render_status()
-    available = status["kicad_cli"] and status["skidl"]
+    available = status["kicad_cli"] and status["symbols"]
     return {
         "available": available,
         "kicad_cli": status["kicad_cli"],
-        "skidl": status["skidl"],
+        "symbols": status["symbols"],
         "reason": None if available else status["reason"],
     }
 
@@ -65,32 +65,22 @@ def summarize(report: dict) -> dict:
 
 
 def run_erc(design: Design, library: Library) -> dict:
-    """ERC the design's generated schematic. Raises `RenderUnavailable`
-    when a tool is missing and `RenderError` when a step fails."""
-    status = render_status()
+    """ERC the design's schematic. Raises `RenderUnavailable` when a tool
+    is missing and `RenderError` when a step fails."""
+    status = erc_status()
     if not status["kicad_cli"]:
         raise RenderUnavailable("kicad-cli not found on PATH")
-    if not status["skidl"]:
-        raise RenderUnavailable(f"skidl not importable by {sys.executable}")
+    if not status["symbols"]:
+        raise RenderUnavailable(status["reason"])
 
-    script = generate_skidl(design, library)
     with tempfile.TemporaryDirectory(prefix="wirestudio-erc-") as td:
         tmp = Path(td)
-        (tmp / "schematic.py").write_text(script)
-        skidl_run = subprocess.run(
-            [sys.executable, "schematic.py"], cwd=td, capture_output=True, text=True, timeout=_TIMEOUT,
-        )
-        if skidl_run.returncode != 0:
-            raise RenderError("SKiDL script failed:\n" + (skidl_run.stderr or "")[-2000:])
-        sch = sorted(tmp.glob("*.kicad_sch"))
-        if not sch:
-            raise RenderError("SKiDL produced no .kicad_sch file")
-
+        sch = write_schematic(design, library, tmp)
         report_path = tmp / "erc.json"
         cli_run = subprocess.run(
             [
                 "kicad-cli", "sch", "erc", "--format", "json", "--severity-all",
-                "--output", str(report_path), str(sch[0]),
+                "--output", str(report_path), str(sch),
             ],
             capture_output=True, text=True, timeout=_TIMEOUT,
         )
@@ -108,9 +98,8 @@ def run_erc(design: Design, library: Library) -> dict:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("design", help="path to a design.json")
-    parser.add_argument("--json", action="store_true", help="print the full result as JSON")
+    parser.add_argument("--json", action="store_true", help="print the full report as JSON")
     args = parser.parse_args(argv)
-
     design = Design.model_validate(json.loads(Path(args.design).read_text()))
     try:
         result = run_erc(design, default_library())

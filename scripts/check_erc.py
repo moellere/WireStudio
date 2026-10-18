@@ -36,9 +36,12 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 EXAMPLES_DIR = REPO_ROOT / "wirestudio" / "examples"
 BASELINE = REPO_ROOT / "scripts" / "erc_baseline.yaml"
 
-# The render gate's two examples plus the subcircuit board, whose discrete
-# parts carry real symbols and so give ERC something beyond headers.
-DEFAULT_STEMS = ["garage-motion", "analog-node", "bench-io"]
+
+def example_paths(stems: list[str]) -> list[Path]:
+    """The examples to check: the stems given, else every bundled one."""
+    if stems:
+        return [EXAMPLES_DIR / f"{s}.json" for s in stems]
+    return sorted(EXAMPLES_DIR.glob("*.json"))
 
 
 def load_baseline(path: Path = BASELINE) -> dict[str, str]:
@@ -64,8 +67,7 @@ def judge(results: dict[str, dict], allowed: dict[str, str], *, check_stale: boo
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("stems", nargs="*", help="example stems (default: the representative set)")
-    parser.add_argument("--all", action="store_true", help="every bundled example")
+    parser.add_argument("stems", nargs="*", help="example stems (default: every bundled example)")
     parser.add_argument("--report", type=Path, default=None, help="directory to write one JSON report per example")
     args = parser.parse_args(argv)
 
@@ -74,12 +76,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"error: {status['reason']}", file=sys.stderr)
         return 2
 
-    if args.all:
-        paths = sorted(EXAMPLES_DIR.glob("*.json"))
-    elif args.stems:
-        paths = [EXAMPLES_DIR / f"{s}.json" for s in args.stems]
-    else:
-        paths = [EXAMPLES_DIR / f"{s}.json" for s in DEFAULT_STEMS]
+    paths = example_paths(args.stems)
     check_stale = not args.stems
 
     lib = default_library()

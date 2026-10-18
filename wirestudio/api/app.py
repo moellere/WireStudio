@@ -136,6 +136,7 @@ from wirestudio.kicad.fab import (
 )
 from wirestudio.kicad.netlist import placed_parts
 from wirestudio.kicad.pcb import PcbUnavailable, generate_kicad_pcb, pcb_status
+from wirestudio.kicad.schematic import SchematicUnavailable, generate_kicad_sch, sch_status
 from wirestudio.kicad.route import (
     RouteError,
     RouteUnavailable,
@@ -659,6 +660,32 @@ def create_app(
             headers={
                 "Content-Disposition": f'attachment; filename="{filename}"',
             },
+        )
+
+    @app.get("/design/kicad/sch/status", tags=["design"])
+    def design_kicad_sch_status() -> dict:
+        """Can the server write a `.kicad_sch`: it embeds the symbols from
+        the pinned KiCad library, so that must be on the server."""
+        return sch_status()
+
+    @app.post("/design/kicad/sch", tags=["design"])
+    def design_kicad_sch(design: dict) -> PlainTextResponse:
+        """The design as a KiCad 8 schematic file, drawn by wirestudio:
+        board, peripherals and subcircuit blocks placed, every pin
+        labelled, flagged or wired. Opens in KiCad with no library setup.
+        503 without the symbol libraries (see /design/kicad/sch/status),
+        422 for a symbol the library lacks.
+        """
+        d = _validate_design(design)
+        try:
+            text = generate_kicad_sch(d, lib)
+        except SchematicUnavailable as e:
+            raise HTTPException(status_code=503, detail=str(e)) from e
+        except (FileNotFoundError, ValueError) as e:
+            raise HTTPException(status_code=422, detail=str(e)) from e
+        return PlainTextResponse(
+            content=text,
+            headers={"Content-Disposition": f'attachment; filename="{d.id}.kicad_sch"'},
         )
 
     @app.post("/design/kicad/schematic", tags=["design"])
