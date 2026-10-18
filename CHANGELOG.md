@@ -7,16 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Deprecated
+### Added
 
-- **`lorawan.gps`, `lorawan.dht22` and `lorawan.oled`.** The standalone
-  path's three sensor blocks predate per-component `lorawan:` codegen;
-  each is sugar for the `uart_gps`, `dht` or `ssd1306` component, the
-  bus and the connections a user would have added. They are still
-  accepted: `targets.lorawan.lower` rewrites a design to those components
-  before anything reads it, and `validate` reports each block it lowered
-  at info level. The 1.0 migrator rewrites them in `design.json`; add the
-  component instead of setting the block (roadmap 0.41).
+- **The rest of the connector family, and a netlist golden.** `connector_1x02`,
+  `1x05`, `1x06`, `1x07` with the same `family` switch, and
+  `connector_2x05_idc`, a shrouded 2x5 box header for a 10-way ribbon.
+  Connectors now carry the `J` designator in the schematic, PCB, BOM and
+  CPL rather than `U`. `component_check` renders a templated footprint
+  once per enum value, as the footprint gate already did, so a `family`
+  option that names no footprint fails the check in the studio and not
+  only in CI. `python -m wirestudio.kicad.netlist design.json` prints a
+  design's netlist one net per line; `actuator-harness` pins it as a
+  golden, which is the first test that holds the whole netlist of a
+  connector design, not only the pads it asks about.
 
 ### Changed
 
@@ -30,6 +33,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   design-then-onboard rule every other design already had (a `dht22`
   block on a T-Beam packs the DHT fields before the GPS and battery);
   re-push the codec after reflashing such a device.
+
+### Deprecated
+
+- **`lorawan.gps`, `lorawan.dht22` and `lorawan.oled`.** The standalone
+  path's three sensor blocks predate per-component `lorawan:` codegen;
+  each is sugar for the `uart_gps`, `dht` or `ssd1306` component, the
+  bus and the connections a user would have added. They are still
+  accepted: `targets.lorawan.lower` rewrites a design to those components
+  before anything reads it, and `validate` reports each block it lowered
+  at info level. The 1.0 migrator rewrites them in `design.json`; add the
+  component instead of setting the block (roadmap 0.41).
+
+## [0.40.0] — 2026-10-18
 
 ### Added
 
@@ -50,17 +66,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Example `actuator-harness` puts a bridge, a pot and a tach switch on
   one 8-way plug and an encoder and button on a 4-way pigtail;
   `usbc-led-strip` gains the strip's 3-way plug (#300).
-- **The rest of the connector family, and a netlist golden.** `connector_1x02`,
-  `1x05`, `1x06`, `1x07` with the same `family` switch, and
-  `connector_2x05_idc`, a shrouded 2x5 box header for a 10-way ribbon.
-  Connectors now carry the `J` designator in the schematic, PCB, BOM and
-  CPL rather than `U`. `component_check` renders a templated footprint
-  once per enum value, as the footprint gate already did, so a `family`
-  option that names no footprint fails the check in the studio and not
-  only in CI. `python -m wirestudio.kicad.netlist design.json` prints a
-  design's netlist one net per line; `actuator-harness` pins it as a
-  golden, which is the first test that holds the whole netlist of a
-  connector design, not only the pads it asks about.
 - **Enclosure → print-warden handoff.** The Enclosure dialog gains a
   **Print** tab, the API `POST /design/enclosure/print` (with
   `GET /enclosure/print/status` and `GET /enclosure/print/jobs/{id}`),
@@ -2570,7 +2575,8 @@ ConnectionForm, EnclosureDialog, Inspector, CapabilityPickerDialog,
 PinoutView, PushToFleetDialog, SchematicDialog. ruff + tsc + vite
 build clean across the whole arc.
 
-[Unreleased]: https://github.com/moellere/wirestudio/compare/v0.39.0...HEAD
+[Unreleased]: https://github.com/moellere/wirestudio/compare/v0.40.0...HEAD
+[0.40.0]: https://github.com/moellere/wirestudio/compare/v0.39.0...v0.40.0
 [0.39.0]: https://github.com/moellere/wirestudio/compare/v0.38.0...v0.39.0
 [0.38.0]: https://github.com/moellere/wirestudio/compare/v0.37.0...v0.38.0
 [0.37.0]: https://github.com/moellere/wirestudio/compare/v0.36.0...v0.37.0
