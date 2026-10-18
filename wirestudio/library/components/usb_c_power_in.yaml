@@ -1,0 +1,66 @@
+id: usb_c_power_in
+name: USB-C 5 V power input (receptacle + CC pull-downs)
+category: power
+use_cases: [power_input, usb_c, 5v_supply, usb_sink, vbus]
+aliases: [usb_c, type_c, usb_c_receptacle, vbus_in, cc_pulldown]
+
+electrical:
+  vcc_min: 4.4
+  vcc_max: 5.5
+  current_ma_typical: 0
+  current_ma_peak: 0
+  # A power-only USB-C sink. The receptacle's four VBUS pins feed the rail wired
+  # to VBUS, and a 5.1k pull-down (Rd) on each CC line tells the source this is
+  # a 5 V sink; without them a compliant source on a C-to-C cable never turns
+  # VBUS on. D+/D- are left open, so the board's own USB port keeps the console.
+  pins:
+  - {role: VBUS, kind: power}
+  - {role: GND, kind: ground}
+  passives: []
+
+esphome:
+  required_components: []
+  yaml_template: ""
+
+params_schema:
+  r_cc:
+    type: string
+    default: "5.1k"
+  c_bulk:
+    type: string
+    default: "10uF"
+
+notes: "Feeds the 5 V rail from a USB-C receptacle, for a design whose load (a motor bridge, an LED
+  strip) exceeds what the dev board's own USB port and its VIN diode should carry. Wire VBUS to the
+  board's 5 V / VIN rail and GND to GND. 5.1k on each CC pin is the Type-C default-current Rd; a
+  source then supplies 5 V at up to 3 A (1.5 A from most phone chargers, 0.5 A from a legacy USB-A
+  port through an A-to-C cable). Power only: no data lines, no PD negotiation, no reverse-current
+  protection between this input and the board's USB port, so power the board from one or the other.
+  The receptacle is the common 16-pin USB 2.0 mid-mount part (HRO TYPE-C-31-M-12 and equivalents);
+  the shield pins land on GND."
+# One-part view for generators that place one symbol per component; the KiCad
+# schematic, PCB and BOM emit the subcircuit below.
+kicad:
+  symbol_lib: Connector
+  symbol: USB_C_Receptacle_USB2.0_16P
+  footprint: Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12
+  value: USB-C 5V in
+  pin_map: {VBUS: A4, GND: A1}
+subcircuit:
+  parts:
+  - id: j_usb
+    ref_prefix: J
+    kicad: {symbol_lib: Connector, symbol: USB_C_Receptacle_USB2.0_16P, footprint: "Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12", value: USB-C}
+    pins: {A4: VBUS, A9: VBUS, B4: VBUS, B9: VBUS, A1: GND, A12: GND, B1: GND, B12: GND, S1: GND, A5: cc1, B5: cc2}
+  - id: r_cc1
+    ref_prefix: R
+    kicad: {symbol_lib: Device, symbol: R, footprint: "Resistor_SMD:R_0805_2012Metric", value: "{{ params.r_cc }}"}
+    pins: {"1": cc1, "2": GND}
+  - id: r_cc2
+    ref_prefix: R
+    kicad: {symbol_lib: Device, symbol: R, footprint: "Resistor_SMD:R_0805_2012Metric", value: "{{ params.r_cc }}"}
+    pins: {"1": cc2, "2": GND}
+  - id: c_bulk
+    ref_prefix: C
+    kicad: {symbol_lib: Device, symbol: C, footprint: "Capacitor_SMD:C_0805_2012Metric", value: "{{ params.c_bulk }}"}
+    pins: {"1": VBUS, "2": GND}

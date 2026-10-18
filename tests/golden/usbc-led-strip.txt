@@ -1,0 +1,23 @@
++------------------------------------------------------------------------------------+
+|  ESP32-DevKitC-V4  ---  usbc-led-strip                                             |
++------------------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                               |
+|                                                                                    |
+|  psu  [USB-C 5 V power input (receptacle + CC pull-downs)]  -- USB-C 5 V input     |
+|    VBUS  -> rail 5V                                                                |
+|    GND   -> rail GND                                                               |
+|                                                                                    |
+|  strip  [ESP32 RMT-driven addressable LED strip (WS2812 / SK6812)]  -- Desk strip  |
+|    VCC   -> rail 5V                                                                |
+|    GND   -> rail GND                                                               |
+|    DIN   -> GPIO18                                                                 |
+|                                                                                    |
+|  BOM:                                                                              |
+|    - ESP32-DevKitC-V4                                                              |
+|    - USB-C 5 V power input (receptacle + CC pull-downs)  (psu)                     |
+|    - ESP32 RMT-driven addressable LED strip (WS2812 / SK6812)  (strip)             |
+|                                                                                    |
+|  Power: ~20mA typical, ~60mA peak (budget 3000mA)  OK                              |
+|                                                                                    |
+|  Warnings: none                                                                    |
++------------------------------------------------------------------------------------+
