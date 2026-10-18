@@ -1,17 +1,15 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/moellere/wirestudio/schema/design.schema.json",
-  "title": "wirestudio design.json (0.1)",
+  "title": "wirestudio design.json",
   "type": "object",
   "required": ["schema_version", "id", "name", "board", "power"],
   "additionalProperties": false,
   "properties": {
-    "schema_version": { "type": "string", "const": "0.1" },
+    "schema_version": { "type": "string", "enum": ["0.1", "0.2", "0.3"], "description": "0.3 is current; older versions are accepted and migrated on load (0.1: the lorawan.gps / dht22 / oled blocks become components; 0.2: fields nothing read are dropped)." },
     "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
     "name": { "type": "string" },
-    "description": { "type": "string" },
-    "created_at": { "type": "string", "format": "date-time" },
-    "updated_at": { "type": "string", "format": "date-time" },
+    "description": { "type": "string", "description": "Shown in the design pane and in the saved-design and example lists." },
 
     "board": {
       "type": "object",
@@ -27,6 +25,7 @@
 
     "power": {
       "type": "object",
+      "description": "The supply the design was made for. `budget_ma` is the only field the pin solver and generators read (the current-budget warning and the ASCII summary); `supply`, `rail_voltage_v` and `regulator` are the design's record and appear in no artifact.",
       "required": ["supply", "rail_voltage_v"],
       "additionalProperties": false,
       "properties": {
@@ -39,6 +38,7 @@
 
     "requirements": {
       "type": "array",
+      "description": "The intent the design was built to meet, edited in the inspector and by the agent. No generator reads it.",
       "items": {
         "type": "object",
         "required": ["id", "kind", "text"],
@@ -61,11 +61,12 @@
           "id": { "type": "string" },
           "library_id": { "type": "string" },
           "label": { "type": "string" },
-          "role": { "type": "string" },
-          "params": { "type": "object" },
-          "locked_pins": { "type": "object", "additionalProperties": { "type": "string" } },
+          "role": { "type": "string", "description": "Free text shown in the inspector; no generator reads it." },
+          "params": { "type": "object", "description": "Values for the library component's params_schema, read by its ESPHome template and footprint." },
+          "locked_pins": { "type": "object", "additionalProperties": { "type": "string" }, "description": "Pin role -> board pin the solver must keep." },
           "module": {
             "type": "object",
+            "description": "Set when the component was inserted as part of a composite module; the BOM lists the module once per instance instead of this part.",
             "required": ["module_id", "instance"],
             "additionalProperties": false,
             "properties": {
@@ -98,7 +99,8 @@
           "tx": { "type": "string" },
           "lrclk": { "type": "string" },
           "bclk": { "type": "string" },
-          "pin": { "type": "string" }
+          "pin": { "type": "string", "description": "1-wire data pin." },
+          "parity": { "type": "string", "enum": ["NONE", "EVEN", "ODD"], "description": "UART parity; omitted means NONE." }
         }
       }
     },
@@ -266,6 +268,7 @@
 
     "warnings": {
       "type": "array",
+      "description": "What the last validate pass found. Permissive mode records violations here and generation proceeds; strict mode blocks on warn and error entries.",
       "items": {
         "type": "object",
         "required": ["level", "code", "text"],
@@ -278,28 +281,19 @@
       }
     },
 
-    "esphome_extras": { "type": "object" },
+    "esphome_extras": { "type": "object", "description": "Raw ESPHome sections merged into the rendered config after the generated ones: header-level overrides and anything the library does not model." },
 
     "fleet": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "device_name": { "type": "string" },
-        "tags": { "type": "array", "items": { "type": "string" } },
+        "tags": { "type": "array", "items": { "type": "string" }, "description": "Labels shown in the inspector; not passed to fleet-for-esphome or ChirpStack." },
         "secrets_ref": { "type": "object", "additionalProperties": { "type": "string" } }
       }
     },
 
-    "agent": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "session_id": { "type": "string" },
-        "history_ref": { "type": "string" }
-      }
-    },
-
-    "target": { "type": "string", "enum": ["esphome", "lorawan"], "default": "esphome" },
+    "target": { "type": "string", "enum": ["esphome", "lorawan"], "default": "esphome", "description": "What generate produces: ESPHome YAML or standalone LoRaWAN firmware. The Tasmota template is an export of an esphome design (POST /tasmota/template), not a target value." },
 
     "strict": { "type": "boolean", "default": false, "description": "When true, warn/error compatibility entries and design warnings block generation instead of surfacing permissively." },
 
@@ -309,11 +303,7 @@
       "properties": {
         "region": { "type": "string", "enum": ["US915", "EU868", "AU915", "AS923"], "default": "US915" },
         "sub_band": { "type": "integer", "default": 2 },
-        "join_eui": { "type": "string" },
-        "chirpstack_application_id": { "type": "string" },
-        "device_profile_id": { "type": "string" },
-        "provisioning": { "type": "string", "enum": ["runtime_serial", "compile_time"], "default": "runtime_serial" },
-        "dev_eui": { "type": "string" },
+        "join_eui": { "type": "string", "description": "MSB hex; both paths default to the zero EUI. The DevEUI and AppKey are not design fields: the device or the provision request supplies the one, ChirpStack mints the other." },
         "payload": {
           "type": "array",
           "description": "Ordered uplink field list for the ESPHome external-component target path (`lorawan-for-esphome`). Each entry packs a sensor's current value into the uplink; the ChirpStack decoder is generated from the same list so device and server stay in lockstep. Unused by the standalone Arduino path.",

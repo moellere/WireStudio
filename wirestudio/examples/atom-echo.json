@@ -1,10 +1,8 @@
 {
-  "schema_version": "0.1",
+  "schema_version": "0.3",
   "id": "atom-echo",
   "name": "M5Stack Atom Echo (LED + button)",
   "description": "Minimal M5Stack Atom Echo device: the onboard SK6812 RGB status LED on GPIO27 driven via the ESP32 RMT peripheral, plus the programmable front button on GPIO39. A starting point for an Echo-based controller before adding the I2S mic/speaker.",
-  "created_at": "2026-05-16T00:00:00Z",
-  "updated_at": "2026-05-16T00:00:00Z",
 
   "board": {
     "library_id": "m5stack-atom-echo",

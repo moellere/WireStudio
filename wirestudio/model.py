@@ -54,6 +54,7 @@ class Component(_Strict):
     id: str
     library_id: str
     label: str
+    # Free text shown in the inspector; no generator reads it.
     role: Optional[str] = None
     params: dict = Field(default_factory=dict)
     locked_pins: dict[str, str] = Field(default_factory=dict)
@@ -225,13 +226,10 @@ class Automation(_Strict):
 
 class Fleet(_Strict):
     device_name: Optional[str] = None
+    # Labels shown in the inspector; not passed to fleet-for-esphome or
+    # ChirpStack.
     tags: list[str] = Field(default_factory=list)
     secrets_ref: dict[str, str] = Field(default_factory=dict)
-
-
-class Agent(_Strict):
-    session_id: Optional[str] = None
-    history_ref: Optional[str] = None
 
 
 class GpsSerial(_Strict):
@@ -278,30 +276,23 @@ class LoRaWAN(_Strict):
     `docs/lorawan/workflow-integration.md`:
 
     - **Standalone Arduino (`target="lorawan"`).** Reads the design's
-      components, buses and connections like every other generator, plus
-      `provisioning` for the runtime serial flow. Hardware-validated; stays
-      shipping behind the `[lorawan]` install extra until the new path joins
-      on real hardware.
+      components, buses and connections like every other generator.
+      Hardware-validated; stays shipping behind the `[lorawan]` install
+      extra until the new path joins on real hardware.
     - **ESPHome external component (`target="esphome"` + `lorawan:` set).**
       Uses `payload` as the ordered uplink field list; the generator emits
       ESPHome YAML referencing `lorawan-for-esphome`. Keys ride
       `fleet.secrets_ref` and the rendered config uses `!secret` references --
       keys never land in design.json.
 
-    `dev_eui` carries the value the device will use, whichever path: the
-    standalone path fills it post-runtime-serial-provision; the new path
-    accepts a manual override here (per the locked decision in
-    workflow-integration.md), or it's filled post-provision after the eFuse
-    MAC is read over WebSerial. Keys (AppKey / NwkKey) are deliberately
-    absent: they are secrets.
+    `join_eui` is the only identity here: both paths default it to the zero
+    EUI. The DevEUI is device-authoritative (read over serial, or passed to
+    the provision endpoints by the caller) and the AppKey is minted at
+    provision time, so neither is a design field.
     """
     region: Literal["US915", "EU868", "AU915", "AS923"] = "US915"
     sub_band: int = 2
     join_eui: Optional[str] = None                   # MSB hex; defaults applied downstream
-    chirpstack_application_id: Optional[str] = None  # UUID
-    device_profile_id: Optional[str] = None          # UUID
-    provisioning: Literal["runtime_serial", "compile_time"] = "runtime_serial"
-    dev_eui: Optional[str] = None                    # device-reported (standalone) or override / post-provision (new path)
     # New path (ESPHome external component): ordered uplink payload field list.
     payload: list[PayloadField] = Field(default_factory=list)
     # Deprecated sugar from before per-component `lorawan:` codegen. Still
@@ -315,14 +306,19 @@ class LoRaWAN(_Strict):
 
 
 class Design(_Strict):
-    schema_version: Literal["0.1"]
+    # Every version `wirestudio.migrate` can read; a document is brought to
+    # `migrate.CURRENT_SCHEMA_VERSION` before it is validated here.
+    schema_version: Literal["0.1", "0.2", "0.3"]
     id: str
     name: str
     description: Optional[str] = ""
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
     board: Board
+    # `budget_ma` is the only power field the solver and generators read;
+    # `supply`, `rail_voltage_v` and `regulator` record the supply the
+    # design was made for and appear in no artifact.
     power: Power
+    # The intent the design was built to meet. Edited in the inspector and
+    # by the agent; no generator reads it.
     requirements: list[Requirement] = Field(default_factory=list)
     components: list[Component] = Field(default_factory=list)
     buses: list[Bus] = Field(default_factory=list)
@@ -340,7 +336,6 @@ class Design(_Strict):
     warnings: list[DesignWarning] = Field(default_factory=list)
     esphome_extras: dict = Field(default_factory=dict)
     fleet: Optional[Fleet] = None
-    agent: Optional[Agent] = None
     # Generation target. Defaults to "esphome" so every existing design
     # keeps its current behavior without a schema bump.
     target: Literal["esphome", "lorawan"] = "esphome"

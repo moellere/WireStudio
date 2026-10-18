@@ -1,10 +1,8 @@
 {
-  "schema_version": "0.1",
+  "schema_version": "0.3",
   "id": "bluesonoff",
   "name": "Sonoff Basic relay (soffit outlets)",
   "description": "Sonoff Basic (ESP-01S, 1MB flash). Single GPIO button (boot strap pin) toggles a single GPIO relay. Status LED on GPIO13.",
-  "created_at": "2020-12-01T00:00:00Z",
-  "updated_at": "2026-05-04T00:00:00Z",
 
   "board": {
     "library_id": "esp01_1m",

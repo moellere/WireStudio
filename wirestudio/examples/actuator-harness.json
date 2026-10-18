@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.1",
+  "schema_version": "0.3",
   "id": "actuator-harness",
   "name": "Actuator harness",
   "description": "A brake or valve actuator on one 8-way cable: reversible motor on a discrete MOSFET bridge, feedback pot on an ADC pin, tach switch on a pulse counter. The harness connector's positions are passthroughs landing on the bridge's output nodes, the pot and tach roles, and the rails; a 4-way panel pigtail carries an encoder and a button the same way.",

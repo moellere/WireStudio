@@ -1,10 +1,8 @@
 {
-  "schema_version": "0.1",
+  "schema_version": "0.3",
   "id": "bluemotion",
   "name": "Blue motion sensor with NeoPixel feedback",
   "description": "ESP8266 D1 Mini, single PIR on GPIO4, single WS2812B on GPIO14. Motion lights the LED; LED also blinks on boot.",
-  "created_at": "2020-08-01T00:00:00Z",
-  "updated_at": "2026-05-03T12:00:00Z",
 
   "board": {
     "library_id": "wemos-d1-mini",

@@ -36,7 +36,7 @@ def test_it_is_a_standalone_lorawan_design(design):
     assert design.lorawan.region == "US915"
     assert design.lorawan.sub_band == 2
     # Keys never live in design.json; the serial prompt supplies them.
-    assert design.lorawan.provisioning == "runtime_serial"
+    assert design.lorawan.join_eui is None
 
 
 def test_the_pmic_supplies_the_cell_voltage(design, lib):

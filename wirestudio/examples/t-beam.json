@@ -1,10 +1,8 @@
 {
-  "schema_version": "0.1",
+  "schema_version": "0.3",
   "id": "t-beam",
   "name": "LilyGO TTGO T-Beam (onboard)",
   "description": "LilyGO T-Beam with its onboard SX1276 LoRa radio, NEO-6M GPS (on a dedicated UART), and the user button. The AXP192 PMIC is noted but has no ESPHome core component.",
-  "created_at": "2026-05-23T00:00:00Z",
-  "updated_at": "2026-05-23T00:00:00Z",
   "board": {
     "library_id": "ttgo-t-beam",
     "mcu": "esp32",

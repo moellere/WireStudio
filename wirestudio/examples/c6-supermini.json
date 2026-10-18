@@ -1,10 +1,8 @@
 {
-  "schema_version": "0.1",
+  "schema_version": "0.3",
   "id": "c6-supermini",
   "name": "ESP32-C6 SuperMini (onboard)",
   "description": "ESP32-C6 SuperMini with its onboard WS2812 status LED and BOOT button auto-populated.",
-  "created_at": "2026-05-23T00:00:00Z",
-  "updated_at": "2026-05-23T00:00:00Z",
   "board": {
     "library_id": "esp32-c6-supermini",
     "mcu": "esp32",

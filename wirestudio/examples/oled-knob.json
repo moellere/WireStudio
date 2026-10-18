@@ -1,10 +1,8 @@
 {
-  "schema_version": "0.1",
+  "schema_version": "0.3",
   "id": "oled-knob",
   "name": "OLED + rotary-knob control panel",
   "description": "The 1.3-inch SH1106 white OLED + EC11 rotary-encoder combo module, the kind sold as one board for menu UIs. The SH1106 display rides the I2C bus; the EC11's quadrature A/B feed the rotary_encoder sensor and its push-switch is a separate gpio_input button. The module also carries two auxiliary push buttons, each wired as its own gpio_input binary sensor.",
-  "created_at": "2026-05-17T00:00:00Z",
-  "updated_at": "2026-05-17T00:00:00Z",
 
   "board": {
     "library_id": "esp32-devkitc-v4",

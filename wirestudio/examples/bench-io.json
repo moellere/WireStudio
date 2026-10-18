@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.1",
+  "schema_version": "0.3",
   "id": "bench-io",
   "name": "Bench I/O board",
   "description": "The discrete building blocks on one board: a status LED, an NPN driver for a 5 V relay coil, a logic-level MOSFET driver for a 12 V fan on PWM, a divider to read the 12 V supply, and a level shifter for a 5 V 1-Wire line.",

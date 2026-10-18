@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.1",
+  "schema_version": "0.3",
   "id": "vent-damper",
   "name": "Vent damper",
   "description": "DRV8833-class H-bridge module running a damper gearmotor, exposed to Home Assistant as a reversible variable-speed fan entity.",

@@ -51,6 +51,7 @@ from wirestudio.agent.tools import (
 )
 from wirestudio.designs.active import ActiveDesignTracker
 from wirestudio.designs.store import DesignStore, sanitize_id
+from wirestudio.migrate import MigrationError, migrate
 from wirestudio.inventory import apply_substitutions, check_inventory, entries_from_csv
 from wirestudio.inventory.buy import buy_list, buy_list_to_dict
 from wirestudio.inventory.store import (
@@ -272,6 +273,10 @@ def _register_design_tools(
                     "replace it or choose another design_id"
                 ),
             }
+        try:
+            design = migrate(design, library).document
+        except MigrationError as e:
+            return {"ok": False, "error": str(e)}
         report = _run_validate(design, library)
         if "error" in report:
             return report

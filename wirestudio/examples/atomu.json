@@ -1,10 +1,8 @@
 {
-  "schema_version": "0.1",
+  "schema_version": "0.3",
   "id": "atomu",
   "name": "M5Stack AtomU (LED + button)",
   "description": "Minimal M5Stack AtomU device: the onboard SK6812 RGB status LED on GPIO27 driven via the ESP32 RMT peripheral, plus the programmable button on GPIO39. The USB-A stick form factor before adding the PDM mic or IR.",
-  "created_at": "2026-05-16T00:00:00Z",
-  "updated_at": "2026-05-16T00:00:00Z",
 
   "board": {
     "library_id": "m5stack-atomu",

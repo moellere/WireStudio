@@ -1,10 +1,8 @@
 {
-  "schema_version": "0.1",
+  "schema_version": "0.3",
   "id": "esp32-audio",
   "name": "Garage I2S audio + ST7789 dashboard",
   "description": "ESP32 NodeMCU-32S, Arduino framework. MAX98357A I2S DAC drives a Class-D speaker; ST7789V SPI display shows a clock + status. Hardware mute and backlight switches.",
-  "created_at": "2022-09-01T00:00:00Z",
-  "updated_at": "2026-05-05T00:00:00Z",
 
   "board": {
     "library_id": "nodemcu-32s",

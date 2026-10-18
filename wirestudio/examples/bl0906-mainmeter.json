@@ -1,10 +1,8 @@
 {
-  "schema_version": "0.1",
+  "schema_version": "0.3",
   "id": "bl0906-mainmeter",
   "name": "BL0906 6-channel mains energy monitor",
   "description": "ESP32-DevKitC-V4 reading a BL0906 6-channel energy meter (Athom EM6-style) over UART2. Six CT clamps land on channels 1-6; the chip aggregates total power and total energy across all of them.",
-  "created_at": "2026-05-09T00:00:00Z",
-  "updated_at": "2026-05-09T00:00:00Z",
 
   "board": {
     "library_id": "esp32-devkitc-v4",

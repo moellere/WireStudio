@@ -15,6 +15,18 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, Protocol
 
+from wirestudio.migrate import migrate
+
+
+def _current(document: dict) -> dict:
+    """A stored document brought to the current schema version. A document
+    with no version at all is handed back untouched: the store never
+    validated it, so it is not the store's to migrate."""
+    if "schema_version" not in document:
+        return document
+    return migrate(document).document
+
+
 DESIGNS_DIR_DEFAULT = Path(__file__).resolve().parent.parent.parent / "designs"
 
 # Schema's id pattern is `^[a-z0-9][a-z0-9-]*$`; we use a slightly looser
@@ -46,7 +58,7 @@ class SavedDesignSummary:
     name: str
     description: str
     board_library_id: str
-    chip_family: str
+    mcu: str
     saved_at: str
     component_count: int
 
@@ -54,7 +66,11 @@ class SavedDesignSummary:
 class DesignStore(Protocol):
     def exists(self, design_id: str) -> bool: ...
     def list(self) -> list[SavedDesignSummary]: ...
-    def load(self, design_id: str) -> dict: ...
+    def load(self, design_id: str) -> dict:
+        """The stored document at the current schema version; a saved
+        design from an older release is migrated on the way out and
+        written back in the new shape on its next save."""
+        ...
     def save(self, design: dict, design_id: Optional[str] = None) -> tuple[str, str]: ...
     def delete(self, design_id: str) -> bool: ...
 
@@ -88,7 +104,7 @@ class FileDesignStore(DesignStore):
                 name=str(data.get("name", "")),
                 description=str(data.get("description", "")),
                 board_library_id=str(board.get("library_id", "")),
-                chip_family=str(board.get("mcu", "")),
+                mcu=str(board.get("mcu", "")),
                 saved_at=saved_at,
                 component_count=len(components),
             ))
@@ -100,7 +116,7 @@ class FileDesignStore(DesignStore):
         path = self.path(design_id)
         if not path.exists():
             raise FileNotFoundError(f"no saved design with id {design_id!r}")
-        return json.loads(path.read_text())
+        return _current(json.loads(path.read_text()))
 
     def save(self, design: dict, design_id: Optional[str] = None) -> tuple[str, str]:
         """Write the design to disk. Returns (id, saved_at).
@@ -169,7 +185,7 @@ class SqliteDesignStore(DesignStore):
                 name=str(data.get("name", "")),
                 description=str(data.get("description", "")),
                 board_library_id=str(board.get("library_id", "")),
-                chip_family=str(board.get("mcu", "")),
+                mcu=str(board.get("mcu", "")),
                 saved_at=saved_at,
                 component_count=len(data.get("components") or []),
             ))
@@ -180,7 +196,7 @@ class SqliteDesignStore(DesignStore):
             row = db.execute("SELECT document FROM designs WHERE id = ?", (design_id,)).fetchone()
         if row is None:
             raise FileNotFoundError(f"no saved design with id {design_id!r}")
-        return json.loads(row[0])
+        return _current(json.loads(row[0]))
 
     def save(self, design: dict, design_id: Optional[str] = None) -> tuple[str, str]:
         if design_id is None:

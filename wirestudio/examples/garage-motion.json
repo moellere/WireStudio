@@ -1,10 +1,8 @@
 {
-  "schema_version": "0.1",
+  "schema_version": "0.3",
   "id": "garage-motion-v1",
   "name": "Garage motion sensor",
   "description": "Outdoor PIR + temp/humidity, USB powered.",
-  "created_at": "2026-05-03T12:00:00Z",
-  "updated_at": "2026-05-03T12:34:00Z",
 
   "board": {
     "library_id": "esp32-devkitc-v4",

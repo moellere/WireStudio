@@ -1,10 +1,8 @@
 {
-  "schema_version": "0.1",
+  "schema_version": "0.3",
   "id": "motion-turns-on-light",
   "name": "Motion turns on the porch light",
   "description": "Second phase-1 worked example: a PIR motion sensor triggers a WS2812B LED to turn on. Exercises a different capability pair than button-toggles-light (sensor event -> light action vs. input event -> switch action), proving the lowering generalises across categories. The motion sensor's on_press event lowers to `light.turn_on: porch_light`; on_release lowers to `light.turn_off`.",
-  "created_at": "2026-06-19T00:00:00Z",
-  "updated_at": "2026-06-19T00:00:00Z",
 
   "board": {
     "library_id": "wemos-d1-mini",

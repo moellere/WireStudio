@@ -7,7 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- **Schema version 0.3: the design fields nothing read.** The audit
+  before the 1.0 freeze (roadmap section 1) walked every property in
+  `design.schema.json` to its readers. Six had none, so the `0.2 -> 0.3`
+  step drops them: `created_at` and `updated_at` (no store maintained
+  them; the saved-design list carries its own `saved_at`), `agent`
+  (agent sessions live in the session store, never in design.json), and
+  `lorawan.chirpstack_application_id`, `device_profile_id`,
+  `provisioning` and `dev_eui` (the provision endpoints take the DevEUI
+  from the request and the ChirpStack ids from ChirpStack; `compile_time`
+  provisioning was never built). Every bundled example and the web UI's
+  new designs are at 0.3; 0.1 and 0.2 stay accepted on input and the
+  0.1 fixture's golden now ends at 0.3.
+
 ### Added
+
+- **`design.schema.json` says what each field is for.** The fields the
+  audit kept but no generator reads are documented as the design's
+  record rather than removed: `power.supply` / `rail_voltage_v` /
+  `regulator` (only `budget_ma` feeds the solver), `requirements`,
+  `components[].role`, `fleet.tags`, and `description`; `warnings`,
+  `esphome_extras`, `params`, `locked_pins`, `module` and `join_eui`
+  carry a description too, and `target` says that the Tasmota template
+  is an export of an esphome design rather than a target value.
+  `buses[].parity`, which the model has carried since the cse7766
+  landed, is in the schema at last: `smart-plug` did not validate
+  against it. `tests/test_schema.py` now holds every example to the
+  schema and the schema's property set to the model's, so the two
+  cannot drift again.
+- **`wirestudio.migrate`: design.json migrations** (roadmap 0.42). A
+  design carries a `schema_version`, and a chain of per-version steps
+  brings an older document to the current one before anything reads
+  it: the file and SQLite design stores on load, every REST endpoint
+  that takes a design and `POST /designs` before it writes, the MCP
+  `create_design` tool, and the generate CLI. Each step changes only
+  what it is about and leaves the rest of the document as it was, so a
+  migrated file diffs as the change it carries. `python -m
+  wirestudio.migrate design.json` prints the migrated document,
+  `--write` rewrites the file, `--check` exits non-zero when a file is
+  behind (the examples are held to it in tests); `wirestudio-migrate`
+  is the console script. A document with no version, or one from a
+  newer release, is refused with a message that says so rather than a
+  validation error on a field that does not exist yet.
+- **Schema version 0.2.** The first step, `0.1 -> 0.2`, rewrites the
+  deprecated `lorawan.gps` / `dht22` / `oled` blocks into the `uart_gps`,
+  `dht` and `ssd1306` components, buses and connections they stood for,
+  the same lowering the generators have applied since 0.40. Every
+  bundled example and the web UI's new designs are at 0.2; 0.1 stays
+  accepted on input. The `1.0` step, which drops the blocks from the
+  model, is cut at release.
+
 
 - **The rest of the connector family, and a netlist golden.** `connector_1x02`,
   `1x05`, `1x06`, `1x07` with the same `family` switch, and

@@ -1,10 +1,8 @@
 {
-  "schema_version": "0.1",
+  "schema_version": "0.3",
   "id": "esp32cam",
   "name": "AI-Thinker ESP32-CAM",
   "description": "AI-Thinker ESP32-CAM (OV2640) wired to the board's fixed camera pinout -- the standard parallel DVP camera bus (8 data lines + XCLK/PCLK/VSYNC/HREF) plus the SCCB control I2C. Streams over the built-in camera web server.",
-  "created_at": "2026-05-23T00:00:00Z",
-  "updated_at": "2026-05-23T00:00:00Z",
 
   "board": { "library_id": "esp32cam-ai-thinker", "mcu": "esp32", "framework": "esp-idf" },
   "power": { "supply": "usb-5v", "rail_voltage_v": 5.0, "regulator": "onboard-ams1117", "budget_ma": 800 },

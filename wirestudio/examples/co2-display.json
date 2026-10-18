@@ -1,10 +1,8 @@
 {
-  "schema_version": "0.1",
+  "schema_version": "0.3",
   "id": "co2-display",
   "name": "CO2 monitor with 7-segment readout",
   "description": "Wemos D1 Mini with an MH-Z19 NDIR CO2 sensor on a software UART (D6/D5), a TM1637 4-digit display (D1/D2) bound to the CO2 value via the show intent, and a piezo buzzer (D7) that plays the named alarm melody when CO2 crosses 1200ppm.",
-  "created_at": "2026-08-31T00:00:00Z",
-  "updated_at": "2026-08-31T00:00:00Z",
   "board": {
     "library_id": "wemos-d1-mini",
     "mcu": "esp8266",

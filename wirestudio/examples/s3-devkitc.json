@@ -1,10 +1,8 @@
 {
-  "schema_version": "0.1",
+  "schema_version": "0.3",
   "id": "s3-devkitc",
   "name": "ESP32-S3-DevKitC-1 (onboard)",
   "description": "Espressif ESP32-S3-DevKitC-1 with its onboard WS2812 RGB LED (GPIO48) and BOOT button.",
-  "created_at": "2026-05-23T00:00:00Z",
-  "updated_at": "2026-05-23T00:00:00Z",
   "board": {
     "library_id": "esp32-s3-devkitc-1",
     "mcu": "esp32",

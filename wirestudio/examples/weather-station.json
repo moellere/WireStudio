@@ -1,10 +1,8 @@
 {
-  "schema_version": "0.1",
+  "schema_version": "0.3",
   "id": "weather-station",
   "name": "Outdoor weather station (pressure + climate + light)",
   "description": "ESP32-DevKitC with a BMP280 barometer, an HTU21D temperature/humidity sensor, and a TSL2561 lux sensor sharing one I2C bus -- the classic three-sensor outdoor weather node. Distinct I2C addresses (0x76 / 0x40 / 0x39) so all three coexist on the same two pins.",
-  "created_at": "2026-05-15T00:00:00Z",
-  "updated_at": "2026-05-15T00:00:00Z",
 
   "board": {
     "library_id": "esp32-devkitc-v4",

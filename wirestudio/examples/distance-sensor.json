@@ -1,10 +1,8 @@
 {
-  "schema_version": "0.1",
+  "schema_version": "0.3",
   "id": "distance-sensor",
   "name": "Ultrasonic distance sensor with NeoPixel feedback",
   "description": "ESP8266 NodeMCU v2 with an HC-SR04 (D5/D6) and a single WS2812B (D1) whose color is driven by the measured distance.",
-  "created_at": "2021-03-01T00:00:00Z",
-  "updated_at": "2026-05-03T12:00:00Z",
 
   "board": {
     "library_id": "nodemcu-v2",

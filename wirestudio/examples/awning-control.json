@@ -1,10 +1,8 @@
 {
-  "schema_version": "0.1",
+  "schema_version": "0.3",
   "id": "awning-control",
   "name": "Deck awning controller",
   "description": "ESP8266 D1 Mini drives a motorized retractable deck awning via H-bridge PWM, with limit switches and manual buttons read through an MCP23008 I2C port expander. Sensors and switches are now modeled as gpio_input/gpio_output components with expander_pin connections; PWM outputs and the cover platform stay in esphome_extras.",
-  "created_at": "2020-11-04T01:53:00Z",
-  "updated_at": "2026-05-04T00:00:00Z",
 
   "board": {
     "library_id": "wemos-d1-mini",
