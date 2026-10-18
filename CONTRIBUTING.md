@@ -71,6 +71,13 @@ esphome` fails on the `paho-mqtt` wheel, drop into a fresh venv first:
    `scripts/coverage_baseline.yaml`. When you close a gap by adding
    an example, also remove the id from the baseline — the gate fails
    on stale entries too.
+7. The same gate holds the other frameworks to one reason per missing
+   block. A component without a `circuitpython:` or `micropython:`
+   block, or one the tasmota / lorawan target cannot use, needs an
+   entry in `scripts/framework_baseline.yaml` that starts with
+   `deferred:`, `no driver upstream` or `no meaning on this framework`.
+   Write the block, delete the entry; the gate fails on a stale entry
+   or a reason outside those three.
 
 ### When the gate fails
 

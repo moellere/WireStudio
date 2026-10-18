@@ -104,23 +104,26 @@ flash stage is in.
 
 ## 3. Framework parity and library coverage
 
-Component blocks per framework today, out of 94:
+Components each framework's generator can use today, out of 102
+(Tasmota autodetects I2C parts, so they count without a block):
 
-| Framework | Blocks |
+| Framework | Usable |
 |---|---|
-| esphome | 94 |
+| esphome | 102 |
+| tasmota | 51 |
 | circuitpython | 38 |
-| tasmota | 24 |
 | micropython | 16 |
 | lorawan | 5 |
 
 100% is the wrong bar: a Tuya MCU bridge has no CircuitPython meaning.
 The bar is the one `library-coverage.md` already holds ESPHome to:
-**zero unexplained gaps.** Extend `scripts/coverage_matrix.py` with a
-per-framework column, a per-framework baseline file listing each
-missing block with its reason (`no driver upstream`, `no meaning on
-this framework`, `deferred: needs X`), and `--strict` failing the PR
-on a gap with no entry. Then work the baselines down:
+**zero unexplained gaps.** That gate is in: `scripts/coverage_matrix.py`
+carries a column per framework, `scripts/framework_baseline.yaml` holds
+one reason per missing block (`no driver upstream`, `no meaning on this
+framework`, `deferred: needs X`), and `--strict` fails the PR on a gap
+with no entry, a stale entry, or a reason outside those three.
+`library-coverage.md` lists every gap under "Framework gaps". What
+remains is to work the baselines down:
 
 - **CircuitPython and MicroPython** share the same fragment shape;
   bring MicroPython to the CircuitPython set (sensors with a `mip`

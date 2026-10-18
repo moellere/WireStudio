@@ -26,6 +26,16 @@ In `--strict` mode the script compares today's uncovered set against
     (a new uncovered entry slipped in), or
   - a baseline entry now has an example (the baseline is stale and must
     shrink to reflect the closed gap).
+
+The other frameworks are held to the same bar per component block.
+A component is covered on a framework when that framework's generator
+can use it: a `circuitpython:` / `micropython:` block, or membership in
+the tasmota / lorawan target's `component_ids` (Tasmota autodetects I2C
+parts, so they count without a block). Every gap needs an entry in
+`scripts/framework_baseline.yaml` whose reason starts with one of
+`no driver upstream`, `no meaning on this framework` or `deferred:`;
+`--strict` fails on an unexplained gap, a stale entry, or a reason
+outside those three.
 """
 from __future__ import annotations
 
@@ -43,6 +53,34 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 EXAMPLES_DIR = REPO_ROOT / "wirestudio" / "examples"
 DEFAULT_OUTPUT = REPO_ROOT / "docs" / "library-coverage.md"
 DEFAULT_BASELINE = REPO_ROOT / "scripts" / "coverage_baseline.yaml"
+DEFAULT_FRAMEWORK_BASELINE = REPO_ROOT / "scripts" / "framework_baseline.yaml"
+
+FRAMEWORKS = ("circuitpython", "micropython", "tasmota", "lorawan")
+REASON_PREFIXES = ("no driver upstream", "no meaning on this framework", "deferred:")
+
+
+def _framework_coverage(library) -> dict[str, set[str]]:
+    """Component ids each framework's generator can use."""
+    from wirestudio.targets import get_target
+
+    components = library.list_components()
+    return {
+        "circuitpython": {c.id for c in components if c.circuitpython is not None},
+        "micropython": {c.id for c in components if c.micropython is not None},
+        "tasmota": set(get_target("tasmota").component_ids(library)),
+        "lorawan": set(get_target("lorawan").component_ids(library)),
+    }
+
+
+def _framework_gaps(library) -> dict[str, set[str]]:
+    covered = _framework_coverage(library)
+    ids = {c.id for c in library.list_components()}
+    return {fw: ids - covered[fw] for fw in FRAMEWORKS}
+
+
+def _load_framework_baseline(path: Path) -> dict[str, dict[str, str]]:
+    raw = yaml.safe_load(path.read_text()) or {}
+    return {fw: dict(raw.get(fw) or {}) for fw in FRAMEWORKS}
 
 
 def _examples_using_component(examples: dict[str, dict]) -> dict[str, list[str]]:
@@ -82,9 +120,10 @@ def _load_examples() -> dict[str, dict]:
     return out
 
 
-def _render(library, examples: dict[str, dict]) -> str:
+def _render(library, examples: dict[str, dict], framework_baseline: dict[str, dict[str, str]]) -> str:
     component_refs = _examples_using_component(examples)
     board_refs = _examples_using_board(examples)
+    covered = _framework_coverage(library)
 
     components = sorted(library.list_components(), key=lambda c: (c.category, c.id))
     boards = sorted(library.list_boards(), key=lambda b: b.id)
@@ -111,21 +150,30 @@ def _render(library, examples: dict[str, dict]) -> str:
         f"**Summary:** components {component_covered}/{component_total} "
         f"({100 * component_covered // component_total}%), "
         f"boards {board_covered}/{board_total} "
-        f"({100 * board_covered // board_total}%)."
+        f"({100 * board_covered // board_total}%); "
+        + ", ".join(f"{fw} {len(covered[fw])}/{component_total}" for fw in FRAMEWORKS)
+        + " component blocks, every gap explained below."
     )
     lines.append("")
 
     lines.append("## Components")
     lines.append("")
-    lines.append("| | Library id | Category | Examples |")
-    lines.append("|---|---|---|---|")
+    lines.append(
+        "The framework columns say which generators can use the component: "
+        "a `circuitpython:` / `micropython:` block, or the tasmota / lorawan "
+        "target listing it (Tasmota autodetects I2C parts without a block)."
+    )
+    lines.append("")
+    lines.append("| | Library id | Category | Examples | " + " | ".join(FRAMEWORKS) + " |")
+    lines.append("|---|---|---|---|" + "---|" * len(FRAMEWORKS))
     for c in components:
         refs = component_refs.get(c.id, [])
         check = "✅" if refs else "⬜"
         ex_links = ", ".join(
             f"[`{e}`](../wirestudio/examples/{e}.json)" for e in refs
         ) or "_(none)_"
-        lines.append(f"| {check} | `{c.id}` | {c.category} | {ex_links} |")
+        marks = " | ".join("✅" if c.id in covered[fw] else "⬜" for fw in FRAMEWORKS)
+        lines.append(f"| {check} | `{c.id}` | {c.category} | {ex_links} | {marks} |")
     lines.append("")
 
     lines.append("## Boards")
@@ -171,6 +219,30 @@ def _render(library, examples: dict[str, dict]) -> str:
         )
         lines.append("")
 
+    lines.append("## Framework gaps")
+    lines.append("")
+    lines.append(
+        "Every component a framework cannot use, with the reason from "
+        "`scripts/framework_baseline.yaml`. `deferred:` names the fragment "
+        "or template rule still to write; `no driver upstream` means the "
+        "framework's own library has nothing to wrap; `no meaning on this "
+        "framework` means the part has no code on that framework at all. "
+        "A gap with no reason fails `--strict`."
+    )
+    lines.append("")
+    by_id = {c.id: c for c in components}
+    for fw in FRAMEWORKS:
+        gaps = sorted(set(by_id) - covered[fw], key=lambda i: (by_id[i].category, i))
+        kinds = {p: sum(1 for i in gaps if framework_baseline[fw].get(i, "").startswith(p))
+                 for p in REASON_PREFIXES}
+        lines.append(f"### {fw}: {len(gaps)} of {component_total} without a block")
+        lines.append("")
+        lines.append(", ".join(f"{n} {p.rstrip(':')}" for p, n in kinds.items()) + ".")
+        lines.append("")
+        for cid in gaps:
+            lines.append(f"- `{cid}` ({by_id[cid].category}): {framework_baseline[fw].get(cid, '_(unexplained)_')}")
+        lines.append("")
+
     return "\n".join(lines)
 
 
@@ -189,7 +261,31 @@ def _uncovered_ids(library, examples: dict[str, dict]) -> tuple[set[str], set[st
     return components, boards
 
 
-def _strict_check(library, examples: dict[str, dict], baseline_path: Path) -> int:
+def _framework_problems(library, baseline_path: Path) -> list[str]:
+    gaps = _framework_gaps(library)
+    baseline = _load_framework_baseline(baseline_path)
+    rel = baseline_path.relative_to(REPO_ROOT) if baseline_path.is_relative_to(REPO_ROOT) else baseline_path
+    problems: list[str] = []
+    for fw in FRAMEWORKS:
+        entries = baseline[fw]
+        unexplained = gaps[fw] - set(entries)
+        stale = set(entries) - gaps[fw]
+        bad_reason = {cid for cid, reason in entries.items()
+                      if not isinstance(reason, str) or not reason.startswith(REASON_PREFIXES)}
+        if unexplained:
+            problems.append(f"{fw}: components without a block and no entry in {rel}:")
+            problems += [f"  - {cid}" for cid in sorted(unexplained)]
+        if stale:
+            problems.append(f"{fw}: baseline entries whose component now has a block (remove from {rel}):")
+            problems += [f"  - {cid}" for cid in sorted(stale)]
+        if bad_reason:
+            problems.append(f"{fw}: reasons must start with one of {', '.join(repr(p) for p in REASON_PREFIXES)}:")
+            problems += [f"  - {cid}: {entries[cid]!r}" for cid in sorted(bad_reason)]
+    return problems
+
+
+def _strict_check(library, examples: dict[str, dict], baseline_path: Path,
+                  framework_baseline_path: Path) -> int:
     uncovered_components, uncovered_boards = _uncovered_ids(library, examples)
     baseline = yaml.safe_load(baseline_path.read_text()) or {}
     baseline_components = set(baseline.get("components") or [])
@@ -216,15 +312,19 @@ def _strict_check(library, examples: dict[str, dict], baseline_path: Path) -> in
             problems.append(f"  - component: {cid}")
         for bid in sorted(stale_b):
             problems.append(f"  - board: {bid}")
+    problems += _framework_problems(library, framework_baseline_path)
 
     if problems:
         sys.stderr.write("coverage_matrix --strict failed:\n")
         sys.stderr.write("\n".join(problems) + "\n")
         return 1
 
+    gaps = _framework_gaps(library)
     print(
         f"coverage baseline OK: {len(uncovered_components)} components and "
-        f"{len(uncovered_boards)} boards remain uncovered, matching baseline.",
+        f"{len(uncovered_boards)} boards remain uncovered, matching baseline; "
+        + ", ".join(f"{fw} {len(gaps[fw])}" for fw in FRAMEWORKS)
+        + " framework gaps, every one explained.",
         file=sys.stderr,
     )
     return 0
@@ -248,15 +348,20 @@ def main(argv: list[str] | None = None) -> int:
         "--baseline", type=Path, default=DEFAULT_BASELINE,
         help=f"baseline file for --strict (default: {DEFAULT_BASELINE.relative_to(REPO_ROOT)})",
     )
+    parser.add_argument(
+        "--framework-baseline", type=Path, default=DEFAULT_FRAMEWORK_BASELINE,
+        help=("per-framework gap reasons for --strict and the report "
+              f"(default: {DEFAULT_FRAMEWORK_BASELINE.relative_to(REPO_ROOT)})"),
+    )
     args = parser.parse_args(argv)
 
     library = default_library()
     examples = _load_examples()
 
     if args.strict:
-        return _strict_check(library, examples, args.baseline)
+        return _strict_check(library, examples, args.baseline, args.framework_baseline)
 
-    text = _render(library, examples)
+    text = _render(library, examples, _load_framework_baseline(args.framework_baseline))
     if args.stdout:
         sys.stdout.write(text)
     else:
