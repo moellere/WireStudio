@@ -1,0 +1,3 @@
+# expect: top level must be a mapping
+- a
+- b

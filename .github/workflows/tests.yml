@@ -1,0 +1,66 @@
+name: tests
+
+# The unit, golden and client tests every README row that cites
+# `tests/...` stands on. The other gates each run one upstream tool
+# against the studio's output; this one runs the suite itself, on
+# every PR, so a row that says "tests in tests/test_x.py" is a claim
+# CI makes and not only a file in the tree.
+#
+# KiCad, OpenSCAD and the bench are not installed here: the tests that
+# need them skip, and their own gates (kicad-*, enclosure-render, the
+# nightly hardware gate) cover that ground.
+
+on:
+  pull_request:
+    branches: [main, dev]
+  push:
+    branches: [main, dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install studio with every pip-installable extra
+        run: pip install -e '.[dev,lorawan,pcb]'
+
+      - name: pytest
+        run: python -m pytest -q
+
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npx tsc -b
+
+      - name: vitest
+        run: npx vitest run
