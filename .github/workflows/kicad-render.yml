@@ -52,7 +52,7 @@ jobs:
       - name: Install studio + SKiDL
         run: |
           pip install -e .
-          pip install --no-deps skidl graphviz simp_sexp deprecation
+          pip install --no-deps skidl==2.3.0 graphviz simp_sexp deprecation
 
       - name: Install KiCad 8
         run: |

@@ -1,0 +1,95 @@
+{
+  "schema_version": "0.1",
+  "id": "usbc-led-strip",
+  "name": "USB-C powered LED strip",
+  "description": "A 30-pixel WS2812B strip fed from its own USB-C receptacle, so the strip's current comes straight from the charger instead of through the dev board's USB port and VIN diode. The receptacle's 5.1k CC pull-downs let a C-to-C cable from a compliant source turn VBUS on.",
+  "board": {
+    "library_id": "esp32-devkitc-v4",
+    "mcu": "esp32",
+    "framework": "esp-idf"
+  },
+  "power": {
+    "supply": "usb-5v",
+    "rail_voltage_v": 5.0,
+    "regulator": "onboard-ams1117",
+    "budget_ma": 3000
+  },
+  "requirements": [],
+  "components": [
+    {
+      "id": "psu",
+      "library_id": "usb_c_power_in",
+      "label": "USB-C 5 V input",
+      "params": {}
+    },
+    {
+      "id": "strip",
+      "library_id": "esp32_rmt_led_strip",
+      "label": "Desk strip",
+      "params": {
+        "chipset": "WS2812",
+        "rgb_order": "GRB",
+        "num_leds": 30
+      }
+    }
+  ],
+  "buses": [],
+  "connections": [
+    {
+      "component_id": "psu",
+      "pin_role": "VBUS",
+      "target": {
+        "kind": "rail",
+        "rail": "5V"
+      }
+    },
+    {
+      "component_id": "psu",
+      "pin_role": "GND",
+      "target": {
+        "kind": "rail",
+        "rail": "GND"
+      }
+    },
+    {
+      "component_id": "strip",
+      "pin_role": "VCC",
+      "target": {
+        "kind": "rail",
+        "rail": "5V"
+      }
+    },
+    {
+      "component_id": "strip",
+      "pin_role": "GND",
+      "target": {
+        "kind": "rail",
+        "rail": "GND"
+      }
+    },
+    {
+      "component_id": "strip",
+      "pin_role": "DIN",
+      "target": {
+        "kind": "gpio",
+        "pin": "GPIO18"
+      }
+    }
+  ],
+  "passives": [],
+  "warnings": [],
+  "esphome_extras": {
+    "logger": {}
+  },
+  "fleet": {
+    "device_name": "usbc-led-strip",
+    "tags": [
+      "light"
+    ],
+    "secrets_ref": {
+      "wifi_ssid": "!secret wifi_ssid",
+      "wifi_password": "!secret wifi_password",
+      "api_key": "!secret api_key"
+    }
+  }
+}
