@@ -78,7 +78,8 @@ one), which dispatches the compile to its own workers.
 
 Detailed docs live in [`docs/`](docs/):
 
-- [Documentation index](docs/index.md) — architecture, repo layout, roadmap.
+- [Documentation index](docs/index.md) — architecture, repo layout, per-area status.
+- [Roadmap to 1.0](docs/roadmap.md) — what 1.0 promises and what has to land.
 - [User guide](docs/user_guide.md) — Web UI, inspector, header actions, HTTP API, examples.
 - [Deployment](docs/deployment.md) — self-host with Docker or Kubernetes.
 - [Integrations](docs/integrations.md) — agent, fleet handoff, enclosure search, KiCad.
