@@ -2,7 +2,7 @@
   "schema_version": "0.1",
   "id": "usbc-led-strip",
   "name": "USB-C powered LED strip",
-  "description": "A 30-pixel WS2812B strip fed from its own USB-C receptacle, so the strip's current comes straight from the charger instead of through the dev board's USB port and VIN diode. The receptacle's 5.1k CC pull-downs let a C-to-C cable from a compliant source turn VBUS on.",
+  "description": "A 30-pixel WS2812B strip fed from its own USB-C receptacle, so the strip's current comes straight from the charger instead of through the dev board's USB port and VIN diode. The receptacle's 5.1k CC pull-downs let a C-to-C cable from a compliant source turn VBUS on. The strip leaves the board through a 3-way JST-XH plug: 5 V, GND and the data line.",
   "board": {
     "library_id": "esp32-devkitc-v4",
     "mcu": "esp32",
@@ -31,6 +31,12 @@
         "rgb_order": "GRB",
         "num_leds": 30
       }
+    },
+    {
+      "id": "strip_conn",
+      "library_id": "connector_1x03",
+      "label": "Strip plug",
+      "params": {}
     }
   ],
   "buses": [],
@@ -73,6 +79,31 @@
       "target": {
         "kind": "gpio",
         "pin": "GPIO18"
+      }
+    },
+    {
+      "component_id": "strip_conn",
+      "pin_role": "P1",
+      "target": {
+        "kind": "rail",
+        "rail": "5V"
+      }
+    },
+    {
+      "component_id": "strip_conn",
+      "pin_role": "P2",
+      "target": {
+        "kind": "rail",
+        "rail": "GND"
+      }
+    },
+    {
+      "component_id": "strip_conn",
+      "pin_role": "P3",
+      "target": {
+        "kind": "net",
+        "component_id": "strip",
+        "net": "DIN"
       }
     }
   ],

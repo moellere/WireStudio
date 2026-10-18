@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Connector components and the `net` connection target.** A
+  wire-to-board connector that carries lines belonging to several
+  components could not be a library part: every pin had to land on a
+  rail, GPIO, bus or expander pin of its own, and a subcircuit's internal
+  nets were private to the instance. Pins of `kind: passthrough` and a
+  `{kind: net, component_id, net}` target fix that: the position joins
+  the net another component's role is wired to, or one of a subcircuit's
+  internal nodes (`bridge.out_a`), and the schematic, PCB, BOM and CPL
+  put its pad there while the solver, YAML and firmware generators leave
+  it alone. `validate` reports a target that resolves to nothing.
+  `connector_1x03` / `1x04` / `1x08` ship with a `family` param that
+  switches the footprint between JST-XH, JST-PH, a pin header and a
+  screw terminal; a component `kicad.footprint` may now be a template
+  over the params, and the footprint gate checks every enum value.
+  Example `actuator-harness` puts a bridge, a pot and a tach switch on
+  one 8-way plug and an encoder and button on a 4-way pigtail;
+  `usbc-led-strip` gains the strip's 3-way plug (#300).
+
 ## [0.39.0] — 2026-10-18
 
 ### Added

@@ -11,7 +11,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-from wirestudio.library import part_value
+from wirestudio.library import component_footprint, part_value
 from wirestudio.model import Design
 
 _PY_IDENT_RE = re.compile(r"[^A-Za-z0-9_]")
@@ -119,9 +119,12 @@ def placed_parts(design: Design, library) -> list[PlacedPart]:
             lib_comp = None
         sub = lib_comp.subcircuit if lib_comp is not None else None
         if sub is None:
+            kicad = lib_comp.kicad if lib_comp is not None else None
+            if kicad is not None and kicad.footprint and "{{" in kicad.footprint:
+                kicad = kicad.model_copy(update={"footprint": component_footprint(lib_comp, c.params)})
             out.append(PlacedPart(
                 key=c.id, ref=refs[c.id], component_id=c.id, library_id=c.library_id,
-                part_id=None, kicad=lib_comp.kicad if lib_comp is not None else None,
+                part_id=None, kicad=kicad,
                 name=lib_comp.name if lib_comp is not None else c.library_id,
             ))
             continue
@@ -148,16 +151,21 @@ def local_net_name(component_id: str, name: str) -> str:
     return f"{_py_var(component_id)}_{name}"
 
 
-def net_name(target) -> str:
+def net_name(target, design: Design | None = None, library=None) -> str:
     """Canonical net name for a connection target. Used verbatim in the PCB's
     ``(net ...)`` declarations and pad bindings, and as the inline SKiDL net
     name for gpio/expander/component targets, so both artifacts share names.
 
     rails -> ``GND`` / ``+5V`` / ``+3V3``; bus -> ``BUS_<id>``;
     gpio -> ``GPIO_<pin>``; expander_pin -> ``<expander>_GP<n>``;
-    component (hub) -> ``<component>_HUB``.
+    component (hub) -> ``<component>_HUB``; net -> whatever
+    ``resolve_net_target`` finds, which needs the design, else ``UNCONNECTED``.
     """
     kind = target.kind
+    if kind == "net":
+        if design is None:
+            return "UNCONNECTED"
+        return resolve_net_target(target, design, library) or "UNCONNECTED"
     if kind == "rail":
         if target.rail.lower() in ("gnd", "ground"):
             return "GND"
@@ -210,12 +218,19 @@ def build_netlist(design: Design, library) -> list[Net]:
     for conn in design.connections:
         if conn.component_id in subcircuits:
             if is_bound(conn.target):
-                role_nets[(conn.component_id, conn.pin_role)] = net_name(conn.target)
+                role_nets[(conn.component_id, conn.pin_role)] = net_name(conn.target, design, library)
             continue
         ref = refs.get(conn.component_id)
         if ref is None:
             continue
-        name = net_name(conn.target)
+        if conn.target.kind == "net":
+            # A passthrough pin pointing at nothing lands on no net at all
+            # rather than on a shared "unconnected" one.
+            name = resolve_net_target(conn.target, design, library)
+            if name is None:
+                continue
+        else:
+            name = net_name(conn.target)
         net = by_name.setdefault(name, Net(name=name))
         net.pads.append(
             NetPad(ref=ref, component_id=conn.component_id, pin_role=conn.pin_role)
@@ -233,9 +248,38 @@ def build_netlist(design: Design, library) -> list[Net]:
 
 
 def is_bound(target) -> bool:
-    """False for a gpio / bus target the pin solver hasn't filled in yet."""
+    """False for a gpio / bus target the pin solver hasn't filled in yet, or a
+    net target nobody has pointed at a component yet."""
     if target.kind == "gpio":
         return bool(target.pin)
     if target.kind == "bus":
         return bool(target.bus_id)
+    if target.kind == "net":
+        return bool(target.component_id and target.net)
     return True
+
+
+def resolve_net_target(target, design: Design, library, _seen: tuple = ()) -> str | None:
+    """The canonical net a ``net`` target lands on, or None when it points at
+    nothing: the net the named component's role ``net`` is wired to (through
+    further net targets if need be), else, for a subcircuit component, the
+    instance-local net of the internal node or unconnected role so named."""
+    if not is_bound(target):
+        return None
+    key = (target.component_id, target.net)
+    if key in _seen:
+        return None
+    comp = next((c for c in design.components if c.id == target.component_id), None)
+    if comp is None:
+        return None
+    for conn in design.connections:
+        if conn.component_id == comp.id and conn.pin_role == target.net:
+            if not is_bound(conn.target):
+                return None
+            if conn.target.kind == "net":
+                return resolve_net_target(conn.target, design, library, _seen + (key,))
+            return net_name(conn.target)
+    sub = _subcircuit(comp, library) if library is not None else None
+    if sub is not None and any(target.net in part.pins.values() for part in sub.parts):
+        return local_net_name(comp.id, target.net)
+    return None

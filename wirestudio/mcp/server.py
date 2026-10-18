@@ -423,7 +423,9 @@ def _register_design_tools(
         description=(
             "Set the target of a single connection identified by "
             "component_id + pin_role. The `target` shape mirrors the "
-            "design.json schema: rail, gpio, bus, or expander_pin."
+            "design.json schema: rail, gpio, bus, expander_pin, or net "
+            "({kind:'net', component_id, net}: a passthrough connector pin "
+            "landing on another component's connected role or subcircuit node)."
             + _DESIGN_ID_HINT
         ),
     )

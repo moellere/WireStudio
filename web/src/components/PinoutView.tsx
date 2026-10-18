@@ -97,7 +97,7 @@ export function PinoutView({
     return (
       <div className="text-xs text-ink-faint">
         This component has no gpio connections to drag. Use the Form view
-        to set rail / bus / expander_pin / component targets.
+        to set rail / bus / expander_pin / component / net targets.
       </div>
     );
   }

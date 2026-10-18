@@ -141,6 +141,7 @@ def _is_unbound(target: dict) -> bool:
         return not target.get("expander_id")
     if kind == "component":
         return not target.get("component_id")
+    # A net target is a passthrough pin's choice, never the solver's.
     return False
 
 

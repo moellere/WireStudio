@@ -23,7 +23,7 @@ from pydantic import ValidationError
 from wirestudio.generate.yaml_gen import render_component
 from wirestudio.kicad.importer import default_symbol_dirs
 from wirestudio.kicad.symbol_parser import KicadSymbol, load_symbols, resolve_symbol
-from wirestudio.library import Library, LibraryComponent, part_value
+from wirestudio.library import Library, LibraryComponent, part_value, render_param_template
 from wirestudio.library.electrical import run_checks
 from wirestudio.model import Design
 
@@ -337,6 +337,8 @@ def _check_kicad(comp: LibraryComponent, report: ComponentCheck) -> None:
         return
     for where, ref, _ in refs:
         fp = ref.footprint or ""
+        if "{{" in fp:
+            fp = render_param_template(fp, {}, comp.params_schema)
         if ":" not in fp:
             report.errors.append(f"{where}: footprint {fp!r} must be LIB:NAME")
             continue

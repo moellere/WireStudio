@@ -1,0 +1,261 @@
+{
+  "schema_version": "0.1",
+  "id": "actuator-harness",
+  "name": "Actuator harness",
+  "description": "A brake or valve actuator on one 8-way cable: reversible motor on a discrete MOSFET bridge, feedback pot on an ADC pin, tach switch on a pulse counter. The harness connector's positions are passthroughs landing on the bridge's output nodes, the pot and tach roles, and the rails; a 4-way panel pigtail carries an encoder and a button the same way.",
+  "board": {
+    "library_id": "esp32-devkitc-v4",
+    "mcu": "esp32",
+    "framework": "esp-idf"
+  },
+  "power": {
+    "supply": "usb-5v",
+    "rail_voltage_v": 5.0,
+    "regulator": "onboard-ams1117",
+    "budget_ma": 2000
+  },
+  "requirements": [],
+  "components": [
+    {
+      "id": "bridge",
+      "library_id": "hbridge_mosfet",
+      "label": "Actuator motor",
+      "params": {}
+    },
+    {
+      "id": "feedback",
+      "library_id": "adc",
+      "label": "Actuator position",
+      "params": {
+        "attenuation": "12db",
+        "update_interval": "100ms"
+      }
+    },
+    {
+      "id": "tach",
+      "library_id": "pulse_counter",
+      "label": "Tach switch",
+      "params": {}
+    },
+    {
+      "id": "harness",
+      "library_id": "connector_1x08",
+      "label": "Actuator harness",
+      "params": {
+        "family": "pin_header"
+      }
+    },
+    {
+      "id": "dial",
+      "library_id": "rotary_encoder",
+      "label": "Setpoint dial",
+      "params": {}
+    },
+    {
+      "id": "btn",
+      "library_id": "gpio_input",
+      "label": "Confirm",
+      "params": {}
+    },
+    {
+      "id": "panel",
+      "library_id": "connector_1x04",
+      "label": "Panel pigtail",
+      "params": {}
+    }
+  ],
+  "buses": [],
+  "connections": [
+    {
+      "component_id": "bridge",
+      "pin_role": "IN1",
+      "target": {
+        "kind": "gpio",
+        "pin": "GPIO18"
+      }
+    },
+    {
+      "component_id": "bridge",
+      "pin_role": "IN2",
+      "target": {
+        "kind": "gpio",
+        "pin": "GPIO19"
+      }
+    },
+    {
+      "component_id": "bridge",
+      "pin_role": "VM",
+      "target": {
+        "kind": "rail",
+        "rail": "5V"
+      }
+    },
+    {
+      "component_id": "bridge",
+      "pin_role": "GND",
+      "target": {
+        "kind": "rail",
+        "rail": "GND"
+      }
+    },
+    {
+      "component_id": "feedback",
+      "pin_role": "IN",
+      "target": {
+        "kind": "gpio",
+        "pin": "GPIO34"
+      }
+    },
+    {
+      "component_id": "tach",
+      "pin_role": "PULSE",
+      "target": {
+        "kind": "gpio",
+        "pin": "GPIO27"
+      }
+    },
+    {
+      "component_id": "harness",
+      "pin_role": "P1",
+      "target": {
+        "kind": "net",
+        "component_id": "bridge",
+        "net": "out_a"
+      }
+    },
+    {
+      "component_id": "harness",
+      "pin_role": "P2",
+      "target": {
+        "kind": "net",
+        "component_id": "bridge",
+        "net": "out_b"
+      }
+    },
+    {
+      "component_id": "harness",
+      "pin_role": "P3",
+      "target": {
+        "kind": "rail",
+        "rail": "3V3"
+      }
+    },
+    {
+      "component_id": "harness",
+      "pin_role": "P4",
+      "target": {
+        "kind": "net",
+        "component_id": "feedback",
+        "net": "IN"
+      }
+    },
+    {
+      "component_id": "harness",
+      "pin_role": "P5",
+      "target": {
+        "kind": "rail",
+        "rail": "GND"
+      }
+    },
+    {
+      "component_id": "harness",
+      "pin_role": "P6",
+      "target": {
+        "kind": "rail",
+        "rail": "GND"
+      }
+    },
+    {
+      "component_id": "harness",
+      "pin_role": "P7",
+      "target": {
+        "kind": "net",
+        "component_id": "tach",
+        "net": "PULSE"
+      }
+    },
+    {
+      "component_id": "harness",
+      "pin_role": "P8",
+      "target": {
+        "kind": "rail",
+        "rail": "GND"
+      }
+    },
+    {
+      "component_id": "dial",
+      "pin_role": "A",
+      "target": {
+        "kind": "gpio",
+        "pin": "GPIO16"
+      }
+    },
+    {
+      "component_id": "dial",
+      "pin_role": "B",
+      "target": {
+        "kind": "gpio",
+        "pin": "GPIO17"
+      }
+    },
+    {
+      "component_id": "btn",
+      "pin_role": "IN",
+      "target": {
+        "kind": "gpio",
+        "pin": "GPIO25"
+      }
+    },
+    {
+      "component_id": "panel",
+      "pin_role": "P1",
+      "target": {
+        "kind": "net",
+        "component_id": "dial",
+        "net": "A"
+      }
+    },
+    {
+      "component_id": "panel",
+      "pin_role": "P2",
+      "target": {
+        "kind": "net",
+        "component_id": "dial",
+        "net": "B"
+      }
+    },
+    {
+      "component_id": "panel",
+      "pin_role": "P3",
+      "target": {
+        "kind": "net",
+        "component_id": "btn",
+        "net": "IN"
+      }
+    },
+    {
+      "component_id": "panel",
+      "pin_role": "P4",
+      "target": {
+        "kind": "rail",
+        "rail": "GND"
+      }
+    }
+  ],
+  "passives": [],
+  "warnings": [],
+  "esphome_extras": {
+    "logger": {}
+  },
+  "fleet": {
+    "device_name": "actuator-harness",
+    "tags": [
+      "actuator"
+    ],
+    "secrets_ref": {
+      "wifi_ssid": "!secret wifi_ssid",
+      "wifi_password": "!secret wifi_password",
+      "api_key": "!secret api_key"
+    }
+  }
+}

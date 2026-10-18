@@ -1,7 +1,7 @@
 /**
  * Connection editor: one row per connection of the selected component
  * instance. The row's first dropdown picks the target kind
- * (rail / gpio / bus / expander_pin); the rest of the row is the
+ * (rail / gpio / bus / expander_pin / component / net); the rest of the row is the
  * kind-specific selector(s). Each change emits an immutable replacement
  * target up to the App via onChange(index, target).
  */
@@ -19,7 +19,7 @@ import {
 import type { Design } from "../types/api";
 
 type Kind = ConnectionTarget["kind"];
-const KINDS: Kind[] = ["rail", "gpio", "bus", "expander_pin", "component"];
+const KINDS: Kind[] = ["rail", "gpio", "bus", "expander_pin", "component", "net"];
 
 interface Props {
   rows: ConnectionRow[];
@@ -105,6 +105,22 @@ export function ConnectionForm({
     };
   }, [design, expanderLibIds]);
 
+  // Roles each component has a connection for: the suggestions a `net`
+  // target offers once a component is picked. A subcircuit's internal node
+  // (`out_a`) is typed in; the list cannot know it without the library.
+  const rolesByComponent = useMemo(() => {
+    const m = new Map<string, string[]>();
+    const conns = ((design as unknown as { connections?: unknown }).connections ?? []) as Array<{
+      component_id: string; pin_role: string;
+    }>;
+    for (const c of conns) {
+      const list = m.get(c.component_id) ?? [];
+      if (!list.includes(c.pin_role)) list.push(c.pin_role);
+      m.set(c.component_id, list);
+    }
+    return m;
+  }, [design]);
+
   if (rows.length === 0) {
     return <div className="text-xs text-ink-faint">No connections.</div>;
   }
@@ -123,6 +139,7 @@ export function ConnectionForm({
           expanderDict={expanderDict}
           componentIds={componentIds}
           componentDict={componentDict}
+          rolesByComponent={rolesByComponent}
           pinLabel={pinLabel}
           onChange={(t) => onChange(row.index, t)}
           onLockedPinChange={(pin) => onLockedPinChange(row.component_id, row.pin_role, pin)}
@@ -134,7 +151,7 @@ export function ConnectionForm({
 
 function Row({
   row, railNames, gpioPins, busIds, busDict, expanderIds, expanderDict, componentIds, componentDict,
-  pinLabel, onChange, onLockedPinChange,
+  rolesByComponent, pinLabel, onChange, onLockedPinChange,
 }: {
   pinLabel: (current: string) => (p: string) => string;
   row: ConnectionRow;
@@ -146,6 +163,7 @@ function Row({
   expanderDict: Map<string, string>;
   componentIds: string[];
   componentDict: Map<string, string>;
+  rolesByComponent: Map<string, string[]>;
   onChange: (t: ConnectionTarget) => void;
   onLockedPinChange: (pin: string | null) => void;
 }) {
@@ -240,6 +258,60 @@ function Row({
           onChange={(v) => onChange({ kind: "component", component_id: v })}
         />
       )}
+
+      {t.kind === "net" && (
+        <NetControls
+          target={t}
+          componentIds={availableComponentIds}
+          componentDict={componentDict}
+          roles={rolesByComponent.get(t.component_id) ?? []}
+          onChange={onChange}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * A passthrough connector position lands on a net another component owns:
+ * one of its connected roles (listed) or, for a subcircuit component, an
+ * internal node such as `out_a` (typed). Both fields empty leaves the
+ * position unused.
+ */
+function NetControls({
+  target, componentIds, componentDict, roles, onChange,
+}: {
+  target: Extract<ConnectionTarget, { kind: "net" }>;
+  componentIds: string[];
+  componentDict: Map<string, string>;
+  roles: string[];
+  onChange: (t: ConnectionTarget) => void;
+}) {
+  const listId = `net-roles-${target.component_id || "none"}`;
+  return (
+    <div className="space-y-1.5">
+      <SelectInput
+        label="component"
+        value={target.component_id}
+        options={componentIds}
+        renderLabel={(id) => componentDict.get(id) || id}
+        onChange={(v) => onChange({ kind: "net", component_id: v, net: "" })}
+      />
+      <div className="flex items-center gap-2">
+        <span className="w-16 text-[11px] text-ink-faint">net</span>
+        <input
+          list={listId}
+          value={target.net}
+          placeholder="role or subcircuit node"
+          onChange={(e) => onChange({ ...target, net: e.target.value })}
+          className="flex-1 rounded-md border border-line bg-surface-1 px-1.5 py-0.5 font-mono text-xs text-ink focus:border-accent-500/60 focus:outline-none"
+        />
+        <datalist id={listId}>
+          {roles.map((r) => (
+            <option key={r} value={r} />
+          ))}
+        </datalist>
+      </div>
     </div>
   );
 }
@@ -427,5 +499,7 @@ function defaultTargetForKind(
       };
     case "component":
       return { kind: "component", component_id: ctx.componentIds[0] ?? "" };
+    case "net":
+      return { kind: "net", component_id: "", net: "" };
   }
 }

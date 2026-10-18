@@ -13,7 +13,7 @@ from pathlib import Path
 
 from wirestudio.inventory.check import NOT_COMPARED
 from wirestudio.inventory.match import family_for_ref
-from wirestudio.kicad.netlist import assign_refs, part_key
+from wirestudio.kicad.netlist import assign_refs, is_bound, part_key, resolve_net_target
 from typing import Optional
 
 from wirestudio.library import Library
@@ -151,4 +151,39 @@ def check_electrical(design: Design, library: Library) -> list[DesignWarning]:
         for u in unresolved:
             out.append(DesignWarning(
                 level="info", code="electrical_unresolved", text=f"{comp.id}: {u}"))
+    return out
+
+
+def check_net_targets(design: Design, library: Library) -> list[DesignWarning]:
+    """Every `net` target points at a net the design actually has, and sits on
+    a passthrough pin. An unassigned one is reported at info level: a fresh
+    connector pin starts that way and an unused position may stay so."""
+    out: list[DesignWarning] = []
+    lib_by_id: dict[str, object] = {}
+    for comp in design.components:
+        try:
+            lib_by_id[comp.id] = library.component(comp.library_id)
+        except FileNotFoundError:
+            pass
+    for conn in design.connections:
+        t = conn.target
+        if t.kind != "net":
+            continue
+        where = f"{conn.component_id}.{conn.pin_role}"
+        lib_comp = lib_by_id.get(conn.component_id)
+        if lib_comp is not None:
+            pin = next((p for p in lib_comp.electrical.pins if p.role == conn.pin_role), None)
+            if pin is not None and pin.kind != "passthrough":
+                out.append(DesignWarning(
+                    level="warn", code="net_target_on_signal_pin",
+                    text=f"{where} is a {pin.kind} pin; a net target only suits a passthrough pin"))
+        if not is_bound(t):
+            out.append(DesignWarning(
+                level="info", code="net_unassigned",
+                text=f"{where} has no net; point it at <component>.<role or node> or leave the position unused"))
+            continue
+        if resolve_net_target(t, design, library) is None:
+            out.append(DesignWarning(
+                level="warn", code="net_unresolved",
+                text=f"{where} -> {t.component_id}.{t.net}: no such component, or no connected role / subcircuit node by that name"))
     return out
