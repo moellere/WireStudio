@@ -152,9 +152,18 @@ Section 4 covers the rest.
   endpoint, or the in-house one stays and the decision is recorded.
   One enclosure printed and fitted to its board, photographed in the
   docs.
-- **ERC baseline shrinks.** Emit PWR_FLAG symbols so undriven
-  power-input pins leave the baseline; that entry goes stale and the
-  stale-entry rule removes it.
+- **Schematic.** 0.40 draws the sheet itself (board, peripherals,
+  subcircuits as blocks, PWR_FLAGs, no-connects) and
+  `scripts/check_sch.py` has kicad-cli read every example's netlist back
+  from the geometry. What remains is coverage, not mechanism: a
+  `schematic:` layout for the six subcircuits still drawn as stacks
+  ([#311](https://github.com/moellere/WireStudio/issues/311)) and a
+  `kicad.pin_map` for the twenty boards drawn as generic headers
+  ([#312](https://github.com/moellere/WireStudio/issues/312)), which
+  retires `global_label_dangling` from the ERC baseline. After that the
+  baseline holds only what KiCad's pin types cannot express (the
+  passive-header `pin_not_driven` cases and SPI's shared MISO) and the
+  library-table warning a `sym-lib-table` in the image would remove.
 
 ## 5. Agent and MCP
 
