@@ -20,6 +20,8 @@ under upstream ESPHome.
 - [Workbench integration](workbench.md) — hardware-truth layer on an
   Embedded AI Harness: remote flash and headless LoRaWAN bring-up
   (shipped), capability map, later phases, constraints.
+- [Roadmap to 1.0](roadmap.md) — what 1.0 promises, what has to land,
+  what is left out.
 
 ## Architecture
 
@@ -85,9 +87,10 @@ CONTRIBUTING.md          substantive bar a change has to clear (the YAML gate, e
 
 ## Roadmap
 
-Ordered by how much it raises the floor on whether the studio is
-actually useful. Per-release deltas live in
-[`CHANGELOG.md`](../CHANGELOG.md); decisions + phase scope in
+The path from here to 1.0 is in [`roadmap.md`](roadmap.md). What
+follows is the per-area status, ordered by how much it raises the
+floor on whether the studio is actually useful. Per-release deltas
+live in [`CHANGELOG.md`](../CHANGELOG.md); decisions + phase scope in
 [`START.md`](../START.md).
 
 **Priority 1 — YAML production correctness.** *Active.* The single
