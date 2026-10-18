@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Callable, Optional
 if TYPE_CHECKING:
     from wirestudio.library import Library
 
-CURRENT_SCHEMA_VERSION = "0.2"
+CURRENT_SCHEMA_VERSION = "0.3"
 
 
 class MigrationError(ValueError):
@@ -49,6 +49,22 @@ class Migration:
         return bool(self.applied)
 
 
+_UNREAD_TOP = ("created_at", "updated_at", "agent")
+_UNREAD_LORAWAN = ("chirpstack_application_id", "device_profile_id", "provisioning", "dev_eui")
+
+
+def _drop_unread_fields(raw: dict, library) -> dict:
+    """0.2 -> 0.3: the fields the schema audit found nothing read or
+    wrote. Timestamps no store maintained, the `agent` pointer (sessions
+    live in their own store), and the LoRaWAN provisioning identifiers the
+    provision endpoints take from the request and ChirpStack instead."""
+    out = {k: v for k, v in raw.items() if k not in _UNREAD_TOP}
+    lw = raw.get("lorawan")
+    if isinstance(lw, dict) and any(k in lw for k in _UNREAD_LORAWAN):
+        out["lorawan"] = {k: v for k, v in lw.items() if k not in _UNREAD_LORAWAN}
+    return out
+
+
 def _lower_lorawan_sugar(raw: dict, library) -> dict:
     """0.1 -> 0.2: `lorawan.gps` / `dht22` / `oled` become the `uart_gps`,
     `dht` and `ssd1306` components, buses and connections they stood for.
@@ -59,7 +75,9 @@ def _lower_lorawan_sugar(raw: dict, library) -> dict:
     lw = raw.get("lorawan") or {}
     if not any(lw.get(f) is not None for f in SUGAR_FIELDS):
         return raw
-    before = Design.model_validate(raw)
+    # The model is the current one, so the fields 0.3 drops must not reach
+    # it; they stay in the output until that step.
+    before = Design.model_validate(_drop_unread_fields(raw, library))
     after = lower_lorawan_sugar(before, library)
 
     def new(items_before, items_after):
@@ -80,6 +98,7 @@ def _lower_lorawan_sugar(raw: dict, library) -> dict:
 
 STEPS: list[Step] = [
     Step("0.1", "0.2", "lower_lorawan_sugar", _lower_lorawan_sugar),
+    Step("0.2", "0.3", "drop_unread_fields", _drop_unread_fields),
 ]
 
 

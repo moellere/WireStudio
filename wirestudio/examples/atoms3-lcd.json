@@ -1,10 +1,8 @@
 {
-  "schema_version": "0.2",
+  "schema_version": "0.3",
   "id": "atoms3-lcd",
   "name": "AtomS3 character-LCD status panel",
   "description": "M5Stack AtomS3 driving a 20x4 HD44780 character LCD over its Grove I2C port via a PCF8574 backpack. The tiny S3 cube sits behind the panel and renders status text on the big, readable character display -- a cheap always-on status board.",
-  "created_at": "2026-05-23T00:00:00Z",
-  "updated_at": "2026-05-23T00:00:00Z",
 
   "board": {
     "library_id": "m5stack-atoms3",

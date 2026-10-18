@@ -51,7 +51,7 @@ def test_steps_form_a_chain_to_the_current_version():
 
 def test_sugar_design_matches_the_golden(sugar):
     result = migrate(sugar)
-    assert result.applied == ["lower_lorawan_sugar"]
+    assert result.applied == ["lower_lorawan_sugar", "drop_unread_fields"]
     assert (result.from_version, result.to_version) == ("0.1", CURRENT_SCHEMA_VERSION)
     assert result.document == json.loads(GOLDEN.read_text())
     assert sugar["schema_version"] == "0.1" and sugar["lorawan"]["gps"], "input left alone"
@@ -65,7 +65,7 @@ def test_migrated_document_validates_and_keeps_the_rest_verbatim(sugar):
     assert doc["components"][0] == sugar["components"][0]
     assert doc["connections"][0] == sugar["connections"][0]
     assert {c["library_id"] for c in doc["components"][1:]} == {"uart_gps", "dht", "ssd1306"}
-    assert set(doc["lorawan"]) == {"region", "sub_band", "provisioning"}
+    assert set(doc["lorawan"]) == {"region", "sub_band"}
 
 
 def test_a_0_1_design_without_sugar_only_changes_its_version():
@@ -73,6 +73,32 @@ def test_a_0_1_design_without_sugar_only_changes_its_version():
     raw["schema_version"] = "0.1"
     result = migrate(raw)
     assert result.document == {**raw, "schema_version": CURRENT_SCHEMA_VERSION}
+
+
+def test_0_2_drops_the_fields_nothing_read_and_keeps_key_order():
+    raw = json.loads(EXAMPLES[0].read_text())
+    old = {
+        **raw, "schema_version": "0.2",
+        "created_at": "2024-01-01T00:00:00Z", "updated_at": "2024-01-02T00:00:00Z",
+        "agent": {"session_id": "s1"},
+        "lorawan": {"region": "EU868", "sub_band": 1, "join_eui": "70b3d57ed0000000",
+                    "chirpstack_application_id": "a", "device_profile_id": "p",
+                    "provisioning": "runtime_serial", "dev_eui": "70b3d57ed0001234"},
+    }
+    result = migrate(old)
+    assert result.applied == ["drop_unread_fields"]
+    assert result.document == {**raw, "schema_version": CURRENT_SCHEMA_VERSION,
+                               "lorawan": {"region": "EU868", "sub_band": 1, "join_eui": "70b3d57ed0000000"}}
+    assert list(result.document)[:3] == list(raw)[:3]
+    Design.model_validate(result.document)
+    assert "agent" in old and "dev_eui" in old["lorawan"], "input left alone"
+
+
+def test_0_2_design_without_them_only_changes_its_version():
+    raw = {**json.loads(EXAMPLES[0].read_text()), "schema_version": "0.2"}
+    result = migrate(raw)
+    assert result.document == {**raw, "schema_version": CURRENT_SCHEMA_VERSION}
+    assert result.document["lorawan"] is raw["lorawan"] if "lorawan" in raw else True
 
 
 def test_current_document_is_returned_as_is():

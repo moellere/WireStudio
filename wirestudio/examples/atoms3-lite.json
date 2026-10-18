@@ -1,10 +1,8 @@
 {
-  "schema_version": "0.2",
+  "schema_version": "0.3",
   "id": "atoms3-lite",
   "name": "M5Stack AtomS3 Lite (LED + button)",
   "description": "Minimal M5Stack AtomS3 Lite (ESP32-S3) device: the onboard WS2812C RGB status LED on GPIO35 driven via the ESP32 RMT peripheral, plus the programmable button on GPIO41.",
-  "created_at": "2026-05-16T00:00:00Z",
-  "updated_at": "2026-05-16T00:00:00Z",
 
   "board": {
     "library_id": "m5stack-atoms3-lite",

@@ -64,7 +64,7 @@ class ExampleSummary(_S):
     name: str = Field(description="Human-readable example name.")
     description: str = Field(description="One-line description of what the example builds.")
     board_library_id: str = Field(description="Library id of the board the example targets.")
-    chip_family: str = Field(description="Chip family of the example's board ('esp32', 'esp8266', ...).")
+    mcu: str = Field(description="The example's `board.mcu` ('esp32', 'esp8266', ...).")
 
 
 class CompatibilityWarning(_S):
@@ -240,7 +240,7 @@ class SavedDesignSummary(_S):
     name: str = Field(description="Design name.")
     description: str = Field(description="Design description.")
     board_library_id: str = Field(description="Library id of the design's board.")
-    chip_family: str = Field(description="Chip family of the design's board.")
+    mcu: str = Field(description="The design's `board.mcu`.")
     saved_at: str = Field(description="ISO 8601 timestamp the design was last saved.")
     component_count: int = Field(description="Number of components in the design.")
 
