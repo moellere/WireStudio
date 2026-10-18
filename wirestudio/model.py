@@ -277,10 +277,11 @@ class LoRaWAN(_Strict):
     `docs/lorawan/esphome-component-pivot.md` /
     `docs/lorawan/workflow-integration.md`:
 
-    - **Standalone Arduino (`target="lorawan"`).** Uses `gps` / `dht22` /
-      `oled` for hardcoded sensor blocks, plus `provisioning` for the runtime
-      serial flow. Hardware-validated; stays shipping behind the `[lorawan]`
-      install extra until the new path joins on real hardware.
+    - **Standalone Arduino (`target="lorawan"`).** Reads the design's
+      components, buses and connections like every other generator, plus
+      `provisioning` for the runtime serial flow. Hardware-validated; stays
+      shipping behind the `[lorawan]` install extra until the new path joins
+      on real hardware.
     - **ESPHome external component (`target="esphome"` + `lorawan:` set).**
       Uses `payload` as the ordered uplink field list; the generator emits
       ESPHome YAML referencing `lorawan-for-esphome`. Keys ride
@@ -303,8 +304,11 @@ class LoRaWAN(_Strict):
     dev_eui: Optional[str] = None                    # device-reported (standalone) or override / post-provision (new path)
     # New path (ESPHome external component): ordered uplink payload field list.
     payload: list[PayloadField] = Field(default_factory=list)
-    # Standalone path: explicit per-feature sensor blocks. Unused by the new
-    # path; retire when the standalone path retires.
+    # Deprecated sugar from before per-component `lorawan:` codegen. Still
+    # accepted: `targets.lorawan.lower` turns each into the `uart_gps` /
+    # `dht` / `ssd1306` component, bus and connections it stands for before
+    # anything reads the design, and `validate` says so. The 1.0 migrator
+    # rewrites them; nothing new should write them.
     gps: Optional[GpsSerial] = None
     dht22: Optional[Dht22] = None
     oled: Optional[Oled] = None

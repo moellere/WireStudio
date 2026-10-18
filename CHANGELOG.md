@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Deprecated
+
+- **`lorawan.gps`, `lorawan.dht22` and `lorawan.oled`.** The standalone
+  path's three sensor blocks predate per-component `lorawan:` codegen;
+  each is sugar for the `uart_gps`, `dht` or `ssd1306` component, the
+  bus and the connections a user would have added. They are still
+  accepted: `targets.lorawan.lower` rewrites a design to those components
+  before anything reads it, and `validate` reports each block it lowered
+  at info level. The 1.0 migrator rewrites them in `design.json`; add the
+  component instead of setting the block (roadmap 0.41).
+
+### Changed
+
+- **The LoRaWAN firmware generator and codec read only `components`,
+  `buses` and `connections`**, as the ESPHome generator does. The codec's
+  synthesized peripherals now come from the board file alone (onboard GPS,
+  PMIC, battery divider, OLED); a sensor a design asks for by block
+  arrives as a design component with real wiring, so the console-UART
+  check looks at the GPS's bus rather than the block. Payload order for a
+  design that used a block and an onboard sensor together follows the
+  design-then-onboard rule every other design already had (a `dht22`
+  block on a T-Beam packs the DHT fields before the GPS and battery);
+  re-push the codec after reflashing such a device.
+
 ### Added
 
 - **Connector components and the `net` connection target.** A
