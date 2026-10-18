@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.39.0] — 2026-10-18
+
 ### Added
 
 - **`usb_c_power_in` library component.** A power-only USB-C sink as a
@@ -23,8 +25,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `create_design` takes the document, checks it the way `validate` does,
   stores it under its id and makes it the active design. An existing id
   is refused unless `overwrite` is set.
-
-
 - **Flash size override in the Inspector.** ESP32 boards get a flash size
   select under the board picker: "Board default (NMB)" or 4/8/16/32 MB,
   writing `board.flash_size_mb`. Raising it above the board file's value
@@ -2459,7 +2459,8 @@ ConnectionForm, EnclosureDialog, Inspector, CapabilityPickerDialog,
 PinoutView, PushToFleetDialog, SchematicDialog. ruff + tsc + vite
 build clean across the whole arc.
 
-[Unreleased]: https://github.com/moellere/wirestudio/compare/v0.38.0...HEAD
+[Unreleased]: https://github.com/moellere/wirestudio/compare/v0.39.0...HEAD
+[0.39.0]: https://github.com/moellere/wirestudio/compare/v0.38.0...v0.39.0
 [0.38.0]: https://github.com/moellere/wirestudio/compare/v0.37.0...v0.38.0
 [0.37.0]: https://github.com/moellere/wirestudio/compare/v0.36.0...v0.37.0
 [0.36.0]: https://github.com/moellere/wirestudio/compare/v0.35.0...v0.36.0
