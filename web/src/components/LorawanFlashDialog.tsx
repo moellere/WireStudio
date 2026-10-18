@@ -37,7 +37,7 @@ function lorawanDesign(
   if (opts.dht22) lorawan.dht22 = opts.dht22;
   if (opts.oled) lorawan.oled = {};
   return {
-    schema_version: "0.2",
+    schema_version: "0.3",
     id: board.id,
     name: board.name,
     target: "lorawan",

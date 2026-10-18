@@ -1,10 +1,8 @@
 {
-  "schema_version": "0.2",
+  "schema_version": "0.3",
   "id": "xiao-grove-climate-v1",
   "name": "XIAO Grove climate node",
   "description": "Seeed XIAO ESP32C3 + Grove AHT20 over the Grove I2C connector, USB powered.",
-  "created_at": "2026-07-24T12:00:00Z",
-  "updated_at": "2026-07-24T12:00:00Z",
   "board": {
     "library_id": "seeed-xiao-esp32c3",
     "mcu": "esp32",

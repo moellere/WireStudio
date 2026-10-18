@@ -169,7 +169,7 @@ function SavedList({
                 </div>
               </div>
               <div className="mt-1 flex items-center gap-2 truncate text-xs text-ink-faint">
-                <span className="shrink-0 font-medium text-ink-dim">{s.chip_family}</span>
+                <span className="shrink-0 font-medium text-ink-dim">{s.mcu}</span>
                 <span className="h-1 w-1 shrink-0 rounded-full bg-line-strong"></span>
                 <span className="truncate font-mono">{s.board_library_id}</span>
                 <span className="h-1 w-1 shrink-0 rounded-full bg-line-strong"></span>
@@ -239,7 +239,7 @@ function ExamplesList({
                 {e.name}
               </div>
               <div className="mt-1 flex items-center gap-2 truncate text-xs text-ink-faint">
-                <span className="shrink-0 font-medium text-ink-dim">{e.chip_family}</span>
+                <span className="shrink-0 font-medium text-ink-dim">{e.mcu}</span>
                 <span className="h-1 w-1 shrink-0 rounded-full bg-line-strong"></span>
                 <span className="truncate font-mono">{e.board_library_id}</span>
               </div>

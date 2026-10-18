@@ -1,10 +1,8 @@
 {
-  "schema_version": "0.2",
+  "schema_version": "0.3",
   "id": "esp32cam-wrover",
   "name": "ESP32-WROVER-CAM (Freenove)",
   "description": "Freenove-style ESP32-WROVER-CAM (OV2640) on the WROVER camera pinout -- XCLK on GPIO32 and the SCCB I2C on GPIO13/12, which (unlike the AI-Thinker) frees GPIO26/27 for IO. Streams over the camera web server.",
-  "created_at": "2026-05-23T00:00:00Z",
-  "updated_at": "2026-05-23T00:00:00Z",
 
   "board": { "library_id": "esp32-wrover-cam", "mcu": "esp32", "framework": "esp-idf" },
   "power": { "supply": "usb-5v", "rail_voltage_v": 5.0, "regulator": "onboard-ams1117", "budget_ma": 800 },

@@ -234,7 +234,7 @@ def _example_summary(path: Path) -> ExampleSummary:
         name=data["name"],
         description=data.get("description", ""),
         board_library_id=data["board"]["library_id"],
-        chip_family=data["board"]["mcu"],
+        mcu=data["board"]["mcu"],
     )
 
 
@@ -1202,7 +1202,7 @@ def create_app(
         return [
             SavedDesignSummary(
                 id=s.id, name=s.name, description=s.description,
-                board_library_id=s.board_library_id, chip_family=s.chip_family,
+                board_library_id=s.board_library_id, mcu=s.mcu,
                 saved_at=s.saved_at, component_count=s.component_count,
             )
             for s in designs_store.list()

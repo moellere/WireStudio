@@ -312,7 +312,7 @@ def test_list_examples(client):
     assert {"garage-motion-v1", "awning-control", "ttgo-lora32"} <= ids
     for e in examples:
         assert e["board_library_id"]
-        assert e["chip_family"] in {"esp8266", "esp32"}
+        assert e["mcu"] in {"esp8266", "esp32"}
 
 
 def test_get_example_returns_design_json(client):

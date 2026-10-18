@@ -1,10 +1,8 @@
 {
-  "schema_version": "0.2",
+  "schema_version": "0.3",
   "id": "kitchen-scale",
   "name": "Kitchen scale (HX711 + OLED readout)",
   "description": "WeMos D1 Mini reading a load cell through an HX711 24-bit ADC and displaying grams on a 128x64 SSD1306 OLED. The HX711's 2-wire serial (DOUT/SCK) is bit-banged on two GPIOs; the OLED shares an I2C bus on the standard D1/D2 pins.",
-  "created_at": "2026-05-15T00:00:00Z",
-  "updated_at": "2026-05-15T00:00:00Z",
 
   "board": {
     "library_id": "wemos-d1-mini",

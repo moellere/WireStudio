@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.2",
+  "schema_version": "0.3",
   "id": "field-node",
   "name": "Field node",
   "description": "A 0.1 design from the quick-flash dialog: an external GPS, a DHT22 and the onboard OLED asked for by block.",
@@ -171,7 +171,6 @@
   "warnings": [],
   "lorawan": {
     "region": "US915",
-    "sub_band": 2,
-    "provisioning": "runtime_serial"
+    "sub_band": 2
   }
 }

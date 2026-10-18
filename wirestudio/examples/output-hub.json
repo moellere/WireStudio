@@ -1,10 +1,8 @@
 {
-  "schema_version": "0.2",
+  "schema_version": "0.3",
   "id": "output-hub",
   "name": "PWM + shift-register output hub",
   "description": "ESP32-DevKitC-V4 driving banks of outputs without spending MCU pins: a PCA9685 on I2C provides two dimmable 12-bit PWM channels, and an SN74HC595 shift register (GPIO25/26/27) fans out a relay-module output on its pin 0.",
-  "created_at": "2026-08-31T00:00:00Z",
-  "updated_at": "2026-08-31T00:00:00Z",
 
   "board": {
     "library_id": "esp32-devkitc-v4",

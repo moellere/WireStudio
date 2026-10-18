@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.2",
+  "schema_version": "0.3",
   "id": "usbc-led-strip",
   "name": "USB-C powered LED strip",
   "description": "A 30-pixel WS2812B strip fed from its own USB-C receptacle, so the strip's current comes straight from the charger instead of through the dev board's USB port and VIN diode. The receptacle's 5.1k CC pull-downs let a C-to-C cable from a compliant source turn VBUS on. The strip leaves the board through a 3-way JST-XH plug: 5 V, GND and the data line.",

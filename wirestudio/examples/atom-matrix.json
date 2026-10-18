@@ -1,10 +1,8 @@
 {
-  "schema_version": "0.2",
+  "schema_version": "0.3",
   "id": "atom-matrix",
   "name": "M5Stack Atom Matrix (5x5 LED + button)",
   "description": "M5Stack Atom Matrix driving its onboard 5x5 (25-LED) SK6812 RGB matrix on GPIO27 via the ESP32 RMT peripheral, plus the programmable button on GPIO39 hidden under the matrix.",
-  "created_at": "2026-05-16T00:00:00Z",
-  "updated_at": "2026-05-16T00:00:00Z",
 
   "board": {
     "library_id": "m5stack-atom-matrix",

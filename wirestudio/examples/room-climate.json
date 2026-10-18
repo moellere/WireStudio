@@ -1,10 +1,8 @@
 {
-  "schema_version": "0.2",
+  "schema_version": "0.3",
   "id": "room-climate",
   "name": "Room climate (light + AHT20)",
   "description": "WeMos D1 Mini with a BH1750 ambient-light sensor and an AHT20 temperature/humidity sensor sharing one I2C bus. Demonstrates the cheap multi-sensor pattern that ships on most AliExpress weather modules.",
-  "created_at": "2026-05-05T00:00:00Z",
-  "updated_at": "2026-05-05T00:00:00Z",
 
   "board": {
     "library_id": "wemos-d1-mini",

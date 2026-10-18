@@ -52,7 +52,7 @@ export interface ExampleSummary {
   name: string;
   description: string;
   board_library_id: string;
-  chip_family: string;
+  mcu: string;
 }
 
 export interface CompatibilityWarning {
@@ -147,7 +147,7 @@ export interface SavedDesignSummary {
   name: string;
   description: string;
   board_library_id: string;
-  chip_family: string;
+  mcu: string;
   saved_at: string;
   component_count: number;
 }
