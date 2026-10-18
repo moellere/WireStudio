@@ -1,0 +1,45 @@
+id: connector_1x05
+name: Wire-to-board connector, 1x05 (passthrough)
+category: connector
+use_cases: [connector, harness, header, wire_to_board, cable, breakout]
+aliases: [header_1x05, jst_xh_5p, jst_ph_5p, harness_5p, conn_01x05]
+
+electrical:
+  current_ma_typical: 0
+  current_ma_peak: 0
+  # Every position is a passthrough: it carries no signal of its own, so the
+  # pin solver never assigns it and the generators ignore it. Each position
+  # takes a rail, or a `net` target pointing at another component's connected
+  # role (`brake_pot.IN`) or subcircuit node (`bridge.out_a`), and the
+  # schematic, PCB, BOM and CPL put its pad on that net. Unused positions
+  # stay unassigned.
+  pins:
+  - {role: P1, kind: passthrough}
+  - {role: P2, kind: passthrough}
+  - {role: P3, kind: passthrough}
+  - {role: P4, kind: passthrough}
+  - {role: P5, kind: passthrough}
+  passives: []
+
+esphome:
+  required_components: []
+  yaml_template: ""
+
+params_schema:
+  family:
+    type: string
+    enum: [jst_xh, jst_ph, pin_header, screw_terminal]
+    default: jst_xh
+    description: "Footprint family: JST XH (2.50 mm), JST PH (2.00 mm), 0.1 in pin header, or a 5.00 mm Phoenix screw terminal."
+
+notes: "One connector for a cable that carries lines belonging to several components: a motor
+  harness with the bridge outputs, a feedback pot and a tach switch on one plug, a display
+  breakout, a front-panel pigtail. Wire each position with a rail or a net target; the far-end
+  parts (pot, switch, motor) stay modelled as the components they are, and the connector is the
+  one place their lines leave the board. Most hobby 'JST-XH' kits are 2.54 mm clones (XH2.54):
+  pick `pin_header` for those, `jst_xh` for genuine 2.50 mm JST parts."
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x05
+  footprint: "{{ {'jst_xh': 'Connector_JST:JST_XH_B5B-XH-A_1x05_P2.50mm_Vertical', 'jst_ph': 'Connector_JST:JST_PH_B5B-PH-K_1x05_P2.00mm_Vertical', 'pin_header': 'Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical', 'screw_terminal': 'TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-5_1x05_P5.00mm_Horizontal'}[params.family] }}"
+  value: Conn 1x05

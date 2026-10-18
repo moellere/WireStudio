@@ -24,6 +24,7 @@ BOARD_KEY = "__board__"
 # Reference-designator prefix per component category. Anything unlisted (and
 # any component without a `kicad:` block) falls back to "U".
 _REF_PREFIX = {
+    "connector": "J",
     "sensor": "U",
     "binary_sensor": "U",
     "io_expander": "U",
@@ -283,3 +284,34 @@ def resolve_net_target(target, design: Design, library, _seen: tuple = ()) -> st
     if sub is not None and any(target.net in part.pins.values() for part in sub.parts):
         return local_net_name(comp.id, target.net)
     return None
+
+
+def format_netlist(design: Design, library) -> str:
+    """One line per net, ``<name>: <ref>.<pin>, ...`` in pad order. The
+    shape the netlist goldens pin."""
+    return "\n".join(
+        f"{net.name}: " + ", ".join(f"{p.ref}.{p.pin_role}" for p in net.pads)
+        for net in build_netlist(design, library)
+    ) + "\n"
+
+
+def main(argv: list[str] | None = None) -> int:
+    """``python -m wirestudio.kicad.netlist design.json`` prints the netlist
+    in golden form."""
+    import argparse
+    import json
+    import sys
+
+    from wirestudio.library import default_library
+
+    parser = argparse.ArgumentParser(description="Print a design's netlist, one net per line.")
+    parser.add_argument("design", help="path to design.json")
+    args = parser.parse_args(argv)
+    with open(args.design) as fh:
+        design = Design.model_validate(json.load(fh))
+    sys.stdout.write(format_netlist(design, default_library()))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -336,12 +336,23 @@ def _check_kicad(comp: LibraryComponent, report: ComponentCheck) -> None:
             "KiCad footprints not checked: no footprint library found (set KICAD8_FOOTPRINT_DIR)")
         return
     for where, ref, _ in refs:
-        fp = ref.footprint or ""
-        if "{{" in fp:
-            fp = render_param_template(fp, {}, comp.params_schema)
-        if ":" not in fp:
-            report.errors.append(f"{where}: footprint {fp!r} must be LIB:NAME")
-            continue
-        lib, name = fp.split(":", 1)
-        if not (fp_dir / f"{lib}.pretty" / f"{name}.kicad_mod").is_file():
-            report.errors.append(f"{where}: footprint {fp!r} not in the KiCad footprint library")
+        for fp in _footprint_variants(ref.footprint or "", comp.params_schema):
+            if ":" not in fp:
+                report.errors.append(f"{where}: footprint {fp!r} must be LIB:NAME")
+                continue
+            lib, name = fp.split(":", 1)
+            if not (fp_dir / f"{lib}.pretty" / f"{name}.kicad_mod").is_file():
+                report.errors.append(f"{where}: footprint {fp!r} not in the KiCad footprint library")
+
+
+def _footprint_variants(raw: str, schema: dict) -> list[str]:
+    """A templated footprint rendered at the schema defaults and once per
+    value of every enum param, so a `family` switch is checked in every
+    position, as the footprint gate does."""
+    if "{{" not in raw:
+        return [raw]
+    variants = [render_param_template(raw, {}, schema)]
+    for key, spec in schema.items():
+        if isinstance(spec, dict) and spec.get("enum"):
+            variants += [render_param_template(raw, {key: v}, schema) for v in spec["enum"]]
+    return list(dict.fromkeys(variants))
