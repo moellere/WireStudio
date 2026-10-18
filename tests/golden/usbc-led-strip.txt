@@ -12,10 +12,16 @@
 |    GND   -> rail GND                                                               |
 |    DIN   -> GPIO18                                                                 |
 |                                                                                    |
+|  strip_conn  [Wire-to-board connector, 1x03 (passthrough)]  -- Strip plug          |
+|    P1    -> rail 5V                                                                |
+|    P2    -> rail GND                                                               |
+|    P3    -> net strip.DIN                                                          |
+|                                                                                    |
 |  BOM:                                                                              |
 |    - ESP32-DevKitC-V4                                                              |
 |    - USB-C 5 V power input (receptacle + CC pull-downs)  (psu)                     |
 |    - ESP32 RMT-driven addressable LED strip (WS2812 / SK6812)  (strip)             |
+|    - Wire-to-board connector, 1x03 (passthrough)  (strip_conn)                     |
 |                                                                                    |
 |  Power: ~20mA typical, ~60mA peak (budget 3000mA)  OK                              |
 |                                                                                    |

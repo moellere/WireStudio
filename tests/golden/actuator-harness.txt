@@ -1,0 +1,54 @@
++----------------------------------------------------------------------------------+
+|  ESP32-DevKitC-V4  ---  actuator-harness                                         |
++----------------------------------------------------------------------------------+
+|  Rails: 5V, 3V3, GND                                                             |
+|                                                                                  |
+|  bridge  [Discrete MOSFET H-bridge (IRF4905 / IRFZ44N, 5 V)]  -- Actuator motor  |
+|    IN1   -> GPIO18                                                               |
+|    IN2   -> GPIO19                                                               |
+|    VM    -> rail 5V                                                              |
+|    GND   -> rail GND                                                             |
+|                                                                                  |
+|  feedback  [Generic analog input]  -- Actuator position                          |
+|    IN    -> GPIO34                                                               |
+|                                                                                  |
+|  tach  [Pulse counter / tachometer (RPM, flow, energy)]  -- Tach switch          |
+|    PULSE -> GPIO27                                                               |
+|                                                                                  |
+|  harness  [Wire-to-board connector, 1x08 (passthrough)]  -- Actuator harness     |
+|    P1    -> net bridge.out_a                                                     |
+|    P2    -> net bridge.out_b                                                     |
+|    P3    -> rail 3V3                                                             |
+|    P4    -> net feedback.IN                                                      |
+|    P5    -> rail GND                                                             |
+|    P6    -> rail GND                                                             |
+|    P7    -> net tach.PULSE                                                       |
+|    P8    -> rail GND                                                             |
+|                                                                                  |
+|  dial  [Quadrature rotary encoder (KY-040 style)]  -- Setpoint dial              |
+|    A     -> GPIO16                                                               |
+|    B     -> GPIO17                                                               |
+|                                                                                  |
+|  btn  [Generic GPIO binary sensor]  -- Confirm                                   |
+|    IN    -> GPIO25                                                               |
+|                                                                                  |
+|  panel  [Wire-to-board connector, 1x04 (passthrough)]  -- Panel pigtail          |
+|    P1    -> net dial.A                                                           |
+|    P2    -> net dial.B                                                           |
+|    P3    -> net btn.IN                                                           |
+|    P4    -> rail GND                                                             |
+|                                                                                  |
+|  BOM:                                                                            |
+|    - ESP32-DevKitC-V4                                                            |
+|    - Discrete MOSFET H-bridge (IRF4905 / IRFZ44N, 5 V)  (bridge)                 |
+|    - Generic analog input  (feedback)                                            |
+|    - Pulse counter / tachometer (RPM, flow, energy)  (tach)                      |
+|    - Wire-to-board connector, 1x08 (passthrough)  (harness)                      |
+|    - Quadrature rotary encoder (KY-040 style)  (dial)                            |
+|    - Generic GPIO binary sensor  (btn)                                           |
+|    - Wire-to-board connector, 1x04 (passthrough)  (panel)                        |
+|                                                                                  |
+|  Power: ~300mA typical, ~1000mA peak (budget 2000mA)  OK                         |
+|                                                                                  |
+|  Warnings: none                                                                  |
++----------------------------------------------------------------------------------+

@@ -74,6 +74,9 @@ def default_target_for_pin(
         )
         return {"kind": "rail", "rail": gnd}
 
+    if pin_kind == "passthrough":
+        return {"kind": "net", "component_id": "", "net": ""}
+
     bus_type = _BUS_KIND_TO_TYPE.get(pin_kind)
     if bus_type:
         match = next((b for b in buses if b.get("type") == bus_type), None)

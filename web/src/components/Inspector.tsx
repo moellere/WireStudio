@@ -745,7 +745,7 @@ function ComponentInstanceInspector({
 /**
  * View toggle wrapping the Form-based ConnectionForm and the drag-and-
  * drop PinoutView. Form is the default since it covers every target
- * kind (rail/gpio/bus/expander_pin/component); Pinout is a faster
+ * kind (rail/gpio/bus/expander_pin/component/net); Pinout is a faster
  * gpio-only surface for board-pin-heavy designs.
  */
 /**

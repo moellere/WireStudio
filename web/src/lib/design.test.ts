@@ -121,6 +121,12 @@ describe("updateConnectionTarget", () => {
     });
   });
 
+  it("accepts a net target for a passthrough connector pin", () => {
+    const next = updateConnectionTarget(baseDesign, 0, { kind: "net", component_id: "bridge", net: "out_a" });
+    const c = (next.connections as Array<{ target: { kind: string } }>)[0];
+    expect(c.target).toEqual({ kind: "net", component_id: "bridge", net: "out_a" });
+  });
+
   it("does not mutate the input", () => {
     const before = clone(baseDesign);
     updateConnectionTarget(baseDesign, 1, { kind: "gpio", pin: "D9" });

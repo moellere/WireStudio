@@ -106,7 +106,7 @@ from wirestudio.csp.compatibility import check_pin_compatibility, strict_blocker
 from wirestudio.csp.pin_solver import solve_pins as run_solve_pins
 from wirestudio.generate.display_intent import validate_show
 from wirestudio.intent import MELODIES, validate_automations
-from wirestudio.validate import check_board_flash, check_electrical, check_part_overrides
+from wirestudio.validate import check_board_flash, check_electrical, check_net_targets, check_part_overrides
 from wirestudio.enclosure import (
     EnclosureUnavailable,
     default_sources,
@@ -529,7 +529,7 @@ def create_app(
         target_warnings = get_target(d.target).validate(d, lib)
         automation_warnings = validate_automations(d, lib) + validate_show(d, lib)
         board_warnings = (check_board_flash(d, lib) + check_part_overrides(d, lib)
-                          + check_electrical(d, lib))
+                          + check_electrical(d, lib) + check_net_targets(d, lib))
         # In strict mode, warn/error compatibility entries and design warnings
         # flip ok to false (the render/push gates refuse the same design).
         # Permissive mode always reports ok -- warnings are guidance, not blocks.

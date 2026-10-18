@@ -120,8 +120,20 @@ class ComponentTarget(_Strict):
     component_id: str
 
 
+class NetTarget(_Strict):
+    """A passthrough pin landing on a net another component already owns:
+    the net that component's `net` role is wired to, or, for a subcircuit
+    component, one of its internal nodes (`bridge` / `out_a`). Empty
+    strings are the placeholder a fresh connector pin carries until the
+    form or `set_connection` fills it in.
+    """
+    kind: Literal["net"]
+    component_id: str = ""
+    net: str = ""
+
+
 ConnectionTarget = Annotated[
-    Union[RailTarget, GpioTarget, BusTarget, ExpanderPinTarget, ComponentTarget],
+    Union[RailTarget, GpioTarget, BusTarget, ExpanderPinTarget, ComponentTarget, NetTarget],
     Field(discriminator="kind"),
 ]
 

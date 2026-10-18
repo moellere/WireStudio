@@ -68,6 +68,7 @@ function targetLabel(t: Record<string, unknown> | null): string {
   if (kind === "bus") return String(t.bus_id);
   if (kind === "component") return String(t.component_id);
   if (kind === "expander_pin") return `${t.expander_id}.${t.number}`;
+  if (kind === "net") return t.component_id && t.net ? `${t.component_id}.${t.net}` : "unassigned";
   return kind;
 }
 
@@ -80,6 +81,7 @@ function netKey(t: Record<string, unknown> | null): string | null {
   if (kind === "bus") return `bus:${t.bus_id}`;
   if (kind === "component") return `comp:${t.component_id}`;
   if (kind === "expander_pin") return `comp:${t.expander_id}`;
+  if (kind === "net") return t.component_id ? `comp:${t.component_id}` : null;
   return null;
 }
 
@@ -437,8 +439,8 @@ function buildModel(design: Design) {
             net,
           });
         }
-      } else if (kind === "component" || kind === "expander_pin") {
-        const targetId = String(kind === "component" ? c.target.component_id : c.target.expander_id);
+      } else if (kind === "component" || kind === "expander_pin" || kind === "net") {
+        const targetId = String(kind === "expander_pin" ? c.target.expander_id : c.target.component_id);
         const y2 = compHeaderY.get(targetId);
         if (y2 !== undefined) {
           edges.push({

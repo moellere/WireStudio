@@ -1,0 +1,49 @@
+esphome:
+  name: actuator-harness
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+  flash_size: 4MB
+logger: {}
+api:
+  encryption:
+    key: !secret api_key
+ota:
+- platform: esphome
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+output:
+- platform: gpio
+  pin: GPIO18
+  id: bridge_in1
+- platform: gpio
+  pin: GPIO19
+  id: bridge_in2
+sensor:
+- platform: adc
+  pin: GPIO34
+  name: Actuator position
+  id: feedback
+  attenuation: 12db
+  update_interval: 100ms
+- platform: pulse_counter
+  pin:
+    number: GPIO27
+  name: Tach switch
+  id: tach
+- platform: rotary_encoder
+  pin_a:
+    number: GPIO16
+    mode: INPUT
+  pin_b:
+    number: GPIO17
+    mode: INPUT
+  name: Setpoint dial
+  id: dial
+binary_sensor:
+- platform: gpio
+  pin: GPIO25
+  name: Confirm
+  id: btn

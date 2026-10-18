@@ -19,7 +19,8 @@ export type ConnectionTarget =
       mode?: string;
       inverted?: boolean;
     }
-  | { kind: "component"; component_id: string };
+  | { kind: "component"; component_id: string }
+  | { kind: "net"; component_id: string; net: string };
 
 export interface ConnectionRow {
   index: number;       // index into design.connections, for stable identity

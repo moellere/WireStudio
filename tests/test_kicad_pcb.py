@@ -155,3 +155,66 @@ def test_pcb_binds_every_subcircuit_pad(lib):
         pads = len(re.findall(r'\(pad "\d+"', blocks[ref]))
         assert len(re.findall(r'\(net \d+ "', blocks[ref])) == pads
     assert '(net ' in blocks["R1"] and '"bridge_gate_a"' in blocks["R1"]
+
+
+def _harness(lib):
+    import json
+
+    from wirestudio.model import Design
+    path = Path(__file__).resolve().parent.parent / "wirestudio" / "examples" / "actuator-harness.json"
+    return Design.model_validate(json.loads(path.read_text()))
+
+
+def test_build_netlist_lands_passthrough_pins_on_resolved_nets(lib):
+    """A connector position with a `net` target joins the net it names: a
+    subcircuit's internal node, a role's GPIO net, or a rail."""
+    from wirestudio.kicad.netlist import build_netlist
+    nets = {n.name: {f"{p.ref}.{p.pin_role}" for p in n.pads} for n in build_netlist(_harness(lib), lib)}
+    out_a = nets["bridge_out_a"]
+    assert any(p.endswith(".P1") for p in out_a) and "Q1.D" in out_a and "J1.1" in out_a
+    assert any(p.endswith(".P4") for p in nets["GPIO_GPIO34"]) and any(p.endswith(".IN") for p in nets["GPIO_GPIO34"])
+    assert any(p.endswith(".P7") for p in nets["GPIO_GPIO27"])
+    assert any(p.endswith(".P3") for p in nets["+3V3"])
+    assert sum(1 for p in nets["GND"] if p.endswith((".P5", ".P6", ".P8", ".P4"))) == 4
+    assert "UNCONNECTED" not in nets
+
+
+def test_build_netlist_drops_unresolved_net_targets(lib):
+    import json
+
+    from wirestudio.kicad.netlist import assign_refs, build_netlist
+    from wirestudio.model import Design
+    raw = json.loads((Path(__file__).resolve().parent.parent / "wirestudio" / "examples" / "actuator-harness.json").read_text())
+    for c in raw["connections"]:
+        if c["component_id"] == "harness" and c["pin_role"] == "P1":
+            c["target"] = {"kind": "net", "component_id": "bridge", "net": "nope"}
+        if c["component_id"] == "harness" and c["pin_role"] == "P2":
+            c["target"] = {"kind": "net", "component_id": "", "net": ""}
+    design = Design.model_validate(raw)
+    harness = assign_refs(design, lib)["harness"]
+    nets = {n.name: {f"{p.ref}.{p.pin_role}" for p in n.pads} for n in build_netlist(design, lib)}
+    assert not any(p in (f"{harness}.P1", f"{harness}.P2") for pads in nets.values() for p in pads)
+    assert any(p == f"{harness}.P3" for pads in nets.values() for p in pads)
+    assert "UNCONNECTED" not in nets
+
+
+def test_skidl_script_fetches_nets_for_passthrough_pins(lib):
+    from wirestudio.kicad.generator import generate_skidl
+    script = generate_skidl(_harness(lib), lib)
+    lines = script.splitlines()
+    fetch = next(i for i, l in enumerate(lines) if 'Net.fetch("bridge_out_a")' in l)
+    declared = next(i for i, l in enumerate(lines) if 'Net("bridge_out_a")' in l)
+    assert declared < fetch
+    assert any('c_harness["3"] += NET_PLUS__3V3' in l for l in lines)
+    assert any('c_harness["5"] += GND' in l for l in lines)
+
+
+def test_pcb_binds_connector_pads_and_templated_footprint(lib):
+    import pytest
+
+    from wirestudio.kicad.pcb import generate_kicad_pcb, pcb_status
+    if not pcb_status()["available"]:
+        pytest.skip("KiCad footprint libraries not installed")
+    text = generate_kicad_pcb(_harness(lib), lib)
+    assert "PinHeader_1x08_P2.54mm_Vertical" in text
+    assert "JST_XH_B4B-XH-A_1x04_P2.50mm_Vertical" in text

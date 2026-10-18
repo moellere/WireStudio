@@ -183,3 +183,15 @@ def test_mcp_add_then_render_works_for_three_realistic_components(library):
     assert rendered["ok"] is True, f"render failed: {rendered.get('error')}"
     assert "rtttl" in rendered["yaml"]
     assert "binary_sensor" in rendered["yaml"]
+
+
+def test_passthrough_pin_seeds_an_empty_net_target():
+    target = default_target_for_pin("passthrough", rails=[{"name": "3V3", "voltage": 3.3}], buses=[])
+    assert target == {"kind": "net", "component_id": "", "net": ""}
+
+
+def test_connector_adds_with_unassigned_positions(library):
+    design = _empty_design()
+    add_component_with_connections(design, library, library_id="connector_1x04", label="Plug", instance_id_hint="plug")
+    targets = [c["target"] for c in design["connections"] if c["component_id"] == "plug"]
+    assert len(targets) == 4 and all(t == {"kind": "net", "component_id": "", "net": ""} for t in targets)

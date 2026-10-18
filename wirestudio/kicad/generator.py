@@ -26,7 +26,7 @@ from __future__ import annotations
 
 from wirestudio.kicad.netlist import (
     BOARD_KEY, _py_var, assign_refs, is_bound, local_net_name, net_name,
-    part_key, placed_parts,
+    part_key, placed_parts, resolve_net_target,
 )
 from wirestudio.library import KicadSymbolRef, Library
 from wirestudio.model import Design
@@ -271,6 +271,7 @@ def _render_connections(
     in __getitem__; we use the role (or remapped role via pin_map)
     here, so the script lines up with the component's KiCad symbol."""
     lines: list[str] = []
+    deferred: list[str] = []
     by_id = {c.id: c for c in design.components}
     subcircuits = {}
     for c in design.components:
@@ -304,14 +305,46 @@ def _render_connections(
         ):
             lines.append(f'# {conn.component_id}.{conn.pin_role}: unassigned (run Solve Pins)')
             continue
+        if conn.target.kind == "net":
+            # Lands on a net some other line declares, so it goes after the
+            # subcircuits and fetches the net by its canonical name.
+            if not is_bound(conn.target):
+                lines.append(f'# {conn.component_id}.{conn.pin_role}: unassigned (set a net target)')
+                continue
+            name = resolve_net_target(conn.target, design, library)
+            if name is None:
+                lines.append(
+                    f'# {conn.component_id}.{conn.pin_role}: net '
+                    f'{conn.target.component_id}.{conn.target.net} does not resolve')
+                continue
+            deferred.append(f'{comp_var}[{_quote(pin_name)}] += {_handle_for_net_name(name)}')
+            continue
         net_expr = _net_handle_for(conn.target, design, ref_index)
         lines.append(f'{comp_var}[{_quote(pin_name)}] += {net_expr}')
     for comp_id, sub in subcircuits.items():
-        lines.extend(_render_subcircuit(comp_id, sub, design, ref_index))
+        lines.extend(_render_subcircuit(comp_id, sub, design, library, ref_index))
+    if deferred:
+        lines.append("# passthrough pins")
+        lines.extend(deferred)
     return "\n".join(lines)
 
 
-def _render_subcircuit(comp_id: str, sub, design: Design, ref_index: dict[str, str]) -> list[str]:
+def _handle_for_net_name(name: str) -> str:
+    """SKiDL expression for a net already declared under its canonical name:
+    the rail / bus handles the script declares up front, or ``Net.fetch`` for
+    a gpio, expander, hub or subcircuit net created inline above."""
+    if name == "GND":
+        return "GND"
+    if name.startswith("+"):
+        return f"NET_PLUS_{_py_var(name[1:])}"
+    if name.startswith("BUS_"):
+        return f"NET_BUS_{_py_var(name[4:])}"
+    return f'Net.fetch({_quote(name)})'
+
+
+def _render_subcircuit(
+    comp_id: str, sub, design: Design, library: Library, ref_index: dict[str, str],
+) -> list[str]:
     """Wire a subcircuit's parts. Each node gets one net handle shared by every
     pin on it (an inline ``Net(name)`` per pin would make SKiDL create a fresh
     net each time). A node named after a host role the design has connected
@@ -333,7 +366,7 @@ def _render_subcircuit(comp_id: str, sub, design: Design, ref_index: dict[str, s
             handle[node] = _net_handle_for(target, design, ref_index)
             continue
         var = f"n_{_py_var(comp_id)}_{_py_var(node)}"
-        name = net_name(target) if target is not None else local_net_name(comp_id, node)
+        name = net_name(target, design, library) if target is not None else local_net_name(comp_id, node)
         lines.append(f'{var} = Net({_quote(name)})')
         handle[node] = var
     for part in sub.parts:

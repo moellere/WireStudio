@@ -94,7 +94,8 @@ Pin `kind` values in use: `power`, `ground`, `digital_in`,
 `digital_out`, `analog_in`, `i2c_sda`, `i2c_scl`, `spi_clk`,
 `spi_mosi`, `spi_miso`, `spi_cs`, `uart_tx`, `uart_rx`,
 `onewire_data`, `i2s_*`, `hub_ref` (channel of a parent component,
-with `parent_library_id`). Flags on a pin: `requires_pwm: true` for
+with `parent_library_id`), `passthrough` (a connector position: carries
+no signal of its own, see *Connectors* below). Flags on a pin: `requires_pwm: true` for
 PWM/analog outputs (solver avoids `no_pwm` pins), `requires_interrupt:
 true` for edge-counted inputs (solver avoids `no_interrupt` pins),
 `voltage` when a pin's level differs from VCC.
@@ -202,6 +203,36 @@ own drawer rating is the bar. Proposals list what they did not compare
 (gate threshold, Rds(on), gain, pinout) and are never applied.
 [`hbridge_mosfet`](../wirestudio/library/components/hbridge_mosfet.yaml)
 is the worked example.
+
+### Connectors
+
+A wire-to-board connector carries lines that belong to other components:
+a motor harness with the bridge outputs, a feedback pot and a tach switch
+on one plug. Its positions are pins of `kind: passthrough`: the solver
+never assigns them, the YAML and firmware generators ignore them, and
+the compatibility checker does not count them as a second user of a
+GPIO. Each takes a rail, or a `net` connection target that names the net
+it rides on:
+
+```json
+{"component_id": "harness", "pin_role": "P1",
+ "target": {"kind": "net", "component_id": "bridge", "net": "out_a"}}
+{"component_id": "harness", "pin_role": "P4",
+ "target": {"kind": "net", "component_id": "brake_pot", "net": "IN"}}
+```
+
+`net` is a role of the named component (the position joins whatever
+that role is wired to: a GPIO, a bus, a rail, another net target) or,
+for a subcircuit component, one of its internal nodes or unconnected
+roles (`bridge.out_a`, emitted as `bridge_out_a`). The schematic, PCB,
+BOM and CPL put the pad on that net; `validate` warns on a target that
+resolves to nothing (`net_unresolved`) or sits on a non-passthrough pin,
+and notes an unassigned position at info level (`net_unassigned`). A
+component `kicad.footprint` may be a Jinja template over the params, as
+a part `value` may; the bundled `connector_1x03` / `1x04` / `1x08` use
+it to switch between JST-XH, JST-PH, pin-header and screw-terminal
+footprints with a `family` param, and the footprint gate checks every
+enum value.
 
 ### Declaring electrical checks
 
