@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **The rest of the connector family, and a netlist golden.** `connector_1x02`,
+  `1x05`, `1x06`, `1x07` with the same `family` switch, and
+  `connector_2x05_idc`, a shrouded 2x5 box header for a 10-way ribbon.
+  Connectors now carry the `J` designator in the schematic, PCB, BOM and
+  CPL rather than `U`. `component_check` renders a templated footprint
+  once per enum value, as the footprint gate already did, so a `family`
+  option that names no footprint fails the check in the studio and not
+  only in CI. `python -m wirestudio.kicad.netlist design.json` prints a
+  design's netlist one net per line; `actuator-harness` pins it as a
+  golden, which is the first test that holds the whole netlist of a
+  connector design, not only the pads it asks about.
+
+### Changed
+
+- **The LoRaWAN firmware generator and codec read only `components`,
+  `buses` and `connections`**, as the ESPHome generator does. The codec's
+  synthesized peripherals now come from the board file alone (onboard GPS,
+  PMIC, battery divider, OLED); a sensor a design asks for by block
+  arrives as a design component with real wiring, so the console-UART
+  check looks at the GPS's bus rather than the block. Payload order for a
+  design that used a block and an onboard sensor together follows the
+  design-then-onboard rule every other design already had (a `dht22`
+  block on a T-Beam packs the DHT fields before the GPS and battery);
+  re-push the codec after reflashing such a device.
+
+### Deprecated
+
+- **`lorawan.gps`, `lorawan.dht22` and `lorawan.oled`.** The standalone
+  path's three sensor blocks predate per-component `lorawan:` codegen;
+  each is sugar for the `uart_gps`, `dht` or `ssd1306` component, the
+  bus and the connections a user would have added. They are still
+  accepted: `targets.lorawan.lower` rewrites a design to those components
+  before anything reads it, and `validate` reports each block it lowered
+  at info level. The 1.0 migrator rewrites them in `design.json`; add the
+  component instead of setting the block (roadmap 0.41).
+
 ## [0.40.0] — 2026-10-18
 
 ### Added

@@ -1,0 +1,42 @@
+id: connector_2x05_idc
+name: IDC box header, 2x05 (passthrough)
+category: connector
+use_cases: [connector, harness, ribbon, idc, box_header, breakout, cable]
+aliases: [idc_10, box_header_2x5, ribbon_10p, conn_02x05]
+
+electrical:
+  current_ma_typical: 0
+  current_ma_peak: 0
+  # Every position is a passthrough: it carries no signal of its own, so the
+  # pin solver never assigns it and the generators ignore it. Each position
+  # takes a rail, or a `net` target pointing at another component's connected
+  # role or subcircuit node, and the schematic, PCB, BOM and CPL put its pad
+  # on that net. Unused positions stay unassigned.
+  pins:
+  - {role: P1, kind: passthrough}
+  - {role: P2, kind: passthrough}
+  - {role: P3, kind: passthrough}
+  - {role: P4, kind: passthrough}
+  - {role: P5, kind: passthrough}
+  - {role: P6, kind: passthrough}
+  - {role: P7, kind: passthrough}
+  - {role: P8, kind: passthrough}
+  - {role: P9, kind: passthrough}
+  - {role: P10, kind: passthrough}
+  passives: []
+
+esphome:
+  required_components: []
+  yaml_template: ""
+
+params_schema: {}
+
+notes: "A shrouded 2x5 2.54 mm box header for a 10-way ribbon cable: a front panel, a display
+  module, a debug or programming pigtail. Positions bind to pads in order, P1 on pad 1, following
+  the IDC convention of odd positions on one row and even on the other, so P1/P2 are the first
+  pair at the keyed end. One footprint, so no `family` param."
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_02x05_Odd_Even
+  footprint: Connector_IDC:IDC-Header_2x05_P2.54mm_Vertical
+  value: IDC 2x05
