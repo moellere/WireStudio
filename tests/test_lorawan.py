@@ -44,8 +44,7 @@ def test_lorawan_defaults_pin_to_us915_subband2():
     d = _base_design(target="lorawan", lorawan={})
     assert d.lorawan.region == "US915"
     assert d.lorawan.sub_band == 2
-    assert d.lorawan.provisioning == "runtime_serial"
-    assert d.lorawan.dev_eui is None
+    assert d.lorawan.join_eui is None
 
 
 def test_lorawan_rejects_secret_keys():

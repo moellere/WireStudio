@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.2",
+  "schema_version": "0.3",
   "id": "motor-position",
   "name": "Motor position controller",
   "description": "Discrete MOSFET H-bridge driving a small 5 V gearmotor, with the actuator's feedback potentiometer on an ADC pin. The bridge is exposed as two plain outputs for a position loop to drive.",

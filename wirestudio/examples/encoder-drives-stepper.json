@@ -1,10 +1,8 @@
 {
-  "schema_version": "0.2",
+  "schema_version": "0.3",
   "id": "encoder-drives-stepper",
   "name": "Knob drives a stepper (value -> transform -> action)",
   "description": "Phase-2 worked example for intent-to-device synthesis: a rotary encoder's cumulative value drives a ULN2003/28BYJ-48 stepper. The encoder's on_value (kind=value) trigger fires stepper.set_target through a transform lowered to an ESPHome !lambda -- target = (long)(x * 10), so each encoder detent commands ten motor steps. This is the value->transform->action case that complements the declarative event->action examples (button-toggles-light, motion-turns-on-light).",
-  "created_at": "2026-06-19T00:00:00Z",
-  "updated_at": "2026-06-19T00:00:00Z",
 
   "board": {
     "library_id": "esp32-devkitc-v4",

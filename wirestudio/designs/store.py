@@ -58,7 +58,7 @@ class SavedDesignSummary:
     name: str
     description: str
     board_library_id: str
-    chip_family: str
+    mcu: str
     saved_at: str
     component_count: int
 
@@ -104,7 +104,7 @@ class FileDesignStore(DesignStore):
                 name=str(data.get("name", "")),
                 description=str(data.get("description", "")),
                 board_library_id=str(board.get("library_id", "")),
-                chip_family=str(board.get("mcu", "")),
+                mcu=str(board.get("mcu", "")),
                 saved_at=saved_at,
                 component_count=len(components),
             ))
@@ -185,7 +185,7 @@ class SqliteDesignStore(DesignStore):
                 name=str(data.get("name", "")),
                 description=str(data.get("description", "")),
                 board_library_id=str(board.get("library_id", "")),
-                chip_family=str(board.get("mcu", "")),
+                mcu=str(board.get("mcu", "")),
                 saved_at=saved_at,
                 component_count=len(data.get("components") or []),
             ))

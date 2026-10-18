@@ -1,10 +1,8 @@
 {
-  "schema_version": "0.2",
+  "schema_version": "0.3",
   "id": "parking-distance",
   "name": "Parking distance (laser ToF)",
   "description": "NodeMCU v2 + VL53L0X laser ToF rangefinder. Strictly better than the HC-SR04 ultrasonic for indoor parking-spot use: tighter beam, no acoustic-reflection issues, no 5V level on the signal lines.",
-  "created_at": "2026-05-05T00:00:00Z",
-  "updated_at": "2026-05-05T00:00:00Z",
 
   "board": {
     "library_id": "nodemcu-v2",

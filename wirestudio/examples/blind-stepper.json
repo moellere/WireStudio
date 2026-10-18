@@ -1,10 +1,8 @@
 {
-  "schema_version": "0.2",
+  "schema_version": "0.3",
   "id": "blind-stepper-v1",
   "name": "Motorized blind (28BYJ-48)",
   "description": "A 28BYJ-48 geared stepper on a ULN2003 driver, USB powered.",
-  "created_at": "2026-05-25T00:00:00Z",
-  "updated_at": "2026-05-25T00:00:00Z",
 
   "board": {
     "library_id": "esp32-devkitc-v4",

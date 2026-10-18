@@ -81,7 +81,7 @@ describe("bootstrapDesign", () => {
 
   it("produces a schema-conformant skeleton", () => {
     const d = bootstrapDesign(boards[0], chip);
-    expect(d.schema_version).toBe("0.2");
+    expect(d.schema_version).toBe("0.3");
     expect(d.id).toBe("new-device");
     expect(d.board).toEqual({ library_id: "esp32-devkitc-v4", mcu: "esp32", framework: "arduino" });
     expect(d.power).toMatchObject({ supply: "usb-5v", rail_voltage_v: 5.0 });

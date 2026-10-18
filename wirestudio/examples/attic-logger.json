@@ -1,10 +1,8 @@
 {
-  "schema_version": "0.2",
+  "schema_version": "0.3",
   "id": "attic-logger",
   "name": "Attic climate logger (legacy parts)",
   "description": "WeMos D1 Mini logging temperature/humidity from a DHT22 on a GPIO and barometric pressure from an older BMP180 on I2C -- a 'parts box' build pairing the single-wire DHT protocol with a legacy I2C barometer people already have on hand.",
-  "created_at": "2026-05-15T00:00:00Z",
-  "updated_at": "2026-05-15T00:00:00Z",
 
   "board": {
     "library_id": "wemos-d1-mini",

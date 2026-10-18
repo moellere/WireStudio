@@ -1,10 +1,8 @@
 {
-  "schema_version": "0.2",
+  "schema_version": "0.3",
   "id": "atomu-onboard",
   "name": "M5Stack AtomU (onboard)",
   "description": "M5Stack AtomU (USB-A stick) with its onboard parts pre-placed: SK6812 RGB LED, the button, the IR transmitter, and the SPM1423 PDM microphone -- the full onboard set the studio auto-populates.",
-  "created_at": "2026-05-23T00:00:00Z",
-  "updated_at": "2026-05-23T00:00:00Z",
   "board": {
     "library_id": "m5stack-atomu",
     "mcu": "esp32",

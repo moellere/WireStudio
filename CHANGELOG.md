@@ -7,8 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- **Schema version 0.3: the design fields nothing read.** The audit
+  before the 1.0 freeze (roadmap section 1) walked every property in
+  `design.schema.json` to its readers. Six had none, so the `0.2 -> 0.3`
+  step drops them: `created_at` and `updated_at` (no store maintained
+  them; the saved-design list carries its own `saved_at`), `agent`
+  (agent sessions live in the session store, never in design.json), and
+  `lorawan.chirpstack_application_id`, `device_profile_id`,
+  `provisioning` and `dev_eui` (the provision endpoints take the DevEUI
+  from the request and the ChirpStack ids from ChirpStack; `compile_time`
+  provisioning was never built). Every bundled example and the web UI's
+  new designs are at 0.3; 0.1 and 0.2 stay accepted on input and the
+  0.1 fixture's golden now ends at 0.3.
+
 ### Added
 
+- **`design.schema.json` says what each field is for.** The fields the
+  audit kept but no generator reads are documented as the design's
+  record rather than removed: `power.supply` / `rail_voltage_v` /
+  `regulator` (only `budget_ma` feeds the solver), `requirements`,
+  `components[].role`, `fleet.tags`, and `description`; `warnings`,
+  `esphome_extras`, `params`, `locked_pins`, `module` and `join_eui`
+  carry a description too, and `target` says that the Tasmota template
+  is an export of an esphome design rather than a target value.
+  `buses[].parity`, which the model has carried since the cse7766
+  landed, is in the schema at last: `smart-plug` did not validate
+  against it. `tests/test_schema.py` now holds every example to the
+  schema and the schema's property set to the model's, so the two
+  cannot drift again.
 - **`wirestudio.migrate`: design.json migrations** (roadmap 0.42). A
   design carries a `schema_version`, and a chain of per-version steps
   brings an older document to the current one before anything reads
