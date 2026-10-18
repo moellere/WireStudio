@@ -26,6 +26,12 @@ allowed:
     end and a wire at the other, which ERC reads as a label used once. The
     kicad-schematic gate proves the netlist connectivity that ERC cannot
     see from the label alone.
+  endpoint_off_grid: >-
+    SKiDL's placer does not keep every wire end and symbol pin on KiCad's
+    50 mil connection grid, and the count varies between runs of the same
+    design (the placer is not fully deterministic even when seeded). A
+    warning about editability, not connectivity: the kicad-schematic gate
+    proves the netlist.
   lib_symbol_issues: >-
     kicad-cli runs in CI without a symbol library table, so every symbol,
     whose definition is embedded in the file, reports its source library

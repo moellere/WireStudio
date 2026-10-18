@@ -40,6 +40,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   warden has one, `PRINT_WARDEN_TOKEN`; unset leaves the tab explaining
   what to set.
 
+### Fixed
+
+- **The board is wired in the schematic and PCB.** The SKiDL script
+  placed the dev board's symbol and never connected a pin of it: every
+  `GPIO_*` net had one member, the peripheral, and the MCU sat on the
+  sheet as an island with the labels floating beside it (the PCB had the
+  same gap, documented as a known limitation). Boards drawn with a module
+  symbol now carry a `kicad.pin_map` (board role -> symbol pin:
+  `GPIO36: SENSOR_VP`, `D2: SDA/D2`, `3V3: VDD`), and
+  `netlist.board_bindings` turns the design's gpio, rail and bus
+  connections into board pins for both artifacts, buses through the
+  bus's own pins or the board's default bus. GPIO nets are declared once
+  in the script so the peripheral and the board land on the same net,
+  and a role the symbol has no pin for (a module's 5V) is noted in the
+  script instead of invented. Covers the ESP32-WROOM-32, ESP-12E and
+  WeMos D1 mini symbols; boards drawn as generic headers still float and
+  say so.
+
 ## [0.39.0] — 2026-10-18
 
 ### Added

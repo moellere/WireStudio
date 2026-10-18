@@ -137,7 +137,9 @@ def test_build_netlist_expands_subcircuit_nodes(lib):
     nets = {n.name: n for n in build_netlist(_design("motor-position"), lib)}
     gate = {(p.ref, p.pin_role) for p in nets["bridge_gate_a"].pads}
     assert gate == {("Q1", "G"), ("Q2", "G"), ("Q3", "C"), ("R1", "2")}
-    assert {(p.ref, p.pin_role) for p in nets["GPIO_GPIO18"].pads} == {("R2", "1"), ("R3", "1")}
+    assert {(p.ref, p.pin_role) for p in nets["GPIO_GPIO18"].pads} == {
+        ("R2", "1"), ("R3", "1"), ("M1", "IO18"),
+    }
     assert {p.ref for p in nets["bridge_out_a"].pads} == {"Q1", "Q2", "C2", "J1"}
     assert all(p.part_id for p in nets["bridge_gate_a"].pads)
 
@@ -218,3 +220,16 @@ def test_pcb_binds_connector_pads_and_templated_footprint(lib):
     text = generate_kicad_pcb(_harness(lib), lib)
     assert "PinHeader_1x08_P2.54mm_Vertical" in text
     assert "JST_XH_B4B-XH-A_1x04_P2.50mm_Vertical" in text
+
+def test_build_netlist_binds_board_pins(lib):
+    """Board pins join the nets their roles name, under the board's ref, so
+    the PCB can bind the module's pads: GPIO13 -> IO13 on GPIO_GPIO13, the
+    i2c0 bus on IO21/IO22, 3V3 on VDD, GND on GND."""
+    nets = {n.name: n for n in build_netlist(_design("garage-motion"), lib)}
+    board = {(p.pin_role, name) for name, n in nets.items() for p in n.pads if p.ref == "M1"}
+    assert ("IO13", "GPIO_GPIO13") in board
+    assert ("IO21", "BUS_i2c0") in board and ("IO22", "BUS_i2c0") in board
+    assert ("VDD", "+3V3") in board
+    assert ("GND", "GND") in board
+    assert all(p.component_id == "__board__" for n in nets.values() for p in n.pads if p.ref == "M1")
+    assert not any(p.ref == "M1" for p in nets["+5V"].pads)  # the module has no 5V pin

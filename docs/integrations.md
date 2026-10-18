@@ -155,6 +155,14 @@ value, rather than a fictional symbol; everything with a real upstream
 symbol (ICs, modules, boards' onboard MCUs) maps to it with a verified
 pin map.
 
+The board's own pins are wired through its `kicad.pin_map` (board role
+→ symbol pin, e.g. `GPIO36: SENSOR_VP`, `D2: SDA/D2`, `3V3: VDD`):
+every gpio, rail and bus connection in the design lands on the board
+symbol in both the schematic and the PCB. A role the symbol has no pin
+for (a bare module's 5V) is noted in the script rather than invented.
+Boards drawn as generic headers have no pin map yet and float; add one
+to `library/boards/<id>.yaml` to wire them.
+
 ## LoRaWAN / ChirpStack
 
 Two paths for US915 radio boards — TTGO LoRa32 / T-Beam (SX1276), Heltec
