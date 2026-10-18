@@ -1,0 +1,41 @@
+id: led_driver_npn
+name: NPN low-side LED driver
+category: actuator
+use_cases: [led, indicator]
+electrical:
+  vcc_min: 3.0
+  vcc_max: 5.5
+  pins:
+  - {role: IN, kind: digital_out, voltage: 3.3}
+  - {role: VCC, kind: power}
+  - {role: GND, kind: ground}
+esphome:
+  required_components: []
+  yaml_template: |
+    output:
+      - platform: gpio
+        pin: {{ pins.IN | tojson }}
+        id: {{ id }}_out
+kicad:
+  symbol_lib: Connector_Generic
+  symbol: Conn_01x03
+  footprint: Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical
+subcircuit:
+  parts:
+  - id: q1
+    ref_prefix: Q
+    kicad: {symbol_lib: Transistor_BJT, symbol: 2N3904, footprint: "Package_TO_SOT_THT:TO-92_Inline", value: 2N3904}
+    pins: {C: led_k, B: base, E: GND}
+    requires: {family: bjt, polarity: npn, v_min: 10, i_min: 0.05}
+  - id: r_base
+    ref_prefix: R
+    kicad: {symbol_lib: Device, symbol: R, footprint: "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal", value: "1k"}
+    pins: {"1": IN, "2": base}
+  - id: r_led
+    ref_prefix: R
+    kicad: {symbol_lib: Device, symbol: R, footprint: "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal", value: "220"}
+    pins: {"1": VCC, "2": led_a}
+  - id: d1
+    ref_prefix: D
+    kicad: {symbol_lib: Device, symbol: LED, footprint: "LED_THT:LED_D5.0mm", value: LED}
+    pins: {A: led_a, K: led_k}

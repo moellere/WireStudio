@@ -85,3 +85,41 @@ jobs:
         run: |
           example="${{ inputs.example || 'garage-motion' }}"
           python scripts/check_examples.py --compile "$example"
+
+  dashboard:
+    # The studio's second build path: push the rendered YAML to a real
+    # `esphome dashboard`, compile there over its websocket, and fetch
+    # the image back. The client's wire assumptions (how /devices names
+    # a config, the xsrf token and auth cookie a password-protected
+    # dashboard wants on every POST and on the websocket, what
+    # /downloads lists) are asserted against the pinned release, open
+    # and password-protected, by scripts/check_dashboard.py.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install studio + ESPHome
+        run: |
+          pip install -e .
+          pip install 'esphome==2026.6.5'
+
+      - name: Cache PlatformIO + ESPHome build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            ~/.cache/pip
+          key: pio-${{ runner.os }}-esphome-2026.6.5
+          restore-keys: |
+            pio-${{ runner.os }}-esphome-
+
+      - name: Push, compile and fetch through a live dashboard
+        run: |
+          example="${{ inputs.example || 'garage-motion' }}"
+          python scripts/check_dashboard.py "$example"

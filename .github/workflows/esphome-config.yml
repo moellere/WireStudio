@@ -64,6 +64,14 @@ jobs:
       - name: Validate every example through `esphome config`
         run: python scripts/check_examples.py
 
+      - name: A user-authored component through `esphome config`
+        # The component gate (`component_check`) renders a draft against
+        # a synthetic design; this runs that design through upstream
+        # ESPHome, so a component a user authors is held to the same
+        # bar as a bundled one. The draft is the one the bad-component
+        # corpus in tests/fixtures/bad_components is cut from.
+        run: python scripts/check_examples.py --component tests/fixtures/components/led_driver_npn.yaml
+
       - name: Coverage baseline (no-regression gate)
         # Fails when a new library entry slips in without an example,
         # or when scripts/coverage_baseline.yaml lists an id that now
