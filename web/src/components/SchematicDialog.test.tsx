@@ -25,6 +25,8 @@ vi.mock("../api/client", async () => {
     api: {
       ...actual.api,
       kicadSchematic: vi.fn(),
+      kicadSchStatus: vi.fn(),
+      kicadSch: vi.fn(),
       kicadRenderStatus: vi.fn(),
       kicadRender: vi.fn(),
       kicadPcbStatus: vi.fn(),
@@ -42,6 +44,8 @@ vi.mock("../api/client", async () => {
 
 const mockApi = api as unknown as {
   kicadSchematic: ReturnType<typeof vi.fn>;
+  kicadSchStatus: ReturnType<typeof vi.fn>;
+  kicadSch: ReturnType<typeof vi.fn>;
   kicadRenderStatus: ReturnType<typeof vi.fn>;
   kicadRender: ReturnType<typeof vi.fn>;
   kicadPcbStatus: ReturnType<typeof vi.fn>;
@@ -56,11 +60,11 @@ const mockApi = api as unknown as {
 const mockKicadRoute = kicadRoute as unknown as ReturnType<typeof vi.fn>;
 
 const UNAVAILABLE: KicadRenderStatus = {
-  available: false, kicad_cli: false, skidl: false, png: false,
+  available: false, kicad_cli: false, symbols: false, png: false,
   reason: "kicad-cli not on PATH",
 };
 const AVAILABLE: KicadRenderStatus = {
-  available: true, kicad_cli: true, skidl: true, png: true, reason: null,
+  available: true, kicad_cli: true, symbols: true, png: true, reason: null,
 };
 const PCB_UNAVAILABLE: KicadPcbStatus = {
   available: false, footprints: false, symbols: false,
@@ -102,6 +106,8 @@ const design: Design = {
 
 beforeEach(() => {
   mockApi.kicadSchematic.mockReset();
+  mockApi.kicadSchStatus.mockReset();
+  mockApi.kicadSch.mockReset();
   mockApi.kicadRenderStatus.mockReset();
   mockApi.kicadRender.mockReset();
   mockApi.kicadPcbStatus.mockReset();
@@ -114,6 +120,7 @@ beforeEach(() => {
   mockApi.kicadRoutedBoard.mockReset();
   mockKicadRoute.mockReset();
   mockApi.kicadRenderStatus.mockResolvedValue(UNAVAILABLE);
+  mockApi.kicadSchStatus.mockResolvedValue({ available: false, symbol_dir: null, reason: "symbol libraries not found" });
   mockApi.kicadPcbStatus.mockResolvedValue(PCB_UNAVAILABLE);
   mockApi.fabStatus.mockResolvedValue(FAB_BOM_ONLY);
   mockApi.kicadRouteStatus.mockResolvedValue(ROUTE_UNAVAILABLE);
@@ -123,6 +130,36 @@ beforeEach(() => {
 afterEach(() => {
   delete (URL as unknown as Record<string, unknown>).createObjectURL;
   delete (URL as unknown as Record<string, unknown>).revokeObjectURL;
+});
+
+
+describe("SchematicDialog — download schematic", () => {
+  it("explains what is missing when the symbol libraries are absent", async () => {
+    render(<SchematicDialog design={design} onClose={() => {}} />);
+    await screen.findByText(/needs the KiCad symbol libraries/);
+    expect(screen.queryByRole("button", { name: /Download \.kicad_sch/ })).toBeNull();
+  });
+
+  it("downloads the .kicad_sch when the server can write it", async () => {
+    mockApi.kicadSchStatus.mockResolvedValue({ available: true, symbol_dir: "/libs", reason: null });
+    mockApi.kicadSch.mockResolvedValue("(kicad_sch (version 20231120))\n");
+    render(<SchematicDialog design={design} onClose={() => {}} />);
+    const btn = await screen.findByRole("button", { name: /Download \.kicad_sch/ });
+    await userEvent.click(btn);
+    await waitFor(() => expect(mockApi.kicadSch).toHaveBeenCalledWith(design));
+    await screen.findByText(/Downloaded ✓ — write again/);
+  });
+
+  it("surfaces a 503 from the writer in a rose banner", async () => {
+    const { ApiError } = await vi.importActual<typeof import("../api/client")>("../api/client");
+    mockApi.kicadSchStatus.mockResolvedValue({ available: true, symbol_dir: "/libs", reason: null });
+    mockApi.kicadSch.mockRejectedValue(new ApiError(422, "POST /design/kicad/sch -> 422", {
+      detail: "no symbol 'Foo' in KiCad library Bar",
+    }));
+    render(<SchematicDialog design={design} onClose={() => {}} />);
+    await userEvent.click(await screen.findByRole("button", { name: /Download \.kicad_sch/ }));
+    await screen.findByText(/no symbol 'Foo'/);
+  });
 });
 
 

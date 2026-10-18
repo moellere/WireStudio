@@ -251,6 +251,7 @@ and persist back to `designs/<id>.json`.
 | `add_bus` | yes | append an i2c / spi / uart / 1wire / i2s bus |
 | `solve_pins` | yes | auto-assign unbound connections |
 | `kicad_schematic` | no | SKiDL script summary |
+| `kicad_sch` | no | write the `.kicad_sch` the studio draws; summary (symbols, labels, notes); the file comes from `POST /design/kicad/sch` |
 | `kicad_pcb` | no | board emit summary (size, footprints, nets, routed) |
 | `route_pcb` | no | Freerouting autoroute; returns segments/vias/cache_key, board via `GET /design/kicad/route/{cache_key}` |
 | `fab_status` | no | server fab capabilities (BOM/CPL/Gerbers/route) |
@@ -298,6 +299,9 @@ addon. They are registered by default; pass `hardware=False` to
 | `fleet_job_status` | no | compile verdict for a run |
 | `fleet_job_log` | no | incremental build log |
 | `fleet_firmware_info` | no | artifact size + availability (never the bytes) |
+| `print_warden_status` | no | is print-warden configured and reachable; its printers and locations |
+| `print_enclosure` | yes | generate the enclosure shell, upload, slice and queue it on print-warden → warden `job_id`; never starts the print |
+| `print_job_status` | no | a warden job's state, log and start-policy verdict |
 | `job_status` | no | poll a `job_id` |
 | `job_events` | no | incremental event log for a `job_id` |
 | `job_list` | no | jobs this process is holding |

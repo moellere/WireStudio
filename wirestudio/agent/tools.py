@@ -276,6 +276,18 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
         "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
     },
     {
+        "name": "kicad_sch",
+        "description": (
+            "Write the design's KiCad 8 .kicad_sch: board, peripherals and "
+            "subcircuit blocks placed, every pin labelled, flagged or wired. "
+            "Returns a summary (size_bytes, symbols, labels, notes); the file "
+            "is downloaded via POST /design/kicad/sch. Needs the KiCad symbol "
+            "libraries on the server -- returns ok=false, available=false "
+            "otherwise. Read-only."
+        ),
+        "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
+    {
         "name": "kicad_pcb",
         "description": (
             "Emit the design's KiCad .kicad_pcb board (footprints placed + nets "
@@ -712,6 +724,31 @@ def _run_kicad_schematic(design: dict, library: Library) -> dict:
         return {"ok": False, "error": str(e)}
 
 
+def _run_kicad_sch(design: dict, library: Library) -> dict:
+    from wirestudio.kicad.schematic import SchematicUnavailable, build_sheet, render_sheet
+
+    try:
+        d = Design.model_validate(design)
+    except Exception as e:
+        return {"ok": False, "error": f"design failed validation: {e}"}
+    try:
+        sheet = build_sheet(d, library)
+    except SchematicUnavailable as e:
+        return {"ok": False, "available": False, "error": str(e)}
+    except (FileNotFoundError, ValueError) as e:
+        return {"ok": False, "error": str(e)}
+    text = render_sheet(sheet)
+    return {
+        "ok": True,
+        "available": True,
+        "size_bytes": len(text.encode()),
+        "symbols": sum(1 for s in sheet.symbols if not s.power),
+        "labels": len(sheet.labels),
+        "wires": len(sheet.wires),
+        "notes": sheet.notes,
+    }
+
+
 def _run_kicad_pcb(design: dict, library: Library) -> dict:
     """Return a summary of the emitted board, not the megabyte board text."""
     try:
@@ -864,6 +901,7 @@ TOOL_HANDLERS: dict[str, Callable[..., Any]] = {
     "recommend": _run_recommend,
     "solve_pins": _run_solve_pins,
     "kicad_schematic": _run_kicad_schematic,
+    "kicad_sch": _run_kicad_sch,
     "kicad_pcb": _run_kicad_pcb,
     "route_pcb": _run_route_pcb,
     "fab_status": _run_fab_status,

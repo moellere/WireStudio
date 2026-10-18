@@ -37,6 +37,7 @@ EXPECTED_TOOLS = {
     "add_bus",
     "solve_pins",
     "kicad_schematic",
+    "kicad_sch",
     "kicad_pcb",
     "route_pcb",
     "fab_status",
@@ -76,6 +77,9 @@ HARDWARE_TOOLS = {
     "fleet_job_status",
     "fleet_job_log",
     "fleet_firmware_info",
+    "print_warden_status",
+    "print_enclosure",
+    "print_job_status",
 }
 
 

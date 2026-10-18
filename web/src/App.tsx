@@ -677,7 +677,7 @@ export default function App() {
                 disabled={!design}
                 onClick={() => setShowSchematicDialog(true)}
                 className="flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium text-ink-faint transition-colors enabled:hover:bg-surface-2 enabled:hover:text-ink disabled:opacity-40"
-                title="Download a SKiDL Python script that produces a .kicad_sch when run locally"
+                title="Preview the schematic, download it as .kicad_sch, or export a PCB board"
                 aria-label="Schematic (KiCad export)"
               >
                 <Cpu className="h-4 w-4" />

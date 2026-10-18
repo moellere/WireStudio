@@ -53,7 +53,7 @@ def test_skidl_imports_appear(lib):
     script = generate_skidl(_design("garage-motion"), lib)
     assert "from skidl import" in script
     assert "Part" in script and "Net" in script
-    assert "generate_schematic(allow_routing_failure=True, auto_stub=True, rotate_parts=True)" in script
+    assert "generate_schematic(allow_routing_failure=True, auto_stub=True, rotate_parts=False, seed=0)" in script
 
 
 def test_design_id_appears_in_docstring(lib):
@@ -171,11 +171,46 @@ def test_bus_targets_share_a_single_net(lib):
     assert 'c_bme1["SCK"] += NET_BUS_i2c0' in script
 
 
-def test_gpio_targets_become_inline_nets(lib):
+def test_gpio_targets_share_one_declared_net(lib):
     script = generate_skidl(_design("garage-motion"), lib)
     # PIR's OUT pin is wired to GPIO13. The HC-SR501 maps to a generic
-    # connector, so roles bind positionally -- OUT is the 3rd pin.
-    assert 'c_pir1["3"] += Net("GPIO_GPIO13")' in script
+    # connector, so roles bind positionally -- OUT is the 3rd pin. The net
+    # is declared once so the board pin below lands on the same one.
+    assert 'NET_GPIO_GPIO13 = Net("GPIO_GPIO13")' in script
+    assert script.count('Net("GPIO_GPIO13")') == 1
+    assert 'c_pir1["3"] += NET_GPIO_GPIO13' in script
+
+
+def test_board_pins_join_gpio_rail_and_bus_nets(lib):
+    """The ESP32-DevKitC maps to the WROOM module symbol: GPIO13 -> IO13,
+    the i2c0 bus runs on the board's default SDA/SCL (IO21/IO22), 3V3 is
+    the module's VDD, and 5V has no module pin, which the script says."""
+    script = generate_skidl(_design("garage-motion"), lib)
+    assert 'board["IO13"] += NET_GPIO_GPIO13  # GPIO13' in script
+    assert 'board["IO21"] += NET_BUS_i2c0  # GPIO21' in script
+    assert 'board["IO22"] += NET_BUS_i2c0  # GPIO22' in script
+    assert 'board["VDD"] += NET_PLUS__3V3  # 3V3' in script
+    assert 'board["GND"] += GND  # GND' in script
+    assert "# 5V: no pin on RF_Module:ESP32-WROOM-32" in script
+
+
+def test_board_pins_use_the_boards_own_role_names(lib):
+    """A D1 mini design names pins D1/D2; the pin_map turns them into the
+    symbol's SCL/D1 and SDA/D2."""
+    script = generate_skidl(_design("room-climate"), lib)
+    assert 'board["SDA/D2"] += NET_BUS_' in script
+    assert 'board["SCL/D1"] += NET_BUS_' in script
+    assert 'board["3V3"] += NET_PLUS__3V3' in script
+
+
+def test_subcircuit_gpio_nodes_reuse_the_board_net(lib):
+    """The H-bridge's IN1/IN2 are gpio targets; the subcircuit's nodes must
+    bind to the declared handles, not a second Net of the same name."""
+    script = generate_skidl(_design("motor-position"), lib)
+    assert 'c_bridge_r_base_a["1"] += NET_GPIO_GPIO18' in script
+    assert 'board["IO18"] += NET_GPIO_GPIO18  # GPIO18' in script
+    assert 'board["IO34"] += NET_GPIO_GPIO34  # GPIO34' in script
+    assert script.count('Net("GPIO_GPIO18")') == 1
 
 
 def test_expander_pin_targets_render(lib):
@@ -259,8 +294,8 @@ def test_subcircuit_nodes_share_one_net_handle(lib):
 
 def test_subcircuit_host_roles_join_the_design_connection(lib):
     script = generate_skidl(_design("motor-position"), lib)
-    assert 'n_bridge_IN1 = Net("GPIO_GPIO18")' in script
-    assert 'c_bridge_r_base_a["1"] += n_bridge_IN1' in script
+    assert 'n_bridge_IN1' not in script
+    assert 'c_bridge_r_base_a["1"] += NET_GPIO_GPIO18' in script
     assert 'c_bridge_q_hi_a["S"] += NET_PLUS__5V' in script
     assert 'c_bridge_q_lo_a["S"] += GND' in script
 

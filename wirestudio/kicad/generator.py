@@ -25,8 +25,8 @@ mappings (symbol, footprint, pin_map applied) appear verbatim.
 from __future__ import annotations
 
 from wirestudio.kicad.netlist import (
-    BOARD_KEY, _py_var, assign_refs, is_bound, local_net_name, net_name,
-    part_key, placed_parts, resolve_net_target,
+    BOARD_KEY, _py_var, assign_refs, board_bindings, is_bound, local_net_name,
+    net_name, part_key, placed_parts, resolve_net_target,
 )
 from wirestudio.library import KicadSymbolRef, Library
 from wirestudio.model import Design
@@ -162,8 +162,16 @@ def build():
     # ---- Buses ----------------------------------------------------------
 {bus_decls}
 
+    # ---- GPIO nets ------------------------------------------------------
+    # One handle per board pin, shared by the peripheral and the board
+    # below: a second Net("GPIO_x") would be a new net, not the same one.
+{gpio_decls}
+
     # ---- Connections ----------------------------------------------------
 {connection_lines}
+
+    # ---- Board pins -----------------------------------------------------
+{board_lines}
 
 
 if __name__ == "__main__":
@@ -175,8 +183,11 @@ if __name__ == "__main__":
     # degraded render with stubbed nets beats no render at all.
     # auto_stub: high-fanout nets (buses) become labeled stubs, and
     # routing failures fall back to a stubbed drawing instead of raising.
-    # rotate_parts: the placer may orient parts to shorten wiring.
-    generate_schematic(allow_routing_failure=True, auto_stub=True, rotate_parts=True)
+    # rotate_parts stays off: letting the placer turn parts put the MCU on
+    # its side with passives inside its outline, for no shorter wiring.
+    # seed: the placer is randomized; a fixed seed makes the same design
+    # render the same sheet every time, so a diff means the design changed.
+    generate_schematic(allow_routing_failure=True, auto_stub=True, rotate_parts=False, seed=0)
     _kicad8_compat()
 '''
 
@@ -186,13 +197,17 @@ def generate_skidl(design: Design, library: Library) -> str:
     rail_decls = _render_rails(design)
     component_decls, ref_index = _render_components(design, library)
     bus_decls = _render_buses(design)
+    gpio_decls = _render_gpio_nets(design)
     connection_lines = _render_connections(design, library, ref_index)
+    board_lines = _render_board_pins(design, library, ref_index)
     return _PREAMBLE.format(
         design_id=design.id,
         rail_decls=_indent(rail_decls or "pass", 4),
         component_decls=_indent(component_decls or "pass", 4),
         bus_decls=_indent(bus_decls or "pass", 4),
+        gpio_decls=_indent(gpio_decls or "pass", 4),
         connection_lines=_indent(connection_lines or "pass", 4),
+        board_lines=_indent(board_lines or "pass", 4),
     )
 
 
@@ -253,6 +268,30 @@ def _render_components(
         ref_index[part.key] = var
 
     return "\n".join(lines), ref_index
+
+
+def _render_gpio_nets(design: Design) -> str:
+    pins: list[str] = []
+    for c in design.connections:
+        t = c.target
+        if t.kind == "gpio" and t.pin and t.pin not in pins:
+            pins.append(t.pin)
+    return "\n".join(
+        f'NET_GPIO_{_py_var(p)} = Net({_quote(f"GPIO_{_py_var(p)}")})' for p in pins
+    )
+
+
+def _render_board_pins(design: Design, library: Library, ref_index: dict[str, str]) -> str:
+    if BOARD_KEY not in ref_index:
+        return ""
+    pins, notes = board_bindings(design, library)
+    var = ref_index[BOARD_KEY]
+    lines = [
+        f"{var}[{_quote(bp.pin)}] += {_net_handle_for(bp.target, design, ref_index)}  # {bp.role}"
+        for bp in pins
+    ]
+    lines.extend(f"# {note}" for note in notes)
+    return "\n".join(lines)
 
 
 def _render_buses(design: Design) -> str:
@@ -362,7 +401,7 @@ def _render_subcircuit(
     handle: dict[str, str] = {}
     for node in nodes:
         target = role_targets.get(node)
-        if target is not None and target.kind in ("rail", "bus"):
+        if target is not None and target.kind in ("rail", "bus", "gpio"):
             handle[node] = _net_handle_for(target, design, ref_index)
             continue
         var = f"n_{_py_var(comp_id)}_{_py_var(node)}"
@@ -378,10 +417,11 @@ def _render_subcircuit(
 
 def _net_handle_for(target, design: Design, ref_index: dict[str, str]) -> str:
     """Return a SKiDL expression that evaluates to the net for `target`.
-    Rails and buses reference the per-script Net handle declared once
-    (`NET_PLUS_*` / `GND` / `NET_BUS_<id>`); gpio/expander_pin/component
-    targets build a fresh inline `Net(...)` named canonically (`net_name`)
-    so the schematic and the PCB land them on identically-named nets."""
+    Rails, buses and gpio pins reference the per-script Net handle declared
+    once (`NET_PLUS_*` / `GND` / `NET_BUS_<id>` / `NET_GPIO_<pin>`);
+    expander_pin/component targets build a fresh inline `Net(...)` named
+    canonically (`net_name`) so the schematic and the PCB land them on
+    identically-named nets."""
     kind = target.kind
     if kind == "rail":
         if target.rail.lower() in ("gnd", "ground"):
@@ -389,6 +429,8 @@ def _net_handle_for(target, design: Design, ref_index: dict[str, str]) -> str:
         return f"NET_PLUS_{_py_var(target.rail)}"
     if kind == "bus":
         return f"NET_BUS_{_py_var(target.bus_id)}"
+    if kind == "gpio":
+        return f"NET_GPIO_{_py_var(target.pin)}"
     return f'Net("{net_name(target)}")'
 
 

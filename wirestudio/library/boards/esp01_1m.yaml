@@ -29,3 +29,16 @@ kicad:
   symbol_lib: RF_Module
   symbol: ESP-12E
   footprint: RF_Module:ESP-12E
+  # Board roles -> module symbol pin names; the module has no 5V pin.
+  pin_map:
+    GPIO0: GPIO0
+    GPIO1: GPIO1/TXD
+    GPIO2: GPIO2
+    GPIO3: GPIO3/RXD
+    GPIO12: GPIO12
+    GPIO13: GPIO13
+    GPIO14: GPIO14
+    GPIO15: GPIO15
+    GPIO16: GPIO16
+    3V3: VCC
+    GND: GND

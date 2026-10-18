@@ -102,11 +102,51 @@ block, not the design's components — so the gate walks boards, not
 examples. Boards without a clear PCB outline (modules like the ESP-01S)
 have no `enclosure:` block and are skipped by design.
 
+### Printing it through print-warden
+
+With a [print-warden](https://github.com/moellere/print-warden) reachable,
+the Enclosure dialog's **Print** tab (and the `print_enclosure` MCP tool,
+`POST /design/enclosure/print`) hands the same shell straight to the
+printer: wirestudio uploads the `.scad` to the warden, which renders it
+(fit tunables become OpenSCAD `-D` overrides), slices it for the chosen
+printer or location, runs its bed/temperature checks and queues the job.
+
+```sh
+export PRINT_WARDEN_URL=http://10.0.0.29:8710
+export PRINT_WARDEN_TOKEN=...   # only if the warden has PRINT_WARDEN_TOKEN set
+python -m wirestudio.api
+```
+
+The warden's trust gradient is kept intact: wirestudio speaks the warden's
+own MCP surface (`list_printers`, `submit_job`, `job_status`) and never
+calls a start. The job is offered to the operator's phone, or starts under
+the warden's `auto_start` policy; `GET /enclosure/print/jobs/{id}` and
+`print_job_status` show its state and the start-policy verdict.
+`GET /enclosure/print/status` lists the printers and locations usable as
+`where`.
+
 ## KiCad export
 
-`POST /design/kicad/schematic` (and the **Schematic** header button)
-emits a SKiDL Python script the user runs locally to produce a
-`.kicad_sch` — no LLM in the wire-routing path, fully diffable in git.
+`POST /design/kicad/sch` (and the **Download schematic** button) writes
+the design as a KiCad 8 `.kicad_sch` the studio draws itself: the board
+on the left with every pin labelled, flagged no-connect or on a rail
+symbol; the peripherals in columns beside it; and each subcircuit as a
+block. A subcircuit whose library entry carries a `schematic:` layout
+(part placements, wire polylines and ports, in 1.27 mm grid units) is
+drawn as a circuit — the MOSFET H-bridge comes out as two legs with the
+motor between them — and one without is stacked with labels. A port on
+one of a layout's internal nodes is drawn only when something outside
+the block uses that net (a connector pin with a `net` target); a shared
+node the layout has no port for is labelled at one of its pins. Symbols
+are embedded from the pinned KiCad library, so the file opens with no
+library setup; output is deterministic down to the UUIDs, so a diff
+means the design changed. `/design/kicad/render` and `/design/kicad/erc`
+run kicad-cli on this file. `GET /design/kicad/sch/status` says whether
+the server has the symbol libraries it needs (`KICAD8_SYMBOL_DIR`).
+
+`POST /design/kicad/schematic` (and the **Download script** button)
+still emits the SKiDL Python script for the same design — the path that
+needs no libraries on the server and the one the netlist gate runs.
 `python -m wirestudio.kicad.import --symbol Lib:Symbol` drafts the
 `kicad:` block for a library component from a KiCad `.kicad_sym`
 library.
@@ -122,15 +162,28 @@ pcbnew, a JRE, and the Freerouting jar on the server — set
 bakes all three in. `GET /design/kicad/route/status` reports what's
 missing.
 
-The output is gate-verified: the [`kicad-schematic`](../.github/workflows/kicad-schematic.yml)
-workflow runs every bundled example's SKiDL script against the pinned
-upstream KiCad symbol libraries and asserts it builds a netlist with no
-unresolved symbols or pins (`scripts/check_schematics.py`). Parts KiCad
-ships no stock symbol for — most sensor/module breakouts — render as
-labeled generic headers (`Connector_Generic`) with the part name as the
-value, rather than a fictional symbol; everything with a real upstream
-symbol (ICs, modules, boards' onboard MCUs) maps to it with a verified
-pin map.
+The output is gate-verified three ways. The
+[`kicad-schematic`](../.github/workflows/kicad-schematic.yml) workflow
+runs every bundled example's SKiDL script against the pinned upstream
+KiCad symbol libraries and asserts it builds a netlist with no
+unresolved symbols or pins (`scripts/check_schematics.py`). The
+[`kicad-render`](../.github/workflows/kicad-render.yml) workflow has
+kicad-cli read the netlist back from every written sheet's geometry and
+compares it with the design's (`scripts/check_sch.py`: a wire that
+misses a pin or a missing junction shows up as a split net), then runs
+ERC against `scripts/erc_baseline.yaml`. Parts KiCad ships no stock
+symbol for — most sensor/module breakouts — render as labeled generic
+headers (`Connector_Generic`) with the part name as the value, rather
+than a fictional symbol; everything with a real upstream symbol (ICs,
+modules, boards' onboard MCUs) maps to it with a verified pin map.
+
+The board's own pins are wired through its `kicad.pin_map` (board role
+→ symbol pin, e.g. `GPIO36: SENSOR_VP`, `D2: SDA/D2`, `3V3: VDD`):
+every gpio, rail and bus connection in the design lands on the board
+symbol in both the schematic and the PCB. A role the symbol has no pin
+for (a bare module's 5V) is noted rather than invented. Boards drawn as
+generic headers have no pin map yet and float; add one to
+`library/boards/<id>.yaml` to wire them.
 
 ## LoRaWAN / ChirpStack
 

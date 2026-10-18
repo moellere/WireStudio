@@ -8,6 +8,10 @@ import type {
   ComponentSummary,
   EnclosureSearchResponse,
   EnclosureSearchStatus,
+  EnclosurePrintJob,
+  EnclosurePrintRequest,
+  EnclosurePrintResponse,
+  EnclosurePrintStatus,
   ExampleSummary,
   FleetJobLogResponse,
   FleetPushResponse,
@@ -26,6 +30,7 @@ import type {
   KicadPcbStatus,
   KicadPcbRenderStatus,
   KicadRenderStatus,
+  KicadSchStatus,
   KicadRouteEvent,
   KicadRouteStatus,
   LorawanCompileEvent,
@@ -255,6 +260,10 @@ export const api = {
     requestText("/design/enclosure/openscad", { method: "POST", body: JSON.stringify(design) }),
   kicadSchematic: (design: Design) =>
     requestText("/design/kicad/schematic", { method: "POST", body: JSON.stringify(design) }),
+  kicadSchStatus: () =>
+    request<KicadSchStatus>("/design/kicad/sch/status"),
+  kicadSch: (design: Design) =>
+    requestText("/design/kicad/sch", { method: "POST", body: JSON.stringify(design) }),
   kicadRenderStatus: () =>
     request<KicadRenderStatus>("/design/kicad/render/status"),
   kicadRender: (design: Design) =>
@@ -373,6 +382,12 @@ export const api = {
       method: "POST",
       body: JSON.stringify(design),
     }),
+  enclosurePrintStatus: () =>
+    request<EnclosurePrintStatus>("/enclosure/print/status"),
+  enclosurePrint: (body: EnclosurePrintRequest) =>
+    request<EnclosurePrintResponse>("/design/enclosure/print", { method: "POST", body: JSON.stringify(body) }),
+  enclosurePrintJob: (jobId: string) =>
+    request<EnclosurePrintJob>(`/enclosure/print/jobs/${encodeURIComponent(jobId)}`),
   enclosureSearchStatus: () =>
     request<EnclosureSearchStatus>("/enclosure/search/status"),
   enclosureSearch: (params: { library_id: string; query?: string; limit?: number }) => {
