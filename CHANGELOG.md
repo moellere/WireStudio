@@ -16,6 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   For designs whose load, a motor bridge or an LED strip, should not run
   through the dev board's own USB port. No ESPHome config of its own.
   Example `usbc-led-strip` feeds a WS2812B strip from one.
+- **`create_design` MCP tool.** The design-editing tools needed a design
+  that already existed in the store, and nothing on the MCP surface could
+  put one there: a client with a finished `design.json` had to go through
+  the web UI or the REST `POST /designs` behind the browser's SSO.
+  `create_design` takes the document, checks it the way `validate` does,
+  stores it under its id and makes it the active design. An existing id
+  is refused unless `overwrite` is set.
+
 
 - **Flash size override in the Inspector.** ESP32 boards get a flash size
   select under the board picker: "Board default (NMB)" or 4/8/16/32 MB,

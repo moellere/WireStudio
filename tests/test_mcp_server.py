@@ -44,6 +44,7 @@ EXPECTED_TOOLS = {
     "fab_cpl",
     "set_active_design",
     "get_active_design",
+    "create_design",
     "inventory_list",
     "inventory_set",
     "inventory_import",
@@ -444,3 +445,38 @@ async def test_apply_substitutions_sets_overrides_on_the_saved_design(mcp_server
     missing = _content_to_dict(
         await server.call_tool("apply_substitutions", {"design_id": "nope"}))
     assert "error" in missing
+
+
+EXAMPLE_GARAGE = Path(__file__).resolve().parent.parent / "wirestudio" / "examples" / "garage-motion.json"
+
+
+async def test_create_design_stores_validates_and_activates(mcp_server):
+    server, store = mcp_server
+    design = json.loads(EXAMPLE_GARAGE.read_text())
+    out = _content_to_dict(await server.call_tool("create_design", {"design": design}))
+    assert out["ok"] is True, out
+    assert out["design_id"] == design["id"]
+    assert store.exists(design["id"])
+    assert out["active_design_id"] == design["id"]
+    assert out["validate"]["components"] == len(design["components"])
+
+    again = _content_to_dict(await server.call_tool("create_design", {"design": design}))
+    assert again["ok"] is False and "exists" in again["error"]
+
+    copy = _content_to_dict(await server.call_tool(
+        "create_design", {"design": design, "design_id": "garage-copy", "activate": False}))
+    assert copy["ok"] is True and copy["design_id"] == "garage-copy"
+    assert copy["active_design_id"] == design["id"]
+    assert store.exists("garage-copy")
+
+    rendered = _content_to_dict(await server.call_tool("render", {}))
+    assert "esphome:" in rendered["yaml"]
+
+
+async def test_create_design_rejects_a_bad_body(mcp_server):
+    server, store = mcp_server
+    out = _content_to_dict(await server.call_tool("create_design", {"design": {"id": "broken"}}))
+    assert out["ok"] is False and "error" in out
+    assert not store.exists("broken")
+    nameless = _content_to_dict(await server.call_tool("create_design", {"design": {}}))
+    assert nameless["ok"] is False and "design_id" in nameless["error"]

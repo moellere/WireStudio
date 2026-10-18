@@ -49,7 +49,7 @@ from wirestudio.agent.tools import (
     _run_validate,
 )
 from wirestudio.designs.active import ActiveDesignTracker
-from wirestudio.designs.store import DesignStore
+from wirestudio.designs.store import DesignStore, sanitize_id
 from wirestudio.inventory import apply_substitutions, check_inventory, entries_from_csv
 from wirestudio.inventory.buy import buy_list, buy_list_to_dict
 from wirestudio.inventory.store import (
@@ -238,6 +238,50 @@ def _register_design_tools(
 
     def _save(design_id: str, design: dict) -> None:
         designs.save(design, design_id=design_id)
+
+    @mcp.tool(
+        name="create_design",
+        description=(
+            "Store a complete design.json as a new design and make it the "
+            "active design, so the editing tools can work on it. The body "
+            "is checked against the design schema and rendered first, and "
+            "the result carries the same report `validate` returns. The id "
+            "comes from `design_id`, else from the design's own `id`. "
+            "Refuses an id that already exists unless overwrite is true; "
+            "pass activate=false to leave the active design alone."
+        ),
+    )
+    def create_design(
+        design: dict,
+        design_id: Optional[str] = None,
+        overwrite: bool = False,
+        activate: bool = True,
+    ) -> dict:
+        raw = design_id or (design.get("id") if isinstance(design, dict) else None)
+        if not raw:
+            return {"ok": False, "error": "design has no `id`; pass design_id"}
+        rid = sanitize_id(str(raw))
+        if designs.exists(rid) and not overwrite:
+            return {
+                "ok": False,
+                "error": (
+                    f"design {rid!r} already exists; pass overwrite=true to "
+                    "replace it or choose another design_id"
+                ),
+            }
+        report = _run_validate(design, library)
+        if "error" in report:
+            return report
+        rid, saved_at = designs.save(design, design_id=rid)
+        if activate:
+            active.set(rid)
+        return {
+            "ok": True,
+            "design_id": rid,
+            "saved_at": saved_at,
+            "active_design_id": active.get(),
+            "validate": report,
+        }
 
     @mcp.tool(
         name="render",
