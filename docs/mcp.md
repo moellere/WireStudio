@@ -123,8 +123,9 @@ store (`designs/<id>.json`). Two ways to get one:
 - **Web UI** — open <http://localhost:8765>, build a design, click
   Save. Whichever design you select in the sidebar becomes the
   *active* design (see below).
-- **Tools** — ask the client to start one from scratch; it will save a
-  design and then edit it.
+- **Tools** — `create_design` takes a complete `design.json` (one the
+  client wrote, or a bundled example), stores it under its id and makes
+  it the active design; the editing tools then work on it.
 
 ### 5. Chat
 
@@ -255,6 +256,7 @@ and persist back to `designs/<id>.json`.
 | `fab_status` | no | server fab capabilities (BOM/CPL/Gerbers/route) |
 | `fab_bom` | no | JLCPCB BOM CSV |
 | `fab_cpl` | no | JLCPCB CPL CSV |
+| `create_design` | yes | store a complete `design.json` as a new design (schema-checked and rendered, same report as `validate`); refuses an existing id unless `overwrite`; makes it active unless `activate=false` |
 | `set_active_design` | — | set the active-design pointer (validates the id exists) |
 | `get_active_design` | — | read the active-design pointer |
 | `inventory_list` | no | what is on hand; `kind="part"` for the discrete drawer |
