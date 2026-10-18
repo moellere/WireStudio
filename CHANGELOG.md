@@ -26,6 +26,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Example `actuator-harness` puts a bridge, a pot and a tach switch on
   one 8-way plug and an encoder and button on a 4-way pigtail;
   `usbc-led-strip` gains the strip's 3-way plug (#300).
+- **Enclosure → print-warden handoff.** The Enclosure dialog gains a
+  **Print** tab, the API `POST /design/enclosure/print` (with
+  `GET /enclosure/print/status` and `GET /enclosure/print/jobs/{id}`),
+  and the MCP tools `print_warden_status`, `print_enclosure`,
+  `print_job_status`. wirestudio generates the shell, uploads the `.scad`
+  to the warden and stages it through the warden's own MCP `submit_job`;
+  fit tunables (wall, clearance, standoff height ...) travel as OpenSCAD
+  `-D` overrides, so the warden renders and slices exactly what the
+  Generate tab downloads. Nothing on this side can start a print: the job
+  is offered to the operator's phone or started by the warden's
+  `auto_start` policy. Configured with `PRINT_WARDEN_URL` and, when the
+  warden has one, `PRINT_WARDEN_TOKEN`; unset leaves the tab explaining
+  what to set.
 
 ## [0.39.0] — 2026-10-18
 

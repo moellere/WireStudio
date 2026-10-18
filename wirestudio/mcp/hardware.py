@@ -129,6 +129,7 @@ def register_hardware_tools(
     fleet_factory: Optional[Callable[[], Any]] = None,
     dashboard_factory: Optional[Callable[[], Any]] = None,
     dashboard_jobs: Any = None,
+    printwarden_factory: Optional[Callable[[], Any]] = None,
 ) -> None:
     """Register the hardware tool surface on `mcp`.
 
@@ -169,6 +170,15 @@ def register_hardware_tools(
     _register_workbench_tools(mcp, jobs, _workbench, _fleet)
     _register_lorawan_tools(mcp, library, jobs, _load_model, _workbench)
     _register_fleet_tools(mcp, library, _load_model, _fleet)
+
+    def _printwarden() -> Any:
+        if printwarden_factory is not None:
+            return printwarden_factory()
+        from wirestudio.printwarden import PrintWardenClient
+
+        return PrintWardenClient()
+
+    _register_printwarden_tools(mcp, library, _load_model, _printwarden)
 
     def _dashboard() -> Any:
         if dashboard_factory is not None:
@@ -684,6 +694,121 @@ def _register_lorawan_tools(
 # ---------------------------------------------------------------------------
 # Fleet
 # ---------------------------------------------------------------------------
+
+def _register_printwarden_tools(
+    mcp: MCPServer,
+    library: Library,
+    load_model: Callable[[Optional[str]], tuple[Optional[Design], Optional[dict]]],
+    printwarden: Callable[[], Any],
+) -> None:
+    from wirestudio.enclosure import EnclosureUnavailable
+    from wirestudio.printwarden import (
+        PrintWardenRejected,
+        PrintWardenUnavailable,
+        submit_enclosure,
+    )
+
+    @mcp.tool(
+        name="print_warden_status",
+        description=(
+            "Is print-warden configured and reachable, and which printers "
+            "(name, location, loaded material, materials, qualities, bed) "
+            "it watches. Check before print_enclosure; a location from "
+            "here is a valid `where`."
+        ),
+    )
+    async def print_warden_status() -> dict:
+        pw = printwarden()
+        ok, reason, version = await pw.is_available()
+        out: dict = {"ok": True, "available": ok, "reason": reason, "url": pw.base_url or None,
+                     "version": version, "printers": []}
+        if not ok:
+            return out
+        try:
+            out["printers"] = await pw.list_printers()
+        except PrintWardenUnavailable as e:
+            out["available"] = False
+            out["reason"] = str(e)
+        return out
+
+    @mcp.tool(
+        name="print_enclosure",
+        description=(
+            "Generate the design's parametric enclosure shell and hand it to "
+            "print-warden, which renders the OpenSCAD, slices it for the "
+            "printer, checks it and queues it. `where` is a warden printer "
+            "name or a location (the warden routes to the printer there "
+            "with the material loaded). `tunables` override the shell's "
+            "defaults in mm: wall, floor, clearance, standoff_h, standoff_d, "
+            "standoff_hole, port_clearance, component_h. Returns the warden "
+            "job (id, printer, estimate, preview_url, warnings, "
+            "slice_blockers, queue). The job is offered to the operator's "
+            "phone; this tool never starts a print -- poll it with "
+            "print_job_status."
+        ),
+    )
+    async def print_enclosure(
+        where: str,
+        material: str,
+        design_id: Optional[str] = None,
+        quality: str = "standard",
+        tunables: Optional[dict[str, float]] = None,
+        copies: int = 1,
+    ) -> dict:
+        design, err = load_model(design_id)
+        if err:
+            return err
+        pw = printwarden()
+        if not pw.is_configured():
+            return _err("print-warden not configured (set PRINT_WARDEN_URL)")
+        try:
+            job = await submit_enclosure(
+                pw, design, library,
+                where=where, material=material, quality=quality,
+                tunables=tunables, copies=copies,
+            )
+        except (EnclosureUnavailable, FileNotFoundError, ValueError, PrintWardenRejected) as e:
+            return _err(str(e))
+        except PrintWardenUnavailable as e:
+            return _err(f"print-warden unavailable: {e}")
+        return {
+            "ok": True,
+            "job_id": job.get("id"),
+            "printer": job.get("printer"),
+            "routed": bool(job.get("routed")),
+            "state": job.get("state"),
+            "est_human": job.get("est_human"),
+            "filament_g": job.get("filament_g"),
+            "preview_url": job.get("preview_url"),
+            "warnings": job.get("warnings") or [],
+            "slice_blockers": job.get("slice_blockers") or [],
+            "queue": job.get("queue"),
+            "starts": (
+                "only when the operator taps Start on the phone notification "
+                "or the printer's auto_start policy passes; never from here"
+            ),
+        }
+
+    @mcp.tool(
+        name="print_job_status",
+        description=(
+            "One print-warden job: state, transition log, and whether its "
+            "start policy passes right now (can_start + blockers). The "
+            "job_id comes from print_enclosure."
+        ),
+    )
+    async def print_job_status(job_id: str) -> dict:
+        pw = printwarden()
+        if not pw.is_configured():
+            return _err("print-warden not configured (set PRINT_WARDEN_URL)")
+        try:
+            job = await pw.job_status(job_id)
+        except PrintWardenRejected as e:
+            return _err(str(e))
+        except PrintWardenUnavailable as e:
+            return _err(f"print-warden unavailable: {e}")
+        return {"ok": True, **{k: v for k, v in job.items() if k != "id"}, "job_id": job.get("id", job_id)}
+
 
 def _register_fleet_tools(
     mcp: MCPServer,
