@@ -76,6 +76,14 @@ circuitpython:
   loop: |
     print("{{ label }}: %.1fC %.0f%%" % ({{ id }}.temperature, {{ id }}.relative_humidity))
 
+micropython:
+  imports: ["import ahtx0"]
+  deps: ["github:targetblank/micropython_ahtx0/ahtx0.py"]
+  setup: |
+    {{ id }} = ahtx0.AHT20({{ bus_var }})
+  loop: |
+    print("{{ label }}: %.1fC %.0f%%" % ({{ id }}.temperature, {{ id }}.relative_humidity))
+
 params_schema:
   update_interval:
     type: string

@@ -55,6 +55,14 @@ circuitpython:
   loop: |
     print("{{ label }}: %.1fC %.0f%% %.1fhPa gas=%d" % ({{ id }}.temperature, {{ id }}.humidity, {{ id }}.pressure, {{ id }}.gas))
 
+micropython:
+  imports: ["from bme680 import BME680_I2C"]
+  deps: ["github:robert-hh/BME680-Micropython/bme680.py"]
+  setup: |
+    {{ id }} = BME680_I2C({{ bus_var }}, address={{ params.address | default('0x76') }})
+  loop: |
+    print("{{ label }}: %.1fC %.0f%% %.1fhPa gas=%d" % ({{ id }}.temperature, {{ id }}.humidity, {{ id }}.pressure, {{ id }}.gas))
+
 params_schema:
   address:
     type: string

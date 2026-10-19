@@ -24,6 +24,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **MicroPython at the CircuitPython component set.** 22 more library
+  parts carry a `micropython:` block (16 to 38 of 102): AHT10/AHT20,
+  BH1750, BME680, BMP280, HTU21D, INA219, MAX31855, MCP23008, MCP23017,
+  MCP3008, MPU6050, PCA9685, PCF8574/8575, SCD4x, SGP40/41, SHT3x,
+  SHT4x, TSL2561, VEML7700, VL53L0X and APA102. Each driver-backed one
+  names a permissively licensed driver as a `mip` dep; BH1750, HTU21D,
+  MAX31855, MCP3008, PCF857x, SGP4x and APA102 are datasheet register
+  code instead, and `tests/test_micropython_registers.py` runs their
+  generated `main.py` against a fake bus, checking the bytes written
+  and the datasheet's worked examples decoded. 18 more bundled examples
+  now generate with no skipped parts. PN532 and MCP23S17 stay in the
+  framework baseline with reasons.
+
 - **Upgrade test.** `scripts/check_upgrade.py seed` runs under the
   previous release and writes a data directory through that release's
   own REST API, in both store layouts: every example it bundles saved

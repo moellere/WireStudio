@@ -49,6 +49,14 @@ circuitpython:
   loop: |
     print("{{ label }}: %.1fC %.0f%%" % {{ id }}.measurements)
 
+micropython:
+  imports: ["from sht4x import SHT4X"]
+  deps: ["github:jposada202020/MicroPython_SHT4X/micropython_sht4x/sht4x.py"]
+  setup: |
+    {{ id }} = SHT4X({{ bus_var }}, address={{ params.address | default('0x44') }})
+  loop: |
+    print("{{ label }}: %.1fC %.0f%%" % {{ id }}.measurements)
+
 params_schema:
   address:
     type: string

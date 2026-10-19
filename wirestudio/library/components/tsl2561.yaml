@@ -58,6 +58,14 @@ circuitpython:
   loop: |
     print("{{ label }}: %s lux" % {{ id }}.lux)
 
+micropython:
+  imports: ["from tsl2561 import TSL2561"]
+  deps: ["github:adafruit/micropython-adafruit-tsl2561/tsl2561.py"]
+  setup: |
+    {{ id }} = TSL2561({{ bus_var }}, address={{ params.address | default('0x39') }})
+  loop: |
+    print("{{ label }}: %s lux" % {{ id }}.read())
+
 params_schema:
   address:
     type: string

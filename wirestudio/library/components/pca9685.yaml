@@ -60,6 +60,16 @@ circuitpython:
     {{ id }}.channels[{{ ch.channel }}].duty_cycle = 0
     {%- endfor %}
 
+micropython:
+  imports: ["from pca9685 import PCA9685"]
+  deps: ["github:adafruit/micropython-adafruit-pca9685/pca9685.py"]
+  setup: |
+    {{ id }} = PCA9685({{ bus_var }}, address={{ params.address | default('0x40') }})
+    {{ id }}.freq({{ (params.frequency | default('500Hz')) | replace('Hz','') | int }})
+    {%- for ch in params.channels | default([{"channel": 0}]) %}
+    {{ id }}.duty({{ ch.channel }}, 0)
+    {%- endfor %}
+
 params_schema:
   address:
     type: string
