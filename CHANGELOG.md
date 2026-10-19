@@ -24,6 +24,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Schema versions for the SQLite stores.** `SqliteDesignStore` and
+  `SqliteSessionStore` (`DESIGNS_DB`, `SESSIONS_DB`) record a schema
+  version in `PRAGMA user_version` and carry an ordered list of steps,
+  which `wirestudio.sqlite_store` runs on open: one transaction per
+  step with its version bump, the version read under the write lock so
+  two processes opening one file migrate it once. A file written before
+  versioning is adopted at version 1 with its rows; a file from a newer
+  release is refused with an error naming the store and both versions.
+  `python -m wirestudio.sqlite_store version <db>` prints a file's
+  version and `backup <db> <dest>` copies it through SQLite's online
+  backup, consistent while the studio runs. `docs/deployment.md` gains
+  the backup and restore procedure for both store layouts.
 - **ESPHome support table.** `docs/esphome-support.md` states which
   ESPHome releases the studio's output validates on: every bundled
   example through `esphome config` on each release of the
@@ -231,6 +243,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   before anything reads it, and `validate` reports each block it lowered
   at info level. The 1.0 migrator rewrites them in `design.json`; add the
   component instead of setting the block (roadmap 0.41).
+
+### Fixed
+
+- **The `-pcb` and `-full` images had no user component library.**
+  `Dockerfile.pcb` never set `LIBRARY_USER_DIR` or created
+  `/data/library`, so on those images (the one prod runs among them)
+  `component_create` failed with "no user library directory
+  configured" and a user component had nowhere to live across
+  upgrades. It now matches the default image.
 
 ## [0.40.0] — 2026-10-18
 
