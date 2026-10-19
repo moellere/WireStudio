@@ -142,7 +142,10 @@ deltas, and [`START.md`](START.md) for the longer-form design notes.
 
 Tested against ESPHome **`==2026.6.5`** (pinned in
 `.github/workflows/esphome-config.yml` + bumped deliberately). When
-that pin moves, this line moves with it.
+that pin moves, this line moves with it. The releases around the pin
+that every example also validates on, and the component behind any
+failure elsewhere, are in [`docs/esphome-support.md`](docs/esphome-support.md),
+built from the weekly `esphome-matrix` sweep.
 
 ## Quickstart
 

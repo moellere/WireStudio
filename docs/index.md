@@ -17,6 +17,8 @@ under upstream ESPHome.
   in the library.
 - [Library coverage](library-coverage.md) — which library entries are
   exercised by a bundled example.
+- [ESPHome support](esphome-support.md) — which ESPHome releases the
+  output validates on, and the component behind any failure.
 - [Workbench integration](workbench.md) — hardware-truth layer on an
   Embedded AI Harness: remote flash and headless LoRaWAN bring-up
   (shipped), capability map, later phases, constraints.
@@ -455,8 +457,7 @@ schematic (`0.9`), MCP server + KiCad symbol importer (`0.10`),
 Docker single-image deploy + K8s manifest.
 
 **Future** — a multi-writer state backend so the studio can run as a
-HA replica; attributing `esphome-matrix` failures to specific
-components for per-release support tables.
+HA replica.
 
 **Retired debt** — `mcp` was pinned to `<2` from 0.24.1, because mcp
 2.0.0 removed the `mcp.server.fastmcp` import path the server is built

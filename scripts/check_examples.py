@@ -22,6 +22,7 @@ import json
 import subprocess
 import sys
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 
 from wirestudio.generate.yaml_gen import render_yaml
@@ -48,6 +49,11 @@ def _user_component(path: Path, workdir: Path) -> tuple[str, Design, Library]:
         raise SystemExit(f"{path}: component_check failed:\n  " + "\n  ".join(report.errors))
     design = synthetic_design(library.component(report.library_id), library, on_buses=True)
     return f"component-{report.library_id}", design, library
+
+
+def esphome_version() -> str:
+    out = subprocess.run(["esphome", "version"], capture_output=True, text=True).stdout
+    return out.strip().removeprefix("Version:").strip()
 
 
 def _check_design(
@@ -99,6 +105,16 @@ def main(argv: list[str] | None = None) -> int:
             "run `esphome compile` instead of `esphome config` (slow -- "
             "first-time toolchain download is several minutes; intended "
             "for the nightly compile-smoke job, not per-PR)."
+        ),
+    )
+    parser.add_argument(
+        "--json",
+        type=Path,
+        default=None,
+        metavar="PATH",
+        help=(
+            "write every example's verdict (and the failing ones' output) with "
+            "the ESPHome version, the shape scripts/esphome_support.py reads"
         ),
     )
     parser.add_argument(
@@ -154,15 +170,25 @@ def main(argv: list[str] | None = None) -> int:
         workdir.mkdir(parents=True, exist_ok=True)
 
     failures: list[tuple[str, str]] = []
+    verdicts: dict[str, dict] = {}
     for example in examples:
         ok, detail = _check_one(example, workdir, subcommand)
         marker = "PASS" if ok else "FAIL"
         print(f"  {marker}  {example.stem}")
+        verdicts[example.stem] = {"ok": True} if ok else {"ok": False, "detail": detail}
         if not ok:
             failures.append((example.stem, detail))
 
     if workdir_ctx is not None:
         workdir_ctx.cleanup()
+
+    if args.json:
+        args.json.write_text(json.dumps({
+            "esphome": esphome_version(),
+            "date": datetime.now(timezone.utc).date().isoformat(),
+            "command": subcommand,
+            "examples": verdicts,
+        }, indent=1) + "\n")
 
     print()
     if failures:
