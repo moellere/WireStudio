@@ -30,8 +30,8 @@ In `--strict` mode the script compares today's uncovered set against
 The other frameworks are held to the same bar per component block.
 A component is covered on a framework when that framework's generator
 can use it: a `circuitpython:` / `micropython:` block, or membership in
-the tasmota / lorawan target's `component_ids` (Tasmota autodetects I2C
-parts, so they count without a block). Every gap needs an entry in
+the tasmota / wled / lorawan target's `component_ids` (Tasmota
+autodetects I2C parts, so they count without a block). Every gap needs an entry in
 `scripts/framework_baseline.yaml` whose reason starts with one of
 `no driver upstream`, `no meaning on this framework` or `deferred:`;
 `--strict` fails on an unexplained gap, a stale entry, or a reason
@@ -55,7 +55,7 @@ DEFAULT_OUTPUT = REPO_ROOT / "docs" / "library-coverage.md"
 DEFAULT_BASELINE = REPO_ROOT / "scripts" / "coverage_baseline.yaml"
 DEFAULT_FRAMEWORK_BASELINE = REPO_ROOT / "scripts" / "framework_baseline.yaml"
 
-FRAMEWORKS = ("circuitpython", "micropython", "tasmota", "lorawan")
+FRAMEWORKS = ("circuitpython", "micropython", "tasmota", "wled", "lorawan")
 REASON_PREFIXES = ("no driver upstream", "no meaning on this framework", "deferred:")
 
 
@@ -68,6 +68,7 @@ def _framework_coverage(library) -> dict[str, set[str]]:
         "circuitpython": {c.id for c in components if c.circuitpython is not None},
         "micropython": {c.id for c in components if c.micropython is not None},
         "tasmota": set(get_target("tasmota").component_ids(library)),
+        "wled": set(get_target("wled").component_ids(library)),
         "lorawan": set(get_target("lorawan").component_ids(library)),
     }
 
@@ -160,8 +161,8 @@ def _render(library, examples: dict[str, dict], framework_baseline: dict[str, di
     lines.append("")
     lines.append(
         "The framework columns say which generators can use the component: "
-        "a `circuitpython:` / `micropython:` block, or the tasmota / lorawan "
-        "target listing it (Tasmota autodetects I2C parts without a block)."
+        "a `circuitpython:` / `micropython:` block, or the tasmota / wled / "
+        "lorawan target listing it (Tasmota autodetects I2C parts without a block)."
     )
     lines.append("")
     lines.append("| | Library id | Category | Examples | " + " | ".join(FRAMEWORKS) + " |")

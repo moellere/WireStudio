@@ -113,6 +113,7 @@ Components each framework's generator can use today, out of 102
 | tasmota | 51 |
 | circuitpython | 38 |
 | micropython | 16 |
+| wled | 8 |
 | lorawan | 5 |
 
 100% is the wrong bar: a Tuya MCU bridge has no CircuitPython meaning.
@@ -133,6 +134,12 @@ remains is to work the baselines down:
   baseline will be long and honest.
 - **LoRaWAN** gains a block for every sensor the payload codec can
   carry (the phase A refactor makes this a library-file edit).
+- **WLED** has its runtime tier (LED outputs, buttons, IR, relay as
+  `cfg.json`); the compile-in tier is a `usermod` block kind that
+  emits a `platformio_override.ini` environment and builds through the
+  PlatformIO backend the lorawan target owns, with one usermod design
+  compiled in CI against a pinned release. The baseline names the
+  usermod each deferred sensor maps to.
 
 Boards: all 26 have an ESPHome example. The enclosure block is on 7.
 Section 4 covers the rest.

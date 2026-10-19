@@ -72,3 +72,11 @@ kicad:
   symbol: Conn_01x04
   footprint: Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical
   value: APA102
+
+wled:
+  kind: led
+  pins: [DI, CI]
+  type: 51
+  chipsets: {APA102: 51, SK9822: 51}
+  chipset_param: chipset
+  order_param: rgb_order

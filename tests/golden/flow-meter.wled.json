@@ -1,0 +1,25 @@
+{
+  "hw": {
+    "led": {
+      "total": 30,
+      "ins": [
+        {
+          "start": 0,
+          "len": 30,
+          "pin": [
+            23,
+            18
+          ],
+          "order": 4,
+          "rev": false,
+          "skip": 0,
+          "type": 51,
+          "ref": false
+        }
+      ]
+    },
+    "btn": {
+      "ins": []
+    }
+  }
+}

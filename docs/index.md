@@ -185,6 +185,16 @@ pins via Tasmota autodetection, and UART-attached parts (MH-Z19,
 PMS5003, LD2410, CSE7766) map their bus pins to the matching Tx/Rx
 functions. ESP8266 D-labels resolve to real GPIO numbers.
 
+**WLED target.** *Verified.* Emits the hardware section of WLED's
+`cfg.json` -- LED outputs, buttons, the IR receiver, the relay and the
+bus pins -- via `POST /wled/cfg`, the target seam and
+`python -m wirestudio.targets.wled`. That is WLED's runtime tier: a
+stock release image reads it at boot, so a design of those parts needs
+no build. Components opt in with a `wled:` block (`kind`, pin roles,
+bus type codes keyed by the chipset param); keys and codes come from
+`wled00/const.h` and `cfg.cpp`, and goldens pin three examples.
+Sensors are WLED usermods, a compile-in tier with no block yet.
+
 **Meshtastic flashing (0.23).** *Works.* The unified flash dialog
 fetches the official Meshtastic release factory image through the
 server proxy (`GET /meshtastic/firmware`, board-to-variant map for

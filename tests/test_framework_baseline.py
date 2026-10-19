@@ -26,7 +26,7 @@ def _strict(framework_baseline: Path) -> subprocess.CompletedProcess:
 
 def test_every_reason_is_one_of_the_three_kinds():
     raw = yaml.safe_load(BASELINE.read_text())
-    assert set(raw) == {"circuitpython", "micropython", "tasmota", "lorawan"}
+    assert set(raw) == {"circuitpython", "micropython", "tasmota", "wled", "lorawan"}
     for fw, entries in raw.items():
         for cid, reason in entries.items():
             assert reason.startswith(PREFIXES), (fw, cid, reason)

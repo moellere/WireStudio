@@ -169,6 +169,26 @@ class TasmotaSpec(_Strict):
     bus: dict[str, str] = Field(default_factory=dict)
 
 
+class WledSpec(_Strict):
+    """WLED `cfg.json` hardware mapping, the runtime tier a stock release
+    image reads at boot. `kind` is what the part is to WLED: an LED
+    output (`hw.led.ins`), a button, the IR receiver or the relay.
+    `pins` lists the pin roles in the order WLED reads them (data, then
+    clock for two-wire chips). For an LED output `type` is the WLED bus
+    type code, `chipsets` maps the component's chipset param values to
+    codes, and the `*_param` names say which params carry the chipset,
+    colour order and LED count. Sensors are usermods, a compile-in tier
+    with no block yet."""
+    kind: Literal["led", "button", "ir", "relay"]
+    pins: list[str]
+    type: int = 22
+    chipsets: dict[str, int] = Field(default_factory=dict)
+    chipset_param: Optional[str] = None
+    order_param: Optional[str] = None
+    length_param: str = "num_leds"
+    button: Literal["push", "push_act_high", "switch", "pir", "touch"] = "push"
+
+
 class CircuitPythonSpec(_Strict):
     """CircuitPython code.py generation. `setup` is a Jinja2 Python
     fragment run once at boot (context: id, label, params, pins as
@@ -264,6 +284,7 @@ class LibraryComponent(_Strict):
     subcircuit: Optional["Subcircuit"] = None
     verify: Optional[Verify] = None
     tasmota: Optional[TasmotaSpec] = None
+    wled: Optional[WledSpec] = None
     circuitpython: Optional[CircuitPythonSpec] = None
     micropython: Optional[MicroPythonSpec] = None
 
