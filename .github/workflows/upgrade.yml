@@ -1,0 +1,79 @@
+name: upgrade
+
+# The upgrade test. Installs the previous release from PyPI into its own
+# venv and has it write a data directory through its own REST API, in
+# both store layouts: every example it bundles saved as a design, a user
+# component authored through /library/components and a design that uses
+# it, inventory rows and an agent session. Then this checkout opens the
+# same directory and must list and load every design at the current
+# schema, render each one exactly as the original document renders,
+# and read back the user component, the inventory, the sessions and the
+# SQLite stores at their current schema versions.
+#
+# Runs on every PR that touches the package or this check, and on
+# dispatch with an explicit `from` release.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "wirestudio/**"
+      - "pyproject.toml"
+      - "scripts/check_upgrade.py"
+      - ".github/workflows/upgrade.yml"
+  workflow_dispatch:
+    inputs:
+      from:
+        description: "Release to upgrade from (default: the newest on PyPI)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: upgrade-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  upgrade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install the previous release
+        env:
+          FROM: ${{ inputs.from }}
+        run: |
+          if [ -z "$FROM" ]; then
+            FROM=$(python -c "import json, urllib.request; print(json.load(urllib.request.urlopen('https://pypi.org/pypi/wirestudio/json'))['info']['version'])")
+          fi
+          echo "Upgrading from wirestudio $FROM"
+          python -m venv "$RUNNER_TEMP/previous"
+          "$RUNNER_TEMP/previous/bin/pip" install --quiet "wirestudio==$FROM"
+
+      - name: Seed with the previous release
+        # Run as a file, the script does not see the checkout's package:
+        # it imports the previous release installed in that venv.
+        run: |
+          "$RUNNER_TEMP/previous/bin/python" scripts/check_upgrade.py seed "$RUNNER_TEMP/data"
+
+      - name: Install this checkout
+        run: pip install -e .
+
+      - name: Verify with this checkout
+        run: python scripts/check_upgrade.py verify "$RUNNER_TEMP/data"
+
+      - name: Upload the data directory
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: upgrade-data
+          path: ${{ runner.temp }}/data
+          if-no-files-found: ignore
