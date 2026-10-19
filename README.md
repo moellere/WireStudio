@@ -228,4 +228,7 @@ abstraction).
 
 ## License
 
-MIT. See [`LICENSE`](LICENSE).
+MIT. See [`LICENSE`](LICENSE). Third-party data in the tree, the
+libraries the generated firmware names, the web bundle's packages and
+what the images fetch are recorded with their licences in
+[`LICENSES.md`](LICENSES.md).

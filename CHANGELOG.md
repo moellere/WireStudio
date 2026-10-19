@@ -24,6 +24,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`LICENSES.md`.** Every third-party source in the tree or in what
+  the studio ships, with its licence: the data derived into the tree
+  (Tasmota function ids and chip slot order from `tasmota_template.h`,
+  WLED `cfg.json` keys and usermods from v0.15.2, the Meshtastic
+  variant map, CircuitPython and MicroPython board ids, the KiCad
+  symbol and footprint references at 8.0.0, ESPHome's configuration
+  shape), the libraries the generated firmware names and PlatformIO
+  fetches at build, the packages Vite compiles into the web bundle,
+  what the two Dockerfiles fetch, and what the firmware proxies relay
+  without storing. Two facts worth knowing from it: the Meshtastic
+  client libraries in the web bundle are GPL-3.0, and a WLED build
+  with the BME280 or DHT usermod links GPL-3.0 libraries. The README's
+  licence section points at the file.
 - **Agent eval harness.** `wirestudio/agent/eval_tasks.yaml` is a fixed
   list of twenty-eight natural-language asks against the bundled
   examples (add a sensor, move one to a new bus, resolve a pin
