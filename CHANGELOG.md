@@ -24,6 +24,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CircuitPython and MicroPython for the MH-Z19, CSE7766, RDM6300 and
+  LD2410.** Each decodes its UART frame in datasheet code, the same
+  decoder text on both frameworks: the MH-Z19 0x86 read with its
+  two's-complement checksum (and the 0x79 baseline-calibration command
+  from the `automatic_baseline_calibration` param), the CSE7766 24-byte
+  coefficient/cycle frame with its overflow and valid flags, the
+  RDM6300 ASCII-hex tag frame and its XOR check, and the LD2410 target
+  report. `tests/test_uart_frames.py` feeds each framework's decoder
+  the MH-Z19 datasheet reply and constructed frames, valid and broken.
+  Both generators now pass the bus `parity` to the UART (the CSE7766
+  runs 8E1). CircuitPython 60 to 64 of 102, MicroPython 58 to 62.
+
 - **MicroPython for every part with a driver.** 20 more library parts
   carry a `micropython:` block (38 to 58 of 102), the MicroPython side
   of the CircuitPython set: H-bridges (DRV8833 fast/slow decay truth
