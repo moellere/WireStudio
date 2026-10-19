@@ -55,6 +55,105 @@ capability:
     - {event: on_value, kind: value, channel: pressure}
     - {event: on_value_range, kind: event, channel: pressure}
 
+# Datasheet register code: calibration words at 0xAA-0xBF, temperature
+# (0x2E) and pressure (0x34 | oss << 6) conversions via 0xF4, results at
+# 0xF6, and the datasheet's integer compensation, whose divisions floor.
+circuitpython:
+  setup: |
+    {{ id }}_addr = 0x77
+    def {{ id }}_rd(reg, n):
+        buf = bytearray(n)
+        while not {{ bus_var }}.try_lock():
+            pass
+        try:
+            {{ bus_var }}.writeto_then_readfrom({{ id }}_addr, bytes([reg]), buf)
+        finally:
+            {{ bus_var }}.unlock()
+        return buf
+    def {{ id }}_wr(reg, value):
+        while not {{ bus_var }}.try_lock():
+            pass
+        try:
+            {{ bus_var }}.writeto({{ id }}_addr, bytes([reg, value]))
+        finally:
+            {{ bus_var }}.unlock()
+    def {{ id }}_compensate(cal, ut, up, oss):
+        ac1, ac2, ac3, ac4, ac5, ac6, b1, b2, mb, mc, md = cal
+        x1 = (ut - ac6) * ac5 >> 15
+        x2 = (mc << 11) // (x1 + md)
+        b5 = x1 + x2
+        t = (b5 + 8) >> 4
+        b6 = b5 - 4000
+        x1 = b2 * (b6 * b6 >> 12) >> 11
+        x2 = ac2 * b6 >> 11
+        b3 = (((ac1 * 4 + x1 + x2) << oss) + 2) >> 2
+        x1 = ac3 * b6 >> 13
+        x2 = b1 * (b6 * b6 >> 12) >> 16
+        x3 = (x1 + x2 + 2) >> 2
+        b4 = ac4 * (x3 + 32768) >> 15
+        b7 = (up - b3) * (50000 >> oss)
+        p = b7 * 2 // b4 if b7 < 0x80000000 else b7 // b4 * 2
+        x1 = (p >> 8) * (p >> 8) * 3038 >> 16
+        x2 = -7357 * p >> 16
+        return t / 10, p + ((x1 + x2 + 3791) >> 4)
+    {{ id }}_raw = {{ id }}_rd(0xAA, 22)
+    {{ id }}_cal = [{{ id }}_raw[k] << 8 | {{ id }}_raw[k + 1] for k in range(0, 22, 2)]
+    {{ id }}_cal = [v if i in (3, 4, 5) or v < 0x8000 else v - 0x10000 for i, v in enumerate({{ id }}_cal)]
+    def {{ id }}_measure():
+        {{ id }}_wr(0xF4, 0x2E)
+        time.sleep(5 / 1000)
+        b = {{ id }}_rd(0xF6, 2)
+        ut = b[0] << 8 | b[1]
+        {{ id }}_wr(0xF4, 0x34 | 3 << 6)
+        time.sleep(26 / 1000)
+        b = {{ id }}_rd(0xF6, 3)
+        return {{ id }}_compensate({{ id }}_cal, ut, (b[0] << 16 | b[1] << 8 | b[2]) >> 5, 3)
+  loop: |
+    {{ id }}_t, {{ id }}_p = {{ id }}_measure()
+    print("{{ label }}: %.1fC %.1fhPa" % ({{ id }}_t, {{ id }}_p / 100))
+
+micropython:
+  setup: |
+    {{ id }}_addr = 0x77
+    def {{ id }}_rd(reg, n):
+        return {{ bus_var }}.readfrom_mem({{ id }}_addr, reg, n)
+    def {{ id }}_wr(reg, value):
+        {{ bus_var }}.writeto_mem({{ id }}_addr, reg, bytes([value]))
+    def {{ id }}_compensate(cal, ut, up, oss):
+        ac1, ac2, ac3, ac4, ac5, ac6, b1, b2, mb, mc, md = cal
+        x1 = (ut - ac6) * ac5 >> 15
+        x2 = (mc << 11) // (x1 + md)
+        b5 = x1 + x2
+        t = (b5 + 8) >> 4
+        b6 = b5 - 4000
+        x1 = b2 * (b6 * b6 >> 12) >> 11
+        x2 = ac2 * b6 >> 11
+        b3 = (((ac1 * 4 + x1 + x2) << oss) + 2) >> 2
+        x1 = ac3 * b6 >> 13
+        x2 = b1 * (b6 * b6 >> 12) >> 16
+        x3 = (x1 + x2 + 2) >> 2
+        b4 = ac4 * (x3 + 32768) >> 15
+        b7 = (up - b3) * (50000 >> oss)
+        p = b7 * 2 // b4 if b7 < 0x80000000 else b7 // b4 * 2
+        x1 = (p >> 8) * (p >> 8) * 3038 >> 16
+        x2 = -7357 * p >> 16
+        return t / 10, p + ((x1 + x2 + 3791) >> 4)
+    {{ id }}_raw = {{ id }}_rd(0xAA, 22)
+    {{ id }}_cal = [{{ id }}_raw[k] << 8 | {{ id }}_raw[k + 1] for k in range(0, 22, 2)]
+    {{ id }}_cal = [v if i in (3, 4, 5) or v < 0x8000 else v - 0x10000 for i, v in enumerate({{ id }}_cal)]
+    def {{ id }}_measure():
+        {{ id }}_wr(0xF4, 0x2E)
+        time.sleep_ms(5)
+        b = {{ id }}_rd(0xF6, 2)
+        ut = b[0] << 8 | b[1]
+        {{ id }}_wr(0xF4, 0x34 | 3 << 6)
+        time.sleep_ms(26)
+        b = {{ id }}_rd(0xF6, 3)
+        return {{ id }}_compensate({{ id }}_cal, ut, (b[0] << 16 | b[1] << 8 | b[2]) >> 5, 3)
+  loop: |
+    {{ id }}_t, {{ id }}_p = {{ id }}_measure()
+    print("{{ label }}: %.1fC %.1fhPa" % ({{ id }}_t, {{ id }}_p / 100))
+
 params_schema:
   update_interval:
     type: string

@@ -41,7 +41,6 @@ circuitpython:
   # input
   wiegand: "deferred: needs an edge-timed fragment; the bundle has no Wiegand driver"
   # power
-  axp192: "deferred: needs an I2C register fragment; the bundle has no AXP192 driver"
   battery_adc: "deferred: needs an analogio fragment with the board's divider ratio"
   usb_c_power_in: "no meaning on this framework: passive hardware, no code on any framework"
   # radio
@@ -52,11 +51,8 @@ circuitpython:
   # sensor
   ads1115_channel: "no meaning on this framework: channels are read through the hub's fragment"
   bl0906: "deferred: needs a raw-UART fragment; the bundle has no BL0906 driver"
-  bmp180: "deferred: needs a fragment over a community BMP180 port; none in the bundle"
   ct_clamp: "deferred: needs an analogio RMS-sampling fragment"
-  hlw8012: "deferred: needs a countio pulse-rate fragment"
   mcp3008_channel: "no meaning on this framework: channels are read through the hub's fragment"
-  mpu6886: "deferred: needs an I2C register fragment; the bundle has no MPU6886 driver"
   pzemac: "no driver upstream: needs Modbus RTU, which the Adafruit bundle lacks"
   sdm_meter: "no driver upstream: needs Modbus RTU, which the Adafruit bundle lacks"
   tuya_sensor: "no driver upstream: rides the tuya bus, which has no CircuitPython implementation"
@@ -98,7 +94,6 @@ micropython:
   # io_expander
   mcp23s17: "deferred: no MicroPython driver found"
   # power
-  axp192: "deferred: needs an I2C register fragment; micropython-lib has no AXP192 driver"
   battery_adc: "deferred: needs a machine.ADC fragment with the board's divider ratio"
   usb_c_power_in: "no meaning on this framework: passive hardware, no code on any framework"
   # radio
@@ -109,11 +104,8 @@ micropython:
   # sensor
   ads1115_channel: "no meaning on this framework: channels are read through the hub's fragment"
   bl0906: "deferred: needs a machine.UART frame-parsing fragment"
-  bmp180: "deferred: needs a fragment over a community BMP180 driver via mip"
   ct_clamp: "deferred: needs a machine.ADC RMS-sampling fragment"
-  hlw8012: "deferred: needs a machine.Pin IRQ pulse-rate fragment"
   mcp3008_channel: "no meaning on this framework: channels are read through the hub's fragment"
-  mpu6886: "deferred: needs an I2C register fragment; micropython-lib has no MPU6886 driver"
   pzemac: "no driver upstream: needs Modbus RTU, which micropython-lib lacks"
   sdm_meter: "no driver upstream: needs Modbus RTU, which micropython-lib lacks"
   tuya_sensor: "no driver upstream: rides the tuya bus, which has no MicroPython implementation"

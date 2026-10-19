@@ -24,7 +24,13 @@ CASES = [(fw, c.id) for fw in GENERATORS for c in sorted(LIB.list_components(), 
 PARAMS = {"sx127x": {"frequency": 868000000}}
 # Values a stub cannot stand in for: a tuple `%` unpacks, a UART's bytes.
 _NO_BYTES = {"read": lambda *a: b""}
+# An I2C bus that locks and answers every read with nonzero bytes.
+_I2C = {"try_lock": lambda: True,
+        "writeto_then_readfrom": lambda addr, out, buf: buf.__setitem__(slice(None), bytes(range(1, len(buf) + 1)))}
 ATTRS = {
+    ("circuitpython", "bmp180"): _I2C,
+    ("circuitpython", "mpu6886"): _I2C,
+    ("circuitpython", "axp192"): _I2C,
     ("circuitpython", "sht4x"): {"measurements": (21.5, 40.0)},
     ("micropython", "sht4x"): {"measurements": (21.5, 40.0)},
     ("micropython", "sht3xd"): {"get_temp_humi": lambda: (21.5, 40.0)},
@@ -107,7 +113,8 @@ def _fake_time() -> types.ModuleType:
     mod.sleep_ms = mod.sleep_us = lambda t: None
 
     def sleep(seconds):
-        raise _Stop
+        if seconds == 5:  # the main loop's pause: one pass is done
+            raise _Stop
 
     mod.sleep = sleep
     return mod
