@@ -107,7 +107,7 @@ def test_design_code_emits_only_the_buses_mapped_parts_use():
     out = generate_code(panel, lib)
     assert any("pn532" in w for w in out["warnings"])  # no MicroPython mapping yet
     assert "SoftI2C(" not in out["code"]  # nothing mapped rides it
-    assert "from machine import PWM, Pin\n" in out["code"]
+    assert "from machine import PWM, Pin, disable_irq, enable_irq\n" in out["code"]
 
 
 def test_design_code_maps_builtin_drivers_and_deps():

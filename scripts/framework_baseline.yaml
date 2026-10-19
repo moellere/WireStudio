@@ -36,10 +36,8 @@ circuitpython:
   # display
   lcd_pcf8574: "deferred: the bundle's character LCD driver speaks the MCP23008 backpack, not the PCF8574 one"
   nextion: "deferred: needs a raw-UART command fragment; the bundle has no Nextion driver"
-  tm1637: "deferred: needs a bit-banged fragment; the bundle has no TM1637 driver"
-  tm1638: "deferred: needs a bit-banged fragment; the bundle has no TM1638 driver"
   # input
-  wiegand: "deferred: needs an edge-timed fragment; the bundle has no Wiegand driver"
+  wiegand: "no driver upstream: CircuitPython has no pin interrupts, and a Wiegand frame is the order of edges across D0 and D1"
   # power
   battery_adc: "deferred: needs an analogio fragment with the board's divider ratio"
   usb_c_power_in: "no meaning on this framework: passive hardware, no code on any framework"
@@ -51,7 +49,6 @@ circuitpython:
   # sensor
   ads1115_channel: "no meaning on this framework: channels are read through the hub's fragment"
   bl0906: "deferred: needs a raw-UART fragment; the bundle has no BL0906 driver"
-  ct_clamp: "deferred: needs an analogio RMS-sampling fragment"
   mcp3008_channel: "no meaning on this framework: channels are read through the hub's fragment"
   pzemac: "no driver upstream: needs Modbus RTU, which the Adafruit bundle lacks"
   sdm_meter: "no driver upstream: needs Modbus RTU, which the Adafruit bundle lacks"
@@ -86,11 +83,8 @@ micropython:
   # display
   lcd_pcf8574: "deferred: needs a fragment over a community HD44780-over-PCF8574 driver via mip"
   nextion: "deferred: needs a machine.UART frame-parsing fragment"
-  tm1637: "deferred: needs a fragment over a community TM1637 driver via mip"
-  tm1638: "deferred: needs a bit-banged fragment; micropython-lib has no TM1638 driver"
   # input
   pn532: "deferred: no MicroPython I2C driver; the maintained one speaks SPI"
-  wiegand: "deferred: needs a machine.Pin IRQ edge-timed fragment"
   # io_expander
   mcp23s17: "deferred: no MicroPython driver found"
   # power
@@ -104,7 +98,6 @@ micropython:
   # sensor
   ads1115_channel: "no meaning on this framework: channels are read through the hub's fragment"
   bl0906: "deferred: needs a machine.UART frame-parsing fragment"
-  ct_clamp: "deferred: needs a machine.ADC RMS-sampling fragment"
   mcp3008_channel: "no meaning on this framework: channels are read through the hub's fragment"
   pzemac: "no driver upstream: needs Modbus RTU, which micropython-lib lacks"
   sdm_meter: "no driver upstream: needs Modbus RTU, which micropython-lib lacks"

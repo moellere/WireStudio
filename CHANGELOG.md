@@ -24,6 +24,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CircuitPython and MicroPython for the TM1637, TM1638 and CT clamp;
+  MicroPython for Wiegand.** Datasheet code shared by both frameworks,
+  only the pin access differing: the TM1637's open-drain start/stop,
+  LSB-first bytes and ACK clock, and the TM1638's STB-framed commands
+  (both showing dashes at the `intensity` param), and the CT clamp's
+  RMS about the bias point over `sample_duration`, scaled by the
+  `calibration_point` as ESPHome's ct_clamp is. The Wiegand reader
+  orders falling edges across D0 and D1 from pin interrupts, ends a
+  frame on a 25 ms gap, and decodes 26/34/37-bit tags and 4/8-bit keys
+  with ESPHome's parity rules; CircuitPython has no pin interrupts, so
+  its baseline says so. `tests/test_pin_protocols.py` decodes the
+  recorded waveforms back into the datasheet's command bytes on both
+  frameworks. CircuitPython 68 to 71 of 102, MicroPython 66 to 70.
+
 - **CircuitPython and MicroPython for the BMP180, MPU6886, AXP192 and
   HLW8012.** Register and pulse-rate code shared by both frameworks,
   with only the bus access differing: the BMP180's calibration words
