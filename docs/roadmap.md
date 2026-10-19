@@ -222,9 +222,14 @@ Section 4 covers the rest.
   writes `docs/esphome-support.md`: the supported range in one line,
   a row per release, and a row per failing component. The committed
   table is held to the committed sweep results by a test.
-- **Store migrations.** The SQLite stores get a schema version and a
-  migrator of their own; the JSON file stores need none beyond the
-  design migrator. Documented backup and restore for both.
+- **Store migrations.** Done. Each SQLite store carries a schema
+  version (`PRAGMA user_version`) and a list of steps that
+  `wirestudio.sqlite_store` runs on open, one transaction per step,
+  under a write lock; a file from before versioning is adopted at
+  version 1 with its rows, a file from a newer release is refused. The
+  JSON stores need nothing beyond the design migrator. Backup and
+  restore for both layouts is in `docs/deployment.md`, with an online
+  backup command for the SQLite files.
 - **Upgrade test.** A CI job installs the previous release, seeds a
   design and a user component, upgrades to the candidate, and asserts
   both load and render identically.
