@@ -127,11 +127,20 @@ in the same diff. The bump PR's burden of proof is "the gate passes
 against the new version" — not "the new version is fashionable."
 
 The [`esphome-matrix`](.github/workflows/esphome-matrix.yml) workflow
-(scheduled + manual) runs the example gate across the pin plus the
-latest stables, so you can see a candidate version go green across the
-board *before* bumping. When it does, bump the pin (and add the new
-version to the matrix list); when it's red, the failing examples show
-what upstream changed.
+(scheduled + manual) runs the example gate across the pin, the stables
+since, and the floor the support table claims, and charges each failure
+to the library components ESPHome's error names. Its `table` job writes
+the merged result to the job summary and the `esphome-support`
+artifact. When a candidate release is clean across the board, bump the
+pin and add the release to the matrix list; when it is red, the table
+names the component.
+
+To refresh the committed table, download the sweep's
+`esphome-support-<version>` artifacts into `scripts/esphome_support/`
+(one JSON per release) and run `python scripts/esphome_support.py`,
+which rewrites `docs/esphome-support.md`; `tests/test_esphome_support.py`
+holds the table to those files. A release dropped from the matrix is
+dropped from that directory too.
 
 ### Refreshing the image constraints
 

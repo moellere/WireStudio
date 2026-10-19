@@ -215,10 +215,13 @@ Section 4 covers the rest.
   the packages in the web bundle, what the images fetch at build, and
   what the firmware proxies relay without storing, each with its
   licence.
-- **ESPHome support table.** Attribute `esphome-matrix` failures to
-  components so the README can say "supports ESPHome 2026.6 through
-  2026.10; `max98357a` needs 2026.6+". The matrix exists; the
-  attribution and the table do not.
+- **ESPHome support table.** Done. `esphome-matrix` sweeps the pin,
+  the stables since and the floor, `check_examples.py --json` records
+  each release's verdicts, and `scripts/esphome_support.py` charges
+  every failure to the library components ESPHome's error names and
+  writes `docs/esphome-support.md`: the supported range in one line,
+  a row per release, and a row per failing component. The committed
+  table is held to the committed sweep results by a test.
 - **Store migrations.** The SQLite stores get a schema version and a
   migrator of their own; the JSON file stores need none beyond the
   design migrator. Documented backup and restore for both.

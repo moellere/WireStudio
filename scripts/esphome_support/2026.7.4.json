@@ -1,0 +1,232 @@
+{
+ "esphome": "2026.7.4",
+ "date": "2026-10-19",
+ "command": "config",
+ "examples": {
+  "access-panel": {
+   "ok": true
+  },
+  "actuator-harness": {
+   "ok": true
+  },
+  "air-quality-station": {
+   "ok": true
+  },
+  "analog-node": {
+   "ok": true
+  },
+  "atom-echo": {
+   "ok": true
+  },
+  "atom-lite": {
+   "ok": true
+  },
+  "atom-matrix": {
+   "ok": true
+  },
+  "atoms3-lcd": {
+   "ok": true
+  },
+  "atoms3-lite": {
+   "ok": true
+  },
+  "atoms3-onboard": {
+   "ok": true
+  },
+  "atomu-onboard": {
+   "ok": true
+  },
+  "atomu": {
+   "ok": true
+  },
+  "attic-logger": {
+   "ok": true
+  },
+  "awning-control": {
+   "ok": true
+  },
+  "bench-io": {
+   "ok": true
+  },
+  "bl0906-mainmeter": {
+   "ok": true
+  },
+  "blind-stepper": {
+   "ok": true
+  },
+  "bluemotion": {
+   "ok": true
+  },
+  "bluesonoff": {
+   "ok": true
+  },
+  "button-toggles-light": {
+   "ok": true
+  },
+  "c3-supermini": {
+   "ok": true
+  },
+  "c6-supermini": {
+   "ok": true
+  },
+  "co2-display": {
+   "ok": true
+  },
+  "desk-climate": {
+   "ok": true
+  },
+  "desk-matrix": {
+   "ok": true
+  },
+  "distance-sensor": {
+   "ok": true
+  },
+  "encoder-drives-stepper": {
+   "ok": true
+  },
+  "energy-monitor": {
+   "ok": true
+  },
+  "esp32-audio": {
+   "ok": true
+  },
+  "esp32cam-wrover": {
+   "ok": true
+  },
+  "esp32cam": {
+   "ok": true
+  },
+  "flow-meter": {
+   "ok": true
+  },
+  "garage-motion": {
+   "ok": true
+  },
+  "grill-probe": {
+   "ok": true
+  },
+  "guarded-button-light": {
+   "ok": true
+  },
+  "heltec-v4-gnss-tracker": {
+   "ok": true
+  },
+  "keypad": {
+   "ok": true
+  },
+  "kitchen-scale": {
+   "ok": true
+  },
+  "led-display": {
+   "ok": true
+  },
+  "lorawan-battery-uplink": {
+   "ok": true
+  },
+  "motion-turns-on-light": {
+   "ok": true
+  },
+  "motor-position": {
+   "ok": true
+  },
+  "multi-temp": {
+   "ok": true
+  },
+  "nextion-thermostat": {
+   "ok": true
+  },
+  "oled-knob": {
+   "ok": true
+  },
+  "oled": {
+   "ok": true
+  },
+  "output-hub": {
+   "ok": true
+  },
+  "parking-distance": {
+   "ok": true
+  },
+  "presence-media-node": {
+   "ok": true
+  },
+  "presence-rf": {
+   "ok": true
+  },
+  "rc522": {
+   "ok": true
+  },
+  "room-climate": {
+   "ok": true
+  },
+  "rs485-energy": {
+   "ok": true
+  },
+  "s3-devkitc": {
+   "ok": true
+  },
+  "s3-supermini": {
+   "ok": true
+  },
+  "securitypanel": {
+   "ok": true
+  },
+  "smart-plug-v1": {
+   "ok": true
+  },
+  "smart-plug": {
+   "ok": true
+  },
+  "solder-fan": {
+   "ok": true
+  },
+  "spi-io-node": {
+   "ok": true
+  },
+  "subghz-rfid": {
+   "ok": true
+  },
+  "t-beam-lorawan": {
+   "ok": true
+  },
+  "t-beam": {
+   "ok": true
+  },
+  "temp-above-turns-on-fan": {
+   "ok": true
+  },
+  "temp-turns-on-fan": {
+   "ok": true
+  },
+  "tft-touch": {
+   "ok": true
+  },
+  "ttgo-lora32": {
+   "ok": true
+  },
+  "tuya-smart-plug": {
+   "ok": true
+  },
+  "usbc-led-strip": {
+   "ok": true
+  },
+  "vent-damper": {
+   "ok": true
+  },
+  "wasserpir": {
+   "ok": true
+  },
+  "weather-station": {
+   "ok": true
+  },
+  "wemosgps": {
+   "ok": true
+  },
+  "wled-sensor-strip": {
+   "ok": true
+  },
+  "xiao-grove-climate": {
+   "ok": true
+  }
+ }
+}
