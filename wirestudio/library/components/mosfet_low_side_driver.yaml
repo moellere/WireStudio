@@ -67,6 +67,18 @@ circuitpython:
     {{ id }}.switch_to_output(value={{ (params.restore_mode | default('ALWAYS_OFF')) in ['ALWAYS_ON', 'RESTORE_DEFAULT_ON'] }})
     {%- endif %}
 
+micropython:
+  imports: ["from machine import PWM"]
+  setup: |
+    {%- if params.pwm | default(false) %}
+    {%- set f = (params.frequency | default('1000 Hz')) | string | lower | replace(' ', '') %}
+    {%- set hz = ((f[:-3] | float) * 1000) if f.endswith('khz') else (f | replace('hz', '') | float) %}
+    {{ id }} = PWM(Pin({{ pins.IN }}), freq={{ hz | int }})
+    {{ id }}.duty_u16(0)
+    {%- else %}
+    {{ id }} = Pin({{ pins.IN }}, Pin.OUT, value={{ ((params.restore_mode | default('ALWAYS_OFF')) in ['ALWAYS_ON', 'RESTORE_DEFAULT_ON']) | int }})
+    {%- endif %}
+
 params_schema:
   load_ma:
     type: number

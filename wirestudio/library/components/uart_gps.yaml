@@ -162,6 +162,39 @@ circuitpython:
     else:
         print("{{ label }}: no fix")
 
+# NMEA 0183: a sentence is $...*hh, hh the XOR of the bytes between; RMC
+# carries a status (A = valid) and positions as (d)ddmm.mmmm.
+micropython:
+  setup: |
+    def {{ id }}_fix():
+        {{ bus_var }}.read()
+        buf = b""
+        until = time.ticks_add(time.ticks_ms(), 1500)
+        while time.ticks_diff(until, time.ticks_ms()) > 0:
+            buf += {{ bus_var }}.read() or b""
+            time.sleep_ms(50)
+        fix = None
+        for raw in buf.split(b"\n"):
+            try:
+                line = raw.decode().strip()
+                body, check = line[1:].split("*", 1)
+            except (UnicodeError, ValueError):
+                continue
+            x = 0
+            for c in body:
+                x ^= ord(c)
+            f = body.split(",")
+            if not line.startswith("$") or check[:2].upper() != "%02X" % x \
+                    or len(f) < 7 or f[0][2:] != "RMC" or f[2] != "A":
+                continue
+            lat = int(f[3][:2]) + float(f[3][2:]) / 60
+            lon = int(f[5][:3]) + float(f[5][3:]) / 60
+            fix = (-lat if f[4] == "S" else lat, -lon if f[6] == "W" else lon)
+        return fix
+  loop: |
+    {{ id }}_pos = {{ id }}_fix()
+    print("{{ label }}: %s" % ("%.6f %.6f" % {{ id }}_pos if {{ id }}_pos else "no fix"))
+
 params_schema:
   sensors:
     type: object

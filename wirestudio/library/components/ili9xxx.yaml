@@ -63,6 +63,22 @@ circuitpython:
     {{ id }}.root_group = displayio.Group()
     {{ id }}.root_group.append(display_label.Label(terminalio.FONT, text="{{ label }}", x=8, y=8))
 
+micropython:
+  imports: ["import ili9341"]
+  deps: ["github:rdagger/micropython-ili9341/ili9341.py"]
+  setup: |
+    {%- if (params.model | default('ILI9341')) not in ['ILI9341', 'TFT_2_4', 'TFT_2_4R'] %}
+    {{ unsupported("the ili9341 driver drives the ILI9341 only, not the " ~ params.model) }}
+    {%- endif %}
+    {%- if pins.RESET is not defined %}
+    {{ unsupported("the ili9341 driver needs the RESET pin wired") }}
+    {%- endif %}
+    {%- if pins.BACKLIGHT is defined %}
+    {{ id }}_backlight = Pin({{ pins.BACKLIGHT }}, Pin.OUT, value=1)
+    {%- endif %}
+    {{ id }} = ili9341.Display({{ bus_var }}, Pin({{ pins.CS }}), Pin({{ pins.DC }}), Pin({{ pins.RESET }}), rotation={{ params.rotation | default(0) }}{% if params.color_order is defined %}, bgr={{ params.color_order == 'bgr' }}{% endif %})
+    {{ id }}.draw_text8x8(8, 8, "{{ label }}", ili9341.color565(255, 255, 255))
+
 params_schema:
   model:
     type: string

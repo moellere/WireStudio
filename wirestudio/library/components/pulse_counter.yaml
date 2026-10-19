@@ -68,6 +68,21 @@ circuitpython:
     {{ id }}.reset()
     {{ id }}_t0 = {{ id }}_now
 
+micropython:
+  setup: |
+    {{ id }}_count = 0
+    def {{ id }}_edge(pin):
+        global {{ id }}_count
+        {{ id }}_count += 1
+    {{ id }} = Pin({{ pins.PULSE }}, Pin.IN{{ {'INPUT_PULLUP': ', Pin.PULL_UP', 'INPUT_PULLDOWN': ', Pin.PULL_DOWN'}.get(params.input_mode | default('INPUT_PULLUP'), '') }})
+    {{ id }}.irq(trigger=Pin.IRQ_RISING, handler={{ id }}_edge)
+    {{ id }}_t0 = time.ticks_ms()
+  loop: |
+    {{ id }}_now = time.ticks_ms()
+    print("{{ label }}: %.1f pulses/min" % ({{ id }}_count * 60000 / time.ticks_diff({{ id }}_now, {{ id }}_t0)))
+    {{ id }}_count = 0
+    {{ id }}_t0 = {{ id }}_now
+
 params_schema:
   input_mode:
     type: string

@@ -76,6 +76,28 @@ circuitpython:
     {{ id }}.decay_mode = motor.{{ 'FAST_DECAY' if (params.decay_mode | default('slow')) == 'fast' else 'SLOW_DECAY' }}
     {{ id }}.throttle = 0
 
+# DRV8833-style truth table: fast decay drives one input with the duty and
+# holds the other low; slow decay holds the driving input high and gives
+# the other the inverted duty. Throttle 0 is coast (fast) or brake (slow).
+micropython:
+  imports: ["from machine import PWM"]
+  setup: |
+    {%- set f = (params.frequency | default('1000 Hz')) | string | lower | replace(' ', '') %}
+    {%- set hz = ((f[:-3] | float) * 1000) if f.endswith('khz') else (f | replace('hz', '') | float) %}
+    {{ id }}_in1 = PWM(Pin({{ pins.IN1 }}), freq={{ hz | int }})
+    {{ id }}_in2 = PWM(Pin({{ pins.IN2 }}), freq={{ hz | int }})
+    def {{ id }}_throttle(speed):
+        duty = int(min(abs(speed), 1.0) * 65535)
+        drive, idle = ({{ id }}_in1, {{ id }}_in2) if speed >= 0 else ({{ id }}_in2, {{ id }}_in1)
+    {%- if (params.decay_mode | default('slow')) == 'fast' %}
+        drive.duty_u16(duty)
+        idle.duty_u16(0)
+    {%- else %}
+        drive.duty_u16(65535)
+        idle.duty_u16(65535 - duty)
+    {%- endif %}
+    {{ id }}_throttle(0)
+
 params_schema:
   expose:
     type: string

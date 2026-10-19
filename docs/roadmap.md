@@ -112,7 +112,7 @@ Components each framework's generator can use today, out of 102
 | esphome | 102 |
 | tasmota | 51 |
 | circuitpython | 60 |
-| micropython | 38 |
+| micropython | 58 |
 | wled | 13 |
 | lorawan | 5 |
 
@@ -126,18 +126,19 @@ with no entry, a stale entry, or a reason outside those three.
 `library-coverage.md` lists every gap under "Framework gaps". What
 remains is to work the baselines down:
 
-- **CircuitPython and MicroPython** share the same fragment shape.
-  MicroPython has the CircuitPython set except the PN532 (the
-  maintained MicroPython driver speaks SPI, the library part I2C) and
-  the MCP23S17 (no driver found); parts with no permissively licensed
-  driver are datasheet register code, run against a fake bus in
-  `tests/test_micropython_registers.py`. CircuitPython now covers every
-  part with an Adafruit bundle driver or a core module (motors,
-  steppers, displays, IR, LoRa, ADCs, load cells, PM and GPS over
-  UART, counters and plain outputs); `tests/test_circuitpython_blocks.py`
-  runs each block's `code.py` for a loop pass against stub modules.
-  Next is MicroPython for the same set, then the raw-UART and
-  register-level parts on both.
+- **CircuitPython and MicroPython** share the same fragment shape, and
+  both now cover every part with a driver: the Adafruit bundle or a
+  core module on CircuitPython, a `mip` driver or `machine` on
+  MicroPython (motors, steppers, displays, IR, LoRa, ADCs, load cells,
+  PM and GPS over UART, counters, plain outputs). MicroPython lacks
+  the PN532 (the maintained driver speaks SPI, the library part I2C)
+  and the MCP23S17 (no driver found). Parts with no permissively
+  licensed driver are datasheet code, run against a fake bus in
+  `tests/test_micropython_registers.py`; `tests/test_python_blocks.py`
+  runs every block of both frameworks for a loop pass against stub
+  modules. What remains is the raw-UART and register-level parts
+  (LD2410/LD2420, MH-Z19, CSE7766, BL0906, HLW8012, AXP192, MPU6886)
+  and the audio, camera and touch parts.
 - **Tasmota** covers what Tasmota's template format can express; the
   baseline will be long and honest.
 - **LoRaWAN** gains a block for every sensor the payload codec can

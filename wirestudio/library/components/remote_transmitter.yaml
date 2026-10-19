@@ -28,6 +28,16 @@ circuitpython:
     {{ id }} = adafruit_irremote.GenericTransmit(header=[9000, 4500], one=[560, 1690], zero=[560, 560], trail=560)
     # NEC: {{ id }}.transmit({{ id }}_out, [address, ~address & 0xFF, command, ~command & 0xFF])
 
+micropython:
+  imports: ["from ir_tx.nec import NEC"]
+  deps: ["github:peterhinch/micropython_ir/ir_tx"]
+  setup: |
+    {%- if board.chip_variant == 'esp8266' %}
+    {{ unsupported("ir_tx needs the ESP32 RMT peripheral, which the ESP8266 lacks") }}
+    {%- endif %}
+    {{ id }} = NEC(Pin({{ pins.IR }}, Pin.OUT, value=0))
+    # {{ id }}.transmit(address, command) sends one NEC frame
+
 params_schema:
   carrier_duty_percent:
     type: string

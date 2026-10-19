@@ -55,6 +55,25 @@ circuitpython:
         number_of_shift_registers={{ params.sr_count | default(1) }},
     )
 
+# Datasheet register code: shift MSB first on CLOCK rising edges, then a
+# LATCH rising edge moves the shift register to the outputs.
+micropython:
+  setup: |
+    {%- if pins.OE is defined %}
+    {{ id }}_oe = Pin({{ pins.OE }}, Pin.OUT, value=0)
+    {%- endif %}
+    {{ id }}_data = Pin({{ pins.DATA }}, Pin.OUT, value=0)
+    {{ id }}_clock = Pin({{ pins.CLOCK }}, Pin.OUT, value=0)
+    {{ id }}_latch = Pin({{ pins.LATCH }}, Pin.OUT, value=0)
+    def {{ id }}_write(value):
+        for bit in range({{ 8 * (params.sr_count | default(1)) - 1 }}, -1, -1):
+            {{ id }}_data((value >> bit) & 1)
+            {{ id }}_clock(1)
+            {{ id }}_clock(0)
+        {{ id }}_latch(1)
+        {{ id }}_latch(0)
+    {{ id }}_write(0)
+
 params_schema:
   sr_count:
     type: integer

@@ -24,6 +24,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **MicroPython for every part with a driver.** 20 more library parts
+  carry a `micropython:` block (38 to 58 of 102), the MicroPython side
+  of the CircuitPython set: H-bridges (DRV8833 fast/slow decay truth
+  table over two PWMs), the ULN2003 stepper (wave, full and half step),
+  RTTTL (`upy-rtttl`), MAX7219, ILI9341 (`micropython-ili9341`),
+  ST7789 (`st7789py`, its four panel sizes), IR receive and transmit
+  (`micropython_ir`; transmit needs the ESP32 RMT, so ESP8266 refuses
+  it), SX127x LoRa (micropython-lib `lora-sx127x`), ADS1115 and HX711
+  (robert-hh drivers), pulse counters (pin IRQ), voltage dividers
+  (`ADC.read_uv`) and the LED and low-side switch parts. The 74HC595,
+  PMSx003 frames and UART GPS (checksummed NMEA RMC) are datasheet
+  code, tested against a fake `machine`. The MicroPython generator
+  gains what the CircuitPython one did: `unsupported(reason)`, buses
+  only for parts that rendered, a shared `onewire.OneWire` per 1-Wire
+  bus with DS18B20 ROM selection by `address`, and `board` in the
+  fragment context. `tests/test_python_blocks.py` runs every block of
+  both frameworks for one loop pass.
+
 - **CircuitPython for every part with a bundle driver or a core
   module.** 22 more library parts carry a `circuitpython:` block (38 to
   60 of 102): H-bridges (`adafruit_motor` DC motor), the ULN2003
@@ -36,7 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `unsupported(reason)` for a variant it has no driver for (the
   ILI9481/9486/9488 and ST7796 models, a non-LoRa SX127x), and the
   generator skips that part with the reason and leaves its bus out.
-  `tests/test_circuitpython_blocks.py` runs every block's generated
+  `tests/test_python_blocks.py` runs every block's generated
   `code.py` for one loop pass against stub modules.
 
 - **MicroPython at the CircuitPython component set.** 22 more library

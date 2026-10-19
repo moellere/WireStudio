@@ -49,6 +49,22 @@ circuitpython:
     def {{ id }}_play(song):
         adafruit_rtttl.play(P({{ pins.OUT }}), song)
 
+micropython:
+  imports: ["from machine import PWM", "from rtttl import RTTTL"]
+  deps: ["github:dhylands/upy-rtttl/rtttl.py"]
+  setup: |
+    def {{ id }}_play(song):
+        pwm = PWM(Pin({{ pins.OUT }}), freq=440)
+        pwm.duty_u16(0)
+        for freq, msec in RTTTL(song).notes():
+            if freq:
+                pwm.freq(int(freq))
+                pwm.duty_u16(32768)
+            else:
+                pwm.duty_u16(0)
+            time.sleep_ms(int(msec))
+        pwm.deinit()
+
 params_schema:
   output_platform:
     type: string
