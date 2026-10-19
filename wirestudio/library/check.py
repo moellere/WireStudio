@@ -40,7 +40,7 @@ _BUS_PINS = {
     "i2c": {"sda": "GPIO21", "scl": "GPIO22", "frequency_hz": 100000},
     "spi": {"clk": "GPIO18", "mosi": "GPIO23", "miso": "GPIO19"},
     "uart": {"tx": "GPIO17", "rx": "GPIO16", "baud_rate": 9600},
-    "1wire": {},
+    "1wire": {"pin": "GPIO4"},
     "i2s": {},
 }
 _CHECK_BOARD = "esp32-devkitc-v4"

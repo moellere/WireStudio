@@ -55,6 +55,18 @@ capability:
     - {predicate: is_on,  esphome: switch.is_on}
     - {predicate: is_off, esphome: switch.is_off}
 
+circuitpython:
+  imports: ["import digitalio", "import pwmio"]
+  setup: |
+    {%- if params.pwm | default(false) %}
+    {%- set f = (params.frequency | default('1000 Hz')) | string | lower | replace(' ', '') %}
+    {%- set hz = ((f[:-3] | float) * 1000) if f.endswith('khz') else (f | replace('hz', '') | float) %}
+    {{ id }} = pwmio.PWMOut(P({{ pins.IN }}), frequency={{ hz | int }}, duty_cycle=0)
+    {%- else %}
+    {{ id }} = digitalio.DigitalInOut(P({{ pins.IN }}))
+    {{ id }}.switch_to_output(value={{ (params.restore_mode | default('ALWAYS_OFF')) in ['ALWAYS_ON', 'RESTORE_DEFAULT_ON'] }})
+    {%- endif %}
+
 params_schema:
   load_ma:
     type: number

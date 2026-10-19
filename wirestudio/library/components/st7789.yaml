@@ -54,6 +54,23 @@ esphome:
         lambda: {{ params.lambda_ | tojson }}
     {%- endif %}
 
+# Panel geometry per module from Adafruit's ST7789 examples.
+circuitpython:
+  imports: ["import displayio", "import fourwire", "import terminalio", "import adafruit_st7789", "from adafruit_display_text import label as display_label"]
+  deps: [adafruit_st7789, adafruit_display_text]
+  setup: |
+    {%- set geometry = {
+        'TTGO_TDISPLAY_135X240': 'width=240, height=135, rowstart=40, colstart=53, rotation=270',
+        'ADAFRUIT_S2_TFT_FEATHER_135X240': 'width=240, height=135, rowstart=40, colstart=53, rotation=270',
+        'ADAFRUIT_FUNHOUSE_240X240': 'width=240, height=240, rowstart=80, rotation=180',
+        'ADAFRUIT_RR_280X240': 'width=280, height=240, rowstart=20, rotation=90',
+    } %}
+    {%- set model = params.model | default('Custom') %}
+    {{ id }}_bus = fourwire.FourWire({{ bus_var }}, command=P({{ pins.DC }}), chip_select=P({{ pins.CS }}){% if pins.RESET is defined %}, reset=P({{ pins.RESET }}){% endif %})
+    {{ id }} = adafruit_st7789.ST7789({{ id }}_bus, {{ geometry[model] if model in geometry else 'width=%d, height=%d, rotation=%d' % (params.width | default(240), params.height | default(320), params.rotation | default(0)) }}{% if pins.BACKLIGHT is defined %}, backlight_pin=P({{ pins.BACKLIGHT }}){% endif %})
+    {{ id }}.root_group = displayio.Group()
+    {{ id }}.root_group.append(display_label.Label(terminalio.FONT, text="{{ label }}", x=8, y=8))
+
 params_schema:
   model:
     type: string

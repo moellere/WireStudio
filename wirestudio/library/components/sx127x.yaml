@@ -67,6 +67,36 @@ esphome:
       on_packet: {{ params.on_packet | tojson }}
     {%- endif %}
 
+circuitpython:
+  imports: ["import adafruit_rfm9x", "import digitalio"]
+  deps: [adafruit_rfm9x, adafruit_bus_device]
+  setup: |
+    {%- if (params.modulation | default('LORA')) != 'LORA' %}
+    {{ unsupported("adafruit_rfm9x speaks LoRa only, not " ~ params.modulation) }}
+    {%- endif %}
+    {%- if params.frequency is not defined %}
+    {{ unsupported("set the sx127x frequency param") }}
+    {%- endif %}
+    {{ id }} = adafruit_rfm9x.RFM9x(
+        {{ bus_var }},
+        digitalio.DigitalInOut(P({{ pins.CS }})),
+        digitalio.DigitalInOut(P({{ pins.RST }})),
+        {{ params.frequency / 1000000 }},
+        preamble_length={{ params.preamble_size | default(8) }},
+        high_power={{ (params.pa_pin | default('BOOST')) == 'BOOST' }},
+        crc={{ params.crc_enable | default(true) }},
+    )
+    {{ id }}.spreading_factor = {{ params.spreading_factor | default(7) }}
+    {{ id }}.signal_bandwidth = {{ ((params.bandwidth | default('125_0kHz')) | replace('kHz', '') | replace('_', '.') | float * 1000) | int }}
+    {{ id }}.coding_rate = {{ (params.coding_rate | default('CR_4_5'))[-1] }}
+    {{ id }}.tx_power = {{ params.pa_power | default(17) }}
+  loop: |
+    {%- if params.rx_start | default(true) %}
+    {{ id }}_packet = {{ id }}.receive(timeout=0.5, with_header=True)
+    if {{ id }}_packet is not None:
+        print("{{ label }}: %s rssi %d" % ({{ id }}_packet.hex(), {{ id }}.last_rssi))
+    {%- endif %}
+
 params_schema:
   frequency: {type: integer, description: "Carrier frequency in Hz, e.g. 915000000 (US) or 868000000 (EU)"}
   modulation: {type: string, enum: [LORA, FSK, OOK], default: LORA}

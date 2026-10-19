@@ -39,6 +39,21 @@ esphome:
         lambda: {{ params.lambda_ | tojson }}
     {%- endif %}
 
+circuitpython:
+  imports: ["import digitalio", "from adafruit_max7219 import matrices"]
+  deps: [adafruit_max7219, adafruit_framebuf, adafruit_bus_device]
+  setup: |
+    {%- set n = params.num_chips | default(1) %}
+    {{ id }}_cs = digitalio.DigitalInOut(P({{ pins.CS }}))
+    {%- if n == 1 %}
+    {{ id }} = matrices.Matrix8x8({{ bus_var }}, {{ id }}_cs)
+    {%- else %}
+    {{ id }} = matrices.CustomMatrix({{ bus_var }}, {{ id }}_cs, {{ 8 * n }}, 8)
+    {%- endif %}
+    {{ id }}.brightness({{ params.intensity | default(8) }})
+    {{ id }}.fill(0)
+    {{ id }}.show()
+
 params_schema:
   num_chips:
     type: integer

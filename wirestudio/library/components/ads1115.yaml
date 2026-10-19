@@ -32,6 +32,14 @@ esphome:
         continuous_mode: {{ params.continuous_mode | tojson }}
     {%- endif %}
 
+circuitpython:
+  imports: ["from adafruit_ads1x15.ads1115 import ADS1115", "from adafruit_ads1x15.analog_in import AnalogIn"]
+  deps: [adafruit_ads1x15, adafruit_bus_device]
+  setup: |
+    {{ id }} = ADS1115({{ bus_var }}, address={{ params.address | default('0x48') }})
+    def {{ id }}_read(positive, negative=None):
+        return AnalogIn({{ id }}, positive, negative).voltage
+
 params_schema:
   address:
     type: string

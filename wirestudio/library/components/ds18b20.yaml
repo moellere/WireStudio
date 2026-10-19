@@ -47,8 +47,18 @@ circuitpython:
   imports: ["from adafruit_onewire.bus import OneWireBus", "from adafruit_ds18x20 import DS18X20"]
   deps: [adafruit_onewire, adafruit_ds18x20]
   setup: |
-    {{ id }}_ow = OneWireBus(P({{ pins.DATA }}))
-    {{ id }} = DS18X20({{ id }}_ow, {{ id }}_ow.scan()[0])
+    {%- if not bus_var and pins.DATA is not defined %}
+    {{ unsupported("its 1-wire bus has no usable GPIO") }}
+    {%- endif %}
+    {%- set ow = bus_var if bus_var else id ~ '_ow' %}
+    {%- if not bus_var %}
+    {{ ow }} = OneWireBus(P({{ pins.DATA }}))
+    {%- endif %}
+    {%- if params.address is defined %}
+    {{ id }} = DS18X20({{ ow }}, next(d for d in {{ ow }}.scan() if d.rom == ({{ params.address }}).to_bytes(8, "little")))
+    {%- else %}
+    {{ id }} = DS18X20({{ ow }}, {{ ow }}.scan()[0])
+    {%- endif %}
   loop: |
     print("{{ label }}: %.1fC" % {{ id }}.temperature)
 

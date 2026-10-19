@@ -24,6 +24,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CircuitPython for every part with a bundle driver or a core
+  module.** 22 more library parts carry a `circuitpython:` block (38 to
+  60 of 102): H-bridges (`adafruit_motor` DC motor), the ULN2003
+  stepper, RTTTL, MAX7219 matrices, SSD1306/SH1106, ILI9341 and ST7789
+  displays (displayio, with the label on screen), IR receive and
+  transmit (`adafruit_irremote`), the 74HC595, SX127x LoRa
+  (`adafruit_rfm9x`), ADS1115, HX711, PMSx003, UART GPS, pulse
+  counters and PWM fans (`countio`), voltage dividers (`analogio`) and
+  the LED and low-side switch parts. A fragment can call
+  `unsupported(reason)` for a variant it has no driver for (the
+  ILI9481/9486/9488 and ST7796 models, a non-LoRa SX127x), and the
+  generator skips that part with the reason and leaves its bus out.
+  `tests/test_circuitpython_blocks.py` runs every block's generated
+  `code.py` for one loop pass against stub modules.
+
 - **MicroPython at the CircuitPython component set.** 22 more library
   parts carry a `micropython:` block (16 to 38 of 102): AHT10/AHT20,
   BH1750, BME680, BMP280, HTU21D, INA219, MAX31855, MCP23008, MCP23017,
@@ -271,6 +286,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   component instead of setting the block (roadmap 0.41).
 
 ### Fixed
+
+- **DS18B20 on a 1-Wire bus in CircuitPython.** The block read a DATA
+  pin that a bus-wired sensor does not have, so every example with a
+  1-Wire bus skipped it. The generator now emits one `OneWireBus` per
+  1-Wire bus, sensors on it share it, and a sensor with an `address`
+  param picks that ROM instead of the first one found. The synthetic
+  design the component gate renders gives its 1-Wire bus a pin.
 
 - **The `-pcb` and `-full` images had no user component library.**
   `Dockerfile.pcb` never set `LIBRARY_USER_DIR` or created

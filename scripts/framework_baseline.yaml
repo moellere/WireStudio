@@ -12,13 +12,8 @@
 # these under "Framework gaps".
 
 circuitpython:
-  # actuator
-  hbridge: "deferred: needs an adafruit_motor DCMotor fragment over two pwmio outputs"
-  hbridge_mosfet: "deferred: needs the same adafruit_motor DCMotor fragment as hbridge"
-  uln2003: "deferred: needs an adafruit_motor stepper fragment"
   # audio
   i2s_microphone: "deferred: needs an audiobusio.PDMIn fragment"
-  rtttl: "deferred: needs a pwmio tone fragment; the bundle has no RTTTL player"
   # audio_dac
   max98357a: "deferred: needs an audiobusio.I2SOut fragment"
   # binary_sensor
@@ -40,25 +35,12 @@ circuitpython:
   connector_1x08: "no meaning on this framework: passive hardware, no code on any framework"
   connector_2x05_idc: "no meaning on this framework: passive hardware, no code on any framework"
   # display
-  ili9xxx: "deferred: needs a displayio fragment over adafruit_ili9341"
-  lcd_pcf8574: "deferred: needs an adafruit_character_lcd fragment over the PCF8574 backpack"
-  max7219: "deferred: needs an adafruit_max7219 fragment"
+  lcd_pcf8574: "deferred: the bundle's character LCD driver speaks the MCP23008 backpack, not the PCF8574 one"
   nextion: "deferred: needs a raw-UART command fragment; the bundle has no Nextion driver"
-  ssd1306: "deferred: needs a displayio_ssd1306 fragment; the micropython block is the model"
-  st7789: "deferred: needs a displayio fragment over adafruit_st7789"
   tm1637: "deferred: needs a bit-banged fragment; the bundle has no TM1637 driver"
   tm1638: "deferred: needs a bit-banged fragment; the bundle has no TM1638 driver"
-  # fan
-  pwm_fan: "deferred: needs a pwmio plus countio fragment; the micropython block is the model"
   # input
-  remote_receiver: "deferred: needs a pulseio fragment over adafruit_irremote"
   wiegand: "deferred: needs an edge-timed fragment; the bundle has no Wiegand driver"
-  # io_expander
-  sn74hc595: "deferred: needs an adafruit_74hc595 fragment"
-  # light
-  led_indicator: "deferred: needs a digitalio fragment"
-  # output
-  remote_transmitter: "deferred: needs a pulseio fragment over adafruit_irremote"
   # power
   axp192: "deferred: needs an I2C register fragment; the bundle has no AXP192 driver"
   battery_adc: "deferred: needs an analogio fragment with the board's divider ratio"
@@ -66,32 +48,23 @@ circuitpython:
   # radio
   cc1101: "no driver upstream: the Adafruit bundle has no CC1101 library"
   rf_bridge: "deferred: needs a raw-UART fragment for the EFM8 protocol"
-  sx127x: "deferred: needs an adafruit_rfm9x fragment"
   # rfid_reader
   rc522: "deferred: needs a fragment over a community MFRC522 port; none in the bundle"
   rdm6300: "deferred: needs a raw-UART frame fragment"
   # sensor
-  ads1115: "deferred: needs an adafruit_ads1x15 fragment"
   ads1115_channel: "no meaning on this framework: channels are read through the hub's fragment"
   bl0906: "deferred: needs a raw-UART fragment; the bundle has no BL0906 driver"
   bmp180: "deferred: needs a fragment over a community BMP180 port; none in the bundle"
   cse7766: "deferred: needs a raw-UART frame fragment"
   ct_clamp: "deferred: needs an analogio RMS-sampling fragment"
   hlw8012: "deferred: needs a countio pulse-rate fragment"
-  hx711: "deferred: needs a bit-banged fragment; the bundle has no HX711 driver"
   mcp3008_channel: "no meaning on this framework: channels are read through the hub's fragment"
   mhz19: "deferred: needs a raw-UART command fragment"
   mpu6886: "deferred: needs an I2C register fragment; the bundle has no MPU6886 driver"
-  pmsx003: "deferred: needs an adafruit_pm25 fragment"
-  pulse_counter: "deferred: needs a countio fragment"
   pzemac: "no driver upstream: needs Modbus RTU, which the Adafruit bundle lacks"
   sdm_meter: "no driver upstream: needs Modbus RTU, which the Adafruit bundle lacks"
   tuya_sensor: "no driver upstream: rides the tuya bus, which has no CircuitPython implementation"
-  uart_gps: "deferred: needs an adafruit_gps fragment"
-  voltage_divider: "deferred: needs an analogio fragment with the divider ratio"
   # switch
-  mosfet_low_side_driver: "deferred: needs a digitalio fragment"
-  npn_low_side_driver: "deferred: needs a digitalio fragment"
   tuya_switch: "no driver upstream: rides the tuya bus, which has no CircuitPython implementation"
   # touchscreen
   xpt2046: "deferred: needs a fragment over a community XPT2046 port; none in the bundle"

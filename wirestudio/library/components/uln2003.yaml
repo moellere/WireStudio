@@ -53,6 +53,20 @@ capability:
   accepts:
     - {action: set_target, esphome: stepper.set_target}
 
+# adafruit_motor energises coil[1], [2], [0], [3] in turn, so passing
+# C, A, B, D steps the ULN2003 inputs A, B, C, D in order.
+circuitpython:
+  imports: ["import digitalio", "from adafruit_motor import stepper"]
+  deps: [adafruit_motor]
+  setup: |
+    {{ id }}_coils = [digitalio.DigitalInOut(P(n)) for n in ({{ pins.C }}, {{ pins.A }}, {{ pins.B }}, {{ pins.D }})]
+    for {{ id }}_coil in {{ id }}_coils:
+        {{ id }}_coil.switch_to_output()
+    {{ id }} = stepper.StepperMotor(*{{ id }}_coils, microsteps=None)
+    {{ id }}_style = stepper.{{ {'FULL_STEP': 'DOUBLE', 'WAVE_DRIVE': 'SINGLE'}.get(params.step_mode | default('HALF_STEP'), 'INTERLEAVE') }}
+    {{ id }}.release()
+    # {{ id }}.onestep(direction=stepper.FORWARD, style={{ id }}_style) moves one step
+
 params_schema:
   max_speed:
     type: string
