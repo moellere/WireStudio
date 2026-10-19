@@ -49,6 +49,13 @@ circuitpython:
   loop: |
     print("{{ label }}: %.2fV" % ({{ id }}.value / 65535 * {{ id }}.reference_voltage * {{ ((params.r_top | default(100000)) + (params.r_bottom | default(27000))) / (params.r_bottom | default(27000)) }}))
 
+micropython:
+  imports: ["from machine import ADC"]
+  setup: |
+    {{ id }} = ADC(Pin({{ pins.IN }}), atten=ADC.{{ {'0db': 'ATTN_0DB', '2.5db': 'ATTN_2_5DB', '6db': 'ATTN_6DB'}.get(params.attenuation | default('12db'), 'ATTN_11DB') }})
+  loop: |
+    print("{{ label }}: %.2fV" % ({{ id }}.read_uv() / 1000000 * {{ ((params.r_top | default(100000)) + (params.r_bottom | default(27000))) / (params.r_bottom | default(27000)) }}))
+
 params_schema:
   sense_v:
     type: number

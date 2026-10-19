@@ -52,6 +52,20 @@ circuitpython:
         if isinstance({{ id }}_msg, adafruit_irremote.IRMessage):
             print("{{ label }}:", {{ id }}_msg.code)
 
+# ir_rx times each frame with a software timer, which the ESP32-C3 lacks;
+# hardware timer 0 exists on every ESP32, so ESP32 builds use it.
+micropython:
+  imports: ["from ir_rx.nec import NEC_8"]
+  deps: ["github:peterhinch/micropython_ir/ir_rx"]
+  setup: |
+    def {{ id }}_decoded(command, address, ctrl):
+        if command >= 0:
+            print("{{ label }}: address 0x%02x command 0x%02x" % (address, command))
+    {%- if board.chip_variant != 'esp8266' %}
+    NEC_8.Timer_id = 0
+    {%- endif %}
+    {{ id }} = NEC_8(Pin({{ pins.OUT }}, Pin.IN), {{ id }}_decoded)
+
 params_schema:
   dump:
     type: string

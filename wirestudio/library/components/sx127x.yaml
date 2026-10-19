@@ -97,6 +97,43 @@ circuitpython:
         print("{{ label }}: %s rssi %d" % ({{ id }}_packet.hex(), {{ id }}.last_rssi))
     {%- endif %}
 
+micropython:
+  imports: ["from lora import SX1276"]
+  deps: ["lora-sx127x", "lora-sync"]
+  setup: |
+    {%- if (params.modulation | default('LORA')) != 'LORA' %}
+    {{ unsupported("micropython-lib's lora driver speaks LoRa only, not " ~ params.modulation) }}
+    {%- endif %}
+    {%- if params.frequency is not defined %}
+    {{ unsupported("set the sx127x frequency param") }}
+    {%- endif %}
+    {{ id }} = SX1276(
+        {{ bus_var }},
+        Pin({{ pins.CS }}),
+    {%- if pins.DIO0 is defined %}
+        dio0=Pin({{ pins.DIO0 }}),
+    {%- endif %}
+        reset=Pin({{ pins.RST }}),
+        lora_cfg={
+            "freq_khz": {{ (params.frequency / 1000) | int }},
+            "sf": {{ params.spreading_factor | default(7) }},
+            "bw": "{{ '%g' | format((params.bandwidth | default('125_0kHz')) | replace('kHz', '') | replace('_', '.') | float) }}",
+            "coding_rate": {{ (params.coding_rate | default('CR_4_5'))[-1] }},
+            "preamble_len": {{ params.preamble_size | default(8) }},
+            "crc_en": {{ params.crc_enable | default(true) }},
+    {%- if (params.pa_pin | default('BOOST')) == 'BOOST' %}
+            "tx_ant": "PA_BOOST",
+    {%- endif %}
+            "output_power": {{ params.pa_power | default(17) }},
+        },
+    )
+  loop: |
+    {%- if params.rx_start | default(true) %}
+    {{ id }}_packet = {{ id }}.recv(500)
+    if {{ id }}_packet is not None:
+        print("{{ label }}: %s rssi %d" % (bytes({{ id }}_packet).hex(), {{ id }}_packet.rssi))
+    {%- endif %}
+
 params_schema:
   frequency: {type: integer, description: "Carrier frequency in Hz, e.g. 915000000 (US) or 868000000 (EU)"}
   modulation: {type: string, enum: [LORA, FSK, OOK], default: LORA}

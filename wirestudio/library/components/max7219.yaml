@@ -54,6 +54,15 @@ circuitpython:
     {{ id }}.fill(0)
     {{ id }}.show()
 
+micropython:
+  imports: ["import max7219"]
+  deps: ["github:mcauser/micropython-max7219/max7219.py"]
+  setup: |
+    {{ id }} = max7219.Matrix8x8({{ bus_var }}, Pin({{ pins.CS }}, Pin.OUT), {{ params.num_chips | default(1) }})
+    {{ id }}.brightness({{ params.intensity | default(8) }})
+    {{ id }}.fill(0)
+    {{ id }}.show()
+
 params_schema:
   num_chips:
     type: integer

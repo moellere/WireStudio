@@ -71,6 +71,27 @@ circuitpython:
     {{ id }}.root_group = displayio.Group()
     {{ id }}.root_group.append(display_label.Label(terminalio.FONT, text="{{ label }}", x=8, y=8))
 
+# st7789py knows four panel sizes and their offsets; a size outside them
+# would raise on the board, so the fragment refuses it.
+micropython:
+  imports: ["import st7789py", "import vga1_8x8"]
+  deps: ["github:russhughes/st7789py_mpy/lib/st7789py.py", "github:russhughes/st7789py_mpy/romfonts/vga1_8x8.py"]
+  setup: |
+    {%- set sizes = {
+        'TTGO_TDISPLAY_135X240': (135, 240, 1),
+        'ADAFRUIT_S2_TFT_FEATHER_135X240': (135, 240, 1),
+        'ADAFRUIT_FUNHOUSE_240X240': (240, 240, 0),
+        'ADAFRUIT_RR_280X240': (240, 280, 1),
+    } %}
+    {%- set model = params.model | default('Custom') %}
+    {%- set size = sizes[model] if model in sizes else (params.width | default(240), params.height | default(320), (params.rotation | default(0)) // 90) %}
+    {%- if (size[0], size[1]) not in [(240, 320), (240, 240), (135, 240), (128, 128)] %}
+    {{ unsupported("st7789py has no %dx%d panel" % (size[0], size[1])) }}
+    {%- endif %}
+    {{ id }} = st7789py.ST7789({{ bus_var }}, {{ size[0] }}, {{ size[1] }}, dc=Pin({{ pins.DC }}, Pin.OUT), cs=Pin({{ pins.CS }}, Pin.OUT){% if pins.RESET is defined %}, reset=Pin({{ pins.RESET }}, Pin.OUT){% endif %}{% if pins.BACKLIGHT is defined %}, backlight=Pin({{ pins.BACKLIGHT }}, Pin.OUT){% endif %}, rotation={{ size[2] }})
+    {{ id }}.fill(st7789py.BLACK)
+    {{ id }}.text(vga1_8x8, "{{ label }}", 8, 8)
+
 params_schema:
   model:
     type: string

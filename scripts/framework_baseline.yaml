@@ -70,13 +70,8 @@ circuitpython:
   xpt2046: "deferred: needs a fragment over a community XPT2046 port; none in the bundle"
 
 micropython:
-  # actuator
-  hbridge: "deferred: needs a two-channel machine.PWM fragment"
-  hbridge_mosfet: "deferred: needs the same two-channel machine.PWM fragment as hbridge"
-  uln2003: "deferred: needs a four-pin step-sequence fragment"
   # audio
   i2s_microphone: "deferred: needs a machine.I2S fragment"
-  rtttl: "deferred: needs a machine.PWM tone fragment; micropython-lib has no RTTTL player"
   # audio_dac
   max98357a: "deferred: needs a machine.I2S fragment"
   # binary_sensor
@@ -98,24 +93,15 @@ micropython:
   connector_1x08: "no meaning on this framework: passive hardware, no code on any framework"
   connector_2x05_idc: "no meaning on this framework: passive hardware, no code on any framework"
   # display
-  ili9xxx: "deferred: needs a framebuf fragment over a community driver via mip"
   lcd_pcf8574: "deferred: needs a fragment over a community HD44780-over-PCF8574 driver via mip"
-  max7219: "deferred: needs a framebuf fragment over a community driver via mip"
   nextion: "deferred: needs a machine.UART frame-parsing fragment"
-  st7789: "deferred: needs a framebuf fragment over a community driver via mip"
   tm1637: "deferred: needs a fragment over a community TM1637 driver via mip"
   tm1638: "deferred: needs a bit-banged fragment; micropython-lib has no TM1638 driver"
   # input
   pn532: "deferred: no MicroPython I2C driver; the maintained one speaks SPI"
-  remote_receiver: "deferred: needs a machine.Pin IRQ timing fragment"
   wiegand: "deferred: needs a machine.Pin IRQ edge-timed fragment"
   # io_expander
   mcp23s17: "deferred: no MicroPython driver found"
-  sn74hc595: "deferred: needs a machine.Pin shift-out fragment"
-  # light
-  led_indicator: "deferred: needs a machine.Pin fragment"
-  # output
-  remote_transmitter: "deferred: needs an esp32.RMT fragment"
   # power
   axp192: "deferred: needs an I2C register fragment; micropython-lib has no AXP192 driver"
   battery_adc: "deferred: needs a machine.ADC fragment with the board's divider ratio"
@@ -123,32 +109,23 @@ micropython:
   # radio
   cc1101: "no driver upstream: micropython-lib has no CC1101 package"
   rf_bridge: "deferred: needs a machine.UART frame-parsing fragment"
-  sx127x: "deferred: needs a fragment over a community SX127x driver via mip"
   # rfid_reader
   rc522: "deferred: needs a fragment over a community MFRC522 driver via mip"
   rdm6300: "deferred: needs a machine.UART frame-parsing fragment"
   # sensor
-  ads1115: "deferred: needs a fragment over a community ADS1115 driver via mip"
   ads1115_channel: "no meaning on this framework: channels are read through the hub's fragment"
   bl0906: "deferred: needs a machine.UART frame-parsing fragment"
   bmp180: "deferred: needs a fragment over a community BMP180 driver via mip"
   cse7766: "deferred: needs a machine.UART frame-parsing fragment"
   ct_clamp: "deferred: needs a machine.ADC RMS-sampling fragment"
   hlw8012: "deferred: needs a machine.Pin IRQ pulse-rate fragment"
-  hx711: "deferred: needs a fragment over a community HX711 driver via mip"
   mcp3008_channel: "no meaning on this framework: channels are read through the hub's fragment"
   mhz19: "deferred: needs a machine.UART frame-parsing fragment"
   mpu6886: "deferred: needs an I2C register fragment; micropython-lib has no MPU6886 driver"
-  pmsx003: "deferred: needs a machine.UART frame-parsing fragment"
-  pulse_counter: "deferred: needs a machine.Pin IRQ counting fragment"
   pzemac: "no driver upstream: needs Modbus RTU, which micropython-lib lacks"
   sdm_meter: "no driver upstream: needs Modbus RTU, which micropython-lib lacks"
   tuya_sensor: "no driver upstream: rides the tuya bus, which has no MicroPython implementation"
-  uart_gps: "deferred: needs a machine.UART NMEA fragment"
-  voltage_divider: "deferred: needs a machine.ADC fragment with the divider ratio"
   # switch
-  mosfet_low_side_driver: "deferred: needs a machine.Pin fragment"
-  npn_low_side_driver: "deferred: needs a machine.Pin fragment"
   tuya_switch: "no driver upstream: rides the tuya bus, which has no MicroPython implementation"
   # touchscreen
   xpt2046: "deferred: needs a fragment over a community XPT2046 driver via mip"
