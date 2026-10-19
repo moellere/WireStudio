@@ -51,7 +51,7 @@ On Debian/Ubuntu hosts the system `python3-setuptools` ships patched in a
 way that breaks ESPHome's pinned `paho-mqtt` source build. If `pip install
 esphome` fails on the `paho-mqtt` wheel, drop into a fresh venv first:
 `python -m venv .venv && source .venv/bin/activate`. The CI workflow uses
-`actions/setup-python@v5`, which sidesteps this.
+`actions/setup-python@v7`, which sidesteps this.
 
 ### Adding a new component or board
 
