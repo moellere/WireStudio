@@ -45,9 +45,9 @@ jobs:
     # then two board builds (~10-15min). Warm cache: ~3-4min.
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           cache: pip
@@ -60,7 +60,7 @@ jobs:
       - name: Cache PlatformIO toolchain
         # The platform/toolchain/framework pull dominates a cold run. Keyed on
         # the lib pins so a deliberate RadioLib/LoRaWAN_ESP32 bump invalidates it.
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.platformio
           key: pio-lorawan-${{ runner.os }}-radiolib7.6-loraesp32-1.3

@@ -44,9 +44,9 @@ jobs:
   kicad-render:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           cache: pip
@@ -63,7 +63,7 @@ jobs:
 
       - name: Cache KiCad symbol libraries
         id: cache-symbols
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: kicad-symbols
           key: kicad-symbols-${{ env.KICAD_SYMBOLS_REF }}
@@ -107,7 +107,7 @@ jobs:
 
       - name: Upload written sheets
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: kicad-sheets
           path: sheets/
@@ -115,7 +115,7 @@ jobs:
 
       - name: Upload ERC reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: erc-reports
           path: erc-reports/
@@ -123,7 +123,7 @@ jobs:
 
       - name: Upload rendered SVGs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: rendered-schematics
           path: '*.svg'

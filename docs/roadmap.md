@@ -222,9 +222,9 @@ Section 4 covers the rest.
 - **Upgrade test.** A CI job installs the previous release, seeds a
   design and a user component, upgrades to the candidate, and asserts
   both load and render identically.
-- **Workflow actions.** The Node 20 runner deprecation deadline has
-  passed; bump `actions/checkout`, `setup-python`, `cache` and
-  `upload-artifact` to their current majors in one PR.
+- **Workflow actions.** Done: every action the workflows use is on its
+  current major and the Node 24 runtime, so the Node 20 deprecation
+  warning is gone from the job logs.
 - **Flash size measurement** ([#219](https://github.com/moellere/WireStudio/issues/219)).
   Code is done; the four named boards need `esptool flash-id` once each
   when they reach the bench. Not a 1.0 blocker.
