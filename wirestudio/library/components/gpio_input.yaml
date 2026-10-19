@@ -92,3 +92,7 @@ kicad:
   value: Input
 tasmota:
   pins: {IN: Switch}
+
+wled:
+  kind: button
+  pins: [IN]

@@ -84,3 +84,11 @@ kicad:
     GND: VSS
 tasmota:
   pins: {DIN: WS2812}
+
+wled:
+  kind: led
+  pins: [DIN]
+  type: 22
+  chipsets: {WS2811: 22, WS2812: 22, WS2812X: 22, 400KBPS: 24, SK6812: 30, TM1814: 31}
+  chipset_param: variant
+  order_param: type

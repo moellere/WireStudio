@@ -272,6 +272,121 @@ tasmota:
   # touchscreen
   xpt2046: "deferred: needs the Universal Display touch function ids from the display build"
 
+wled:
+  # actuator
+  hbridge: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  hbridge_mosfet: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  servo: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  uln2003: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  # audio
+  i2s_microphone: "deferred: needs a usermod block (audioreactive), the compile-in tier"
+  rtttl: "deferred: needs a usermod block (buzzer), the compile-in tier"
+  # audio_dac
+  max98357a: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  # binary_sensor
+  ld2410: "deferred: needs a usermod block (LD2410_v2), the compile-in tier"
+  ld2420: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  # bus
+  level_shifter: "no meaning on this framework: passive hardware, no code on any framework"
+  modbus: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  tuya: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  # camera
+  esp32_camera: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  # connector
+  connector_1x02: "no meaning on this framework: passive hardware, no code on any framework"
+  connector_1x03: "no meaning on this framework: passive hardware, no code on any framework"
+  connector_1x04: "no meaning on this framework: passive hardware, no code on any framework"
+  connector_1x05: "no meaning on this framework: passive hardware, no code on any framework"
+  connector_1x06: "no meaning on this framework: passive hardware, no code on any framework"
+  connector_1x07: "no meaning on this framework: passive hardware, no code on any framework"
+  connector_1x08: "no meaning on this framework: passive hardware, no code on any framework"
+  connector_2x05_idc: "no meaning on this framework: passive hardware, no code on any framework"
+  # display
+  ili9xxx: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  lcd_pcf8574: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  max7219: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  nextion: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  ssd1306: "deferred: needs a usermod block (usermod_v2_four_line_display_ALT), the compile-in tier"
+  st7789: "deferred: needs a usermod block (ST7789_display), the compile-in tier"
+  tm1637: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  tm1638: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  # fan
+  pwm_fan: "deferred: needs a usermod block (PWM_fan), the compile-in tier"
+  # input
+  pn532: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  wiegand: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  # io_expander
+  mcp23008: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  mcp23017: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  mcp23s17: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  pca9685: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  pcf8574: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  sn74hc595: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  # light
+  led_indicator: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  # output
+  remote_transmitter: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  # power
+  axp192: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  battery_adc: "deferred: needs a usermod block (Battery), the compile-in tier"
+  usb_c_power_in: "no meaning on this framework: passive hardware, no code on any framework"
+  # radio
+  cc1101: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  rf_bridge: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  sx127x: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  # rfid_reader
+  rc522: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  rdm6300: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  # sensor
+  adc: "deferred: maps to the analog button type in hw.btn; the block is not written"
+  ads1115: "deferred: needs a usermod block (ADS1115_v2), the compile-in tier"
+  ads1115_channel: "no meaning on this framework: channels are read through the hub's usermod"
+  aht10: "deferred: needs a usermod block (AHTx0), the compile-in tier"
+  bh1750: "deferred: needs a usermod block (BH1750_v2), the compile-in tier"
+  bl0906: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  bme280: "deferred: needs a usermod block (BME280_v2), the compile-in tier"
+  bme680: "deferred: needs a usermod block (BME68X_v2), the compile-in tier"
+  bmp180: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  bmp280: "deferred: needs a usermod block (BME280_v2), the compile-in tier"
+  cse7766: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  ct_clamp: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  dht: "deferred: needs a usermod block (DHT), the compile-in tier"
+  ds18b20: "deferred: needs a usermod block (Temperature), the compile-in tier"
+  grove-aht20: "deferred: needs a usermod block (AHTx0), the compile-in tier"
+  hc-sr04: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  hlw8012: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  htu21d: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  hx711: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  ina219: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  max31855: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  mcp3008: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  mcp3008_channel: "no meaning on this framework: channels are read through the hub's usermod"
+  mhz19: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  mpu6050: "deferred: needs a usermod block (mpu6050_imu), the compile-in tier"
+  mpu6886: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  pmsx003: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  potentiometer: "deferred: maps to the analog button type in hw.btn; the block is not written"
+  pulse_counter: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  pzemac: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  rotary_encoder: "deferred: needs a usermod block (usermod_v2_rotary_encoder_ui_ALT), the compile-in tier"
+  scd4x: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  sdm_meter: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  sgp4x: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  sht3xd: "deferred: needs a usermod block (sht), the compile-in tier"
+  sht4x: "deferred: needs a usermod block (sht), the compile-in tier"
+  tsl2561: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  tuya_sensor: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  uart_gps: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  veml7700: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  vl53l0x: "deferred: needs a usermod block (VL53L0X_gestures), the compile-in tier"
+  voltage_divider: "deferred: needs a usermod block (Battery), the compile-in tier"
+  # switch
+  mosfet_low_side_driver: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  npn_low_side_driver: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  tuya_switch: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+  # touchscreen
+  xpt2046: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
+
 lorawan:
   # actuator
   hbridge: "no meaning on this framework: the uplink carries sensor readings"
