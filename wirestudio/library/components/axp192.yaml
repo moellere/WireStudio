@@ -17,6 +17,51 @@ esphome:
   required_components: [i2c]
   yaml_template: "" # Not actively used for ESPHome right now unless there is an AXP192 esphome component.
 
+# Register code, as the lorawan block does with XPowersLib: LDO2 (LoRa)
+# and LDO3 (GPS) at 3.3 V on (0x28, 0x12), the battery voltage ADC on
+# (0x82), and the battery voltage at 0x78-0x79 in 1.1 mV steps.
+circuitpython:
+  setup: |
+    {{ id }}_addr = 0x34
+    def {{ id }}_rd(reg, n):
+        buf = bytearray(n)
+        while not {{ bus_var }}.try_lock():
+            pass
+        try:
+            {{ bus_var }}.writeto_then_readfrom({{ id }}_addr, bytes([reg]), buf)
+        finally:
+            {{ bus_var }}.unlock()
+        return buf
+    def {{ id }}_wr(reg, value):
+        while not {{ bus_var }}.try_lock():
+            pass
+        try:
+            {{ bus_var }}.writeto({{ id }}_addr, bytes([reg, value]))
+        finally:
+            {{ bus_var }}.unlock()
+    def {{ id }}_battery_mv(b):
+        return (b[0] << 4 | b[1] & 0x0F) * 1.1
+    {{ id }}_wr(0x28, 0xFF)
+    {{ id }}_wr(0x12, {{ id }}_rd(0x12, 1)[0] | 0x0C)
+    {{ id }}_wr(0x82, {{ id }}_rd(0x82, 1)[0] | 0x80)
+  loop: |
+    print("{{ label }}: battery %.0f mV" % {{ id }}_battery_mv({{ id }}_rd(0x78, 2)))
+
+micropython:
+  setup: |
+    {{ id }}_addr = 0x34
+    def {{ id }}_rd(reg, n):
+        return {{ bus_var }}.readfrom_mem({{ id }}_addr, reg, n)
+    def {{ id }}_wr(reg, value):
+        {{ bus_var }}.writeto_mem({{ id }}_addr, reg, bytes([value]))
+    def {{ id }}_battery_mv(b):
+        return (b[0] << 4 | b[1] & 0x0F) * 1.1
+    {{ id }}_wr(0x28, 0xFF)
+    {{ id }}_wr(0x12, {{ id }}_rd(0x12, 1)[0] | 0x0C)
+    {{ id }}_wr(0x82, {{ id }}_rd(0x82, 1)[0] | 0x80)
+  loop: |
+    print("{{ label }}: battery %.0f mV" % {{ id }}_battery_mv({{ id }}_rd(0x78, 2)))
+
 params_schema: {}
 
 notes: "Onboard PMIC used by TTGO T-Beam"

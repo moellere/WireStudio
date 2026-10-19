@@ -45,6 +45,106 @@ esphome:
         energy:
           name: "{{ label }} Energy"
 
+# Pulse-rate code after ESPHome's hlw8012 component: CF counts power,
+# CF1 counts current or voltage as SEL picks (BL0937 inverts SEL), and
+# CF1 is only read on the second pass after a switch, once it settles.
+# Multipliers from the reference voltage, shunt and divider as ESPHome's.
+circuitpython:
+  imports: ["import countio", "import digitalio"]
+  setup: |
+    {{ id }}_cf = countio.Counter(P({{ pins.CF }}), edge=countio.Edge.RISE)
+    {{ id }}_cf1 = countio.Counter(P({{ pins.CF1 }}), edge=countio.Edge.RISE)
+    {{ id }}_sel = digitalio.DigitalInOut(P({{ pins.SEL }}))
+    {{ id }}_sel.switch_to_output()
+    def {{ id }}_take():
+        counts = {{ id }}_cf.count, {{ id }}_cf1.count
+        {{ id }}_cf.reset()
+        {{ id }}_cf1.reset()
+        return counts
+    def {{ id }}_select(current):
+        {{ id }}_sel.value = current != {{ id }}_inverted
+    {{ id }}_last = [time.monotonic()]
+    def {{ id }}_elapsed():
+        now = time.monotonic()
+        dt, {{ id }}_last[0] = now - {{ id }}_last[0], now
+        return dt
+    {%- set bl0937 = (params.model | default('HLW8012')) == 'BL0937' %}
+    {%- set r = (params.current_resistor | default('0.001 ohm')).split()[0] | float %}
+    {%- set div = params.voltage_divider | default(2351) %}
+    {%- if bl0937 %}
+    {{ id }}_kp = 1.218 * 1.218 * {{ div }} / {{ r }} / 1721506
+    {{ id }}_ki = 1.218 / {{ r }} / 94638
+    {{ id }}_kv = 1.218 * {{ div }} / 15397
+    {%- else %}
+    {{ id }}_kp = 2.43 * 2.43 * {{ div }} / {{ r }} * 64 / 24 / 3579000
+    {{ id }}_ki = 2.43 / {{ r }} * 512 / 24 / 3579000
+    {{ id }}_kv = 2.43 * {{ div }} * 256 / 3579000
+    {%- endif %}
+    {{ id }}_inverted = {{ bl0937 }}
+    {{ id }}_pass = 0
+    {{ id }}_select(True)
+    {{ id }}_take()
+    {{ id }}_elapsed()
+  loop: |
+    {{ id }}_dt = {{ id }}_elapsed()
+    {{ id }}_cf_n, {{ id }}_cf1_n = {{ id }}_take()
+    {{ id }}_cf_hz = {{ id }}_cf_n / {{ id }}_dt if {{ id }}_cf_n > 1 else 0
+    {{ id }}_cf1_hz = {{ id }}_cf1_n / {{ id }}_dt if {{ id }}_cf1_n > 1 else 0
+    {{ id }}_current = {{ id }}_pass // 2 % 2 == 0
+    if {{ id }}_pass % 2:
+        print("{{ label }}: %.1f W %s" % ({{ id }}_cf_hz * {{ id }}_kp, "%.3f A" % ({{ id }}_cf1_hz * {{ id }}_ki) if {{ id }}_current else "%.1f V" % ({{ id }}_cf1_hz * {{ id }}_kv)))
+    {{ id }}_pass += 1
+    {{ id }}_select({{ id }}_pass // 2 % 2 == 0)
+
+micropython:
+  setup: |
+    {{ id }}_counts = [0, 0]
+    def {{ id }}_edge(pin):
+        {{ id }}_counts[pin is {{ id }}_cf1] += 1
+    {{ id }}_cf = Pin({{ pins.CF }}, Pin.IN)
+    {{ id }}_cf1 = Pin({{ pins.CF1 }}, Pin.IN)
+    {{ id }}_cf.irq(trigger=Pin.IRQ_RISING, handler={{ id }}_edge)
+    {{ id }}_cf1.irq(trigger=Pin.IRQ_RISING, handler={{ id }}_edge)
+    {{ id }}_sel = Pin({{ pins.SEL }}, Pin.OUT)
+    def {{ id }}_take():
+        counts = tuple({{ id }}_counts)
+        {{ id }}_counts[0] = {{ id }}_counts[1] = 0
+        return counts
+    def {{ id }}_select(current):
+        {{ id }}_sel(int(current != {{ id }}_inverted))
+    {{ id }}_last = [time.ticks_ms()]
+    def {{ id }}_elapsed():
+        now = time.ticks_ms()
+        dt, {{ id }}_last[0] = time.ticks_diff(now, {{ id }}_last[0]) / 1000, now
+        return dt
+    {%- set bl0937 = (params.model | default('HLW8012')) == 'BL0937' %}
+    {%- set r = (params.current_resistor | default('0.001 ohm')).split()[0] | float %}
+    {%- set div = params.voltage_divider | default(2351) %}
+    {%- if bl0937 %}
+    {{ id }}_kp = 1.218 * 1.218 * {{ div }} / {{ r }} / 1721506
+    {{ id }}_ki = 1.218 / {{ r }} / 94638
+    {{ id }}_kv = 1.218 * {{ div }} / 15397
+    {%- else %}
+    {{ id }}_kp = 2.43 * 2.43 * {{ div }} / {{ r }} * 64 / 24 / 3579000
+    {{ id }}_ki = 2.43 / {{ r }} * 512 / 24 / 3579000
+    {{ id }}_kv = 2.43 * {{ div }} * 256 / 3579000
+    {%- endif %}
+    {{ id }}_inverted = {{ bl0937 }}
+    {{ id }}_pass = 0
+    {{ id }}_select(True)
+    {{ id }}_take()
+    {{ id }}_elapsed()
+  loop: |
+    {{ id }}_dt = {{ id }}_elapsed()
+    {{ id }}_cf_n, {{ id }}_cf1_n = {{ id }}_take()
+    {{ id }}_cf_hz = {{ id }}_cf_n / {{ id }}_dt if {{ id }}_cf_n > 1 else 0
+    {{ id }}_cf1_hz = {{ id }}_cf1_n / {{ id }}_dt if {{ id }}_cf1_n > 1 else 0
+    {{ id }}_current = {{ id }}_pass // 2 % 2 == 0
+    if {{ id }}_pass % 2:
+        print("{{ label }}: %.1f W %s" % ({{ id }}_cf_hz * {{ id }}_kp, "%.3f A" % ({{ id }}_cf1_hz * {{ id }}_ki) if {{ id }}_current else "%.1f V" % ({{ id }}_cf1_hz * {{ id }}_kv)))
+    {{ id }}_pass += 1
+    {{ id }}_select({{ id }}_pass // 2 % 2 == 0)
+
 params_schema:
   update_interval:
     type: string

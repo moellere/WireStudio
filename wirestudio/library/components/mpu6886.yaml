@@ -44,6 +44,57 @@ esphome:
         temperature:
           name: "{{ label }} Die Temp"
 
+# Register code after ESPHome's mpu6886 component: X-gyro clock with
+# sleep off (0x6B), +-2000 dps (0x1B), +-2 g (0x1C), then the 14 bytes
+# from 0x3B (16384 LSB/g, 16.4 LSB/dps, temperature raw / 326.8 + 25).
+circuitpython:
+  setup: |
+    {{ id }}_addr = {{ params.address | default('0x68') }}
+    def {{ id }}_rd(reg, n):
+        buf = bytearray(n)
+        while not {{ bus_var }}.try_lock():
+            pass
+        try:
+            {{ bus_var }}.writeto_then_readfrom({{ id }}_addr, bytes([reg]), buf)
+        finally:
+            {{ bus_var }}.unlock()
+        return buf
+    def {{ id }}_wr(reg, value):
+        while not {{ bus_var }}.try_lock():
+            pass
+        try:
+            {{ bus_var }}.writeto({{ id }}_addr, bytes([reg, value]))
+        finally:
+            {{ bus_var }}.unlock()
+    def {{ id }}_decode(b):
+        v = [b[k] << 8 | b[k + 1] for k in range(0, 14, 2)]
+        v = [x - 0x10000 if x & 0x8000 else x for x in v]
+        return tuple(x / 16384 for x in v[0:3]), v[3] / 326.8 + 25, tuple(x / 16.4 for x in v[4:7])
+    {{ id }}_wr(0x6B, 0x01)
+    {{ id }}_wr(0x1B, 0x18)
+    {{ id }}_wr(0x1C, 0x00)
+  loop: |
+    {{ id }}_accel, {{ id }}_temp, {{ id }}_gyro = {{ id }}_decode({{ id }}_rd(0x3B, 14))
+    print("{{ label }}: accel %.2f %.2f %.2f g gyro %.1f %.1f %.1f dps %.1fC" % ({{ id }}_accel + {{ id }}_gyro + ({{ id }}_temp,)))
+
+micropython:
+  setup: |
+    {{ id }}_addr = {{ params.address | default('0x68') }}
+    def {{ id }}_rd(reg, n):
+        return {{ bus_var }}.readfrom_mem({{ id }}_addr, reg, n)
+    def {{ id }}_wr(reg, value):
+        {{ bus_var }}.writeto_mem({{ id }}_addr, reg, bytes([value]))
+    def {{ id }}_decode(b):
+        v = [b[k] << 8 | b[k + 1] for k in range(0, 14, 2)]
+        v = [x - 0x10000 if x & 0x8000 else x for x in v]
+        return tuple(x / 16384 for x in v[0:3]), v[3] / 326.8 + 25, tuple(x / 16.4 for x in v[4:7])
+    {{ id }}_wr(0x6B, 0x01)
+    {{ id }}_wr(0x1B, 0x18)
+    {{ id }}_wr(0x1C, 0x00)
+  loop: |
+    {{ id }}_accel, {{ id }}_temp, {{ id }}_gyro = {{ id }}_decode({{ id }}_rd(0x3B, 14))
+    print("{{ label }}: accel %.2f %.2f %.2f g gyro %.1f %.1f %.1f dps %.1fC" % ({{ id }}_accel + {{ id }}_gyro + ({{ id }}_temp,)))
+
 params_schema:
   address:
     type: string

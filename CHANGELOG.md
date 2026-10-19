@@ -24,6 +24,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CircuitPython and MicroPython for the BMP180, MPU6886, AXP192 and
+  HLW8012.** Register and pulse-rate code shared by both frameworks,
+  with only the bus access differing: the BMP180's calibration words
+  and the datasheet's integer compensation (its divisions floor; the
+  worked example gives 15.0C and 69964 Pa), the MPU6886 set up and
+  scaled as ESPHome's component does, the AXP192 switching on the
+  T-Beam's LoRa and GPS rails and reading the battery as the lorawan
+  block does, and the HLW8012/BL0937 power, current and voltage from
+  CF/CF1 pulse rates with ESPHome's multipliers. `tests/test_register_code.py`
+  runs each framework's setup against a fake I2C bus. CircuitPython 64
+  to 68 of 102, MicroPython 62 to 66.
+
 - **CircuitPython and MicroPython for the MH-Z19, CSE7766, RDM6300 and
   LD2410.** Each decodes its UART frame in datasheet code, the same
   decoder text on both frameworks: the MH-Z19 0x86 read with its
