@@ -95,6 +95,8 @@ def generate_code(design: Design, library: Library) -> dict:
                 warnings.append(f"bus {bus.id}: unassigned uart pins; run Solve Pins")
                 continue
             args = [f"baudrate={bus.baud_rate or 9600}"]
+            if bus.parity in ("EVEN", "ODD"):
+                args.append(f"parity={0 if bus.parity == 'EVEN' else 1}")
             if tx is not None:
                 args.append(f"tx=Pin({tx})")
             if rx is not None:

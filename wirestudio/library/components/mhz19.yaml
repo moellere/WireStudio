@@ -50,6 +50,45 @@ tasmota:
     tx: MHZ_TXD
     rx: MHZ_RXD
 
+# Datasheet protocol: command 0x86 reads the CO2 concentration as a
+# 9-byte reply, FF 86 HIGH LOW ... CHECK, where CHECK is the two's
+# complement of the sum of bytes 1-7. Command 0x79 switches the
+# automatic baseline calibration (0xA0 on, 0x00 off).
+circuitpython:
+  setup: |
+    def {{ id }}_decode(resp):
+        if not resp or len(resp) != 9 or resp[0] != 0xFF or resp[1] != 0x86:
+            return None
+        if (0x100 - sum(resp[1:8])) & 0xFF != resp[8]:
+            return None
+        return resp[2] << 8 | resp[3]
+    def {{ id }}_co2():
+        {{ bus_var }}.reset_input_buffer()
+        {{ bus_var }}.write(b"\xff\x01\x86\x00\x00\x00\x00\x00\x79")
+        return {{ id }}_decode({{ bus_var }}.read(9))
+    {{ bus_var }}.write({{ 'b"\\xff\\x01\\x79\\xa0\\x00\\x00\\x00\\x00\\xe6"' if params.automatic_baseline_calibration | default(false) else 'b"\\xff\\x01\\x79\\x00\\x00\\x00\\x00\\x00\\x86"' }})
+  loop: |
+    {{ id }}_ppm = {{ id }}_co2()
+    print("{{ label }}: %s" % ("%d ppm CO2" % {{ id }}_ppm if {{ id }}_ppm is not None else "no reply"))
+
+micropython:
+  setup: |
+    def {{ id }}_decode(resp):
+        if not resp or len(resp) != 9 or resp[0] != 0xFF or resp[1] != 0x86:
+            return None
+        if (0x100 - sum(resp[1:8])) & 0xFF != resp[8]:
+            return None
+        return resp[2] << 8 | resp[3]
+    def {{ id }}_co2():
+        {{ bus_var }}.read()
+        {{ bus_var }}.write(b"\xff\x01\x86\x00\x00\x00\x00\x00\x79")
+        time.sleep_ms(100)
+        return {{ id }}_decode({{ bus_var }}.read(9))
+    {{ bus_var }}.write({{ 'b"\\xff\\x01\\x79\\xa0\\x00\\x00\\x00\\x00\\xe6"' if params.automatic_baseline_calibration | default(false) else 'b"\\xff\\x01\\x79\\x00\\x00\\x00\\x00\\x00\\x86"' }})
+  loop: |
+    {{ id }}_ppm = {{ id }}_co2()
+    print("{{ label }}: %s" % ("%d ppm CO2" % {{ id }}_ppm if {{ id }}_ppm is not None else "no reply"))
+
 params_schema:
   update_interval:
     type: string

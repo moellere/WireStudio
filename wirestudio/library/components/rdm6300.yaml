@@ -35,6 +35,65 @@ capability:
   provides:
     - {event: on_tag}
 
+# Module frame: 0x02, ten ASCII hex digits (version byte and the 4-byte
+# tag id), two ASCII hex digits XOR-ing the five data bytes, 0x03.
+circuitpython:
+  setup: |
+    def {{ id }}_decode(buf):
+        found = None
+        for i in range(len(buf) - 13):
+            if buf[i] != 0x02 or buf[i + 13] != 0x03:
+                continue
+            try:
+                text = bytes(buf[i + 1:i + 13]).decode()
+                data = [int(text[k:k + 2], 16) for k in range(0, 12, 2)]
+            except (UnicodeError, ValueError):
+                continue
+            if data[0] ^ data[1] ^ data[2] ^ data[3] ^ data[4] == data[5]:
+                found = int(text[2:10], 16)
+        return found
+    def {{ id }}_listen(seconds):
+        {{ bus_var }}.reset_input_buffer()
+        buf = b""
+        until = time.monotonic() + seconds
+        while time.monotonic() < until:
+            n = {{ bus_var }}.in_waiting
+            if n:
+                buf += {{ bus_var }}.read(n)
+        return buf
+  loop: |
+    {{ id }}_tag = {{ id }}_decode({{ id }}_listen(1.0))
+    if {{ id }}_tag is not None:
+        print("{{ label }}: tag %d" % {{ id }}_tag)
+
+micropython:
+  setup: |
+    def {{ id }}_decode(buf):
+        found = None
+        for i in range(len(buf) - 13):
+            if buf[i] != 0x02 or buf[i + 13] != 0x03:
+                continue
+            try:
+                text = bytes(buf[i + 1:i + 13]).decode()
+                data = [int(text[k:k + 2], 16) for k in range(0, 12, 2)]
+            except (UnicodeError, ValueError):
+                continue
+            if data[0] ^ data[1] ^ data[2] ^ data[3] ^ data[4] == data[5]:
+                found = int(text[2:10], 16)
+        return found
+    def {{ id }}_listen(seconds):
+        {{ bus_var }}.read()
+        buf = b""
+        until = time.ticks_add(time.ticks_ms(), int(seconds * 1000))
+        while time.ticks_diff(until, time.ticks_ms()) > 0:
+            buf += {{ bus_var }}.read() or b""
+            time.sleep_ms(20)
+        return buf
+  loop: |
+    {{ id }}_tag = {{ id }}_decode({{ id }}_listen(1.0))
+    if {{ id }}_tag is not None:
+        print("{{ label }}: tag %d" % {{ id }}_tag)
+
 params_schema:
   on_tag:
     type: array

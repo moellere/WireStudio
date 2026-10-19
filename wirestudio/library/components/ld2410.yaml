@@ -55,6 +55,62 @@ tasmota:
     tx: LD2410_TX
     rx: LD2410_RX
 
+# Datasheet report frame: F4 F3 F2 F1, a little-endian length, the data
+# (type, 0xAA, target state, moving distance and energy, still distance
+# and energy, ...) and F8 F7 F6 F5.
+circuitpython:
+  setup: |
+    def {{ id }}_decode(buf):
+        found = None
+        i = buf.find(b"\xf4\xf3\xf2\xf1")
+        while 0 <= i and i + 6 <= len(buf):
+            n = buf[i + 4] | buf[i + 5] << 8
+            d = buf[i + 6:i + 6 + n]
+            if len(d) == n >= 13 and buf[i + 6 + n:i + 10 + n] == b"\xf8\xf7\xf6\xf5" \
+                    and d[0] in (1, 2) and d[1] == 0xAA:
+                found = (d[2], d[3] | d[4] << 8, d[5], d[6] | d[7] << 8, d[8])
+            i = buf.find(b"\xf4\xf3\xf2\xf1", i + 4)
+        return found
+    def {{ id }}_listen(seconds):
+        {{ bus_var }}.reset_input_buffer()
+        buf = b""
+        until = time.monotonic() + seconds
+        while time.monotonic() < until:
+            n = {{ bus_var }}.in_waiting
+            if n:
+                buf += {{ bus_var }}.read(n)
+        return buf
+  loop: |
+    {{ id }}_target = {{ id }}_decode({{ id }}_listen(0.5))
+    if {{ id }}_target:
+        print("{{ label }}: %s, moving %d cm, still %d cm" % (("none", "moving", "still", "moving and still")[{{ id }}_target[0] & 3], {{ id }}_target[1], {{ id }}_target[3]))
+
+micropython:
+  setup: |
+    def {{ id }}_decode(buf):
+        found = None
+        i = buf.find(b"\xf4\xf3\xf2\xf1")
+        while 0 <= i and i + 6 <= len(buf):
+            n = buf[i + 4] | buf[i + 5] << 8
+            d = buf[i + 6:i + 6 + n]
+            if len(d) == n >= 13 and buf[i + 6 + n:i + 10 + n] == b"\xf8\xf7\xf6\xf5" \
+                    and d[0] in (1, 2) and d[1] == 0xAA:
+                found = (d[2], d[3] | d[4] << 8, d[5], d[6] | d[7] << 8, d[8])
+            i = buf.find(b"\xf4\xf3\xf2\xf1", i + 4)
+        return found
+    def {{ id }}_listen(seconds):
+        {{ bus_var }}.read()
+        buf = b""
+        until = time.ticks_add(time.ticks_ms(), int(seconds * 1000))
+        while time.ticks_diff(until, time.ticks_ms()) > 0:
+            buf += {{ bus_var }}.read() or b""
+            time.sleep_ms(20)
+        return buf
+  loop: |
+    {{ id }}_target = {{ id }}_decode({{ id }}_listen(0.5))
+    if {{ id }}_target:
+        print("{{ label }}: %s, moving %d cm, still %d cm" % (("none", "moving", "still", "moving and still")[{{ id }}_target[0] & 3], {{ id }}_target[1], {{ id }}_target[3]))
+
 params_schema:
   throttle:
     type: string

@@ -40,6 +40,74 @@ esphome:
         power_factor:
           name: "{{ label }} Power Factor"
 
+# Datasheet frame, 24 bytes at 4800 8E1: header (0x55 normal, 0xFx with
+# overflow bits), 0x5A, then voltage, current and power each as a
+# 3-byte coefficient and a 3-byte cycle (value = coefficient / cycle),
+# the adjust byte flagging which are valid, and a checksum, the low
+# byte of the sum of bytes 2-22.
+circuitpython:
+  setup: |
+    def {{ id }}_decode(buf):
+        found = None
+        for i in range(len(buf) - 23):
+            f = buf[i:i + 24]
+            if f[1] != 0x5A or sum(f[2:23]) & 0xFF != f[23]:
+                continue
+            h, adj = f[0], f[20]
+            if h != 0x55 and (h & 0xF1) != 0xF0:
+                continue
+            over = h if h != 0x55 else 0
+            word = lambda k: f[k] << 16 | f[k + 1] << 8 | f[k + 2]
+            volts = word(2) / word(5) if adj & 0x40 and not over & 0x08 else None
+            amps = word(8) / word(11) if adj & 0x20 and not over & 0x04 else 0.0
+            watts = word(14) / word(17) if adj & 0x10 and not over & 0x02 else 0.0
+            found = (volts, amps, watts)
+        return found
+    def {{ id }}_listen(seconds):
+        {{ bus_var }}.reset_input_buffer()
+        buf = b""
+        until = time.monotonic() + seconds
+        while time.monotonic() < until:
+            n = {{ bus_var }}.in_waiting
+            if n:
+                buf += {{ bus_var }}.read(n)
+        return buf
+  loop: |
+    {{ id }}_reading = {{ id }}_decode({{ id }}_listen(0.5))
+    if {{ id }}_reading:
+        print("{{ label }}: %s V %.3f A %.1f W" % (("%.1f" % {{ id }}_reading[0]) if {{ id }}_reading[0] else "-", {{ id }}_reading[1], {{ id }}_reading[2]))
+
+micropython:
+  setup: |
+    def {{ id }}_decode(buf):
+        found = None
+        for i in range(len(buf) - 23):
+            f = buf[i:i + 24]
+            if f[1] != 0x5A or sum(f[2:23]) & 0xFF != f[23]:
+                continue
+            h, adj = f[0], f[20]
+            if h != 0x55 and (h & 0xF1) != 0xF0:
+                continue
+            over = h if h != 0x55 else 0
+            word = lambda k: f[k] << 16 | f[k + 1] << 8 | f[k + 2]
+            volts = word(2) / word(5) if adj & 0x40 and not over & 0x08 else None
+            amps = word(8) / word(11) if adj & 0x20 and not over & 0x04 else 0.0
+            watts = word(14) / word(17) if adj & 0x10 and not over & 0x02 else 0.0
+            found = (volts, amps, watts)
+        return found
+    def {{ id }}_listen(seconds):
+        {{ bus_var }}.read()
+        buf = b""
+        until = time.ticks_add(time.ticks_ms(), int(seconds * 1000))
+        while time.ticks_diff(until, time.ticks_ms()) > 0:
+            buf += {{ bus_var }}.read() or b""
+            time.sleep_ms(20)
+        return buf
+  loop: |
+    {{ id }}_reading = {{ id }}_decode({{ id }}_listen(0.5))
+    if {{ id }}_reading:
+        print("{{ label }}: %s V %.3f A %.1f W" % (("%.1f" % {{ id }}_reading[0]) if {{ id }}_reading[0] else "-", {{ id }}_reading[1], {{ id }}_reading[2]))
+
 params_schema: {}
 
 notes: |
