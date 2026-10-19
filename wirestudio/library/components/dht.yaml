@@ -137,3 +137,13 @@ kicad:
     VCC: VDD
 tasmota:
   pins: {DATA: DHT22}
+
+wled:
+  kind: usermod
+  usermod: DHT
+  define: USERMOD_DHT
+  lib_deps: ["https://github.com/alwynallan/DHT_nonblocking"]
+  pins: [DATA]
+  pin_defines: {DATA: USERMOD_DHT_PIN}
+  param_defines:
+    model: {define: USERMOD_DHT_DHTTYPE, values: {DHT11: 11, DHT22: 22, AM2302: 22, RHT03: 22}}

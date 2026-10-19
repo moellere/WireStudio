@@ -1,0 +1,76 @@
+name: wled-firmware
+
+# Compile gate for the WLED target's usermod tier: the pinned release
+# with the bundled usermod example's platformio_override.ini, built
+# with `pio run`. An upstream move (a usermod renamed, a library pin
+# gone, the release's environments reshaped) that breaks the build is
+# caught here, as lorawan-firmware does for the LoRaWAN firmware.
+#
+# Triggers:
+#   - pull_request touching the target, the build module, the usermod
+#     example, this script or this workflow.
+#   - schedule: 13:00 UTC daily (after lorawan-firmware at 12:00).
+#   - workflow_dispatch: manual rerun, with optional example stems.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "wirestudio/targets/wled.py"
+      - "wirestudio/targets/wled_build.py"
+      - "wirestudio/examples/wled-sensor-strip.json"
+      - "scripts/build_wled_firmware.py"
+      - ".github/workflows/wled-firmware.yml"
+  schedule:
+    - cron: "0 13 * * *"
+  workflow_dispatch:
+    inputs:
+      examples:
+        description: "Space-separated example stems (default: wled-sensor-strip)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wled-firmware-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # Cold cache: the espressif32 platform WLED pins, the toolchain, the
+    # web UI bundle and a full ESP32 build (~15min). Warm: ~5min.
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install studio + PlatformIO
+        run: |
+          pip install -e .
+          pip install platformio
+
+      - name: Cache PlatformIO toolchain and the WLED checkout
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            ~/.wirestudio-fw/wled
+          key: pio-wled-${{ runner.os }}-v0.15.2
+          restore-keys: |
+            pio-wled-${{ runner.os }}-
+
+      - name: Build the release with the example's usermods
+        run: |
+          export WIRESTUDIO_FW_CACHE="$HOME/.wirestudio-fw"
+          python scripts/build_wled_firmware.py ${{ inputs.examples }}

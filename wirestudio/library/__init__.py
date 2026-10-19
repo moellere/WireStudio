@@ -169,24 +169,49 @@ class TasmotaSpec(_Strict):
     bus: dict[str, str] = Field(default_factory=dict)
 
 
+class WledParamDefine(_Strict):
+    """A compile-time define a component param sets: `values` maps the
+    param's values to the define's (a DHT `model` of DHT22 is
+    `USERMOD_DHT_DHTTYPE=22`); empty passes the value through."""
+    define: str
+    values: dict[str, Union[int, str]] = Field(default_factory=dict)
+
+
 class WledSpec(_Strict):
-    """WLED `cfg.json` hardware mapping, the runtime tier a stock release
-    image reads at boot. `kind` is what the part is to WLED: an LED
-    output (`hw.led.ins`), a button, the IR receiver or the relay.
-    `pins` lists the pin roles in the order WLED reads them (data, then
-    clock for two-wire chips). For an LED output `type` is the WLED bus
-    type code, `chipsets` maps the component's chipset param values to
-    codes, and the `*_param` names say which params carry the chipset,
-    colour order and LED count. Sensors are usermods, a compile-in tier
-    with no block yet."""
-    kind: Literal["led", "button", "ir", "relay"]
-    pins: list[str]
+    """WLED mapping, in one of its two tiers.
+
+    The runtime tier (`kind` led / button / ir / relay) is `cfg.json`
+    hardware a stock release image reads at boot: `pins` lists the pin
+    roles in the order WLED reads them (data, then clock for two-wire
+    chips); for an LED output `type` is the WLED bus type code,
+    `chipsets` maps the chipset param's values to codes and the
+    `*_param` names say which params carry the chipset, colour order and
+    LED count.
+
+    The compile-in tier (`kind` usermod) is a usermod built into the
+    pinned release: `usermod` is its directory under `usermods/`,
+    `define` the build flag that enables it, `lib_deps` the libraries
+    its README asks for, `pin_defines` the compile-time define per pin
+    role and `param_defines` the ones params set. What the usermod reads
+    from `cfg.json` at boot goes under `um_name`: `um` verbatim, plus a
+    pin per `um_pins` role and a param per `um_params` key."""
+    kind: Literal["led", "button", "ir", "relay", "usermod"]
+    pins: list[str] = Field(default_factory=list)
     type: int = 22
     chipsets: dict[str, int] = Field(default_factory=dict)
     chipset_param: Optional[str] = None
     order_param: Optional[str] = None
     length_param: str = "num_leds"
     button: Literal["push", "push_act_high", "switch", "pir", "touch"] = "push"
+    usermod: Optional[str] = None
+    define: Optional[str] = None
+    lib_deps: list[str] = Field(default_factory=list)
+    pin_defines: dict[str, str] = Field(default_factory=dict)
+    param_defines: dict[str, WledParamDefine] = Field(default_factory=dict)
+    um_name: Optional[str] = None
+    um: dict = Field(default_factory=dict)
+    um_pins: dict[str, str] = Field(default_factory=dict)
+    um_params: dict[str, str] = Field(default_factory=dict)
 
 
 class CircuitPythonSpec(_Strict):

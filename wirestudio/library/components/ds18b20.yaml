@@ -96,3 +96,14 @@ kicad:
     DATA: DQ
 tasmota:
   pins: {DATA: DS18x20}
+
+wled:
+  kind: usermod
+  usermod: Temperature
+  define: USERMOD_DALLASTEMPERATURE
+  lib_deps: ["paulstoffregen/OneWire@~2.3.8"]
+  pins: [DATA]
+  pin_defines: {DATA: TEMPERATURE_PIN}
+  um_name: Temperature
+  um: {enabled: true, degC: true}
+  um_pins: {DATA: pin}

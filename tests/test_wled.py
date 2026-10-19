@@ -114,10 +114,10 @@ def test_outputs_chain_their_start_index_and_relay_and_ir_are_single(lib):
 
 def test_unwired_and_unmapped_parts_warn(lib):
     raw = _raw("usbc-led-strip")
-    raw["components"].append({"id": "env", "library_id": "bme280", "label": "Env", "params": {}})
+    raw["components"].append({"id": "arm", "library_id": "servo", "label": "Arm", "params": {}})
     raw["components"].append({"id": "loose", "library_id": "gpio_input", "label": "B", "params": {}})
     cfg, warnings = build_cfg(Design.model_validate(raw), lib)
-    assert any("env (bme280): no WLED mapping" in w for w in warnings)
+    assert any("arm (servo): no WLED mapping" in w for w in warnings)
     assert any("loose.IN: not wired" in w for w in warnings)
     assert cfg["hw"]["btn"]["ins"] == []
 
@@ -142,6 +142,7 @@ def test_target_registry_boards_components_and_validate(lib):
     assert set(target.component_ids(lib)) == {
         "ws2812b", "apa102", "esp32_rmt_led_strip", "gpio_input", "hc-sr501",
         "rcwl-0516", "remote_receiver", "gpio_output",
+        "bme280", "bmp280", "sht3xd", "ds18b20", "dht",
     }
     files = target.generate(_design("atom-matrix"), lib)
     assert json.loads(files["cfg.json"])["hw"]["led"]["total"] == 25
@@ -158,3 +159,118 @@ def test_cfg_endpoint_and_cli(capsys):
     assert main([str(EXAMPLES / "atom-matrix.json")]) == 0
     out = capsys.readouterr()
     assert json.loads(out.out)["hw"]["led"]["total"] == 25
+
+
+# ---------------------------------------------------------------------------
+# The usermod tier
+# ---------------------------------------------------------------------------
+
+from wirestudio.targets import wled_build  # noqa: E402
+from wirestudio.targets.wled import WLED_RELEASE, build_platformio_override  # noqa: E402
+
+
+def test_usermod_example_matches_its_goldens(lib):
+    design = _design("wled-sensor-strip")
+    cfg, _ = build_cfg(design, lib)
+    assert json.dumps(cfg, indent=2) + "\n" == (GOLDEN / "wled-sensor-strip.wled.json").read_text()
+    override, warnings = build_platformio_override(design, lib)
+    assert override == (GOLDEN / "wled-sensor-strip.wled.ini").read_text()
+    assert warnings == []
+
+
+def test_usermods_ride_cfg_um_and_the_override(lib):
+    cfg, _ = build_cfg(_design("wled-sensor-strip"), lib)
+    assert cfg["um"]["BME280/BMP280"] == {"enabled": True, "I2CAddress": 0x76}
+    assert cfg["um"]["Temperature"] == {"enabled": True, "degC": True, "pin": 4}  # via the 1-wire bus
+    assert cfg["hw"]["if"]["i2c-pin"] == [21, 22]
+    override, _ = build_platformio_override(_design("wled-sensor-strip"), lib)
+    lines = override.splitlines()
+    assert lines[0] == f"; wirestudio: wled-sensor-strip on WLED {WLED_RELEASE}"
+    assert "extends = env:esp32dev" in lines
+    assert "  -D USERMOD_BME280" in lines and "  -D USERMOD_DALLASTEMPERATURE" in lines
+    assert "  -D TEMPERATURE_PIN=4" in lines
+    assert "  BME280@~3.0.0" in lines and "  paulstoffregen/OneWire@~2.3.8" in lines
+
+
+def test_a_design_without_usermods_has_no_override(lib):
+    assert build_platformio_override(_design("atom-matrix"), lib) == (None, [])
+    assert "um" not in build_cfg(_design("atom-matrix"), lib)[0]
+
+
+def test_dht_sets_its_pin_and_type_defines_and_a_second_sensor_warns(lib):
+    raw = _raw("motion-turns-on-light")
+    raw["components"] += [
+        {"id": "th", "library_id": "dht", "label": "TH", "params": {"model": "DHT11"}},
+        {"id": "th2", "library_id": "dht", "label": "TH2", "params": {"model": "DHT22"}},
+    ]
+    raw["connections"] += [
+        {"component_id": "th", "pin_role": "DATA", "target": {"kind": "gpio", "pin": "D5"}},
+        {"component_id": "th2", "pin_role": "DATA", "target": {"kind": "gpio", "pin": "D6"}},
+    ]
+    override, warnings = build_platformio_override(Design.model_validate(raw), lib)
+    lines = override.splitlines()
+    assert "extends = env:nodemcuv2" in lines
+    assert "  -D USERMOD_DHT_PIN=14" in lines and "  -D USERMOD_DHT_DHTTYPE=11" in lines
+    assert lines.count("  -D USERMOD_DHT") == 1
+    assert any("th2" in w and "compiled in once" in w for w in warnings)
+
+
+def test_generate_and_validate_carry_the_override(lib):
+    target = get_target("wled")
+    files = target.generate(_design("wled-sensor-strip"), lib)
+    assert set(files) == {"cfg.json", "platformio_override.ini"}
+    assert "um" in json.loads(files["cfg.json"])
+    assert all(w.code == "wled_unmapped" for w in target.validate(_design("wled-sensor-strip"), lib))
+    assert target.build_backend().id == "local-platformio-wled"
+
+
+def _fake_pio(tmp_path: Path) -> Path:
+    script = tmp_path / "pio"
+    script.write_text(
+        "#!/bin/sh\n"
+        "d=$3\n"
+        "echo \"building $5 in $d\"\n"
+        "mkdir -p \"$d/.pio/build/$5\" && printf 'BIN' > \"$d/.pio/build/$5/firmware.bin\"\n"
+    )
+    script.chmod(0o755)
+    return script
+
+
+def test_build_runs_pio_on_the_checkout_and_caches_the_artifact(lib, tmp_path, monkeypatch):
+    src = tmp_path / f"wled-{WLED_RELEASE}"
+    src.mkdir()
+    (src / "platformio.ini").write_text("[env:esp32dev]\n")
+    monkeypatch.setattr(wled_build, "_pio_cmd", lambda: [str(_fake_pio(tmp_path))])
+    monkeypatch.setattr(wled_build, "_merge_factory", lambda *a: False)
+    design = _design("wled-sensor-strip")
+
+    events = list(wled_build.compile_firmware_events(design, lib, root=tmp_path, use_cache=False))
+    done = events[-1]
+    assert done["ok"] and done["cache_hit"] is False and done["env"] == "wirestudio"
+    assert any("building wirestudio" in e["data"] for e in events if e["type"] == "log")
+    override = (src / "platformio_override.ini").read_text()
+    assert override == build_platformio_override(design, lib)[0]
+    assert Path(done["bin"]).read_bytes() == b"BIN"
+
+    again = list(wled_build.compile_firmware_events(design, lib, root=tmp_path))
+    assert again[-1]["cache_hit"] is True and again[-1]["cache_key"] == done["cache_key"]
+    assert wled_build.cache_key(override) == done["cache_key"]
+
+
+def test_build_refuses_a_design_without_usermods_and_reports_a_missing_toolchain(lib, tmp_path, monkeypatch):
+    with pytest.raises(ValueError, match="no usermods"):
+        list(wled_build.compile_firmware_events(_design("atom-matrix"), lib, root=tmp_path))
+    monkeypatch.setattr(wled_build, "_pio_cmd", lambda: None)
+    from wirestudio.targets.build_backend import BuildUnavailable
+    with pytest.raises(BuildUnavailable):
+        list(wled_build.compile_firmware_events(_design("wled-sensor-strip"), lib, root=tmp_path, use_cache=False))
+
+
+def test_compile_endpoints(monkeypatch):
+    client = TestClient(create_app())
+    assert "release" in client.get("/wled/compile/status").json()
+    r = client.post("/wled/compile", json=_raw("atom-matrix"))
+    assert r.status_code == 422 and "no usermods" in r.text
+    assert client.get("/wled/firmware/nope").status_code == 404
+    body = client.post("/wled/cfg", json=_raw("wled-sensor-strip")).json()
+    assert body["platformio_override"].startswith("; wirestudio: wled-sensor-strip")

@@ -1,0 +1,87 @@
+{
+  "schema_version": "0.3",
+  "id": "wled-sensor-strip",
+  "name": "WLED strip with room sensors",
+  "description": "A 60-pixel WS2812 strip with a preset button, a BME280 and a DS18B20 on an ESP32 DevKitC. On the ESPHome target it is an ordinary light plus two sensors. On the WLED target the strip and the button are runtime settings in cfg.json, while the two sensors are usermods: the BME280_v2 and Temperature usermods are compiled into the pinned WLED release through the generated platformio_override.ini, and their settings ride cfg.json's um section.",
+  "board": {
+    "library_id": "esp32-devkitc-v4",
+    "mcu": "esp32",
+    "framework": "arduino"
+  },
+  "power": {
+    "supply": "usb-5v",
+    "rail_voltage_v": 5.0,
+    "regulator": "onboard-ams1117",
+    "budget_ma": 2500
+  },
+  "requirements": [
+    {"id": "r1", "kind": "capability", "text": "Addressable strip with a physical preset button"},
+    {"id": "r2", "kind": "capability", "text": "Room temperature, humidity and pressure, plus a probe temperature"},
+    {"id": "r3", "kind": "constraint", "text": "Runs stock WLED plus two compiled-in usermods"}
+  ],
+  "components": [
+    {
+      "id": "strip",
+      "library_id": "esp32_rmt_led_strip",
+      "label": "Shelf strip",
+      "params": {
+        "chipset": "WS2812",
+        "rgb_order": "GRB",
+        "num_leds": 60
+      }
+    },
+    {
+      "id": "preset_btn",
+      "library_id": "gpio_input",
+      "label": "Preset button",
+      "params": {}
+    },
+    {
+      "id": "env",
+      "library_id": "bme280",
+      "label": "Room climate",
+      "params": {
+        "address": "0x76"
+      }
+    },
+    {
+      "id": "probe",
+      "library_id": "ds18b20",
+      "label": "Probe temperature",
+      "params": {
+        "update_interval": "60s"
+      }
+    }
+  ],
+  "buses": [
+    {"id": "i2c0", "type": "i2c", "frequency_hz": 100000, "sda": "GPIO21", "scl": "GPIO22"},
+    {"id": "wire0", "type": "1wire", "pin": "GPIO4"}
+  ],
+  "connections": [
+    {"component_id": "strip", "pin_role": "VCC", "target": {"kind": "rail", "rail": "5V"}},
+    {"component_id": "strip", "pin_role": "GND", "target": {"kind": "rail", "rail": "GND"}},
+    {"component_id": "strip", "pin_role": "DIN", "target": {"kind": "gpio", "pin": "GPIO16"}},
+    {"component_id": "preset_btn", "pin_role": "IN", "target": {"kind": "gpio", "pin": "GPIO0"}},
+    {"component_id": "env", "pin_role": "VCC", "target": {"kind": "rail", "rail": "3V3"}},
+    {"component_id": "env", "pin_role": "GND", "target": {"kind": "rail", "rail": "GND"}},
+    {"component_id": "env", "pin_role": "SDA", "target": {"kind": "bus", "bus_id": "i2c0"}},
+    {"component_id": "env", "pin_role": "SCL", "target": {"kind": "bus", "bus_id": "i2c0"}},
+    {"component_id": "probe", "pin_role": "VCC", "target": {"kind": "rail", "rail": "3V3"}},
+    {"component_id": "probe", "pin_role": "GND", "target": {"kind": "rail", "rail": "GND"}},
+    {"component_id": "probe", "pin_role": "DATA", "target": {"kind": "bus", "bus_id": "wire0"}}
+  ],
+  "passives": [],
+  "warnings": [],
+  "esphome_extras": {
+    "logger": {}
+  },
+  "fleet": {
+    "device_name": "wled-sensor-strip",
+    "tags": ["indoor", "light", "wled"],
+    "secrets_ref": {
+      "wifi_ssid": "!secret wifi_ssid",
+      "wifi_password": "!secret wifi_password",
+      "api_key": "!secret api_key"
+    }
+  }
+}

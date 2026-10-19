@@ -192,8 +192,15 @@ bus pins -- via `POST /wled/cfg`, the target seam and
 stock release image reads it at boot, so a design of those parts needs
 no build. Components opt in with a `wled:` block (`kind`, pin roles,
 bus type codes keyed by the chipset param); keys and codes come from
-`wled00/const.h` and `cfg.cpp`, and goldens pin three examples.
-Sensors are WLED usermods, a compile-in tier with no block yet.
+`wled00/const.h` and `cfg.cpp`, and goldens pin four examples.
+Sensors are WLED usermods, the compile-in tier: a `usermod` block
+names the usermod, its build flag, libraries, pin defines and the `um`
+settings it reads from `cfg.json`; `build_platformio_override` emits
+the environment that compiles them into the pinned release (v0.15.2,
+build-flag form), and `wled_build` clones the release and runs
+`pio run` behind `POST /wled/compile`, streamed, with the artifact
+cached by a hash of the override. The `wled-firmware` workflow builds
+the bundled usermod example against the release.
 
 **Meshtastic flashing (0.23).** *Works.* The unified flash dialog
 fetches the official Meshtastic release factory image through the
