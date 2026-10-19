@@ -88,3 +88,11 @@ kicad:
   pin_map:
     VCC: VDD
     GND: VSS
+
+wled:
+  kind: usermod
+  usermod: sht
+  define: USERMOD_SHT
+  lib_deps: ["robtillaart/SHT85@~0.3.3"]
+  um_name: SHT-Sensor
+  um: {Enabled: true, SHT-Type: 0, Unit: 0}

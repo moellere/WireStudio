@@ -24,6 +24,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **WLED target, the usermod tier.** Sensors are WLED usermods,
+  compiled into the release with a build flag. A `wled:` block of kind
+  `usermod` names the usermod, its define, the libraries its README
+  asks for, the compile-time defines its pins and params set, and the
+  settings it reads from `cfg.json`'s `um` section. `bme280`, `bmp280`,
+  `sht3xd`, `ds18b20` and `dht` carry one. `build_platformio_override`
+  emits the `platformio_override.ini` environment that compiles a
+  design's usermods into WLED v0.15.2 (extending the release's own
+  environment for the chip, in the release's build-flag form);
+  `build_cfg` writes the `um` section; `generate` returns both files.
+  `wled_build` runs the build the way the lorawan worker does: a
+  shallow clone of the release in the firmware cache, the override
+  dropped in, `pio run -e wirestudio` streamed, the artifact cached by
+  a hash of the override. `POST /wled/compile` streams it, `GET
+  /wled/firmware/{job}` serves it, `/wled/compile/status` probes the
+  toolchain (PlatformIO, git and node, since WLED bundles its web UI
+  at build time). `wled-sensor-strip` is the bundled usermod example
+  (a WS2812 strip, a button, a BME280 and a DS18B20 on a DevKitC);
+  the `wled-firmware` workflow builds it against the release on every
+  PR that touches the target and nightly.
 - **WLED target, the runtime tier.** `POST /wled/cfg`, the target seam
   and `python -m wirestudio.targets.wled` emit the hardware section of
   WLED's `cfg.json` from a solved design: LED outputs (`hw.led.ins`,

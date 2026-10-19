@@ -98,3 +98,12 @@ kicad:
     VCC: VDD
     SDA: SDI
     SCL: SCK
+
+wled:
+  kind: usermod
+  usermod: BME280_v2
+  define: USERMOD_BME280
+  lib_deps: ["BME280@~3.0.0"]
+  um_name: BME280/BMP280
+  um: {enabled: true}
+  um_params: {I2CAddress: address}
