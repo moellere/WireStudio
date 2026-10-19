@@ -65,8 +65,15 @@ circuitpython:
 micropython:
   imports: ["import onewire", "import ds18x20"]
   setup: |
-    {{ id }} = ds18x20.DS18X20(onewire.OneWire(Pin({{ pins.DATA }})))
+    {%- if not bus_var and pins.DATA is not defined %}
+    {{ unsupported("its 1-wire bus has no usable GPIO") }}
+    {%- endif %}
+    {{ id }} = ds18x20.DS18X20({{ bus_var if bus_var else 'onewire.OneWire(Pin(%d))' % pins.DATA }})
+    {%- if params.address is defined %}
+    {{ id }}_roms = [({{ params.address }}).to_bytes(8, "little")]
+    {%- else %}
     {{ id }}_roms = {{ id }}.scan()
+    {%- endif %}
   loop: |
     {{ id }}.convert_temp()
     time.sleep_ms(750)

@@ -40,6 +40,14 @@ circuitpython:
     def {{ id }}_read(positive, negative=None):
         return AnalogIn({{ id }}, positive, negative).voltage
 
+micropython:
+  imports: ["from ads1x15 import ADS1115"]
+  deps: ["github:robert-hh/ads1x15/ads1x15.py"]
+  setup: |
+    {{ id }} = ADS1115({{ bus_var }}, address={{ params.address | default('0x48') }}, gain=1)
+    def {{ id }}_read(channel1, channel2=None):
+        return {{ id }}.raw_to_v({{ id }}.read(4, channel1, channel2))
+
 params_schema:
   address:
     type: string

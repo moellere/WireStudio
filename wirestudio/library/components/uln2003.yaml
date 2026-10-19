@@ -67,6 +67,24 @@ circuitpython:
     {{ id }}.release()
     # {{ id }}.onestep(direction=stepper.FORWARD, style={{ id }}_style) moves one step
 
+# Coil patterns for inputs A, B, C, D: wave drive energises one coil a
+# step, full step two, half step alternates one and two.
+micropython:
+  setup: |
+    {%- set seqs = {
+        'WAVE_DRIVE': '(1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1)',
+        'FULL_STEP': '(1, 1, 0, 0), (0, 1, 1, 0), (0, 0, 1, 1), (1, 0, 0, 1)',
+        'HALF_STEP': '(1, 0, 0, 0), (1, 1, 0, 0), (0, 1, 0, 0), (0, 1, 1, 0), (0, 0, 1, 0), (0, 0, 1, 1), (0, 0, 0, 1), (1, 0, 0, 1)',
+    } %}
+    {{ id }}_coils = [Pin(n, Pin.OUT, value=0) for n in ({{ pins.A }}, {{ pins.B }}, {{ pins.C }}, {{ pins.D }})]
+    {{ id }}_seq = ({{ seqs[params.step_mode | default('HALF_STEP')] }})
+    {{ id }}_pos = 0
+    def {{ id }}_step(direction=1):
+        global {{ id }}_pos
+        {{ id }}_pos = ({{ id }}_pos + direction) % len({{ id }}_seq)
+        for coil, on in zip({{ id }}_coils, {{ id }}_seq[{{ id }}_pos]):
+            coil(on)
+
 params_schema:
   max_speed:
     type: string

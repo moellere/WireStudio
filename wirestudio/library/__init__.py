@@ -234,11 +234,12 @@ class MicroPythonSpec(_Strict):
     """MicroPython main.py generation, the CircuitPython block's twin
     over the `machine` API. Same fragment contract (`setup` once at
     boot, optional `loop` body; context id, label, params, pins as
-    role->GPIO-number, bus, bus_var) with `imports` as exact import
+    role->GPIO-number, bus, bus_var, board) with `imports` as exact import
     lines. `deps` are `mip` package specs (a micropython-lib name, or
     `github:owner/repo/file.py`); ports ship `machine`, `dht`,
     `onewire`, `ds18x20` and `neopixel` built in, so most entries need
-    none."""
+    none. `unsupported(reason)` skips a variant with no driver, as in
+    the CircuitPython block."""
     imports: list[str] = Field(default_factory=list)
     deps: list[str] = Field(default_factory=list)
     setup: str

@@ -54,6 +54,27 @@ circuitpython:
     except RuntimeError as e:
         print("{{ label }}:", e)
 
+# Datasheet frame: 0x42 0x4D, a big-endian length, data words, then a
+# checksum word, the sum of every byte before it. Words 4-6 are PM1.0,
+# PM2.5 and PM10 under atmospheric conditions.
+micropython:
+  setup: |
+    def {{ id }}_read():
+        buf = {{ bus_var }}.read()
+        found = None
+        i = buf.find(b"\x42\x4d") if buf else -1
+        while 0 <= i and i + 4 <= len(buf):
+            frame = buf[i:i + 4 + (buf[i + 2] << 8 | buf[i + 3])]
+            if len(frame) >= 16 and len(frame) == 4 + (buf[i + 2] << 8 | buf[i + 3]) \
+                    and sum(frame[:-2]) == (frame[-2] << 8 | frame[-1]):
+                found = [frame[k] << 8 | frame[k + 1] for k in (10, 12, 14)]
+            i = buf.find(b"\x42\x4d", i + 2)
+        return found
+  loop: |
+    {{ id }}_pm = {{ id }}_read()
+    if {{ id }}_pm:
+        print("{{ label }}: PM1.0 %d PM2.5 %d PM10 %d ug/m3" % tuple({{ id }}_pm))
+
 params_schema:
   type:
     type: string

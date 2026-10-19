@@ -1,8 +1,8 @@
-"""The MicroPython blocks that talk to the chip directly (no driver) are
-datasheet register code. Each generated main.py runs here against a fake
-`machine` bus for one pass of its loop: the bytes it writes are the
-datasheet's commands, and the readings it prints are the datasheet's own
-worked examples decoded."""
+"""The MicroPython blocks that talk to the chip or the wire directly (no
+driver) are datasheet code. Each generated main.py runs here against a
+fake `machine`: the bytes and pin levels it writes are the datasheet's,
+and the readings it decodes are the datasheet's own worked examples, a
+PMS frame and the NMEA reference sentence among them."""
 from __future__ import annotations
 
 import sys
@@ -177,3 +177,145 @@ def test_apa102_frames_the_strip_in_its_colour_order(monkeypatch, capsys):
     buses, _ = run("apa102", {"num_leds": 1, "rgb_order": "RGB"}, lambda spi: None,
                    monkeypatch, capsys)
     assert buses["FakeSPI"].written == [bytes(4) + bytes([0xFF, 0, 8, 0]) + b"\xff" * 4]
+
+
+class RecordingPin:
+    """A Pin that logs every level it is driven to, shared per GPIO."""
+
+    log: list[tuple[int, int]] = []
+    OUT, IN, PULL_UP, PULL_DOWN = 1, 0, 2, 3
+
+    def __init__(self, n, *a, value=None, **k):
+        self.n = n
+        if value is not None:
+            self(value)
+
+    def __call__(self, v=None):
+        if v is not None:
+            RecordingPin.log.append((self.n, int(v)))
+
+
+class FakePWM:
+    def __init__(self, pin, freq=None):
+        self.pin, self.duty = pin, None
+
+    def duty_u16(self, v):
+        self.duty = v
+
+
+def setup_scope(component: str, params: dict, monkeypatch, **machine_attrs) -> tuple[dict, dict]:
+    """Run only the setup part of a generated main.py, against a fake
+    `machine`; return the module scope and the wiring (role -> GPIO)."""
+    lib = default_library()
+    design = synthetic_design(lib.component(component), lib, on_buses=True)
+    design.components[0].params.update(params)
+    code = generate_code(design, lib)["code"]
+    machine = types.ModuleType("machine")
+    machine.Pin = RecordingPin
+    for name, value in machine_attrs.items():
+        setattr(machine, name, value)
+    fake_time = types.ModuleType("time")
+    clock = iter(range(0, 10**9, 100))
+    fake_time.ticks_ms = lambda: next(clock)
+    fake_time.ticks_add = lambda a, b: a + b
+    fake_time.ticks_diff = lambda a, b: a - b
+    fake_time.sleep_ms = lambda ms: None
+    monkeypatch.setitem(sys.modules, "machine", machine)
+    monkeypatch.setitem(sys.modules, "time", fake_time)
+    RecordingPin.log = []
+    scope: dict = {"__name__": "__main__"}
+    exec(compile(code.split("\nwhile True:")[0], "main.py", "exec"), scope)
+    wiring = {c.pin_role: int(c.target.pin[4:]) for c in design.connections if c.target.kind == "gpio"}
+    return scope, wiring
+
+
+@pytest.mark.parametrize("decay, forward, reverse", [
+    # DRV8833 truth table at half throttle: (IN1, IN2) duty.
+    ("fast", (32767, 0), (0, 32767)),
+    ("slow", (65535, 32768), (32768, 65535)),
+])
+def test_hbridge_follows_the_drv8833_truth_table(decay, forward, reverse, monkeypatch):
+    scope, _ = setup_scope("hbridge", {"decay_mode": decay}, monkeypatch, PWM=FakePWM)
+    in1, in2, throttle = scope["dut_in1"], scope["dut_in2"], scope["dut_throttle"]
+    assert (in1.duty, in2.duty) == ((0, 0) if decay == "fast" else (65535, 65535))  # coast / brake
+    throttle(0.5)
+    assert (in1.duty, in2.duty) == forward
+    throttle(-0.5)
+    assert (in1.duty, in2.duty) == reverse
+
+
+@pytest.mark.parametrize("mode, energised", [
+    ("WAVE_DRIVE", ["B", "C", "D", "A"]),
+    ("FULL_STEP", ["BC", "CD", "AD", "AB"]),
+    ("HALF_STEP", ["AB", "B", "BC", "C", "CD", "D", "AD", "A"]),
+])
+def test_uln2003_steps_the_coils_in_order(mode, energised, monkeypatch):
+    scope, wiring = setup_scope("uln2003", {"step_mode": mode}, monkeypatch)
+    coil = {wiring[r]: r for r in "ABCD"}
+    seen = []
+    for _ in energised:
+        RecordingPin.log = []
+        scope["dut_step"]()
+        seen.append("".join(sorted(coil[n] for n, v in RecordingPin.log if v)))
+    assert seen == energised
+    RecordingPin.log = []
+    scope["dut_step"](-1)
+    assert "".join(sorted(coil[n] for n, v in RecordingPin.log if v)) == energised[-2]
+
+
+@pytest.mark.parametrize("count", [1, 2])
+def test_sn74hc595_shifts_msb_first_then_latches(count, monkeypatch):
+    scope, wiring = setup_scope("sn74hc595", {"sr_count": count}, monkeypatch)
+    RecordingPin.log = []
+    value = 0xA1C3 if count == 2 else 0xA1
+    scope["dut_write"](value)
+    data, clock, latch = wiring["DATA"], wiring["CLOCK"], wiring["LATCH"]
+    level, shifted = {}, []
+    for n, v in RecordingPin.log:
+        if n == clock and v and not level.get(clock):
+            shifted.append(level[data])
+        if n == latch and v:
+            assert len(shifted) == 8 * count
+        level[n] = v
+    assert shifted == [(value >> b) & 1 for b in range(8 * count - 1, -1, -1)]
+    assert [v for n, v in RecordingPin.log if n == latch] == [1, 0]
+
+
+def _pms_frame(pm1, pm25, pm10):
+    body = bytes([0x42, 0x4D, 0x00, 0x1C]) + bytes(6) + b"".join(
+        v.to_bytes(2, "big") for v in (pm1, pm25, pm10)) + bytes(14)
+    return body + sum(body).to_bytes(2, "big")
+
+
+class FakeUART:
+    def __init__(self, *chunks):
+        self.chunks = list(chunks)
+
+    def read(self):
+        return self.chunks.pop(0) if self.chunks else None
+
+
+def test_pmsx003_reads_the_last_valid_frame(monkeypatch):
+    scope, _ = setup_scope("pmsx003", {}, monkeypatch, UART=lambda *a, **k: FakeUART())
+    good, newer = _pms_frame(5, 12, 20), _pms_frame(6, 13, 21)
+    bad = bytearray(_pms_frame(9, 9, 9))
+    bad[-1] ^= 1
+    scope["uart_uart0"].chunks = [b"\x00\x42" + good[:7] + good + newer + bytes(bad) + newer[:10]]
+    assert scope["dut_read"]() == [6, 13, 21]
+    scope["uart_uart0"].chunks = [bytes(bad)]
+    assert scope["dut_read"]() is None
+    assert scope["dut_read"]() is None  # nothing pending
+
+
+def test_uart_gps_reads_a_checked_rmc_fix(monkeypatch):
+    # The NMEA reference RMC sentence, 48 07.038' N 11 31.000' E.
+    rmc = b"$GPRMC,123519,A,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W*6A\r\n"
+    scope, _ = setup_scope("uart_gps", {}, monkeypatch, UART=lambda *a, **k: FakeUART())
+    uart = scope["uart_uart0"]
+    uart.chunks = [b"stale", b"$GPGGA,1*00\r\n" + rmc[:30], rmc[30:]]
+    lat, lon = scope["dut_fix"]()
+    assert (round(lat, 4), round(lon, 4)) == (48.1173, 11.5167)
+    uart.chunks = [b"", rmc.replace(b"*6A", b"*6B")]
+    assert scope["dut_fix"]() is None
+    uart.chunks = [b"", rmc.replace(b",A,", b",V,").replace(b"*6A", b"*7D")]
+    assert scope["dut_fix"]() is None
