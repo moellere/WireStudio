@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, Protocol
 
+from wirestudio import sqlite_store
 from wirestudio.migrate import migrate
 
 
@@ -151,20 +152,18 @@ class SqliteDesignStore(DesignStore):
     more than one replica against shared storage. The JSON document is
     stored whole; nothing here reads inside it except for the listing."""
 
+    # Append a step to change the schema; never edit one that has shipped.
+    SCHEMA: tuple[tuple[str, ...], ...] = (
+        ("CREATE TABLE IF NOT EXISTS designs ("
+         "id TEXT PRIMARY KEY, document TEXT NOT NULL, saved_at TEXT NOT NULL)",),
+    )
+
     def __init__(self, path: Path) -> None:
         self.path = Path(path)
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        with self._connect() as db:
-            db.execute(
-                "CREATE TABLE IF NOT EXISTS designs ("
-                "id TEXT PRIMARY KEY, document TEXT NOT NULL, saved_at TEXT NOT NULL)"
-            )
+        sqlite_store.migrate(self.path, "designs", self.SCHEMA)
 
     def _connect(self):
-        import sqlite3
-        db = sqlite3.connect(self.path, timeout=10)
-        db.execute("PRAGMA journal_mode=WAL")
-        return db
+        return sqlite_store.connect(self.path)
 
     def exists(self, design_id: str) -> bool:
         with self._connect() as db:

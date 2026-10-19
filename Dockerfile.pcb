@@ -68,7 +68,7 @@ RUN python3 -m venv /opt/venv && /opt/venv/bin/pip install --no-cache-dir ".[pcb
 
 COPY --from=web-builder /web/dist /app/web-dist
 
-RUN mkdir -p /data/sessions /data/designs && \
+RUN mkdir -p /data/sessions /data/designs /data/library/components && \
     useradd -m -s /bin/bash appuser && \
     chown -R appuser:appuser /app /data
 
@@ -110,6 +110,7 @@ ENV PYTHONUNBUFFERED=1 \
     SESSIONS_DIR=/data/sessions \
     DESIGNS_DIR=/data/designs \
     INVENTORY_PATH=/data/inventory.json \
+    LIBRARY_USER_DIR=/data/library \
     WIRESTUDIO_FW_CACHE=/data/firmware-cache \
     WIRESTUDIO_ROUTE_CACHE=/data/route-cache \
     WIRESTUDIO_PCBNEW_PYTHON=/usr/bin/python3 \

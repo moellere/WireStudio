@@ -13,6 +13,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, Protocol
 
+from wirestudio import sqlite_store
+
 SESSIONS_DIR_ENV_DEFAULT = Path(__file__).resolve().parent.parent.parent / "sessions"
 
 
@@ -69,22 +71,20 @@ class SqliteSessionStore(SessionStore):
     """Append-only history in one SQLite file; same entries as the JSONL
     store, one row each, in insertion order."""
 
+    # Append a step to change the schema; never edit one that has shipped.
+    SCHEMA: tuple[tuple[str, ...], ...] = (
+        ("CREATE TABLE IF NOT EXISTS messages ("
+         "seq INTEGER PRIMARY KEY AUTOINCREMENT, session_id TEXT NOT NULL, "
+         "role TEXT NOT NULL, content TEXT NOT NULL, timestamp TEXT NOT NULL)",
+         "CREATE INDEX IF NOT EXISTS messages_session ON messages (session_id, seq)"),
+    )
+
     def __init__(self, path: Path) -> None:
         self.path = Path(path)
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        with self._connect() as db:
-            db.execute(
-                "CREATE TABLE IF NOT EXISTS messages ("
-                "seq INTEGER PRIMARY KEY AUTOINCREMENT, session_id TEXT NOT NULL, "
-                "role TEXT NOT NULL, content TEXT NOT NULL, timestamp TEXT NOT NULL)"
-            )
-            db.execute("CREATE INDEX IF NOT EXISTS messages_session ON messages (session_id, seq)")
+        sqlite_store.migrate(self.path, "sessions", self.SCHEMA)
 
     def _connect(self):
-        import sqlite3
-        db = sqlite3.connect(self.path, timeout=10)
-        db.execute("PRAGMA journal_mode=WAL")
-        return db
+        return sqlite_store.connect(self.path)
 
     def exists(self, session_id: str) -> bool:
         with self._connect() as db:

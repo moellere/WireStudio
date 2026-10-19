@@ -83,6 +83,55 @@ Pair either path with `CHIRPSTACK_API_URL` + `CHIRPSTACK_API_TOKEN` (see
 happens in the user's browser, so the device only needs to reach *their*
 machine, not the server.
 
+## Backup and restore
+
+Everything the studio keeps is under `/data`:
+
+| Path | What | In a backup |
+|---|---|---|
+| `designs/` or `DESIGNS_DB` | saved designs, one `design.json` each, or one SQLite file | yes |
+| `sessions/` or `SESSIONS_DB` | agent conversation history, JSONL per session, or one SQLite file | yes |
+| `inventory.json` | the parts drawer | yes |
+| `library/` | user-authored components (`LIBRARY_USER_DIR`) | yes |
+| `firmware-cache/`, `route-cache/`, `pio/` | build caches | no; rebuilt on demand |
+
+**The file stores** (the default) are plain files. Stop the studio and
+archive them; a design saved while `tar` runs can be caught half-written.
+
+```sh
+docker stop studio
+docker run --rm -v wirestudio-data:/data -v "$PWD":/backup alpine \
+  tar czf /backup/wirestudio-$(date +%F).tgz -C /data designs sessions inventory.json library
+docker start studio
+```
+
+**The SQLite stores** (`DESIGNS_DB`, `SESSIONS_DB`) run in WAL mode, so
+recent writes can sit in a `-wal` file beside the database and a plain
+copy of the `.db` misses them. Copy them through SQLite's online backup
+instead, which is consistent while the studio is running:
+
+```sh
+docker exec studio python -m wirestudio.sqlite_store backup /data/designs.db /data/designs.backup.db
+docker exec studio python -m wirestudio.sqlite_store backup /data/sessions.db /data/sessions.backup.db
+```
+
+and archive the two `.backup.db` files with the rest. On Kubernetes,
+`kubectl exec deploy/wirestudio -- python -m wirestudio.sqlite_store backup ...`
+does the same.
+
+**Restore** is the reverse with the studio stopped: unpack the archive
+into the volume (or put the `.backup.db` files at the `DESIGNS_DB` /
+`SESSIONS_DB` paths) and start it. Older data comes forward on its own:
+each SQLite store carries a schema version (`python -m
+wirestudio.sqlite_store version <db>` prints it) and migrates on open,
+and each saved design is brought to the current `design.json` schema
+when it is loaded and rewritten on its next save.
+
+The other direction does not work. A SQLite store written by a newer
+release refuses to open under an older one, with an error naming the
+store and both versions, so take a backup before upgrading and restore
+it if you roll back.
+
 ## Kubernetes
 
 A ready-to-apply manifest lives at [`deploy/k8s.yaml`](../deploy/k8s.yaml) —
