@@ -111,8 +111,8 @@ Components each framework's generator can use today, out of 102
 |---|---|
 | esphome | 102 |
 | tasmota | 51 |
-| circuitpython | 64 |
-| micropython | 62 |
+| circuitpython | 68 |
+| micropython | 66 |
 | wled | 13 |
 | lorawan | 5 |
 
@@ -138,9 +138,11 @@ remains is to work the baselines down:
   runs every block of both frameworks for a loop pass against stub
   modules. The UART parts with a documented frame (MH-Z19, CSE7766,
   RDM6300, LD2410) decode it in shared datasheet code on both,
-  tested in `tests/test_uart_frames.py`. What remains is LD2420,
-  BL0906, HLW8012, the register-level AXP192 and MPU6886, and the
-  audio, camera and touch parts.
+  tested in `tests/test_uart_frames.py`; the register-level BMP180,
+  MPU6886 and AXP192 and the HLW8012's pulse rates likewise, tested in
+  `tests/test_register_code.py` (the BMP180 against the datasheet's
+  worked example). What remains is LD2420, BL0906, and the audio,
+  camera and touch parts.
 - **Tasmota** covers what Tasmota's template format can express; the
   baseline will be long and honest.
 - **LoRaWAN** gains a block for every sensor the payload codec can
