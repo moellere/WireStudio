@@ -36,7 +36,8 @@ from pathlib import Path
 
 import httpx
 
-from check_examples import EXAMPLES_DIR, _write_secrets
+from check_examples import EXAMPLES_DIR
+from wirestudio.validate import write_secrets_stub
 from wirestudio.esphome_dashboard import DashboardClient
 from wirestudio.generate.yaml_gen import render_yaml
 from wirestudio.library import default_library
@@ -143,7 +144,7 @@ def main(argv: list[str] | None = None) -> int:
         for password in (None, "ci-password"):
             config_dir = Path(tmp) / ("protected" if password else "open")
             config_dir.mkdir()
-            _write_secrets(yaml_text, config_dir / "secrets.yaml")
+            write_secrets_stub(yaml_text, config_dir / "secrets.yaml")
             port = _free_port()
             print(f"dashboard on :{port} {'with a password' if password else 'open'}")
             proc = _start_dashboard(config_dir, port, password)

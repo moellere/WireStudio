@@ -1,0 +1,102 @@
+name: agent-eval
+
+# The agent's score. `wirestudio/agent/eval_tasks.yaml` is a fixed list
+# of natural-language asks against the bundled examples; each run scores
+# the design the agent hands back on three things (it validates through
+# `esphome config`, the intended change is present, the turn stayed
+# within its tool-call budget) and holds the pass count to gate.min_pass.
+#
+# Two jobs:
+#   - solutions: replays each task's reference tool calls through the same
+#     scorer, with esphome installed. No key. Proves every task is
+#     solvable within its budget; runs on every PR touching the agent.
+#   - model: the real run, nightly and on dispatch. Needs the
+#     ANTHROPIC_API_KEY repository secret; a scheduled run without it
+#     fails loudly rather than reporting nothing. The markdown summary is
+#     the job summary; results.json is the artifact.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "wirestudio/agent/**"
+      - ".github/workflows/agent-eval.yml"
+  schedule:
+    - cron: "0 14 * * *"   # 14:00 UTC daily (after wled-firmware at 13:00)
+  workflow_dispatch:
+    inputs:
+      model:
+        description: "Agent model (default: the agent's own default)"
+        required: false
+        default: ""
+      tasks:
+        description: "Comma-separated task ids (default: all)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agent-eval-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  solutions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install studio + ESPHome
+        # The same ESPHome pin as the esphome-config gate.
+        run: |
+          pip install -e .
+          pip install 'esphome==2026.6.5'
+
+      - name: Replay the reference solutions
+        run: python -m wirestudio.agent.eval --solutions
+
+  model:
+    if: github.event_name != 'pull_request'
+    needs: solutions
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install studio + ESPHome
+        run: |
+          pip install -e .
+          pip install 'esphome==2026.6.5'
+
+      - name: Run the task list against the model
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::error::ANTHROPIC_API_KEY is not set; add it as a repository secret"
+            exit 1
+          fi
+          args=()
+          if [ -n "${{ inputs.model }}" ]; then args+=(--model "${{ inputs.model }}"); fi
+          if [ -n "${{ inputs.tasks }}" ]; then args+=(--tasks "${{ inputs.tasks }}"); fi
+          python -m wirestudio.agent.eval --out results.json "${args[@]}"
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-eval-results
+          path: results.json
+          if-no-files-found: ignore

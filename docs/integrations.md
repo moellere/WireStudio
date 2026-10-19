@@ -23,6 +23,27 @@ agent sidebar shows a friendly notice instead of trying to talk.
 For a key-free alternative that drives the design tools on your Claude
 subscription, see the [MCP server](mcp.md).
 
+### Eval harness
+
+`wirestudio/agent/eval_tasks.yaml` is a fixed list of natural-language
+asks against the bundled examples, each with a tool-call budget and a
+reference solution. `python -m wirestudio.agent.eval` runs them against
+the agent (the key above; `--model` to pick another model) and scores
+the design it hands back on three things: it validates (every pin bound
+and on the board, no pin shared, every bus complete, and `esphome
+config` accepts the render), the task's `expect` block holds, and the
+turn stayed within budget. A task passes when all three hold. The run
+prints a row per task, writes a markdown summary (`--summary`, or the
+job summary under GitHub Actions) and `--out results.json`, and exits 1
+when fewer than `gate.min_pass` tasks pass.
+
+`--solutions` replays each task's reference tool calls instead of
+calling the model, which proves the task is solvable within its budget
+and needs no key. `--tasks a,b` runs a subset; `--no-esphome` skips the
+ESPHome check for a quick local pass. The `agent-eval` workflow runs the
+replay on every PR that touches the agent and the model nightly, with
+the `ANTHROPIC_API_KEY` repository secret.
+
 ## Fleet handoff
 
 **Push to fleet** ships the rendered YAML to a running

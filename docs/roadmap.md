@@ -73,7 +73,7 @@ The middle tier today, and what moves each row.
 | ESPHome dashboard compile | **promoted.** The nightly `dashboard` job runs a real `esphome dashboard`, open and password-protected, and pushes, compiles and fetches through the studio's client with the wire assumptions asserted | |
 | MCP server | **promoted.** `tests/test_mcp_client.py` drives the mounted server with the `mcp` package's client, every PR; the suite itself now runs in CI (`tests.yml`), which no row could claim before | |
 | Thingiverse relay | nothing; third-party ranking | stays *Experimental* |
-| Agent | the eval harness (section 5) | stays *Experimental* |
+| Agent | the eval harness (section 5), **in**; the first nightly run sets `gate.min_pass`, and the row is promoted once the gate has held it | stays *Experimental* |
 
 ### The nightly flash stage (workbench phase 3)
 
@@ -178,15 +178,23 @@ Section 4 covers the rest.
 
 ## 5. Agent and MCP
 
-- **Agent eval harness.** A fixed task list (twenty to thirty
-  natural-language asks across the bundled examples: add a sensor, move
-  it to a bus, resolve a pin conflict, build a driver from blocks)
-  scored on three things: the final design validates, the intended
-  change is present, and tool calls stayed under a budget. Runs on
-  demand and nightly against the default model, with the score in the
-  job summary. A regression gate holds the pass count. This is what
-  promotes the agent from *Experimental*, and what makes a model swap
-  evidence-driven.
+- **Agent eval harness.** In. `wirestudio/agent/eval_tasks.yaml` is
+  the fixed task list: twenty-eight natural-language asks across eleven
+  bundled examples (add a sensor, move it to a bus, resolve a pin
+  conflict, build a driver from blocks, swap the board, answer without
+  editing), each with a tool-call budget and a reference solution.
+  `python -m wirestudio.agent.eval` scores the design the agent hands
+  back on three things: it validates (every pin bound and on the
+  board, no pin shared, every bus complete, `esphome config` accepts
+  the render), the asked-for change is present, and the turn stayed
+  within budget. The `agent-eval` workflow replays the reference
+  solutions through the same scorer on every PR that touches the
+  agent, and runs the model nightly and on dispatch with the score in
+  the job summary; `gate.min_pass` holds the pass count. What remains:
+  the first nightly run against the default model records the score,
+  `min_pass` is set to it, and the README row is promoted once the gate
+  has held. A model swap is then a dispatched run and a diff of two
+  summaries.
 - **MCP conformance in CI.** The `mcp` client library against the
   mounted server: connect with the token, list tools and resources,
   `create_design` → `add_component` → `solve_pins` → `render`, read
@@ -264,7 +272,7 @@ The dependency order, not a calendar:
 2. 0.42 migrator, then the schema audit.
 3. Per-framework coverage baselines and the MCP conformance test, both
    pure CI, in parallel with 1 and 2.
-4. Agent eval harness.
+4. Agent eval harness (in; the first nightly run sets its gate).
 5. The flash stage of the hardware gate, as soon as the spare board is
    on the bench; the promote/demote pass follows its first green week.
 6. Physical outputs and the hygiene list, in any order.

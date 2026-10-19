@@ -7,6 +7,8 @@ valid.
 """
 from __future__ import annotations
 
+import json
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -67,6 +69,41 @@ def check_board_flash(design: Design, library: Library) -> list[DesignWarning]:
 
 def esphome_available() -> bool:
     return shutil.which("esphome") is not None
+
+
+# Valid 32-byte base64 string: ESPHome's api.encryption.key validator rejects
+# anything else, even though the value is never used to encrypt traffic during
+# `esphome config`.
+STUB_API_KEY = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+
+_SECRET_RE = re.compile(r"!secret\s+([A-Za-z0-9_]+)")
+
+
+def _stub_value(name: str) -> str:
+    if name.endswith("api_key") or name == "api_key":
+        return STUB_API_KEY
+    if name == "wifi_ssid":
+        return "stub-ssid"
+    if name == "wifi_password":
+        return "stub-password-1234"
+    if name == "ota_password":
+        return "stub-ota-password"
+    # LoRaWAN keys carried in secrets.yaml for the external-component path
+    # (lorawan-for-esphome). The component's schema validates them as hex,
+    # so a plain `stub-<name>` would fail `esphome config`.
+    if name in ("dev_eui", "join_eui"):
+        return "0123456789abcdef"  # 16 hex chars (EUI-64)
+    if name == "app_key":
+        return "00112233445566778899aabbccddeeff"  # 32 hex chars (128-bit AES key)
+    return f"stub-{name}"
+
+
+def write_secrets_stub(yaml_text: str, dest: Path) -> None:
+    """A secrets.yaml beside a rendered YAML with a placeholder for every
+    `!secret` it references, so `esphome config` can resolve them."""
+    names = sorted(set(_SECRET_RE.findall(yaml_text)))
+    lines = [f"{n}: {json.dumps(_stub_value(n))}" for n in names]
+    dest.write_text("\n".join(lines) + ("\n" if lines else ""))
 
 
 def dry_run(yaml_path: Path) -> tuple[bool, str]:
