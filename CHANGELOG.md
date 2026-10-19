@@ -24,6 +24,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **ESPHome support table.** `docs/esphome-support.md` states which
+  ESPHome releases the studio's output validates on: every bundled
+  example through `esphome config` on each release of the
+  `esphome-matrix` sweep, failures charged to the library components
+  ESPHome's error names (the `id` lines in its excerpt, else the
+  section's platform, else the whole example marked unattributed), and
+  the supported range as the clean run of releases around the pin.
+  Today: ESPHome 2026.3 through 2026.9, every example on every release.
+  `check_examples.py --json` records a release's verdicts;
+  `scripts/esphome_support.py` builds the table from
+  `scripts/esphome_support/*.json`, and a test holds the committed
+  table to them. The matrix sweeps seven releases, uploads each leg's
+  verdicts and merges them in a `table` job. Writing it found the
+  gate's own stub API key was all zeros, which ESPHome 2026.9 rejects
+  as reserved: every example failed there for that reason alone, and
+  the stub is now a fixed non-zero key.
 - **`LICENSES.md`.** Every third-party source in the tree or in what
   the studio ships, with its licence: the data derived into the tree
   (Tasmota function ids and chip slot order from `tasmota_template.h`,
