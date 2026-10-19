@@ -71,10 +71,10 @@ def esphome_available() -> bool:
     return shutil.which("esphome") is not None
 
 
-# Valid 32-byte base64 string: ESPHome's api.encryption.key validator rejects
-# anything else, even though the value is never used to encrypt traffic during
-# `esphome config`.
-STUB_API_KEY = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+# A valid 32-byte base64 key: ESPHome's api.encryption.key validator rejects
+# anything else, and from 2026.9 the all-zeros key too, even though the value
+# never encrypts traffic during `esphome config`.
+STUB_API_KEY = "d2lyZXN0dWRpby1lc3Bob21lLWNvbmZpZy1zdHViISE="
 
 _SECRET_RE = re.compile(r"!secret\s+([A-Za-z0-9_]+)")
 
