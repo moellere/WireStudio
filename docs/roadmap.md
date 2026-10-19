@@ -230,9 +230,17 @@ Section 4 covers the rest.
   JSON stores need nothing beyond the design migrator. Backup and
   restore for both layouts is in `docs/deployment.md`, with an online
   backup command for the SQLite files.
-- **Upgrade test.** A CI job installs the previous release, seeds a
-  design and a user component, upgrades to the candidate, and asserts
-  both load and render identically.
+- **Upgrade test.** Done. The `upgrade` workflow installs the newest
+  release from PyPI into its own venv and has it write a data
+  directory through its own REST API, in both store layouts: every
+  example it bundles saved as a design, a user component and a design
+  that uses it, inventory and an agent session. The checkout then
+  opens that directory and must load every design at the current
+  schema and render it exactly as the original document renders, and
+  read back the user component, the inventory, the sessions and the
+  SQLite stores at their current versions (`scripts/check_upgrade.py`).
+  Run here against 0.40.0, which predates the design migrator: all 75
+  designs in both layouts pass.
 - **Workflow actions.** Done: every action the workflows use is on its
   current major and the Node 24 runtime, so the Node 20 deprecation
   warning is gone from the job logs.
