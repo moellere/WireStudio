@@ -24,6 +24,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Upgrade test.** `scripts/check_upgrade.py seed` runs under the
+  previous release and writes a data directory through that release's
+  own REST API, in both store layouts: every example it bundles saved
+  as a design, a user component authored through `/library/components`
+  and a design that uses it, inventory rows and an agent session.
+  `verify` runs under the checkout and fails unless every design is
+  listed and loads at the current schema, renders exactly as its
+  original document does when handed to the checkout fresh, and the
+  user component, inventory, sessions and SQLite schema versions read
+  back. Drift from what the previous release rendered is reported, not
+  failed. The `upgrade` workflow runs it from the newest PyPI release on
+  every PR that touches the package. Against 0.40.0, whose designs are
+  all at schema 0.1, all 75 pass in both layouts.
 - **Schema versions for the SQLite stores.** `SqliteDesignStore` and
   `SqliteSessionStore` (`DESIGNS_DB`, `SESSIONS_DB`) record a schema
   version in `PRAGMA user_version` and carry an ordered list of steps,
