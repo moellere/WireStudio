@@ -69,6 +69,14 @@ circuitpython:
   loop: |
     print("{{ label }}: %.1fC %.1fhPa" % ({{ id }}.temperature, {{ id }}.pressure))
 
+micropython:
+  imports: ["from bmp280 import BMP280"]
+  deps: ["github:dafvid/micropython-bmp280/bmp280.py"]
+  setup: |
+    {{ id }} = BMP280({{ bus_var }}, addr={{ params.address | default('0x77') }})
+  loop: |
+    print("{{ label }}: %.1fC %.1fhPa" % ({{ id }}.temperature, {{ id }}.pressure / 100))
+
 params_schema:
   address:
     type: string

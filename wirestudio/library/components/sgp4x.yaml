@@ -48,6 +48,19 @@ circuitpython:
   loop: |
     print("{{ label }}: raw VOC %d" % {{ id }}.raw)
 
+# Datasheet register code: measure-raw with the default 50% RH / 25C
+# compensation words and CRCs; the first word back is the raw VOC signal.
+micropython:
+  setup: |
+    {{ id }}_cmd = {% if (params.model | default('sgp40')) == 'sgp41' %}b"\x26\x19\x80\x00\xa2\x66\x66\x93"{% else %}b"\x26\x0f\x80\x00\xa2\x66\x66\x93"{% endif %}
+    def {{ id }}_raw():
+        {{ bus_var }}.writeto(0x59, {{ id }}_cmd)
+        time.sleep_ms(50)
+        r = {{ bus_var }}.readfrom(0x59, 3)
+        return (r[0] << 8) | r[1]
+  loop: |
+    print("{{ label }}: raw VOC %d" % {{ id }}_raw())
+
 params_schema:
   model:
     type: string

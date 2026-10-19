@@ -36,6 +36,18 @@ circuitpython:
     {{ id }}_cs = digitalio.DigitalInOut(P({{ pins.CS }}))
     {{ id }} = MCP.MCP3008({{ bus_var }}, {{ id }}_cs)
 
+# Datasheet register code: start bit, single-ended + channel, then the
+# 10-bit result in the low bits of the second and third bytes.
+micropython:
+  setup: |
+    {{ id }}_cs = Pin({{ pins.CS }}, Pin.OUT, value=1)
+    def {{ id }}_read(channel):
+        buf = bytearray(3)
+        {{ id }}_cs(0)
+        {{ bus_var }}.write_readinto(bytes([0x01, (0x08 | channel) << 4, 0x00]), buf)
+        {{ id }}_cs(1)
+        return ((buf[1] & 0x03) << 8) | buf[2]
+
 params_schema: {}
 
 notes: |

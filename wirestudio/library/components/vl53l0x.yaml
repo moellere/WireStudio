@@ -56,6 +56,14 @@ circuitpython:
   loop: |
     print("{{ label }}: %d mm" % {{ id }}.range)
 
+micropython:
+  imports: ["from vl53l0x import VL53L0X"]
+  deps: ["github:kevinmcaleer/vl53l0x/vl53l0x.py"]
+  setup: |
+    {{ id }} = VL53L0X({{ bus_var }})
+  loop: |
+    print("{{ label }}: %d mm" % {{ id }}.read())
+
 params_schema:
   address:
     type: string

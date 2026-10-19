@@ -63,6 +63,18 @@ circuitpython:
   loop: |
     print("{{ label }}: %.1fC %.0f%%" % ({{ id }}.temperature, {{ id }}.relative_humidity))
 
+# Datasheet register code: no-hold-master trigger (0xF3 temperature,
+# 0xF5 humidity), result in the top 14/12 bits; status bits masked.
+micropython:
+  setup: |
+    def {{ id }}_read(cmd):
+        {{ bus_var }}.writeto(0x40, bytes([cmd]))
+        time.sleep_ms(50)
+        raw = {{ bus_var }}.readfrom(0x40, 3)
+        return ((raw[0] << 8) | raw[1]) & 0xFFFC
+  loop: |
+    print("{{ label }}: %.1fC %.0f%%" % (-46.85 + 175.72 * {{ id }}_read(0xF3) / 65536, -6 + 125 * {{ id }}_read(0xF5) / 65536))
+
 params_schema:
   update_interval:
     type: string

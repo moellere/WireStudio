@@ -57,6 +57,16 @@ circuitpython:
     if {{ id }}.data_ready:
         print("{{ label }}: %d ppm CO2 %.1fC %.0f%%" % ({{ id }}.CO2, {{ id }}.temperature, {{ id }}.relative_humidity))
 
+micropython:
+  imports: ["from scd4x import SCD4X"]
+  deps: ["github:peter-l5/MicroPython_SCD4X/scd4x.py"]
+  setup: |
+    {{ id }} = SCD4X({{ bus_var }})
+    {{ id }}.start_periodic_measurement()
+  loop: |
+    if {{ id }}.data_ready:
+        print("{{ label }}: %d ppm CO2 %.1fC %.0f%%" % ({{ id }}.CO2, {{ id }}.temperature, {{ id }}.relative_humidity))
+
 params_schema:
   update_interval:
     type: string

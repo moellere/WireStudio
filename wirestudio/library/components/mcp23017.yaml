@@ -41,6 +41,12 @@ circuitpython:
   setup: |
     {{ id }} = MCP23017({{ bus_var }}, address={{ params.address | default('0x20') }})
 
+micropython:
+  imports: ["from mcp23017 import MCP23017"]
+  deps: ["github:mcauser/micropython-mcp23017/mcp23017.py"]
+  setup: |
+    {{ id }} = MCP23017({{ bus_var }}, address={{ params.address | default('0x20') }})
+
 params_schema:
   address:
     type: string

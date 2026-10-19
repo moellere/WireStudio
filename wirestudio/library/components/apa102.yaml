@@ -44,6 +44,18 @@ circuitpython:
     {{ id }} = adafruit_dotstar.DotStar(P({{ pins.CI }}), P({{ pins.DI }}), {{ params.num_leds | default(1) }}, auto_write=True)
     {{ id }}.fill((0, 8, 0))
 
+# Datasheet frame: four zero bytes, per LED 0xE0 | brightness and the
+# colour bytes in strip order, then one bytes to clock data through.
+micropython:
+  imports: ["from machine import SoftSPI"]
+  setup: |
+    {{ id }}_spi = SoftSPI(baudrate=1000000, polarity=0, phase=0, sck=Pin({{ pins.CI }}), mosi=Pin({{ pins.DI }}), miso=None)
+    def {{ id }}_fill(r, g, b, brightness=31):
+        n = {{ params.num_leds | default(1) }}
+        led = bytes([0xE0 | brightness, {{ (params.rgb_order | default('BGR')) | lower | list | join(', ') }}])
+        {{ id }}_spi.write(bytes(4) + led * n + b"\xff" * max(4, (n + 15) // 16))
+    {{ id }}_fill(0, 8, 0)
+
 params_schema:
   chipset:
     type: string

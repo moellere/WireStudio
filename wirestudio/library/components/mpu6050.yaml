@@ -52,6 +52,14 @@ circuitpython:
   loop: |
     print("{{ label }}: accel %s gyro %s" % ({{ id }}.acceleration, {{ id }}.gyro))
 
+micropython:
+  imports: ["from imu import MPU6050"]
+  deps: ["github:micropython-IMU/micropython-mpu9x50/imu.py", "github:micropython-IMU/micropython-mpu9x50/vector3d.py"]
+  setup: |
+    {{ id }} = MPU6050({{ bus_var }}, device_addr={{ 1 if (params.address | default('0x68')) == '0x69' else 0 }})
+  loop: |
+    print("{{ label }}: accel %s gyro %s" % ({{ id }}.accel.xyz, {{ id }}.gyro.xyz))
+
 params_schema:
   address:
     type: string

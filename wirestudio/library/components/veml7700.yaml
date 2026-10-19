@@ -45,6 +45,14 @@ circuitpython:
   loop: |
     print("{{ label }}: %.0f lux" % {{ id }}.lux)
 
+micropython:
+  imports: ["from veml7700 import VEML7700"]
+  deps: ["github:palouf34/veml7700/veml7700.py"]
+  setup: |
+    {{ id }} = VEML7700(address=0x10, i2c={{ bus_var }}, it=100, gain=1)
+  loop: |
+    print("{{ label }}: %.0f lux" % {{ id }}.read_lux())
+
 params_schema:
   update_interval:
     type: string
