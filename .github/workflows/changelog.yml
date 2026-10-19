@@ -44,7 +44,7 @@ jobs:
       !contains(github.event.pull_request.title, 'Bolt:') &&
       !contains(github.event.pull_request.labels.*.name, 'skip-changelog')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Require a CHANGELOG entry for code changes
@@ -71,8 +71,8 @@ jobs:
   shape:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
       - name: No duplicate or unknown headings under [Unreleased]

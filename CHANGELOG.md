@@ -170,6 +170,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Workflow actions on their current majors.** Every action the
+  workflows use ran on the Node 20 runtime GitHub deprecated, and each
+  job log opened with the warning. `actions/checkout` v4 -> v7,
+  `setup-python` v5 -> v7, `cache` v4 -> v6, `upload-artifact` v4 -> v7,
+  `download-artifact` v4 -> v8, `setup-node` v4 -> v7, `setup-java`
+  v4 -> v6, the five `docker/*` actions one major each and
+  `softprops/action-gh-release` v2 -> v3, all on Node 24. Every input
+  the workflows pass exists unchanged in the new majors; the one
+  behaviour change that applied is `setup-node`'s caching on by
+  default, which the WLED build turns off since its `npm install` runs
+  inside the release checkout.
 - **The LoRaWAN firmware generator and codec read only `components`,
   `buses` and `connections`**, as the ESPHome generator does. The codec's
   synthesized peripherals now come from the board file alone (onboard GPS,

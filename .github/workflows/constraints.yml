@@ -33,9 +33,9 @@ jobs:
   constraints:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           # Must match the Dockerfile's runtime base (python:3.11-slim).
           # A resolve on a newer interpreter can pick wheels that do not
