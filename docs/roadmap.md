@@ -207,10 +207,13 @@ Section 4 covers the rest.
 
 ## 6. Operations and hygiene
 
-- **`LICENSES.md`.** Promised since day one; third-party data is in
-  the tree now (KiCad symbol and footprint references, Tasmota template
-  ids sourced from `tasmota_template.h`, Meshtastic variant map,
-  CircuitPython board ids). One file naming each source and its
+- **`LICENSES.md`.** Done. One file naming every third-party source:
+  the data derived into the tree (Tasmota function ids, WLED keys and
+  usermods, the Meshtastic variant map, CircuitPython and MicroPython
+  board ids, KiCad symbol and footprint references, ESPHome's
+  configuration shape), the libraries the generated firmware names,
+  the packages in the web bundle, what the images fetch at build, and
+  what the firmware proxies relay without storing, each with its
   licence.
 - **ESPHome support table.** Attribute `esphome-matrix` failures to
   components so the README can say "supports ESPHome 2026.6 through
