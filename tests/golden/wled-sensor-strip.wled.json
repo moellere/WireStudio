@@ -1,0 +1,53 @@
+{
+  "hw": {
+    "led": {
+      "total": 60,
+      "ins": [
+        {
+          "start": 0,
+          "len": 60,
+          "pin": [
+            16
+          ],
+          "order": 0,
+          "rev": false,
+          "skip": 0,
+          "type": 22,
+          "ref": false
+        }
+      ]
+    },
+    "btn": {
+      "ins": [
+        {
+          "type": 2,
+          "pin": [
+            0
+          ],
+          "macros": [
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    "if": {
+      "i2c-pin": [
+        21,
+        22
+      ]
+    }
+  },
+  "um": {
+    "BME280/BMP280": {
+      "enabled": true,
+      "I2CAddress": 118
+    },
+    "Temperature": {
+      "enabled": true,
+      "degC": true,
+      "pin": 4
+    }
+  }
+}
