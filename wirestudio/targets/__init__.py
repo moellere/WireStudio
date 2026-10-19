@@ -6,5 +6,6 @@ from wirestudio.targets.base import TargetPlugin, get_target, register, target_i
 from wirestudio.targets import esphome as _esphome  # noqa: F401
 from wirestudio.targets import lorawan as _lorawan  # noqa: F401
 from wirestudio.targets import tasmota as _tasmota  # noqa: F401
+from wirestudio.targets import wled as _wled  # noqa: F401
 
 __all__ = ["TargetPlugin", "get_target", "register", "target_ids"]

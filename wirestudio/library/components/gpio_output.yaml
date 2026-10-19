@@ -78,3 +78,7 @@ kicad:
   value: Output
 tasmota:
   pins: {OUT: Relay}
+
+wled:
+  kind: relay
+  pins: [OUT]

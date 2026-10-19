@@ -153,7 +153,7 @@ _DPIN = {
 }
 
 
-def _pin_number(pin: str) -> Optional[int]:
+def pin_number(pin: str) -> Optional[int]:
     if pin in _DPIN:
         return _DPIN[pin]
     digits = "".join(ch for ch in pin if ch.isdigit())
@@ -176,7 +176,7 @@ def build_template(design: Design, library: Library) -> tuple[dict, list[str]]:
     bus_mapped: set[tuple[str, Optional[str]]] = set()
 
     def assign(pin: str, func_name: str, owner: str) -> None:
-        num = _pin_number(pin)
+        num = pin_number(pin)
         if num is None or num not in slots:
             warnings.append(f"{owner}: pin {pin} is not templatable on {board.chip_variant}")
             return

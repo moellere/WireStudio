@@ -66,3 +66,7 @@ kicad:
   symbol: Conn_01x03
   footprint: Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical
   value: TSOP38238
+
+wled:
+  kind: ir
+  pins: [OUT]

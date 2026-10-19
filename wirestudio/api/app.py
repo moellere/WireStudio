@@ -416,7 +416,7 @@ def create_app(
     def list_boards(
         target: Optional[str] = Query(
             default=None,
-            description="Filter to boards selectable by a generation target (esphome|lorawan)",
+            description="Filter to boards selectable by a generation target (esphome|lorawan|tasmota|wled)",
         ),
     ) -> list[BoardSummary]:
         if target is None:

@@ -24,6 +24,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **WLED target, the runtime tier.** `POST /wled/cfg`, the target seam
+  and `python -m wirestudio.targets.wled` emit the hardware section of
+  WLED's `cfg.json` from a solved design: LED outputs (`hw.led.ins`,
+  with the bus type from the strip's chipset param and the colour order
+  from its order param), buttons (a PIR sensor is a button of type 5),
+  the IR receiver, the relay and the I2C / SPI pins. A stock WLED
+  release image reads that file at boot, so a design made of those
+  parts needs no build. Components opt in with a `wled:` block; eight
+  carry one (`ws2812b`, `apa102`, `esp32_rmt_led_strip`, `gpio_input`,
+  `hc-sr501`, `rcwl-0516`, `remote_receiver`, `gpio_output`). Keys and
+  type codes come from `wled00/const.h` and `cfg.cpp`; goldens pin
+  `atom-matrix`, `motion-turns-on-light` and `flow-meter`. The coverage
+  matrix has a `wled` column; the baseline names the usermod each
+  deferred sensor maps to, since sensors are WLED's compile-in tier.
 - **Per-framework coverage baselines** (roadmap section 3). The
   coverage matrix now says which generators can use each component:
   a `circuitpython:` / `micropython:` block, or the tasmota / lorawan
