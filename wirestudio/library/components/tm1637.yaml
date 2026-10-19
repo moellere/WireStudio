@@ -36,6 +36,70 @@ tasmota:
     CLK: TM1637_CLK
     DIO: TM1637_DIO
 
+# Datasheet protocol, bit-banged open drain: start (DIO falls with CLK
+# high), each byte LSB first latched on CLK rising plus an ACK clock,
+# stop (DIO rises with CLK high). 0x40 writes with auto-increment, 0xC0
+# addresses digit 0, 0x88 | brightness turns the display on.
+circuitpython:
+  imports: ["import digitalio"]
+  setup: |
+    {{ id }}_pins = [digitalio.DigitalInOut(P(n)) for n in ({{ pins.CLK }}, {{ pins.DIO }})]
+    for {{ id }}_pin in {{ id }}_pins:
+        {{ id }}_pin.switch_to_output(value=True, drive_mode=digitalio.DriveMode.OPEN_DRAIN)
+    def {{ id }}_clk(v):
+        {{ id }}_pins[0].value = bool(v)
+    def {{ id }}_dio(v):
+        {{ id }}_pins[1].value = bool(v)
+    {{ id }}_font = {"0": 0x3F, "1": 0x06, "2": 0x5B, "3": 0x4F, "4": 0x66, "5": 0x6D, "6": 0x7D, "7": 0x07, "8": 0x7F, "9": 0x6F, "-": 0x40, " ": 0x00}
+    def {{ id }}_byte(b):
+        for i in range(8):
+            {{ id }}_dio(b >> i & 1)
+            {{ id }}_clk(1)
+            {{ id }}_clk(0)
+        {{ id }}_dio(1)
+        {{ id }}_clk(1)
+        {{ id }}_clk(0)
+    def {{ id }}_command(*data):
+        {{ id }}_dio(0)
+        {{ id }}_clk(0)
+        for b in data:
+            {{ id }}_byte(b)
+        {{ id }}_dio(0)
+        {{ id }}_clk(1)
+        {{ id }}_dio(1)
+    def {{ id }}_show(text):
+        {{ id }}_command(0x40)
+        {{ id }}_command(0xC0, *[{{ id }}_font.get(c, 0) for c in text[:4]])
+        {{ id }}_command(0x88 | {{ [params.intensity | default(4), 7] | min }})
+    {{ id }}_show("----")
+
+micropython:
+  setup: |
+    {{ id }}_clk = Pin({{ pins.CLK }}, Pin.OPEN_DRAIN, value=1)
+    {{ id }}_dio = Pin({{ pins.DIO }}, Pin.OPEN_DRAIN, value=1)
+    {{ id }}_font = {"0": 0x3F, "1": 0x06, "2": 0x5B, "3": 0x4F, "4": 0x66, "5": 0x6D, "6": 0x7D, "7": 0x07, "8": 0x7F, "9": 0x6F, "-": 0x40, " ": 0x00}
+    def {{ id }}_byte(b):
+        for i in range(8):
+            {{ id }}_dio(b >> i & 1)
+            {{ id }}_clk(1)
+            {{ id }}_clk(0)
+        {{ id }}_dio(1)
+        {{ id }}_clk(1)
+        {{ id }}_clk(0)
+    def {{ id }}_command(*data):
+        {{ id }}_dio(0)
+        {{ id }}_clk(0)
+        for b in data:
+            {{ id }}_byte(b)
+        {{ id }}_dio(0)
+        {{ id }}_clk(1)
+        {{ id }}_dio(1)
+    def {{ id }}_show(text):
+        {{ id }}_command(0x40)
+        {{ id }}_command(0xC0, *[{{ id }}_font.get(c, 0) for c in text[:4]])
+        {{ id }}_command(0x88 | {{ [params.intensity | default(4), 7] | min }})
+    {{ id }}_show("----")
+
 params_schema:
   intensity:
     type: integer

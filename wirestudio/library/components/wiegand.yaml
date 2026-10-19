@@ -41,6 +41,54 @@ tasmota:
     D0: Wiegand_D0
     D1: Wiegand_D1
 
+# Wiegand: D0 and D1 idle high and pulse low for a 0 or a 1, so the frame
+# is the order of falling edges across both lines; a 25 ms gap ends it.
+# 26, 34 and 37 bits carry a tag between an even and an odd parity bit
+# (37's parity halves overlap by a bit), 4 and 8 bits a key (the 8-bit
+# form carries it inverted in the high nibble), as ESPHome's wiegand
+# component reads them. CircuitPython has no pin interrupts.
+micropython:
+  imports: ["from machine import disable_irq, enable_irq"]
+  setup: |
+    {{ id }}_bits = []
+    {{ id }}_frames = []
+    {{ id }}_last = [time.ticks_ms()]
+    def {{ id }}_edge(pin):
+        now = time.ticks_ms()
+        if {{ id }}_bits and time.ticks_diff(now, {{ id }}_last[0]) > 25:
+            {{ id }}_frames.append({{ id }}_bits[:])
+            del {{ id }}_bits[:]
+        {{ id }}_bits.append(0 if pin is {{ id }}_d0 else 1)
+        {{ id }}_last[0] = now
+    {{ id }}_d0 = Pin({{ pins.D0 }}, Pin.IN, Pin.PULL_UP)
+    {{ id }}_d1 = Pin({{ pins.D1 }}, Pin.IN, Pin.PULL_UP)
+    {{ id }}_d0.irq(trigger=Pin.IRQ_FALLING, handler={{ id }}_edge)
+    {{ id }}_d1.irq(trigger=Pin.IRQ_FALLING, handler={{ id }}_edge)
+    def {{ id }}_decode(bits):
+        v = 0
+        for b in bits:
+            v = v << 1 | b
+        n = len(bits)
+        halves = {26: (13, 13), 34: (17, 17), 37: (19, 18)}.get(n)
+        if halves and sum(bits[:halves[0]]) % 2 == 0 and sum(bits[halves[1]:]) % 2 == 1:
+            return "tag", v >> 1 & (1 << n - 2) - 1
+        if n == 4 and v < 12:
+            return "key", "0123456789*#"[v]
+        if n == 8 and v >> 4 == ~v & 0xF and v & 0xF < 12:
+            return "key", "0123456789*#"[v & 0xF]
+        return None
+  loop: |
+    {{ id }}_irq = disable_irq()
+    if {{ id }}_bits and time.ticks_diff(time.ticks_ms(), {{ id }}_last[0]) > 25:
+        {{ id }}_frames.append({{ id }}_bits[:])
+        del {{ id }}_bits[:]
+    {{ id }}_ready = {{ id }}_frames[:]
+    del {{ id }}_frames[:]
+    enable_irq({{ id }}_irq)
+    for {{ id }}_frame in {{ id }}_ready:
+        {{ id }}_read = {{ id }}_decode({{ id }}_frame)
+        print("{{ label }}: %s" % ("%s %s" % {{ id }}_read if {{ id }}_read else "%d bits, not a tag or key" % len({{ id }}_frame)))
+
 params_schema:
   on_tag:
     type: array

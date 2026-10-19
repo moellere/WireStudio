@@ -43,6 +43,53 @@ tasmota:
   pins:
     OUT: ADC_CT_POWER
 
+# As ESPHome's ct_clamp: sample the ADC for the sample duration, take the
+# RMS around the samples' mean (the bias point), and scale volts to amps
+# by the calibration point.
+circuitpython:
+  imports: ["import analogio"]
+  setup: |
+    {{ id }}_adc = analogio.AnalogIn(P({{ pins.OUT }}))
+    def {{ id }}_sample(seconds):
+        out = []
+        until = time.monotonic() + seconds
+        while time.monotonic() < until:
+            out.append({{ id }}_adc.value * {{ id }}_adc.reference_voltage / 65535)
+        return out
+    {%- set point = (params.calibration_point | default('0.0125 -> 1.25')).split('->') %}
+    {%- set d = (params.sample_duration | default('200ms')) | string | trim %}
+    {{ id }}_amps_per_volt = {{ point[1] | trim | float }} / {{ point[0] | trim | float }}
+    {{ id }}_window = {{ (d[:-2] | float / 1000) if d.endswith('ms') else (d | replace('s', '') | float) }}
+    def {{ id }}_rms(samples):
+        if not samples:
+            return 0.0
+        mean = sum(samples) / len(samples)
+        return (sum((s - mean) ** 2 for s in samples) / len(samples)) ** 0.5
+  loop: |
+    print("{{ label }}: %.2f A" % ({{ id }}_rms({{ id }}_sample({{ id }}_window)) * {{ id }}_amps_per_volt))
+
+micropython:
+  imports: ["from machine import ADC"]
+  setup: |
+    {{ id }}_adc = ADC(Pin({{ pins.OUT }}), atten=ADC.ATTN_11DB)
+    def {{ id }}_sample(seconds):
+        out = []
+        until = time.ticks_add(time.ticks_ms(), int(seconds * 1000))
+        while time.ticks_diff(until, time.ticks_ms()) > 0:
+            out.append({{ id }}_adc.read_uv() / 1000000)
+        return out
+    {%- set point = (params.calibration_point | default('0.0125 -> 1.25')).split('->') %}
+    {%- set d = (params.sample_duration | default('200ms')) | string | trim %}
+    {{ id }}_amps_per_volt = {{ point[1] | trim | float }} / {{ point[0] | trim | float }}
+    {{ id }}_window = {{ (d[:-2] | float / 1000) if d.endswith('ms') else (d | replace('s', '') | float) }}
+    def {{ id }}_rms(samples):
+        if not samples:
+            return 0.0
+        mean = sum(samples) / len(samples)
+        return (sum((s - mean) ** 2 for s in samples) / len(samples)) ** 0.5
+  loop: |
+    print("{{ label }}: %.2f A" % ({{ id }}_rms({{ id }}_sample({{ id }}_window)) * {{ id }}_amps_per_volt))
+
 params_schema:
   sample_duration:
     type: string

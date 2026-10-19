@@ -37,6 +37,57 @@ esphome:
       lambda: {{ params.lambda_ | tojson }}
     {%- endif %}
 
+# Datasheet protocol: STB low frames a command, bits go LSB first and
+# latch on CLK rising. 0x40 writes with auto-increment, 0xC0 addresses
+# the first of 16 bytes (segments at even addresses, LEDs at odd), and
+# 0x88 | brightness turns the display on.
+circuitpython:
+  imports: ["import digitalio"]
+  setup: |
+    {{ id }}_pins = [digitalio.DigitalInOut(P(n)) for n in ({{ pins.STB }}, {{ pins.CLK }}, {{ pins.DIO }})]
+    for {{ id }}_pin in {{ id }}_pins:
+        {{ id }}_pin.switch_to_output(value=True)
+    def {{ id }}_stb(v):
+        {{ id }}_pins[0].value = bool(v)
+    def {{ id }}_clk(v):
+        {{ id }}_pins[1].value = bool(v)
+    def {{ id }}_dio(v):
+        {{ id }}_pins[2].value = bool(v)
+    {{ id }}_font = {"0": 0x3F, "1": 0x06, "2": 0x5B, "3": 0x4F, "4": 0x66, "5": 0x6D, "6": 0x7D, "7": 0x07, "8": 0x7F, "9": 0x6F, "-": 0x40, " ": 0x00}
+    def {{ id }}_send(*data):
+        {{ id }}_stb(0)
+        for b in data:
+            for i in range(8):
+                {{ id }}_clk(0)
+                {{ id }}_dio(b >> i & 1)
+                {{ id }}_clk(1)
+        {{ id }}_stb(1)
+    def {{ id }}_show(text):
+        {{ id }}_send(0x40)
+        {{ id }}_send(0xC0, *[x for c in text[:8] for x in ({{ id }}_font.get(c, 0), 0)])
+        {{ id }}_send(0x88 | {{ [params.intensity | default(5), 7] | min }})
+    {{ id }}_show("--------")
+
+micropython:
+  setup: |
+    {{ id }}_stb = Pin({{ pins.STB }}, Pin.OUT, value=1)
+    {{ id }}_clk = Pin({{ pins.CLK }}, Pin.OUT, value=1)
+    {{ id }}_dio = Pin({{ pins.DIO }}, Pin.OUT, value=1)
+    {{ id }}_font = {"0": 0x3F, "1": 0x06, "2": 0x5B, "3": 0x4F, "4": 0x66, "5": 0x6D, "6": 0x7D, "7": 0x07, "8": 0x7F, "9": 0x6F, "-": 0x40, " ": 0x00}
+    def {{ id }}_send(*data):
+        {{ id }}_stb(0)
+        for b in data:
+            for i in range(8):
+                {{ id }}_clk(0)
+                {{ id }}_dio(b >> i & 1)
+                {{ id }}_clk(1)
+        {{ id }}_stb(1)
+    def {{ id }}_show(text):
+        {{ id }}_send(0x40)
+        {{ id }}_send(0xC0, *[x for c in text[:8] for x in ({{ id }}_font.get(c, 0), 0)])
+        {{ id }}_send(0x88 | {{ [params.intensity | default(5), 7] | min }})
+    {{ id }}_show("--------")
+
 params_schema:
   intensity:
     type: integer
