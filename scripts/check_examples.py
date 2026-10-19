@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import subprocess
 import sys
 import tempfile
@@ -29,42 +28,10 @@ from wirestudio.generate.yaml_gen import render_yaml
 from wirestudio.library import Library, default_library
 from wirestudio.library.check import create_component, synthetic_design
 from wirestudio.model import Design
+from wirestudio.validate import write_secrets_stub
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 EXAMPLES_DIR = REPO_ROOT / "wirestudio" / "examples"
-
-# Valid 32-byte base64 string -- ESPHome's api.encryption.key validator rejects
-# anything else, even though the value is never used to encrypt traffic during
-# `esphome config`.
-STUB_API_KEY = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-
-_SECRET_RE = re.compile(r"!secret\s+([A-Za-z0-9_]+)")
-
-
-def _stub_value(name: str) -> str:
-    if name.endswith("api_key") or name == "api_key":
-        return STUB_API_KEY
-    if name == "wifi_ssid":
-        return "stub-ssid"
-    if name == "wifi_password":
-        return "stub-password-1234"
-    if name == "ota_password":
-        return "stub-ota-password"
-    # LoRaWAN keys carried in secrets.yaml for the external-component path
-    # (lorawan-for-esphome). The component's schema validates them as hex,
-    # so a plain `stub-<name>` would fail `esphome config`.
-    if name in ("dev_eui", "join_eui"):
-        return "0123456789abcdef"  # 16 hex chars (EUI-64)
-    if name == "app_key":
-        return "00112233445566778899aabbccddeeff"  # 32 hex chars (128-bit AES key)
-    return f"stub-{name}"
-
-
-def _write_secrets(yaml_text: str, dest: Path) -> None:
-    names = sorted(set(_SECRET_RE.findall(yaml_text)))
-    lines = [f"{n}: {json.dumps(_stub_value(n))}" for n in names]
-    dest.write_text("\n".join(lines) + ("\n" if lines else ""))
-
 
 def _check_one(example: Path, workdir: Path, subcommand: str) -> tuple[bool, str]:
     design = Design.model_validate(json.loads(example.read_text()))
@@ -92,7 +59,7 @@ def _check_design(
     out_dir.mkdir(parents=True, exist_ok=True)
     yaml_path = out_dir / f"{name}.yaml"
     yaml_path.write_text(yaml_text)
-    _write_secrets(yaml_text, out_dir / "secrets.yaml")
+    write_secrets_stub(yaml_text, out_dir / "secrets.yaml")
 
     try:
         result = subprocess.run(

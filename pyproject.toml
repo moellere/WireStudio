@@ -70,6 +70,7 @@ include = ["wirestudio*"]
 # pip-installed wirestudio crashes at runtime when default_library()
 # tries to read components/ + boards/.
 "wirestudio.library" = ["components/*.yaml", "boards/*.yaml", "modules/*.yaml"]
+"wirestudio.agent" = ["*.yaml"]
 "wirestudio.schema" = ["*.json"]
 "wirestudio.examples" = ["*.json"]
 "wirestudio.targets.lorawan" = ["templates/*.j2"]
