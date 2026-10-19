@@ -112,7 +112,7 @@ Components each framework's generator can use today, out of 102
 | esphome | 102 |
 | tasmota | 51 |
 | circuitpython | 38 |
-| micropython | 16 |
+| micropython | 38 |
 | wled | 13 |
 | lorawan | 5 |
 
@@ -126,10 +126,13 @@ with no entry, a stale entry, or a reason outside those three.
 `library-coverage.md` lists every gap under "Framework gaps". What
 remains is to work the baselines down:
 
-- **CircuitPython and MicroPython** share the same fragment shape;
-  bring MicroPython to the CircuitPython set (sensors with a `mip`
-  driver, displays, expanders) and both to every actuator and sensor
-  that has an upstream driver.
+- **CircuitPython and MicroPython** share the same fragment shape.
+  MicroPython has the CircuitPython set except the PN532 (the
+  maintained MicroPython driver speaks SPI, the library part I2C) and
+  the MCP23S17 (no driver found); parts with no permissively licensed
+  driver are datasheet register code, run against a fake bus in
+  `tests/test_micropython_registers.py`. Next is both frameworks for
+  every actuator and sensor that has an upstream driver.
 - **Tasmota** covers what Tasmota's template format can express; the
   baseline will be long and honest.
 - **LoRaWAN** gains a block for every sensor the payload codec can

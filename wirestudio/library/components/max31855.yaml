@@ -54,6 +54,26 @@ circuitpython:
   loop: |
     print("{{ label }}: %.1fC" % {{ id }}.temperature)
 
+# Datasheet register code: one 32-bit read; D16 is the fault bit,
+# D31..D18 the temperature, 14-bit signed, 0.25C a step.
+micropython:
+  setup: |
+    {{ id }}_cs = Pin({{ pins.CS }}, Pin.OUT, value=1)
+    def {{ id }}_read():
+        {{ id }}_cs(0)
+        raw = {{ bus_var }}.read(4)
+        {{ id }}_cs(1)
+        v = int.from_bytes(raw, "big")
+        if v & 0x10000:
+            return None
+        t = v >> 18
+        if t & 0x2000:
+            t -= 0x4000
+        return t * 0.25
+  loop: |
+    {{ id }}_t = {{ id }}_read()
+    print("{{ label }}: %s" % ("fault" if {{ id }}_t is None else "%.2fC" % {{ id }}_t))
+
 params_schema:
   update_interval:
     type: string

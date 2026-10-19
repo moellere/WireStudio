@@ -64,6 +64,14 @@ circuitpython:
   loop: |
     print("{{ label }}: %.1fC %.0f%%" % ({{ id }}.temperature, {{ id }}.relative_humidity))
 
+micropython:
+  imports: ["from sht31 import SHT31"]
+  deps: ["github:kfricke/micropython-sht31/sht31.py"]
+  setup: |
+    {{ id }} = SHT31({{ bus_var }}, addr={{ params.address | default('0x44') }})
+  loop: |
+    print("{{ label }}: %.1fC %.0f%%" % {{ id }}.get_temp_humi())
+
 params_schema:
   address:
     type: string

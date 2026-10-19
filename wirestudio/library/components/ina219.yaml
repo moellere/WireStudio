@@ -57,6 +57,15 @@ circuitpython:
   loop: |
     print("{{ label }}: %.2fV %.0fmA" % ({{ id }}.bus_voltage, {{ id }}.current))
 
+micropython:
+  imports: ["from ina219 import INA219"]
+  deps: ["logging", "github:chrisb2/pyb_ina219/ina219.py"]
+  setup: |
+    {{ id }} = INA219({{ (params.shunt_resistance | default('0.1 ohm')).split()[0] | float }}, {{ bus_var }}, address={{ params.address | default('0x40') }})
+    {{ id }}.configure()
+  loop: |
+    print("{{ label }}: %.2fV %.0fmA" % ({{ id }}.voltage(), {{ id }}.current()))
+
 params_schema:
   address:
     type: string

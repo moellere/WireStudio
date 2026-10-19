@@ -37,6 +37,13 @@ circuitpython:
   setup: |
     {{ id }} = adafruit_pcf8574.PCF8574({{ bus_var }}, address={{ params.address | default('0x20') }})
 
+# Quasi-bidirectional port: writing ones releases every pin to read as
+# an input, the chip's power-on state.
+micropython:
+  setup: |
+    {{ id }}_addr = {{ params.address | default('0x20') }}
+    {{ bus_var }}.writeto({{ id }}_addr, b"\xff"{% if (params.variant | default('pcf8574')) == 'pcf8575' %} b"\xff"{% endif %})
+
 params_schema:
   address:
     type: string

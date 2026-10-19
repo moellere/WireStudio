@@ -53,6 +53,17 @@ circuitpython:
   loop: |
     print("{{ label }}: %.0f lux" % {{ id }}.lux)
 
+# Register code, not a driver: the MicroPython BH1750 drivers are GPL.
+# Power on (0x01), continuous high-resolution mode (0x10), lux = count / 1.2.
+micropython:
+  setup: |
+    {{ id }}_addr = {{ params.address | default('0x23') }}
+    {{ bus_var }}.writeto({{ id }}_addr, b"\x01")
+    {{ bus_var }}.writeto({{ id }}_addr, b"\x10")
+  loop: |
+    {{ id }}_raw = {{ bus_var }}.readfrom({{ id }}_addr, 2)
+    print("{{ label }}: %.0f lux" % (((({{ id }}_raw[0] << 8) | {{ id }}_raw[1])) / 1.2))
+
 params_schema:
   address:
     type: string
