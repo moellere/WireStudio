@@ -17,7 +17,6 @@ circuitpython:
   # audio_dac
   max98357a: "deferred: needs an audiobusio.I2SOut fragment"
   # binary_sensor
-  ld2410: "deferred: needs a UART frame-parsing fragment; the bundle has no LD2410 driver"
   ld2420: "deferred: needs a UART frame-parsing fragment; the bundle has no LD2420 driver"
   # bus
   level_shifter: "no meaning on this framework: passive hardware, no code on any framework"
@@ -50,16 +49,13 @@ circuitpython:
   rf_bridge: "deferred: needs a raw-UART fragment for the EFM8 protocol"
   # rfid_reader
   rc522: "deferred: needs a fragment over a community MFRC522 port; none in the bundle"
-  rdm6300: "deferred: needs a raw-UART frame fragment"
   # sensor
   ads1115_channel: "no meaning on this framework: channels are read through the hub's fragment"
   bl0906: "deferred: needs a raw-UART fragment; the bundle has no BL0906 driver"
   bmp180: "deferred: needs a fragment over a community BMP180 port; none in the bundle"
-  cse7766: "deferred: needs a raw-UART frame fragment"
   ct_clamp: "deferred: needs an analogio RMS-sampling fragment"
   hlw8012: "deferred: needs a countio pulse-rate fragment"
   mcp3008_channel: "no meaning on this framework: channels are read through the hub's fragment"
-  mhz19: "deferred: needs a raw-UART command fragment"
   mpu6886: "deferred: needs an I2C register fragment; the bundle has no MPU6886 driver"
   pzemac: "no driver upstream: needs Modbus RTU, which the Adafruit bundle lacks"
   sdm_meter: "no driver upstream: needs Modbus RTU, which the Adafruit bundle lacks"
@@ -75,7 +71,6 @@ micropython:
   # audio_dac
   max98357a: "deferred: needs a machine.I2S fragment"
   # binary_sensor
-  ld2410: "deferred: needs a machine.UART frame-parsing fragment"
   ld2420: "deferred: needs a machine.UART frame-parsing fragment"
   # bus
   level_shifter: "no meaning on this framework: passive hardware, no code on any framework"
@@ -111,16 +106,13 @@ micropython:
   rf_bridge: "deferred: needs a machine.UART frame-parsing fragment"
   # rfid_reader
   rc522: "deferred: needs a fragment over a community MFRC522 driver via mip"
-  rdm6300: "deferred: needs a machine.UART frame-parsing fragment"
   # sensor
   ads1115_channel: "no meaning on this framework: channels are read through the hub's fragment"
   bl0906: "deferred: needs a machine.UART frame-parsing fragment"
   bmp180: "deferred: needs a fragment over a community BMP180 driver via mip"
-  cse7766: "deferred: needs a machine.UART frame-parsing fragment"
   ct_clamp: "deferred: needs a machine.ADC RMS-sampling fragment"
   hlw8012: "deferred: needs a machine.Pin IRQ pulse-rate fragment"
   mcp3008_channel: "no meaning on this framework: channels are read through the hub's fragment"
-  mhz19: "deferred: needs a machine.UART frame-parsing fragment"
   mpu6886: "deferred: needs an I2C register fragment; micropython-lib has no MPU6886 driver"
   pzemac: "no driver upstream: needs Modbus RTU, which micropython-lib lacks"
   sdm_meter: "no driver upstream: needs Modbus RTU, which micropython-lib lacks"

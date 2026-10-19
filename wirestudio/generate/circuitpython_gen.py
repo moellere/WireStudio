@@ -96,6 +96,8 @@ def generate_code(design: Design, library: Library) -> dict:
                 f"RX=P({rx})" if rx is not None else "RX=None",
                 f"baudrate={bus.baud_rate or 9600}",
             ]
+            if bus.parity in ("EVEN", "ODD"):
+                args.append(f"parity=busio.UART.Parity.{bus.parity}")
             bus_setup[bus.id] = f"{var} = busio.UART({', '.join(args)})"
         elif bus.type == "1wire":
             pin = _pin_num(bus.pin)
