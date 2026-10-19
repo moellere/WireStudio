@@ -41,6 +41,17 @@ capability:
   provides:
     - {event: on_nec, kind: event}
 
+circuitpython:
+  imports: ["import adafruit_irremote", "import pulseio"]
+  deps: [adafruit_irremote]
+  setup: |
+    {{ id }}_pulses = pulseio.PulseIn(P({{ pins.OUT }}), maxlen=120, idle_state={{ params.inverted | default(true) }})
+    {{ id }} = adafruit_irremote.NonblockingGenericDecode({{ id }}_pulses)
+  loop: |
+    for {{ id }}_msg in {{ id }}.read():
+        if isinstance({{ id }}_msg, adafruit_irremote.IRMessage):
+            print("{{ label }}:", {{ id }}_msg.code)
+
 params_schema:
   dump:
     type: string

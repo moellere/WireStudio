@@ -63,6 +63,19 @@ esphome:
         decay_mode: {{ params.decay_mode | default('slow') }}
     {%- endif %}
 
+circuitpython:
+  imports: ["import pwmio", "from adafruit_motor import motor"]
+  deps: [adafruit_motor]
+  setup: |
+    {%- set f = (params.frequency | default('1000 Hz')) | string | lower | replace(' ', '') %}
+    {%- set hz = ((f[:-3] | float) * 1000) if f.endswith('khz') else (f | replace('hz', '') | float) %}
+    {{ id }} = motor.DCMotor(
+        pwmio.PWMOut(P({{ pins.IN1 }}), frequency={{ hz | int }}),
+        pwmio.PWMOut(P({{ pins.IN2 }}), frequency={{ hz | int }}),
+    )
+    {{ id }}.decay_mode = motor.{{ 'FAST_DECAY' if (params.decay_mode | default('slow')) == 'fast' else 'SLOW_DECAY' }}
+    {{ id }}.throttle = 0
+
 params_schema:
   expose:
     type: string

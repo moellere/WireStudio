@@ -46,6 +46,12 @@ capability:
     - {predicate: is_on,  esphome: light.is_on}
     - {predicate: is_off, esphome: light.is_off}
 
+circuitpython:
+  imports: ["import digitalio"]
+  setup: |
+    {{ id }} = digitalio.DigitalInOut(P({{ pins.IN }}))
+    {{ id }}.switch_to_output(value={{ (params.restore_mode | default('ALWAYS_OFF')) in ['ALWAYS_ON', 'RESTORE_DEFAULT_ON'] }})
+
 params_schema:
   r_led:
     type: string

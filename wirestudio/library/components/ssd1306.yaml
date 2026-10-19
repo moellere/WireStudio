@@ -126,6 +126,18 @@ kicad:
   footprint: Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical
   value: SSD1306
 
+circuitpython:
+  imports: ["import displayio", "import i2cdisplaybus", "import terminalio", "from adafruit_display_text import label as display_label"]
+  deps: [adafruit_displayio_ssd1306, adafruit_displayio_sh1106, adafruit_display_text]
+  setup: |
+    {%- set model = params.model | default('SSD1306 128x64') %}
+    {%- set driver = 'adafruit_displayio_sh1106' if model.startswith('SH1106') else 'adafruit_displayio_ssd1306' %}
+    import {{ driver }}
+    {{ id }}_bus = i2cdisplaybus.I2CDisplayBus({{ bus_var }}, device_address={{ params.address | default('0x3C') }}{% if pins.RESET is defined %}, reset=P({{ pins.RESET }}){% endif %})
+    {{ id }} = {{ driver }}.{{ 'SH1106' if model.startswith('SH1106') else 'SSD1306' }}({{ id }}_bus, width=128, height={{ 32 if '128x32' in model else 64 }})
+    {{ id }}.root_group = displayio.Group()
+    {{ id }}.root_group.append(display_label.Label(terminalio.FONT, text="{{ label }}", x=0, y=4))
+
 micropython:
   imports: ["import ssd1306"]
   deps: [ssd1306]

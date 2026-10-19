@@ -42,6 +42,13 @@ capability:
     - {action: play, esphome: rtttl.play}
     - {action: stop, esphome: rtttl.stop}
 
+circuitpython:
+  imports: ["import adafruit_rtttl"]
+  deps: [adafruit_rtttl]
+  setup: |
+    def {{ id }}_play(song):
+        adafruit_rtttl.play(P({{ pins.OUT }}), song)
+
 params_schema:
   output_platform:
     type: string
