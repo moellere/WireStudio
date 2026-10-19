@@ -40,6 +40,7 @@ def decoder(cid: str, framework: str, monkeypatch):
     return scope["dut_decode"]
 
 
+
 FRAMEWORKS = pytest.mark.parametrize("framework", list(GENERATORS))
 
 
@@ -118,3 +119,57 @@ def test_ld2410_decodes_the_latest_target_report(framework, monkeypatch):
     torn = bytearray(_ld_frame())
     torn[-1] = 0
     assert decode(bytes(torn)) is None
+
+
+@FRAMEWORKS
+def test_ld2420_reads_simple_text_and_energy_frames(framework, monkeypatch):
+    decode = decoder("ld2420", framework, monkeypatch)
+    assert decode(b"Range 0\r\nOFF\r\nON\r\nRange 152\r\n") == (True, 152)
+    assert decode(b"OFF\r\n") == (False, None)
+    energy = b"\xf4\xf3\xf2\xf1\x23\x00\x01\x58\x02" + bytes(32) + b"\xf8\xf7\xf6\xf5"
+    assert decode(b"\x00" + energy) == (True, 0x258)  # 600 cm
+    assert decode(energy[:-1]) is None
+    assert decode(b"Range x\r\n") is None
+
+
+def _rf_frame(action, sync, low, high, code):
+    return bytes([0xAA, action]) + b"".join(v.to_bytes(2, "big") for v in (sync, low, high)) \
+        + code.to_bytes(3, "big") + b"\x55"
+
+
+@FRAMEWORKS
+def test_rf_bridge_decodes_received_and_learned_codes(framework, monkeypatch):
+    decode = decoder("rf_bridge", framework, monkeypatch)
+    rx = _rf_frame(0xA4, 0x2A80, 0x0118, 0x0398, 0xA1B2C3)
+    learned = _rf_frame(0xA3, 0x1F40, 0x00F0, 0x02D0, 0x00FF01)
+    assert decode(b"\xaa\xa0\x55" + rx + learned) == [
+        (0x2A80, 0x0118, 0x0398, 0xA1B2C3), (0x1F40, 0x00F0, 0x02D0, 0x00FF01)]
+    assert decode(rx[:-1] + b"\x00") == []
+
+
+@FRAMEWORKS
+def test_nextion_decodes_touch_events(framework, monkeypatch):
+    decode = decoder("nextion", framework, monkeypatch)
+    end = b"\xff\xff\xff"
+    assert decode(b"\x1a" + end + b"\x65\x00\x02\x01" + end + b"\x66\x01" + end + b"\x65\x01\x07\x00" + end) == [
+        (0, 2, True), (1, 7, False)]
+
+
+def _bl_packet(addr, value):
+    data = value.to_bytes(3, "little")
+    return data + bytes([(addr + sum(data)) & 0xFF ^ 0xFF])
+
+
+@FRAMEWORKS
+def test_bl0906_checks_and_scales_register_reads(framework, monkeypatch):
+    decode = decoder("bl0906", framework, monkeypatch)
+    scope = decode.__globals__
+    # ESPHome's bl0906 constants for the stock CT and divider.
+    assert scope["dut_uref"] == pytest.approx(1.097 * 100000 / (13162 * 100 * 1000))
+    assert scope["dut_iref"] == pytest.approx(1.097 / (12875 * 10.2 * 1000 / 2000))
+    assert decode(0x16, _bl_packet(0x16, 0x2C1A80)) == 0x2C1A80
+    assert decode(0x23, _bl_packet(0x23, 0xFFFF38), True) == -200  # power is signed 24-bit
+    bad = bytearray(_bl_packet(0x16, 0x2C1A80))
+    bad[3] ^= 1
+    assert decode(0x16, bytes(bad)) is None
+    assert decode(0x16, b"\x00\x00") is None

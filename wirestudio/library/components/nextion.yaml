@@ -40,6 +40,57 @@ esphome:
           {{ params.lambda | indent(10) }}
     {%- endif %}
 
+# Nextion instruction set: ASCII commands each ended by FF FF FF; a touch
+# comes back as 65 <page> <component> <1 press / 0 release> FF FF FF.
+circuitpython:
+  setup: |
+    def {{ id }}_listen(seconds):
+        {{ bus_var }}.reset_input_buffer()
+        buf = b""
+        until = time.monotonic() + seconds
+        while time.monotonic() < until:
+            n = {{ bus_var }}.in_waiting
+            if n:
+                buf += {{ bus_var }}.read(n)
+        return buf
+    def {{ id }}_send(command):
+        {{ bus_var }}.write(command.encode() + b"\xff\xff\xff")
+    def {{ id }}_decode(buf):
+        events = []
+        for chunk in buf.split(b"\xff\xff\xff"):
+            if len(chunk) >= 4 and chunk[-4] == 0x65:
+                events.append((chunk[-3], chunk[-2], chunk[-1] == 1))
+        return events
+    {{ id }}_send("bkcmd=0")
+    {{ id }}_send("page 0")
+  loop: |
+    for {{ id }}_page, {{ id }}_component, {{ id }}_pressed in {{ id }}_decode({{ id }}_listen(0.5)):
+        print("{{ label }}: page %d component %d %s" % ({{ id }}_page, {{ id }}_component, "press" if {{ id }}_pressed else "release"))
+
+micropython:
+  setup: |
+    def {{ id }}_listen(seconds):
+        {{ bus_var }}.read()
+        buf = b""
+        until = time.ticks_add(time.ticks_ms(), int(seconds * 1000))
+        while time.ticks_diff(until, time.ticks_ms()) > 0:
+            buf += {{ bus_var }}.read() or b""
+            time.sleep_ms(20)
+        return buf
+    def {{ id }}_send(command):
+        {{ bus_var }}.write(command.encode() + b"\xff\xff\xff")
+    def {{ id }}_decode(buf):
+        events = []
+        for chunk in buf.split(b"\xff\xff\xff"):
+            if len(chunk) >= 4 and chunk[-4] == 0x65:
+                events.append((chunk[-3], chunk[-2], chunk[-1] == 1))
+        return events
+    {{ id }}_send("bkcmd=0")
+    {{ id }}_send("page 0")
+  loop: |
+    for {{ id }}_page, {{ id }}_component, {{ id }}_pressed in {{ id }}_decode({{ id }}_listen(0.5)):
+        print("{{ label }}: page %d component %d %s" % ({{ id }}_page, {{ id }}_component, "press" if {{ id }}_pressed else "release"))
+
 params_schema:
   update_interval:
     type: string
