@@ -40,6 +40,21 @@ tasmota:
     LATCH: Shift595_RCLK
     OE: Shift595_OE
 
+circuitpython:
+  imports: ["import adafruit_74hc595", "import digitalio"]
+  deps: [adafruit_74hc595]
+  setup: |
+    {%- if pins.OE is defined %}
+    {{ id }}_oe = digitalio.DigitalInOut(P({{ pins.OE }}))
+    {{ id }}_oe.switch_to_output(value=False)
+    {%- endif %}
+    {{ id }} = adafruit_74hc595.ShiftRegister74HC595(
+        latch=digitalio.DigitalInOut(P({{ pins.LATCH }})),
+        clock=digitalio.DigitalInOut(P({{ pins.CLOCK }})),
+        data=digitalio.DigitalInOut(P({{ pins.DATA }})),
+        number_of_shift_registers={{ params.sr_count | default(1) }},
+    )
+
 params_schema:
   sr_count:
     type: integer

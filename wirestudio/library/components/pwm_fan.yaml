@@ -131,6 +131,24 @@ kicad:
     TACH: '3'
     PWM: '4'
 
+circuitpython:
+  imports: ["import countio", "import digitalio", "import pwmio"]
+  setup: |
+    {%- set f = (params.frequency | default('25000 Hz')) | string | lower | replace(' ', '') %}
+    {%- set hz = ((f[:-3] | float) * 1000) if f.endswith('khz') else (f | replace('hz', '') | float) %}
+    {{ id }} = pwmio.PWMOut(P({{ pins.PWM }}), frequency={{ hz | int }}, duty_cycle=32768)
+    {%- if pins.TACH is defined %}
+    {{ id }}_tach = countio.Counter(P({{ pins.TACH }}), edge=countio.Edge.FALL, pull=digitalio.Pull.UP)
+    {{ id }}_t0 = time.monotonic()
+    {%- endif %}
+  loop: |
+    {%- if pins.TACH is defined %}
+    {{ id }}_now = time.monotonic()
+    print("{{ label }}: %d rpm" % ({{ id }}_tach.count * 60 / (({{ id }}_now - {{ id }}_t0) * {{ params.tach_pulses_per_rev | default(2) }})))
+    {{ id }}_tach.reset()
+    {{ id }}_t0 = {{ id }}_now
+    {%- endif %}
+
 micropython:
   imports: ["from machine import PWM"]
   setup: |

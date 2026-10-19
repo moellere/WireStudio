@@ -221,7 +221,9 @@ class CircuitPythonSpec(_Strict):
     the main while-loop body. `imports` are the exact import lines the
     fragments need; `deps` names the Adafruit bundle libraries to copy
     to CIRCUITPY/lib (core modules need no entry). Explicit rather than
-    inferred so the mapping is reviewed code, not a runtime guess."""
+    inferred so the mapping is reviewed code, not a runtime guess. A
+    fragment calls `unsupported(reason)` for a variant it has no driver
+    for; the generator then skips the component with that reason."""
     imports: list[str] = Field(default_factory=list)
     deps: list[str] = Field(default_factory=list)
     setup: str

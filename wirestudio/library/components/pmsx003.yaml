@@ -42,6 +42,18 @@ tasmota:
     tx: PMS5003_TX
     rx: PMS5003_RX
 
+circuitpython:
+  imports: ["from adafruit_pm25.uart import PM25_UART"]
+  deps: [adafruit_pm25]
+  setup: |
+    {{ id }} = PM25_UART({{ bus_var }})
+  loop: |
+    try:
+        {{ id }}_aq = {{ id }}.read()
+        print("{{ label }}: PM1.0 %d PM2.5 %d PM10 %d ug/m3" % ({{ id }}_aq["pm10 env"], {{ id }}_aq["pm25 env"], {{ id }}_aq["pm100 env"]))
+    except RuntimeError as e:
+        print("{{ label }}:", e)
+
 params_schema:
   type:
     type: string

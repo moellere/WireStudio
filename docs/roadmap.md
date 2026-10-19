@@ -111,7 +111,7 @@ Components each framework's generator can use today, out of 102
 |---|---|
 | esphome | 102 |
 | tasmota | 51 |
-| circuitpython | 38 |
+| circuitpython | 60 |
 | micropython | 38 |
 | wled | 13 |
 | lorawan | 5 |
@@ -131,8 +131,13 @@ remains is to work the baselines down:
   maintained MicroPython driver speaks SPI, the library part I2C) and
   the MCP23S17 (no driver found); parts with no permissively licensed
   driver are datasheet register code, run against a fake bus in
-  `tests/test_micropython_registers.py`. Next is both frameworks for
-  every actuator and sensor that has an upstream driver.
+  `tests/test_micropython_registers.py`. CircuitPython now covers every
+  part with an Adafruit bundle driver or a core module (motors,
+  steppers, displays, IR, LoRa, ADCs, load cells, PM and GPS over
+  UART, counters and plain outputs); `tests/test_circuitpython_blocks.py`
+  runs each block's `code.py` for a loop pass against stub modules.
+  Next is MicroPython for the same set, then the raw-UART and
+  register-level parts on both.
 - **Tasmota** covers what Tasmota's template format can express; the
   baseline will be long and honest.
 - **LoRaWAN** gains a block for every sensor the payload codec can

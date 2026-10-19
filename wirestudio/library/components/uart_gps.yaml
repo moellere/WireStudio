@@ -148,6 +148,20 @@ esphome:
       restore_mode: ALWAYS_ON
     {%- endif %}
 
+circuitpython:
+  imports: ["import adafruit_gps"]
+  deps: [adafruit_gps]
+  setup: |
+    {{ id }} = adafruit_gps.GPS({{ bus_var }})
+  loop: |
+    {{ id }}_until = time.monotonic() + 1.5
+    while time.monotonic() < {{ id }}_until:
+        {{ id }}.update()
+    if {{ id }}.has_fix:
+        print("{{ label }}: %.6f %.6f" % ({{ id }}.latitude, {{ id }}.longitude))
+    else:
+        print("{{ label }}: no fix")
+
 params_schema:
   sensors:
     type: object

@@ -51,6 +51,18 @@ esphome:
         lambda: {{ params.lambda_ | tojson }}
     {%- endif %}
 
+circuitpython:
+  imports: ["import displayio", "import fourwire", "import terminalio", "import adafruit_ili9341", "from adafruit_display_text import label as display_label"]
+  deps: [adafruit_ili9341, adafruit_display_text]
+  setup: |
+    {%- if (params.model | default('ILI9341')) not in ['ILI9341', 'TFT_2_4', 'TFT_2_4R'] %}
+    {{ unsupported("adafruit_ili9341 drives the ILI9341 only, not the " ~ params.model) }}
+    {%- endif %}
+    {{ id }}_bus = fourwire.FourWire({{ bus_var }}, command=P({{ pins.DC }}), chip_select=P({{ pins.CS }}){% if pins.RESET is defined %}, reset=P({{ pins.RESET }}){% endif %})
+    {{ id }} = adafruit_ili9341.ILI9341({{ id }}_bus, width=320, height=240, rotation={{ params.rotation | default(0) }}{% if params.color_order is defined %}, bgr={{ params.color_order == 'bgr' }}{% endif %}{% if params.invert_colors is defined %}, invert={{ params.invert_colors }}{% endif %}{% if pins.BACKLIGHT is defined %}, backlight_pin=P({{ pins.BACKLIGHT }}){% endif %})
+    {{ id }}.root_group = displayio.Group()
+    {{ id }}.root_group.append(display_label.Label(terminalio.FONT, text="{{ label }}", x=8, y=8))
+
 params_schema:
   model:
     type: string

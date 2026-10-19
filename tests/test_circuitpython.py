@@ -127,9 +127,12 @@ def test_design_code_air_quality_station():
     assert "i2c_i2c0 = busio.I2C(P(22), P(21))" in code
     assert "adafruit_scd4x.SCD4X(i2c_i2c0)" in code
     assert "adafruit_sht4x" in out["deps"]
-    # pmsx003 has no CP driver: warned, and its uart bus is not emitted.
-    assert any("pmsx003" in w for w in out["warnings"])
-    assert "busio.UART" not in code
+    assert "PM25_UART(uart_" in code
+    # cse7766 has no CP driver: warned, and its uart bus is not emitted.
+    plug = Design.model_validate(json.loads((examples / "smart-plug.json").read_text()))
+    out = generate_code(plug, default_library())
+    assert any("cse7766" in w for w in out["warnings"])
+    assert "busio.UART" not in out["code"]
 
 
 def test_design_code_every_example_is_valid_python():
