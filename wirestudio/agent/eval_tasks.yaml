@@ -1,0 +1,360 @@
+# The agent eval task list. `python -m wirestudio.agent.eval` runs each
+# prompt against the agent on the named example and scores the design it
+# hands back: it validates (every pin bound and on the board, no pin
+# shared, every bus complete, `esphome config` accepts the render), the
+# `expect` block holds, and the turn used at most `budget` tool calls.
+#
+#   setup      tool calls applied to the example before the prompt
+#   expect     components / absent / any_of (library ids), count
+#              (library id -> instances), board, params and connections
+#              (by instance `component` or by `library`, target matched
+#              as a subset), buses (subset of one bus), strict, unchanged
+#   solution   the reference tool calls; `--solutions` replays them, and
+#              tests/test_agent_eval.py holds every task to passing that way
+#
+# gate.min_pass is the pass count the nightly run must hold. It is 0
+# until the first run against the default model records a score; set it
+# to that score, and raise it when a change lifts the count.
+
+gate:
+  min_pass: 0
+
+tasks:
+  # --- garage-motion: ESP32 DevKitC, PIR on GPIO13, BME280 on i2c0 -----
+
+  - id: add-oled
+    example: garage-motion
+    prompt: Add a 128x64 SSD1306 OLED at address 0x3C.
+    budget: 5
+    expect:
+      components: [ssd1306]
+      params:
+        - {library: ssd1306, key: address, value: "0x3C"}
+    solution:
+      - [add_component, {library_id: ssd1306, params: {address: "0x3C"}}]
+      - [solve_pins]
+
+  - id: set-address
+    example: garage-motion
+    prompt: The BME280 on this board is strapped to 0x77, not 0x76.
+    budget: 2
+    expect:
+      params:
+        - {component: bme1, key: address, value: "0x77"}
+    solution:
+      - [set_param, {instance_id: bme1, key: address, value: "0x77"}]
+
+  - id: move-pir-pin
+    example: garage-motion
+    prompt: Move the PIR output from GPIO13 to GPIO27.
+    budget: 2
+    expect:
+      connections:
+        - {component: pir1, pin: OUT, target: {kind: gpio, pin: GPIO27}}
+    solution:
+      - [set_connection, {component_id: pir1, pin_role: OUT, target: {kind: gpio, pin: GPIO27}}]
+
+  - id: remove-climate
+    example: garage-motion
+    prompt: Drop the climate sensor; this unit only needs motion.
+    budget: 2
+    expect:
+      absent: [bme280]
+      components: [hc-sr501]
+    solution:
+      - [remove_component, {instance_id: bme1}]
+
+  - id: replace-with-sht31
+    example: garage-motion
+    prompt: Replace the BME280 with an SHT31 at 0x44.
+    budget: 4
+    expect:
+      absent: [bme280]
+      components: [sht3xd]
+      params:
+        - {library: sht3xd, key: address, value: "0x44"}
+    solution:
+      - [remove_component, {instance_id: bme1}]
+      - [add_component, {library_id: sht3xd, params: {address: "0x44"}}]
+
+  - id: strict-on
+    example: garage-motion
+    prompt: Turn on strict mode for this design.
+    budget: 2
+    expect:
+      strict: true
+    solution:
+      - [set_strict, {enabled: true}]
+
+  - id: recommend-co2
+    example: garage-motion
+    prompt: I also want CO2 readings. Pick a sensor from the library and wire it in.
+    budget: 6
+    expect:
+      any_of: [scd4x, mhz19]
+    solution:
+      - [recommend, {query: co2}]
+      - [add_component, {library_id: scd4x}]
+
+  - id: compound-oled-and-pin
+    example: garage-motion
+    prompt: Add an SSD1306 OLED and move the PIR output to GPIO27.
+    budget: 6
+    expect:
+      components: [ssd1306]
+      connections:
+        - {component: pir1, pin: OUT, target: {kind: gpio, pin: GPIO27}}
+    solution:
+      - [add_component, {library_id: ssd1306}]
+      - [set_connection, {component_id: pir1, pin_role: OUT, target: {kind: gpio, pin: GPIO27}}]
+      - [solve_pins]
+
+  - id: free-pins-question
+    example: garage-motion
+    prompt: Which GPIOs are still free on this board?
+    budget: 3
+    expect:
+      unchanged: true
+    solution:
+      - [library_detail, {library_id: esp32-devkitc-v4, kind: board}]
+
+  - id: describe-design
+    example: garage-motion
+    prompt: Summarise what this design does and how it is wired.
+    budget: 2
+    expect:
+      unchanged: true
+    solution:
+      - [render]
+
+  - id: unknown-part
+    example: garage-motion
+    prompt: Add a Zigbee radio module.
+    budget: 3
+    expect:
+      unchanged: true
+    solution:
+      - [search_components, {query: zigbee}]
+
+  # --- room-climate: WeMos D1 Mini, BH1750 + AHT20 on i2c0 (D2/D1) ------
+
+  - id: ds18b20-needs-bus
+    example: room-climate
+    prompt: Add a waterproof DS18B20 probe on D5.
+    budget: 5
+    expect:
+      components: [ds18b20]
+      buses:
+        - {type: 1wire, pin: D5}
+      connections:
+        - {library: ds18b20, pin: DATA, target: {kind: bus}}
+    solution:
+      - [add_bus, {id: wire0, type: 1wire, pin: D5}]
+      - [add_component, {library_id: ds18b20}]
+
+  - id: mhz19-uart
+    example: room-climate
+    prompt: Add an MH-Z19 CO2 sensor on a UART with D6 as RX and D7 as TX at 9600 baud.
+    budget: 5
+    expect:
+      components: [mhz19]
+      buses:
+        - {type: uart, rx: D6, tx: D7, baud_rate: 9600}
+    solution:
+      - [add_bus, {id: co2_uart, type: uart, rx: D6, tx: D7, baud_rate: 9600}]
+      - [add_component, {library_id: mhz19}]
+
+  - id: poll-interval
+    example: room-climate
+    prompt: Poll the light sensor every 10 seconds.
+    budget: 2
+    expect:
+      params:
+        - {component: lux1, key: update_interval, value: "10s"}
+    solution:
+      - [set_param, {instance_id: lux1, key: update_interval, value: "10s"}]
+
+  - id: swap-board
+    example: room-climate
+    prompt: Switch this to a NodeMCU v2 board.
+    budget: 3
+    expect:
+      board: nodemcu-v2
+    solution:
+      - [set_board, {library_id: nodemcu-v2}]
+
+  - id: add-relay
+    example: room-climate
+    prompt: Add a relay output to run a dehumidifier.
+    budget: 4
+    expect:
+      components: [gpio_output]
+    solution:
+      - [add_component, {library_id: gpio_output, label: Dehumidifier}]
+      - [solve_pins]
+
+  # --- button-toggles-light: D1 Mini, button D5 toggles a switch on D6 --
+
+  - id: resolve-conflict
+    example: button-toggles-light
+    prompt: The light and the button are both on D5. Fix the conflict.
+    budget: 3
+    setup:
+      - [set_connection, {component_id: porch_light, pin_role: OUT, target: {kind: gpio, pin: D5}}]
+    expect:
+      components: [gpio_input, gpio_output]
+    solution:
+      - [set_connection, {component_id: porch_light, pin_role: OUT, target: {kind: gpio, pin: D6}}]
+
+  - id: mosfet-driver
+    example: button-toggles-light
+    prompt: >-
+      The porch light is actually a 12V LED strip pulling 300mA. Drive it
+      through a low-side MOSFET block instead of the bare GPIO switch,
+      keeping the button automation.
+    budget: 5
+    expect:
+      components: [mosfet_low_side_driver]
+      absent: [gpio_output]
+      params:
+        - {library: mosfet_low_side_driver, key: load_ma, value: 300}
+    solution:
+      - [remove_component, {instance_id: porch_light}]
+      - [add_component, {library_id: mosfet_low_side_driver, instance_id_hint: porch_light,
+                         label: Porch light, params: {load_ma: 300}}]
+      - [solve_pins]
+
+  - id: ws2812-strip
+    example: button-toggles-light
+    prompt: Replace the porch light switch with a 30-LED WS2812B strip; the button should still toggle it.
+    budget: 5
+    expect:
+      components: [ws2812b]
+      absent: [gpio_output]
+      params:
+        - {library: ws2812b, key: num_leds, value: 30}
+    solution:
+      - [remove_component, {instance_id: porch_light}]
+      - [add_component, {library_id: ws2812b, instance_id_hint: porch_light,
+                         label: Porch strip, params: {num_leds: 30}}]
+      - [set_connection, {component_id: porch_light, pin_role: DIN, target: {kind: gpio, pin: D4}}]
+
+  - id: first-i2c-part
+    example: button-toggles-light
+    prompt: Add a BH1750 light sensor.
+    budget: 4
+    expect:
+      components: [bh1750]
+      buses:
+        - {type: i2c, sda: D2, scl: D1}
+    solution:
+      - [add_component, {library_id: bh1750}]
+      - [solve_pins]
+
+  # --- multi-temp: D1 Mini, two DS18B20 on wire0, radar on D5 ------------
+
+  - id: third-probe
+    example: multi-temp
+    prompt: Add a third DS18B20 for the outdoor line on the existing 1-wire bus.
+    budget: 3
+    expect:
+      count: {ds18b20: 3}
+      connections:
+        - {library: ds18b20, pin: DATA, target: {kind: bus, bus_id: wire0}}
+    solution:
+      - [add_component, {library_id: ds18b20, label: Outdoor line}]
+
+  # --- weather-station: ESP32 DevKitC, three I2C sensors on i2c0 --------
+
+  - id: second-i2c-bus
+    example: weather-station
+    prompt: Move the TSL2561 onto a second I2C bus called i2c1 on GPIO25 (SDA) and GPIO26 (SCL).
+    budget: 5
+    expect:
+      buses:
+        - {id: i2c1, type: i2c, sda: GPIO25, scl: GPIO26}
+      connections:
+        - {component: lux, pin: SDA, target: {kind: bus, bus_id: i2c1}}
+        - {component: lux, pin: SCL, target: {kind: bus, bus_id: i2c1}}
+    solution:
+      - [add_bus, {id: i2c1, type: i2c, sda: GPIO25, scl: GPIO26}]
+      - [set_connection, {component_id: lux, pin_role: SDA, target: {kind: bus, bus_id: i2c1}}]
+      - [set_connection, {component_id: lux, pin_role: SCL, target: {kind: bus, bus_id: i2c1}}]
+
+  # --- securitypanel: D1 Mini, MCP23017 hub with pins 3-15 used ---------
+
+  - id: expander-input
+    example: securitypanel
+    prompt: >-
+      Add a basement window contact called basement_window on the MCP23017,
+      pulled up and inverted like the others.
+    budget: 4
+    expect:
+      connections:
+        - {component: basement_window, pin: IN,
+           target: {kind: expander_pin, expander_id: mcp_hub, mode: INPUT_PULLUP, inverted: true}}
+    solution:
+      - [add_component, {library_id: gpio_input, instance_id_hint: basement_window, label: Basement window}]
+      - [set_connection, {component_id: basement_window, pin_role: IN,
+                          target: {kind: expander_pin, expander_id: mcp_hub, number: 0,
+                                   mode: INPUT_PULLUP, inverted: true}}]
+
+  # --- led-display: ESP32 DevKitC, MAX7219 on spi_bus, TM1638 on GPIOs --
+
+  - id: rc522-spi
+    example: led-display
+    prompt: Add an RC522 RFID reader on the SPI bus.
+    budget: 4
+    expect:
+      components: [rc522]
+      connections:
+        - {library: rc522, pin: MOSI, target: {kind: bus, bus_id: spi_bus}}
+    solution:
+      - [add_component, {library_id: rc522}]
+      - [solve_pins]
+
+  # --- oled-knob: ESP32 DevKitC, OLED + encoder + three buttons ----------
+
+  - id: second-encoder
+    example: oled-knob
+    prompt: Add a second rotary encoder for volume.
+    budget: 4
+    expect:
+      count: {rotary_encoder: 2}
+    solution:
+      - [add_component, {library_id: rotary_encoder, label: Volume knob}]
+      - [solve_pins]
+
+  - id: pwm-fan
+    example: room-climate
+    prompt: Add a 4-pin PWM exhaust fan.
+    budget: 4
+    expect:
+      components: [pwm_fan]
+    solution:
+      - [add_component, {library_id: pwm_fan, label: Exhaust fan}]
+      - [solve_pins]
+
+  # --- distance-sensor: NodeMCU v2, HC-SR04 + WS2812B --------------------
+
+  - id: add-buzzer
+    example: distance-sensor
+    prompt: Add a piezo buzzer I can beep from automations.
+    budget: 4
+    expect:
+      components: [rtttl]
+    solution:
+      - [add_component, {library_id: rtttl, label: Buzzer}]
+      - [solve_pins]
+
+  # --- access-panel: ESP32 DevKitC, PN532 + Wiegand + servo + strike -----
+
+  - id: second-servo
+    example: access-panel
+    prompt: Add a second servo for the inner latch.
+    budget: 4
+    expect:
+      count: {servo: 2}
+    solution:
+      - [add_component, {library_id: servo, label: Inner latch}]
+      - [solve_pins]

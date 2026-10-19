@@ -24,6 +24,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Agent eval harness.** `wirestudio/agent/eval_tasks.yaml` is a fixed
+  list of twenty-eight natural-language asks against the bundled
+  examples (add a sensor, move one to a new bus, resolve a pin
+  conflict, replace a switch with a driver block, swap the board,
+  answer a question without editing), each with a tool-call budget and
+  a reference solution. `python -m wirestudio.agent.eval` runs them
+  against the agent and scores the design it hands back on three
+  things: it validates (every pin bound and on the board, no pin
+  shared, every bus complete, `esphome config` accepts the render), the
+  asked-for change is present, and the turn stayed within budget. The
+  run prints a row per task, writes a markdown summary and
+  `results.json`, and holds the pass count to `gate.min_pass`.
+  `--solutions` replays the reference solutions through the same
+  scorer, which proves each task is solvable within its budget without
+  a key; `tests/test_agent_eval.py` holds every task to that. The
+  `agent-eval` workflow runs the replay on every PR touching the agent
+  and the model nightly. Writing the list surfaced two generator gaps
+  the `validate` tool does not catch and the scorer does: a WS2812B on
+  an ESP8266 defaults to the UART1 method, which only drives GPIO2, and
+  a `pwm_fan` instance named `fan` collides with ESPHome's `fan`
+  integration id.
+- **`write_secrets_stub`** in `wirestudio.validate`: the secrets.yaml
+  stub the example gate writes beside a rendered YAML, now in the
+  package so the eval harness and the dashboard script share it.
 - **WLED target, the usermod tier.** Sensors are WLED usermods,
   compiled into the release with a build flag. A `wled:` block of kind
   `usermod` names the usermod, its define, the libraries its README

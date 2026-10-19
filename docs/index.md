@@ -454,11 +454,9 @@ solver (`0.6`), fleet handoff (`0.7`), enclosure (`0.8`), KiCad
 schematic (`0.9`), MCP server + KiCad symbol importer (`0.10`),
 Docker single-image deploy + K8s manifest.
 
-**Future** — an agent eval harness scoring tool-use against a fixed
-task list (to promote the agent from Experimental); a multi-writer
-state backend so the studio can run as a HA replica; attributing
-`esphome-matrix` failures to specific components for per-release
-support tables.
+**Future** — a multi-writer state backend so the studio can run as a
+HA replica; attributing `esphome-matrix` failures to specific
+components for per-release support tables.
 
 **Retired debt** — `mcp` was pinned to `<2` from 0.24.1, because mcp
 2.0.0 removed the `mcp.server.fastmcp` import path the server is built
