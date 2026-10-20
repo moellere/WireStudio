@@ -34,6 +34,106 @@ esphome:
       role: {{ params.role }}
     {%- endif %}
 
+# Modbus RTU client: a request of address, function, start and count
+# with its CRC-16 (polynomial 0xA001, low byte first); the reply's
+# address, function, byte count and data, checked by the same CRC. The
+# FLOW pin drives an RS485 transceiver's DE/RE high for the request.
+# Exception replies (function | 0x80) and timeouts read as None.
+circuitpython:
+  imports: ["import digitalio"]
+  setup: |
+    {%- if pins.FLOW is defined %}
+    {{ id }}_flow = digitalio.DigitalInOut(P({{ pins.FLOW }}))
+    {{ id }}_flow.switch_to_output(value=False)
+    def {{ id }}_transmit(on):
+        {{ id }}_flow.value = on
+    {%- else %}
+    def {{ id }}_transmit(on):
+        pass
+    {%- endif %}
+    def {{ id }}_drain():
+        {{ bus_var }}.reset_input_buffer()
+    def {{ id }}_collect(seconds):
+        buf = b""
+        until = time.monotonic() + seconds
+        while time.monotonic() < until:
+            n = {{ bus_var }}.in_waiting
+            if n:
+                buf += {{ bus_var }}.read(n)
+        return buf
+    {{ id }}_baud = {{ (bus.baud_rate if bus else none) or 9600 }}
+    def {{ id }}_crc(data):
+        crc = 0xFFFF
+        for b in data:
+            crc ^= b
+            for _ in range(8):
+                crc = crc >> 1 ^ 0xA001 if crc & 1 else crc >> 1
+        return bytes([crc & 0xFF, crc >> 8])
+    def {{ id }}_parse(address, function, raw):
+        head = bytes([address, function])
+        i = raw.find(head)
+        while 0 <= i and i + 3 <= len(raw):
+            frame = raw[i:i + 5 + raw[i + 2]]
+            if len(frame) == 5 + raw[i + 2] and {{ id }}_crc(frame[:-2]) == frame[-2:]:
+                return frame[3:-2]
+            i = raw.find(head, i + 1)
+        return None
+    def {{ id }}_read(address, function, start, count):
+        frame = bytes([address, function, start >> 8, start & 0xFF, count >> 8, count & 0xFF])
+        frame += {{ id }}_crc(frame)
+        {{ id }}_drain()
+        {{ id }}_transmit(True)
+        {{ bus_var }}.write(frame)
+        time.sleep(len(frame) * 11 / {{ id }}_baud)
+        {{ id }}_transmit(False)
+        return {{ id }}_parse(address, function, {{ id }}_collect(0.1 + (5 + 2 * count) * 11 / {{ id }}_baud))
+
+micropython:
+  setup: |
+    {%- if pins.FLOW is defined %}
+    {{ id }}_flow = Pin({{ pins.FLOW }}, Pin.OUT, value=0)
+    def {{ id }}_transmit(on):
+        {{ id }}_flow(1 if on else 0)
+    {%- else %}
+    def {{ id }}_transmit(on):
+        pass
+    {%- endif %}
+    def {{ id }}_drain():
+        {{ bus_var }}.read()
+    def {{ id }}_collect(seconds):
+        buf = b""
+        until = time.ticks_add(time.ticks_ms(), int(seconds * 1000))
+        while time.ticks_diff(until, time.ticks_ms()) > 0:
+            buf += {{ bus_var }}.read() or b""
+            time.sleep_ms(10)
+        return buf
+    {{ id }}_baud = {{ (bus.baud_rate if bus else none) or 9600 }}
+    def {{ id }}_crc(data):
+        crc = 0xFFFF
+        for b in data:
+            crc ^= b
+            for _ in range(8):
+                crc = crc >> 1 ^ 0xA001 if crc & 1 else crc >> 1
+        return bytes([crc & 0xFF, crc >> 8])
+    def {{ id }}_parse(address, function, raw):
+        head = bytes([address, function])
+        i = raw.find(head)
+        while 0 <= i and i + 3 <= len(raw):
+            frame = raw[i:i + 5 + raw[i + 2]]
+            if len(frame) == 5 + raw[i + 2] and {{ id }}_crc(frame[:-2]) == frame[-2:]:
+                return frame[3:-2]
+            i = raw.find(head, i + 1)
+        return None
+    def {{ id }}_read(address, function, start, count):
+        frame = bytes([address, function, start >> 8, start & 0xFF, count >> 8, count & 0xFF])
+        frame += {{ id }}_crc(frame)
+        {{ id }}_drain()
+        {{ id }}_transmit(True)
+        {{ bus_var }}.write(frame)
+        time.sleep(len(frame) * 11 / {{ id }}_baud)
+        {{ id }}_transmit(False)
+        return {{ id }}_parse(address, function, {{ id }}_collect(0.1 + (5 + 2 * count) * 11 / {{ id }}_baud))
+
 params_schema:
   send_wait_time:
     type: string

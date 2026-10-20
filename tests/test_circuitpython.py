@@ -128,11 +128,11 @@ def test_design_code_air_quality_station():
     assert "adafruit_scd4x.SCD4X(i2c_i2c0)" in code
     assert "adafruit_sht4x" in out["deps"]
     assert "PM25_UART(uart_" in code
-    # The Tuya MCU has no CP implementation: warned, and its uart bus is not emitted.
-    plug = Design.model_validate(json.loads((examples / "tuya-smart-plug.json").read_text()))
-    out = generate_code(plug, default_library())
-    assert any("(tuya)" in w for w in out["warnings"])
-    assert "busio.UART" not in out["code"]
+    # The CC1101 has no CP implementation: warned, and its spi bus is not emitted.
+    rfid = Design.model_validate(json.loads((examples / "subghz-rfid.json").read_text()))
+    out = generate_code(rfid, default_library())
+    assert any("(cc1101)" in w for w in out["warnings"])
+    assert "busio.SPI" not in out["code"] and "busio.UART" in out["code"]
 
 
 def test_design_code_every_example_is_valid_python():

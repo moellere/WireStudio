@@ -6,7 +6,10 @@ header or a torn frame do not."""
 from __future__ import annotations
 
 import ast
+import json
 import sys
+import types
+from pathlib import Path
 
 import pytest
 
@@ -16,6 +19,7 @@ from wirestudio.library import default_library
 from wirestudio.library.check import synthetic_design
 
 LIB = default_library()
+EXAMPLES = Path(__file__).resolve().parent.parent / "wirestudio" / "examples"
 GENERATORS = {"circuitpython": circuitpython_gen.generate_code,
               "micropython": micropython_gen.generate_code}
 
@@ -173,3 +177,166 @@ def test_bl0906_checks_and_scales_register_reads(framework, monkeypatch):
     bad[3] ^= 1
     assert decode(0x16, bytes(bad)) is None
     assert decode(0x16, b"\x00\x00") is None
+
+
+class FakeUART:
+    """A UART whose peer answers each write through `answer`; both
+    frameworks' read calls drain what it queued."""
+
+    def __init__(self, answer):
+        self.answer = answer
+        self.sent: list[bytes] = []
+        self.rx = b""
+
+    def write(self, data):
+        self.sent.append(bytes(data))
+        self.rx += self.answer(bytes(data))
+
+    def reset_input_buffer(self):
+        self.rx = b""
+
+    @property
+    def in_waiting(self):
+        return len(self.rx)
+
+    def read(self, n=None):
+        data, self.rx = (self.rx, b"") if n is None else (self.rx[:n], self.rx[n:])
+        return data or None
+
+
+def _clock() -> types.ModuleType:
+    """A clock that advances 10 ms each time it is read; sleeping is free."""
+    mod = types.ModuleType("time")
+    now = [0.0]
+
+    def tick():
+        now[0] += 0.01
+        return now[0]
+    mod.monotonic = tick
+    mod.ticks_ms = lambda: int(tick() * 1000)
+    mod.ticks_add = lambda a, b: a + b
+    mod.ticks_diff = lambda a, b: a - b
+    mod.sleep = mod.sleep_ms = mod.sleep_us = lambda s: None
+    return mod
+
+
+def run_example(name: str, framework: str, uart: FakeUART, monkeypatch) -> dict:
+    """Run an example's generated setup with `uart` as its UART bus."""
+    from wirestudio.model import Design
+    design = Design.model_validate(json.loads((EXAMPLES / f"{name}.json").read_text()))
+    code = GENERATORS[framework](design, LIB)["code"].split("\nwhile True:")[0]
+    for node in ast.walk(ast.parse(code)):
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            for mod in [a.name for a in node.names] if isinstance(node, ast.Import) else [node.module]:
+                if mod not in ("time", "struct"):
+                    monkeypatch.setitem(sys.modules, mod, StubModule(mod))
+    monkeypatch.setitem(sys.modules, "time", _clock())
+    if framework == "micropython":
+        sys.modules["machine"].UART = lambda *a, **k: uart
+    else:
+        sys.modules["busio"].UART = lambda *a, **k: uart
+    scope: dict = {"__name__": "__main__"}
+    exec(compile(code, "main.py", "exec"), scope)
+    return scope
+
+
+def _modbus_crc(data: bytes) -> bytes:
+    crc = 0xFFFF
+    for b in data:
+        crc ^= b
+        for _ in range(8):
+            crc = crc >> 1 ^ 0xA001 if crc & 1 else crc >> 1
+    return crc.to_bytes(2, "little")
+
+
+def _modbus_reply(registers: dict[int, int]):
+    """A slave answering function 0x04 from `registers`, with an echo of
+    noise before the frame."""
+    def answer(req):
+        if req[1] != 0x04 or _modbus_crc(req[:6]) != req[6:]:
+            return b""
+        start, count = req[2] << 8 | req[3], req[4] << 8 | req[5]
+        data = b"".join(registers.get(start + k, 0).to_bytes(2, "big") for k in range(count))
+        frame = bytes([req[0], 0x04, len(data)]) + data
+        return b"\x00" + frame + _modbus_crc(frame)
+    return answer
+
+
+@FRAMEWORKS
+def test_modbus_frames_requests_and_checks_replies(framework, monkeypatch):
+    scope = run_example("energy-monitor", framework, FakeUART(lambda req: b""), monkeypatch)
+    crc = scope["pzem_bus_crc"]
+    # Modbus over serial line, the classic example: 01 03 00 00 00 0A, CRC C5 CD.
+    assert crc(bytes.fromhex("01030000000a")) == b"\xc5\xcd"
+    frame = bytes.fromhex("010402abcd")
+    good = frame + crc(frame)
+    assert scope["pzem_bus_parse"](1, 4, b"\xff" + good) == b"\xab\xcd"
+    assert scope["pzem_bus_parse"](1, 4, good[:-1] + bytes([good[-1] ^ 1])) is None
+    assert scope["pzem_bus_parse"](2, 4, good) is None  # another slave's reply
+    assert scope["pzem_bus_parse"](1, 4, bytes.fromhex("018402") + _modbus_crc(bytes.fromhex("018402"))) is None
+
+
+@FRAMEWORKS
+def test_pzemac_reads_ten_input_registers_low_word_first(framework, monkeypatch):
+    regs = {0: 2305, 1: 0x86A0, 2: 0x0001, 3: 23050, 4: 0, 5: 0x5678, 6: 0x0012, 7: 500, 8: 98}
+    uart = FakeUART(_modbus_reply(regs))
+    scope = run_example("energy-monitor", framework, uart, monkeypatch)
+    data = scope["pzem_bus_read"](1, 0x04, 0, 10)
+    assert uart.sent[-1] == bytes.fromhex("01040000000a") + _modbus_crc(bytes.fromhex("01040000000a"))
+    assert scope["mains_decode"](data) == (230.5, 100.0, 2305.0, 0x125678, 50.0, 0.98)
+    assert scope["mains_decode"](None) is None
+
+
+@FRAMEWORKS
+def test_sdm_meter_reads_big_endian_floats(framework, monkeypatch):
+    import struct
+    floats = {0x00: 231.5, 0x06: 4.25, 0x0C: 980.0, 0x46: 50.02, 0x48: 1234.5, 0x4A: 6.75}
+    regs = {}
+    for reg, value in floats.items():
+        hi, lo = struct.unpack(">HH", struct.pack(">f", value))
+        regs[reg], regs[reg + 1] = hi, lo
+    scope = run_example("rs485-energy", framework, FakeUART(_modbus_reply(regs)), monkeypatch)
+    data = scope["rs485_bus_read"](1, 0x04, 0, 80)
+    assert len(data) == 160
+    for reg, value in floats.items():
+        assert scope["meter_value"](data, reg) == pytest.approx(value)
+
+
+def _tuya(cmd: int, data: bytes = b"", version: int = 0x03) -> bytes:
+    frame = bytes([0x55, 0xAA, version, cmd, len(data) >> 8, len(data) & 0xFF]) + data
+    return frame + bytes([sum(frame) & 0xFF])
+
+
+def _tuya_mcu(req: bytes) -> bytes:
+    """An MCU with a relay on DP 1, power on DP 17 and energy on DP 18."""
+    if req[3] == 0x08:
+        dps = bytes([1, 1, 0, 1, 1]) + bytes([17, 2, 0, 4]) + (1234).to_bytes(4, "big") \
+            + bytes([18, 2, 0, 4]) + (-5).to_bytes(4, "big", signed=True)
+        return _tuya(0x07, dps)
+    return _tuya(req[3], b"\x00" if req[3] == 0x00 else b"")
+
+
+@FRAMEWORKS
+def test_tuya_initializes_the_mcu_and_collects_datapoints(framework, monkeypatch):
+    uart = FakeUART(_tuya_mcu)
+    scope = run_example("tuya-smart-plug", framework, uart, monkeypatch)
+    assert [f[3] for f in uart.sent] == [0x00, 0x01, 0x02, 0x03, 0x08]
+    assert uart.sent[0] == bytes.fromhex("55aa00000000ff")  # heartbeat, checksum included
+    assert uart.sent[3] == _tuya(0x03, b"\x03", version=0)  # Wi-Fi: connected to the router
+    assert scope["tuya_mcu_dps"] == {1: True, 17: 1234, 18: -5}
+    scope["relay_turn"](False)
+    assert uart.sent[-1] == _tuya(0x06, bytes([1, 1, 0, 1, 0]), version=0)
+
+
+@FRAMEWORKS
+def test_tuya_frames_survive_noise_splits_and_bad_checksums(framework, monkeypatch):
+    scope = run_example("tuya-smart-plug", framework, FakeUART(lambda req: b""), monkeypatch)
+    frames = scope["tuya_mcu_frames"]
+    a, b = _tuya(0x07, bytes([1, 1, 0, 1, 1])), _tuya(0x22, bytes([2, 4, 0, 1, 3]))
+    bad = bytearray(_tuya(0x07, bytes([3, 1, 0, 1, 1])))
+    bad[-1] ^= 1
+    found, rest = frames(b"\x00\x55" + a + bytes(bad) + b + b[:5])
+    assert found == [(0x07, bytes([1, 1, 0, 1, 1])), (0x22, bytes([2, 4, 0, 1, 3]))]
+    assert rest == b[:5]  # a torn frame waits for the rest
+    assert scope["tuya_mcu_datapoints"](bytes([5, 3, 0, 2]) + b"hi" + bytes([6, 0, 0, 2, 0xAB, 0xCD])) == {
+        5: "hi", 6: b"\xab\xcd"}

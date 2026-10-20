@@ -39,6 +39,37 @@ capability:
   provides:
     - {event: on_value, kind: value}
 
+# ESPHome's pzemac register map: ten input registers from 0, 32-bit
+# values low word first: voltage (0.1 V), current (0.001 A), power
+# (0.1 W), energy (Wh), frequency (0.1 Hz), power factor (0.01).
+circuitpython:
+  setup: |
+    def {{ id }}_decode(data):
+        if not data or len(data) < 20:
+            return None
+        r = [data[i] << 8 | data[i + 1] for i in range(0, 20, 2)]
+        return r[0] / 10, (r[1] | r[2] << 16) / 1000, (r[3] | r[4] << 16) / 10, r[5] | r[6] << 16, r[7] / 10, r[8] / 100
+  loop: |
+    {{ id }}_reading = {{ id }}_decode({{ parent }}_read({{ params.address | default(1) }}, 0x04, 0, 10))
+    if {{ id }}_reading:
+        print("{{ label }}: %.1f V %.3f A %.1f W %d Wh %.1f Hz PF %.2f" % {{ id }}_reading)
+    else:
+        print("{{ label }}: no reply")
+
+micropython:
+  setup: |
+    def {{ id }}_decode(data):
+        if not data or len(data) < 20:
+            return None
+        r = [data[i] << 8 | data[i + 1] for i in range(0, 20, 2)]
+        return r[0] / 10, (r[1] | r[2] << 16) / 1000, (r[3] | r[4] << 16) / 10, r[5] | r[6] << 16, r[7] / 10, r[8] / 100
+  loop: |
+    {{ id }}_reading = {{ id }}_decode({{ parent }}_read({{ params.address | default(1) }}, 0x04, 0, 10))
+    if {{ id }}_reading:
+        print("{{ label }}: %.1f V %.3f A %.1f W %d Wh %.1f Hz PF %.2f" % {{ id }}_reading)
+    else:
+        print("{{ label }}: no reply")
+
 params_schema:
   address:
     type: number

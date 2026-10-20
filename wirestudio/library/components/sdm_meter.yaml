@@ -51,6 +51,38 @@ esphome:
         export_active_energy:
           name: "{{ label }} Total Export Energy"
 
+# ESPHome's sdm_meter: eighty input registers from 0 in one request,
+# each value an IEEE 754 float over two registers, high word first.
+# Phase voltages from 0x00, currents from 0x06, active powers from 0x0C;
+# frequency 0x46, import and export energy 0x48 and 0x4A.
+circuitpython:
+  imports: ["import struct"]
+  setup: |
+    def {{ id }}_value(data, reg):
+        return struct.unpack(">f", bytes(data[reg * 2:reg * 2 + 4]))[0]
+  loop: |
+    {{ id }}_data = {{ parent }}_read({{ params.address | default(1) }}, 0x04, 0, 80)
+    if {{ id }}_data and len({{ id }}_data) == 160:
+        for {{ id }}_k in range({{ 3 if params.three_phase | default(false) else 1 }}):
+            print("{{ label }} phase %s: %.1f V %.2f A %.1f W" % ("ABC"[{{ id }}_k], {{ id }}_value({{ id }}_data, 2 * {{ id }}_k), {{ id }}_value({{ id }}_data, 6 + 2 * {{ id }}_k), {{ id }}_value({{ id }}_data, 12 + 2 * {{ id }}_k)))
+        print("{{ label }}: %.2f Hz, import %.2f kWh, export %.2f kWh" % ({{ id }}_value({{ id }}_data, 0x46), {{ id }}_value({{ id }}_data, 0x48), {{ id }}_value({{ id }}_data, 0x4A)))
+    else:
+        print("{{ label }}: no reply")
+
+micropython:
+  imports: ["import struct"]
+  setup: |
+    def {{ id }}_value(data, reg):
+        return struct.unpack(">f", bytes(data[reg * 2:reg * 2 + 4]))[0]
+  loop: |
+    {{ id }}_data = {{ parent }}_read({{ params.address | default(1) }}, 0x04, 0, 80)
+    if {{ id }}_data and len({{ id }}_data) == 160:
+        for {{ id }}_k in range({{ 3 if params.three_phase | default(false) else 1 }}):
+            print("{{ label }} phase %s: %.1f V %.2f A %.1f W" % ("ABC"[{{ id }}_k], {{ id }}_value({{ id }}_data, 2 * {{ id }}_k), {{ id }}_value({{ id }}_data, 6 + 2 * {{ id }}_k), {{ id }}_value({{ id }}_data, 12 + 2 * {{ id }}_k)))
+        print("{{ label }}: %.2f Hz, import %.2f kWh, export %.2f kWh" % ({{ id }}_value({{ id }}_data, 0x46), {{ id }}_value({{ id }}_data, 0x48), {{ id }}_value({{ id }}_data, 0x4A)))
+    else:
+        print("{{ label }}: no reply")
+
 params_schema:
   address:
     type: number

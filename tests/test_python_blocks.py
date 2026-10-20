@@ -128,9 +128,25 @@ def _fake_time() -> types.ModuleType:
     return mod
 
 
+def _design_for(cid: str):
+    """The check design for `cid`; a part that hangs off a hub gets the
+    hub's check design with the part added and connected to it."""
+    comp = LIB.component(cid)
+    hub = next((p.parent_library_id for p in comp.electrical.pins if p.kind == "hub_ref"), None)
+    if hub is None:
+        return synthetic_design(comp, LIB, on_buses=True)
+    design = synthetic_design(LIB.component(hub), LIB, on_buses=True)
+    data = design.model_dump()
+    params = {k: s["default"] for k, s in comp.params_schema.items() if isinstance(s, dict) and "default" in s}
+    data["components"].append({"id": "child", "library_id": cid, "label": comp.name, "params": params})
+    data["connections"].append({"component_id": "child", "pin_role": "HUB",
+                                "target": {"kind": "component", "component_id": "dut"}})
+    return type(design).model_validate(data)
+
+
 @pytest.mark.parametrize("framework, cid", CASES)
 def test_block_runs_one_loop_pass(framework, cid, monkeypatch):
-    design = synthetic_design(LIB.component(cid), LIB, on_buses=True)
+    design = _design_for(cid)
     design.components[0].params.update(PARAMS.get((framework, cid), PARAMS.get(cid, {})))
     out = GENERATORS[framework](design, LIB)
     assert out["warnings"] == [], out["warnings"]
@@ -273,3 +289,45 @@ def test_camera_maps_resolution_and_clock():
     assert "frame_size=espcamera.FrameSize.UXGA," in code
     assert "external_clock_frequency=10000000," in code
     assert "cam.vflip = True" in code
+
+
+def test_hub_children_render_after_their_hub_and_need_one():
+    design = _design_for("tuya_sensor")
+    data = design.model_dump()
+    data["components"].reverse()  # child listed first
+    reordered = type(design).model_validate(data)
+    for generate in GENERATORS.values():
+        out = generate(reordered, LIB)
+        assert out["warnings"] == []
+        assert out["code"].index("def dut_poll") < out["code"].index("child_dp =")
+        assert '"%g" % (child_value' not in out["code"]  # no multiply filter, no scaling
+    data["connections"] = [c for c in data["connections"] if c["component_id"] != "child"]
+    orphan = type(design).model_validate(data)
+    for generate in GENERATORS.values():
+        assert generate(orphan, LIB)["warnings"] == ["child: not connected to its hub; skipped"]
+
+
+def test_tuya_sensor_scales_by_its_multiply_filters():
+    code = micropython_gen.generate_code(_example("tuya-smart-plug"), LIB)["code"]
+    assert '"%g" % (watts_value * 0.1)' in code
+
+
+@pytest.mark.parametrize("framework, gain", [("circuitpython", "16"), ("micropython", "5")])
+def test_ads1115_channels_set_their_own_gain_and_mux(framework, gain):
+    code = GENERATORS[framework](_example("analog-node"), LIB)["code"]  # shunt_i: A2_A3 at 0.256 V
+    assert f"shunt_i_gain = {gain}\n" in code
+    assert "    ext_adc.gain = shunt_i_gain\n    return ext_adc_read(2, 3)" in code
+    assert "return ext_adc_read(0, None)" in code  # panel_v: A0_GND
+
+
+@pytest.mark.parametrize("framework", list(GENERATORS))
+def test_mcp3008_channel_scales_to_its_reference(framework):
+    design = _design_for("mcp3008_channel")
+    design.components[1].params.update({"number": 5, "reference_voltage": "5.0V"})
+    out = GENERATORS[framework](design, LIB)
+    assert out["warnings"] == []
+    if framework == "micropython":
+        assert "(dut_read(5) / 1023 * child_vref)" in out["code"]
+    else:
+        assert "child = AnalogIn(dut, 5)" in out["code"]
+    assert "child_vref = 5.0\n" in out["code"]

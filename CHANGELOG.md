@@ -24,6 +24,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CircuitPython and MicroPython for Modbus RTU, the PZEM-004T, SDM
+  meters, the Tuya MCU bridge and its sensors and switches, and the
+  ADS1115 and MCP3008 channels.** Protocol code shared by both
+  frameworks: Modbus requests and replies checked by CRC-16, the FLOW
+  pin driving an RS485 transceiver; ESPHome's pzemac and sdm_meter
+  register maps; the Tuya frames, ESPHome's start-up sequence, the
+  heartbeat and datapoint reports, with switches sending datapoint
+  delivers and sensors scaled by their `multiply` filters. Both
+  generators now pass a hub child its hub as `parent`, render hubs
+  before their children, and skip a child with no hub connection.
+  Tested against a simulated Modbus slave and Tuya MCU in
+  `tests/test_uart_frames.py`.
+
 - **CircuitPython and MicroPython for the I2S microphone and the
   MAX98357A; CircuitPython for the ESP32 camera.** The microphone is a
   level meter over `audiobusio.PDMIn` (PDM mics) on CircuitPython and

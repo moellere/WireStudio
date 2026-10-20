@@ -111,7 +111,10 @@ def generate_code(design: Design, library: Library) -> dict:
             bus_setup[bus.id] = f"{var} = OneWireBus(P({pin}))"
         bus_vars[bus.id] = var
 
-    for comp in design.components:
+    # A hub's helpers must exist before a child on it calls them.
+    children = {c.component_id for c in design.connections if c.target.kind == "component"}
+    rendered: set[str] = set()
+    for comp in sorted(design.components, key=lambda c: c.id in children):
         lib_comp = library.component(comp.library_id)
         spec = lib_comp.circuitpython
         if spec is None:
@@ -124,6 +127,7 @@ def generate_code(design: Design, library: Library) -> dict:
         bus_var = None
         bus_dump = None
         comp_bus_ids: set[str] = set()
+        parent = None
         skip = None
         for conn in design.connections:
             if conn.component_id != comp.id:
@@ -153,8 +157,14 @@ def generate_code(design: Design, library: Library) -> dict:
                 for b in design.buses:
                     if b.id == t.bus_id:
                         bus_dump = b.model_dump()
+            elif t.kind == "component":
+                parent = t.component_id
             elif t.kind == "expander_pin":
                 skip = f"{comp.id}.{conn.pin_role}: expander pins have no CircuitPython path"
+        if parent is None and any(p.kind == "hub_ref" for p in lib_comp.electrical.pins):
+            skip = f"{comp.id}: not connected to its hub"
+        elif parent is not None and parent not in rendered:
+            skip = f"{comp.id}: its hub {parent} is not set up"
         if skip:
             warnings.append(f"{skip}; skipped")
             continue
@@ -166,6 +176,7 @@ def generate_code(design: Design, library: Library) -> dict:
             "pins": pins,
             "bus": bus_dump,
             "bus_var": bus_var,
+            "parent": _sanitize(parent) if parent else None,
         }
         try:
             setup = _jinja.from_string(spec.setup).render(**ctx).strip("\n")
@@ -176,6 +187,7 @@ def generate_code(design: Design, library: Library) -> dict:
             warnings.append(f"{comp.id}: fragment failed to render ({e}); skipped")
             continue
         used_bus_ids |= comp_bus_ids
+        rendered.add(comp.id)
         setup_blocks.append(f"# {comp.label or comp.id} ({comp.library_id})\n{setup}")
         if spec.loop:
             loop = _jinja.from_string(spec.loop).render(**ctx).strip("\n")
