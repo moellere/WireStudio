@@ -40,6 +40,24 @@ capability:
     - {action: turn_off, esphome: switch.turn_off}
     - {action: toggle,   esphome: switch.toggle}
 
+# A boolean datapoint: `_turn(on)` sends a datapoint deliver (0x06) of
+# type bool; the state is whatever the MCU last reported.
+circuitpython:
+  setup: |
+    {{ id }}_dp = {{ params.switch_datapoint | default(1) }}
+    def {{ id }}_turn(on):
+        {{ parent }}_set({{ id }}_dp, 1, on)
+  loop: |
+    print("{{ label }}: %s" % {True: "on", False: "off"}.get({{ parent }}_dps.get({{ id }}_dp), "?"))
+
+micropython:
+  setup: |
+    {{ id }}_dp = {{ params.switch_datapoint | default(1) }}
+    def {{ id }}_turn(on):
+        {{ parent }}_set({{ id }}_dp, 1, on)
+  loop: |
+    print("{{ label }}: %s" % {True: "on", False: "off"}.get({{ parent }}_dps.get({{ id }}_dp), "?"))
+
 params_schema:
   switch_datapoint:
     type: number

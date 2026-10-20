@@ -111,8 +111,8 @@ Components each framework's generator can use today, out of 102
 |---|---|
 | esphome | 102 |
 | tasmota | 51 |
-| circuitpython | 81 |
-| micropython | 81 |
+| circuitpython | 89 |
+| micropython | 89 |
 | wled | 13 |
 | lorawan | 5 |
 
@@ -150,10 +150,15 @@ remains is to work the baselines down:
   filters. The I2S parts use each framework's own audio API (PDM input
   on CircuitPython, I2S input on MicroPython, I2S output on both), the
   clocks taken from the design's `i2s` bus; the camera is
-  CircuitPython's `espcamera`. What remains in both baselines is reasons
-  rather than work: passive parts, Modbus RTU and the Tuya MCU bridge
-  (no library on either), the CC1101, CircuitPython's Wiegand (no pin
-  interrupts) and MicroPython's camera (no module in the generic image).
+  CircuitPython's `espcamera`. Modbus RTU (with the PZEM-004T and SDM
+  meters) and the Tuya MCU protocol (with its sensors and switches) are
+  protocol code too, tested against a simulated peer in
+  `tests/test_uart_frames.py`; a part that hangs off a hub reaches the
+  hub's helpers through `parent`, which also gives the ADS1115 and
+  MCP3008 channels their own reads. What remains in both baselines is
+  reasons rather than work: passive parts, the CC1101, CircuitPython's
+  Wiegand (no pin interrupts) and MicroPython's camera (no module in the
+  generic image).
 - **Tasmota** covers what Tasmota's template format can express; the
   baseline will be long and honest.
 - **LoRaWAN** gains a block for every sensor the payload codec can
