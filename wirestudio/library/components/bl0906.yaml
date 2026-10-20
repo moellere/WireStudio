@@ -75,6 +75,70 @@ esphome:
           energy:
             name: "{{ label }} Ch6 Energy"
 
+# Register reads as ESPHome's bl0906 does them: 0x35 <register>, answered
+# low, middle, high and a checksum (register + data bytes, low byte,
+# inverted). Scale factors are ESPHome's for the stock CT and divider.
+circuitpython:
+  setup: |
+    def {{ id }}_query(addr):
+        {{ bus_var }}.reset_input_buffer()
+        {{ bus_var }}.write(bytes([0x35, addr]))
+        return {{ bus_var }}.read(4)
+    {{ id }}_uref = 1.097 * 100000 / (13162 * 100 * 1000)
+    {{ id }}_iref = 1.097 / (12875 * (5.1 + 5.1) * 1000 / 2000)
+    {{ id }}_pref = 1.097 * 1.097 * 100000 / (40.41259 * ((5.1 + 5.1) * 1000 / 2000) * 100 * 1000)
+    def {{ id }}_decode(addr, packet, signed=False):
+        if not packet or len(packet) != 4 or (addr + packet[0] + packet[1] + packet[2]) & 0xFF ^ 0xFF != packet[3]:
+            return None
+        v = packet[2] << 16 | packet[1] << 8 | packet[0]
+        return v - (1 << 24) if signed and v & 0x800000 else v
+    def {{ id }}_read():
+        raw = lambda addr, signed=False: {{ id }}_decode(addr, {{ id }}_query(addr), signed)
+        volts, hz, temp = raw(0x16), raw(0x4E), raw(0x5E, True)
+        channels = [(raw(i), raw(p, True)) for i, p in ((0x0D, 0x23), (0x0E, 0x24), (0x0F, 0x25), (0x10, 0x26), (0x13, 0x29), (0x14, 0x2A))]
+        return (
+            None if volts is None else volts * {{ id }}_uref,
+            None if not hz else 10000000 / hz,
+            None if temp is None else (temp - 64) * 12.5 / 59 - 40,
+            [(None if i is None else i * {{ id }}_iref, None if p is None else p * {{ id }}_pref) for i, p in channels],
+        )
+  loop: |
+    {{ id }}_volts, {{ id }}_hz, {{ id }}_temp, {{ id }}_channels = {{ id }}_read()
+    print("{{ label }}: %s V %s Hz %s C" % tuple("-" if x is None else "%.1f" % x for x in ({{ id }}_volts, {{ id }}_hz, {{ id }}_temp)))
+    for {{ id }}_n, ({{ id }}_amps, {{ id }}_watts) in enumerate({{ id }}_channels, 1):
+        print("{{ label }} ch%d: %s A %s W" % ({{ id }}_n, "-" if {{ id }}_amps is None else "%.3f" % {{ id }}_amps, "-" if {{ id }}_watts is None else "%.1f" % {{ id }}_watts))
+
+micropython:
+  setup: |
+    def {{ id }}_query(addr):
+        {{ bus_var }}.read()
+        {{ bus_var }}.write(bytes([0x35, addr]))
+        time.sleep_ms(20)
+        return {{ bus_var }}.read(4)
+    {{ id }}_uref = 1.097 * 100000 / (13162 * 100 * 1000)
+    {{ id }}_iref = 1.097 / (12875 * (5.1 + 5.1) * 1000 / 2000)
+    {{ id }}_pref = 1.097 * 1.097 * 100000 / (40.41259 * ((5.1 + 5.1) * 1000 / 2000) * 100 * 1000)
+    def {{ id }}_decode(addr, packet, signed=False):
+        if not packet or len(packet) != 4 or (addr + packet[0] + packet[1] + packet[2]) & 0xFF ^ 0xFF != packet[3]:
+            return None
+        v = packet[2] << 16 | packet[1] << 8 | packet[0]
+        return v - (1 << 24) if signed and v & 0x800000 else v
+    def {{ id }}_read():
+        raw = lambda addr, signed=False: {{ id }}_decode(addr, {{ id }}_query(addr), signed)
+        volts, hz, temp = raw(0x16), raw(0x4E), raw(0x5E, True)
+        channels = [(raw(i), raw(p, True)) for i, p in ((0x0D, 0x23), (0x0E, 0x24), (0x0F, 0x25), (0x10, 0x26), (0x13, 0x29), (0x14, 0x2A))]
+        return (
+            None if volts is None else volts * {{ id }}_uref,
+            None if not hz else 10000000 / hz,
+            None if temp is None else (temp - 64) * 12.5 / 59 - 40,
+            [(None if i is None else i * {{ id }}_iref, None if p is None else p * {{ id }}_pref) for i, p in channels],
+        )
+  loop: |
+    {{ id }}_volts, {{ id }}_hz, {{ id }}_temp, {{ id }}_channels = {{ id }}_read()
+    print("{{ label }}: %s V %s Hz %s C" % tuple("-" if x is None else "%.1f" % x for x in ({{ id }}_volts, {{ id }}_hz, {{ id }}_temp)))
+    for {{ id }}_n, ({{ id }}_amps, {{ id }}_watts) in enumerate({{ id }}_channels, 1):
+        print("{{ label }} ch%d: %s A %s W" % ({{ id }}_n, "-" if {{ id }}_amps is None else "%.3f" % {{ id }}_amps, "-" if {{ id }}_watts is None else "%.1f" % {{ id }}_watts))
+
 params_schema:
   update_interval:
     type: string

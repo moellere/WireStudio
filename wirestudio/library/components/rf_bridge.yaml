@@ -35,6 +35,62 @@ capability:
   provides:
     - {event: on_code_received}
 
+# EFM8 bridge protocol, as ESPHome's rf_bridge reads it: AA A4 (or A3 when
+# learned), sync, low and high timings (2 bytes each), the 3-byte code,
+# 55. Each code is acknowledged with AA A0 55.
+circuitpython:
+  setup: |
+    def {{ id }}_listen(seconds):
+        {{ bus_var }}.reset_input_buffer()
+        buf = b""
+        until = time.monotonic() + seconds
+        while time.monotonic() < until:
+            n = {{ bus_var }}.in_waiting
+            if n:
+                buf += {{ bus_var }}.read(n)
+        return buf
+    def {{ id }}_decode(buf):
+        codes = []
+        i = buf.find(b"\xaa")
+        while 0 <= i and i + 12 <= len(buf):
+            if buf[i + 1] in (0xA3, 0xA4) and buf[i + 11] == 0x55:
+                r = buf[i + 2:i + 11]
+                codes.append((r[0] << 8 | r[1], r[2] << 8 | r[3], r[4] << 8 | r[5], r[6] << 16 | r[7] << 8 | r[8]))
+                i = buf.find(b"\xaa", i + 12)
+            else:
+                i = buf.find(b"\xaa", i + 1)
+        return codes
+  loop: |
+    for {{ id }}_code in {{ id }}_decode({{ id }}_listen(1.0)):
+        print("{{ label }}: sync %04X low %04X high %04X code %06X" % {{ id }}_code)
+        {{ bus_var }}.write(b"\xaa\xa0\x55")
+
+micropython:
+  setup: |
+    def {{ id }}_listen(seconds):
+        {{ bus_var }}.read()
+        buf = b""
+        until = time.ticks_add(time.ticks_ms(), int(seconds * 1000))
+        while time.ticks_diff(until, time.ticks_ms()) > 0:
+            buf += {{ bus_var }}.read() or b""
+            time.sleep_ms(20)
+        return buf
+    def {{ id }}_decode(buf):
+        codes = []
+        i = buf.find(b"\xaa")
+        while 0 <= i and i + 12 <= len(buf):
+            if buf[i + 1] in (0xA3, 0xA4) and buf[i + 11] == 0x55:
+                r = buf[i + 2:i + 11]
+                codes.append((r[0] << 8 | r[1], r[2] << 8 | r[3], r[4] << 8 | r[5], r[6] << 16 | r[7] << 8 | r[8]))
+                i = buf.find(b"\xaa", i + 12)
+            else:
+                i = buf.find(b"\xaa", i + 1)
+        return codes
+  loop: |
+    for {{ id }}_code in {{ id }}_decode({{ id }}_listen(1.0)):
+        print("{{ label }}: sync %04X low %04X high %04X code %06X" % {{ id }}_code)
+        {{ bus_var }}.write(b"\xaa\xa0\x55")
+
 params_schema:
   on_code_received:
     type: array

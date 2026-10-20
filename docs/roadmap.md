@@ -111,8 +111,8 @@ Components each framework's generator can use today, out of 102
 |---|---|
 | esphome | 102 |
 | tasmota | 51 |
-| circuitpython | 71 |
-| micropython | 70 |
+| circuitpython | 75 |
+| micropython | 74 |
 | wled | 13 |
 | lorawan | 5 |
 
@@ -137,15 +137,15 @@ remains is to work the baselines down:
   `tests/test_micropython_registers.py`; `tests/test_python_blocks.py`
   runs every block of both frameworks for a loop pass against stub
   modules. The UART parts with a documented frame (MH-Z19, CSE7766,
-  RDM6300, LD2410) decode it in shared datasheet code on both,
+  RDM6300, LD2410, LD2420, the RF bridge, Nextion touch events and
+  BL0906 register reads) decode it in shared datasheet code on both,
   tested in `tests/test_uart_frames.py`; the register-level BMP180,
   MPU6886 and AXP192 and the HLW8012's pulse rates likewise, tested in
   `tests/test_register_code.py` (the BMP180 against the datasheet's
   worked example); the bit-banged TM1637 and TM1638, the CT clamp's
   RMS and MicroPython's Wiegand reader likewise, tested in
-  `tests/test_pin_protocols.py`. What remains is LD2420, BL0906, the
-  RF bridge, Nextion, the battery ADC, the community-driver parts and
-  the audio and camera parts.
+  `tests/test_pin_protocols.py`. What remains is the battery ADC, the
+  community-driver parts and the audio and camera parts.
 - **Tasmota** covers what Tasmota's template format can express; the
   baseline will be long and honest.
 - **LoRaWAN** gains a block for every sensor the payload codec can
