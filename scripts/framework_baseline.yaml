@@ -31,12 +31,10 @@ circuitpython:
   connector_1x07: "no meaning on this framework: passive hardware, no code on any framework"
   connector_1x08: "no meaning on this framework: passive hardware, no code on any framework"
   connector_2x05_idc: "no meaning on this framework: passive hardware, no code on any framework"
-  # display
-  lcd_pcf8574: "deferred: the bundle's character LCD driver speaks the MCP23008 backpack, not the PCF8574 one"
   # input
   wiegand: "no driver upstream: CircuitPython has no pin interrupts, and a Wiegand frame is the order of edges across D0 and D1"
   # power
-  battery_adc: "deferred: needs an analogio fragment with the board's divider ratio"
+  battery_adc: "no meaning on this framework: the LoRaWAN target synthesizes it; elsewhere the board's divider is seeded as an adc part, whose multiply filter this framework's block applies"
   usb_c_power_in: "no meaning on this framework: passive hardware, no code on any framework"
   # radio
   cc1101: "no driver upstream: the Adafruit bundle has no CC1101 library"
@@ -50,8 +48,6 @@ circuitpython:
   tuya_sensor: "no driver upstream: rides the tuya bus, which has no CircuitPython implementation"
   # switch
   tuya_switch: "no driver upstream: rides the tuya bus, which has no CircuitPython implementation"
-  # touchscreen
-  xpt2046: "deferred: needs a fragment over a community XPT2046 port; none in the bundle"
 
 micropython:
   # audio
@@ -73,14 +69,10 @@ micropython:
   connector_1x07: "no meaning on this framework: passive hardware, no code on any framework"
   connector_1x08: "no meaning on this framework: passive hardware, no code on any framework"
   connector_2x05_idc: "no meaning on this framework: passive hardware, no code on any framework"
-  # display
-  lcd_pcf8574: "deferred: needs a fragment over a community HD44780-over-PCF8574 driver via mip"
   # input
   pn532: "deferred: no MicroPython I2C driver; the maintained one speaks SPI"
-  # io_expander
-  mcp23s17: "deferred: no MicroPython driver found"
   # power
-  battery_adc: "deferred: needs a machine.ADC fragment with the board's divider ratio"
+  battery_adc: "no meaning on this framework: the LoRaWAN target synthesizes it; elsewhere the board's divider is seeded as an adc part, whose multiply filter this framework's block applies"
   usb_c_power_in: "no meaning on this framework: passive hardware, no code on any framework"
   # radio
   cc1101: "no driver upstream: micropython-lib has no CC1101 package"
@@ -94,8 +86,6 @@ micropython:
   tuya_sensor: "no driver upstream: rides the tuya bus, which has no MicroPython implementation"
   # switch
   tuya_switch: "no driver upstream: rides the tuya bus, which has no MicroPython implementation"
-  # touchscreen
-  xpt2046: "deferred: needs a fragment over a community XPT2046 driver via mip"
 
 tasmota:
   # actuator

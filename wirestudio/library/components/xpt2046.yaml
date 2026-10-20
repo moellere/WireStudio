@@ -42,6 +42,103 @@ esphome:
       calibration: {{ params.calibration | tojson }}
     {%- endif %}
 
+# Datasheet protocol as ESPHome's xpt2046 runs it: each conversion is a
+# control byte and two reads, the 12-bit result left-aligned after one
+# busy bit. Pressure from Z1 and Z2 gates the reading; X and Y are the
+# closest two of three samples averaged, after a discarded first X. The
+# last X control byte powers the ADC down and re-arms PENIRQ. Values are
+# raw; the panel's calibration maps them to screen coordinates.
+circuitpython:
+  imports: ["import digitalio"]
+  setup: |
+    {{ id }}_cs = digitalio.DigitalInOut(P({{ pins.CS }}))
+    {{ id }}_cs.switch_to_output(value=True)
+    {%- if pins.IRQ is defined %}
+    {{ id }}_irq = digitalio.DigitalInOut(P({{ pins.IRQ }}))
+    {{ id }}_irq.pull = digitalio.Pull.UP
+    def {{ id }}_pen():
+        return not {{ id }}_irq.value
+    {%- else %}
+    def {{ id }}_pen():
+        return True
+    {%- endif %}
+    def {{ id }}_adc(ctrl):
+        buf = bytearray(3)
+        while not {{ bus_var }}.try_lock():
+            pass
+        try:
+            {{ bus_var }}.configure(baudrate=2000000, polarity=0, phase=0)
+            {{ id }}_cs.value = False
+            {{ bus_var }}.write_readinto(bytes([ctrl, 0, 0]), buf)
+            {{ id }}_cs.value = True
+        finally:
+            {{ bus_var }}.unlock()
+        return (buf[1] << 8 | buf[2]) >> 3
+    {{ id }}_threshold = {{ params.threshold | default(400) }}
+    def {{ id }}_best_two(a, b, c):
+        da, db, dc = abs(a - b), abs(a - c), abs(c - b)
+        if da <= db and da <= dc:
+            return (a + b) >> 1
+        if db <= da and db <= dc:
+            return (a + c) >> 1
+        return (b + c) >> 1
+    def {{ id }}_touch():
+        if not {{ id }}_pen():
+            return None
+        z = {{ id }}_adc(0xB1) + 0xFFF - {{ id }}_adc(0xC1)
+        if z < {{ id }}_threshold:
+            {{ id }}_adc(0xD0)
+            return None
+        {{ id }}_adc(0xD1)
+        d = [{{ id }}_adc(c) for c in (0x91, 0xD1, 0x91, 0xD1, 0x91, 0xD0)]
+        return {{ id }}_best_two(d[1], d[3], d[5]), {{ id }}_best_two(d[0], d[2], d[4]), z
+    {{ id }}_adc(0xD0)
+  loop: |
+    {{ id }}_point = {{ id }}_touch()
+    if {{ id }}_point:
+        print("{{ label }}: x %d y %d z %d" % {{ id }}_point)
+
+micropython:
+  setup: |
+    {{ id }}_cs = Pin({{ pins.CS }}, Pin.OUT, value=1)
+    {%- if pins.IRQ is defined %}
+    {{ id }}_irq = Pin({{ pins.IRQ }}, Pin.IN, Pin.PULL_UP)
+    def {{ id }}_pen():
+        return not {{ id }}_irq()
+    {%- else %}
+    def {{ id }}_pen():
+        return True
+    {%- endif %}
+    def {{ id }}_adc(ctrl):
+        buf = bytearray(3)
+        {{ id }}_cs(0)
+        {{ bus_var }}.write_readinto(bytes([ctrl, 0, 0]), buf)
+        {{ id }}_cs(1)
+        return (buf[1] << 8 | buf[2]) >> 3
+    {{ id }}_threshold = {{ params.threshold | default(400) }}
+    def {{ id }}_best_two(a, b, c):
+        da, db, dc = abs(a - b), abs(a - c), abs(c - b)
+        if da <= db and da <= dc:
+            return (a + b) >> 1
+        if db <= da and db <= dc:
+            return (a + c) >> 1
+        return (b + c) >> 1
+    def {{ id }}_touch():
+        if not {{ id }}_pen():
+            return None
+        z = {{ id }}_adc(0xB1) + 0xFFF - {{ id }}_adc(0xC1)
+        if z < {{ id }}_threshold:
+            {{ id }}_adc(0xD0)
+            return None
+        {{ id }}_adc(0xD1)
+        d = [{{ id }}_adc(c) for c in (0x91, 0xD1, 0x91, 0xD1, 0x91, 0xD0)]
+        return {{ id }}_best_two(d[1], d[3], d[5]), {{ id }}_best_two(d[0], d[2], d[4]), z
+    {{ id }}_adc(0xD0)
+  loop: |
+    {{ id }}_point = {{ id }}_touch()
+    if {{ id }}_point:
+        print("{{ label }}: x %d y %d z %d" % {{ id }}_point)
+
 params_schema:
   update_interval:
     type: string

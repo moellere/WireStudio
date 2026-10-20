@@ -31,6 +31,8 @@ ATTRS = {
     ("circuitpython", "bmp180"): _I2C,
     ("circuitpython", "mpu6886"): _I2C,
     ("circuitpython", "axp192"): _I2C,
+    ("circuitpython", "lcd_pcf8574"): _I2C,
+    ("circuitpython", "xpt2046"): {"try_lock": lambda: True},
     ("circuitpython", "sht4x"): {"measurements": (21.5, 40.0)},
     ("micropython", "sht4x"): {"measurements": (21.5, 40.0)},
     ("micropython", "sht3xd"): {"get_temp_humi": lambda: (21.5, 40.0)},
@@ -193,3 +195,12 @@ def test_micropython_ir_follows_the_board():
     assert "Timer_id" not in micropython_gen.generate_code(rx, LIB)["code"]  # ESP8266 keeps its soft timer
     assert micropython_gen.generate_code(tx, LIB)["warnings"] == [
         "dut (remote_transmitter): ir_tx needs the ESP32 RMT peripheral, which the ESP8266 lacks; skipped"]
+
+
+@pytest.mark.parametrize("framework", list(GENERATORS))
+def test_adc_applies_the_multiply_filters(framework):
+    design = synthetic_design(LIB.component("adc"), LIB, on_buses=True)
+    plain = GENERATORS[framework](design, LIB)["code"]
+    design.components[0].params["filters"] = [{"multiply": 2.0}, {"offset": 0.1}, {"multiply": 1.5}]
+    scaled = GENERATORS[framework](design, LIB)["code"]
+    assert " * 3.0))" in scaled and " * 3.0))" not in plain

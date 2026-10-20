@@ -39,6 +39,27 @@ circuitpython:
     {{ id }}_cs = digitalio.DigitalInOut(P({{ pins.CS }}))
     {{ id }} = MCP23S17({{ bus_var }}, {{ id }}_cs, address={{ params.deviceaddress | default(0) }})
 
+# Datasheet register code as ESPHome's mcp23s17 does it: opcode 0x40 |
+# address << 1 (| 1 to read), register, data. Hardware addressing (HAEN)
+# is off until IOCON sets it, so IOCON is first written through opcodes
+# 0x40 and 0x48, the two ESPHome sends before HAEN is on.
+micropython:
+  setup: |
+    {{ id }}_cs = Pin({{ pins.CS }}, Pin.OUT, value=1)
+    {{ id }}_op = 0x40 | ({{ params.deviceaddress | default(0) }} & 7) << 1
+    def {{ id }}_xfer(data):
+        buf = bytearray(len(data))
+        {{ id }}_cs(0)
+        {{ bus_var }}.write_readinto(bytes(data), buf)
+        {{ id }}_cs(1)
+        return buf
+    def {{ id }}_wr(reg, value):
+        {{ id }}_xfer([{{ id }}_op, reg, value])
+    def {{ id }}_rd(reg):
+        return {{ id }}_xfer([{{ id }}_op | 1, reg, 0xFF])[2]
+    for {{ id }}_broadcast in (0x40, 0x48):
+        {{ id }}_xfer([{{ id }}_broadcast, 0x0A, 0x28])
+
 params_schema:
   deviceaddress:
     type: integer
