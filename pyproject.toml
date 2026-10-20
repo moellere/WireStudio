@@ -74,6 +74,7 @@ include = ["wirestudio*"]
 "wirestudio.schema" = ["*.json"]
 "wirestudio.examples" = ["*.json"]
 "wirestudio.targets.lorawan" = ["templates/*.j2"]
+"wirestudio.enclosure" = ["yapp/*.scad", "yapp/LICENSE"]
 
 [tool.ruff]
 line-length = 100

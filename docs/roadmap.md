@@ -192,20 +192,17 @@ Section 4 covers the rest.
 
 - **PCB.** Routed DRC feedback in the UI (today it is a CI verdict),
   via-cost and keepout tuning exposed as route params, copper pours for
-  the power nets. One bundled example **ordered from JLCPCB and brought
-  up** on the bench, with the order's BOM / CPL / Gerber committed as a
-  fixture. That is the only test of the fab bundle that is not a
-  structural check; it costs real money and is a 1.0 gate only if the
-  owner decides it is.
+  the power nets. An example ordered from JLCPCB and brought up on the
+  bench would be the only test of the fab bundle beyond its structural
+  checks; it is not a 1.0 gate.
 - **Enclosure.** `enclosure:` metadata for every board whose outline
   and mount holes are published (most of the 19 without one are M5Stack
-  units and supermini boards with known dimensions). The lid is in:
-  the `.scad` carries a snap-fit lid beside the shell, its lip inside
-  the walls and its beads in grooves cut near the top. The YAPP_Box question gets decided, not deferred: either
-  the generator adopts it as the engine behind the same `.scad`
-  endpoint, or the in-house one stays and the decision is recorded.
-  One enclosure printed and fitted to its board, photographed in the
-  docs.
+  units and supermini boards with known dimensions). YAPP_Box is
+  adopted: the `.scad` endpoint inlines the pinned generator and drives
+  it from the `enclosure:` block, base and lid with a ridge and snap
+  joins. The fit test runs through print-warden: one enclosure sent with
+  `print_enclosure`, printed, fitted to its board and photographed in
+  the docs.
 - **Schematic.** 0.40 draws the sheet itself (board, peripherals,
   subcircuits as blocks, PWR_FLAGs, no-connects) and
   `scripts/check_sch.py` has kicad-cli read every example's netlist back
