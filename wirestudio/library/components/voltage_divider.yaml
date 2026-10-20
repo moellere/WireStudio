@@ -107,6 +107,28 @@ subcircuit:
     kicad: {symbol_lib: Connector_Generic, symbol: Conn_01x02, footprint: "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-2_1x02_P5.00mm_Horizontal", value: V sense}
     pins: {"1": vsense, "2": GND}
 # The divider ratio has no template field; scale with AdcParam.
+  # The sensed voltage in on the connector, the divider down to GND with the filter
+  # capacitor across the bottom resistor, its midpoint out as IN.
+  # Grid units (1.27 mm), x right, y down.
+  schematic:
+    parts:
+      j_sense:  {at: [2, 7], mirror: y}
+      r_top:    {at: [10, 5]}
+      r_bottom: {at: [10, 15]}
+      c_filter: {at: [14, 13]}
+    wires:
+      - [[6, 7], [8, 7], [8, 2], [10, 2]]        # vsense
+      - [[10, 8], [10, 10], [10, 12]]            # the divider's midpoint
+      - [[10, 10], [14, 10], [18, 10]]           # IN
+      - [[6, 9], [7, 9], [7, 20]]                # connector GND
+      - [[7, 20], [10, 20], [12, 20], [14, 20]]  # GND
+      - [[10, 18], [10, 20]]
+      - [[14, 16], [14, 20]]
+    nodes:
+      IN: [{at: [18, 10]}]
+      GND: [{at: [12, 20], kind: power}]
+      vsense: [{at: [8, 2], rot: 90}]
+
 tasmota:
   pins: {IN: ADC_Input}
 

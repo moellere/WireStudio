@@ -209,10 +209,10 @@ Section 4 covers the rest.
 - **Schematic.** 0.40 draws the sheet itself (board, peripherals,
   subcircuits as blocks, PWR_FLAGs, no-connects) and
   `scripts/check_sch.py` has kicad-cli read every example's netlist back
-  from the geometry. What remains is coverage, not mechanism: a
-  `schematic:` layout for the six subcircuits still drawn as stacks
-  ([#311](https://github.com/moellere/WireStudio/issues/311)) and a
-  `kicad.pin_map` for the twenty boards drawn as generic headers
+  from the geometry. Every subcircuit is drawn from its `schematic:`
+  layout, and `check_sch.py` fails a layout that leaves a pin to the
+  fallback stub. What remains is a `kicad.pin_map` for the twenty
+  boards drawn as generic headers
   ([#312](https://github.com/moellere/WireStudio/issues/312)), which
   retires `global_label_dangling` from the ERC baseline. After that the
   baseline holds only what KiCad's pin types cannot express (the
