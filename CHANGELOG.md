@@ -24,6 +24,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CircuitPython and MicroPython for the I2S microphone and the
+  MAX98357A; CircuitPython for the ESP32 camera.** The microphone is a
+  level meter over `audiobusio.PDMIn` (PDM mics) on CircuitPython and
+  `machine.I2S` (I2S mics, 24-bit samples in 32-bit slots) on
+  MicroPython; each framework refuses the variant it cannot read. The
+  amplifier plays a half-second 444 Hz tone at start-up through
+  `audiobusio.I2SOut` or `machine.I2S`. The camera is `espcamera` with
+  ESPHome's DVP wiring, its resolution mapped to a frame size. Both
+  generators now read an `i2s` bus's LRCLK and BCLK pins for the parts
+  on it instead of dropping the bus, and the library check's synthetic
+  design gives that bus clock pins and puts I2S data lines on GPIOs.
+
 - **CircuitPython and MicroPython for the MFRC522; MicroPython for the
   PN532.** Datasheet code following ESPHome's rc522 and pn532: the
   MFRC522's timer and modulation setup, REQA as a 7-bit frame, then

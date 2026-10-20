@@ -32,6 +32,49 @@ esphome:
         adc_type: external
         pdm: {{ params.pdm | default(false) | tojson }}
 
+# A level meter: record a tenth of a second at 16 kHz and print the RMS
+# about the mean. CircuitPython's audio input is PDM only (audiobusio.PDMIn,
+# WS as the PDM clock); MicroPython's machine.I2S has no PDM mode and reads
+# a standard I2S mic's 24-bit samples from 32-bit slots. The mic takes I2S
+# peripheral 1 so a speaker can keep 0.
+circuitpython:
+  imports: ["import array", "import audiobusio"]
+  setup: |
+    {%- if not params.pdm | default(false) %}{{ unsupported("CircuitPython has no I2S input; audiobusio.PDMIn reads PDM microphones only") }}{% endif %}
+    {{ id }} = audiobusio.PDMIn(P({{ pins.WS }}), P({{ pins.DIN }}), sample_rate=16000, bit_depth=16)
+    {{ id }}_n = 1600
+    {{ id }}_buf = array.array("H", [0] * {{ id }}_n)
+    def {{ id }}_level(samples):
+        if not samples:
+            return 0.0
+        mean = sum(samples) / len(samples)
+        return (sum((s - mean) ** 2 for s in samples) / len(samples)) ** 0.5
+  loop: |
+    {{ id }}.record({{ id }}_buf, {{ id }}_n)
+    print("{{ label }}: level %.0f" % {{ id }}_level({{ id }}_buf))
+
+micropython:
+  imports: ["from machine import I2S"]
+  setup: |
+    {%- if params.pdm | default(false) %}{{ unsupported("machine.I2S has no PDM mode") }}{% endif %}
+    {{ id }} = I2S(1, sck=Pin({{ pins.BCLK }}), ws=Pin({{ pins.WS }}), sd=Pin({{ pins.DIN }}), mode=I2S.RX,
+                   bits=32, format=I2S.MONO, rate=16000, ibuf=12800)
+    {{ id }}_buf = bytearray(6400)
+    def {{ id }}_samples(raw, n):
+        out = []
+        for i in range(0, n - n % 4, 4):
+            v = raw[i + 1] | raw[i + 2] << 8 | raw[i + 3] << 16
+            out.append(v - (1 << 24) if v & 0x800000 else v)
+        return out
+    def {{ id }}_level(samples):
+        if not samples:
+            return 0.0
+        mean = sum(samples) / len(samples)
+        return (sum((s - mean) ** 2 for s in samples) / len(samples)) ** 0.5
+  loop: |
+    {{ id }}_got = {{ id }}.readinto({{ id }}_buf)
+    print("{{ label }}: level %.0f" % {{ id }}_level({{ id }}_samples({{ id }}_buf, {{ id }}_got)))
+
 params_schema:
   pdm:
     type: boolean

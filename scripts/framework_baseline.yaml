@@ -12,16 +12,10 @@
 # these under "Framework gaps".
 
 circuitpython:
-  # audio
-  i2s_microphone: "deferred: needs an audiobusio.PDMIn fragment"
-  # audio_dac
-  max98357a: "deferred: needs an audiobusio.I2SOut fragment"
   # bus
   level_shifter: "no meaning on this framework: passive hardware, no code on any framework"
   modbus: "no driver upstream: the Adafruit bundle has no Modbus RTU library"
   tuya: "no driver upstream: the Tuya MCU protocol has no CircuitPython implementation"
-  # camera
-  esp32_camera: "deferred: needs an espcamera fragment (a core module on the ESP32 ports)"
   # connector
   connector_1x02: "no meaning on this framework: passive hardware, no code on any framework"
   connector_1x03: "no meaning on this framework: passive hardware, no code on any framework"
@@ -48,10 +42,6 @@ circuitpython:
   tuya_switch: "no driver upstream: rides the tuya bus, which has no CircuitPython implementation"
 
 micropython:
-  # audio
-  i2s_microphone: "deferred: needs a machine.I2S fragment"
-  # audio_dac
-  max98357a: "deferred: needs a machine.I2S fragment"
   # bus
   level_shifter: "no meaning on this framework: passive hardware, no code on any framework"
   modbus: "no driver upstream: micropython-lib has no Modbus RTU package"

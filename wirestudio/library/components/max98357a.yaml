@@ -41,6 +41,37 @@ esphome:
           speaker: {{ id }}_spk
           num_channels: {{ 2 if params.mode | default('mono') == 'stereo' else 1 }}
 
+# A half-second 444 Hz tone at start-up (36 samples a cycle at 16 kHz)
+# proves the wiring; the chip mixes or picks a channel by its SD level, so
+# one mono stream suits every mode. SD, when wired, is driven high to
+# leave shutdown.
+circuitpython:
+  imports: ["import array", "import math", "import audiobusio", "import audiocore", "import digitalio"]
+  setup: |
+    {%- if pins.SD is defined %}
+    {{ id }}_sd = digitalio.DigitalInOut(P({{ pins.SD }}))
+    {{ id }}_sd.switch_to_output(value=True)
+    {%- endif %}
+    {{ id }} = audiobusio.I2SOut(P({{ pins.BCLK }}), P({{ pins.LRCLK }}), P({{ pins.DIN }}))
+    {{ id }}_tone = [int(math.sin(2 * math.pi * k / 36) * 8000) for k in range(36)]
+    {{ id }}_wave = audiocore.RawSample(array.array("h", {{ id }}_tone), sample_rate=16000)
+    {{ id }}.play({{ id }}_wave, loop=True)
+    time.sleep(0.5)
+    {{ id }}.stop()
+
+micropython:
+  imports: ["import math", "from machine import I2S"]
+  setup: |
+    {%- if pins.SD is defined %}
+    {{ id }}_sd = Pin({{ pins.SD }}, Pin.OUT, value=1)
+    {%- endif %}
+    {{ id }} = I2S(0, sck=Pin({{ pins.BCLK }}), ws=Pin({{ pins.LRCLK }}), sd=Pin({{ pins.DIN }}), mode=I2S.TX,
+                   bits=16, format=I2S.MONO, rate=16000, ibuf=8000)
+    {{ id }}_tone = [int(math.sin(2 * math.pi * k / 36) * 8000) for k in range(36)]
+    {{ id }}_wave = bytes(b for s in {{ id }}_tone for b in (s & 0xFF, s >> 8 & 0xFF))
+    for {{ id }}_n in range(222):
+        {{ id }}.write({{ id }}_wave)
+
 params_schema:
   mode: {type: string, enum: [mono, stereo, left, right], default: "mono"}
 
