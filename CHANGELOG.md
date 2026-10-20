@@ -24,6 +24,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CircuitPython and MicroPython for the LD2420, RF bridge, Nextion and
+  BL0906.** Frame decoders shared by both frameworks, read from
+  ESPHome's components: the LD2420's simple-mode text lines and
+  energy-mode frames, the EFM8 bridge's received and learned codes
+  (each acknowledged), Nextion touch events (setup sends `bkcmd=0` and
+  `page 0`, and a `_send` helper ends commands with FF FF FF), and
+  BL0906 register reads with the inverted-sum checksum and ESPHome's
+  voltage, current, power, frequency and temperature scaling. Tested in
+  `tests/test_uart_frames.py`.
+
 - **CircuitPython and MicroPython for the TM1637, TM1638 and CT clamp;
   MicroPython for Wiegand.** Datasheet code shared by both frameworks,
   only the pin access differing: the TM1637's open-drain start/stop,

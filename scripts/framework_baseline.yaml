@@ -16,8 +16,6 @@ circuitpython:
   i2s_microphone: "deferred: needs an audiobusio.PDMIn fragment"
   # audio_dac
   max98357a: "deferred: needs an audiobusio.I2SOut fragment"
-  # binary_sensor
-  ld2420: "deferred: needs a UART frame-parsing fragment; the bundle has no LD2420 driver"
   # bus
   level_shifter: "no meaning on this framework: passive hardware, no code on any framework"
   modbus: "no driver upstream: the Adafruit bundle has no Modbus RTU library"
@@ -35,7 +33,6 @@ circuitpython:
   connector_2x05_idc: "no meaning on this framework: passive hardware, no code on any framework"
   # display
   lcd_pcf8574: "deferred: the bundle's character LCD driver speaks the MCP23008 backpack, not the PCF8574 one"
-  nextion: "deferred: needs a raw-UART command fragment; the bundle has no Nextion driver"
   # input
   wiegand: "no driver upstream: CircuitPython has no pin interrupts, and a Wiegand frame is the order of edges across D0 and D1"
   # power
@@ -43,12 +40,10 @@ circuitpython:
   usb_c_power_in: "no meaning on this framework: passive hardware, no code on any framework"
   # radio
   cc1101: "no driver upstream: the Adafruit bundle has no CC1101 library"
-  rf_bridge: "deferred: needs a raw-UART fragment for the EFM8 protocol"
   # rfid_reader
   rc522: "deferred: needs a fragment over a community MFRC522 port; none in the bundle"
   # sensor
   ads1115_channel: "no meaning on this framework: channels are read through the hub's fragment"
-  bl0906: "deferred: needs a raw-UART fragment; the bundle has no BL0906 driver"
   mcp3008_channel: "no meaning on this framework: channels are read through the hub's fragment"
   pzemac: "no driver upstream: needs Modbus RTU, which the Adafruit bundle lacks"
   sdm_meter: "no driver upstream: needs Modbus RTU, which the Adafruit bundle lacks"
@@ -63,8 +58,6 @@ micropython:
   i2s_microphone: "deferred: needs a machine.I2S fragment"
   # audio_dac
   max98357a: "deferred: needs a machine.I2S fragment"
-  # binary_sensor
-  ld2420: "deferred: needs a machine.UART frame-parsing fragment"
   # bus
   level_shifter: "no meaning on this framework: passive hardware, no code on any framework"
   modbus: "no driver upstream: micropython-lib has no Modbus RTU package"
@@ -82,7 +75,6 @@ micropython:
   connector_2x05_idc: "no meaning on this framework: passive hardware, no code on any framework"
   # display
   lcd_pcf8574: "deferred: needs a fragment over a community HD44780-over-PCF8574 driver via mip"
-  nextion: "deferred: needs a machine.UART frame-parsing fragment"
   # input
   pn532: "deferred: no MicroPython I2C driver; the maintained one speaks SPI"
   # io_expander
@@ -92,12 +84,10 @@ micropython:
   usb_c_power_in: "no meaning on this framework: passive hardware, no code on any framework"
   # radio
   cc1101: "no driver upstream: micropython-lib has no CC1101 package"
-  rf_bridge: "deferred: needs a machine.UART frame-parsing fragment"
   # rfid_reader
   rc522: "deferred: needs a fragment over a community MFRC522 driver via mip"
   # sensor
   ads1115_channel: "no meaning on this framework: channels are read through the hub's fragment"
-  bl0906: "deferred: needs a machine.UART frame-parsing fragment"
   mcp3008_channel: "no meaning on this framework: channels are read through the hub's fragment"
   pzemac: "no driver upstream: needs Modbus RTU, which micropython-lib lacks"
   sdm_meter: "no driver upstream: needs Modbus RTU, which micropython-lib lacks"
