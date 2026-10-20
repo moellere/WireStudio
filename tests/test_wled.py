@@ -257,6 +257,17 @@ def test_build_runs_pio_on_the_checkout_and_caches_the_artifact(lib, tmp_path, m
     assert wled_build.cache_key(override) == done["cache_key"]
 
 
+def test_checkout_links_the_bh1750_header_the_release_includes(tmp_path):
+    src = tmp_path / f"wled-{WLED_RELEASE}"
+    um = src / "usermods" / "BH1750_v2"
+    um.mkdir(parents=True)
+    (src / "platformio.ini").write_text("")
+    (um / "usermod_bh1750.h").write_text("// bh1750\n")
+    assert wled_build.checkout(tmp_path) == src
+    assert (um / "usermod_BH1750.h").read_text() == "// bh1750\n"
+    wled_build.checkout(tmp_path)
+
+
 def test_build_refuses_a_design_without_usermods_and_reports_a_missing_toolchain(lib, tmp_path, monkeypatch):
     with pytest.raises(ValueError, match="no usermods"):
         list(wled_build.compile_firmware_events(_design("atom-matrix"), lib, root=tmp_path))

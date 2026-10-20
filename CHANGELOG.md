@@ -26,7 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **WLED usermods for the BH1750, AHT10, AHT20 and VL53L0X.** The
   BH1750_v2, AHT10_v2 (sensor type set per part) and VL53L0X_gestures
-  usermods, each with its library pinned. The `wled-firmware` workflow
+  usermods, each with its library pinned. v0.15.2 includes the BH1750
+  header as `usermod_BH1750.h` while the file is `usermod_bh1750.h`, so
+  the build links the name it asks for; without it the usermod only
+  built on a case-insensitive filesystem. The `wled-firmware` workflow
   now builds one design per usermod a component carries and runs on PRs
   that touch a component file. WLED covers 17 of 102 parts.
 
