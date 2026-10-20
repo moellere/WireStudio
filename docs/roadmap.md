@@ -114,7 +114,7 @@ Components each framework's generator can use today, out of 102
 | circuitpython | 89 |
 | micropython | 89 |
 | wled | 13 |
-| lorawan | 5 |
+| lorawan | 26 |
 
 100% is the wrong bar: a Tuya MCU bridge has no CircuitPython meaning.
 The bar is the one `library-coverage.md` already holds ESPHome to:
@@ -168,8 +168,14 @@ remains is to work the baselines down:
   module, not a GPIO function), the BL0906 and the Universal Display
   panels (a `display.ini` beside the template); the rest are reasons,
   not work.
-- **LoRaWAN** gains a block for every sensor the payload codec can
-  carry (the phase A refactor makes this a library-file edit).
+- **LoRaWAN** has blocks for the boards' own peripherals and for 21
+  sensors: the I2C environment, light, distance, current and motion
+  parts, the DS18B20, the ADC parts and the motion detectors, each
+  adding named fields to the payload codec. The `lorawan-firmware` gate
+  builds designs that carry every block, so a library or API mismatch
+  fails the PR that brings it. What remains are the UART and SPI
+  sensors, the Modbus meters (a Modbus read in the firmware) and the
+  parts with nothing to report.
 - **WLED** has both tiers: the runtime one (LED outputs, buttons, IR,
   relay as `cfg.json`) and the compile-in one (a `usermod` block that
   emits a `platformio_override.ini` environment, built by `wled_build`

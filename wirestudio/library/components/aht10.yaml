@@ -100,3 +100,39 @@ kicad:
     GND: Pin_2
     SCL: Pin_3
     SDA: Pin_4
+
+lorawan:
+  lib_deps: ["adafruit/Adafruit AHTX0@^2.0.5"]
+  requires: [i2c]
+  globals: |
+    #include <Adafruit_AHTX0.h>
+    Adafruit_AHTX0 aht;
+    bool ahtOk = false;
+    float ahtTempC = 0, ahtHum = 0;
+  setup: |
+    ahtOk = aht.begin(&Wire);
+  loop: |
+    if (ahtOk) {
+      sensors_event_t _h, _t;
+      if (aht.getEvent(&_h, &_t)) {
+        ahtTempC = _t.temperature;
+        ahtHum = _h.relative_humidity;
+      }
+    }
+  fields:
+    - name: aht_temp_c
+      bytes: 2
+      cpp_type: int16_t
+      cpp_expr: (int16_t)(ahtTempC * 100.0)
+      signed: true
+      scale: 100.0
+      ha_device_class: temperature
+      ha_unit: "°C"
+      ha_state_class: measurement
+    - name: aht_humidity
+      bytes: 1
+      cpp_type: uint8_t
+      cpp_expr: (uint8_t)(ahtHum + 0.5)
+      ha_device_class: humidity
+      ha_unit: "%"
+      ha_state_class: measurement

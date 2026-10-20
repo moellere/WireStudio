@@ -81,3 +81,17 @@ wled:
   button: pir
 tasmota:
   pins: {OUT: Switch}
+
+lorawan:
+  globals: |
+    uint8_t rcwl0516Motion = 0;
+  setup: |
+    pinMode({{ pins.OUT }}, INPUT);
+  loop: |
+    rcwl0516Motion = digitalRead({{ pins.OUT }}) == HIGH;
+  fields:
+    - name: rcwl_0516_motion
+      bytes: 1
+      cpp_type: uint8_t
+      cpp_expr: rcwl0516Motion
+      ha_device_class: motion

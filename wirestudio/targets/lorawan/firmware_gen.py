@@ -98,7 +98,7 @@ def _wiring_for(component_id: str, design: Design) -> tuple[dict, Optional[dict]
             for b in design.buses:
                 if b.id == t.bus_id:
                     bus = {"id": b.id, "sda": _pin(b.sda), "scl": _pin(b.scl),
-                           "rx": _pin(b.rx), "tx": _pin(b.tx), "baud": b.baud_rate}
+                           "rx": _pin(b.rx), "tx": _pin(b.tx), "pin": _pin(b.pin), "baud": b.baud_rate}
                     break
     return pins, bus
 

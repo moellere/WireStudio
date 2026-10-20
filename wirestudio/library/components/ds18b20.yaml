@@ -124,3 +124,30 @@ wled:
   um_name: Temperature
   um: {enabled: true, degC: true}
   um_pins: {DATA: pin}
+
+lorawan:
+  lib_deps: ["paulstoffregen/OneWire@^2.3.8", "milesburton/DallasTemperature@^3.11.0"]
+  globals: |
+    #include <OneWire.h>
+    #include <DallasTemperature.h>
+    OneWire ds18b20Bus({{ (pins.DATA if pins.DATA is defined else (bus.pin if bus and bus.pin is defined else 4)) }});
+    DallasTemperature ds18b20(&ds18b20Bus);
+    float ds18b20TempC = 0;
+  setup: |
+    ds18b20.begin();
+  loop: |
+    ds18b20.requestTemperatures();
+    {
+      float _t = ds18b20.getTempCByIndex(0);
+      if (_t != DEVICE_DISCONNECTED_C) ds18b20TempC = _t;
+    }
+  fields:
+    - name: ds18b20_temp_c
+      bytes: 2
+      cpp_type: int16_t
+      cpp_expr: (int16_t)(ds18b20TempC * 100.0)
+      signed: true
+      scale: 100.0
+      ha_device_class: temperature
+      ha_unit: "°C"
+      ha_state_class: measurement

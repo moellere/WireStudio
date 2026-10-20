@@ -1,7 +1,8 @@
 name: lorawan-firmware
 
 # Compile gate for the LoRaWAN target's generated firmware. Runs `pio run`
-# for every radio board so an upstream churn -- a new RadioLib /
+# for every radio board, and for designs carrying every component with a
+# `lorawan:` block, so an upstream churn -- a new RadioLib /
 # LoRaWAN_ESP32 release, a PlatformIO toolchain bump, an espressif32 platform
 # update -- that breaks the generated firmware is caught.
 #
@@ -20,6 +21,7 @@ on:
       - "wirestudio/targets/lorawan/compile.py"
       - "wirestudio/targets/lorawan/templates/**"
       - "wirestudio/library/boards/*.yaml"
+      - "wirestudio/library/components/*.yaml"
       - "scripts/build_lorawan_firmware.py"
       - ".github/workflows/lorawan-firmware.yml"
   schedule:

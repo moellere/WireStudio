@@ -84,3 +84,27 @@ kicad:
   symbol: Conn_01x05
   footprint: Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical
   value: BH1750
+
+lorawan:
+  lib_deps: ["claws/BH1750@^1.3.0"]
+  requires: [i2c]
+  globals: |
+    #include <BH1750.h>
+    BH1750 bh1750({{ params.address | default('0x23') }});
+    bool bh1750Ok = false;
+    float bh1750Lux = 0;
+  setup: |
+    bh1750Ok = bh1750.begin(BH1750::CONTINUOUS_HIGH_RES_MODE, {{ params.address | default('0x23') }}, &Wire);
+  loop: |
+    if (bh1750Ok) {
+      float _lx = bh1750.readLightLevel();
+      if (_lx >= 0) bh1750Lux = _lx;
+    }
+  fields:
+    - name: bh1750_lux
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: (uint16_t)(min(bh1750Lux, 65535.0f))
+      ha_device_class: illuminance
+      ha_unit: "lx"
+      ha_state_class: measurement

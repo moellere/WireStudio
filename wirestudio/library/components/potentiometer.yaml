@@ -110,3 +110,22 @@ kicad:
     GND: '3'
 tasmota:
   pins: {WIPER: ADC_Input}
+
+lorawan:
+  globals: |
+    uint16_t potentiometerMv = 0;
+  loop: |
+    {%- set scale = namespace(k=1) %}
+    {%- for f in params.filters | default([]) if f is mapping and f.multiply is defined %}
+    {%- set scale.k = scale.k * f.multiply %}
+    {%- endfor %}
+    potentiometerMv = (uint16_t)(analogReadMilliVolts({{ pins.WIPER }}){% if scale.k != 1 %} * {{ scale.k }}{% endif %});
+  fields:
+    - name: potentiometer_mv
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: potentiometerMv
+      ha_device_class: voltage
+      ha_unit: V
+      ha_state_class: measurement
+      ha_divide: 1000

@@ -68,3 +68,24 @@ kicad:
   symbol: Conn_01x04
   footprint: Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical
   value: VEML7700
+
+lorawan:
+  lib_deps: ["adafruit/Adafruit VEML7700 Library@^2.1.6"]
+  requires: [i2c]
+  globals: |
+    #include <Adafruit_VEML7700.h>
+    Adafruit_VEML7700 veml7700;
+    bool veml7700Ok = false;
+    float veml7700Lux = 0;
+  setup: |
+    veml7700Ok = veml7700.begin(&Wire);
+  loop: |
+    if (veml7700Ok) veml7700Lux = veml7700.readLux();
+  fields:
+    - name: veml7700_lux
+      bytes: 4
+      cpp_type: uint32_t
+      cpp_expr: (uint32_t)veml7700Lux
+      ha_device_class: illuminance
+      ha_unit: lx
+      ha_state_class: measurement
