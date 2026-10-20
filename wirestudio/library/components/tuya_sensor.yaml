@@ -44,6 +44,30 @@ capability:
     - {event: on_value, kind: value}
     - {event: on_value_range, kind: event}
 
+# One datapoint from the hub's `_dps`, scaled by the part's `multiply`
+# filters (most metering datapoints report tenths).
+circuitpython:
+  setup: |
+    {{ id }}_dp = {{ params.sensor_datapoint | default(17) }}
+  loop: |
+    {%- set scale = namespace(k=1) %}
+    {%- for f in params.filters | default([]) if f is mapping and f.multiply is defined %}
+    {%- set scale.k = scale.k * f.multiply %}
+    {%- endfor %}
+    {{ id }}_value = {{ parent }}_dps.get({{ id }}_dp)
+    print("{{ label }}: %s{{ (' ' ~ params.unit_of_measurement) if params.unit_of_measurement is defined else '' }}" % ("-" if {{ id }}_value is None else {% if scale.k != 1 %}"%g" % ({{ id }}_value * {{ scale.k }}){% else %}{{ id }}_value{% endif %}))
+
+micropython:
+  setup: |
+    {{ id }}_dp = {{ params.sensor_datapoint | default(17) }}
+  loop: |
+    {%- set scale = namespace(k=1) %}
+    {%- for f in params.filters | default([]) if f is mapping and f.multiply is defined %}
+    {%- set scale.k = scale.k * f.multiply %}
+    {%- endfor %}
+    {{ id }}_value = {{ parent }}_dps.get({{ id }}_dp)
+    print("{{ label }}: %s{{ (' ' ~ params.unit_of_measurement) if params.unit_of_measurement is defined else '' }}" % ("-" if {{ id }}_value is None else {% if scale.k != 1 %}"%g" % ({{ id }}_value * {{ scale.k }}){% else %}{{ id }}_value{% endif %}))
+
 params_schema:
   sensor_datapoint:
     type: number

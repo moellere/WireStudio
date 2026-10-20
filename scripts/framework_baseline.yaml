@@ -14,8 +14,6 @@
 circuitpython:
   # bus
   level_shifter: "no meaning on this framework: passive hardware, no code on any framework"
-  modbus: "no driver upstream: the Adafruit bundle has no Modbus RTU library"
-  tuya: "no driver upstream: the Tuya MCU protocol has no CircuitPython implementation"
   # connector
   connector_1x02: "no meaning on this framework: passive hardware, no code on any framework"
   connector_1x03: "no meaning on this framework: passive hardware, no code on any framework"
@@ -32,20 +30,10 @@ circuitpython:
   usb_c_power_in: "no meaning on this framework: passive hardware, no code on any framework"
   # radio
   cc1101: "no driver upstream: the Adafruit bundle has no CC1101 library"
-  # sensor
-  ads1115_channel: "no meaning on this framework: channels are read through the hub's fragment"
-  mcp3008_channel: "no meaning on this framework: channels are read through the hub's fragment"
-  pzemac: "no driver upstream: needs Modbus RTU, which the Adafruit bundle lacks"
-  sdm_meter: "no driver upstream: needs Modbus RTU, which the Adafruit bundle lacks"
-  tuya_sensor: "no driver upstream: rides the tuya bus, which has no CircuitPython implementation"
-  # switch
-  tuya_switch: "no driver upstream: rides the tuya bus, which has no CircuitPython implementation"
 
 micropython:
   # bus
   level_shifter: "no meaning on this framework: passive hardware, no code on any framework"
-  modbus: "no driver upstream: micropython-lib has no Modbus RTU package"
-  tuya: "no driver upstream: the Tuya MCU protocol has no MicroPython implementation"
   # camera
   esp32_camera: "no driver upstream: the generic port image ships no camera module"
   # connector
@@ -62,14 +50,6 @@ micropython:
   usb_c_power_in: "no meaning on this framework: passive hardware, no code on any framework"
   # radio
   cc1101: "no driver upstream: micropython-lib has no CC1101 package"
-  # sensor
-  ads1115_channel: "no meaning on this framework: channels are read through the hub's fragment"
-  mcp3008_channel: "no meaning on this framework: channels are read through the hub's fragment"
-  pzemac: "no driver upstream: needs Modbus RTU, which micropython-lib lacks"
-  sdm_meter: "no driver upstream: needs Modbus RTU, which micropython-lib lacks"
-  tuya_sensor: "no driver upstream: rides the tuya bus, which has no MicroPython implementation"
-  # switch
-  tuya_switch: "no driver upstream: rides the tuya bus, which has no MicroPython implementation"
 
 tasmota:
   # actuator

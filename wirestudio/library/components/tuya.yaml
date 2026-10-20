@@ -34,6 +34,160 @@ esphome:
       ignore_mcu_update_on_datapoints: {{ params.ignore_mcu_update_on_datapoints | tojson }}
     {%- endif %}
 
+# The Tuya MCU serial protocol as ESPHome's tuya hub runs it: frames of
+# 55 AA, version, command, a 16-bit length, data and a checksum (the
+# byte sum). Start-up sends heartbeat, product and configuration
+# queries, reports Wi-Fi as connected (0x03) and asks for every
+# datapoint; the loop sends the heartbeat and folds datapoint reports
+# (0x07, and 0x22 with its ack) into `_dps`, keyed by id: booleans,
+# 32-bit signed values, enums and bitmaps as ints, strings, raw bytes.
+circuitpython:
+  setup: |
+    def {{ id }}_drain():
+        {{ bus_var }}.reset_input_buffer()
+    def {{ id }}_collect(seconds):
+        buf = b""
+        until = time.monotonic() + seconds
+        while time.monotonic() < until:
+            n = {{ bus_var }}.in_waiting
+            if n:
+                buf += {{ bus_var }}.read(n)
+        return buf
+    {{ id }}_dps = {}
+    {{ id }}_rx = [b""]
+    def {{ id }}_send(cmd, data=b""):
+        frame = bytes([0x55, 0xAA, 0x00, cmd, len(data) >> 8, len(data) & 0xFF]) + data
+        {{ bus_var }}.write(frame + bytes([sum(frame) & 0xFF]))
+    def {{ id }}_frames(buf):
+        out = []
+        while True:
+            i = buf.find(b"\x55\xaa")
+            if i < 0:
+                return out, buf[-1:] if buf[-1:] == b"\x55" else b""
+            buf = buf[i:]
+            if len(buf) < 7 or len(buf) < 7 + (buf[4] << 8 | buf[5]):
+                return out, buf
+            n = buf[4] << 8 | buf[5]
+            if sum(buf[:6 + n]) & 0xFF == buf[6 + n]:
+                out.append((buf[3], buf[6:6 + n]))
+                buf = buf[7 + n:]
+            else:
+                buf = buf[2:]
+    def {{ id }}_datapoints(data):
+        found = {}
+        while len(data) >= 4:
+            dp, kind, n = data[0], data[1], data[2] << 8 | data[3]
+            raw = data[4:4 + n]
+            if len(raw) < n:
+                break
+            if kind == 1:
+                found[dp] = bool(raw[0])
+            elif kind in (2, 4, 5):
+                v = int.from_bytes(raw, "big")
+                found[dp] = v - (1 << 32) if kind == 2 and v & 0x80000000 else v
+            elif kind == 3:
+                found[dp] = bytes(raw).decode()
+            else:
+                found[dp] = bytes(raw)
+            data = data[4 + n:]
+        return found
+    def {{ id }}_poll(seconds):
+        frames, {{ id }}_rx[0] = {{ id }}_frames({{ id }}_rx[0] + {{ id }}_collect(seconds))
+        for cmd, data in frames:
+            if cmd in (0x07, 0x22):
+                {{ id }}_dps.update({{ id }}_datapoints(data))
+            if cmd == 0x22:
+                {{ id }}_send(0x23, b"\x01")
+            elif cmd == 0x2B:
+                {{ id }}_send(0x2B, b"\x03")
+        return frames
+    def {{ id }}_set(dp, kind, value):
+        raw = bytes([int(value)]) if kind in (1, 4) else (int(value) & 0xFFFFFFFF).to_bytes(4, "big")
+        {{ id }}_send(0x06, bytes([dp, kind, 0, len(raw)]) + raw)
+    {{ id }}_drain()
+    for {{ id }}_cmd in (0x00, 0x01, 0x02):
+        {{ id }}_send({{ id }}_cmd)
+        {{ id }}_poll(0.3)
+    {{ id }}_send(0x03, b"\x03")
+    {{ id }}_send(0x08)
+    {{ id }}_poll(0.5)
+  loop: |
+    {{ id }}_send(0x00)
+    {{ id }}_poll(1.0)
+
+micropython:
+  setup: |
+    def {{ id }}_drain():
+        {{ bus_var }}.read()
+    def {{ id }}_collect(seconds):
+        buf = b""
+        until = time.ticks_add(time.ticks_ms(), int(seconds * 1000))
+        while time.ticks_diff(until, time.ticks_ms()) > 0:
+            buf += {{ bus_var }}.read() or b""
+            time.sleep_ms(10)
+        return buf
+    {{ id }}_dps = {}
+    {{ id }}_rx = [b""]
+    def {{ id }}_send(cmd, data=b""):
+        frame = bytes([0x55, 0xAA, 0x00, cmd, len(data) >> 8, len(data) & 0xFF]) + data
+        {{ bus_var }}.write(frame + bytes([sum(frame) & 0xFF]))
+    def {{ id }}_frames(buf):
+        out = []
+        while True:
+            i = buf.find(b"\x55\xaa")
+            if i < 0:
+                return out, buf[-1:] if buf[-1:] == b"\x55" else b""
+            buf = buf[i:]
+            if len(buf) < 7 or len(buf) < 7 + (buf[4] << 8 | buf[5]):
+                return out, buf
+            n = buf[4] << 8 | buf[5]
+            if sum(buf[:6 + n]) & 0xFF == buf[6 + n]:
+                out.append((buf[3], buf[6:6 + n]))
+                buf = buf[7 + n:]
+            else:
+                buf = buf[2:]
+    def {{ id }}_datapoints(data):
+        found = {}
+        while len(data) >= 4:
+            dp, kind, n = data[0], data[1], data[2] << 8 | data[3]
+            raw = data[4:4 + n]
+            if len(raw) < n:
+                break
+            if kind == 1:
+                found[dp] = bool(raw[0])
+            elif kind in (2, 4, 5):
+                v = int.from_bytes(raw, "big")
+                found[dp] = v - (1 << 32) if kind == 2 and v & 0x80000000 else v
+            elif kind == 3:
+                found[dp] = bytes(raw).decode()
+            else:
+                found[dp] = bytes(raw)
+            data = data[4 + n:]
+        return found
+    def {{ id }}_poll(seconds):
+        frames, {{ id }}_rx[0] = {{ id }}_frames({{ id }}_rx[0] + {{ id }}_collect(seconds))
+        for cmd, data in frames:
+            if cmd in (0x07, 0x22):
+                {{ id }}_dps.update({{ id }}_datapoints(data))
+            if cmd == 0x22:
+                {{ id }}_send(0x23, b"\x01")
+            elif cmd == 0x2B:
+                {{ id }}_send(0x2B, b"\x03")
+        return frames
+    def {{ id }}_set(dp, kind, value):
+        raw = bytes([int(value)]) if kind in (1, 4) else (int(value) & 0xFFFFFFFF).to_bytes(4, "big")
+        {{ id }}_send(0x06, bytes([dp, kind, 0, len(raw)]) + raw)
+    {{ id }}_drain()
+    for {{ id }}_cmd in (0x00, 0x01, 0x02):
+        {{ id }}_send({{ id }}_cmd)
+        {{ id }}_poll(0.3)
+    {{ id }}_send(0x03, b"\x03")
+    {{ id }}_send(0x08)
+    {{ id }}_poll(0.5)
+  loop: |
+    {{ id }}_send(0x00)
+    {{ id }}_poll(1.0)
+
 params_schema:
   time_id:
     type: string
