@@ -127,3 +127,11 @@ lorawan:
       ha_device_class: distance
       ha_unit: "mm"
       ha_state_class: measurement
+
+# WLED's VL53L0X usermod is a gesture control (a hand over the sensor
+# toggles and dims the light), not a range readout.
+wled:
+  kind: usermod
+  usermod: VL53L0X_gestures
+  define: USERMOD_VL53L0X_GESTURES
+  lib_deps: ["pololu/VL53L0X@^1.3.0"]

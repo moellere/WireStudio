@@ -24,6 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **WLED usermods for the BH1750, AHT10, AHT20 and VL53L0X.** The
+  BH1750_v2, AHT10_v2 (sensor type set per part) and VL53L0X_gestures
+  usermods, each with its library pinned. The `wled-firmware` workflow
+  now builds one design per usermod a component carries and runs on PRs
+  that touch a component file. WLED covers 17 of 102 parts.
+
 - **LoRaWAN blocks for 21 sensors.** The BME280, BMP280, BME680, AHT10
   and AHT20, SHT3x, SHT4x, HTU21D, SCD4x, BH1750, TSL2561, VEML7700,
   VL53L0X, INA219, MPU6050, DS18B20, the ADC, potentiometer and voltage
