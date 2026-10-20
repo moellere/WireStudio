@@ -94,3 +94,36 @@ kicad:
   value: HTU21D
   pin_map:
     VCC: VDD
+
+lorawan:
+  lib_deps: ["adafruit/Adafruit HTU21DF Library@^1.1.2"]
+  requires: [i2c]
+  globals: |
+    #include <Adafruit_HTU21DF.h>
+    Adafruit_HTU21DF htu21d;
+    bool htu21dOk = false;
+    float htu21dTempC = 0, htu21dHum = 0;
+  setup: |
+    htu21dOk = htu21d.begin(&Wire);
+  loop: |
+    if (htu21dOk) {
+      htu21dTempC = htu21d.readTemperature();
+      htu21dHum = htu21d.readHumidity();
+    }
+  fields:
+    - name: htu21d_temp_c
+      bytes: 2
+      cpp_type: int16_t
+      cpp_expr: (int16_t)(htu21dTempC * 100.0)
+      signed: true
+      scale: 100.0
+      ha_device_class: temperature
+      ha_unit: "°C"
+      ha_state_class: measurement
+    - name: htu21d_humidity
+      bytes: 1
+      cpp_type: uint8_t
+      cpp_expr: (uint8_t)(htu21dHum + 0.5)
+      ha_device_class: humidity
+      ha_unit: "%"
+      ha_state_class: measurement

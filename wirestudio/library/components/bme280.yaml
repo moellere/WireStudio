@@ -107,3 +107,45 @@ wled:
   um_name: BME280/BMP280
   um: {enabled: true}
   um_params: {I2CAddress: address}
+
+lorawan:
+  lib_deps: ["adafruit/Adafruit BME280 Library@^2.2.4"]
+  requires: [i2c]
+  globals: |
+    #include <Adafruit_BME280.h>
+    Adafruit_BME280 bme280;
+    bool bme280Ok = false;
+    float bme280TempC = 0, bme280Hum = 0, bme280HPa = 0;
+  setup: |
+    bme280Ok = bme280.begin({{ params.address | default('0x76') }}, &Wire);
+  loop: |
+    if (bme280Ok) {
+      bme280TempC = bme280.readTemperature();
+      bme280Hum = bme280.readHumidity();
+      bme280HPa = bme280.readPressure() / 100.0F;
+    }
+  fields:
+    - name: bme280_temp_c
+      bytes: 2
+      cpp_type: int16_t
+      cpp_expr: (int16_t)(bme280TempC * 100.0)
+      signed: true
+      scale: 100.0
+      ha_device_class: temperature
+      ha_unit: "°C"
+      ha_state_class: measurement
+    - name: bme280_humidity
+      bytes: 1
+      cpp_type: uint8_t
+      cpp_expr: (uint8_t)(bme280Hum + 0.5)
+      ha_device_class: humidity
+      ha_unit: "%"
+      ha_state_class: measurement
+    - name: bme280_pressure
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: (uint16_t)(bme280HPa * 10.0)
+      scale: 10.0
+      ha_device_class: atmospheric_pressure
+      ha_unit: hPa
+      ha_state_class: measurement

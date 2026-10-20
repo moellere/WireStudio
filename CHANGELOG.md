@@ -24,6 +24,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **LoRaWAN blocks for 21 sensors.** The BME280, BMP280, BME680, AHT10
+  and AHT20, SHT3x, SHT4x, HTU21D, SCD4x, BH1750, TSL2561, VEML7700,
+  VL53L0X, INA219, MPU6050, DS18B20, the ADC, potentiometer and voltage
+  divider (scaled by its resistors), and the HC-SR501 and RCWL-0516
+  each contribute named payload fields, which the codec decodes and
+  announces to Home Assistant. The `lorawan-firmware` workflow now
+  builds designs carrying every component with a `lorawan:` block as
+  well as the bare boards, and runs on PRs that touch a component file.
+  LoRaWAN covers 26 of 102 parts.
+
 - **Tasmota templates for 24 more parts.** Motion sensors and LED
   indicators, low-side drivers, the PWM fan's tach counter, the ADC
   parts, the TM1638, MAX7219 and MAX31855, the RC522, MCP23S17, XPT2046,

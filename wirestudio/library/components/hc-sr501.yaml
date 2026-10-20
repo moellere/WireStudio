@@ -82,3 +82,17 @@ wled:
   button: pir
 tasmota:
   pins: {OUT: Switch}
+
+lorawan:
+  globals: |
+    uint8_t hcsr501Motion = 0;
+  setup: |
+    pinMode({{ pins.OUT }}, INPUT);
+  loop: |
+    hcsr501Motion = digitalRead({{ pins.OUT }}) == HIGH;
+  fields:
+    - name: hc_sr501_motion
+      bytes: 1
+      cpp_type: uint8_t
+      cpp_expr: hcsr501Motion
+      ha_device_class: motion

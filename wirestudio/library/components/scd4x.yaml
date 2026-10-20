@@ -87,3 +87,53 @@ kicad:
   symbol: Conn_01x04
   footprint: Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical
   value: SCD4x
+
+lorawan:
+  lib_deps: ["sensirion/Sensirion I2C SCD4x@^1.1.0"]
+  requires: [i2c]
+  globals: |
+    #include <SensirionI2cScd4x.h>
+    SensirionI2cScd4x scd4x;
+    uint16_t scd4xCo2 = 0;
+    float scd4xTempC = 0, scd4xHum = 0;
+  setup: |
+    scd4x.begin(Wire, SCD41_I2C_ADDR_62);
+    scd4x.stopPeriodicMeasurement();
+    scd4x.startPeriodicMeasurement();
+  loop: |
+    {
+      bool _ready = false;
+      if (scd4x.getDataReadyStatus(_ready) == 0 && _ready) {
+        uint16_t _co2 = 0;
+        float _t = 0, _h = 0;
+        if (scd4x.readMeasurement(_co2, _t, _h) == 0 && _co2 != 0) {
+          scd4xCo2 = _co2;
+          scd4xTempC = _t;
+          scd4xHum = _h;
+        }
+      }
+    }
+  fields:
+    - name: scd4x_co2_ppm
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: (uint16_t)(scd4xCo2)
+      ha_device_class: carbon_dioxide
+      ha_unit: "ppm"
+      ha_state_class: measurement
+    - name: scd4x_temp_c
+      bytes: 2
+      cpp_type: int16_t
+      cpp_expr: (int16_t)(scd4xTempC * 100.0)
+      signed: true
+      scale: 100.0
+      ha_device_class: temperature
+      ha_unit: "°C"
+      ha_state_class: measurement
+    - name: scd4x_humidity
+      bytes: 1
+      cpp_type: uint8_t
+      cpp_expr: (uint8_t)(scd4xHum + 0.5)
+      ha_device_class: humidity
+      ha_unit: "%"
+      ha_state_class: measurement

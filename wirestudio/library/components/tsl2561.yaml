@@ -93,3 +93,29 @@ kicad:
   symbol: Conn_01x04
   footprint: Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical
   value: TSL2561
+
+lorawan:
+  lib_deps: ["adafruit/Adafruit TSL2561@^1.1.2"]
+  requires: [i2c]
+  globals: |
+    #include <Adafruit_TSL2561_U.h>
+    Adafruit_TSL2561_Unified tsl2561({{ params.address | default('0x39') }}, 2561);
+    bool tsl2561Ok = false;
+    float tsl2561Lux = 0;
+  setup: |
+    tsl2561Ok = tsl2561.begin(&Wire);
+    if (tsl2561Ok) tsl2561.enableAutoRange(true);
+  loop: |
+    if (tsl2561Ok) {
+      sensors_event_t _e;
+      tsl2561.getEvent(&_e);
+      if (_e.light > 0) tsl2561Lux = _e.light;
+    }
+  fields:
+    - name: tsl2561_lux
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: (uint16_t)(min(tsl2561Lux, 65535.0f))
+      ha_device_class: illuminance
+      ha_unit: "lx"
+      ha_state_class: measurement
