@@ -144,3 +144,12 @@ lorawan:
       ha_device_class: humidity
       ha_unit: "%"
       ha_state_class: measurement
+
+# AHT10_v2 reads the AHT20 too; SensorType 2 is the AHT20 in its library's enum.
+wled:
+  kind: usermod
+  usermod: AHT10_v2
+  define: USERMOD_AHT10
+  lib_deps: ["enjoyneering/AHT10@~1.1.0"]
+  um_name: AHTxx
+  um: {Enabled: true, SensorType: 2}

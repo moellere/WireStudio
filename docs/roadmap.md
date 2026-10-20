@@ -113,7 +113,7 @@ Components each framework's generator can use today, out of 102
 | tasmota | 75 |
 | circuitpython | 89 |
 | micropython | 89 |
-| wled | 13 |
+| wled | 17 |
 | lorawan | 26 |
 
 100% is the wrong bar: a Tuya MCU bridge has no CircuitPython meaning.
@@ -179,9 +179,10 @@ remains is to work the baselines down:
 - **WLED** has both tiers: the runtime one (LED outputs, buttons, IR,
   relay as `cfg.json`) and the compile-in one (a `usermod` block that
   emits a `platformio_override.ini` environment, built by `wled_build`
-  and the `wled-firmware` workflow against v0.15.2). Five sensors carry
-  usermod blocks; the baseline names the usermod for each remaining
-  one. When the pin moves to 0.16 the override switches from build
+  and the `wled-firmware` workflow against v0.15.2). Nine sensors carry
+  usermod blocks, and the workflow builds a design per usermod on PRs
+  that touch a component file; the baseline names the reason for each
+  remaining one. When the pin moves to 0.16 the override switches from build
   flags to `custom_usermods`.
 
 Boards: all 26 have an ESPHome example. The enclosure block is on 7.

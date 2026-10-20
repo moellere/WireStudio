@@ -1,8 +1,9 @@
 name: wled-firmware
 
 # Compile gate for the WLED target's usermod tier: the pinned release
-# with the bundled usermod example's platformio_override.ini, built
-# with `pio run`. An upstream move (a usermod renamed, a library pin
+# with the bundled usermod example's platformio_override.ini, and with
+# designs carrying every component that has a usermod block, built with
+# `pio run`. An upstream move (a usermod renamed, a library pin
 # gone, the release's environments reshaped) that breaks the build is
 # caught here, as lorawan-firmware does for the LoRaWAN firmware.
 #
@@ -19,6 +20,7 @@ on:
       - "wirestudio/targets/wled.py"
       - "wirestudio/targets/wled_build.py"
       - "wirestudio/examples/wled-sensor-strip.json"
+      - "wirestudio/library/components/*.yaml"
       - "scripts/build_wled_firmware.py"
       - ".github/workflows/wled-firmware.yml"
   schedule:
