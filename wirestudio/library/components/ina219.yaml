@@ -97,3 +97,36 @@ kicad:
   symbol: Conn_01x06
   footprint: Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical
   value: INA219
+
+lorawan:
+  lib_deps: ["adafruit/Adafruit INA219@^1.2.3"]
+  requires: [i2c]
+  globals: |
+    #include <Adafruit_INA219.h>
+    Adafruit_INA219 ina219({{ params.address | default('0x40') }});
+    bool ina219Ok = false;
+    float ina219BusV = 0, ina219mA = 0;
+  setup: |
+    ina219Ok = ina219.begin(&Wire);
+  loop: |
+    if (ina219Ok) {
+      ina219BusV = ina219.getBusVoltage_V();
+      ina219mA = ina219.getCurrent_mA();
+    }
+  fields:
+    - name: ina219_bus_mv
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: (uint16_t)(ina219BusV * 1000.0)
+      ha_device_class: voltage
+      ha_unit: V
+      ha_state_class: measurement
+      ha_divide: 1000
+    - name: ina219_current_ma
+      bytes: 2
+      cpp_type: int16_t
+      cpp_expr: (int16_t)ina219mA
+      signed: true
+      ha_device_class: current
+      ha_unit: mA
+      ha_state_class: measurement

@@ -87,3 +87,50 @@ kicad:
   footprint: Sensor_Motion:InvenSense_QFN-24_4x4mm_P0.5mm
   pin_map:
     VCC: VDD
+
+lorawan:
+  lib_deps: ["adafruit/Adafruit MPU6050@^2.2.6"]
+  requires: [i2c]
+  globals: |
+    #include <Adafruit_MPU6050.h>
+    Adafruit_MPU6050 mpu6050;
+    bool mpu6050Ok = false;
+    float mpu6050Ax = 0, mpu6050Ay = 0, mpu6050Az = 0;
+  setup: |
+    mpu6050Ok = mpu6050.begin({{ params.address | default('0x68') }}, &Wire);
+  loop: |
+    if (mpu6050Ok) {
+      sensors_event_t _a, _g, _t;
+      mpu6050.getEvent(&_a, &_g, &_t);
+      mpu6050Ax = _a.acceleration.x;
+      mpu6050Ay = _a.acceleration.y;
+      mpu6050Az = _a.acceleration.z;
+    }
+  fields:
+    - name: mpu6050_accel_x
+      bytes: 2
+      cpp_type: int16_t
+      cpp_expr: (int16_t)(mpu6050Ax * 100.0)
+      signed: true
+      scale: 100.0
+      ha_unit: "m/s²"
+      ha_state_class: measurement
+      ha_icon: mdi:axis-arrow
+    - name: mpu6050_accel_y
+      bytes: 2
+      cpp_type: int16_t
+      cpp_expr: (int16_t)(mpu6050Ay * 100.0)
+      signed: true
+      scale: 100.0
+      ha_unit: "m/s²"
+      ha_state_class: measurement
+      ha_icon: mdi:axis-arrow
+    - name: mpu6050_accel_z
+      bytes: 2
+      cpp_type: int16_t
+      cpp_expr: (int16_t)(mpu6050Az * 100.0)
+      signed: true
+      scale: 100.0
+      ha_unit: "m/s²"
+      ha_state_class: measurement
+      ha_icon: mdi:axis-arrow

@@ -118,3 +118,22 @@ kicad:
   value: ADC sense
 tasmota:
   pins: {IN: ADC_Input}
+
+lorawan:
+  globals: |
+    uint16_t adcMv = 0;
+  loop: |
+    {%- set scale = namespace(k=1) %}
+    {%- for f in params.filters | default([]) if f is mapping and f.multiply is defined %}
+    {%- set scale.k = scale.k * f.multiply %}
+    {%- endfor %}
+    adcMv = (uint16_t)(analogReadMilliVolts({{ pins.IN }}){% if scale.k != 1 %} * {{ scale.k }}{% endif %});
+  fields:
+    - name: adc_mv
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: adcMv
+      ha_device_class: voltage
+      ha_unit: V
+      ha_state_class: measurement
+      ha_divide: 1000

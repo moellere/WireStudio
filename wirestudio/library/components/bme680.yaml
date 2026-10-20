@@ -84,3 +84,55 @@ kicad:
   symbol: Conn_01x06
   footprint: Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical
   value: BME680
+
+lorawan:
+  lib_deps: ["adafruit/Adafruit BME680 Library@^2.0.4"]
+  requires: [i2c]
+  globals: |
+    #include <Adafruit_BME680.h>
+    Adafruit_BME680 bme680(&Wire);
+    bool bme680Ok = false;
+    float bme680TempC = 0, bme680Hum = 0, bme680HPa = 0, bme680GasKOhm = 0;
+  setup: |
+    bme680Ok = bme680.begin({{ params.address | default('0x76') }});
+    if (bme680Ok) bme680.setGasHeater(320, 150);
+  loop: |
+    if (bme680Ok && bme680.performReading()) {
+      bme680TempC = bme680.temperature;
+      bme680Hum = bme680.humidity;
+      bme680HPa = bme680.pressure / 100.0F;
+      bme680GasKOhm = bme680.gas_resistance / 1000.0F;
+    }
+  fields:
+    - name: bme680_temp_c
+      bytes: 2
+      cpp_type: int16_t
+      cpp_expr: (int16_t)(bme680TempC * 100.0)
+      signed: true
+      scale: 100.0
+      ha_device_class: temperature
+      ha_unit: "°C"
+      ha_state_class: measurement
+    - name: bme680_humidity
+      bytes: 1
+      cpp_type: uint8_t
+      cpp_expr: (uint8_t)(bme680Hum + 0.5)
+      ha_device_class: humidity
+      ha_unit: "%"
+      ha_state_class: measurement
+    - name: bme680_pressure
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: (uint16_t)(bme680HPa * 10.0)
+      scale: 10.0
+      ha_device_class: atmospheric_pressure
+      ha_unit: hPa
+      ha_state_class: measurement
+    - name: bme680_gas_kohm
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: (uint16_t)(min(bme680GasKOhm, 6553.5f) * 10.0)
+      scale: 10.0
+      ha_unit: "kΩ"
+      ha_icon: mdi:air-filter
+      ha_state_class: measurement

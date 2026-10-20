@@ -104,3 +104,37 @@ wled:
   lib_deps: ["robtillaart/SHT85@~0.3.3"]
   um_name: SHT-Sensor
   um: {Enabled: true, SHT-Type: 0, Unit: 0}
+
+lorawan:
+  lib_deps: ["adafruit/Adafruit SHT31 Library@^2.2.2"]
+  requires: [i2c]
+  globals: |
+    #include <Adafruit_SHT31.h>
+    Adafruit_SHT31 sht3x(&Wire);
+    bool sht3xOk = false;
+    float sht3xTempC = 0, sht3xHum = 0;
+  setup: |
+    sht3xOk = sht3x.begin({{ params.address | default('0x44') }});
+  loop: |
+    if (sht3xOk) {
+      float _t = sht3x.readTemperature(), _h = sht3x.readHumidity();
+      if (!isnan(_t)) sht3xTempC = _t;
+      if (!isnan(_h)) sht3xHum = _h;
+    }
+  fields:
+    - name: sht3x_temp_c
+      bytes: 2
+      cpp_type: int16_t
+      cpp_expr: (int16_t)(sht3xTempC * 100.0)
+      signed: true
+      scale: 100.0
+      ha_device_class: temperature
+      ha_unit: "°C"
+      ha_state_class: measurement
+    - name: sht3x_humidity
+      bytes: 1
+      cpp_type: uint8_t
+      cpp_expr: (uint8_t)(sht3xHum + 0.5)
+      ha_device_class: humidity
+      ha_unit: "%"
+      ha_state_class: measurement

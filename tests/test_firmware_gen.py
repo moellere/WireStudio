@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from wirestudio.library import default_library
@@ -20,6 +22,18 @@ def _design(board_id: str, **lorawan) -> Design:
         power={"supply": "usb", "rail_voltage_v": 3.3},
         **kw,
     )
+
+
+def _design_with(*library_ids: str) -> Design:
+    return Design.model_validate({
+        "schema_version": "0.3", "id": "dev1", "name": "Dev 1", "target": "lorawan", "lorawan": {},
+        "board": {"library_id": "ttgo-lora32-v2", "mcu": "esp32"},
+        "power": {"supply": "usb", "rail_voltage_v": 3.3},
+        "components": [{"id": cid, "library_id": cid, "label": cid, "params": {}} for cid in library_ids],
+        "buses": [{"id": "i2c0", "type": "i2c", "sda": "GPIO21", "scl": "GPIO22"}],
+        "connections": [{"component_id": cid, "pin_role": role, "target": {"kind": "bus", "bus_id": "i2c0"}}
+                        for cid in library_ids for role in ("SDA", "SCL")],
+    })
 
 
 @pytest.fixture
@@ -201,3 +215,33 @@ def test_no_override_uses_board_file_flash_size(lib):
     ini = generate_firmware(_design("heltec-wifi-lora32-v3"), lib)["platformio.ini"]
     assert "board_build.flash_size = 8MB" in ini
     assert "board_build.partitions = default_8MB.csv" in ini
+
+
+def test_ci_component_designs_carry_every_lorawan_block(lib):
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "build_lorawan_firmware", Path(__file__).resolve().parent.parent / "scripts" / "build_lorawan_firmware.py")
+    script = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(script)
+    designs = script.component_designs(lib)
+    built = {c.library_id for d in designs for c in d.components}
+    board_built = {"axp192", "battery_adc"}  # reported by the boards themselves
+    assert built | board_built == {c.id for c in lib.list_components() if c.lorawan is not None}
+    for design in designs:
+        main = generate_firmware(design, lib)["src/main.cpp"]
+        for comp in design.components:
+            for field in lib.component(comp.library_id).lorawan.fields:
+                assert field.cpp_expr in main
+
+
+def test_i2c_sensor_blocks_bring_up_wire_and_report_scaled_fields(lib):
+    from wirestudio.targets.lorawan.codec import fields_for
+
+    design = _design_with("bme280", "sht4x")
+    names = [f["name"] for f in fields_for(design, lib)]
+    assert {"bme280_temp_c", "bme280_humidity", "bme280_pressure", "sht4x_temp_c"} <= set(names)
+    main = generate_firmware(design, lib)["src/main.cpp"]
+    assert "Wire.begin(" in main
+    assert "bme280Ok = bme280.begin(0x76, &Wire);" in main
+    assert "(int16_t)(bme280TempC * 100.0)" in main

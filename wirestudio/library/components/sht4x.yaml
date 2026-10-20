@@ -77,3 +77,39 @@ kicad:
   symbol: Conn_01x04
   footprint: Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical
   value: SHT4x
+
+lorawan:
+  lib_deps: ["adafruit/Adafruit SHT4x Library@^1.0.5"]
+  requires: [i2c]
+  globals: |
+    #include <Adafruit_SHT4x.h>
+    Adafruit_SHT4x sht4x;
+    bool sht4xOk = false;
+    float sht4xTempC = 0, sht4xHum = 0;
+  setup: |
+    sht4xOk = sht4x.begin(&Wire);
+  loop: |
+    if (sht4xOk) {
+      sensors_event_t _h, _t;
+      if (sht4x.getEvent(&_h, &_t)) {
+        sht4xTempC = _t.temperature;
+        sht4xHum = _h.relative_humidity;
+      }
+    }
+  fields:
+    - name: sht4x_temp_c
+      bytes: 2
+      cpp_type: int16_t
+      cpp_expr: (int16_t)(sht4xTempC * 100.0)
+      signed: true
+      scale: 100.0
+      ha_device_class: temperature
+      ha_unit: "°C"
+      ha_state_class: measurement
+    - name: sht4x_humidity
+      bytes: 1
+      cpp_type: uint8_t
+      cpp_expr: (uint8_t)(sht4xHum + 0.5)
+      ha_device_class: humidity
+      ha_unit: "%"
+      ha_state_class: measurement

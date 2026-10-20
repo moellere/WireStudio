@@ -109,3 +109,18 @@ subcircuit:
 # The divider ratio has no template field; scale with AdcParam.
 tasmota:
   pins: {IN: ADC_Input}
+
+lorawan:
+  globals: |
+    uint16_t voltageDividerMv = 0;
+  loop: |
+    voltageDividerMv = (uint16_t)(analogReadMilliVolts({{ pins.IN }}) * {{ ((params.r_top | default(100000)) + (params.r_bottom | default(27000))) / (params.r_bottom | default(27000)) }});
+  fields:
+    - name: voltage_divider_mv
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: voltageDividerMv
+      ha_device_class: voltage
+      ha_unit: V
+      ha_state_class: measurement
+      ha_divide: 1000
