@@ -85,3 +85,5 @@ subcircuit:
     ref_prefix: D
     kicad: {symbol_lib: Device, symbol: LED, footprint: "LED_THT:LED_D5.0mm", value: LED}
     pins: {A: led_a, K: GND}
+tasmota:
+  pins: {IN: Led}

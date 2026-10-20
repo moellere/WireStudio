@@ -56,20 +56,11 @@ tasmota:
   hbridge: "deferred: needs a two-relay or two-PWM template rule; Tasmota has no H-bridge function"
   hbridge_mosfet: "deferred: needs the same template rule as hbridge"
   uln2003: "no driver upstream: Tasmota drives steppers through the A4988 driver only"
-  # audio
-  i2s_microphone: "deferred: needs the I2S function ids from the Tasmota32 audio build"
-  # audio_dac
-  max98357a: "deferred: needs the I2S function ids from the Tasmota32 audio build"
   # binary_sensor
-  hc-sr501: "deferred: maps to the Switch function; the template rule is not written"
   ld2420: "no driver upstream: Tasmota has an LD2410 driver, not an LD2420 one"
-  rcwl-0516: "deferred: maps to the Switch function; the template rule is not written"
   # bus
   level_shifter: "no meaning on this framework: passive hardware, no code on any framework"
-  modbus: "deferred: needs the Modbus Bridge function ids"
-  tuya: "deferred: needs the TuyaMCU function ids plus a dpId rule"
-  # camera
-  esp32_camera: "deferred: needs the webcam function ids from the Tasmota32-webcam build"
+  modbus: "no meaning on this framework: Tasmota's meter drivers own their serial pins, so the hub's UART is mapped through the meter on it"
   # connector
   connector_1x02: "no meaning on this framework: passive hardware, no code on any framework"
   connector_1x03: "no meaning on this framework: passive hardware, no code on any framework"
@@ -80,46 +71,24 @@ tasmota:
   connector_1x08: "no meaning on this framework: passive hardware, no code on any framework"
   connector_2x05_idc: "no meaning on this framework: passive hardware, no code on any framework"
   # display
-  ili9xxx: "deferred: needs the Universal Display function ids from the display build"
-  max7219: "deferred: needs the MAX7219 function ids from the display build"
-  nextion: "deferred: needs the Nextion function ids from the display build"
-  st7789: "deferred: needs the Universal Display function ids from the display build"
-  tm1638: "deferred: needs the TM1638 function ids"
-  # fan
-  pwm_fan: "deferred: needs a PWM plus Counter template rule"
-  # io_expander
-  mcp23s17: "deferred: needs the MCP23S17 SPI function ids"
+  ili9xxx: "deferred: Universal Display needs a display.ini descriptor beside the template; the CS and DC functions alone do not start it"
+  nextion: "no driver upstream: Tasmota drives a Nextion from a Berry script; no template function names it"
+  st7789: "deferred: Universal Display needs a display.ini descriptor beside the template; the CS and DC functions alone do not start it"
   # light
   apa102: "no driver upstream: Tasmota's addressable-LED driver is WS281x only"
-  led_indicator: "deferred: maps to the Led function; the template rule is not written"
   # power
-  battery_adc: "deferred: maps to ADC Input; the template has no field for the board's divider ratio"
+  battery_adc: "no meaning on this framework: the LoRaWAN target synthesizes it; elsewhere the board's divider is seeded as an adc part, which maps to ADC Input"
   usb_c_power_in: "no meaning on this framework: passive hardware, no code on any framework"
   # radio
-  cc1101: "no driver upstream: Tasmota has no CC1101 driver"
-  rf_bridge: "deferred: needs the RF Bridge function ids (RFSend / RFRecv)"
-  sx127x: "no driver upstream: Tasmota has no LoRa driver"
-  # rfid_reader
-  rc522: "deferred: needs the RC522 SPI function ids from the RFID build"
-  rdm6300: "deferred: needs the RDM6300 function id"
+  rf_bridge: "deferred: the EFM8 bridge is Tasmota's Sonoff Bridge module (BASE 25), not a GPIO function; needs the template's BASE set from the design"
   # sensor
   ads1115_channel: "no meaning on this framework: the hub is the template entry; a channel has no GPIO"
   bl0906: "deferred: needs the BL09xx energy-meter function ids"
-  max31855: "deferred: needs the MAX31855 function ids"
   mcp3008: "no driver upstream: Tasmota has no MCP3008 driver"
   mcp3008_channel: "no meaning on this framework: the hub is the template entry; a channel has no GPIO"
-  potentiometer: "deferred: maps to ADC Input; the template rule is not written"
-  pzemac: "deferred: needs the PZEM-0XX function ids"
-  sdm_meter: "deferred: needs the SDM energy-meter function ids"
-  tuya_sensor: "deferred: needs the TuyaMCU function ids plus a dpId rule"
-  uart_gps: "deferred: needs the GPS function ids from the GPS build"
-  voltage_divider: "deferred: maps to ADC Input; the template has no field for the divider ratio"
+  tuya_sensor: "no meaning on this framework: TuyaMCU datapoints are mapped by the TuyaMCU console command at runtime, which a template cannot carry"
   # switch
-  mosfet_low_side_driver: "deferred: maps to the Relay function; the template rule is not written"
-  npn_low_side_driver: "deferred: maps to the Relay function; the template rule is not written"
-  tuya_switch: "deferred: needs the TuyaMCU function ids plus a dpId rule"
-  # touchscreen
-  xpt2046: "deferred: needs the Universal Display touch function ids from the display build"
+  tuya_switch: "no meaning on this framework: TuyaMCU datapoints are mapped by the TuyaMCU console command at runtime, which a template cannot carry"
 
 wled:
   # actuator

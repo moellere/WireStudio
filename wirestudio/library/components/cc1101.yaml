@@ -76,3 +76,6 @@ kicad:
   symbol: Conn_01x08
   footprint: Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical
   value: CC1101
+tasmota:
+  pins: {CS: CC1101_CS, GDO0: CC1101_GDO0, GDO2: CC1101_GDO2}
+  bus: {clk: SPI_CLK, mosi: SPI_MOSI, miso: SPI_MISO}

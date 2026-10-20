@@ -90,3 +90,6 @@ kicad:
     VCC: VDD
     SD: ~{SD_MODE}
     GAIN: GAIN_SLOT
+tasmota:
+  pins: {DIN: I2S_DOUT}
+  bus: {lrclk: I2S_WS, bclk: I2S_BCLK}

@@ -223,3 +223,6 @@ kicad:
   symbol: Conn_01x01
   footprint: Connector_PinHeader_2.54mm:PinHeader_1x01_P2.54mm_Vertical
   value: Tuya MCU
+# Datapoints are mapped with the TuyaMCU console command at runtime.
+tasmota:
+  bus: {tx: TuyaMCU_TX, rx: TuyaMCU_RX}

@@ -10,7 +10,10 @@ Function values come from tasmota_template.h's UserSelectablePins enum:
 JSON value = enum_index << 5, plus the 0-based unit for numbered
 families (Relay2 = 224 + 1). Verified against arendst/Tasmota master
 and the blakadder template database (Relay1=224, Button1=32,
-Switch1=160, I2C SDA=640/SCL=608).
+Switch1=160, I2C SDA=640/SCL=608). FUNC holds the ESP32 build's
+values; the enum wraps some entries in `#ifdef ESP32`, so an ESP8266
+build numbers every later function lower by the ESP32-only entries
+before it (`func_value`).
 
 I2C sensors need no per-component mapping -- Tasmota autodetects them
 once the bus pins carry I2C_SDA/I2C_SCL, so only the bus contributes.
@@ -78,7 +81,65 @@ FUNC = {
     "Shift595_SER": 8384,
     "LD2410_TX": 9888,
     "LD2410_RX": 9920,
+    "SPI_MISO": 672,
+    "SPI_MOSI": 704,
+    "SPI_CLK": 736,
+    "PZEM0XX_TX": 1472,
+    "PZEM016_RX": 1536,
+    "SDM120_TX": 1920,
+    "SDM120_RX": 1952,
+    "SDM630_TX": 1984,
+    "SDM630_RX": 2016,
+    "TuyaMCU_TX": 2272,
+    "TuyaMCU_RX": 2304,
+    "MAX31855_CS": 2496,
+    "MAX31855_CLK": 2528,
+    "MAX31855_DO": 2560,
+    "RDM6300_RX": 3616,
+    "GPS_RX": 4352,
+    "GPS_TX": 4384,
+    "WEBCAM_PWDN": 4928,
+    "WEBCAM_RESET": 4960,
+    "WEBCAM_XCLK": 4992,
+    "WEBCAM_SIOD": 5024,
+    "WEBCAM_SIOC": 5056,
+    **{f"WEBCAM_DATA{k + 1}": 5088 + k for k in range(8)},
+    "WEBCAM_VSYNC": 5120,
+    "WEBCAM_HREF": 5152,
+    "WEBCAM_PCLK": 5184,
+    "RC522_RST": 6112,
+    "RC522_CS": 6272,
+    "XPT2046_CS": 7264,
+    "I2S_DOUT": 7776,
+    "I2S_BCLK": 7808,
+    "I2S_WS": 7840,
+    "I2S_DIN": 7872,
+    "MCP23SXX_CS": 10272,
+    "CC1101_GDO0": 4544,
+    "CC1101_GDO2": 4576,
+    "CC1101_CS": 12544,
+    "LORA_CS": 10656,
+    "LORA_RST": 10688,
+    "LORA_DI0": 10752,
 }
+
+# Enum index ranges (ESP32 numbering) inside tasmota_template.h's
+# `#ifdef ESP32` blocks: webcam, Ethernet, hall sensor and EPD, the
+# pull-down keys, hosted SDIO, Mitsubishi HVAC Modbus.
+_ESP32_ONLY = ((154, 166), (173, 176), (237, 239), (240, 243), (373, 380), (389, 392))
+
+
+def func_value(name: str, chip: str) -> Optional[int]:
+    """The template value of function `name` on `chip`; None when the
+    chip's build has no such function."""
+    value = FUNC[name]
+    if not chip.startswith("esp82"):
+        return value
+    index = value >> 5
+    if any(lo <= index < hi for lo, hi in _ESP32_ONLY):
+        return None
+    index -= sum(hi - lo for lo, hi in _ESP32_ONLY if hi <= index)
+    return index << 5 | value & 31
 
 # Families where repeated use numbers the unit (Relay1, Relay2, ...).
 _UNIT_MAX = {"Button": 4, "Switch": 8, "Relay": 8, "Led": 4, "Counter": 4, "PWM": 5}
@@ -180,7 +241,10 @@ def build_template(design: Design, library: Library) -> tuple[dict, list[str]]:
         if num is None or num not in slots:
             warnings.append(f"{owner}: pin {pin} is not templatable on {board.chip_variant}")
             return
-        base = FUNC[func_name]
+        base = func_value(func_name, board.chip_variant)
+        if base is None:
+            warnings.append(f"{owner}: {func_name} exists only on ESP32 builds; not in template")
+            return
         cap = _UNIT_MAX.get(func_name)
         if cap is not None:
             unit = unit_used.get(func_name, 0)
@@ -190,7 +254,8 @@ def build_template(design: Design, library: Library) -> tuple[dict, list[str]]:
             unit_used[func_name] = unit + 1
             base += unit
         if num in assignments:
-            warnings.append(f"{owner}: pin {pin} already assigned; skipped")
+            if assignments[num] != base:
+                warnings.append(f"{owner}: pin {pin} already assigned; skipped")
             return
         assignments[num] = base
 
@@ -228,19 +293,25 @@ def build_template(design: Design, library: Library) -> tuple[dict, list[str]]:
                         f"{comp.id}.{conn.pin_role}: only direct GPIO wiring is "
                         f"templatable (target is {t.kind})"
                     )
-            elif spec.bus and t.kind == "bus":
-                # A component with several connections to the same bus (TX
-                # and RX roles) maps the bus pins once, not per connection.
-                if (comp.id, t.bus_id) in bus_mapped:
-                    continue
-                bus = buses.get(t.bus_id or "")
-                if bus is None:
-                    continue
-                bus_mapped.add((comp.id, t.bus_id))
-                for bus_role, bus_func in spec.bus.items():
-                    pin = getattr(bus, bus_role, None)
-                    if pin:
-                        assign(pin, bus_func, comp.id)
+            elif spec.bus and t.kind in ("bus", "component"):
+                # A part on a hub (a meter on a Modbus hub) takes its pins
+                # from the hub's bus.
+                bus_ids = [t.bus_id] if t.kind == "bus" else [
+                    c.target.bus_id for c in design.connections
+                    if c.component_id == t.component_id and c.target.kind == "bus"]
+                for bus_id in bus_ids:
+                    # Several connections to one bus (TX and RX roles) map
+                    # its pins once, not per connection.
+                    bus = buses.get(bus_id or "")
+                    if bus is None or (comp.id, bus_id) in bus_mapped:
+                        continue
+                    bus_mapped.add((comp.id, bus_id))
+                    for bus_role, bus_func in spec.bus.items():
+                        if lib_comp.id == "sdm_meter" and (comp.params or {}).get("three_phase"):
+                            bus_func = bus_func.replace("SDM120", "SDM630")
+                        pin = getattr(bus, bus_role, None)
+                        if pin:
+                            assign(pin, bus_func, comp.id)
 
     gpio = [assignments.get(phys, 0) for phys in slots]
     template = {

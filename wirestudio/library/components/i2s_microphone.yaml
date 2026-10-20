@@ -94,3 +94,6 @@ kicad:
   symbol: Conn_01x03
   footprint: Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical
   value: I2S microphone
+# A PDM mic's clock goes on I2S_WS, as Tasmota's audio driver reads it.
+tasmota:
+  pins: {WS: I2S_WS, BCLK: I2S_BCLK, DIN: I2S_DIN}

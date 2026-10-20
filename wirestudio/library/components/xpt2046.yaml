@@ -165,3 +165,6 @@ kicad:
   symbol: Conn_01x07
   footprint: Connector_PinHeader_2.54mm:PinHeader_1x07_P2.54mm_Vertical
   value: XPT2046
+tasmota:
+  pins: {CS: XPT2046_CS}
+  bus: {clk: SPI_CLK, mosi: SPI_MOSI, miso: SPI_MISO}

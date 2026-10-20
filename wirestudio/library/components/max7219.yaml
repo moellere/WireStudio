@@ -86,3 +86,6 @@ kicad:
   symbol: Conn_01x05
   footprint: Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical
   value: MAX7219
+tasmota:
+  pins: {CS: MAX7219_CS}
+  bus: {clk: MAX7219_CLK, mosi: MAX7219_DIN}
