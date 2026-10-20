@@ -73,7 +73,7 @@ The middle tier today, and what moves each row.
 | ESPHome dashboard compile | **promoted.** The nightly `dashboard` job runs a real `esphome dashboard`, open and password-protected, and pushes, compiles and fetches through the studio's client with the wire assumptions asserted | |
 | MCP server | **promoted.** `tests/test_mcp_client.py` drives the mounted server with the `mcp` package's client, every PR; the suite itself now runs in CI (`tests.yml`), which no row could claim before | |
 | Thingiverse relay | nothing; third-party ranking | stays *Experimental* |
-| Agent | the eval harness (section 5), **in**; the first nightly run sets `gate.min_pass`, and the row is promoted once the gate has held it | stays *Experimental* |
+| Agent | **promoted.** The eval harness (section 5) scores the reference solutions every PR and the model nightly; the first scored nightly run sets `gate.min_pass` | |
 
 ### The nightly flash stage (workbench phase 3)
 
@@ -230,10 +230,10 @@ Section 4 covers the rest.
   within budget. The `agent-eval` workflow replays the reference
   solutions through the same scorer on every PR that touches the
   agent, and runs the model nightly and on dispatch with the score in
-  the job summary; `gate.min_pass` holds the pass count. What remains:
-  the first nightly run against the default model records the score,
-  `min_pass` is set to it, and the README row is promoted once the gate
-  has held. A model swap is then a dispatched run and a diff of two
+  the job summary; `gate.min_pass` holds the pass count. The README
+  row is promoted. What remains: the nightly model run needs the
+  `ANTHROPIC_API_KEY` repository secret, and its first score becomes
+  `min_pass`. A model swap is then a dispatched run and a diff of two
   summaries.
 - **MCP conformance in CI.** The `mcp` client library against the
   mounted server: connect with the token, list tools and resources,
@@ -333,7 +333,8 @@ The dependency order, not a calendar:
 2. 0.42 migrator, then the schema audit.
 3. Per-framework coverage baselines and the MCP conformance test, both
    pure CI, in parallel with 1 and 2.
-4. Agent eval harness (in; the first nightly run sets its gate).
+4. Agent eval harness (in, row promoted; the first scored nightly run
+   sets its gate).
 5. The flash stage of the hardware gate, as soon as the spare board is
    on the bench; the promote/demote pass follows its first green week.
 6. Physical outputs and the hygiene list, in any order.
