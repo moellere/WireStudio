@@ -41,7 +41,7 @@ _BUS_PINS = {
     "spi": {"clk": "GPIO18", "mosi": "GPIO23", "miso": "GPIO19"},
     "uart": {"tx": "GPIO17", "rx": "GPIO16", "baud_rate": 9600},
     "1wire": {"pin": "GPIO4"},
-    "i2s": {},
+    "i2s": {"lrclk": "GPIO25", "bclk": "GPIO26"},
 }
 _CHECK_BOARD = "esp32-devkitc-v4"
 
@@ -260,7 +260,8 @@ def synthetic_design(comp: LibraryComponent, library: Library, *, on_buses: bool
     connections = []
     buses: dict[str, dict] = {}
     for pin in comp.electrical.pins:
-        if pin.kind in _SIGNAL_KINDS or (pin.kind in _BUS_KINDS and not on_buses):
+        # The i2s bus carries the clocks only; each part's data line is its own GPIO.
+        if pin.kind in _SIGNAL_KINDS or (pin.kind in _BUS_KINDS and not on_buses) or pin.kind in ("i2s_dout", "i2s_din"):
             target = {"kind": "gpio", "pin": next(gpios)}
         elif pin.kind in _BUS_KINDS:
             bus_type = _BUS_KINDS[pin.kind]

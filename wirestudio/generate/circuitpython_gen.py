@@ -35,6 +35,7 @@ def _unsupported(reason: str) -> None:
 _jinja.globals["unsupported"] = _unsupported
 
 _BUS_VAR_PREFIX = {"i2c": "i2c", "spi": "spi", "uart": "uart", "1wire": "ow"}
+_I2S_CLOCKS = {"LRCLK": "lrclk", "WS": "lrclk", "BCLK": "bclk"}
 
 
 def _pin_num(pin: object) -> int | None:
@@ -66,6 +67,8 @@ def generate_code(design: Design, library: Library) -> dict:
     bus_setup: dict[str, str] = {}
     used_bus_ids: set[str] = set()
     for bus in design.buses:
+        if bus.type == "i2s":
+            continue  # no bus object: each I2S part opens the peripheral on the bus's clock pins
         prefix = _BUS_VAR_PREFIX.get(bus.type)
         if prefix is None:
             warnings.append(f"bus {bus.id}: no CircuitPython mapping for type '{bus.type}'")
@@ -133,6 +136,17 @@ def generate_code(design: Design, library: Library) -> dict:
                 else:
                     pins[conn.pin_role] = num
             elif t.kind == "bus":
+                i2s = next((b for b in design.buses if b.id == t.bus_id and b.type == "i2s"), None)
+                if i2s is not None:
+                    field = _I2S_CLOCKS.get(conn.pin_role)
+                    num = _pin_num(getattr(i2s, field)) if field else None
+                    if num is not None:
+                        pins[conn.pin_role] = num
+                    elif field:
+                        skip = f"{comp.id}.{conn.pin_role}: i2s bus {i2s.id} has no {field} pin; run Solve Pins"
+                    else:
+                        skip = f"{comp.id}.{conn.pin_role}: an i2s bus carries only the clocks; wire it to a GPIO"
+                    continue
                 bus_var = bus_vars.get(t.bus_id or "")
                 if bus_var and t.bus_id:
                     comp_bus_ids.add(t.bus_id)

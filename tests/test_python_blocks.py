@@ -6,8 +6,10 @@ a fragment uses but never imports or defines."""
 from __future__ import annotations
 
 import ast
+import json
 import sys
 import types
+from pathlib import Path
 
 import pytest
 
@@ -17,11 +19,12 @@ from wirestudio.library import default_library
 from wirestudio.library.check import synthetic_design
 
 LIB = default_library()
+EXAMPLES = Path(__file__).resolve().parent.parent / "wirestudio" / "examples"
 GENERATORS = {"circuitpython": circuitpython_gen.generate_code,
               "micropython": micropython_gen.generate_code}
 CASES = [(fw, c.id) for fw in GENERATORS for c in sorted(LIB.list_components(), key=lambda c: c.id)
          if getattr(c, fw) is not None]
-PARAMS = {"sx127x": {"frequency": 868000000}}
+PARAMS = {"sx127x": {"frequency": 868000000}, ("circuitpython", "i2s_microphone"): {"pdm": True}}
 # Values a stub cannot stand in for: a tuple `%` unpacks, a UART's bytes.
 _NO_BYTES = {"read": lambda *a: b""}
 # An I2C bus that locks and answers every read with nonzero bytes.
@@ -34,6 +37,8 @@ ATTRS = {
     ("circuitpython", "lcd_pcf8574"): _I2C,
     ("circuitpython", "xpt2046"): {"try_lock": lambda: True},
     ("circuitpython", "rc522"): {"try_lock": lambda: True},
+    ("circuitpython", "esp32_camera"): {"take": lambda timeout: b"\xff\xd8"},
+    ("micropython", "i2s_microphone"): {"readinto": lambda buf: len(buf)},
     ("circuitpython", "sht4x"): {"measurements": (21.5, 40.0)},
     ("micropython", "sht4x"): {"measurements": (21.5, 40.0)},
     ("micropython", "sht3xd"): {"get_temp_humi": lambda: (21.5, 40.0)},
@@ -126,7 +131,7 @@ def _fake_time() -> types.ModuleType:
 @pytest.mark.parametrize("framework, cid", CASES)
 def test_block_runs_one_loop_pass(framework, cid, monkeypatch):
     design = synthetic_design(LIB.component(cid), LIB, on_buses=True)
-    design.components[0].params.update(PARAMS.get(cid, {}))
+    design.components[0].params.update(PARAMS.get((framework, cid), PARAMS.get(cid, {})))
     out = GENERATORS[framework](design, LIB)
     assert out["warnings"] == [], out["warnings"]
     code = out["code"]
@@ -205,3 +210,66 @@ def test_adc_applies_the_multiply_filters(framework):
     design.components[0].params["filters"] = [{"multiply": 2.0}, {"offset": 0.1}, {"multiply": 1.5}]
     scaled = GENERATORS[framework](design, LIB)["code"]
     assert " * 3.0))" in scaled and " * 3.0))" not in plain
+
+
+def _example(name: str):
+    from wirestudio.model import Design
+    return Design.model_validate(json.loads((EXAMPLES / f"{name}.json").read_text()))
+
+
+def test_i2s_parts_take_their_clocks_from_the_bus():
+    design = _example("esp32-audio")  # i2s0: LRCLK GPIO33, BCLK GPIO25; the amp's DIN on GPIO32
+    cp = circuitpython_gen.generate_code(design, LIB)
+    mp = micropython_gen.generate_code(design, LIB)
+    assert cp["warnings"] == [] and mp["warnings"] == []
+    assert "amp = audiobusio.I2SOut(P(25), P(33), P(32))" in cp["code"]
+    assert "amp = I2S(0, sck=Pin(25), ws=Pin(33), sd=Pin(32), mode=I2S.TX," in mp["code"]
+    design.buses[[b.type for b in design.buses].index("i2s")].lrclk = None
+    assert "amp.LRCLK: i2s bus i2s0 has no lrclk pin; run Solve Pins; skipped" in \
+        micropython_gen.generate_code(design, LIB)["warnings"]
+
+
+@pytest.mark.parametrize("framework", list(GENERATORS))
+def test_microphone_variant_each_framework_cannot_read_is_refused(framework):
+    design = synthetic_design(LIB.component("i2s_microphone"), LIB, on_buses=True)
+    readable = {"circuitpython": True, "micropython": False}[framework]  # PDM on one, I2S on the other
+    for pdm in (True, False):
+        design.components[0].params["pdm"] = pdm
+        warnings = GENERATORS[framework](design, LIB)["warnings"]
+        assert (warnings == []) is (pdm is readable), warnings
+
+
+def test_micropython_microphone_reads_24_bit_samples_from_32_bit_slots(monkeypatch):
+    design = synthetic_design(LIB.component("i2s_microphone"), LIB, on_buses=True)
+    code = micropython_gen.generate_code(design, LIB)["code"].split("\nwhile True:")[0]
+    monkeypatch.setitem(sys.modules, "machine", StubModule("machine"))
+    scope: dict = {"__name__": "__main__"}
+    exec(compile(code, "main.py", "exec"), scope)
+    raw = bytes([0x00, 0x10, 0x00, 0x00, 0x00, 0xF0, 0xFF, 0xFF, 0xAA])  # +16, -16, a torn slot
+    assert scope["dut_samples"](raw, len(raw)) == [16, -16]
+    assert scope["dut_level"]([16, -16]) == 16.0
+
+
+@pytest.mark.parametrize("framework", list(GENERATORS))
+def test_amplifier_plays_a_444_hz_tone(framework, monkeypatch):
+    design = synthetic_design(LIB.component("max98357a"), LIB, on_buses=True)
+    code = GENERATORS[framework](design, LIB)["code"].split("\nwhile True:")[0]
+    for name in ("board", "digitalio", "audiobusio", "audiocore", "machine", "array"):
+        monkeypatch.setitem(sys.modules, name, StubModule(name))
+    monkeypatch.setitem(sys.modules, "time", _fake_time())
+    scope: dict = {"__name__": "__main__"}
+    exec(compile(code, "main.py", "exec"), scope)
+    tone = scope["dut_tone"]
+    assert len(tone) == 36 and 16000 / len(tone) == pytest.approx(444.4, abs=0.1)
+    assert max(tone) == 8000 and tone[0] == 0
+    if framework == "micropython":
+        assert scope["dut_wave"][2:4] == (tone[1] & 0xFFFF).to_bytes(2, "little")
+
+
+def test_camera_maps_resolution_and_clock():
+    design = _example("esp32cam")
+    design.components[0].params.update({"resolution": "1600x1200", "xclk_frequency": "10MHz", "vertical_flip": True})
+    code = circuitpython_gen.generate_code(design, LIB)["code"]
+    assert "frame_size=espcamera.FrameSize.UXGA," in code
+    assert "external_clock_frequency=10000000," in code
+    assert "cam.vflip = True" in code

@@ -73,6 +73,42 @@ esphome:
     esp32_camera_web_server: {{ params.web_server_ports | tojson }}
     {%- endif %}
 
+# espcamera, a core module on CircuitPython's ESP32 and ESP32-S3 builds
+# with PSRAM: the parallel DVP bus as ESPHome's esp32_camera wires it,
+# SCCB over its own pins or the design's I2C bus, JPEG frames at the
+# configured resolution. MicroPython's generic port image ships no
+# camera module.
+circuitpython:
+  imports: ["import busio", "import espcamera"]
+  setup: |
+    {%- set sizes = {"160x120": "QQVGA", "320x240": "QVGA", "640x480": "VGA", "800x600": "SVGA", "1024x768": "XGA", "1280x1024": "SXGA", "1600x1200": "UXGA"} %}
+    {{ id }} = espcamera.Camera(
+        data_pins=[P(n) for n in ({{ pins.D0 }}, {{ pins.D1 }}, {{ pins.D2 }}, {{ pins.D3 }}, {{ pins.D4 }}, {{ pins.D5 }}, {{ pins.D6 }}, {{ pins.D7 }})],
+        pixel_clock_pin=P({{ pins.PCLK }}),
+        vsync_pin=P({{ pins.VSYNC }}),
+        href_pin=P({{ pins.HREF }}),
+        i2c={% if pins.SCL is defined %}busio.I2C(P({{ pins.SCL }}), P({{ pins.SDA }})){% else %}{{ bus_var }}{% endif %},
+        external_clock_pin=P({{ pins.XCLK }}),
+        external_clock_frequency={{ (params.xclk_frequency | default('20MHz'))[:-3] | int * 1000000 }},
+    {%- if pins.PWDN is defined %}
+        powerdown_pin=P({{ pins.PWDN }}),
+    {%- endif %}
+    {%- if pins.RESET is defined %}
+        reset_pin=P({{ pins.RESET }}),
+    {%- endif %}
+        pixel_format=espcamera.PixelFormat.JPEG,
+        frame_size=espcamera.FrameSize.{{ sizes[params.resolution | default('800x600')] }},
+    )
+    {%- if params.vertical_flip is defined %}
+    {{ id }}.vflip = {{ params.vertical_flip | tojson | title }}
+    {%- endif %}
+    {%- if params.horizontal_mirror is defined %}
+    {{ id }}.hmirror = {{ params.horizontal_mirror | tojson | title }}
+    {%- endif %}
+  loop: |
+    {{ id }}_frame = {{ id }}.take(1)
+    print("{{ label }}: %s" % ("no frame" if {{ id }}_frame is None else "JPEG, %d bytes" % len({{ id }}_frame)))
+
 params_schema:
   xclk_frequency:
     type: string
