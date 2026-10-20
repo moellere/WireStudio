@@ -55,6 +55,9 @@ jobs:
         run: pip install -e .
 
       - name: Install KiCad 8
+        # The PPA can stall mid-install; fail the step rather than hold the
+        # runner for the six-hour job default.
+        timeout-minutes: 25
         run: |
           sudo add-apt-repository -y ppa:kicad/kicad-8.0-releases
           sudo apt-get update
