@@ -24,12 +24,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Enclosure lid.** The generated `.scad` now carries a lid laid out
-  beside the shell, printed plate-down: a lip that drops inside the
-  walls with a fit gap, and snap beads on its long sides that seat in
-  grooves cut near the top of the shell. The walls grow by the lip's
-  depth so it clears the tallest part. Lid thickness, lip depth and
-  wall, fit gap and bead size are tunables at the top of the file.
+- **Enclosures are YAPP_Box boxes, base and lid.** The generated
+  `.scad` inlines the pinned YAPP_Box generator (v3.3.8, MIT, vendored
+  under `wirestudio/enclosure/yapp/`) and drives it from the board's
+  `enclosure:` block: standoffs under the mount holes, a cutout for
+  every port on its wall, a ridge where base and lid meet and snap
+  joins on the long walls, the two halves laid out side by side. The
+  file still needs nothing beside it, so downloads and print-warden
+  render it as before. The studio's tunables stay at the top and feed
+  YAPP's parameters; `lid_t` and `ridge_h` join them, and print-warden
+  accepts both as overrides.
 
 - **Schematic layouts for the LED indicator, both low-side drivers, the
   level shifter, the voltage divider and USB-C power in.** Each is drawn

@@ -148,11 +148,10 @@ fuzzing.
 generator + Thingiverse search relay shipped. The
 [`enclosure-render`](../.github/workflows/enclosure-render.yml) gate
 renders every enclosure-capable board's `.scad` through real OpenSCAD
-and fails the PR unless it produces a non-empty, manifold solid. Open
-question: keep investing in the in-house generator, or outsource to
-e.g. [YAPP_Box](https://github.com/mrWheel/YAPP_Box) and integrate
-instead of reimplementing? Next: more boards' `enclosure:` metadata
-(only 5 carry it today); a lid + snap-fit; slicer-side print validation.
+and fails the PR unless it produces a non-empty, manifold solid. The
+generator drives [YAPP_Box](https://github.com/mrWheel/YAPP_Box)
+(pinned, inlined): base and lid, ridge, snap joins. Next: more boards'
+`enclosure:` metadata; a fit test printed through print-warden.
 
 **Priority 4 — PCB layout.** *Verified (routed).* Shipped in three
 steps: the footprint-coverage gate (every component + board names a

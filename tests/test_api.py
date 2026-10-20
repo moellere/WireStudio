@@ -209,10 +209,10 @@ def test_enclosure_openscad_returns_attachment(client):
     assert r.status_code == 200
     assert "filename=\"garage-motion-v1.scad\"" in r.headers.get("content-disposition", "")
     body = r.text
-    assert "module shell()" in body
-    assert "module standoffs()" in body
+    assert body.rstrip().endswith("YAPPgenerate();")
+    assert "pcbStands = [" in body
     assert "board_l = 54.4;" in body          # ESP32 DevKitC dimensions
-    assert "// usb_micro on short_a" in body
+    assert "// usb_micro" in body[body.index("cutoutsBack = ["):]
 
 
 def test_enclosure_openscad_invalid_design_returns_422(client):

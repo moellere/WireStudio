@@ -734,13 +734,13 @@ def _register_printwarden_tools(
     @mcp.tool(
         name="print_enclosure",
         description=(
-            "Generate the design's parametric enclosure shell and hand it to "
+            "Generate the design's parametric enclosure (base and lid) and hand it to "
             "print-warden, which renders the OpenSCAD, slices it for the "
             "printer, checks it and queues it. `where` is a warden printer "
             "name or a location (the warden routes to the printer there "
             "with the material loaded). `tunables` override the shell's "
-            "defaults in mm: wall, floor, clearance, standoff_h, standoff_d, "
-            "standoff_hole, port_clearance, component_h. Returns the warden "
+            "defaults in mm: wall, floor, lid_t, clearance, standoff_h, standoff_d, "
+            "standoff_hole, port_clearance, component_h, ridge_h. Returns the warden "
             "job (id, printer, estimate, preview_url, warnings, "
             "slice_blockers, queue). The job is offered to the operator's "
             "phone; this tool never starts a print -- poll it with "

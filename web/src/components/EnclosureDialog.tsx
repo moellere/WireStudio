@@ -1,11 +1,11 @@
 /**
  * Enclosure dialog (0.8). Three tabs:
  *
- *   Generate — downloads a parametric `.scad` shell built from the
- *              board's enclosure metadata. Same path as the prior
+ *   Generate — downloads a parametric `.scad` enclosure (YAPP_Box base
+ *              and lid) built from the board's enclosure metadata. Same path as the prior
  *              header-button download; just framed in a dialog so it
  *              shares the modal furniture with the search tab.
- *   Print    — hands the same shell to print-warden, which renders,
+ *   Print    — hands the same enclosure to print-warden, which renders,
  *              slices and queues it. The job is offered to the
  *              operator's phone; the studio never starts a print.
  *   Search   — relays to /enclosure/search and renders ranked
@@ -132,7 +132,8 @@ function GenerateTab({ design }: { design: Design }) {
         Downloads a self-contained <code className="text-ink">.scad</code> file
         with a tunables block at the top (wall thickness, clearance, standoff
         geometry). Open in OpenSCAD; press <kbd>F5</kbd> to preview, then export STL
-        for printing. Bottom shell only -- the lid is up to you, for now.
+        for printing. Built on YAPP_Box: base and lid side by side, with a ridge and
+        snap joins where they meet.
       </p>
       <Button variant="primary" onClick={handleGenerate} disabled={downloading}>
         {downloading ? "Generating…" : downloaded ? "Downloaded ✓ — generate again" : "Generate enclosure →"}
@@ -150,7 +151,7 @@ function GenerateTab({ design }: { design: Design }) {
 // Print tab
 // ---------------------------------------------------------------------------
 
-/** The shell's tunables a user is likely to touch. Defaults mirror the
+/** The enclosure's tunables a user is likely to touch. Defaults mirror the
  *  generated .scad header; only values that differ are sent, so an
  *  untouched form prints the file as generated. */
 const TUNABLE_FIELDS: { key: string; label: string; default: number; step: number }[] = [
@@ -310,7 +311,7 @@ function PrintTab({ design }: { design: Design }) {
   return (
     <div className="space-y-3">
       <p className="text-xs leading-relaxed text-ink-dim">
-        Sends the generated shell to print-warden {status.version ? `(${status.version}) ` : ""}
+        Sends the generated enclosure to print-warden {status.version ? `(${status.version}) ` : ""}
         which renders it, slices it for the printer and queues it. The print
         starts only from the warden&apos;s phone notification — nothing here starts it.
       </p>

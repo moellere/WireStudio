@@ -271,7 +271,7 @@ async def test_submit_enclosure_uploads_scad_then_stages_a_job():
         tunables={"wall": 2.4, "clearance": 0.8},
     )
     assert list(w.uploads) == ["garage-motion-v1-enclosure.scad"]
-    assert b"module shell()" in w.uploads["garage-motion-v1-enclosure.scad"]
+    assert w.uploads["garage-motion-v1-enclosure.scad"].rstrip().endswith(b"YAPPgenerate();")
     assert b"board_l = 54.4;" in w.uploads["garage-motion-v1-enclosure.scad"]
     name, args = w.calls[-1]
     assert name == "submit_job"
