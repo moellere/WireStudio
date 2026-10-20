@@ -111,8 +111,8 @@ Components each framework's generator can use today, out of 102
 |---|---|
 | esphome | 102 |
 | tasmota | 51 |
-| circuitpython | 75 |
-| micropython | 74 |
+| circuitpython | 77 |
+| micropython | 77 |
 | wled | 13 |
 | lorawan | 5 |
 
@@ -127,25 +127,27 @@ with no entry, a stale entry, or a reason outside those three.
 remains is to work the baselines down:
 
 - **CircuitPython and MicroPython** share the same fragment shape, and
-  both now cover every part with a driver: the Adafruit bundle or a
-  core module on CircuitPython, a `mip` driver or `machine` on
-  MicroPython (motors, steppers, displays, IR, LoRa, ADCs, load cells,
-  PM and GPS over UART, counters, plain outputs). MicroPython lacks
-  the PN532 (the maintained driver speaks SPI, the library part I2C)
-  and the MCP23S17 (no driver found). Parts with no permissively
-  licensed driver are datasheet code, run against a fake bus in
-  `tests/test_micropython_registers.py`; `tests/test_python_blocks.py`
-  runs every block of both frameworks for a loop pass against stub
-  modules. The UART parts with a documented frame (MH-Z19, CSE7766,
-  RDM6300, LD2410, LD2420, the RF bridge, Nextion touch events and
-  BL0906 register reads) decode it in shared datasheet code on both,
-  tested in `tests/test_uart_frames.py`; the register-level BMP180,
-  MPU6886 and AXP192 and the HLW8012's pulse rates likewise, tested in
-  `tests/test_register_code.py` (the BMP180 against the datasheet's
-  worked example); the bit-banged TM1637 and TM1638, the CT clamp's
-  RMS and MicroPython's Wiegand reader likewise, tested in
-  `tests/test_pin_protocols.py`. What remains is the battery ADC, the
-  community-driver parts and the audio and camera parts.
+  both now cover every part with a driver: the Adafruit bundle or a core
+  module on CircuitPython, a `mip` driver or `machine` on MicroPython
+  (motors, steppers, displays, IR, LoRa, ADCs, load cells, PM and GPS
+  over UART, counters, plain outputs). MicroPython lacks the PN532 (the
+  maintained driver speaks SPI, the library part I2C). Parts with no
+  permissively licensed driver are datasheet code, run against a fake
+  bus in `tests/test_micropython_registers.py`;
+  `tests/test_python_blocks.py` runs every block of both frameworks for
+  a loop pass against stub modules. The UART parts with a documented
+  frame (MH-Z19, CSE7766, RDM6300, LD2410, LD2420, the RF bridge,
+  Nextion touch events and BL0906 register reads) decode it in shared
+  datasheet code on both, tested in `tests/test_uart_frames.py`; the
+  register-level BMP180, MPU6886 and AXP192 and the HLW8012's pulse
+  rates likewise, tested in `tests/test_register_code.py` (the BMP180
+  against the datasheet's worked example), and the XPT2046, the PCF8574
+  character LCD and MicroPython's MCP23S17 likewise; the bit-banged
+  TM1637 and TM1638, the CT clamp's RMS and MicroPython's Wiegand reader
+  likewise, tested in `tests/test_pin_protocols.py`. Battery sense rides
+  the `adc` part the board's divider is seeded as, whose blocks apply
+  its `multiply` filters. What remains is the MFRC522, MicroPython's
+  PN532 and the audio and camera parts.
 - **Tasmota** covers what Tasmota's template format can express; the
   baseline will be long and honest.
 - **LoRaWAN** gains a block for every sensor the payload codec can
