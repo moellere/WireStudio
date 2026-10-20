@@ -6,8 +6,9 @@ geometry (`kicad-cli sch export netlist`), and the pin groups are compared
 with the ones the writer meant to draw: a wire that misses a pin, a label
 on the wrong net or a missing junction shows up here as a split or merged
 group. Named nets (rails, GPIO_*, BUS_*) must also keep their names.
-Pins a subcircuit layout left for the fallback stub are reported, since
-that is the layout being incomplete, not wrong.
+A pin a subcircuit layout left for the fallback stub, or a shared node it
+has no port for, fails too: the drawing still connects, but every
+subcircuit carries a layout and an incomplete one is a regression.
 
 Needs kicad-cli and the KiCad symbol library (KICAD8_SYMBOL_DIR).
 """
@@ -121,13 +122,10 @@ def main(argv: list[str] | None = None) -> int:
             problems = check(path, lib, args.out)
         except (SchematicUnavailable, FileNotFoundError, ValueError) as e:
             problems = [f"could not write: {e}"]
-        hard = [p for p in problems if not p.startswith("note:")]
-        notes = [p for p in problems if p.startswith("note:")]
-        verdict = "FAIL" if hard else "PASS"
-        print(f"  {verdict}  {path.stem}  ({len(notes)} note{'s' if len(notes) != 1 else ''})", file=sys.stderr)
+        print(f"  {'FAIL' if problems else 'PASS'}  {path.stem}", file=sys.stderr)
         for p in problems:
             print(f"        {p}", file=sys.stderr)
-        failed += bool(hard)
+        failed += bool(problems)
     print(file=sys.stderr)
     if failed:
         print(f"{failed} of {len(paths)} sheets do not connect what their netlist says.", file=sys.stderr)

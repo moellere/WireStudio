@@ -85,5 +85,19 @@ subcircuit:
     ref_prefix: D
     kicad: {symbol_lib: Device, symbol: LED, footprint: "LED_THT:LED_D5.0mm", value: LED}
     pins: {A: led_a, K: GND}
+  # IN through the resistor to the LED's anode, cathode to GND.
+  # Grid units (1.27 mm), x right, y down.
+  schematic:
+    parts:
+      r_led: {at: [8, 2], rot: 90}
+      d_led: {at: [14, 6], rot: 90}
+    wires:
+      - [[2, 2], [5, 2]]             # IN to the resistor
+      - [[11, 2], [14, 2], [14, 3]]  # resistor to the anode
+      - [[14, 9], [14, 11]]          # cathode to GND
+    nodes:
+      IN: [{at: [2, 2], rot: 180}]
+      GND: [{at: [14, 11], kind: power}]
+
 tasmota:
   pins: {IN: Led}

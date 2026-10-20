@@ -62,3 +62,25 @@ subcircuit:
     ref_prefix: J
     kicad: {symbol_lib: Connector_Generic, symbol: Conn_01x03, footprint: "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical", value: HV side}
     pins: {"1": VHV, "2": hv, "3": GND}
+  # The BSS138 bidirectional shifter: gate on VCC, source on the low side with its
+  # pull-up, drain on the high side with its pull-up to VHV.
+  # Grid units (1.27 mm), x right, y down.
+  schematic:
+    parts:
+      r_lv:    {at: [14, 8]}
+      q_shift: {at: [20, 12], rot: 270}
+      r_hv:    {at: [26, 8]}
+      j_hv:    {at: [36, 14]}
+    wires:
+      - [[14, 5], [14, 3], [17, 3], [20, 3], [20, 8]]             # VCC to the gate and the low-side pull-up
+      - [[10, 14], [14, 14], [16, 14]]                            # LV
+      - [[14, 11], [14, 14]]
+      - [[24, 14], [26, 14], [32, 14]]                            # hv
+      - [[26, 11], [26, 14]]
+      - [[26, 5], [26, 3], [28, 3], [30, 3], [30, 12], [32, 12]]  # VHV
+      - [[32, 16], [30, 16], [30, 18]]                            # GND
+    nodes:
+      LV: [{at: [10, 14], rot: 180}]
+      VCC: [{at: [17, 3], kind: power}]
+      VHV: [{at: [28, 3], kind: power}]
+      GND: [{at: [30, 18], kind: power}]

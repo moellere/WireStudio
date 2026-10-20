@@ -64,3 +64,25 @@ subcircuit:
     ref_prefix: C
     kicad: {symbol_lib: Device, symbol: C, footprint: "Capacitor_SMD:C_0805_2012Metric", value: "{{ params.c_bulk }}"}
     pins: {"1": VBUS, "2": GND}
+  # The receptacle's VBUS to the bulk capacitor, a 5.1k pull-down per CC line, every
+  # GND and the shield to the GND rail. The data and SBU pins are not connected.
+  # Grid units (1.27 mm), x right, y down.
+  schematic:
+    parts:
+      j_usb:  {at: [8, 14]}
+      r_cc2:  {at: [24, 11]}
+      r_cc1:  {at: [28, 9]}
+      c_bulk: {at: [32, 5]}
+    wires:
+      - [[20, 2], [26, 2], [32, 2]]                                 # VBUS
+      - [[20, 6], [28, 6]]                                          # cc1
+      - [[20, 8], [24, 8]]                                          # cc2
+      - [[8, 32], [8, 34]]                                          # GND pins
+      - [[2, 32], [2, 34]]                                          # shield
+      - [[2, 34], [8, 34], [16, 34], [24, 34], [28, 34], [32, 34]]  # GND rail
+      - [[24, 14], [24, 34]]
+      - [[28, 12], [28, 34]]
+      - [[32, 8], [32, 34]]
+    nodes:
+      VBUS: [{at: [26, 2], kind: power}]
+      GND: [{at: [16, 34], kind: power}]

@@ -24,6 +24,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Schematic layouts for the LED indicator, both low-side drivers, the
+  level shifter, the voltage divider and USB-C power in.** Each is drawn
+  as a circuit from a `schematic:` block (rails, the flyback diode across
+  the load, the divider with its filter capacitor, the CC pull-downs)
+  instead of a column of labelled parts, so every subcircuit in the
+  library now has one. `check_sch.py` fails a sheet where a layout leaves
+  a pin to the fallback stub.
+
 - **WLED usermods for the BH1750, AHT10, AHT20 and VL53L0X.** The
   BH1750_v2, AHT10_v2 (sensor type set per part) and VL53L0X_gestures
   usermods, each with its library pinned. v0.15.2 includes the BH1750

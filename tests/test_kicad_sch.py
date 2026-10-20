@@ -228,9 +228,12 @@ def test_layout_must_name_real_parts():
     assert layout.parts["r1"].at == (2.0, 3.0)
 
 
-def test_hbridge_layout_covers_every_part():
-    sub = default_library().component("hbridge_mosfet").subcircuit
-    assert set(sub.schematic.parts) == {p.id for p in sub.parts}
+def test_every_subcircuit_layout_covers_every_part():
+    subs = {c.id: c.subcircuit for c in default_library().list_components() if c.subcircuit is not None}
+    assert len(subs) == 7
+    for cid, sub in subs.items():
+        assert sub.schematic is not None, cid
+        assert set(sub.schematic.parts) == {p.id for p in sub.parts}, cid
 
 
 # --- API ----------------------------------------------------------------------
