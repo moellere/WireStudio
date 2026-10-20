@@ -199,9 +199,9 @@ Section 4 covers the rest.
   owner decides it is.
 - **Enclosure.** `enclosure:` metadata for every board whose outline
   and mount holes are published (most of the 19 without one are M5Stack
-  units and supermini boards with known dimensions). A lid with
-  snap-fit or screw bosses, since a shell with no top is not an
-  enclosure. The YAPP_Box question gets decided, not deferred: either
+  units and supermini boards with known dimensions). The lid is in:
+  the `.scad` carries a snap-fit lid beside the shell, its lip inside
+  the walls and its beads in grooves cut near the top. The YAPP_Box question gets decided, not deferred: either
   the generator adopts it as the engine behind the same `.scad`
   endpoint, or the in-house one stays and the decision is recorded.
   One enclosure printed and fitted to its board, photographed in the

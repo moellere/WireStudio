@@ -24,6 +24,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Enclosure lid.** The generated `.scad` now carries a lid laid out
+  beside the shell, printed plate-down: a lip that drops inside the
+  walls with a fit gap, and snap beads on its long sides that seat in
+  grooves cut near the top of the shell. The walls grow by the lip's
+  depth so it clears the tallest part. Lid thickness, lip depth and
+  wall, fit gap and bead size are tunables at the top of the file.
+
 - **Schematic layouts for the LED indicator, both low-side drivers, the
   level shifter, the voltage divider and USB-C power in.** Each is drawn
   as a circuit from a `schematic:` block (rails, the flyback diode across
