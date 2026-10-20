@@ -110,7 +110,7 @@ Components each framework's generator can use today, out of 102
 | Framework | Usable |
 |---|---|
 | esphome | 102 |
-| tasmota | 51 |
+| tasmota | 75 |
 | circuitpython | 89 |
 | micropython | 89 |
 | wled | 13 |
@@ -159,8 +159,15 @@ remains is to work the baselines down:
   reasons rather than work: passive parts, the CC1101, CircuitPython's
   Wiegand (no pin interrupts) and MicroPython's camera (no module in the
   generic image).
-- **Tasmota** covers what Tasmota's template format can express; the
-  baseline will be long and honest.
+- **Tasmota** covers what Tasmota's template format can express: 75
+  parts, with the function ids computed per build, since an ESP8266
+  build numbers every function after the enum's first `#ifdef ESP32`
+  block lower than an ESP32 build does. A part on a hub (a Modbus meter)
+  maps through the hub's UART. What the baseline still defers is the
+  H-bridge (no function; it needs rules), the Sonoff RF Bridge (a BASE
+  module, not a GPIO function), the BL0906 and the Universal Display
+  panels (a `display.ini` beside the template); the rest are reasons,
+  not work.
 - **LoRaWAN** gains a block for every sensor the payload codec can
   carry (the phase A refactor makes this a library-file edit).
 - **WLED** has both tiers: the runtime one (LED outputs, buttons, IR,

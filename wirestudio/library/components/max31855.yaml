@@ -100,3 +100,6 @@ kicad:
     CLK: SCK
     MISO: SO
     CS: ~{CS}
+tasmota:
+  pins: {CS: MAX31855_CS}
+  bus: {clk: MAX31855_CLK, miso: MAX31855_DO}

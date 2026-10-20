@@ -87,3 +87,6 @@ kicad:
     MISO: SO
     CS: ~{CS}
     RESET: ~{RESET}
+tasmota:
+  pins: {CS: MCP23SXX_CS}
+  bus: {clk: SPI_CLK, mosi: SPI_MOSI, miso: SPI_MISO}

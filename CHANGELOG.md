@@ -24,6 +24,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Tasmota templates for 24 more parts.** Motion sensors and LED
+  indicators, low-side drivers, the PWM fan's tach counter, the ADC
+  parts, the TM1638, MAX7219 and MAX31855, the RC522, MCP23S17, XPT2046,
+  CC1101 and SX127x LoRa on SPI, the RDM6300, GPS, TuyaMCU, PZEM-004T and
+  SDM meters (SDM630 when three-phase), the I2S microphone and
+  MAX98357A, and the ESP32 camera. A part on a hub maps through the
+  hub's bus, and two parts sharing a bus pin with the same function no
+  longer warn. Tasmota covers 75 of 102 parts.
+
 - **CircuitPython and MicroPython for Modbus RTU, the PZEM-004T, SDM
   meters, the Tuya MCU bridge and its sensors and switches, and the
   ADS1115 and MCP3008 channels.** Protocol code shared by both
@@ -401,6 +410,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   component instead of setting the block (roadmap 0.41).
 
 ### Fixed
+
+- **Tasmota templates on ESP8266 named the wrong functions** for every
+  part whose function sits after the first `#ifdef ESP32` block of
+  Tasmota's function enum: Wiegand, TM1637, MAX7219, the 74HC595 and
+  the LD2410 were written with ESP32 numbers, which an ESP8266 build
+  reads as other functions (TM1637 CLK as a plain input). The template
+  now uses the ESP8266 build's numbering on ESP8266 boards, and refuses
+  ESP32-only functions (the webcam) there with a warning.
 
 - **DS18B20 on a 1-Wire bus in CircuitPython.** The block read a DATA
   pin that a bus-wired sensor does not have, so every example with a

@@ -107,3 +107,5 @@ subcircuit:
     ref_prefix: J
     kicad: {symbol_lib: Connector_Generic, symbol: Conn_01x02, footprint: "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-2_1x02_P5.00mm_Horizontal", value: Load}
     pins: {"1": VLOAD, "2": out}
+tasmota:
+  pins: {IN: Relay}

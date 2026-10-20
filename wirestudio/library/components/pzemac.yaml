@@ -92,3 +92,6 @@ kicad:
   symbol: Conn_01x04
   footprint: Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical
   value: PZEM-004T
+# PZEM-004T v3 speaks Modbus: the PZEM-016 receive function.
+tasmota:
+  bus: {tx: PZEM0XX_TX, rx: PZEM016_RX}
