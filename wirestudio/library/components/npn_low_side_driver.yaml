@@ -107,5 +107,31 @@ subcircuit:
     ref_prefix: J
     kicad: {symbol_lib: Connector_Generic, symbol: Conn_01x02, footprint: "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-2_1x02_P5.00mm_Horizontal", value: Load}
     pins: {"1": VLOAD, "2": out}
+  # The flyback diode across the load: VLOAD to the connector and the cathode, the switch
+  # pulling the other side of the load low.
+  # Grid units (1.27 mm), x right, y down.
+  schematic:
+    parts:
+      r_base:    {at: [8, 17], rot: 90}
+      r_pd:      {at: [13, 21]}
+      q_sw:      {at: [20, 17]}
+      d_flyback: {at: [28, 7], rot: 270}
+      j_load:    {at: [36, 4]}
+    wires:
+      - [[3, 17], [5, 17]]                        # IN to the base resistor
+      - [[11, 17], [13, 17], [16, 17]]            # base
+      - [[13, 17], [13, 18]]                      # pull-down
+      - [[13, 24], [13, 26], [18, 26], [22, 26]]  # GND
+      - [[22, 21], [22, 26]]                      # emitter to GND
+      - [[28, 4], [32, 4]]                        # VLOAD to the load
+      - [[28, 4], [28, 2]]
+      - [[22, 13], [22, 10], [25, 10], [28, 10]]  # out: the switched side of the load
+      - [[28, 10], [30, 10], [30, 6], [32, 6]]
+    nodes:
+      IN: [{at: [3, 17], rot: 180}]
+      GND: [{at: [18, 26], kind: power}]
+      VLOAD: [{at: [28, 2], kind: power}]
+      out: [{at: [25, 10], rot: 90}]
+
 tasmota:
   pins: {IN: Relay}
