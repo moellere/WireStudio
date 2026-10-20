@@ -56,7 +56,44 @@ class FakeI2C:
         self._write(addr, data[0], data[1])
 
 
-def setup_scope(cid: str, framework: str, bus: FakeI2C, monkeypatch, params: dict | None = None) -> dict:
+class FakeSPI:
+    """Records every transfer and answers it through `answer`."""
+
+    def __init__(self, answer=lambda out: bytes(len(out))):
+        self.answer = answer
+        self.sent: list[bytes] = []
+
+    def try_lock(self):
+        return True
+
+    def unlock(self):
+        pass
+
+    def configure(self, **k):
+        pass
+
+    def write_readinto(self, out, buf):
+        self.sent.append(bytes(out))
+        buf[:] = self.answer(bytes(out))
+
+
+class FakePCF8574:
+    """An I2C bus whose one device takes single-byte port writes."""
+
+    def __init__(self):
+        self.port: list[tuple[int, int]] = []
+
+    def try_lock(self):
+        return True
+
+    def unlock(self):
+        pass
+
+    def writeto(self, addr, data):
+        self.port.extend((addr, b) for b in data)
+
+
+def setup_scope(cid: str, framework: str, bus, monkeypatch, params: dict | None = None) -> dict:
     design = synthetic_design(LIB.component(cid), LIB, on_buses=True)
     design.components[0].params.update(params or {})
     out = GENERATORS[framework](design, LIB)
@@ -69,9 +106,9 @@ def setup_scope(cid: str, framework: str, bus: FakeI2C, monkeypatch, params: dic
                     monkeypatch.setitem(sys.modules, name, StubModule(name))
     monkeypatch.setitem(sys.modules, "time", _fake_time())
     if framework == "micropython":
-        sys.modules["machine"].SoftI2C = lambda **k: bus
+        sys.modules["machine"].SoftI2C = sys.modules["machine"].SoftSPI = lambda *a, **k: bus
     elif "busio" in sys.modules and isinstance(sys.modules["busio"], StubModule):
-        sys.modules["busio"].I2C = lambda *a, **k: bus
+        sys.modules["busio"].I2C = sys.modules["busio"].SPI = lambda *a, **k: bus
     scope: dict = {"__name__": "__main__"}
     exec(compile(code, "main.py", "exec"), scope)
     return scope
@@ -125,3 +162,61 @@ def test_hlw8012_multipliers_follow_esphome(framework, model, inverted, kp, ki, 
     scope = setup_scope("hlw8012", framework, FakeI2C({}), monkeypatch, {"model": model})
     assert scope["dut_inverted"] is inverted
     assert (scope["dut_kp"], scope["dut_ki"], scope["dut_kv"]) == pytest.approx((kp, ki, kv))
+
+
+def _xpt2046(readings: dict[int, list[int]]):
+    """Answer each conversion with the next reading queued for its
+    channel, 12 bits after the busy bit."""
+    queues = {ch: list(v) for ch, v in readings.items()}
+
+    def answer(out):
+        q = queues.get(out[0] & 0xF0)
+        return b"\x00" + ((q.pop(0) if q else 0) << 3).to_bytes(2, "big")
+    return answer
+
+
+@FRAMEWORKS
+def test_xpt2046_gates_on_pressure_and_averages_the_closest_samples(framework, monkeypatch):
+    bus = FakeSPI(_xpt2046({0xB0: [300, 100], 0xC0: [3800, 4000],
+                            0xD0: [0, 999, 1000, 1100, 1004], 0x90: [2000, 2003, 2500]}))
+    scope = setup_scope("xpt2046", framework, bus, monkeypatch)
+    assert bus.sent == [b"\xd0\x00\x00"]  # power down, PENIRQ armed
+    assert scope["dut_touch"]() == (1002, 2001, 300 + 0xFFF - 3800)
+    assert [s[0] for s in bus.sent[1:]] == [0xB1, 0xC1, 0xD1, 0x91, 0xD1, 0x91, 0xD1, 0x91, 0xD0]
+    del bus.sent[:]
+    assert scope["dut_touch"]() is None  # 100 + 0xFFF - 4000 is under the threshold
+    assert [s[0] for s in bus.sent] == [0xB1, 0xC1, 0xD0]
+
+
+def test_mcp23s17_enables_hardware_addressing_then_uses_its_opcode(monkeypatch):
+    bus = FakeSPI(lambda out: bytes([0, 0, 0xA5]))
+    scope = setup_scope("mcp23s17", "micropython", bus, monkeypatch, {"deviceaddress": 3})
+    assert bus.sent == [b"\x40\x0a\x28", b"\x48\x0a\x28"]  # IOCON = SEQOP | HAEN
+    scope["dut_wr"](0x00, 0x0F)
+    assert scope["dut_rd"](0x12) == 0xA5
+    assert bus.sent[2:] == [b"\x46\x00\x0f", b"\x47\x12\xff"]
+
+
+def _hd44780(port: list[tuple[int, int]]) -> list[tuple[int, int]]:
+    """The (rs, nibble) latched on each falling edge of E (P2)."""
+    assert all(b & 0x08 for _, b in port)  # backlight stays on
+    return [(prev & 1, prev >> 4) for (_, prev), (_, b) in zip(port, port[1:]) if prev & 0x04 and not b & 0x04]
+
+
+@FRAMEWORKS
+def test_lcd_pcf8574_enters_four_bit_mode_and_addresses_each_row(framework, monkeypatch):
+    bus = FakePCF8574()
+    scope = setup_scope("lcd_pcf8574", framework, bus, monkeypatch, {"address": "0x3F"})
+    assert {addr for addr, _ in bus.port} == {0x3F}
+    nibbles = _hd44780(bus.port)
+    assert nibbles[:4] == [(0, 3), (0, 3), (0, 3), (0, 2)]
+    sent = [(rs, hi << 4 | lo) for (rs, hi), (_, lo) in zip(nibbles[4::2], nibbles[5::2])]
+    assert sent[:6] == [(0, 0x28), (0, 0x0C), (0, 0x01), (0, 0x06), (0, 0x02), (0, 0x80)]
+    assert len(sent) == 6 + 20 and {rs for rs, _ in sent[6:]} == {1}  # the label, one 20-column row
+    del bus.port[:]
+    scope["dut_show"]("hello", "world", "row 2", "row 3", "no row 4")
+    sent = [(rs, hi << 4 | lo) for (rs, hi), (_, lo) in zip(_hd44780(bus.port)[::2], _hd44780(bus.port)[1::2])]
+    rows = [sent[k * 21:(k + 1) * 21] for k in range(4)]
+    assert len(sent) == 4 * 21
+    assert [r[0] for r in rows] == [(0, 0x80), (0, 0xC0), (0, 0x94), (0, 0xD4)]  # 20x4: rows 2, 3 follow 0, 1
+    assert bytes(b for _, b in rows[1][1:]) == b"world" + b" " * 15

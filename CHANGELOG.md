@@ -24,6 +24,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CircuitPython and MicroPython for the XPT2046 and the PCF8574
+  character LCD; MicroPython for the MCP23S17.** Datasheet code shared
+  by both frameworks, read from ESPHome's components: the XPT2046's
+  pressure gate and closest-two-of-three averaging, the HD44780's 4-bit
+  entry and row addressing through the PCF8574 backpack, and the
+  MCP23S17's HAEN setup and opcode addressing. Tested against fake buses
+  in `tests/test_register_code.py`.
+
 - **CircuitPython and MicroPython for the LD2420, RF bridge, Nextion and
   BL0906.** Frame decoders shared by both frameworks, read from
   ESPHome's components: the LD2420's simple-mode text lines and
@@ -317,6 +325,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   connector design, not only the pads it asks about.
 
 ### Changed
+
+- **The `adc` part's CircuitPython and MicroPython blocks apply its
+  `multiply` filters**, so the battery divider a board seeds reads the
+  cell voltage there too. MicroPython prints volts (`read_uv`, or
+  `read_u16` against 3.3 V where the port has no calibrated read)
+  instead of the raw count.
 
 - **Workflow actions on their current majors.** Every action the
   workflows use ran on the Node 20 runtime GitHub deprecated, and each

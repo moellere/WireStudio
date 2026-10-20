@@ -38,6 +38,77 @@ esphome:
         lambda: {{ params.lambda_ | tojson }}
     {%- endif %}
 
+# HD44780 in 4-bit mode behind the PCF8574, as ESPHome's lcd_pcf8574
+# drives it: P4-P7 carry the nibble, P0 is RS, P2 is E (latched on its
+# falling edge) and P3 the backlight. Three 0x3 nibbles and a 0x2 enter
+# 4-bit mode; rows 2 and 3 of a 20x4 continue rows 0 and 1 in DDRAM.
+circuitpython:
+  setup: |
+    {%- set dims = (params.dimensions | default('20x4')).split('x') %}
+    {{ id }}_addr = {{ params.address | default('0x27') }}
+    {{ id }}_cols, {{ id }}_rows = {{ dims[0] }}, {{ dims[1] }}
+    def {{ id }}_out(b):
+        while not {{ bus_var }}.try_lock():
+            pass
+        try:
+            {{ bus_var }}.writeto({{ id }}_addr, bytes([b]))
+        finally:
+            {{ bus_var }}.unlock()
+    def {{ id }}_pulse(b):
+        b |= 0x08
+        {{ id }}_out(b)
+        {{ id }}_out(b | 0x04)
+        {{ id }}_out(b)
+    def {{ id }}_send(value, rs=0):
+        {{ id }}_pulse(value & 0xF0 | rs)
+        {{ id }}_pulse(value << 4 & 0xF0 | rs)
+    def {{ id }}_show(*lines):
+        for row, text in enumerate(lines[:{{ id }}_rows]):
+            {{ id }}_send(0x80 | (0x00, 0x40, {{ id }}_cols, 0x40 + {{ id }}_cols)[row])
+            data = text.encode()[:{{ id }}_cols]
+            for c in data + b" " * ({{ id }}_cols - len(data)):
+                {{ id }}_send(c, 1)
+    {{ id }}_out(0x08)
+    time.sleep(0.05)
+    for {{ id }}_n in (0x30, 0x30, 0x30, 0x20):
+        {{ id }}_pulse({{ id }}_n)
+        time.sleep(0.005)
+    for {{ id }}_c in (0x28, 0x0C, 0x01, 0x06, 0x02):
+        {{ id }}_send({{ id }}_c)
+        time.sleep(0.002)
+    {{ id }}_show("{{ label }}")
+
+micropython:
+  setup: |
+    {%- set dims = (params.dimensions | default('20x4')).split('x') %}
+    {{ id }}_addr = {{ params.address | default('0x27') }}
+    {{ id }}_cols, {{ id }}_rows = {{ dims[0] }}, {{ dims[1] }}
+    def {{ id }}_out(b):
+        {{ bus_var }}.writeto({{ id }}_addr, bytes([b]))
+    def {{ id }}_pulse(b):
+        b |= 0x08
+        {{ id }}_out(b)
+        {{ id }}_out(b | 0x04)
+        {{ id }}_out(b)
+    def {{ id }}_send(value, rs=0):
+        {{ id }}_pulse(value & 0xF0 | rs)
+        {{ id }}_pulse(value << 4 & 0xF0 | rs)
+    def {{ id }}_show(*lines):
+        for row, text in enumerate(lines[:{{ id }}_rows]):
+            {{ id }}_send(0x80 | (0x00, 0x40, {{ id }}_cols, 0x40 + {{ id }}_cols)[row])
+            data = text.encode()[:{{ id }}_cols]
+            for c in data + b" " * ({{ id }}_cols - len(data)):
+                {{ id }}_send(c, 1)
+    {{ id }}_out(0x08)
+    time.sleep(0.05)
+    for {{ id }}_n in (0x30, 0x30, 0x30, 0x20):
+        {{ id }}_pulse({{ id }}_n)
+        time.sleep(0.005)
+    for {{ id }}_c in (0x28, 0x0C, 0x01, 0x06, 0x02):
+        {{ id }}_send({{ id }}_c)
+        time.sleep(0.002)
+    {{ id }}_show("{{ label }}")
+
 params_schema:
   dimensions:
     type: string
