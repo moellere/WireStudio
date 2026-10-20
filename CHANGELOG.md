@@ -430,6 +430,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The KiCad install steps time out.** `kicad-render`, `pcb-drc` and
+  `pcb-route` install KiCad 8 from its PPA, which can stall mid-install;
+  the step now fails after 25 minutes instead of holding the runner for
+  the six-hour job default.
+- **README status: the release line said v0.35.0 and the MCP row was
+  still "Works"** after the row was promoted to Verified in 0.40.0.
+
 - **Tasmota templates on ESP8266 named the wrong functions** for every
   part whose function sits after the first `#ifdef ESP32` block of
   Tasmota's function enum: Wiegand, TM1637, MAX7219, the 74HC595 and

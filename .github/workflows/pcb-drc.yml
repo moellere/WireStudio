@@ -75,6 +75,9 @@ jobs:
             https://gitlab.com/kicad/libraries/kicad-symbols.git kicad-symbols
 
       - name: Install KiCad 8 (kicad-cli)
+        # The PPA can stall mid-install; fail the step rather than hold the
+        # runner for the six-hour job default.
+        timeout-minutes: 25
         run: |
           sudo add-apt-repository --yes ppa:kicad/kicad-8.0-releases
           sudo apt-get update
