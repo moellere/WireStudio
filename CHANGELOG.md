@@ -408,6 +408,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The agent row is Verified.** The eval harness holds every task's
+  reference solution to the scorer on every PR and scores the model
+  nightly; the nightly run needs the `ANTHROPIC_API_KEY` repository
+  secret, and its first score sets `gate.min_pass`.
+
 - **User guide caught up with the studio.** Component authoring, both
   ESPHome build paths (fleet add-on and ESPHome dashboard), the
   workbench slot target and boot verdict, the six-framework flash
