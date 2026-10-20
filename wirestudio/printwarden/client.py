@@ -45,8 +45,8 @@ class PrintWardenRejected(ValueError):
 # override. Anything else is refused at the boundary: these values are
 # passed to a process on another host.
 TUNABLES = frozenset({
-    "wall", "floor", "clearance", "standoff_h", "standoff_d",
-    "standoff_hole", "port_clearance", "component_h",
+    "wall", "floor", "lid_t", "clearance", "standoff_h", "standoff_d",
+    "standoff_hole", "port_clearance", "component_h", "ridge_h",
 })
 
 
