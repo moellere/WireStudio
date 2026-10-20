@@ -300,9 +300,11 @@ Section 4 covers the rest.
   principle, the schema) move into `docs/` as short reference pages,
   and `START.md` is reduced to the session-resume block and a pointer.
   The CLAUDE.md convention that cites it moves with it.
-- `docs/user_guide.md` gains the paths that landed since it was
-  written: inventory, component authoring, the six-framework flash
-  dialog, the workbench, both build paths.
+- `docs/user_guide.md` covers the paths that landed since it was
+  written. Done: inventory, component authoring, the six-framework
+  flash dialog, the workbench, both ESPHome build paths, the other
+  frameworks' outputs and the PCB / fab path, and every bundled
+  example in its table.
 - Release notes for 1.0 list the migrations and the tier changes, not
   the features.
 
