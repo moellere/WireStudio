@@ -136,3 +136,11 @@ lorawan:
       ha_device_class: humidity
       ha_unit: "%"
       ha_state_class: measurement
+
+wled:
+  kind: usermod
+  usermod: AHT10_v2
+  define: USERMOD_AHT10
+  lib_deps: ["enjoyneering/AHT10@~1.1.0"]
+  um_name: AHTxx
+  um: {Enabled: true, SensorType: 0}

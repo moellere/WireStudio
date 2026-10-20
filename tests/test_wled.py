@@ -142,7 +142,7 @@ def test_target_registry_boards_components_and_validate(lib):
     assert set(target.component_ids(lib)) == {
         "ws2812b", "apa102", "esp32_rmt_led_strip", "gpio_input", "hc-sr501",
         "rcwl-0516", "remote_receiver", "gpio_output",
-        "bme280", "bmp280", "sht3xd", "ds18b20", "dht",
+        "bme280", "bmp280", "sht3xd", "ds18b20", "dht", "aht10", "grove-aht20", "bh1750", "vl53l0x",
     }
     files = target.generate(_design("atom-matrix"), lib)
     assert json.loads(files["cfg.json"])["hw"]["led"]["total"] == 25
@@ -257,6 +257,17 @@ def test_build_runs_pio_on_the_checkout_and_caches_the_artifact(lib, tmp_path, m
     assert wled_build.cache_key(override) == done["cache_key"]
 
 
+def test_checkout_links_the_bh1750_header_the_release_includes(tmp_path):
+    src = tmp_path / f"wled-{WLED_RELEASE}"
+    um = src / "usermods" / "BH1750_v2"
+    um.mkdir(parents=True)
+    (src / "platformio.ini").write_text("")
+    (um / "usermod_bh1750.h").write_text("// bh1750\n")
+    assert wled_build.checkout(tmp_path) == src
+    assert (um / "usermod_BH1750.h").read_text() == "// bh1750\n"
+    wled_build.checkout(tmp_path)
+
+
 def test_build_refuses_a_design_without_usermods_and_reports_a_missing_toolchain(lib, tmp_path, monkeypatch):
     with pytest.raises(ValueError, match="no usermods"):
         list(wled_build.compile_firmware_events(_design("atom-matrix"), lib, root=tmp_path))
@@ -274,3 +285,29 @@ def test_compile_endpoints(monkeypatch):
     assert client.get("/wled/firmware/nope").status_code == 404
     body = client.post("/wled/cfg", json=_raw("wled-sensor-strip")).json()
     assert body["platformio_override"].startswith("; wirestudio: wled-sensor-strip")
+
+
+def test_ci_usermod_designs_carry_every_usermod_once_each():
+    import importlib.util
+
+    from wirestudio.targets.wled import build_platformio_override
+
+    lib = default_library()
+    spec = importlib.util.spec_from_file_location(
+        "build_wled_firmware", Path(__file__).resolve().parent.parent / "scripts" / "build_wled_firmware.py")
+    script = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(script)
+    designs = script.usermod_designs(lib)
+    built = sorted(c.library_id for d in designs for c in d.components)
+    assert built == sorted(c.id for c in lib.list_components() if c.wled is not None and c.wled.kind == "usermod")
+    for design in designs:
+        ini, warnings = build_platformio_override(design, lib)
+        assert warnings == []
+        defines = [line.strip() for line in ini.splitlines() if line.strip().startswith("-D USERMOD_") and "=" not in line]
+        assert len(defines) == len(set(defines)) == len(design.components)
+
+
+def test_aht_usermod_tells_the_aht20_from_the_aht10():
+    lib = default_library()
+    for cid, sensor_type in (("aht10", 0), ("grove-aht20", 2)):
+        assert lib.component(cid).wled.um["SensorType"] == sensor_type

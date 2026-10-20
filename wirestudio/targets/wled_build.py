@@ -61,7 +61,7 @@ def checkout(root: Path) -> Path:
     """The release's source tree under `root`, cloned on first use."""
     src = root / f"wled-{WLED_RELEASE}"
     if (src / "platformio.ini").exists():
-        return src
+        return _fix_include_case(src)
     root.mkdir(parents=True, exist_ok=True)
     try:
         subprocess.run(
@@ -71,6 +71,15 @@ def checkout(root: Path) -> Path:
     except (OSError, subprocess.SubprocessError) as exc:
         detail = getattr(exc, "stderr", "") or str(exc)
         raise BuildUnavailable(f"could not clone WLED {WLED_RELEASE}: {detail.strip()}") from exc
+    return _fix_include_case(src)
+
+
+def _fix_include_case(src: Path) -> Path:
+    # v0.15.2's usermods_list.cpp includes usermod_BH1750.h but the file is
+    # usermod_bh1750.h, which only resolves on a case-insensitive filesystem.
+    link = src / "usermods" / "BH1750_v2" / "usermod_BH1750.h"
+    if not link.exists() and link.with_name("usermod_bh1750.h").exists():
+        link.symlink_to("usermod_bh1750.h")
     return src
 
 
