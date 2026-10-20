@@ -79,3 +79,5 @@ wled:
   kind: button
   pins: [OUT]
   button: pir
+tasmota:
+  pins: {OUT: Switch}

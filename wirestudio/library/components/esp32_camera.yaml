@@ -142,3 +142,21 @@ kicad:
   symbol: Conn_01x18
   footprint: Connector_PinHeader_2.54mm:PinHeader_1x18_P2.54mm_Vertical
   value: ESP32 Camera FPC
+tasmota:
+  pins:
+    XCLK: WEBCAM_XCLK
+    PCLK: WEBCAM_PCLK
+    VSYNC: WEBCAM_VSYNC
+    HREF: WEBCAM_HREF
+    SDA: WEBCAM_SIOD
+    SCL: WEBCAM_SIOC
+    PWDN: WEBCAM_PWDN
+    RESET: WEBCAM_RESET
+    D0: WEBCAM_DATA1
+    D1: WEBCAM_DATA2
+    D2: WEBCAM_DATA3
+    D3: WEBCAM_DATA4
+    D4: WEBCAM_DATA5
+    D5: WEBCAM_DATA6
+    D6: WEBCAM_DATA7
+    D7: WEBCAM_DATA8

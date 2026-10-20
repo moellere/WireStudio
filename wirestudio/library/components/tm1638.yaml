@@ -106,3 +106,5 @@ kicad:
   symbol: Conn_01x05
   footprint: Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical
   value: TM1638
+tasmota:
+  pins: {STB: TM1638_STB, CLK: TM1638_CLK, DIO: TM1638_DIO}

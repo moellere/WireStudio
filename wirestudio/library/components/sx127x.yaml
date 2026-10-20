@@ -159,3 +159,6 @@ kicad:
     VCC: VBAT_ANA
     CS: NSS
     RST: ~{RESET}
+tasmota:
+  pins: {CS: LORA_CS, RST: LORA_RST, DIO0: LORA_DI0}
+  bus: {clk: SPI_CLK, mosi: SPI_MOSI, miso: SPI_MISO}

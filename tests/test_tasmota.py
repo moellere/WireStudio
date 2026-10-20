@@ -10,7 +10,7 @@ from wirestudio.api.app import create_app
 from wirestudio.library import default_library
 from wirestudio.model import Design
 from wirestudio.targets import get_target
-from wirestudio.targets.tasmota import FUNC, _CHIP_SLOTS, build_template
+from wirestudio.targets.tasmota import FUNC, _CHIP_SLOTS, build_template, func_value
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 EXAMPLES = REPO_ROOT / "wirestudio" / "examples"
@@ -69,7 +69,7 @@ def test_relay_units_number_sequentially(lib):
 
 def test_every_templatable_example_is_structurally_valid(lib):
     target = get_target("tasmota")
-    known_bases = set(FUNC.values())
+    known_bases = {chip: {func_value(f, chip) for f in FUNC} - {None} for chip in _CHIP_SLOTS}
     checked = 0
     for path in sorted(EXAMPLES.glob("*.json")):
         design = Design.model_validate(json.loads(path.read_text()))
@@ -79,7 +79,7 @@ def test_every_templatable_example_is_structurally_valid(lib):
         template, _ = build_template(design, lib)
         assert len(template["GPIO"]) == len(_CHIP_SLOTS[board.chip_variant]), path.name
         for v in template["GPIO"]:
-            assert v == 0 or any(0 <= v - b < 8 for b in known_bases), (path.name, v)
+            assert v == 0 or any(0 <= v - b < 8 for b in known_bases[board.chip_variant]), (path.name, v)
         checked += 1
     assert checked > 10
     assert "smart-plug" in " ".join(p.stem for p in EXAMPLES.glob("*.json"))
@@ -91,7 +91,7 @@ def test_target_registry_and_component_ids(lib):
     comps = target.component_ids(lib)
     assert "gpio_output" in comps
     assert "bme280" in comps  # i2c autodetect
-    assert "sx127x" not in comps
+    assert "apa102" not in comps
 
 
 def test_template_endpoint():
@@ -135,9 +135,9 @@ def test_co2_display_resolves_d_labels_and_uart_funcs(lib):
     template, warnings = build_template(_design("co2-display"), lib)
     slots = _CHIP_SLOTS["esp8266"]
     gpio = template["GPIO"]
-    # TM1637 on D1/D2 = GPIO5/GPIO4, not GPIO1/GPIO2.
-    assert gpio[slots.index(5)] == FUNC["TM1637_CLK"]
-    assert gpio[slots.index(4)] == FUNC["TM1637_DIO"]
+    # TM1637 on D1/D2 = GPIO5/GPIO4, not GPIO1/GPIO2, in the ESP8266 build's numbering.
+    assert gpio[slots.index(5)] == func_value("TM1637_CLK", "esp8266") == 6624
+    assert gpio[slots.index(4)] == func_value("TM1637_DIO", "esp8266") == 6656
     # MH-Z19 over the software UART: bus tx D6 = GPIO12, rx D5 = GPIO14.
     assert gpio[slots.index(12)] == FUNC["MHZ_TXD"]
     assert gpio[slots.index(14)] == FUNC["MHZ_RXD"]
@@ -171,3 +171,49 @@ def test_presence_media_node_ld2410_and_ir(lib):
     assert gpio[slots.index(17)] == FUNC["LD2410_TX"]
     assert gpio[slots.index(16)] == FUNC["LD2410_RX"]
     assert gpio[slots.index(25)] == FUNC["IRrecv"]
+
+
+def test_esp8266_numbering_skips_the_esp32_only_functions():
+    # Before the first `#ifdef ESP32` block (index 154) both builds agree.
+    for name in ("Relay", "I2C_SDA", "ADC_Input", "CSE7766_RX", "TuyaMCU_TX"):
+        assert func_value(name, "esp8266") == func_value(name, "esp32") == FUNC[name]
+    # Wiegand D0 is index 216 on ESP32; 12 webcam and 3 Ethernet entries come before it.
+    assert func_value("Wiegand_D0", "esp8266") == (216 - 15) << 5
+    assert func_value("LD2410_TX", "esp8266") == (309 - 20) << 5
+    assert func_value("MCP23SXX_CS", "esp8266") == (321 - 20) << 5
+    assert func_value("WEBCAM_DATA3", "esp8266") is None
+    assert func_value("WEBCAM_DATA3", "esp32") == FUNC["WEBCAM_DATA1"] + 2
+
+
+def test_esp32_only_functions_are_refused_on_esp8266(lib):
+    raw = json.loads((EXAMPLES / "esp32cam.json").read_text())
+    template, warnings = build_template(Design.model_validate(raw), lib)
+    gpio, slots = template["GPIO"], _CHIP_SLOTS["esp32"]
+    assert gpio[slots.index(0)] == FUNC["WEBCAM_XCLK"]
+    assert gpio[slots.index(5)] == FUNC["WEBCAM_DATA1"]
+    assert gpio[slots.index(35)] == FUNC["WEBCAM_DATA8"]
+    raw["board"]["library_id"] = "nodemcu-v2"
+    _, warnings = build_template(Design.model_validate(raw), lib)
+    assert any("WEBCAM_XCLK exists only on ESP32 builds" in w for w in warnings)
+
+
+def test_meters_on_a_modbus_hub_map_the_hubs_uart(lib):
+    template, warnings = build_template(_design("rs485-energy"), lib)
+    raw = json.loads((EXAMPLES / "rs485-energy.json").read_text())
+    bus = next(b for b in raw["buses"] if b["type"] == "uart")
+    slots = _CHIP_SLOTS[lib.board(raw["board"]["library_id"]).chip_variant]
+    gpio = template["GPIO"]
+    tx, rx = (int(bus[k].removeprefix("GPIO")) for k in ("tx", "rx"))
+    assert gpio[slots.index(tx)] == FUNC["SDM120_TX"]
+    assert gpio[slots.index(rx)] == FUNC["SDM120_RX"]
+    meter = next(c for c in raw["components"] if c["library_id"] == "sdm_meter")
+    meter["params"]["three_phase"] = True
+    template, _ = build_template(Design.model_validate(raw), lib)
+    assert template["GPIO"][slots.index(tx)] == FUNC["SDM630_TX"]
+
+
+def test_every_library_mapping_names_a_known_function(lib):
+    for comp in lib.list_components():
+        if comp.tasmota is not None:
+            for name in [*comp.tasmota.pins.values(), *comp.tasmota.bus.values()]:
+                assert name in FUNC, (comp.id, name)

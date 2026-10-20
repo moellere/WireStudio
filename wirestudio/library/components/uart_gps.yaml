@@ -208,3 +208,5 @@ kicad:
   symbol: Conn_01x04
   footprint: Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical
   value: UART_GPS
+tasmota:
+  bus: {rx: GPS_RX, tx: GPS_TX}

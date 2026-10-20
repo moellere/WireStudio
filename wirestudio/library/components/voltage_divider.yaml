@@ -106,3 +106,6 @@ subcircuit:
     ref_prefix: J
     kicad: {symbol_lib: Connector_Generic, symbol: Conn_01x02, footprint: "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-2_1x02_P5.00mm_Horizontal", value: V sense}
     pins: {"1": vsense, "2": GND}
+# The divider ratio has no template field; scale with AdcParam.
+tasmota:
+  pins: {IN: ADC_Input}

@@ -258,3 +258,6 @@ kicad:
   symbol: Conn_01x08
   footprint: Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical
   value: MFRC522
+tasmota:
+  pins: {CS: RC522_CS, RESET: RC522_RST}
+  bus: {clk: SPI_CLK, mosi: SPI_MOSI, miso: SPI_MISO}

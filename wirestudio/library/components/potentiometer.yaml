@@ -108,3 +108,5 @@ kicad:
     VCC: '1'
     WIPER: '2'
     GND: '3'
+tasmota:
+  pins: {WIPER: ADC_Input}
