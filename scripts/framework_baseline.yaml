@@ -38,8 +38,6 @@ circuitpython:
   usb_c_power_in: "no meaning on this framework: passive hardware, no code on any framework"
   # radio
   cc1101: "no driver upstream: the Adafruit bundle has no CC1101 library"
-  # rfid_reader
-  rc522: "deferred: needs a fragment over a community MFRC522 port; none in the bundle"
   # sensor
   ads1115_channel: "no meaning on this framework: channels are read through the hub's fragment"
   mcp3008_channel: "no meaning on this framework: channels are read through the hub's fragment"
@@ -69,15 +67,11 @@ micropython:
   connector_1x07: "no meaning on this framework: passive hardware, no code on any framework"
   connector_1x08: "no meaning on this framework: passive hardware, no code on any framework"
   connector_2x05_idc: "no meaning on this framework: passive hardware, no code on any framework"
-  # input
-  pn532: "deferred: no MicroPython I2C driver; the maintained one speaks SPI"
   # power
   battery_adc: "no meaning on this framework: the LoRaWAN target synthesizes it; elsewhere the board's divider is seeded as an adc part, whose multiply filter this framework's block applies"
   usb_c_power_in: "no meaning on this framework: passive hardware, no code on any framework"
   # radio
   cc1101: "no driver upstream: micropython-lib has no CC1101 package"
-  # rfid_reader
-  rc522: "deferred: needs a fragment over a community MFRC522 driver via mip"
   # sensor
   ads1115_channel: "no meaning on this framework: channels are read through the hub's fragment"
   mcp3008_channel: "no meaning on this framework: channels are read through the hub's fragment"

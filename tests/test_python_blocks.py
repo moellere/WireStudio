@@ -33,6 +33,7 @@ ATTRS = {
     ("circuitpython", "axp192"): _I2C,
     ("circuitpython", "lcd_pcf8574"): _I2C,
     ("circuitpython", "xpt2046"): {"try_lock": lambda: True},
+    ("circuitpython", "rc522"): {"try_lock": lambda: True},
     ("circuitpython", "sht4x"): {"measurements": (21.5, 40.0)},
     ("micropython", "sht4x"): {"measurements": (21.5, 40.0)},
     ("micropython", "sht3xd"): {"get_temp_humi": lambda: (21.5, 40.0)},

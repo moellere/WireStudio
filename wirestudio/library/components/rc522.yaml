@@ -47,6 +47,205 @@ capability:
     - {event: on_tag}
     - {event: on_tag_removed}
 
+# Datasheet register code following ESPHome's rc522 (after miguelbalboa's
+# library): an SPI address byte of register << 1, bit 7 set to read; the
+# timer set for a 25 ms receive timeout; REQA as a 7-bit short frame,
+# then anticollision and SELECT (CRC_A computed here, ISO 14443-3 annex
+# B) at each cascade level until the UID is complete. The antenna is
+# switched off after each scan so a selected card resets for the next.
+circuitpython:
+  imports: ["import digitalio"]
+  setup: |
+    {{ id }}_cs = digitalio.DigitalInOut(P({{ pins.CS }}))
+    {{ id }}_cs.switch_to_output(value=True)
+    def {{ id }}_xfer(a, b):
+        buf = bytearray(2)
+        while not {{ bus_var }}.try_lock():
+            pass
+        try:
+            {{ bus_var }}.configure(baudrate=4000000, polarity=0, phase=0)
+            {{ id }}_cs.value = False
+            {{ bus_var }}.write_readinto(bytes([a, b]), buf)
+            {{ id }}_cs.value = True
+        finally:
+            {{ bus_var }}.unlock()
+        return buf[1]
+    {%- if pins.RESET is defined %}
+    {{ id }}_rst = digitalio.DigitalInOut(P({{ pins.RESET }}))
+    {{ id }}_rst.switch_to_output(value=False)
+    time.sleep(0.001)
+    {{ id }}_rst.value = True
+    {%- endif %}
+    def {{ id }}_rd(reg):
+        return {{ id }}_xfer(0x80 | reg << 1, 0)
+    def {{ id }}_wr(reg, value):
+        {{ id }}_xfer(reg << 1, value)
+    def {{ id }}_crc(data):
+        crc = 0x6363
+        for b in data:
+            b ^= crc & 0xFF
+            b = (b ^ b << 4) & 0xFF
+            crc = crc >> 8 ^ b << 8 ^ b << 3 ^ b >> 4
+        return bytes([crc & 0xFF, crc >> 8])
+    def {{ id }}_transceive(data, last_bits=0):
+        time.sleep(0.001)
+        {{ id }}_wr(0x01, 0x00)
+        {{ id }}_wr(0x04, 0x7F)
+        {{ id }}_wr(0x0A, 0x80)
+        for b in data:
+            {{ id }}_wr(0x09, b)
+        {{ id }}_wr(0x0D, last_bits)
+        {{ id }}_wr(0x01, 0x0C)
+        {{ id }}_wr(0x0D, last_bits | 0x80)
+        for _ in range(40):
+            time.sleep(0.001)
+            irq = {{ id }}_rd(0x04)
+            if irq & 0x01:
+                return None
+            if irq & 0x30:
+                break
+        else:
+            return None
+        if {{ id }}_rd(0x06) & 0x13:
+            return None
+        return bytes([{{ id }}_rd(0x09) for _ in range({{ id }}_rd(0x0A))])
+    def {{ id }}_antenna(on):
+        v = {{ id }}_rd(0x14)
+        {{ id }}_wr(0x14, v | 0x03 if on else v & ~0x03)
+    def {{ id }}_read_uid():
+        {{ id }}_antenna(True)
+        {{ id }}_wr(0x0E, {{ id }}_rd(0x0E) & 0x7F)
+        uid = None
+        atqa = {{ id }}_transceive(b"\x26", 7)
+        if atqa and len(atqa) == 2:
+            uid = b""
+            for sel in (0x93, 0x95, 0x97):
+                r = {{ id }}_transceive(bytes([sel, 0x20]))
+                if not r or len(r) != 5 or r[0] ^ r[1] ^ r[2] ^ r[3] != r[4]:
+                    uid = None
+                    break
+                frame = bytes([sel, 0x70]) + r
+                sak = {{ id }}_transceive(frame + {{ id }}_crc(frame))
+                if not sak or len(sak) != 3:
+                    uid = None
+                    break
+                if r[0] != 0x88:
+                    uid += r[:4]
+                    break
+                uid += r[1:4]
+            else:
+                uid = None
+        {{ id }}_antenna(False)
+        return uid
+    {%- if pins.RESET is not defined %}
+    {{ id }}_wr(0x01, 0x0F)
+    {%- endif %}
+    time.sleep(0.05)
+    for {{ id }}_reg, {{ id }}_value in ((0x12, 0x00), (0x13, 0x00), (0x24, 0x26), (0x2A, 0x80), (0x2B, 0xA9),
+                                     (0x2C, 0x03), (0x2D, 0xE8), (0x15, 0x40), (0x11, 0x3D)):
+        {{ id }}_wr({{ id }}_reg, {{ id }}_value)
+    {{ id }}_last = None
+  loop: |
+    {{ id }}_uid = {{ id }}_read_uid()
+    if {{ id }}_uid != {{ id }}_last:
+        if {{ id }}_uid:
+            print("{{ label }}: tag", "-".join("%02x" % b for b in {{ id }}_uid))
+        else:
+            print("{{ label }}: tag removed")
+        {{ id }}_last = {{ id }}_uid
+
+micropython:
+  setup: |
+    {{ id }}_cs = Pin({{ pins.CS }}, Pin.OUT, value=1)
+    def {{ id }}_xfer(a, b):
+        buf = bytearray(2)
+        {{ id }}_cs(0)
+        {{ bus_var }}.write_readinto(bytes([a, b]), buf)
+        {{ id }}_cs(1)
+        return buf[1]
+    {%- if pins.RESET is defined %}
+    {{ id }}_rst = Pin({{ pins.RESET }}, Pin.OUT, value=0)
+    time.sleep(0.001)
+    {{ id }}_rst(1)
+    {%- endif %}
+    def {{ id }}_rd(reg):
+        return {{ id }}_xfer(0x80 | reg << 1, 0)
+    def {{ id }}_wr(reg, value):
+        {{ id }}_xfer(reg << 1, value)
+    def {{ id }}_crc(data):
+        crc = 0x6363
+        for b in data:
+            b ^= crc & 0xFF
+            b = (b ^ b << 4) & 0xFF
+            crc = crc >> 8 ^ b << 8 ^ b << 3 ^ b >> 4
+        return bytes([crc & 0xFF, crc >> 8])
+    def {{ id }}_transceive(data, last_bits=0):
+        time.sleep(0.001)
+        {{ id }}_wr(0x01, 0x00)
+        {{ id }}_wr(0x04, 0x7F)
+        {{ id }}_wr(0x0A, 0x80)
+        for b in data:
+            {{ id }}_wr(0x09, b)
+        {{ id }}_wr(0x0D, last_bits)
+        {{ id }}_wr(0x01, 0x0C)
+        {{ id }}_wr(0x0D, last_bits | 0x80)
+        for _ in range(40):
+            time.sleep(0.001)
+            irq = {{ id }}_rd(0x04)
+            if irq & 0x01:
+                return None
+            if irq & 0x30:
+                break
+        else:
+            return None
+        if {{ id }}_rd(0x06) & 0x13:
+            return None
+        return bytes([{{ id }}_rd(0x09) for _ in range({{ id }}_rd(0x0A))])
+    def {{ id }}_antenna(on):
+        v = {{ id }}_rd(0x14)
+        {{ id }}_wr(0x14, v | 0x03 if on else v & ~0x03)
+    def {{ id }}_read_uid():
+        {{ id }}_antenna(True)
+        {{ id }}_wr(0x0E, {{ id }}_rd(0x0E) & 0x7F)
+        uid = None
+        atqa = {{ id }}_transceive(b"\x26", 7)
+        if atqa and len(atqa) == 2:
+            uid = b""
+            for sel in (0x93, 0x95, 0x97):
+                r = {{ id }}_transceive(bytes([sel, 0x20]))
+                if not r or len(r) != 5 or r[0] ^ r[1] ^ r[2] ^ r[3] != r[4]:
+                    uid = None
+                    break
+                frame = bytes([sel, 0x70]) + r
+                sak = {{ id }}_transceive(frame + {{ id }}_crc(frame))
+                if not sak or len(sak) != 3:
+                    uid = None
+                    break
+                if r[0] != 0x88:
+                    uid += r[:4]
+                    break
+                uid += r[1:4]
+            else:
+                uid = None
+        {{ id }}_antenna(False)
+        return uid
+    {%- if pins.RESET is not defined %}
+    {{ id }}_wr(0x01, 0x0F)
+    {%- endif %}
+    time.sleep(0.05)
+    for {{ id }}_reg, {{ id }}_value in ((0x12, 0x00), (0x13, 0x00), (0x24, 0x26), (0x2A, 0x80), (0x2B, 0xA9),
+                                     (0x2C, 0x03), (0x2D, 0xE8), (0x15, 0x40), (0x11, 0x3D)):
+        {{ id }}_wr({{ id }}_reg, {{ id }}_value)
+    {{ id }}_last = None
+  loop: |
+    {{ id }}_uid = {{ id }}_read_uid()
+    if {{ id }}_uid != {{ id }}_last:
+        if {{ id }}_uid:
+            print("{{ label }}: tag", "-".join("%02x" % b for b in {{ id }}_uid))
+        else:
+            print("{{ label }}: tag removed")
+        {{ id }}_last = {{ id }}_uid
+
 params_schema:
   update_interval: { type: string, default: "1s" }
 

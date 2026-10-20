@@ -220,3 +220,175 @@ def test_lcd_pcf8574_enters_four_bit_mode_and_addresses_each_row(framework, monk
     assert len(sent) == 4 * 21
     assert [r[0] for r in rows] == [(0, 0x80), (0, 0xC0), (0, 0x94), (0, 0xD4)]  # 20x4: rows 2, 3 follow 0, 1
     assert bytes(b for _, b in rows[1][1:]) == b"world" + b" " * 15
+
+
+class FakeMFRC522:
+    """MFRC522 registers over SPI, and a card in the field that answers
+    REQA, anticollision and SELECT at each cascade level of `uid` while
+    the antenna is on."""
+
+    def __init__(self, uid: bytes | None = None):
+        self.regs: dict[int, int] = {}
+        self.fifo: list[int] = []
+        self.uid = uid
+        self.sent: list[bytes] = []
+        self.crc = None
+
+    def try_lock(self):
+        return True
+
+    def unlock(self):
+        pass
+
+    def configure(self, **k):
+        pass
+
+    def write_readinto(self, out, buf):
+        reg = out[0] >> 1 & 0x3F
+        if out[0] & 0x80:
+            value = self.fifo.pop(0) if reg == 0x09 else len(self.fifo) if reg == 0x0A else self.regs.get(reg, 0)
+            buf[:] = bytes([0, value])
+            return
+        buf[:] = bytes(2)
+        if reg == 0x09:
+            self.fifo.append(out[1])
+        elif reg == 0x0A and out[1] & 0x80:
+            self.fifo = []
+        elif reg == 0x04 and out[1] == 0x7F:
+            self.regs[0x04] = 0
+        else:
+            self.regs[reg] = out[1]
+            if reg == 0x0D and out[1] & 0x80 and self.regs.get(0x01) == 0x0C:
+                self._transmit(bytes(self.fifo), out[1] & 0x07)
+
+    def _levels(self) -> list[bytes]:
+        uid = self.uid
+        return {4: [uid], 7: [b"\x88" + uid[:3], uid[3:]], 10: [b"\x88" + uid[:3], b"\x88" + uid[3:6], uid[6:]]}[len(uid)]
+
+    def _transmit(self, frame: bytes, last_bits: int):
+        self.sent.append(frame)
+        reply = None
+        if self.uid and self.regs.get(0x14, 0) & 0x03 == 0x03:
+            if frame == b"\x26" and last_bits == 7:
+                reply = b"\x44\x00"
+            elif frame[0] in (0x93, 0x95, 0x97):
+                levels = self._levels()
+                level = levels[(frame[0] - 0x93) // 2]
+                bcc = bytes([level[0] ^ level[1] ^ level[2] ^ level[3]])
+                if frame[1:] == b"\x20":
+                    reply = level + bcc
+                elif frame[1:7] == b"\x70" + level + bcc and frame[7:] == self.crc(frame[:7]):
+                    sak = bytes([0x04 if level[0] == 0x88 else 0x08])
+                    reply = sak + self.crc(sak)
+        self.fifo = list(reply or b"")
+        self.regs[0x04] = 0x01 if reply is None else 0x30  # TimerIRq, or RxIRq | IdleIRq
+
+
+@FRAMEWORKS
+def test_rc522_initializes_the_timer_and_crc_preset(framework, monkeypatch):
+    bus = FakeMFRC522()
+    scope = setup_scope("rc522", framework, bus, monkeypatch)
+    assert {r: bus.regs[r] for r in (0x12, 0x13, 0x24, 0x2A, 0x2B, 0x2C, 0x2D, 0x15, 0x11)} == {
+        0x12: 0x00, 0x13: 0x00, 0x24: 0x26, 0x2A: 0x80, 0x2B: 0xA9, 0x2C: 0x03, 0x2D: 0xE8, 0x15: 0x40, 0x11: 0x3D}
+    # ISO 14443-3 annex B: CRC_A of 00 00 is A0 1E, of 12 34 is 26 CF.
+    assert scope["dut_crc"](b"\x00\x00") == b"\xa0\x1e"
+    assert scope["dut_crc"](b"\x12\x34") == b"\x26\xcf"
+
+
+@FRAMEWORKS
+@pytest.mark.parametrize("uid", [bytes.fromhex("deadbeef"), bytes.fromhex("04a1b2c3d4e5f6"),
+                                 bytes.fromhex("0811223344556677889a")], ids=["single", "double", "triple"])
+def test_rc522_selects_through_each_cascade_level(framework, uid, monkeypatch):
+    bus = FakeMFRC522()
+    scope = setup_scope("rc522", framework, bus, monkeypatch)
+    bus.uid, bus.crc = uid, scope["dut_crc"]
+    assert scope["dut_read_uid"]() == uid
+    assert bus.sent[0] == b"\x26"
+    assert [f[:2] for f in bus.sent[1:]] == [s for sel in (0x93, 0x95, 0x97)[:len(uid) // 3]
+                                             for s in (bytes([sel, 0x20]), bytes([sel, 0x70]))]
+    assert bus.regs[0x14] & 0x03 == 0  # antenna off: the card resets for the next scan
+
+
+@FRAMEWORKS
+def test_rc522_reports_no_tag_when_reqa_times_out(framework, monkeypatch):
+    bus = FakeMFRC522()
+    scope = setup_scope("rc522", framework, bus, monkeypatch)
+    assert scope["dut_read_uid"]() is None
+    assert bus.sent == [b"\x26"]
+
+
+def _pn532_frame(tfi: int, data: bytes) -> bytes:
+    body = bytes([tfi]) + data
+    return bytes([0x00, 0x00, 0xFF, len(body), -len(body) & 0xFF]) + body + bytes([-sum(body) & 0xFF, 0x00])
+
+
+class FakePN532:
+    """The PN532 on I2C: every read leads with a status byte, 01 once a
+    frame is waiting. A command is answered with an ACK, then its
+    response; a NACK leaves the response to be read again."""
+
+    ACK = bytes.fromhex("0000ff00ff00")
+    NACK = bytes.fromhex("0000ffff0000")
+
+    def __init__(self, uid: bytes | None = None):
+        self.uid = uid
+        self.commands: list[bytes] = []
+        self.aborts = 0
+        self.out = self.next = b""
+
+    def _reply(self, cmd: int, params: bytes) -> bytes | None:
+        if cmd == 0x02:
+            return bytes([0x32, 0x01, 0x06, 0x07])
+        if cmd == 0x4A:
+            return None if self.uid is None else bytes([1, 1, 0x00, 0x44, 0x00, len(self.uid)]) + self.uid
+        return b""
+
+    def writeto(self, addr, data):
+        assert addr == 0x24
+        data = bytes(data)
+        if data == self.NACK:
+            return
+        if data == self.ACK:
+            self.aborts += 1
+            self.out = self.next = b""
+            return
+        assert data == _pn532_frame(0xD4, data[6:6 + data[3] - 1])
+        self.commands.append(data[6:6 + data[3] - 1])
+        reply = self._reply(data[6], data[7:6 + data[3] - 1])
+        self.out = self.ACK
+        self.next = b"" if reply is None else _pn532_frame(0xD5, bytes([data[6] + 1]) + reply)
+
+    def readfrom(self, addr, n):
+        if not self.out:
+            return bytes(n)
+        data = (b"\x01" + self.out + bytes(n))[:n]
+        if self.out == self.ACK and n > 6:
+            self.out = self.next
+        return data
+
+
+def test_pn532_configures_the_sam_and_reads_a_uid(monkeypatch):
+    bus = FakePN532()
+    scope = setup_scope("pn532", "micropython", bus, monkeypatch)
+    assert bus.commands == [b"\x02", b"\x14\x01\x14\x01", b"\x32\x01\x00"]
+    assert scope["dut_version"] == bytes([0x32, 0x01, 0x06, 0x07])
+    bus.uid = bytes.fromhex("04a1b2c3d4e5f6")
+    assert scope["dut_read_uid"]() == bus.uid
+    assert bus.commands[-2:] == [b"\x4a\x01\x00", b"\x32\x01\x00"]  # one ISO 14443A target, then RF off
+
+
+def test_pn532_aborts_a_scan_that_finds_nothing(monkeypatch):
+    bus = FakePN532()
+    scope = setup_scope("pn532", "micropython", bus, monkeypatch)
+    assert scope["dut_read_uid"]() is None
+    assert bus.aborts == 1
+
+
+def test_pn532_rejects_a_frame_with_a_bad_checksum(monkeypatch):
+    scope = setup_scope("pn532", "micropython", FakePN532(), monkeypatch)
+    good = _pn532_frame(0xD5, b"\x03\x32\x01\x06\x07")
+    assert scope["dut_parse"](0x02, good) == b"\x32\x01\x06\x07"
+    bad = bytearray(good)
+    bad[-2] ^= 1
+    assert scope["dut_parse"](0x02, bytes(bad)) is None
+    assert scope["dut_parse"](0x4A, good) is None  # the response to another command
