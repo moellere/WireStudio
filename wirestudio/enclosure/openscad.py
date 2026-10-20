@@ -3,9 +3,10 @@
 Reads the board's `enclosure:` metadata (PCB outline, mount holes,
 ports) and emits a self-contained `.scad` file the user opens in
 OpenSCAD. The output is a bottom shell with mounting standoffs and
-edge cutouts for every defined port; tunables (wall thickness,
-clearance, standoff geometry) live at the top of the file so the
-user can dial in fit without re-rendering.
+edge cutouts for every defined port, and a snap-fit lid laid out
+beside it; tunables (wall thickness, clearance, standoff and lid
+geometry) live at the top of the file so the user can dial in fit
+without re-rendering.
 
 Pure: no I/O, no template lookup -- just text. Tests verify the
 emitted code mentions every input dimension and that boards without
@@ -33,6 +34,11 @@ standoff_d = 5.0;      // standoff outer diameter
 standoff_hole = 2.5;   // through-hole on the standoff (M2.5 clearance)
 port_clearance = 0.5;  // extra mm around each port cutout
 component_h = {component_h};      // tallest part above the PCB top surface
+lid_t = 2.0;           // lid plate thickness
+lip_h = 3.0;           // depth the lid's lip reaches into the shell
+lip_t = 1.2;           // lip wall thickness
+lip_gap = 0.3;         // fit gap between the lip and the shell's inner wall
+snap_r = 0.6;          // radius of the snap beads on the lip's long sides
 
 // === Board geometry (mm, from library) ===
 board_l = {board_l};
@@ -44,7 +50,8 @@ inner_l = board_l + 2*clearance;
 inner_w = board_w + 2*clearance;
 outer_l = inner_l + 2*wall;
 outer_w = inner_w + 2*wall;
-inner_h = standoff_h + board_t + component_h;
+// The walls rise by lip_h so the lid's lip clears the tallest part.
+inner_h = standoff_h + board_t + component_h + lip_h;
 outer_h = floor + inner_h;
 """
 
@@ -57,10 +64,34 @@ module shell() {{
     difference() {{
         // Outer hull.
         cube([outer_l, outer_w, outer_h]);
-        // Inner cavity (open top, removes the lid).
+        // Inner cavity, open at the top for the lid.
         translate([wall, wall, floor])
             cube([inner_l, inner_w, outer_h]);
+        // Grooves the lid's snap beads click into, on both long walls.
+        for (y = [wall, wall + inner_w])
+            translate([wall + inner_l/3 - 0.5, y, outer_h - lip_h/2])
+                rotate([0, 90, 0])
+                    cylinder(h = inner_l/3 + 1, r = snap_r);
 {port_cutouts}
+    }}
+}}
+
+// Printed plate-down beside the shell; flipped, the lip drops inside
+// the walls and the beads seat in the grooves.
+module lid() {{
+    lip_l = inner_l - 2*lip_gap;
+    lip_w = inner_w - 2*lip_gap;
+    cube([outer_l, outer_w, lid_t]);
+    translate([wall + lip_gap, wall + lip_gap, lid_t - 0.01]) {{
+        difference() {{
+            cube([lip_l, lip_w, lip_h + 0.01]);
+            translate([lip_t, lip_t, -1])
+                cube([lip_l - 2*lip_t, lip_w - 2*lip_t, lip_h + 2]);
+        }}
+        for (y = [0, lip_w])
+            translate([lip_l/3, y, lip_h/2 + 0.01])
+                rotate([0, 90, 0])
+                    cylinder(h = lip_l/3, r = snap_r);
     }}
 }}
 
@@ -81,6 +112,7 @@ module standoffs() {{
 // === Assembly ===
 shell();
 standoffs();
+translate([outer_l + 10, 0, 0]) lid();
 """
 
 
@@ -165,7 +197,7 @@ def generate_scad(design: Design, library: Library) -> str:
     """Render an OpenSCAD shell for the design's board.
 
     Walks the board's enclosure block and emits a bottom shell with
-    mounting standoffs + edge cutouts for every port. Tunables (wall
+    mounting standoffs + edge cutouts for every port, and its lid. Tunables (wall
     thickness, clearance, standoff geometry) sit at the top of the
     output as plain OpenSCAD assignments so the user can adjust fit
     without re-rendering from the studio.
