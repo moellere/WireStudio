@@ -24,6 +24,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CircuitPython and MicroPython for the MFRC522; MicroPython for the
+  PN532.** Datasheet code following ESPHome's rc522 and pn532: the
+  MFRC522's timer and modulation setup, REQA as a 7-bit frame, then
+  anticollision and SELECT with a computed CRC_A through each cascade
+  level, the antenna switched off between scans; the PN532's I2C frames
+  with their length and data checksums, the ACK, the NACK that re-reads
+  a response, and an aborted InListPassiveTarget when no card answers.
+  Tested against a simulated reader and card in
+  `tests/test_register_code.py`.
+
 - **CircuitPython and MicroPython for the XPT2046 and the PCF8574
   character LCD; MicroPython for the MCP23S17.** Datasheet code shared
   by both frameworks, read from ESPHome's components: the XPT2046's
