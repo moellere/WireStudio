@@ -397,6 +397,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **User guide caught up with the studio.** Component authoring, both
+  ESPHome build paths (fleet add-on and ESPHome dashboard), the
+  workbench slot target and boot verdict, the six-framework flash
+  dialog, what each framework target emits, the schematic / PCB / fab
+  path, and the 25 bundled examples the table was missing.
+
 - **The `adc` part's CircuitPython and MicroPython blocks apply its
   `multiply` filters**, so the battery divider a board seeds reads the
   cell voltage there too. MicroPython prints volts (`read_uv`, or

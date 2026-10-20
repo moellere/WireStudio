@@ -23,9 +23,15 @@
   Strict mode (header toggle) promotes warn/error compat to render
   errors as a pre-deploy gate.
 - **Generate.** Pure functions over `design.json` + the static
-  library produce ESPHome YAML, ASCII wiring diagrams + BOM, a
-  parametric OpenSCAD enclosure (`.scad`), and a SKiDL Python script
-  the user runs locally to produce a `.kicad_sch`. Bundled examples
+  library produce ESPHome YAML, ASCII wiring diagrams + BOM and a
+  parametric OpenSCAD enclosure (`.scad`). The same design renders for
+  the other frameworks: a Tasmota device template, WLED's `cfg.json`
+  (plus a `platformio_override.ini` when a part is a usermod), a
+  CircuitPython `code.py`, a MicroPython `main.py` and the standalone
+  LoRaWAN firmware. **Schematic** (advanced mode) previews and
+  downloads a KiCad 8 `.kicad_sch` the studio draws itself, exports a
+  placed `.kicad_pcb`, routes it with Freerouting, and builds the
+  JLCPCB bundle (BOM, CPL, Gerber + drill). Bundled examples are
   pinned as goldens.
 - **Parts.** A component can be a subcircuit of discrete parts; the
   inspector shows what it expands into and the part values follow the
@@ -35,10 +41,16 @@
   substitutes ranked by pinout, package, rating headroom and stock,
   applies one with *Use for ...* or every best proposal with *Use all
   suggested substitutes*, and ends in a pick list by drawer location
-  and a buy list priced on JLCPCB. **New component** and a user component's *Edit YAML* open an
-  editor whose *Check* runs the same gate the bundled library passes.
+  and a buy list priced on JLCPCB.
+- **Author components.** **New component** and a user component's
+  *Edit YAML* open an editor whose *Check* runs the same gate the
+  bundled library passes: schema, subcircuit nets, the ESPHome template
+  render and the KiCad symbol, pins and footprint. A component that
+  passes lands in the user library (`LIBRARY_USER_DIR`) and is
+  available to every design; `component_create` does the same over
+  MCP.
 - **Flash.** One flash dialog (**Flash firmware**, radio icon) covers
-  five frameworks over the same WebSerial + esptool-js mechanism:
+  six frameworks over the same WebSerial + esptool-js mechanism:
   **ESPHome** hands off to a fleet push or an ESPHome dashboard
   compile (OTA, no serial flash),
   **Tasmota** fetches the official release image for the design's chip
@@ -53,6 +65,24 @@
   **MicroPython** flashes the official port image for the board's chip
   and pushes a `main.py` generated from the design over the same serial
   port through the raw REPL (or against any connected board).
+- **Build ESPHome firmware.** Two paths, both under **Push to fleet**
+  (advanced mode): the
+  [fleet-for-esphome](integrations.md) add-on (`FLEET_URL` +
+  `FLEET_TOKEN`), or any ESPHome dashboard, the Home Assistant add-on
+  or a standalone `esphome dashboard` (`ESPHOME_DASHBOARD_URL`). Either
+  writes the rendered YAML as `<device_name>.yaml`, optionally starts a
+  compile, and streams the build log; the dashboard path also serves
+  the firmware image. The dialog offers whichever backend is
+  configured.
+- **Workbench.** With `WORKBENCH_URL` (and `WORKBENCH_TOKEN`) pointing
+  at a [workbench](workbench.md) bench, the flash dialog's target
+  picker adds **Workbench slot** next to local USB: the image is
+  flashed on a board at the bench, the slot's serial output is relayed
+  back, and a boot verdict reads the framework's start-up marker
+  (`/workbench/verify-boot`). Over MCP, `lorawan_workbench_provision`
+  runs the whole LoRaWAN bring-up (flash, register in ChirpStack, key
+  push, join) against a slot with no one at the bench. The picker
+  stays hidden when no bench is configured.
 - **LoRaWAN (radio boards).** Two flows for US915 radio boards (TTGO
   LoRa32 / T-Beam, Heltec WiFi LoRa 32 V2 / V3 / V4):
   - **Flash LoRaWAN firmware** (radio icon, advanced mode) builds the
@@ -89,10 +119,12 @@ Inspector surfaces:
 
 Header buttons: **New design**, **Reset**, **Save**, **Download JSON**,
 **Solve pins**, **strict** (toggle), **Connect device** (USB
-bootstrap), **Add by function** (capability picker), **Flash firmware**
-(the unified flash dialog), **Provision LoRaWAN device** (key icon),
+bootstrap), **Add by function** (capability picker), **Inventory**,
+**Flash firmware** (the unified flash dialog), **Provision LoRaWAN
+device** (key icon),
 **Schematic** (KiCad export), **Enclosure** (parametric `.scad` +
-Thingiverse search), **Push to fleet**, **Agent** (chat sidebar),
+Thingiverse search), **Push to fleet** (fleet add-on or ESPHome
+dashboard), **Agent** (chat sidebar),
 **Settings** (gear). Advanced mode reveals the Agent, Schematic,
 Enclosure, and Fleet options.
 
@@ -207,6 +239,31 @@ it without a proxy. Browse the auto-generated OpenAPI docs at
 | [`subghz-rfid.json`](../wirestudio/examples/subghz-rfid.json) | ESP32-DevKitC-V4 | CC1101 433MHz transceiver (SPI) + RDM6300 125kHz RFID reader (UART) |
 | [`presence-rf.json`](../wirestudio/examples/presence-rf.json) | ESP32-DevKitC-V4 | LD2420 24GHz mmWave presence (UART) + Sonoff-style 433MHz RF bridge (UART) |
 | [`flow-meter.json`](../wirestudio/examples/flow-meter.json) | ESP32-DevKitC-V4 | Pulse-counter flow/RPM sensor + APA102 DotStar strip + RTTTL piezo buzzer |
+| [`access-panel.json`](../wirestudio/examples/access-panel.json) | ESP32-DevKitC-V4 | Door controller: PN532 NFC reader on I2C, Wiegand keypad, servo latch and a strike-plate relay |
+| [`actuator-harness.json`](../wirestudio/examples/actuator-harness.json) | ESP32-DevKitC-V4 | Brake or valve actuator on one 8-way cable: MOSFET H-bridge, feedback pot, tach switch; connector positions land on the bridge's internal nodes |
+| [`air-quality-station.json`](../wirestudio/examples/air-quality-station.json) | ESP32-DevKitC-V4 | SCD4x CO2, SHT4x, SGP4x VOC, VEML7700 and BME680 on I2C + PMS5003 particulates on UART2 |
+| [`bench-io.json`](../wirestudio/examples/bench-io.json) | ESP32-DevKitC-V4 | The discrete building blocks: status LED, NPN relay driver, MOSFET fan driver on PWM, 12 V divider, 1-Wire level shifter |
+| [`blind-stepper.json`](../wirestudio/examples/blind-stepper.json) | ESP32-DevKitC-V4 | 28BYJ-48 geared stepper on a ULN2003 driver |
+| [`button-toggles-light.json`](../wirestudio/examples/button-toggles-light.json) | WeMos D1 Mini | Intent-to-device: a button toggles a switch, lowered from `automations` |
+| [`co2-display.json`](../wirestudio/examples/co2-display.json) | WeMos D1 Mini | MH-Z19 CO2 on a software UART, TM1637 readout, buzzer alarm above 1200 ppm |
+| [`encoder-drives-stepper.json`](../wirestudio/examples/encoder-drives-stepper.json) | ESP32-DevKitC-V4 | Intent-to-device: a rotary encoder's value drives a stepper through a transform |
+| [`energy-monitor.json`](../wirestudio/examples/energy-monitor.json) | ESP32-DevKitC-V4 | PZEM-004T over Modbus, an SCT-013 CT clamp on an ADC pin, and an INA219 on a 12 V DC rail |
+| [`guarded-button-light.json`](../wirestudio/examples/guarded-button-light.json) | WeMos D1 Mini | Intent-to-device: a button toggles a light only while an enable switch is on |
+| [`heltec-v4-gnss-tracker.json`](../wirestudio/examples/heltec-v4-gnss-tracker.json) | Heltec WiFi LoRa 32 V4 | L76K GNSS module on its SH1.25 connector, uplinking position over LoRaWAN via `lorawan-for-esphome` |
+| [`lorawan-battery-uplink.json`](../wirestudio/examples/lorawan-battery-uplink.json) | TTGO LoRa32 V1 | Battery voltage uplinked over the LoRaWAN external-component path |
+| [`motion-turns-on-light.json`](../wirestudio/examples/motion-turns-on-light.json) | WeMos D1 Mini | Intent-to-device: PIR motion turns a WS2812B on and off |
+| [`motor-position.json`](../wirestudio/examples/motor-position.json) | ESP32-DevKitC-V4 | Discrete MOSFET H-bridge on a gearmotor with its feedback pot on an ADC pin |
+| [`output-hub.json`](../wirestudio/examples/output-hub.json) | ESP32-DevKitC-V4 | PCA9685 PWM channels on I2C + an SN74HC595 shift register driving a relay |
+| [`presence-media-node.json`](../wirestudio/examples/presence-media-node.json) | ESP32-DevKitC-V4 | LD2410 mmWave presence on UART2 + TSOP38238 IR receiver |
+| [`solder-fan.json`](../wirestudio/examples/solder-fan.json) | WeMos D1 Mini | 12 V 4-wire PWM fan set by a potentiometer, tach reporting RPM |
+| [`spi-io-node.json`](../wirestudio/examples/spi-io-node.json) | ESP32-DevKitC-V4 | MCP23S17 GPIO expander and MCP3008 ADC sharing the VSPI bus |
+| [`t-beam-lorawan.json`](../wirestudio/examples/t-beam-lorawan.json) | LilyGO TTGO T-Beam | Standalone LoRaWAN firmware: GPS, AXP192 cell voltage, DHT22, SSD1306 status |
+| [`temp-above-turns-on-fan.json`](../wirestudio/examples/temp-above-turns-on-fan.json) | WeMos D1 Mini | Intent-to-device: BME280 temperature above 28 °C turns a fan on (`on_value_range`) |
+| [`temp-turns-on-fan.json`](../wirestudio/examples/temp-turns-on-fan.json) | WeMos D1 Mini | Intent-to-device: a multi-channel sensor's temperature channel drives a switch |
+| [`usbc-led-strip.json`](../wirestudio/examples/usbc-led-strip.json) | ESP32-DevKitC-V4 | WS2812B strip fed from its own USB-C receptacle with CC pull-downs, out on a JST-XH plug |
+| [`vent-damper.json`](../wirestudio/examples/vent-damper.json) | ESP32-C3 SuperMini | DRV8833-class H-bridge on a damper gearmotor, exposed as a reversible fan |
+| [`wled-sensor-strip.json`](../wirestudio/examples/wled-sensor-strip.json) | ESP32-DevKitC-V4 | WS2812 strip, button, BME280 and DS18B20; on WLED the sensors are usermods |
+| [`xiao-grove-climate.json`](../wirestudio/examples/xiao-grove-climate.json) | Seeed XIAO ESP32C3 | Grove AHT20 on the Grove I2C connector |
 
 Generated artifacts for each are pinned as goldens in
 [`tests/golden/`](../tests/golden/). For a per-component / per-board view of
