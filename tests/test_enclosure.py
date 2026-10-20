@@ -110,8 +110,8 @@ def test_output_is_self_contained_openscad(lib):
     scad = generate_scad(_design("garage-motion"), lib)
     assert "include <" not in scad
     assert "use <" not in scad
-    for prim in ("module shell()", "module standoffs()", "shell();",
-                  "standoffs();", "cube(", "cylinder(", "difference()", "translate("):
+    for prim in ("module shell()", "module standoffs()", "module lid()", "shell();",
+                  "standoffs();", "lid();", "cube(", "cylinder(", "difference()", "translate("):
         assert prim in scad
 
 
@@ -124,3 +124,17 @@ def test_d1_mini_round_trip(lib):
     coord_lines = [line.strip() for line in holes_block.splitlines()
                     if line.strip().startswith("[")]
     assert len(coord_lines) == 4
+
+
+def test_lid_lip_clears_the_parts_and_its_beads_meet_the_grooves(lib):
+    """The walls grow by the lip depth, the lip fits inside them with a
+    gap, and the beads sit at half the lip depth, where the grooves are
+    cut from the top of the shell."""
+    scad = generate_scad(_design("garage-motion"), lib)
+    assert "inner_h = standoff_h + board_t + component_h + lip_h;" in scad
+    lid = scad[scad.find("module lid()"):scad.find("// === Assembly ===")]
+    assert "lip_l = inner_l - 2*lip_gap;" in lid
+    assert "translate([lip_l/3, y, lip_h/2 + 0.01])" in lid
+    shell = scad[scad.find("module shell()"):scad.find("module lid()")]
+    assert "outer_h - lip_h/2" in shell
+    assert "translate([outer_l + 10, 0, 0]) lid();" in scad
