@@ -103,11 +103,12 @@ def test_design_code_emits_only_the_buses_mapped_parts_use():
     assert "i2c_i2c0 = SoftI2C(scl=Pin(22), sda=Pin(21), freq=400000)" in code
     assert "from machine import Pin, SoftI2C" in code
     assert "bme280.BME280(i2c=i2c_i2c0, address=0x76)" in code
-    panel = Design.model_validate(json.loads((EXAMPLES / "access-panel.json").read_text()))
-    out = generate_code(panel, lib)
-    assert any("pn532" in w for w in out["warnings"])  # no MicroPython mapping yet
-    assert "SoftI2C(" not in out["code"]  # nothing mapped rides it
-    assert "from machine import PWM, Pin, disable_irq, enable_irq\n" in out["code"]
+    rfid = Design.model_validate(json.loads((EXAMPLES / "subghz-rfid.json").read_text()))
+    out = generate_code(rfid, lib)
+    assert any("cc1101" in w for w in out["warnings"])  # no MicroPython mapping
+    assert "SoftSPI(" not in out["code"]  # nothing mapped rides it
+    assert "from machine import Pin, UART\n" in out["code"]
+    assert "uart_rfid_uart = UART(1, baudrate=9600, tx=Pin(17), rx=Pin(16))" in out["code"]
 
 
 def test_design_code_maps_builtin_drivers_and_deps():
