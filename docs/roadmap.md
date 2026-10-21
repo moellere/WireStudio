@@ -190,9 +190,13 @@ Section 4 covers the rest.
 
 ## 4. Physical outputs
 
-- **PCB.** Routed DRC feedback in the UI (today it is a CI verdict),
-  via-cost and keepout tuning exposed as route params, copper pours for
-  the power nets. An example ordered from JLCPCB and brought up on the
+- **PCB.** Backlog, one issue each: routed DRC results in the UI
+  (today it is a CI verdict,
+  [#344](https://github.com/moellere/WireStudio/issues/344)), route
+  parameters for via cost and keepouts
+  ([#345](https://github.com/moellere/WireStudio/issues/345)), copper
+  pours for the power nets
+  ([#346](https://github.com/moellere/WireStudio/issues/346)). An example ordered from JLCPCB and brought up on the
   bench would be the only test of the fab bundle beyond its structural
   checks; it is not a 1.0 gate.
 - **Enclosure.** `enclosure:` metadata for every board whose outline
