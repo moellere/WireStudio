@@ -415,6 +415,24 @@ Each phase is independently testable and (mostly) shippable. Use `# TODO(0.x):` 
 
 ---
 
+## 12a. Multi-region (deferred past 1.0)
+
+The model's `lorawan.region` accepts EU868, AU915 and AS923, but every
+path behind it is pinned to US915 sub-band 2: the firmware's
+`min_datarate` uses the US915 per-DR payload caps
+(`firmware_gen.py`), `ChirpStack.ensure_device_profile` registers
+`Region.US915` with `region_config_id="us915_1"`, and the provision
+endpoints, `codec.profile_name` and the workbench report the band as
+US915. A device built for another band would not join.
+
+It is deferred, not half-shipped, because it is safety-sensitive and
+untestable without a gateway on that band. When it is picked up:
+
+- per-region valid sub-band sets on the model;
+- one `region -> {DR payload caps, RadioLib band, ChirpStack
+  region_config_id}` table replacing the scattered US915 constants;
+- a real join test per region before the region is claimed.
+
 ## 13. Sources
 
 - RadioLib DevNonce-on-power-cycle (TTGO LoRa32): https://github.com/jgromes/RadioLib/issues/1480

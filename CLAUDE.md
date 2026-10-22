@@ -39,7 +39,7 @@ Notes for Claude (and humans) when editing this repo.
   the new file in the same diff as the code change.
 
 ## TODOs
-Use `# TODO(0.x):` to mark deferred work tied to a phase from `START.md`.
+Use `# TODO(0.x):` to mark deferred work tied to an item in `docs/roadmap.md`.
 Plain `# TODO:` is fine for unscoped notes.
 
 ## What not to do
