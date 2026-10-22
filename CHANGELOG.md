@@ -427,6 +427,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`START.md` is consolidated into `docs/`.** The decisions the 0.x
+  working log held are reference pages: `docs/architecture.md` (the
+  document rules, no LLM in a compile path, MCP transport and auth,
+  the framework / build / network-server axes, the library split),
+  `docs/design-schema.md` (every `design.json` field, generated from
+  the schema by `scripts/schema_doc.py` and held to it by a test),
+  library sourcing in `docs/library.md` and the LoRaWAN multi-region
+  design in the LoRaWAN plan. `START.md` keeps the resume steps and
+  a pointer; the log is in git history.
 - **The agent row is Verified.** The eval harness holds every task's
   reference solution to the scorer on every PR and scores the model
   nightly; the nightly run needs the `ANTHROPIC_API_KEY` repository

@@ -138,7 +138,7 @@ the table.
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the bar a change has to
 clear before merging, [`CHANGELOG.md`](CHANGELOG.md) for per-release
-deltas, and [`START.md`](START.md) for the longer-form design notes.
+deltas, and [`docs/architecture.md`](docs/architecture.md) for the design decisions.
 
 Tested against ESPHome **`==2026.6.5`** (pinned in
 `.github/workflows/esphome-config.yml` + bumped deliberately). When
