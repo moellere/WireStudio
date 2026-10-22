@@ -24,6 +24,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Enclosures for the ESP32-C3 SuperMini and the Heltec WiFi LoRa 32
+  V3.** Outlines from the vendors' own drawing and spec table, USB-C
+  centred on the short edge; the Heltec's U.FL antenna gets a hole for
+  an SMA bulkhead pigtail on the far end. Nine boards now carry an
+  `enclosure:` block.
 - **Pin maps for the boards drawn as generic headers.** Nineteen boards
   gain a `kicad.pin_map` binding each GPIO and rail to its header pad, so
   their nets reach the board in the schematic, PCB and netlist instead of
@@ -474,6 +479,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Low boards' enclosures.** A board whose tallest part is short (the
+  C3 SuperMini's 3.5 mm) gave YAPP a base wall lower than its ridge,
+  which fails YAPP's assertion. The base wall is now at least the ridge.
 - **The KiCad install steps time out.** `kicad-render`, `pcb-drc` and
   `pcb-route` install KiCad 8 from its PPA, which can stall mid-install;
   the step now fails after 25 minutes instead of holding the runner for

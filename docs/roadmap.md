@@ -185,7 +185,7 @@ remains is to work the baselines down:
   remaining one. When the pin moves to 0.16 the override switches from build
   flags to `custom_usermods`.
 
-Boards: all 26 have an ESPHome example. The enclosure block is on 7.
+Boards: all 26 have an ESPHome example. The enclosure block is on 9.
 Section 4 covers the rest.
 
 ## 4. Physical outputs
@@ -200,8 +200,13 @@ Section 4 covers the rest.
   bench would be the only test of the fab bundle beyond its structural
   checks; it is not a 1.0 gate.
 - **Enclosure.** `enclosure:` metadata for every board whose outline
-  and mount holes are published (most of the 19 without one are M5Stack
-  units and supermini boards with known dimensions). YAPP_Box is
+  is published: nine have it. Of the other seventeen, the six M5Stack
+  Atoms ship in their own case, the ESP-01 and ESP8285 are modules for
+  a host board, and the two camera boards need a lens window in the lid
+  that the generator does not cut. The ESP32-C3 and S3 DevKits publish
+  their outlines as DXFs on dl.espressif.com, not yet transcribed; the
+  S3 and C6 SuperMinis, the Heltec V2 and V4 and the T-Beam wait on a
+  published drawing. YAPP_Box is
   adopted: the `.scad` endpoint inlines the pinned generator and drives
   it from the `enclosure:` block, base and lid with a ridge and snap
   joins. The fit test runs through print-warden: one enclosure sent with
@@ -240,11 +245,13 @@ Section 4 covers the rest.
   `ANTHROPIC_API_KEY` repository secret, and its first score becomes
   `min_pass`. A model swap is then a dispatched run and a diff of two
   summaries.
-- **MCP conformance in CI.** The `mcp` client library against the
-  mounted server: connect with the token, list tools and resources,
-  `create_design` → `add_component` → `solve_pins` → `render`, read
-  `design://{id}/yaml`, confirm the `design-changed` event fired. Closes
-  the "not run against a live MCP client" caveat.
+- **MCP conformance in CI.** Done. `tests/test_mcp_client.py` runs
+  the `mcp` client library against the mounted server under uvicorn:
+  connect with the token, list tools and resource templates,
+  `create_design` → `add_component` → `solve_pins` → `validate` →
+  `render`, read `design://{id}/yaml` and a library resource, and a
+  client without the token is refused. The server emits no change
+  notifications, so there is no event to assert.
 - **Cost line.** The remaining items from the cost-tuning list in
   `START.md` (compact `search_components` results, `max_iterations`
   at 8) ship behind the eval so a cheaper turn is shown not to cost

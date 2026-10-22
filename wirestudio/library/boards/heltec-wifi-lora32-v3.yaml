@@ -91,9 +91,29 @@ gpio_capabilities:
   GPIO47: [gpio, pwm]
   GPIO48: [gpio, pwm]
 
-# Enclosure geometry deferred: the V3 ships an IPEX/U.FL antenna jack
-# (not the TTGO's edge SMA) and an onboard OLED; modelling the cutouts
-# needs a measured board. TODO(0.x): add enclosure: once verified.
+# Enclosure geometry (mm). Outline from Heltec HeltecWiKi @ 288688a,
+# wifi-lora-32-v3.md: 50.2 x 25.5 x 10.2 overall, the PCB thickness not
+# published. USB-C centred on short_a per the wiki pin map. The LoRa
+# jack is U.FL, so short_b carries a hole for an SMA bulkhead pigtail
+# rather than an onboard connector. No mount holes; the OLED window is
+# deferred as on the TTGO boards.
+enclosure:
+  pcb: {length_mm: 50.2, width_mm: 25.5, thickness_mm: 1.0}
+  mount_holes: []
+  ports:
+    - kind: usb_c
+      edge: short_a
+      offset_mm: 8.25
+      width_mm: 9.0
+      height_mm: 3.4
+      height_above_pcb_mm: 1.6
+    - kind: sma
+      edge: short_b
+      offset_mm: 9.25
+      width_mm: 7.0
+      height_mm: 7.0
+      height_above_pcb_mm: 4.0
+  component_height_max_mm: 9.2
 
 # KiCad symbol mapping. Header order from Heltec HeltecWiKi @ 288688a,
 # docs/platform/f&t/devices/esp32/img/pinmap.png; matches the V3 back
