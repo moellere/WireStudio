@@ -42,8 +42,7 @@ The last planned changes to the document shape, then the freeze.
   A desk-bike-shaped example pins the netlist. Closes the last "finish
   it by hand in KiCad" gap on the schematic.
 - **0.41 — Retire the standalone LoRaWAN sugar.** `design.lorawan.gps`
-  / `dht22` / `oled` lower to library components internally (phase A of
-  the framework plan in `START.md`), so the Arduino path reads the same
+  / `dht22` / `oled` lower to library components internally, so the Arduino path reads the same
   `components` / `buses` / `connections` the ESPHome generator does.
   The fields stay accepted until 1.0 and are rewritten by the migrator.
 - **0.42 — Migration mechanism.** `wirestudio.migrate`: a chain of
@@ -252,10 +251,10 @@ Section 4 covers the rest.
   `render`, read `design://{id}/yaml` and a library resource, and a
   client without the token is refused. The server emits no change
   notifications, so there is no event to assert.
-- **Cost line.** The remaining items from the cost-tuning list in
-  `START.md` (compact `search_components` results, `max_iterations`
-  at 8) ship behind the eval so a cheaper turn is shown not to cost
-  passes.
+- **Cost line.** Two cost cuts remain: `search_components` results
+  trimmed to id, category and score, and `max_iterations` from 12 to 8
+  (most edits take three to five tool calls). They ship behind the eval
+  so a cheaper turn is shown not to cost passes.
 
 ## 6. Operations and hygiene
 
@@ -304,11 +303,14 @@ Section 4 covers the rest.
 
 - The README status table becomes the 1.0 contract: two tiers,
   *Verified* and *Experimental*, every row citing its gate.
-- `START.md` is a 100 KB working log. At 1.0 the decisions it holds
-  (locked decisions, the framework axis, the MCP architectural
-  principle, the schema) move into `docs/` as short reference pages,
-  and `START.md` is reduced to the session-resume block and a pointer.
-  The CLAUDE.md convention that cites it moves with it.
+- `START.md` consolidated. Done: the decisions it held are in
+  `docs/architecture.md` (the document rules, the reasoning layers, no
+  LLM in a compile path, MCP transport and auth, the framework / build /
+  network-server axes, the library split), the schema in
+  `docs/design-schema.md` (generated from `design.schema.json` and held
+  to it by a test), library sourcing in `docs/library.md`, and the
+  LoRaWAN region design in the LoRaWAN plan. `START.md` is the resume
+  block and a pointer; the CLAUDE.md TODO convention cites this roadmap.
 - `docs/user_guide.md` covers the paths that landed since it was
   written. Done: inventory, component authoring, the six-framework
   flash dialog, the workbench, both ESPHome build paths, the other
@@ -323,7 +325,8 @@ Stated so nobody waits on them.
 
 - **LoRaWAN multi-region and TTN.** Safety-sensitive and untestable
   without a non-US915 gateway. The region table design is in
-  `START.md`; it ships when a gateway exists to test it. 1.0 is US915
+  `docs/lorawan/LORAWAN_TARGET_PLAN.md` (12a); it ships when a gateway
+  exists to test it. 1.0 is US915
   and ChirpStack, documented as such.
 - **Multi-user and HA replicas.** The studio is a single-user tool with
   one active design per process. A multi-writer backend is 1.x if a

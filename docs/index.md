@@ -24,6 +24,10 @@ under upstream ESPHome.
   (shipped), capability map, later phases, constraints.
 - [Roadmap to 1.0](roadmap.md) — what 1.0 promises, what has to land,
   what is left out.
+- [Design decisions](architecture.md) — the decisions every change is
+  held to, and why.
+- [design.json reference](design-schema.md) — every field of the
+  document, generated from the schema.
 
 ## Architecture
 
@@ -82,7 +86,7 @@ Dockerfile               multi-stage build for the published GHCR image
 scripts/                 dev helpers (currently: examples → `esphome config` gate)
 docs/                    this documentation
 CHANGELOG.md             per-release feature deltas
-START.md                 vision, decisions, phase plan
+START.md                 how to resume work, and where things are
 CLAUDE.md                working conventions for both Claude and humans
 CONTRIBUTING.md          substantive bar a change has to clear (the YAML gate, etc.)
 ```
@@ -92,8 +96,8 @@ CONTRIBUTING.md          substantive bar a change has to clear (the YAML gate, e
 The path from here to 1.0 is in [`roadmap.md`](roadmap.md). What
 follows is the per-area status, ordered by how much it raises the
 floor on whether the studio is actually useful. Per-release deltas
-live in [`CHANGELOG.md`](../CHANGELOG.md); decisions + phase scope in
-[`START.md`](../START.md).
+live in [`CHANGELOG.md`](../CHANGELOG.md); the design decisions in
+[`architecture.md`](architecture.md).
 
 **Priority 1 — YAML production correctness.** *Active.* The single
 non-negotiable bar: every artifact the studio emits round-trips

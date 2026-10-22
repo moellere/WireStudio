@@ -168,6 +168,26 @@ mix of expander inputs and outputs.
 
 The library spans the device classes used across the
 [`moellere/esphome`](https://github.com/moellere/esphome) device
-configurations and keeps growing as new device configs land. See
-[`START.md` § Library sourcing strategy](../START.md#library-sourcing-strategy)
-for the hybrid plan.
+configurations and keeps growing as new device configs land.
+
+## Sourcing
+
+Each part of an entry has its own best source; some are mined, some are
+hand-curated. Nothing is vendored: the tree carries derived data, and
+[`LICENSES.md`](../LICENSES.md) names every source.
+
+| Field | Source | Mined |
+|---|---|---|
+| Board `mcu`, `chip_variant`, `platformio_board`, `flash_size_mb` | PlatformIO board JSON (`platform-espressif32`, `platform-espressif8266`) | yes |
+| Board GPIO capabilities (PWM, ADC, strap, input-only, bus defaults) | Espressif hardware reference and module datasheets | partly |
+| Board rails, USB bridge, header order (`kicad.pin_map`), outline (`enclosure:`) | the vendor's schematic, pinout or dimension drawing, cited in the board file by repository and commit | no |
+| Component ESPHome template and config shape | ESPHome's own component schema | yes |
+| Component pin roles and required buses | ESPHome's integration code (`cv.GPIOSensor`, bus hooks) | partly |
+| Component voltage range, current draw, pull-ups, decoupling | the datasheet | no |
+| Component KiCad symbol and footprint | KiCad's libraries, through `python -m wirestudio.kicad.import` | yes |
+
+Coverage aims at the parts real devices use, not at every ESPHome
+platform: the components across `moellere/esphome` and the boards in
+use. Each board file carries its own full pin table. A user component
+authored in the studio goes through the same `esphome config` gate as
+a library one.
