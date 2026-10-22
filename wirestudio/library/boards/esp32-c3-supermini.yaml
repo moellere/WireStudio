@@ -42,10 +42,31 @@ gpio_capabilities:
   GPIO10: [gpio, pwm]
   GPIO20: [gpio, uart_rx, serial_rx]
   GPIO21: [gpio, uart_tx, serial_tx]
-# KiCad symbol mapping. 16-pad castellated board, modelled as a 2x8
-# header until KiCad ships a dedicated SuperMini module symbol.
+# KiCad symbol mapping. Header order from NologoTech ESP32C3-Supermini @
+# bb8a46d, Hardware/电路图.png (schematic H1/H2). Viewed component side,
+# USB up, from the USB end. Two rows on a Conn_02xNN_Odd_Even: left-row
+# position k is pad 2k-1, right-row position k is pad 2k. pin_map binds
+# each board role to its first pad; pads with no role (RST, extra rails)
+# stay unconnected.
 kicad:
   symbol_lib: Connector_Generic
   symbol: Conn_02x08_Odd_Even
   footprint: Connector_PinHeader_2.54mm:PinHeader_2x08_P2.54mm_Vertical
   value: ESP32-C3-SuperMini
+  pin_map:
+    GPIO0: "16"
+    GPIO1: "14"
+    GPIO2: "12"
+    GPIO3: "10"
+    GPIO4: "8"
+    GPIO5: "1"
+    GPIO6: "3"
+    GPIO7: "5"
+    GPIO8: "7"
+    GPIO9: "9"
+    GPIO10: "11"
+    GPIO20: "13"
+    GPIO21: "15"
+    3V3: "6"
+    5V: "2"
+    GND: "4"
