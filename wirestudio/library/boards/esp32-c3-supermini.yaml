@@ -42,6 +42,20 @@ gpio_capabilities:
   GPIO10: [gpio, pwm]
   GPIO20: [gpio, uart_rx, serial_rx]
   GPIO21: [gpio, uart_tx, serial_tx]
+# Enclosure geometry (mm). Outline from NologoTech ESP32C3-Supermini @
+# bb8a46d, Hardware/ESP32-C3尺寸图.png: 22.5 x 18.0, USB-C centred on
+# the short edge. No mount holes; the thickness is not published.
+enclosure:
+  pcb: {length_mm: 22.5, width_mm: 18.0, thickness_mm: 1.0}
+  mount_holes: []
+  ports:
+    - kind: usb_c
+      edge: short_a
+      offset_mm: 4.5
+      width_mm: 9.0
+      height_mm: 3.4
+      height_above_pcb_mm: 1.6
+  component_height_max_mm: 3.5
 # KiCad symbol mapping. Header order from NologoTech ESP32C3-Supermini @
 # bb8a46d, Hardware/电路图.png (schematic H1/H2). Viewed component side,
 # USB up, from the USB end. Two rows on a Conn_02xNN_Odd_Even: left-row

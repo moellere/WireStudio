@@ -110,7 +110,7 @@ def test_output_inlines_the_pinned_generator(lib):
 
 def test_base_and_lid_heights_clear_the_tallest_part(lib):
     scad = generate_scad(_design("garage-motion"), lib)
-    assert "base_wall_h = standoff_h + board_t + component_h + 1 - lid_wall_h;" in scad
+    assert "base_wall_h = max(ridge, standoff_h + board_t + component_h + 1 - lid_wall_h);" in scad
     assert "ridge = max(ridge_h, 1.8 * wall);" in scad
     assert "printLidShell = true;" in scad
     assert "[shell_l/2, 5, yappLeft, yappRight, yappCenter]" in _block(scad, "snapJoins")

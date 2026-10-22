@@ -61,11 +61,12 @@ board_t = {board_t};
 
 // === Derived ===
 // The lid's walls are at least the ridge plus 2 mm; the base takes the
-// rest of the height the PCB and its tallest part need, plus 1 mm.
-// YAPP's snap joins need a ridge of at least 1.8 walls.
+// rest of the height the PCB and its tallest part need, plus 1 mm, and
+// no less than the ridge, which YAPP cuts into the base wall. YAPP's
+// snap joins need a ridge of at least 1.8 walls.
 ridge = max(ridge_h, 1.8 * wall);
 lid_wall_h = max(ridge + 2, (component_h + 1) / 2);
-base_wall_h = standoff_h + board_t + component_h + 1 - lid_wall_h;
+base_wall_h = max(ridge, standoff_h + board_t + component_h + 1 - lid_wall_h);
 shell_l = board_l + 2*clearance + 2*wall;
 """
 
