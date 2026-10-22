@@ -10,15 +10,28 @@ stayed within its tool-call budget. A task passes when all three hold.
 `--solutions` replays each task's reference tool calls instead of calling
 the model. That proves the task is solvable within its budget with the
 tool surface as it is, without a key.
+
+`--driver claude-code` runs each ask through Claude Code instead of the
+embedded agent: the studio app serves its MCP endpoint on a local port,
+`claude -p` connects to it with every built-in tool off, and the design
+the tools leave in the store is scored. Claude Code authenticates with
+`CLAUDE_CODE_OAUTH_TOKEN` (a subscription, from `claude setup-token`) or
+`ANTHROPIC_API_KEY`.
 """
 from __future__ import annotations
 
 import argparse
+import contextlib
 import copy
 import json
 import os
+import secrets
+import shutil
+import socket
+import subprocess
 import sys
 import tempfile
+import threading
 import time
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
@@ -28,7 +41,14 @@ from typing import Any, Callable, Optional
 import yaml
 from pydantic import BaseModel, ConfigDict, Field
 
-from wirestudio.agent.agent import _resolve_model, is_available, run_turn
+from wirestudio.agent.agent import (
+    SYSTEM_INSTRUCTIONS,
+    _build_library_context,
+    _build_user_message,
+    _resolve_model,
+    is_available,
+    run_turn,
+)
 from wirestudio.agent.session import FileSessionStore
 from wirestudio.agent.tools import execute_tool
 from wirestudio.generate.yaml_gen import render_yaml
@@ -85,6 +105,7 @@ class Task(_Strict):
 
 class Gate(_Strict):
     min_pass: int = Field(ge=0)
+    claude_code_min_pass: int = Field(ge=0)
 
 
 class TaskFile(_Strict):
@@ -300,6 +321,125 @@ def model_driver(library: Library, *, model: Optional[str], max_iterations: int,
     return run
 
 
+MCP_PREFIX = "mcp__wirestudio__"
+
+_CLAUDE_CODE_CONTEXT = """\
+
+Every wirestudio design tool acts on the current design when `design_id` \
+is omitted; leave it out.
+"""
+
+
+def claude_code_available() -> tuple[bool, Optional[str]]:
+    if not shutil.which("claude"):
+        return False, "claude CLI not found; npm install -g @anthropic-ai/claude-code"
+    if not (os.environ.get("CLAUDE_CODE_OAUTH_TOKEN") or os.environ.get("ANTHROPIC_API_KEY")):
+        return False, "set CLAUDE_CODE_OAUTH_TOKEN (claude setup-token) or ANTHROPIC_API_KEY"
+    return True, None
+
+
+def parse_stream(lines: list[str]) -> tuple[list[dict], dict, str]:
+    """The tool-call log, usage and final text from `claude -p
+    --output-format stream-json`. Raises when the run ended in an error."""
+    log: list[dict] = []
+    result: Optional[dict] = None
+    for line in lines:
+        if not line.strip():
+            continue
+        event = json.loads(line)
+        if event.get("type") == "assistant":
+            for block in event.get("message", {}).get("content", []):
+                if block.get("type") == "tool_use":
+                    name = block["name"]
+                    log.append({"tool": name.removeprefix(MCP_PREFIX),
+                                "input": block.get("input", {}), "is_error": False})
+        elif event.get("type") == "result":
+            result = event
+    if result is None:
+        raise RuntimeError("claude exited without a result event")
+    if result.get("is_error"):
+        raise RuntimeError(f"claude: {result.get('result') or result.get('subtype')}")
+    return log, result.get("usage") or {}, result.get("result") or ""
+
+
+@contextlib.contextmanager
+def claude_code_driver(library: Library, *, model: Optional[str], workdir: Path,
+                       claude: str = "claude", timeout: float = 600):
+    import uvicorn
+
+    token = secrets.token_urlsafe(32)
+    # Importing wirestudio.api.app builds its module-level app, so the
+    # environment has to point at the workdir first or that app writes a
+    # token file and stores under the user's home.
+    env = {"WIRESTUDIO_MCP_TOKEN": token,
+           "INVENTORY_PATH": str(workdir / "inventory.json"),
+           "DESIGNS_DIR": str(workdir / "designs"),
+           "SESSIONS_DIR": str(workdir / "sessions")}
+    saved_env = {k: os.environ.get(k) for k in env}
+    os.environ.update(env)
+    server: Optional[uvicorn.Server] = None
+    try:
+        from wirestudio.api.app import create_app
+        from wirestudio.designs.active import ActiveDesignTracker
+        from wirestudio.designs.store import FileDesignStore
+
+        store = FileDesignStore(root=workdir / "designs")
+        active = ActiveDesignTracker()
+        app = create_app(library=library, designs=store, active_design=active,
+                         sessions=FileSessionStore(root=workdir / "sessions"))
+        with socket.socket() as s:
+            s.bind(("127.0.0.1", 0))
+            port = s.getsockname()[1]
+        server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning"))
+        thread = threading.Thread(target=server.run, daemon=True)
+        thread.start()
+        deadline = time.monotonic() + 30
+        while not server.started:
+            if not thread.is_alive() or time.monotonic() > deadline:
+                raise RuntimeError("the studio app did not start")
+            time.sleep(0.05)
+
+        config = workdir / "mcp.json"
+        config.write_text(json.dumps({"mcpServers": {"wirestudio": {
+            "type": "http", "url": f"http://127.0.0.1:{port}/mcp",
+            "headers": {"Authorization": f"Bearer {token}"},
+        }}}))
+        system = workdir / "system.md"
+        system.write_text(SYSTEM_INSTRUCTIONS + _CLAUDE_CODE_CONTEXT + "\n"
+                          + _build_library_context(library))
+        cwd = workdir / "claude-cwd"
+        cwd.mkdir(exist_ok=True)
+
+        def run(task: Task, design: dict):
+            design_id, _ = store.save(design, design_id=task.id)
+            active.set(design_id)
+            cmd = [claude, "-p", "--output-format", "stream-json", "--verbose",
+                   "--tools", "", "--strict-mcp-config", "--mcp-config", str(config),
+                   "--allowedTools", "mcp__wirestudio", "--append-system-prompt-file", str(system),
+                   "--no-session-persistence"]
+            if model:
+                cmd += ["--model", model]
+            proc = subprocess.run(cmd, input=_build_user_message(design, task.prompt), cwd=cwd,
+                                  capture_output=True, text=True, timeout=timeout, check=False)
+            try:
+                log, usage, text = parse_stream(proc.stdout.splitlines())
+            except RuntimeError as e:
+                raise RuntimeError(
+                    f"{e} (exit {proc.returncode}): {proc.stderr.strip()[-500:]}") from None
+            return store.load(design_id), log, usage, text
+
+        yield run
+    finally:
+        if server is not None:
+            server.should_exit = True
+            thread.join(timeout=10)
+        for k, v in saved_env.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+
 def load_example(task: Task, library: Library) -> dict:
     design = json.loads((EXAMPLES_DIR / f"{task.example}.json").read_text())
     apply_calls(design, _calls(task.setup), library)
@@ -382,6 +522,8 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--tasks", default="", help="comma-separated task ids (default: all)")
     parser.add_argument("--tasks-file", type=Path, default=TASKS_PATH)
+    parser.add_argument("--driver", choices=["agent", "claude-code"], default="agent",
+                        help="the embedded agent (ANTHROPIC_API_KEY) or Claude Code over MCP")
     parser.add_argument("--model", default=None, help="agent model (default: the agent's)")
     parser.add_argument("--max-iterations", type=int, default=12)
     parser.add_argument("--solutions", action="store_true",
@@ -410,18 +552,22 @@ def main(argv: Optional[list[str]] = None) -> int:
         print("esphome CLI not found; install esphome or pass --no-esphome", file=sys.stderr)
         return 2
     if not args.solutions:
-        ok, reason = is_available()
+        ok, reason = claude_code_available() if args.driver == "claude-code" else is_available()
         if not ok:
             print(reason, file=sys.stderr)
             return 2
 
-    with tempfile.TemporaryDirectory() as tmp:
+    with tempfile.TemporaryDirectory() as tmp, contextlib.ExitStack() as stack:
         workdir = Path(tmp)
         library = Library(default_library().root, workdir / "user-library")
         if args.solutions:
             driver = solution_driver(library)
             title = "Agent eval, reference solutions"
             min_pass = len(tasks)
+        elif args.driver == "claude-code":
+            driver = stack.enter_context(claude_code_driver(library, model=args.model, workdir=workdir))
+            title = f"Agent eval, Claude Code over MCP ({args.model or 'default model'})"
+            min_pass = tasks_file.gate.claude_code_min_pass if args.min_pass is None else args.min_pass
         else:
             driver = model_driver(library, model=args.model, max_iterations=args.max_iterations,
                                   session_root=workdir / "sessions")

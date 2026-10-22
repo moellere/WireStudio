@@ -240,10 +240,12 @@ Section 4 covers the rest.
   solutions through the same scorer on every PR that touches the
   agent, and runs the model nightly and on dispatch with the score in
   the job summary; `gate.min_pass` holds the pass count. The README
-  row is promoted. What remains: the nightly model run needs the
-  `ANTHROPIC_API_KEY` repository secret, and its first score becomes
-  `min_pass`. A model swap is then a dispatched run and a diff of two
-  summaries.
+  row is promoted. The nightly run uses Claude Code over the MCP
+  endpoint on the owner's subscription (`CLAUDE_CODE_OAUTH_TOKEN`),
+  held to `gate.claude_code_min_pass`; the embedded agent is scored
+  too whenever `ANTHROPIC_API_KEY` is set. What remains: the first
+  scored run sets each gate. A model swap is then a dispatched run and
+  a diff of two summaries.
 - **MCP conformance in CI.** Done. `tests/test_mcp_client.py` runs
   the `mcp` client library against the mounted server under uvicorn:
   connect with the token, list tools and resource templates,

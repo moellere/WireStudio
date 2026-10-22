@@ -24,6 +24,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The agent eval runs through Claude Code.** `python -m
+  wirestudio.agent.eval --driver claude-code` serves the studio's MCP
+  endpoint on a local port and sends each task to `claude -p` with
+  built-in tools off and only the wirestudio tools allowed, then scores
+  the design those tools left in the store. Claude Code authenticates
+  with `CLAUDE_CODE_OAUTH_TOKEN` (a subscription) or `ANTHROPIC_API_KEY`.
+  The nightly `agent-eval` run uses it with the `CLAUDE_CODE_OAUTH_TOKEN`
+  secret, held to the new `gate.claude_code_min_pass`; the embedded
+  agent's run now skips with a notice when `ANTHROPIC_API_KEY` is unset
+  instead of failing.
 - **Enclosures for the ESP32-C3 SuperMini and the Heltec WiFi LoRa 32
   V3.** Outlines from the vendors' own drawing and spec table, USB-C
   centred on the short edge; the Heltec's U.FL antenna gets a hole for
