@@ -94,11 +94,47 @@ enclosure:
       height_mm: 7.0
       height_above_pcb_mm: 0.0  # rooted at PCB level
   component_height_max_mm: 9.0
-# KiCad symbol mapping (0.9 schematic export). No dedicated TTGO LoRa32
-# symbol in kicad-symbols today; the user will likely want to replace
-# the generic header with a manufacturer footprint after import.
+# KiCad symbol mapping. Header order from LilyGO LilyGo-LoRa-Series @
+# 1991b1e, assets/image/lora32_v1.0_pinmap.jpg (the only source; some
+# silkscreen hidden, lower confidence). Viewed non-OLED face, TTGO label
+# up, pin 1 at the label end. Two rows on a Conn_02xNN_Odd_Even:
+# left-row position k is pad 2k-1, right-row position k is pad 2k.
+# pin_map binds each board role to its first pad; pads with no role
+# (RST, extra rails) stay unconnected.
 kicad:
   symbol_lib: Connector_Generic
   symbol: Conn_02x18_Odd_Even
   footprint: Connector_PinHeader_2.54mm:PinHeader_2x18_P2.54mm_Vertical
   value: TTGO_LoRa32_V1
+  pin_map:
+    GPIO0: "21"
+    GPIO1: "25"
+    GPIO2: "7"
+    GPIO3: "27"
+    GPIO4: "5"
+    GPIO5: "11"
+    GPIO12: "6"
+    GPIO13: "4"
+    GPIO14: "8"
+    GPIO15: "9"
+    GPIO16: "1"
+    GPIO17: "3"
+    GPIO18: "13"
+    GPIO19: "17"
+    GPIO21: "2"
+    GPIO22: "19"
+    GPIO23: "15"
+    GPIO25: "14"
+    GPIO26: "12"
+    GPIO27: "10"
+    GPIO32: "18"
+    GPIO33: "16"
+    GPIO34: "22"
+    GPIO35: "20"
+    GPIO36: "30"
+    GPIO37: "28"
+    GPIO38: "26"
+    GPIO39: "24"
+    3V3: "31"
+    5V: "33"
+    GND: "29"

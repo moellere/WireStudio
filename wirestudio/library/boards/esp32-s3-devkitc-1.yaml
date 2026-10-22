@@ -77,10 +77,55 @@ gpio_capabilities:
   GPIO46: [gpio, strap, boot_low, pwm]
   GPIO47: [gpio, pwm]
   GPIO48: [gpio, builtin_led, pwm]
-# KiCad symbol mapping (0.9). 44-pin board, modelled as a 2x22
-# header until KiCad ships a dedicated S3-DevKitC module symbol.
+# KiCad symbol mapping. Header order from Espressif esp-dev-kits @
+# 4ffc5bd, docs/en/esp32-s3-devkitc-1/user_guide_v1.1.rst (Header Block
+# J1/J3; v1.0 identical). Viewed front, antenna up: J1 left, J3 right,
+# pin 1 at the antenna end. Two rows on a Conn_02xNN_Odd_Even: left-row
+# position k is pad 2k-1, right-row position k is pad 2k. pin_map binds
+# each board role to its first pad; pads with no role (RST, extra rails)
+# stay unconnected.
 kicad:
   symbol_lib: Connector_Generic
   symbol: Conn_02x22_Odd_Even
   footprint: Connector_PinHeader_2.54mm:PinHeader_2x22_P2.54mm_Vertical
   value: ESP32-S3-DevKitC-1
+  pin_map:
+    GPIO0: "28"
+    GPIO1: "8"
+    GPIO2: "10"
+    GPIO3: "25"
+    GPIO4: "7"
+    GPIO5: "9"
+    GPIO6: "11"
+    GPIO7: "13"
+    GPIO8: "23"
+    GPIO9: "29"
+    GPIO10: "31"
+    GPIO11: "33"
+    GPIO12: "35"
+    GPIO13: "37"
+    GPIO14: "39"
+    GPIO15: "15"
+    GPIO16: "17"
+    GPIO17: "19"
+    GPIO18: "21"
+    GPIO19: "40"
+    GPIO20: "38"
+    GPIO21: "36"
+    GPIO35: "26"
+    GPIO36: "24"
+    GPIO37: "22"
+    GPIO38: "20"
+    GPIO39: "18"
+    GPIO40: "16"
+    GPIO41: "14"
+    GPIO42: "12"
+    GPIO43: "4"
+    GPIO44: "6"
+    GPIO45: "30"
+    GPIO46: "27"
+    GPIO47: "34"
+    GPIO48: "32"
+    3V3: "1"
+    5V: "41"
+    GND: "2"

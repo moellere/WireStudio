@@ -70,10 +70,29 @@ gpio_capabilities:
   GPIO35: [gpio, camera_data, adc, adc1, input_only, no_pull_internal]
   GPIO36: [gpio, camera_data, adc, adc1, input_only, no_pull_internal]
   GPIO39: [gpio, camera_data, adc, adc1, input_only, no_pull_internal]
-# KiCad symbol mapping (0.9). 16-pin AI-Thinker breakout; modelled
-# as a 2x8 dual-row header.
+# KiCad symbol mapping. Header order from AI-Thinker ESP32-CAM product
+# specification V1.0, mirrored in raphaelbs/esp32-cam-ai-thinker @
+# 724b248, assets/ESP32-CAM_Product_Specification.pdf. Viewed module
+# side, antenna up, from the antenna end (module pins 1-8 left, 16-9
+# right). Two rows on a Conn_02xNN_Odd_Even: left-row position k is pad
+# 2k-1, right-row position k is pad 2k. pin_map binds each board role to
+# its first pad; pads with no role (RST, extra rails) stay unconnected.
 kicad:
   symbol_lib: Connector_Generic
   symbol: Conn_02x08_Odd_Even
   footprint: Connector_PinHeader_2.54mm:PinHeader_2x08_P2.54mm_Vertical
   value: AI-Thinker ESP32-CAM
+  pin_map:
+    GPIO0: "12"
+    GPIO1: "4"
+    GPIO2: "3"
+    GPIO3: "6"
+    GPIO4: "1"
+    GPIO12: "11"
+    GPIO13: "9"
+    GPIO14: "5"
+    GPIO15: "7"
+    GPIO16: "14"
+    3V3: "16"
+    5V: "15"
+    GND: "2"

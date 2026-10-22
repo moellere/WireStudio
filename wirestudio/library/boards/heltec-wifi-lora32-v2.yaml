@@ -69,10 +69,47 @@ gpio_capabilities:
   GPIO37: [gpio, battery_sense, adc, adc1, input_only, no_pull_internal]
   GPIO39: [gpio, adc, adc1, input_only, no_pull_internal]
 
-# KiCad symbol mapping (0.9). 1306 OLED + LoRa; modelled as a 2x18 header until
-# KiCad ships a dedicated Heltec V2 module symbol.
+# KiCad symbol mapping. Header order from Heltec WiFi_Kit_series @
+# 1b5b99a, PinoutDiagram/WIFI_LoRa_32_V2.pdf (V2.1 same order). Viewed
+# OLED up, USB at the bottom: PRG-side row left, RST-side row right, pin
+# 1 at the USB end. Two rows on a Conn_02xNN_Odd_Even: left-row position
+# k is pad 2k-1, right-row position k is pad 2k. pin_map binds each
+# board role to its first pad; pads with no role (RST, extra rails) stay
+# unconnected.
 kicad:
   symbol_lib: Connector_Generic
   symbol: Conn_02x18_Odd_Even
   footprint: Connector_PinHeader_2.54mm:PinHeader_2x18_P2.54mm_Vertical
   value: Heltec WiFi LoRa 32 V2
+  pin_map:
+    GPIO0: "16"
+    GPIO1: "12"
+    GPIO2: "30"
+    GPIO3: "10"
+    GPIO4: "32"
+    GPIO5: "26"
+    GPIO12: "31"
+    GPIO13: "33"
+    GPIO14: "29"
+    GPIO15: "28"
+    GPIO16: "36"
+    GPIO17: "34"
+    GPIO18: "24"
+    GPIO19: "20"
+    GPIO21: "35"
+    GPIO22: "18"
+    GPIO23: "22"
+    GPIO25: "23"
+    GPIO26: "25"
+    GPIO27: "27"
+    GPIO32: "19"
+    GPIO33: "21"
+    GPIO34: "15"
+    GPIO35: "17"
+    GPIO36: "7"
+    GPIO37: "9"
+    GPIO38: "11"
+    GPIO39: "13"
+    3V3: "3"
+    5V: "4"
+    GND: "1"
