@@ -127,10 +127,48 @@ gpio_capabilities:
 # and the new SH1.25 connectors need a measured board.
 # TODO(0.x): add enclosure: once verified against hardware.
 
-# KiCad symbol mapping. 36-pin board, modelled as a 2x18 header until
-# KiCad ships a dedicated Heltec module symbol.
+# KiCad symbol mapping. Header order from Heltec HeltecWiKi @ 288688a,
+# docs/platform/f&t/devices/esp32/img/v4pinmap.png; matches the V4.3
+# back silkscreen. The four pads at the antenna end (GPIO15-18, the OLED
+# bus) are not modelled. Viewed OLED up, USB at the bottom: J3 left, J2
+# right, pin 1 at the USB end. Two rows on a Conn_02xNN_Odd_Even:
+# left-row position k is pad 2k-1, right-row position k is pad 2k.
+# pin_map binds each board role to its first pad; pads with no role
+# (RST, extra rails) stay unconnected.
 kicad:
   symbol_lib: Connector_Generic
   symbol: Conn_02x18_Odd_Even
   footprint: Connector_PinHeader_2.54mm:PinHeader_2x18_P2.54mm_Vertical
   value: Heltec WiFi LoRa 32 V4
+  pin_map:
+    GPIO0: "16"
+    GPIO1: "23"
+    GPIO2: "25"
+    GPIO3: "27"
+    GPIO4: "29"
+    GPIO5: "31"
+    GPIO6: "33"
+    GPIO7: "35"
+    GPIO19: "36"
+    GPIO20: "34"
+    GPIO21: "32"
+    GPIO26: "30"
+    GPIO33: "24"
+    GPIO34: "22"
+    GPIO35: "20"
+    GPIO36: "18"
+    GPIO37: "7"
+    GPIO38: "21"
+    GPIO39: "19"
+    GPIO40: "17"
+    GPIO41: "15"
+    GPIO42: "13"
+    GPIO43: "12"
+    GPIO44: "10"
+    GPIO45: "11"
+    GPIO46: "9"
+    GPIO47: "26"
+    GPIO48: "28"
+    3V3: "3"
+    5V: "4"
+    GND: "1"

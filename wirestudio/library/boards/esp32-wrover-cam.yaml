@@ -64,9 +64,44 @@ gpio_capabilities:
   GPIO35: [gpio, adc, adc1, input_only, no_pull_internal]
   GPIO36: [gpio, camera_data, adc, adc1, input_only, no_pull_internal]
   GPIO39: [gpio, camera_data, adc, adc1, input_only, no_pull_internal]
-# KiCad symbol mapping (0.9). Generic single-row header fallback.
+# KiCad symbol mapping. Header order from Freenove
+# Freenove_ESP32_WROVER_Board @ 89e7ad4, Datasheet/ESP32-Pinout_V3.0.pdf
+# (USB-C board; the micro-USB V1.6 board differs only at positions
+# 16-20, where it breaks out the flash pins, and keeps 5V at left 19).
+# Viewed module side, antenna up, from the antenna end. Two rows on a
+# Conn_02xNN_Odd_Even: left-row position k is pad 2k-1, right-row
+# position k is pad 2k. pin_map binds each board role to its first pad;
+# pads with no role (RST, extra rails) stay unconnected.
 kicad:
   symbol_lib: Connector_Generic
-  symbol: Conn_01x14
-  footprint: Connector_PinHeader_2.54mm:PinHeader_1x14_P2.54mm_Vertical
+  symbol: Conn_02x20_Odd_Even
+  footprint: Connector_PinHeader_2.54mm:PinHeader_2x20_P2.54mm_Vertical
   value: ESP32-WROVER-CAM
+  pin_map:
+    GPIO0: "28"
+    GPIO1: "8"
+    GPIO2: "30"
+    GPIO3: "10"
+    GPIO4: "26"
+    GPIO5: "20"
+    GPIO12: "25"
+    GPIO13: "29"
+    GPIO14: "23"
+    GPIO15: "32"
+    GPIO18: "18"
+    GPIO19: "16"
+    GPIO21: "12"
+    GPIO22: "6"
+    GPIO23: "4"
+    GPIO25: "17"
+    GPIO26: "19"
+    GPIO27: "21"
+    GPIO32: "13"
+    GPIO33: "15"
+    GPIO34: "9"
+    GPIO35: "11"
+    GPIO36: "5"
+    GPIO39: "7"
+    3V3: "1"
+    5V: "37"
+    GND: "2"

@@ -44,11 +44,34 @@ gpio_capabilities:
   GPIO19: [gpio, usb_jtag]
   GPIO20: [gpio, uart_rx, serial_rx]
   GPIO21: [gpio, uart_tx, serial_tx]
-# KiCad symbol mapping (0.9). No dedicated DevKitM-1 module symbol in
-# kicad-symbols today; the closest is the standard 2x9 dual-row
-# header that matches the board's pin pitch.
+# KiCad symbol mapping. Header order from Espressif esp-dev-kits @
+# 4ffc5bd, docs/en/esp32-c3-devkitm-1/user_guide.rst (Header Block
+# J1/J3). Viewed front, antenna up: J1 left, J3 right, pin 1 at the
+# antenna end. Two rows on a Conn_02xNN_Odd_Even: left-row position k is
+# pad 2k-1, right-row position k is pad 2k. pin_map binds each board
+# role to its first pad; pads with no role (RST, extra rails) stay
+# unconnected.
 kicad:
   symbol_lib: Connector_Generic
-  symbol: Conn_02x09_Odd_Even
-  footprint: Connector_PinHeader_2.54mm:PinHeader_2x09_P2.54mm_Vertical
+  symbol: Conn_02x15_Odd_Even
+  footprint: Connector_PinHeader_2.54mm:PinHeader_2x15_P2.54mm_Vertical
   value: ESP32-C3-DevKitM-1
+  pin_map:
+    GPIO0: "17"
+    GPIO1: "19"
+    GPIO2: "7"
+    GPIO3: "9"
+    GPIO4: "22"
+    GPIO5: "20"
+    GPIO6: "18"
+    GPIO7: "16"
+    GPIO8: "12"
+    GPIO9: "10"
+    GPIO10: "21"
+    GPIO18: "26"
+    GPIO19: "28"
+    GPIO20: "6"
+    GPIO21: "4"
+    3V3: "3"
+    5V: "25"
+    GND: "1"

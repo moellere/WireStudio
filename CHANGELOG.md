@@ -24,6 +24,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Pin maps for the boards drawn as generic headers.** Nineteen boards
+  gain a `kicad.pin_map` binding each GPIO and rail to its header pad, so
+  their nets reach the board in the schematic, PCB and netlist instead of
+  ending in a dangling label. Each header order is transcribed from the
+  vendor's own documentation (Espressif's esp-dev-kits, Heltec's wiki
+  and pinout PDFs, LilyGO's schematics, M5Stack's docs and M5Unified,
+  Seeed's KiCad library, the Nologo, AI-Thinker and Freenove sources)
+  and cited with its commit in the board file. Six boards change header
+  size to match the hardware: the C3-DevKitM-1 (2x15), the C6 and S3
+  SuperMinis (2x10, 2x9), the LoRa32 V2.1 and T-Beam (2x13), the
+  WROVER-CAM (2x20), and the Atoms take 13 pads (both strips and the
+  Grove port). The ATOM U stays unmapped: no vendor source for its
+  header order was reachable.
+
 - **Enclosures are YAPP_Box boxes, base and lid.** The generated
   `.scad` inlines the pinned YAPP_Box generator (v3.3.8, MIT, vendored
   under `wirestudio/enclosure/yapp/`) and drives it from the board's

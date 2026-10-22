@@ -46,10 +46,36 @@ gpio_capabilities:
   GPIO21: [gpio, pwm]
   GPIO22: [gpio, pwm]
   GPIO23: [gpio, pwm]
-# KiCad symbol mapping. Castellated board, modelled as a 2x11 header
-# until KiCad ships a dedicated SuperMini module symbol.
+# KiCad symbol mapping. Header order from espressif/arduino-esp32 @
+# 6b41cf6, variants/makergo_c6_supermini/pins_arduino.h (vendor pin
+# table), agreeing with the Fabiancrg/Aeris footprint; no first-party
+# drawing, medium confidence. Viewed USB up, from the USB end. Two rows
+# on a Conn_02xNN_Odd_Even: left-row position k is pad 2k-1, right-row
+# position k is pad 2k. pin_map binds each board role to its first pad;
+# pads with no role (RST, extra rails) stay unconnected.
 kicad:
   symbol_lib: Connector_Generic
-  symbol: Conn_02x11_Odd_Even
-  footprint: Connector_PinHeader_2.54mm:PinHeader_2x11_P2.54mm_Vertical
+  symbol: Conn_02x10_Odd_Even
+  footprint: Connector_PinHeader_2.54mm:PinHeader_2x10_P2.54mm_Vertical
   value: ESP32-C6-SuperMini
+  pin_map:
+    GPIO0: "5"
+    GPIO1: "7"
+    GPIO2: "9"
+    GPIO3: "11"
+    GPIO4: "13"
+    GPIO5: "15"
+    GPIO6: "17"
+    GPIO7: "19"
+    GPIO8: "20"
+    GPIO9: "18"
+    GPIO14: "16"
+    GPIO15: "14"
+    GPIO16: "1"
+    GPIO17: "3"
+    GPIO18: "12"
+    GPIO19: "10"
+    GPIO20: "8"
+    3V3: "6"
+    5V: "2"
+    GND: "4"

@@ -38,9 +38,27 @@ gpio_capabilities:
   GPIO32: [gpio, adc, adc1, pwm]
   GPIO33: [gpio, adc, adc1, pwm, i2s_lrclk]
   GPIO39: [gpio, button, adc, adc1, input_only, no_pull_internal]
-# KiCad symbol mapping (0.9). 9-pin bottom header, ESP32-PICO-D4.
+# KiCad symbol mapping. Header order from M5Stack m5-docs @ e5354c5, the
+# ATOM back-label photos
+# (docs/assets/img/product_pics/core/minicore/atom/). Viewed back,
+# Grove/USB edge down: left strip (pads 1-5) and right strip (6-9) from
+# the far end, then the Grove port (10-13, G 5V SDA SCL). One row, pads
+# numbered straight through. pin_map binds each board role to its first
+# pad; pads with no role (RST, extra rails) stay unconnected.
 kicad:
   symbol_lib: Connector_Generic
-  symbol: Conn_01x09
-  footprint: Connector_PinHeader_2.54mm:PinHeader_1x09_P2.54mm_Vertical
+  symbol: Conn_01x13
+  footprint: Connector_PinHeader_2.54mm:PinHeader_1x13_P2.54mm_Vertical
   value: M5Stack Atom Echo
+  pin_map:
+    GPIO19: "3"
+    GPIO21: "6"
+    GPIO22: "2"
+    GPIO23: "4"
+    GPIO25: "7"
+    GPIO26: "12"
+    GPIO32: "13"
+    GPIO33: "5"
+    3V3: "1"
+    5V: "8"
+    GND: "9"

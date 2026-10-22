@@ -63,10 +63,27 @@ gpio_capabilities:
   GPIO41: [gpio, button]
   GPIO43: [gpio, uart_tx, serial_tx]
   GPIO44: [gpio, uart_rx, serial_rx]
-# KiCad symbol mapping (0.9). Same 9-pin bottom header as the Atom
-# but ESP32-S3 internals.
+# KiCad symbol mapping. Header order from M5Stack M5Unified @ 3590358,
+# docs/img/pin_def_atom_s3.svg and pin_def_atom_s3_porta.svg (M5Stack's
+# library diagram; no label photo, lower confidence). Viewed back,
+# Grove/USB edge down: left strip (pads 1-5) and right strip (6-9) from
+# the far end, then the Grove port (10-13, G 5V SDA SCL). One row, pads
+# numbered straight through. pin_map binds each board role to its first
+# pad; pads with no role (RST, extra rails) stay unconnected.
 kicad:
   symbol_lib: Connector_Generic
-  symbol: Conn_01x09
-  footprint: Connector_PinHeader_2.54mm:PinHeader_1x09_P2.54mm_Vertical
+  symbol: Conn_01x13
+  footprint: Connector_PinHeader_2.54mm:PinHeader_1x13_P2.54mm_Vertical
   value: M5Stack AtomS3
+  pin_map:
+    GPIO1: "13"
+    GPIO2: "12"
+    GPIO5: "2"
+    GPIO6: "3"
+    GPIO7: "4"
+    GPIO8: "5"
+    GPIO38: "7"
+    GPIO39: "6"
+    3V3: "1"
+    5V: "8"
+    GND: "9"

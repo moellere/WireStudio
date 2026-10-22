@@ -75,10 +75,37 @@ gpio_capabilities:
   GPIO36: [gpio, adc, adc1, input_only, no_pull_internal]
   GPIO38: [gpio, button, input_only, no_pull_internal]
   GPIO39: [gpio, adc, adc1, input_only, no_pull_internal]
-# KiCad symbol mapping (0.9). 28-pin board (LoRa + GPS + battery
-# manager); modelled as a 2x14 dual-row header.
+# KiCad symbol mapping. Header order from LilyGO LilyGo-LoRa-Series @
+# 1991b1e, schematic/LilyGo_TBeam_V1.2.pdf (U12/U14) and
+# assets/image/t-beam_v1.1_pinmap.jpg. LoRa1/LoRa2 are the radio's
+# DIO1/DIO2 through 22R, not GPIOs. Viewed component face, antenna up:
+# U12 left, U14 right, counted from the antenna end. Two rows on a
+# Conn_02xNN_Odd_Even: left-row position k is pad 2k-1, right-row
+# position k is pad 2k. pin_map binds each board role to its first pad;
+# pads with no role (RST, extra rails) stay unconnected.
 kicad:
   symbol_lib: Connector_Generic
-  symbol: Conn_02x14_Odd_Even
-  footprint: Connector_PinHeader_2.54mm:PinHeader_2x14_P2.54mm_Vertical
+  symbol: Conn_02x13_Odd_Even
+  footprint: Connector_PinHeader_2.54mm:PinHeader_2x13_P2.54mm_Vertical
   value: TTGO T-Beam
+  pin_map:
+    GPIO0: "10"
+    GPIO1: "2"
+    GPIO2: "21"
+    GPIO3: "4"
+    GPIO4: "8"
+    GPIO13: "19"
+    GPIO14: "17"
+    GPIO15: "7"
+    GPIO21: "20"
+    GPIO22: "18"
+    GPIO23: "6"
+    GPIO25: "15"
+    GPIO32: "11"
+    GPIO33: "13"
+    GPIO35: "9"
+    GPIO36: "1"
+    GPIO39: "3"
+    3V3: "14"
+    5V: "25"
+    GND: "12"

@@ -61,10 +61,34 @@ gpio_capabilities:
   GPIO46: [gpio, strap, boot_low, pwm]
   GPIO47: [gpio, pwm]
   GPIO48: [gpio, builtin_led, pwm]
-# KiCad symbol mapping. Castellated board, modelled as a 2x14 header
-# until KiCad ships a dedicated SuperMini module symbol.
+# KiCad symbol mapping. Header order from hwthinker/ESP32S3-supermini @
+# 9daa306 pinout image, agreeing with the mikeysklar/kicad-parts
+# footprint; no first-party drawing, medium confidence. TX/RX are taken
+# as UART0 (GPIO43/44). Viewed component side, USB up, from the USB end.
+# Two rows on a Conn_02xNN_Odd_Even: left-row position k is pad 2k-1,
+# right-row position k is pad 2k. pin_map binds each board role to its
+# first pad; pads with no role (RST, extra rails) stay unconnected.
 kicad:
   symbol_lib: Connector_Generic
-  symbol: Conn_02x14_Odd_Even
-  footprint: Connector_PinHeader_2.54mm:PinHeader_2x14_P2.54mm_Vertical
+  symbol: Conn_02x09_Odd_Even
+  footprint: Connector_PinHeader_2.54mm:PinHeader_2x09_P2.54mm_Vertical
   value: ESP32-S3-SuperMini
+  pin_map:
+    GPIO1: "5"
+    GPIO2: "7"
+    GPIO3: "9"
+    GPIO4: "11"
+    GPIO5: "13"
+    GPIO6: "15"
+    GPIO7: "17"
+    GPIO8: "18"
+    GPIO9: "16"
+    GPIO10: "14"
+    GPIO11: "12"
+    GPIO12: "10"
+    GPIO13: "8"
+    GPIO43: "1"
+    GPIO44: "3"
+    3V3: "6"
+    5V: "2"
+    GND: "4"
