@@ -367,62 +367,72 @@ def claude_code_driver(library: Library, *, model: Optional[str], workdir: Path,
                        claude: str = "claude", timeout: float = 600):
     import uvicorn
 
-    from wirestudio.api.app import create_app
-    from wirestudio.designs.active import ActiveDesignTracker
-    from wirestudio.designs.store import FileDesignStore
-
     token = secrets.token_urlsafe(32)
-    saved_env = {k: os.environ.get(k) for k in ("WIRESTUDIO_MCP_TOKEN", "INVENTORY_PATH")}
-    os.environ["WIRESTUDIO_MCP_TOKEN"] = token
-    os.environ.setdefault("INVENTORY_PATH", str(workdir / "inventory.json"))
-    store = FileDesignStore(root=workdir / "designs")
-    active = ActiveDesignTracker()
-    app = create_app(library=library, designs=store, active_design=active,
-                     sessions=FileSessionStore(root=workdir / "sessions"))
-    with socket.socket() as s:
-        s.bind(("127.0.0.1", 0))
-        port = s.getsockname()[1]
-    server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning"))
-    thread = threading.Thread(target=server.run, daemon=True)
-    thread.start()
-    deadline = time.monotonic() + 30
-    while not server.started:
-        if not thread.is_alive() or time.monotonic() > deadline:
-            raise RuntimeError("the studio app did not start")
-        time.sleep(0.05)
-
-    config = workdir / "mcp.json"
-    config.write_text(json.dumps({"mcpServers": {"wirestudio": {
-        "type": "http", "url": f"http://127.0.0.1:{port}/mcp",
-        "headers": {"Authorization": f"Bearer {token}"},
-    }}}))
-    system = workdir / "system.md"
-    system.write_text(SYSTEM_INSTRUCTIONS + _CLAUDE_CODE_CONTEXT + "\n" + _build_library_context(library))
-    cwd = workdir / "claude-cwd"
-    cwd.mkdir(exist_ok=True)
-
-    def run(task: Task, design: dict):
-        design_id, _ = store.save(design, design_id=task.id)
-        active.set(design_id)
-        cmd = [claude, "-p", "--output-format", "stream-json", "--verbose",
-               "--tools", "", "--strict-mcp-config", "--mcp-config", str(config),
-               "--allowedTools", "mcp__wirestudio", "--append-system-prompt-file", str(system),
-               "--no-session-persistence"]
-        if model:
-            cmd += ["--model", model]
-        proc = subprocess.run(cmd, input=_build_user_message(design, task.prompt), cwd=cwd,
-                              capture_output=True, text=True, timeout=timeout, check=False)
-        try:
-            log, usage, text = parse_stream(proc.stdout.splitlines())
-        except RuntimeError as e:
-            raise RuntimeError(f"{e} (exit {proc.returncode}): {proc.stderr.strip()[-500:]}") from None
-        return store.load(design_id), log, usage, text
-
+    # Importing wirestudio.api.app builds its module-level app, so the
+    # environment has to point at the workdir first or that app writes a
+    # token file and stores under the user's home.
+    env = {"WIRESTUDIO_MCP_TOKEN": token,
+           "INVENTORY_PATH": str(workdir / "inventory.json"),
+           "DESIGNS_DIR": str(workdir / "designs"),
+           "SESSIONS_DIR": str(workdir / "sessions")}
+    saved_env = {k: os.environ.get(k) for k in env}
+    os.environ.update(env)
+    server: Optional[uvicorn.Server] = None
     try:
+        from wirestudio.api.app import create_app
+        from wirestudio.designs.active import ActiveDesignTracker
+        from wirestudio.designs.store import FileDesignStore
+
+        store = FileDesignStore(root=workdir / "designs")
+        active = ActiveDesignTracker()
+        app = create_app(library=library, designs=store, active_design=active,
+                         sessions=FileSessionStore(root=workdir / "sessions"))
+        with socket.socket() as s:
+            s.bind(("127.0.0.1", 0))
+            port = s.getsockname()[1]
+        server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning"))
+        thread = threading.Thread(target=server.run, daemon=True)
+        thread.start()
+        deadline = time.monotonic() + 30
+        while not server.started:
+            if not thread.is_alive() or time.monotonic() > deadline:
+                raise RuntimeError("the studio app did not start")
+            time.sleep(0.05)
+
+        config = workdir / "mcp.json"
+        config.write_text(json.dumps({"mcpServers": {"wirestudio": {
+            "type": "http", "url": f"http://127.0.0.1:{port}/mcp",
+            "headers": {"Authorization": f"Bearer {token}"},
+        }}}))
+        system = workdir / "system.md"
+        system.write_text(SYSTEM_INSTRUCTIONS + _CLAUDE_CODE_CONTEXT + "\n"
+                          + _build_library_context(library))
+        cwd = workdir / "claude-cwd"
+        cwd.mkdir(exist_ok=True)
+
+        def run(task: Task, design: dict):
+            design_id, _ = store.save(design, design_id=task.id)
+            active.set(design_id)
+            cmd = [claude, "-p", "--output-format", "stream-json", "--verbose",
+                   "--tools", "", "--strict-mcp-config", "--mcp-config", str(config),
+                   "--allowedTools", "mcp__wirestudio", "--append-system-prompt-file", str(system),
+                   "--no-session-persistence"]
+            if model:
+                cmd += ["--model", model]
+            proc = subprocess.run(cmd, input=_build_user_message(design, task.prompt), cwd=cwd,
+                                  capture_output=True, text=True, timeout=timeout, check=False)
+            try:
+                log, usage, text = parse_stream(proc.stdout.splitlines())
+            except RuntimeError as e:
+                raise RuntimeError(
+                    f"{e} (exit {proc.returncode}): {proc.stderr.strip()[-500:]}") from None
+            return store.load(design_id), log, usage, text
+
         yield run
     finally:
-        server.should_exit = True
-        thread.join(timeout=10)
+        if server is not None:
+            server.should_exit = True
+            thread.join(timeout=10)
         for k, v in saved_env.items():
             if v is None:
                 os.environ.pop(k, None)

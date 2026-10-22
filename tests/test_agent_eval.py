@@ -309,8 +309,8 @@ def test_claude_code_driver_scores_what_the_mcp_tools_left_in_the_store(library,
     that reaches it with the token, and scores the design the tool calls
     wrote, with the calls read back from the stream."""
     import sys
-    monkeypatch.delenv("WIRESTUDIO_MCP_TOKEN", raising=False)
-    monkeypatch.delenv("INVENTORY_PATH", raising=False)
+    for key in ("WIRESTUDIO_MCP_TOKEN", "INVENTORY_PATH", "DESIGNS_DIR", "SESSIONS_DIR"):
+        monkeypatch.delenv(key, raising=False)
     fake = tmp_path / "claude"
     fake.write_text(_FAKE_CLAUDE.format(python=sys.executable))
     fake.chmod(0o755)
@@ -322,8 +322,8 @@ def test_claude_code_driver_scores_what_the_mcp_tools_left_in_the_store(library,
     assert r.tools == ["add_component", "solve_pins"]
     assert r.usage == {"input_tokens": 10, "output_tokens": 5}
     assert r.assistant_text == "Added the OLED."
-    assert "WIRESTUDIO_MCP_TOKEN" not in os.environ
-    assert "INVENTORY_PATH" not in os.environ
+    for key in ("WIRESTUDIO_MCP_TOKEN", "INVENTORY_PATH", "DESIGNS_DIR", "SESSIONS_DIR"):
+        assert key not in os.environ
 
 
 def test_parse_stream_raises_on_an_error_result():
