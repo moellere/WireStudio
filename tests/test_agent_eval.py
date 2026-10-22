@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import copy
 import json
+import os
 from types import SimpleNamespace
 
 import anthropic
@@ -47,7 +48,7 @@ def test_reference_solution_passes(task_id, library, tmp_path):
 
 
 def test_load_rejects_a_solution_over_budget(tmp_path):
-    raw = {"gate": {"min_pass": 0}, "tasks": [{
+    raw = {"gate": {"min_pass": 0, "claude_code_min_pass": 0}, "tasks": [{
         "id": "x", "example": "garage-motion", "prompt": "p", "budget": 1,
         "expect": {}, "solution": [["render"], ["render"]],
     }]}
@@ -58,7 +59,7 @@ def test_load_rejects_a_solution_over_budget(tmp_path):
 
 
 def test_load_rejects_an_unknown_expect_key(tmp_path):
-    raw = {"gate": {"min_pass": 0}, "tasks": [{
+    raw = {"gate": {"min_pass": 0, "claude_code_min_pass": 0}, "tasks": [{
         "id": "x", "example": "garage-motion", "prompt": "p", "budget": 1,
         "expect": {"componets": ["bme280"]}, "solution": [["render"]],
     }]}
@@ -264,3 +265,70 @@ def test_main_holds_the_gate(monkeypatch, tmp_path):
     monkeypatch.setattr(anthropic, "Anthropic", lambda *a, **k: client)
     assert ev.main(["--no-esphome", "--tasks", "set-address", "--min-pass", "1"]) == 1
     assert ev.main(["--no-esphome", "--tasks", "set-address", "--min-pass", "0"]) == 0
+
+
+_FAKE_CLAUDE = '''#!{python}
+import asyncio, json, sys
+import httpx
+from mcp import ClientSession
+from mcp.client.streamable_http import streamable_http_client
+
+args = sys.argv[1:]
+assert args[args.index("--tools") + 1] == ""
+assert "--strict-mcp-config" in args
+server = json.load(open(args[args.index("--mcp-config") + 1]))["mcpServers"]["wirestudio"]
+assert "Current design state" in sys.stdin.read()
+
+
+async def main():
+    async with httpx.AsyncClient(headers=server["headers"]) as http:
+        async with streamable_http_client(server["url"], http_client=http) as (r, w, *_):
+            async with ClientSession(r, w) as s:
+                await s.initialize()
+                res = await s.call_tool("add_component", {{"library_id": "ssd1306",
+                                                           "params": {{"address": "0x3C"}}}})
+                assert not res.is_error, res
+                res = await s.call_tool("solve_pins", {{}})
+                assert not res.is_error, res
+
+asyncio.run(main())
+for event in [
+    {{"type": "system", "subtype": "init"}},
+    {{"type": "assistant", "message": {{"content": [
+        {{"type": "tool_use", "name": "mcp__wirestudio__add_component", "input": {{"library_id": "ssd1306"}}}},
+        {{"type": "tool_use", "name": "mcp__wirestudio__solve_pins", "input": {{}}}}]}}}},
+    {{"type": "result", "subtype": "success", "is_error": False, "result": "Added the OLED.",
+      "usage": {{"input_tokens": 10, "output_tokens": 5}}}},
+]:
+    print(json.dumps(event))
+'''
+
+
+def test_claude_code_driver_scores_what_the_mcp_tools_left_in_the_store(library, tmp_path, monkeypatch):
+    """The driver serves the studio's MCP endpoint, hands `claude` a config
+    that reaches it with the token, and scores the design the tool calls
+    wrote, with the calls read back from the stream."""
+    import sys
+    for key in ("WIRESTUDIO_MCP_TOKEN", "INVENTORY_PATH", "DESIGNS_DIR", "SESSIONS_DIR"):
+        monkeypatch.delenv(key, raising=False)
+    fake = tmp_path / "claude"
+    fake.write_text(_FAKE_CLAUDE.format(python=sys.executable))
+    fake.chmod(0o755)
+    task = BY_ID["add-oled"]
+    with ev.claude_code_driver(library, model=None, workdir=tmp_path, claude=str(fake)) as driver:
+        [r] = ev.run_tasks([task], library, driver, esphome=False, workdir=tmp_path / "runs",
+                           log=lambda *_: None)
+    assert r.passed, r.reasons
+    assert r.tools == ["add_component", "solve_pins"]
+    assert r.usage == {"input_tokens": 10, "output_tokens": 5}
+    assert r.assistant_text == "Added the OLED."
+    for key in ("WIRESTUDIO_MCP_TOKEN", "INVENTORY_PATH", "DESIGNS_DIR", "SESSIONS_DIR"):
+        assert key not in os.environ
+
+
+def test_parse_stream_raises_on_an_error_result():
+    lines = [json.dumps({"type": "result", "subtype": "error_max_turns", "is_error": True})]
+    with pytest.raises(RuntimeError, match="error_max_turns"):
+        ev.parse_stream(lines)
+    with pytest.raises(RuntimeError, match="without a result"):
+        ev.parse_stream([json.dumps({"type": "system"})])

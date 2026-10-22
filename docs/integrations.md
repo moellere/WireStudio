@@ -40,9 +40,21 @@ when fewer than `gate.min_pass` tasks pass.
 `--solutions` replays each task's reference tool calls instead of
 calling the model, which proves the task is solvable within its budget
 and needs no key. `--tasks a,b` runs a subset; `--no-esphome` skips the
-ESPHome check for a quick local pass. The `agent-eval` workflow runs the
-replay on every PR that touches the agent and the model nightly, with
-the `ANTHROPIC_API_KEY` repository secret.
+ESPHome check for a quick local pass.
+
+`--driver claude-code` sends each ask through Claude Code instead of the
+embedded agent: the studio serves its MCP endpoint on a local port,
+`claude -p` connects with every built-in tool off and only the
+wirestudio tools allowed, and the design those tools leave in the store
+is scored the same way. It needs the `claude` CLI and either
+`CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`, which bills a
+Claude subscription) or `ANTHROPIC_API_KEY`. It is held to
+`gate.claude_code_min_pass`.
+
+The `agent-eval` workflow runs the replay on every PR that touches the
+agent, and nightly runs the Claude Code driver with the
+`CLAUDE_CODE_OAUTH_TOKEN` repository secret and the embedded agent with
+`ANTHROPIC_API_KEY` when that secret is set.
 
 ## Fleet handoff
 
