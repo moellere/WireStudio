@@ -6,14 +6,19 @@ name: agent-eval
 # `esphome config`, the intended change is present, the turn stayed
 # within its tool-call budget) and holds the pass count to gate.min_pass.
 #
-# Two jobs:
+# Three jobs:
 #   - solutions: replays each task's reference tool calls through the same
 #     scorer, with esphome installed. No key. Proves every task is
 #     solvable within its budget; runs on every PR touching the agent.
-#   - model: the real run, nightly and on dispatch. Needs the
-#     ANTHROPIC_API_KEY repository secret; a scheduled run without it
-#     fails loudly rather than reporting nothing. The markdown summary is
-#     the job summary; results.json is the artifact.
+#   - claude-code: the nightly run, and on dispatch. Claude Code drives the
+#     studio over its MCP endpoint with built-in tools off. Needs the
+#     CLAUDE_CODE_OAUTH_TOKEN repository secret (`claude setup-token`, a
+#     subscription); a run without it fails loudly. Held to
+#     gate.claude_code_min_pass.
+#   - model: the embedded agent, which calls the API directly. Runs when
+#     the ANTHROPIC_API_KEY repository secret is set and skips with a
+#     notice otherwise. Held to gate.min_pass.
+# The markdown summary is each job's summary; results.json its artifact.
 
 on:
   pull_request:
@@ -26,7 +31,7 @@ on:
   workflow_dispatch:
     inputs:
       model:
-        description: "Agent model (default: the agent's own default)"
+        description: "Model (default: each driver's own default)"
         required: false
         default: ""
       tasks:
@@ -62,6 +67,46 @@ jobs:
       - name: Replay the reference solutions
         run: python -m wirestudio.agent.eval --solutions
 
+  claude-code:
+    if: github.event_name != 'pull_request'
+    needs: solutions
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install studio + ESPHome + Claude Code
+        run: |
+          pip install -e .
+          pip install 'esphome==2026.6.5'
+          npm install -g @anthropic-ai/claude-code@2.1.294
+
+      - name: Run the task list through Claude Code
+        run: |
+          if [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
+            echo "::error::CLAUDE_CODE_OAUTH_TOKEN is not set; run claude setup-token and add it as a repository secret"
+            exit 1
+          fi
+          args=()
+          if [ -n "${{ inputs.model }}" ]; then args+=(--model "${{ inputs.model }}"); fi
+          if [ -n "${{ inputs.tasks }}" ]; then args+=(--tasks "${{ inputs.tasks }}"); fi
+          python -m wirestudio.agent.eval --driver claude-code --out results.json "${args[@]}"
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: agent-eval-claude-code
+          path: results.json
+          if-no-files-found: ignore
+
   model:
     if: github.event_name != 'pull_request'
     needs: solutions
@@ -85,8 +130,8 @@ jobs:
       - name: Run the task list against the model
         run: |
           if [ -z "$ANTHROPIC_API_KEY" ]; then
-            echo "::error::ANTHROPIC_API_KEY is not set; add it as a repository secret"
-            exit 1
+            echo "::notice::ANTHROPIC_API_KEY is not set; the embedded agent is not scored"
+            exit 0
           fi
           args=()
           if [ -n "${{ inputs.model }}" ]; then args+=(--model "${{ inputs.model }}"); fi
