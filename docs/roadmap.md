@@ -319,7 +319,9 @@ Section 4 covers the rest.
   frameworks' outputs and the PCB / fab path, and every bundled
   example in its table.
 - Release notes for 1.0 list the migrations and the tier changes, not
-  the features.
+  the features. Drafted in [`release-notes-1.0.md`](release-notes-1.0.md);
+  the rows the flash stage decides and the `0.3 → 1.0` step are filled
+  in at release.
 
 ## Out of scope for 1.0
 
