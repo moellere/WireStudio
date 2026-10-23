@@ -17,6 +17,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   hand-wired one as a `function_unsupported` error. Found by the agent
   eval's `ws2812-strip` task.
 
+- **Meshtastic flashing fetched a file that no longer exists.** Since
+  2.7 Meshtastic publishes the clean-install image as
+  `firmware-<board>-<version>.bin` (the `-update.bin` beside it is the
+  app-only OTA image), and every hosted release is 2.7 or later, so the
+  `.factory.bin` the studio asked for was a 404 on every board. The
+  Heltec WiFi LoRa 32 V2 and TTGO LoRa32 V1 leave the Meshtastic board
+  list: upstream marks them not actively supported and no longer
+  publishes their images.
+
 ### Changed
 
 - **The agent eval's Claude Code gate is 24 of 28.** Two runs on the
