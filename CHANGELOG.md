@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.42.1] — 2026-10-23
+
 ### Fixed
 
 - **The pin solver put WS2812 data on ESP8266 GPIO16**, which `esphome
@@ -3164,7 +3166,8 @@ ConnectionForm, EnclosureDialog, Inspector, CapabilityPickerDialog,
 PinoutView, PushToFleetDialog, SchematicDialog. ruff + tsc + vite
 build clean across the whole arc.
 
-[Unreleased]: https://github.com/moellere/wirestudio/compare/v0.42.0...HEAD
+[Unreleased]: https://github.com/moellere/wirestudio/compare/v0.42.1...HEAD
+[0.42.1]: https://github.com/moellere/wirestudio/compare/v0.42.0...v0.42.1
 [0.42.0]: https://github.com/moellere/wirestudio/compare/v0.41.0...v0.42.0
 [0.41.0]: https://github.com/moellere/wirestudio/compare/v0.40.0...v0.41.0
 [0.40.0]: https://github.com/moellere/wirestudio/compare/v0.39.0...v0.40.0
