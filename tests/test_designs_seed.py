@@ -51,6 +51,18 @@ def test_power_pin_falls_back_to_3v3_when_constraints_unmet():
     assert target == {"kind": "rail", "rail": "3V3"}
 
 
+def test_power_pin_never_picks_the_ground_rail():
+    """A low-side driver declares vcc 0..0 (it has no supply of its own), and
+    the 0 V rail used to satisfy that range: VLOAD landed on GND."""
+    rails = [
+        {"name": "5V", "voltage": 5.0},
+        {"name": "3V3", "voltage": 3.3},
+        {"name": "GND", "voltage": 0},
+    ]
+    target = default_target_for_pin("power", rails=rails, buses=[], vcc_min=0.0, vcc_max=0.0)
+    assert target == {"kind": "rail", "rail": "3V3"}
+
+
 def test_ground_pin_picks_zero_voltage_rail():
     rails = [
         {"name": "5V", "voltage": 5.0},

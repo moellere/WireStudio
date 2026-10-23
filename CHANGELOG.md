@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **A low-side driver's load supply was wired to ground.** The NPN and
+  MOSFET low-side drivers declare no supply of their own (vcc 0..0), and
+  the rail picker for a new part's power pins accepted the 0 V rail as
+  in range, so `VLOAD` landed on GND, in the studio, the agent and MCP
+  alike. A power pin no longer picks a 0 V rail; these parts now start
+  on 3V3, to be moved to the relay's supply. Found replaying the agent
+  eval's `add-relay` task, which now also accepts either driver, since
+  a bare relay coil needs one.
+
 ## [0.42.1] — 2026-10-23
 
 ### Fixed

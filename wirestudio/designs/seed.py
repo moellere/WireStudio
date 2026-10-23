@@ -52,9 +52,12 @@ def default_target_for_pin(
     GPIO pin (solve_pins fills these in).
     """
     if pin_kind == "power":
+        # A 0 V rail is ground, never a supply: a part with no supply of its
+        # own (vcc 0..0, e.g. a low-side driver's VLOAD) would otherwise match it.
         candidates = [
             r for r in rails
-            if (vcc_min is None or r["voltage"] >= vcc_min)
+            if r["voltage"] > 0
+            and (vcc_min is None or r["voltage"] >= vcc_min)
             and (vcc_max is None or r["voltage"] <= vcc_max)
         ]
         candidates.sort(key=lambda r: r["voltage"])
