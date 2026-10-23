@@ -326,8 +326,10 @@ function defaultTargetForPin(
 
   if (k === "power") {
     // Pick the lowest-voltage rail that satisfies the part's [vcc_min, vcc_max].
+    // A 0 V rail is ground, never a supply.
     const candidates = ctx.rails.filter((r) =>
-      (ctx.vccMin == null || r.voltage >= ctx.vccMin) && (ctx.vccMax == null || r.voltage <= ctx.vccMax),
+      r.voltage > 0
+      && (ctx.vccMin == null || r.voltage >= ctx.vccMin) && (ctx.vccMax == null || r.voltage <= ctx.vccMax),
     );
     const chosen = candidates.sort((a, b) => a.voltage - b.voltage)[0]
       ?? ctx.rails.find((r) => r.name === "3V3")

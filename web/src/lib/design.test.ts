@@ -266,6 +266,27 @@ describe("addComponent", () => {
     expect(vcc?.target).toEqual({ kind: "rail", rail: "3V3" });
   });
 
+  it("a power pin never picks the 0V rail", () => {
+    const driver: LibraryComponentDetail = {
+      id: "npn_low_side_driver",
+      name: "NPN low-side driver",
+      category: "switch",
+      electrical: {
+        vcc_min: 0,
+        vcc_max: 0,
+        pins: [
+          { role: "IN", kind: "digital_out" },
+          { role: "VLOAD", kind: "power" },
+          { role: "GND", kind: "ground" },
+        ],
+      },
+    };
+    const next = addComponent(baseDesign, driver, { board, buses: [] });
+    const conns = (next.connections as Array<{ component_id: string; pin_role: string; target: { kind: string; rail?: string } }>);
+    const vload = conns.find((c) => c.component_id === "npn_low_side_driver_1" && c.pin_role === "VLOAD");
+    expect(vload?.target).toEqual({ kind: "rail", rail: "3V3" });
+  });
+
   it("GND picks the rail at 0V", () => {
     const next = addComponent(baseDesign, bme, { board, buses: [] });
     const conns = (next.connections as Array<{ component_id: string; pin_role: string; target: { kind: string; rail?: string } }>);
