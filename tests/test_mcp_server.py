@@ -484,3 +484,30 @@ async def test_create_design_rejects_a_bad_body(mcp_server):
     assert not store.exists("broken")
     nameless = _content_to_dict(await server.call_tool("create_design", {"design": {}}))
     assert nameless["ok"] is False and "design_id" in nameless["error"]
+
+
+async def test_mcp_tools_accept_every_argument_the_agent_tools_do(mcp_server):
+    """An MCP client reaches the same handlers as the embedded agent, so a
+    tool on both surfaces takes the same arguments; one missing on MCP
+    leaves a task no MCP client can finish."""
+    from wirestudio.agent.tools import TOOL_SCHEMAS
+
+    server, _ = mcp_server
+    mcp_props = {t.name: set(t.input_schema.get("properties", {})) for t in await server.list_tools()}
+    missing = {
+        t["name"]: sorted(set(t["input_schema"]["properties"]) - mcp_props[t["name"]])
+        for t in TOOL_SCHEMAS if t["name"] in mcp_props
+    }
+    assert {k: v for k, v in missing.items() if v} == {}
+
+
+async def test_add_bus_takes_a_1wire_pin_and_refuses_reserved_ids(mcp_server):
+    server, store = mcp_server
+    design_id = _seed_design(store)
+    out = _content_to_dict(await server.call_tool(
+        "add_bus", {"id": "wire0", "type": "1wire", "pin": "GPIO4", "design_id": design_id}))
+    assert out["ok"], out
+    assert {"id": "wire0", "type": "1wire", "pin": "GPIO4"}.items() <= store.load(design_id)["buses"][0].items()
+    out = _content_to_dict(await server.call_tool(
+        "add_bus", {"id": "uart0", "type": "uart", "rx": "GPIO16", "tx": "GPIO17", "design_id": design_id}))
+    assert not out["ok"] and "reserved" in out["error"]

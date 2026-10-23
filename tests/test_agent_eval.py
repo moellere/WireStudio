@@ -332,3 +332,11 @@ def test_parse_stream_raises_on_an_error_result():
         ev.parse_stream(lines)
     with pytest.raises(RuntimeError, match="without a result"):
         ev.parse_stream([json.dumps({"type": "system"})])
+
+
+def test_a_replayed_call_must_fit_the_tool_schema(library):
+    design = ev.load_example(BY_ID["add-oled"], library)
+    with pytest.raises(RuntimeError, match="does not fit its schema"):
+        ev.apply_calls(design, [("add_bus", {"id": "w", "type": "1wire", "pin": "D5", "bogus": 1})], library)
+    with pytest.raises(RuntimeError, match="not an agent tool"):
+        ev.apply_calls(design, [("create_design", {})], library)

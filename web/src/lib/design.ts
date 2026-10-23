@@ -406,6 +406,10 @@ export function prepareBusesForLib(
   return { ...d, buses: [...buses, ...additions] };
 }
 
+// ESPHome refuses uart0-uart2 and spi0/spi1 as ids (they name its own
+// peripherals), so those types number as uart_bus0, spi_bus0, ...
+const RESERVED_BUS_PREFIXES = new Set(["uart", "spi"]);
+
 function nextBusId(
   d: Design,
   pending: Array<Record<string, unknown>>,
@@ -415,8 +419,9 @@ function nextBusId(
     ...readBuses(d).map((b) => b.id),
     ...pending.map((b) => String(b.id)),
   ]);
+  const prefix = RESERVED_BUS_PREFIXES.has(type) ? `${type}_bus` : type;
   for (let n = 0; n < 100; n++) {
-    const id = `${type}${n}`;
+    const id = `${prefix}${n}`;
     if (!used.has(id)) return id;
   }
   return `${type}_${Date.now()}`;

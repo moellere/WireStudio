@@ -300,9 +300,9 @@ def test_pmsx003_reads_the_last_valid_frame(monkeypatch):
     good, newer = _pms_frame(5, 12, 20), _pms_frame(6, 13, 21)
     bad = bytearray(_pms_frame(9, 9, 9))
     bad[-1] ^= 1
-    scope["uart_uart0"].chunks = [b"\x00\x42" + good[:7] + good + newer + bytes(bad) + newer[:10]]
+    scope["uart_uart_bus0"].chunks = [b"\x00\x42" + good[:7] + good + newer + bytes(bad) + newer[:10]]
     assert scope["dut_read"]() == [6, 13, 21]
-    scope["uart_uart0"].chunks = [bytes(bad)]
+    scope["uart_uart_bus0"].chunks = [bytes(bad)]
     assert scope["dut_read"]() is None
     assert scope["dut_read"]() is None  # nothing pending
 
@@ -311,7 +311,7 @@ def test_uart_gps_reads_a_checked_rmc_fix(monkeypatch):
     # The NMEA reference RMC sentence, 48 07.038' N 11 31.000' E.
     rmc = b"$GPRMC,123519,A,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W*6A\r\n"
     scope, _ = setup_scope("uart_gps", {}, monkeypatch, UART=lambda *a, **k: FakeUART())
-    uart = scope["uart_uart0"]
+    uart = scope["uart_uart_bus0"]
     uart.chunks = [b"stale", b"$GPGGA,1*00\r\n" + rmc[:30], rmc[30:]]
     lat, lon = scope["dut_fix"]()
     assert (round(lat, 4), round(lon, 4)) == (48.1173, 11.5167)

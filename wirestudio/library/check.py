@@ -25,7 +25,7 @@ from wirestudio.kicad.importer import default_symbol_dirs
 from wirestudio.kicad.symbol_parser import KicadSymbol, load_symbols, resolve_symbol
 from wirestudio.library import Library, LibraryComponent, part_value, render_param_template
 from wirestudio.library.electrical import run_checks
-from wirestudio.model import Design
+from wirestudio.model import Design, generated_bus_id
 
 _ID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
 _SIGNAL_KINDS = ("digital_in", "digital_out", "analog_in", "analog_out", "pwm", "adc", "spi_cs")
@@ -265,7 +265,7 @@ def synthetic_design(comp: LibraryComponent, library: Library, *, on_buses: bool
             target = {"kind": "gpio", "pin": next(gpios)}
         elif pin.kind in _BUS_KINDS:
             bus_type = _BUS_KINDS[pin.kind]
-            bus = buses.setdefault(bus_type, {"id": f"{bus_type}0", "type": bus_type, **_BUS_PINS[bus_type]})
+            bus = buses.setdefault(bus_type, {"id": generated_bus_id(bus_type, 0), "type": bus_type, **_BUS_PINS[bus_type]})
             target = {"kind": "bus", "bus_id": bus["id"]}
         elif pin.kind == "ground":
             target = {"kind": "rail", "rail": "GND"}

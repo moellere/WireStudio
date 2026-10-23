@@ -38,6 +38,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Optional
 
+import jsonschema
 import yaml
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -50,7 +51,7 @@ from wirestudio.agent.agent import (
     run_turn,
 )
 from wirestudio.agent.session import FileSessionStore
-from wirestudio.agent.tools import execute_tool
+from wirestudio.agent.tools import TOOL_SCHEMAS, execute_tool
 from wirestudio.generate.yaml_gen import render_yaml
 from wirestudio.library import Library, default_library
 from wirestudio.model import Design
@@ -58,6 +59,7 @@ from wirestudio.validate import dry_run, esphome_available, write_secrets_stub
 
 TASKS_PATH = Path(__file__).with_name("eval_tasks.yaml")
 EXAMPLES_DIR = Path(__file__).resolve().parent.parent / "examples"
+_SCHEMAS = {t["name"]: t["input_schema"] for t in TOOL_SCHEMAS}
 
 Call = tuple[str, dict]
 
@@ -139,9 +141,18 @@ def load_tasks(path: Path = TASKS_PATH) -> TaskFile:
 
 def apply_calls(design: dict, calls: list[Call], library: Library) -> list[dict]:
     """Run tool calls against a design in place, the way the agent loop
-    does. Returns the call log in the agent's shape."""
+    does. Returns the call log in the agent's shape. Each call's arguments
+    must fit the tool's schema, so a reference solution cannot use an
+    argument the agent is never offered."""
     log = []
     for name, args in calls:
+        schema = _SCHEMAS.get(name)
+        if schema is None:
+            raise RuntimeError(f"{name} is not an agent tool")
+        try:
+            jsonschema.validate(args, schema)
+        except jsonschema.ValidationError as e:
+            raise RuntimeError(f"{name}({json.dumps(args)}) does not fit its schema: {e.message}") from None
         result, is_error = execute_tool(name, args, design, library)
         if is_error:
             raise RuntimeError(f"{name}({json.dumps(args)}) failed: {result}")

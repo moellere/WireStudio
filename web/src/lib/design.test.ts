@@ -349,7 +349,7 @@ describe("neededBusTypes + prepareBusesForLib", () => {
     const buses = next.buses as Array<{ id: string; type: string; clk?: string; miso?: string; mosi?: string }>;
     expect(buses.length).toBe(2);
     const spi = buses.find((b) => b.type === "spi");
-    expect(spi).toMatchObject({ id: "spi0", type: "spi", clk: "GPIO5", miso: "GPIO19", mosi: "GPIO27" });
+    expect(spi).toMatchObject({ id: "spi_bus0", type: "spi", clk: "GPIO5", miso: "GPIO19", mosi: "GPIO27" });
   });
 
   it("falls back to a bare bus skeleton when the board has no default", () => {
@@ -357,7 +357,7 @@ describe("neededBusTypes + prepareBusesForLib", () => {
     const next = prepareBusesForLib(designNoSpi, sx127x, { rails: board.rails });
     const buses = next.buses as Array<{ id: string; type: string }>;
     const spi = buses.find((b) => b.type === "spi");
-    expect(spi).toEqual({ id: "spi0", type: "spi" });
+    expect(spi).toEqual({ id: "spi_bus0", type: "spi" });
   });
 
   it("auto-id avoids existing bus ids", () => {
@@ -482,7 +482,17 @@ describe("buses", () => {
     const next = addBus(baseDesign, "spi");
     const buses = next.buses as Array<Record<string, unknown>>;
     expect(buses.length).toBe(2);
-    expect(buses[1]).toMatchObject({ id: "spi0", type: "spi" });
+    expect(buses[1]).toMatchObject({ id: "spi_bus0", type: "spi" });
+  });
+
+  it("addBus never generates an id ESPHome reserves", () => {
+    let d = baseDesign;
+    for (let i = 0; i < 3; i++) d = addBus(addBus(d, "uart"), "spi");
+    const ids = (d.buses as Array<Record<string, unknown>>).map((b) => b.id);
+    for (const reserved of ["uart0", "uart1", "uart2", "spi0", "spi1"]) {
+      expect(ids).not.toContain(reserved);
+    }
+    expect(ids).toContain("uart_bus2");
   });
 
   it("addBus skips ids already used", () => {
@@ -495,7 +505,7 @@ describe("buses", () => {
   it("addBus seeds from defaults when provided", () => {
     const next = addBus(baseDesign, "uart", { tx: "D1", rx: "D2", baud_rate: "9600" });
     const buses = next.buses as Array<Record<string, unknown>>;
-    expect(buses[1]).toMatchObject({ id: "uart0", type: "uart", tx: "D1", rx: "D2" });
+    expect(buses[1]).toMatchObject({ id: "uart_bus0", type: "uart", tx: "D1", rx: "D2" });
   });
 
   it("updateBus patches a single bus immutably", () => {
@@ -510,7 +520,7 @@ describe("buses", () => {
     const seeded = addBus(baseDesign, "spi");
     const next = removeBus(seeded, "i2c0");
     const buses = next.buses as Array<Record<string, unknown>>;
-    expect(buses.map((b) => b.id)).toEqual(["spi0"]);
+    expect(buses.map((b) => b.id)).toEqual(["spi_bus0"]);
   });
 
   it("removeBus on unknown id is a no-op", () => {
@@ -541,10 +551,10 @@ describe("buses", () => {
 
   it("renameBus is a no-op when the new id collides with another bus", () => {
     const seeded = addBus(baseDesign, "spi");
-    const next = renameBus(seeded, "i2c0", "spi0");
+    const next = renameBus(seeded, "i2c0", "spi_bus0");
     const buses = next.buses as Array<Record<string, unknown>>;
     // No rename happened; the SPI bus is still present and the I2C still i2c0.
-    expect(buses.map((b) => b.id)).toEqual(["i2c0", "spi0"]);
+    expect(buses.map((b) => b.id)).toEqual(["i2c0", "spi_bus0"]);
   });
 
   it("renameBus is a no-op when the source id doesn't exist", () => {

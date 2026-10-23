@@ -337,3 +337,14 @@ def test_adc2_warning_does_not_fire_on_digital_in(lib):
             c["target"] = {"kind": "gpio", "pin": "GPIO4"}
     warnings = check_pin_compatibility(d, lib)
     assert _by_code(warnings, "adc2_wifi_conflict") == []
+
+
+def test_a_reserved_bus_id_is_an_error(lib):
+    """ESPHome refuses uart0-uart2 and spi0/spi1 as ids, so a design that
+    carries one cannot render; the check says which bus and what to call it."""
+    design = _load("garage-motion")
+    design["buses"].append({"id": "uart0", "type": "uart", "rx": "GPIO16", "tx": "GPIO17"})
+    [w] = _by_code(check_pin_compatibility(design, lib), "reserved_id")
+    assert w.severity == "error"
+    assert w.component_id == "uart0"
+    assert "uart_bus0" in w.message

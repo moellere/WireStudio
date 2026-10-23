@@ -196,3 +196,13 @@ def test_seed_onboard_endpoint(client):
 def test_seed_onboard_endpoint_in_openapi(client):
     paths = client.get("/openapi.json").json()["paths"]
     assert "/design/seed_onboard" in paths
+
+
+@pytest.mark.parametrize("board_id", ["ttgo-lora32-v2", "ttgo-t-beam"])
+def test_seeded_buses_avoid_ids_esphome_reserves(lib, board_id):
+    """The SPI radio's bus was seeded as spi0, which ESPHome refuses."""
+    from wirestudio.model import RESERVED_BUS_IDS
+
+    buses = seed_onboard_components(lib.board(board_id), lib).get("buses", [])
+    assert any(b["type"] == "spi" for b in buses)
+    assert not {b["id"] for b in buses} & RESERVED_BUS_IDS
