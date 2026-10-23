@@ -51,7 +51,7 @@ def test_steps_form_a_chain_to_the_current_version():
 
 def test_sugar_design_matches_the_golden(sugar):
     result = migrate(sugar)
-    assert result.applied == ["lower_lorawan_sugar", "drop_unread_fields"]
+    assert result.applied == ["lower_lorawan_sugar", "drop_unread_fields", "retire_lorawan_sugar"]
     assert (result.from_version, result.to_version) == ("0.1", CURRENT_SCHEMA_VERSION)
     assert result.document == json.loads(GOLDEN.read_text())
     assert sugar["schema_version"] == "0.1" and sugar["lorawan"]["gps"], "input left alone"
@@ -86,7 +86,7 @@ def test_0_2_drops_the_fields_nothing_read_and_keeps_key_order():
                     "provisioning": "runtime_serial", "dev_eui": "70b3d57ed0001234"},
     }
     result = migrate(old)
-    assert result.applied == ["drop_unread_fields"]
+    assert result.applied == ["drop_unread_fields", "retire_lorawan_sugar"]
     assert result.document == {**raw, "schema_version": CURRENT_SCHEMA_VERSION,
                                "lorawan": {"region": "EU868", "sub_band": 1, "join_eui": "70b3d57ed0000000"}}
     assert list(result.document)[:3] == list(raw)[:3]
@@ -181,3 +181,24 @@ def test_cli_check_write_and_print(tmp_path, sugar, capsys):
     assert main(["--check", str(path)]) == 0
     path.write_text(json.dumps({"schema_version": "9.0", "id": "x"}))
     assert main(["--check", str(path)]) == 2
+
+
+@pytest.mark.parametrize("path", ["/micropython/code", "/circuitpython/code", "/tasmota/template"])
+def test_design_routes_migrate_before_validating(sugar, path):
+    """These routes validated the request's design directly; once the 1.0
+    model dropped the LoRaWAN blocks, an older document carrying them was a
+    422 instead of an upgrade."""
+    from fastapi.testclient import TestClient
+
+    from wirestudio.api.app import create_app
+
+    r = TestClient(create_app()).post(path, json=sugar)
+    assert r.status_code == 200, r.text
+
+
+def test_load_design_migrates(sugar):
+    from wirestudio.migrate import CURRENT_SCHEMA_VERSION, load_design
+
+    design = load_design(sugar)
+    assert design.schema_version == CURRENT_SCHEMA_VERSION
+    assert {c.library_id for c in design.components} >= {"uart_gps"}

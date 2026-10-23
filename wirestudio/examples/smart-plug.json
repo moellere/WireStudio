@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.3",
+  "schema_version": "1.0",
   "id": "smart-plug",
   "name": "Athom-style smart plug (CSE7766 power metering)",
   "description": "ESP8285 1MB module wired the way Athom / Sonoff Basic R3+ smart plugs are: GPIO12 drives the relay coil, GPIO13 is the active-low status LED, GPIO0 is the front button, and the CSE7766 streams AC voltage/current/power/energy into UART RX (GPIO3) at 4800 8E1.",

@@ -12,6 +12,7 @@ import re
 from dataclasses import dataclass, field
 
 from wirestudio.library import component_footprint, part_value
+from wirestudio.migrate import load_design
 from wirestudio.model import Design
 
 _PY_IDENT_RE = re.compile(r"[^A-Za-z0-9_]")
@@ -380,7 +381,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("design", help="path to design.json")
     args = parser.parse_args(argv)
     with open(args.design) as fh:
-        design = Design.model_validate(json.load(fh))
+        design = load_design(json.load(fh))
     sys.stdout.write(format_netlist(design, default_library()))
     return 0
 

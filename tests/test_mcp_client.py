@@ -20,7 +20,7 @@ pytestmark = pytest.mark.anyio
 
 TOKEN = "ci-token"
 DESIGN = {
-    "schema_version": "0.3",
+    "schema_version": "1.0",
     "id": "ci-bench",
     "name": "CI bench",
     "board": {"library_id": "esp32-devkitc-v4", "mcu": "esp32", "framework": "arduino"},

@@ -21,8 +21,9 @@ from typing import TYPE_CHECKING, Callable, Optional
 
 if TYPE_CHECKING:
     from wirestudio.library import Library
+    from wirestudio.model import Design
 
-CURRENT_SCHEMA_VERSION = "0.3"
+CURRENT_SCHEMA_VERSION = "1.0"
 
 
 class MigrationError(ValueError):
@@ -65,40 +66,114 @@ def _drop_unread_fields(raw: dict, library) -> dict:
     return out
 
 
+_SUGAR_FIELDS = ("gps", "dht22", "oled")
+
+# Instance ids match what the codec used to synthesize, so device-profile
+# names and the C++ singletons a lowered design produces are the ones a
+# device provisioned from the same design already carries.
+_GPS_ID, _DHT_ID, _OLED_ID = "gps", "dht1", "oled"
+
+
 def _lower_lorawan_sugar(raw: dict, library) -> dict:
-    """0.1 -> 0.2: `lorawan.gps` / `dht22` / `oled` become the `uart_gps`,
-    `dht` and `ssd1306` components, buses and connections they stood for.
-    A document without the blocks only changes its version."""
-    from wirestudio.model import Design
-    from wirestudio.targets.lorawan.lower import SUGAR_FIELDS, lower_lorawan_sugar
+    """`lorawan.gps` / `dht22` / `oled` become the `uart_gps`, `dht` and
+    `ssd1306` components, buses and connections they stood for, wired the
+    way a user would have wired them. A block whose component the design
+    already carries (by library id) is dropped rather than doubled. A
+    document without the blocks is returned as is."""
+    from wirestudio.model import Bus, Component, Connection
 
-    lw = raw.get("lorawan") or {}
-    if not any(lw.get(f) is not None for f in SUGAR_FIELDS):
+    lw = raw.get("lorawan")
+    if not isinstance(lw, dict) or not any(lw.get(f) is not None for f in _SUGAR_FIELDS):
         return raw
-    # The model is the current one, so the fields 0.3 drops must not reach
-    # it; they stay in the output until that step.
-    before = Design.model_validate(_drop_unread_fields(raw, library))
-    after = lower_lorawan_sugar(before, library)
+    try:
+        board = library.board((raw.get("board") or {}).get("library_id"))
+    except FileNotFoundError:
+        board = None
+    rails = {r.name for r in board.rails} if board else set()
+    onboard = (board.onboard_peripherals or {}) if board else {}
+    i2c_default = (board.default_buses or {}).get("i2c", {}) if board else {}
 
-    def new(items_before, items_after):
-        return [
-            item.model_dump(mode="json", exclude_none=True, exclude_defaults=True)
-            for item in items_after[len(items_before):]
-        ]
+    components = list(raw.get("components") or [])
+    buses = list(raw.get("buses") or [])
+    connections = list(raw.get("connections") or [])
+    present = {c.get("library_id") for c in components}
+    ids = {c.get("id") for c in components} | {b.get("id") for b in buses}
+
+    def dump(model) -> dict:
+        return model.model_dump(mode="json", exclude_none=True, exclude_defaults=True)
+
+    def unique(base: str) -> str:
+        if base not in ids:
+            ids.add(base)
+            return base
+        n = 2
+        while f"{base}{n}" in ids:
+            n += 1
+        ids.add(f"{base}{n}")
+        return f"{base}{n}"
+
+    def component(**fields) -> str:
+        c = dump(Component(**fields))
+        components.append({**c, "params": c.get("params", {})})
+        return fields["id"]
+
+    def connect(cid: str, role: str, target: dict) -> None:
+        connections.append(dump(Connection(component_id=cid, pin_role=role, target=target)))
+
+    def power(cid: str) -> None:
+        if "3V3" in rails:
+            connect(cid, "VCC", {"kind": "rail", "rail": "3V3"})
+        if "GND" in rails:
+            connect(cid, "GND", {"kind": "rail", "rail": "GND"})
+
+    gps = lw.get("gps")
+    if gps is not None and "uart_gps" not in present:
+        bus_id = unique("gps_uart")
+        buses.append(dump(Bus(id=bus_id, type="uart", rx=gps["rx_pin"], tx=gps["tx_pin"],
+                              baud_rate=gps.get("baud", 9600))))
+        cid = component(id=unique(_GPS_ID), library_id="uart_gps", label="GPS")
+        power(cid)
+        connect(cid, "TX", {"kind": "bus", "bus_id": bus_id})
+        connect(cid, "RX", {"kind": "bus", "bus_id": bus_id})
+
+    dht22 = lw.get("dht22")
+    if dht22 is not None and "dht" not in present:
+        cid = component(id=unique(_DHT_ID), library_id="dht", label="DHT", params={"model": "DHT22"})
+        power(cid)
+        connect(cid, "DATA", {"kind": "gpio", "pin": dht22["pin"]})
+
+    oled = lw.get("oled")
+    if oled is not None and oled.get("enabled", True) and "ssd1306" not in present:
+        bus_id = next((b["id"] for b in buses if b.get("type") == "i2c"), None)
+        if bus_id is None and i2c_default.get("sda") and i2c_default.get("scl"):
+            bus_id = unique("i2c0")
+            buses.append(dump(Bus(id=bus_id, type="i2c",
+                                  sda=i2c_default["sda"], scl=i2c_default["scl"])))
+        ob = onboard.get("oled_ssd1306") or {}
+        params: dict = {"address": ob.get("address", "0x3C")}
+        if ob.get("vext"):
+            params["vext_pin"] = ob["vext"]
+        cid = component(id=unique(_OLED_ID), library_id="ssd1306", label="OLED", params=params)
+        power(cid)
+        if bus_id is not None:
+            connect(cid, "SDA", {"kind": "bus", "bus_id": bus_id})
+            connect(cid, "SCL", {"kind": "bus", "bus_id": bus_id})
+        if ob.get("reset"):
+            connect(cid, "RESET", {"kind": "gpio", "pin": ob["reset"]})
 
     out = dict(raw)
-    out["components"] = list(raw.get("components") or []) + [
-        {**c, "params": c.get("params", {})} for c in new(before.components, after.components)
-    ]
-    out["buses"] = list(raw.get("buses") or []) + new(before.buses, after.buses)
-    out["connections"] = list(raw.get("connections") or []) + new(before.connections, after.connections)
-    out["lorawan"] = {k: v for k, v in lw.items() if k not in SUGAR_FIELDS}
+    out["components"] = components
+    out["buses"] = buses
+    out["connections"] = connections
+    out["lorawan"] = {k: v for k, v in lw.items() if k not in _SUGAR_FIELDS}
     return out
 
 
 STEPS: list[Step] = [
     Step("0.1", "0.2", "lower_lorawan_sugar", _lower_lorawan_sugar),
     Step("0.2", "0.3", "drop_unread_fields", _drop_unread_fields),
+    # The 0.2 and 0.3 models still accepted the blocks; 1.0 drops them.
+    Step("0.3", "1.0", "retire_lorawan_sugar", _lower_lorawan_sugar),
 ]
 
 
@@ -137,6 +212,14 @@ def migrate(raw: dict, library=None) -> Migration:
     result.document = document
     result.to_version = version
     return result
+
+
+def load_design(raw: dict, library=None) -> "Design":
+    """`raw` brought to the current version and validated. Raises
+    MigrationError or pydantic's ValidationError."""
+    from wirestudio.model import Design
+
+    return Design.model_validate(migrate(raw, library).document)
 
 
 def main(argv: Optional[list[str]] = None) -> int:

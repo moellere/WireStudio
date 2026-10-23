@@ -36,6 +36,7 @@ from typing import Optional
 from wirestudio.kicad.netlist import BOARD_KEY, assign_refs, build_netlist, placed_parts
 from wirestudio.kicad.symbol_parser import load_symbols, resolve_symbol
 from wirestudio.library import Library
+from wirestudio.migrate import load_design
 from wirestudio.model import Design
 
 # Shelf placement (mm). Parts are laid out in rows sized to each footprint's
@@ -417,7 +418,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     if not args.design:
         parser.error("a design.json path is required (or pass --status)")
 
-    design = Design.model_validate(json.loads(Path(args.design).read_text()))
+    design = load_design(json.loads(Path(args.design).read_text()))
     try:
         board = generate_kicad_pcb(design, default_library())
     except PcbUnavailable as exc:

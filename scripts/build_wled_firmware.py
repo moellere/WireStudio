@@ -61,7 +61,7 @@ def usermod_designs(lib) -> list[Design]:
                     continue
                 connections.append({"component_id": inst, "pin_role": pin.role, "target": target})
         designs.append(Design.model_validate({
-            "schema_version": "0.3", "id": f"ci-usermods-{n + 1}", "name": f"usermods {n + 1}",
+            "schema_version": "1.0", "id": f"ci-usermods-{n + 1}", "name": f"usermods {n + 1}",
             "board": {"library_id": "esp32-devkitc-v4", "mcu": "esp32"},
             "power": {"supply": "usb", "rail_voltage_v": 3.3},
             "components": components,

@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.3",
+  "schema_version": "1.0",
   "id": "keypad",
   "name": "8-button keypad via PCF8574",
   "description": "WeMos D1 Mini reads eight buttons through a PCF8574 I2C GPIO expander. Validates the studio's expander_pin_key fallback path (no override; key matches library_id).",

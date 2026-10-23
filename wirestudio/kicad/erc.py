@@ -25,6 +25,7 @@ from wirestudio.kicad.render import (
     _TIMEOUT, RenderError, RenderUnavailable, render_status, write_schematic,
 )
 from wirestudio.library import Library, default_library
+from wirestudio.migrate import load_design
 from wirestudio.model import Design
 
 
@@ -100,7 +101,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("design", help="path to a design.json")
     parser.add_argument("--json", action="store_true", help="print the full report as JSON")
     args = parser.parse_args(argv)
-    design = Design.model_validate(json.loads(Path(args.design).read_text()))
+    design = load_design(json.loads(Path(args.design).read_text()))
     try:
         result = run_erc(design, default_library())
     except (RenderUnavailable, RenderError) as e:

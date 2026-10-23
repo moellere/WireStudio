@@ -1,17 +1,18 @@
-"""`lorawan.gps` / `dht22` / `oled` are sugar for a component, a bus and a
-few connections. Lowering them is what every reader of a standalone design
-does first, so a design written either way produces the same firmware,
-payload and profile name."""
+"""`lorawan.gps` / `dht22` / `oled` were sugar for a component, a bus and a
+few connections. The 1.0 model drops them; the migrator rewrites a document
+that still carries them into the components they stood for, so a design
+written either way produces the same firmware, payload and profile name."""
 from __future__ import annotations
 
 import pytest
+from pydantic import ValidationError
 
 from wirestudio.library import default_library
+from wirestudio.migrate import CURRENT_SCHEMA_VERSION, _lower_lorawan_sugar, migrate
 from wirestudio.model import Design
 from wirestudio.targets import get_target
 from wirestudio.targets.lorawan.codec import fields_for, generate_codec, profile_name
 from wirestudio.targets.lorawan.firmware_gen import generate_firmware
-from wirestudio.targets.lorawan.lower import lower_lorawan_sugar, sugar_in_use
 
 
 @pytest.fixture
@@ -19,14 +20,18 @@ def lib():
     return default_library()
 
 
-def _design(board_id: str, *, lorawan: dict | None = None, **extra) -> Design:
-    return Design.model_validate({
-        "schema_version": "0.1", "id": "d", "name": "D", "target": "lorawan",
+def _raw(board_id: str, *, lorawan: dict | None = None, version: str = "0.3", **extra) -> dict:
+    return {
+        "schema_version": version, "id": "d", "name": "D", "target": "lorawan",
         "lorawan": lorawan if lorawan is not None else {},
         "board": {"library_id": board_id, "mcu": "esp32"},
         "power": {"supply": "usb", "rail_voltage_v": 3.3},
         **extra,
-    })
+    }
+
+
+def _design(board_id: str, **kw) -> Design:
+    return Design.model_validate(migrate(_raw(board_id, **kw)).document)
 
 
 SUGAR = {"gps": {"rx_pin": "GPIO23", "tx_pin": "GPIO17"}, "dht22": {"pin": "GPIO13"}, "oled": {}}
@@ -59,12 +64,13 @@ EXPLICIT = {
 }
 
 
-def test_lowering_is_the_explicit_design(lib):
-    lowered = lower_lorawan_sugar(_design("heltec-wifi-lora32-v3", lorawan=SUGAR), lib)
-    explicit = _design("heltec-wifi-lora32-v3", **EXPLICIT)
-    dump = lambda d: d.model_dump(mode="json", exclude={"lorawan"})  # noqa: E731
-    assert dump(lowered) == dump(explicit)
-    assert sugar_in_use(lowered) == []
+def test_the_blocks_become_the_explicit_design():
+    result = migrate(_raw("heltec-wifi-lora32-v3", lorawan=SUGAR))
+    assert result.applied == ["retire_lorawan_sugar"]
+    assert result.to_version == CURRENT_SCHEMA_VERSION == "1.0"
+    doc = result.document
+    assert {k: doc[k] for k in ("components", "buses", "connections")} == EXPLICIT
+    assert doc["lorawan"] == {}
 
 
 def test_sugar_and_explicit_designs_generate_the_same_artifacts(lib):
@@ -78,12 +84,22 @@ def test_sugar_and_explicit_designs_generate_the_same_artifacts(lib):
     assert {"lat", "lon", "temp_c", "humidity", "batt_mv"} <= set(names)
 
 
-def test_lowering_leaves_the_input_alone_and_is_idempotent(lib):
-    design = _design("heltec-wifi-lora32-v3", lorawan=SUGAR)
-    lowered = lower_lorawan_sugar(design, lib)
-    assert design.lorawan.gps is not None and design.components == []
-    assert lower_lorawan_sugar(lowered, lib) is lowered
-    assert lower_lorawan_sugar(_design("heltec-wifi-lora32-v3"), lib) is not lowered
+def test_migration_leaves_the_input_alone_and_is_idempotent(lib):
+    raw = _raw("heltec-wifi-lora32-v3", lorawan=SUGAR)
+    doc = migrate(raw).document
+    assert raw["lorawan"]["gps"] and "components" not in raw
+    assert _lower_lorawan_sugar(doc, lib) is doc
+    assert migrate(doc).document is doc
+
+
+def test_a_0_3_design_without_the_blocks_only_changes_its_version():
+    raw = _raw("heltec-wifi-lora32-v3", lorawan={"region": "EU868"})
+    assert migrate(raw).document == {**raw, "schema_version": "1.0"}
+
+
+def test_the_1_0_model_refuses_the_blocks():
+    with pytest.raises(ValidationError, match="gps"):
+        Design.model_validate(_raw("heltec-wifi-lora32-v3", lorawan=SUGAR, version="1.0"))
 
 
 def test_a_block_whose_component_is_already_placed_is_dropped(lib):
@@ -93,54 +109,32 @@ def test_a_block_whose_component_is_already_placed_is_dropped(lib):
         connections=[{"component_id": "env", "pin_role": "DATA",
                       "target": {"kind": "gpio", "pin": "GPIO4"}}],
     )
-    lowered = lower_lorawan_sugar(design, lib)
-    assert [c.id for c in lowered.components] == ["env"]
-    assert lowered.lorawan.dht22 is None
+    assert [c.id for c in design.components] == ["env"]
     assert "DHT dht(4, DHT22);" in generate_firmware(design, lib)["src/main.cpp"]
 
 
-def test_ids_do_not_collide_with_what_the_design_has(lib):
+def test_ids_do_not_collide_with_what_the_design_has():
     design = _design(
         "heltec-wifi-lora32-v3", lorawan={"gps": {"rx_pin": "GPIO23", "tx_pin": "GPIO17"}},
         components=[{"id": "gps", "library_id": "gpio_input", "label": "Button", "params": {}}],
         buses=[{"id": "gps_uart", "type": "uart", "rx": "GPIO3", "tx": "GPIO1"}],
     )
-    lowered = lower_lorawan_sugar(design, lib)
-    gps = next(c for c in lowered.components if c.library_id == "uart_gps")
+    gps = next(c for c in design.components if c.library_id == "uart_gps")
     assert gps.id == "gps2"
-    assert {b.id for b in lowered.buses} == {"gps_uart", "gps_uart2"}
+    assert {b.id for b in design.buses} == {"gps_uart", "gps_uart2"}
 
 
 def test_onboard_gps_stays_synthesized_without_sugar(lib):
     """The T-Beam's GPS comes from the board file, not from a block; the
     golden firmware for it does not move."""
     design = _design("ttgo-t-beam")
-    assert lower_lorawan_sugar(design, lib) is design
+    assert design.components == []
     assert "GPSSerial.begin(9600, SERIAL_8N1, 34, 12)" in generate_firmware(design, lib)["src/main.cpp"]
 
 
-def test_oled_disabled_is_no_oled(lib):
-    design = _design("heltec-wifi-lora32-v3", lorawan={"oled": {"enabled": False}})
-    assert lower_lorawan_sugar(design, lib).components == []
+def test_oled_disabled_is_no_oled():
+    assert _design("heltec-wifi-lora32-v3", lorawan={"oled": {"enabled": False}}).components == []
 
 
-def test_validate_names_each_lowered_block(lib):
-    warnings = get_target("lorawan").validate(_design("heltec-wifi-lora32-v3", lorawan=SUGAR), lib)
-    lowered = [w for w in warnings if w.code == "lorawan_sugar_lowered"]
-    assert [w.level for w in lowered] == ["info"] * 3
-    assert all(f"lorawan.{f}" in w.text for f, w in zip(("gps", "dht22", "oled"), lowered))
-    assert get_target("lorawan").validate(_design("heltec-wifi-lora32-v3", **EXPLICIT), lib) == []
-
-
-def test_console_uart_check_reads_the_bus_either_way(lib):
-    on_console = {"gps": {"rx_pin": "GPIO3", "tx_pin": "GPIO1"}}
-    codes = {w.code for w in get_target("lorawan").validate(
-        _design("heltec-wifi-lora32-v2", lorawan=on_console), lib)}
-    assert "lorawan_gps_on_console_uart" in codes
-    explicit = _design(
-        "heltec-wifi-lora32-v2",
-        components=[{"id": "gnss", "library_id": "uart_gps", "label": "GNSS", "params": {}}],
-        buses=[{"id": "u", "type": "uart", "rx": "GPIO3", "tx": "GPIO1"}],
-        connections=[{"component_id": "gnss", "pin_role": "TX", "target": {"kind": "bus", "bus_id": "u"}}],
-    )
-    assert "lorawan_gps_on_console_uart" in {w.code for w in get_target("lorawan").validate(explicit, lib)}
+def test_the_migrated_design_validates_clean(lib):
+    assert get_target("lorawan").validate(_design("heltec-wifi-lora32-v3", lorawan=SUGAR), lib) == []

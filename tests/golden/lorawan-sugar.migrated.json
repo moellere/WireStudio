@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.3",
+  "schema_version": "1.0",
   "id": "field-node",
   "name": "Field node",
   "description": "A 0.1 design from the quick-flash dialog: an external GPS, a DHT22 and the onboard OLED asked for by block.",

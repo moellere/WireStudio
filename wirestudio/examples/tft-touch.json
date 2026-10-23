@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.3",
+  "schema_version": "1.0",
   "id": "tft-touch",
   "name": "ILI9341 TFT touchscreen",
   "description": "ESP32-DevKitC driving an ILI9341 SPI TFT with an XPT2046 resistive touch controller sharing the same SPI bus -- the classic cheap 2.4\" touch display. Distinct CS pins (display vs touch) and a touch IRQ line.",

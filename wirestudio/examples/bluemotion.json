@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.3",
+  "schema_version": "1.0",
   "id": "bluemotion",
   "name": "Blue motion sensor with NeoPixel feedback",
   "description": "ESP8266 D1 Mini, single PIR on GPIO4, single WS2812B on GPIO14. Motion lights the LED; LED also blinks on boot.",

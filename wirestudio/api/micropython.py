@@ -17,12 +17,11 @@ from __future__ import annotations
 import re
 
 from fastapi import APIRouter, HTTPException, Response
-from pydantic import ValidationError
 
 from wirestudio.errors import describe
 from wirestudio.generate.micropython_gen import generate_code
 from wirestudio.library import Library, LibraryBoard
-from wirestudio.model import Design
+from wirestudio.api.design_input import validate_document
 
 _DOWNLOAD_BASE = "https://micropython.org"
 
@@ -211,10 +210,7 @@ def router(lib: Library) -> APIRouter:
         """main.py generated from the design: per-component driver init
         from the library's `micropython:` fragments, plus the mip specs
         of the drivers to install."""
-        try:
-            d = Design.model_validate(design)
-        except ValidationError as e:
-            raise HTTPException(status_code=422, detail=e.errors()) from e
+        d = validate_document(design, lib)
         try:
             return generate_code(d, lib)
         except FileNotFoundError as e:

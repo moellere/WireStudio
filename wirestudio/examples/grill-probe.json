@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.3",
+  "schema_version": "1.0",
   "id": "grill-probe",
   "name": "Grill probe (MAX31855 thermocouple + MPU6050 lid sensor)",
   "description": "ESP32-DevKitC reading a K-type thermocouple through a MAX31855 SPI amplifier (read-only, no MOSI line) and an MPU6050 6-axis IMU on I2C used as a lid open/close detector. The thermocouple covers smoker/kiln range; the IMU's accelerometer tells you when someone opens the grill.",

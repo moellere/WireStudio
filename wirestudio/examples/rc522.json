@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.3",
+  "schema_version": "1.0",
   "id": "rc522",
   "name": "RC522 RFID reader station",
   "description": "ESP8266 D1 Mini with an MFRC522 RFID reader on SPI, plus a NeoPixel status LED, a piezo buzzer driven by RTTTL, and a hardware button.",

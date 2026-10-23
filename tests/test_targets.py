@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 
 from wirestudio.api.app import create_app
 from wirestudio.library import default_library
+from wirestudio.migrate import migrate
 from wirestudio.model import Design
 from wirestudio.targets import get_target, register, target_ids
 from wirestudio.targets.esphome import EsphomeTarget
@@ -79,17 +80,17 @@ def test_lorawan_validate_clean_on_radio_board_with_config():
 def test_lorawan_validate_warns_gps_on_console_uart():
     lib = default_library()
     # GPS on GPIO3/1 = U0RXD/U0TXD on the classic ESP32 -> floods the prompt.
-    d = Design.model_validate(_design(
-        "heltec-wifi-lora32-v2", target="lorawan",
-        lorawan={"gps": {"rx_pin": "GPIO3", "tx_pin": "GPIO1"}},
-    ))
+    def gps_on(rx: str, tx: str) -> Design:
+        return Design.model_validate(migrate({
+            **_design("heltec-wifi-lora32-v2", target="lorawan"), "schema_version": "0.3",
+            "lorawan": {"gps": {"rx_pin": rx, "tx_pin": tx}},
+        }).document)
+
+    d = gps_on("GPIO3", "GPIO1")
     codes = {w.code for w in get_target("lorawan").validate(d, lib)}
     assert "lorawan_gps_on_console_uart" in codes
     # Safe pins -> no such warning.
-    d2 = Design.model_validate(_design(
-        "heltec-wifi-lora32-v2", target="lorawan",
-        lorawan={"gps": {"rx_pin": "GPIO23", "tx_pin": "GPIO17"}},
-    ))
+    d2 = gps_on("GPIO23", "GPIO17")
     assert "lorawan_gps_on_console_uart" not in {w.code for w in get_target("lorawan").validate(d2, lib)}
 
 

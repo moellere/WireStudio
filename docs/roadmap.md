@@ -44,7 +44,7 @@ The last planned changes to the document shape, then the freeze.
 - **0.41 — Retire the standalone LoRaWAN sugar.** `design.lorawan.gps`
   / `dht22` / `oled` lower to library components internally, so the Arduino path reads the same
   `components` / `buses` / `connections` the ESPHome generator does.
-  The fields stay accepted until 1.0 and are rewritten by the migrator.
+  The 1.0 schema drops them; the migrator rewrites any still in a document.
 - **0.42 — Migration mechanism.** `wirestudio.migrate`: a chain of
   per-version functions over the raw document, run on load by the
   design stores, the CLI (`wirestudio migrate design.json`), the REST
@@ -329,8 +329,8 @@ Section 4 covers the rest.
   example in its table.
 - Release notes for 1.0 list the migrations and the tier changes, not
   the features. Drafted in [`release-notes-1.0.md`](release-notes-1.0.md);
-  the rows the flash stage decides and the `0.3 → 1.0` step are filled
-  in at release.
+  the `0.3 → 1.0` step is written, and the rows the flash stage decides
+  are filled in at release.
 
 ## Out of scope for 1.0
 

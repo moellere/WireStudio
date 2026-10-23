@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.3",
+  "schema_version": "1.0",
   "id": "analog-node",
   "name": "Analog measurement node (ADS1115 + onboard ADC)",
   "description": "ESP32-DevKitC with an ADS1115 4-channel 16-bit I2C ADC providing two readings (single-ended panel voltage on A0, differential shunt current on A2/A3) plus a board ADC1 pin reading the 3V3 rail through a divider. Demonstrates rescuing analog headroom from ESP32's narrow built-in ADC.",

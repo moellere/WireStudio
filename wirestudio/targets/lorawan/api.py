@@ -32,6 +32,7 @@ from fastapi.responses import Response, StreamingResponse
 from pydantic import ValidationError
 
 from wirestudio.library import Library
+from wirestudio.migrate import MigrationError, migrate
 from wirestudio.model import Design
 from wirestudio.targets.build_backend import BuildBackend, BuildUnavailable
 from wirestudio.targets.lorawan.firmware_gen import generate_firmware
@@ -76,6 +77,15 @@ def build_router(library: Library, backend: BuildBackend) -> APIRouter:
     is a different `backend`, not an endpoint change."""
     router = APIRouter(tags=["lorawan"])
 
+    def _design(raw: dict) -> Design:
+        """The request's design at the current schema version; raises
+        ValidationError like `Design.model_validate`."""
+        try:
+            document = migrate(raw, library).document
+        except MigrationError as e:
+            raise HTTPException(status_code=422, detail=str(e)) from e
+        return Design.model_validate(document)
+
     @router.get("/compile/status")
     def compile_status() -> dict:
         return backend.status()
@@ -88,7 +98,7 @@ def build_router(library: Library, backend: BuildBackend) -> APIRouter:
         surface before the stream opens.
         """
         try:
-            d = Design.model_validate(design)
+            d = _design(design)
         except ValidationError as exc:
             raise HTTPException(status_code=422, detail=exc.errors()) from exc
         try:
@@ -131,7 +141,7 @@ def build_router(library: Library, backend: BuildBackend) -> APIRouter:
         if not _EUI_RE.match(dev_eui):
             raise HTTPException(status_code=422, detail="dev_eui must be 16 hex characters")
         try:
-            design = Design.model_validate(body["design"]) if body.get("design") else None
+            design = _design(body["design"]) if body.get("design") else None
         except ValidationError as exc:
             raise HTTPException(status_code=422, detail=exc.errors()) from exc
 
@@ -192,7 +202,7 @@ def build_router(library: Library, backend: BuildBackend) -> APIRouter:
         if not slot or not isinstance(slot, str):
             raise HTTPException(status_code=422, detail="slot is required")
         try:
-            design = Design.model_validate(body["design"])
+            design = _design(body["design"])
         except KeyError as exc:
             raise HTTPException(status_code=422, detail="design is required") from exc
         except ValidationError as exc:
@@ -267,7 +277,7 @@ def build_router(library: Library, backend: BuildBackend) -> APIRouter:
         if not _EUI_RE.match(dev_eui):
             raise HTTPException(status_code=422, detail="dev_eui must be 16 hex characters")
         try:
-            design = Design.model_validate(body["design"]) if body.get("design") else None
+            design = _design(body["design"]) if body.get("design") else None
         except ValidationError as exc:
             raise HTTPException(status_code=422, detail=exc.errors()) from exc
         if design is None or design.lorawan is None or not design.lorawan.payload:
@@ -338,13 +348,13 @@ def build_router(library: Library, backend: BuildBackend) -> APIRouter:
     def set_codec(body: dict) -> dict:
         """Set the design's decodeUplink codec on the device's ChirpStack profile,
         so its uplinks decode into named ``object`` fields. Takes the design (so an
-        external GPS in lorawan.gps is reflected). Works for an already provisioned
+        external GPS component is reflected). Works for an already provisioned
         device too (no re-provision needed)."""
         dev_eui = str(body.get("dev_eui", "")).lower()
         if not _EUI_RE.match(dev_eui):
             raise HTTPException(status_code=422, detail="dev_eui must be 16 hex characters")
         try:
-            design = Design.model_validate(body["design"]) if body.get("design") else None
+            design = _design(body["design"]) if body.get("design") else None
         except ValidationError as exc:
             raise HTTPException(status_code=422, detail=exc.errors()) from exc
 
