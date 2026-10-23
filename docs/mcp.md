@@ -232,7 +232,7 @@ and persist back to `designs/<id>.json`.
 
 | Tool | Mutates | Notes |
 |------|---------|-------|
-| `search_components` | no | fuzzy library lookup by name/category/use_case/alias |
+| `search_components` | no | fuzzy library lookup by name/category/use_case/alias, best match first |
 | `list_boards` | no | every board with mcu / framework / platformio_board |
 | `library_detail` | no | full component/board card on demand |
 | `component_check` | no | check a draft component YAML: schema, subcircuit nets, template render, KiCad symbols/pins/footprints when libraries are installed |

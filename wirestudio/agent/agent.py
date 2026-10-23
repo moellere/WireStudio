@@ -253,7 +253,7 @@ def stream_turn_events(
     library: Optional[Library] = None,
     sessions: Optional[SessionStore] = None,
     model: Optional[str] = None,
-    max_iterations: int = 12,
+    max_iterations: int = 8,
 ) -> Iterator[dict]:
     """Run a single user turn and yield events as they happen.
 
@@ -360,7 +360,7 @@ def run_turn(
     library: Optional[Library] = None,
     sessions: Optional[SessionStore] = None,
     model: Optional[str] = None,
-    max_iterations: int = 12,
+    max_iterations: int = 8,
 ) -> TurnResult:
     """Non-streaming wrapper. Consumes stream_turn_events and collapses
     its events into a TurnResult so existing callers don't change."""

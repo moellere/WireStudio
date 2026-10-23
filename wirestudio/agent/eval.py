@@ -536,7 +536,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser.add_argument("--driver", choices=["agent", "claude-code"], default="agent",
                         help="the embedded agent (ANTHROPIC_API_KEY) or Claude Code over MCP")
     parser.add_argument("--model", default=None, help="agent model (default: the agent's)")
-    parser.add_argument("--max-iterations", type=int, default=12)
+    parser.add_argument("--max-iterations", type=int, default=8)
     parser.add_argument("--solutions", action="store_true",
                         help="replay each task's reference tool calls instead of the model")
     parser.add_argument("--no-esphome", action="store_true",
