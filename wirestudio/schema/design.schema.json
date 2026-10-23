@@ -6,7 +6,7 @@
   "required": ["schema_version", "id", "name", "board", "power"],
   "additionalProperties": false,
   "properties": {
-    "schema_version": { "type": "string", "enum": ["0.1", "0.2", "0.3"], "description": "0.3 is current; older versions are accepted and migrated on load (0.1: the lorawan.gps / dht22 / oled blocks become components; 0.2: fields nothing read are dropped)." },
+    "schema_version": { "type": "string", "enum": ["0.1", "0.2", "0.3", "1.0"], "description": "1.0 is current; older versions are accepted and migrated on load (0.1 and 0.3: the lorawan.gps / dht22 / oled blocks become components; 0.2: fields nothing read are dropped)." },
     "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
     "name": { "type": "string" },
     "description": { "type": "string", "description": "Shown in the design pane and in the saved-design and example lists." },
@@ -315,30 +315,6 @@
               "sensor": { "type": "string", "description": "design-level component_id whose value goes into this slot" }
             }
           }
-        },
-        "gps": {
-          "type": "object",
-          "description": "Deprecated: sugar for a `uart_gps` component on a UART bus. Lowered to that component before generation; removed at 1.0.",
-          "required": ["rx_pin", "tx_pin"],
-          "additionalProperties": false,
-          "properties": {
-            "rx_pin": { "type": "string" },
-            "tx_pin": { "type": "string" },
-            "baud": { "type": "integer", "default": 9600 }
-          }
-        },
-        "dht22": {
-          "type": "object",
-          "description": "Deprecated: sugar for a `dht` component with DATA on `pin`. Lowered before generation; removed at 1.0.",
-          "required": ["pin"],
-          "additionalProperties": false,
-          "properties": { "pin": { "type": "string" } }
-        },
-        "oled": {
-          "type": "object",
-          "description": "Deprecated: sugar for an `ssd1306` component on the board's I2C bus. Lowered before generation; removed at 1.0.",
-          "additionalProperties": false,
-          "properties": { "enabled": { "type": "boolean", "default": true } }
         }
       }
     }

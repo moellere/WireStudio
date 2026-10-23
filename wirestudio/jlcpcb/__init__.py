@@ -20,7 +20,7 @@ from wirestudio.jlcpcb.client import (
     jlcpcb_status,
 )
 from wirestudio.library import default_library
-from wirestudio.model import Design
+from wirestudio.migrate import load_design
 
 __all__ = [
     "BomLine",
@@ -74,7 +74,7 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(status, indent=2))
         return 0 if status["available"] else 2
 
-    design = Design.model_validate(json.loads(Path(args.design).read_text()))
+    design = load_design(json.loads(Path(args.design).read_text()))
     report = check_bom(design, default_library())
     if args.json:
         print(json.dumps(report_to_dict(report), indent=2))

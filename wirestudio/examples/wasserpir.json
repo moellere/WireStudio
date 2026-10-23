@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.3",
+  "schema_version": "1.0",
   "id": "wasserpir",
   "name": "Wasserstein PIR motion sensor",
   "description": "ESP8266 D1 Mini with a single PIR on D2. Sends motion to Home Assistant; reboots itself nightly.",

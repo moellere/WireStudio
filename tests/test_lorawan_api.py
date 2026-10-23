@@ -57,15 +57,14 @@ def client() -> TestClient:
 
 
 def _design(board_id: str, **lorawan) -> dict:
-    return Design(
-        schema_version="0.1",
-        id="d",
-        name="D",
-        target="lorawan",
-        lorawan=lorawan,
-        board={"library_id": board_id, "mcu": "esp32"},
-        power={"supply": "usb", "rail_voltage_v": 3.3},
-    ).model_dump(mode="json", exclude_none=True)
+    """A 0.3 request body; `lorawan` may carry the retired gps / dht22 / oled
+    blocks, which the endpoints migrate into components."""
+    return {
+        "schema_version": "0.3", "id": "d", "name": "D", "target": "lorawan",
+        "lorawan": lorawan,
+        "board": {"library_id": board_id, "mcu": "esp32"},
+        "power": {"supply": "usb", "rail_voltage_v": 3.3},
+    }
 
 
 def _seed_cache(tmp_path, design: dict, *, bin_bytes=b"FAKEBIN", log="cached log") -> str:
@@ -305,7 +304,7 @@ def test_provision_esphome_uses_esphome_profile_naming(client, monkeypatch):
     assert fake.provisioned["device_profile_name"] == "wirestudio-esphome-us915-sub2"
     # Codec is None on the new path -- the decoder is generated from
     # design.lorawan.payload by a follow-up endpoint, not by the standalone
-    # codec.py (which knows only gps/dht22/oled).
+    # codec.py (which packs the standalone path's components).
     assert fake.provisioned["codec"] is None
 
 

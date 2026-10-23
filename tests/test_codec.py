@@ -1,20 +1,20 @@
 from __future__ import annotations
 
 from wirestudio.library import default_library
+from wirestudio.migrate import migrate
 from wirestudio.model import Design
 from wirestudio.targets.lorawan import codec
 
 
 def _design(board_id: str, **lorawan) -> Design:
-    return Design(
-        schema_version="0.1",
-        id="d",
-        name="D",
-        target="lorawan",
-        lorawan=lorawan,
-        board={"library_id": board_id, "mcu": "esp32"},
-        power={"supply": "usb", "rail_voltage_v": 3.3},
-    )
+    """`lorawan` may carry the retired gps / dht22 / oled blocks, which the
+    migrator turns into components."""
+    return Design.model_validate(migrate({
+        "schema_version": "0.3", "id": "d", "name": "D", "target": "lorawan",
+        "lorawan": lorawan,
+        "board": {"library_id": board_id, "mcu": "esp32"},
+        "power": {"supply": "usb", "rail_voltage_v": 3.3},
+    }).document)
 
 
 def test_builtin_only_layout():

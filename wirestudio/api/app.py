@@ -25,7 +25,6 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import os
 from mcp.server.transport_security import TransportSecuritySettings
-from pydantic import ValidationError
 
 from wirestudio.mcp import (
     BearerTokenMiddleware,
@@ -38,7 +37,7 @@ from wirestudio import __version__
 from wirestudio.agent.agent import is_available as agent_available, run_turn, stream_turn_events
 from wirestudio.agent.session import SessionStore, FileSessionStore, SqliteSessionStore
 from wirestudio.designs.store import DesignStore, FileDesignStore, SqliteDesignStore
-from wirestudio.migrate import MigrationError, migrate
+from wirestudio.api.design_input import migrate_document, validate_document
 from wirestudio.api.schemas import (
     AgentSession,
     AgentSessionMessage,
@@ -239,21 +238,6 @@ def _example_summary(path: Path) -> ExampleSummary:
 
 
 
-def _migrate_document(design: dict, library: Library) -> dict:
-    """A request's document at the current schema version, so a design from
-    an older release is accepted everywhere a current one is."""
-    try:
-        return migrate(design, library).document
-    except MigrationError as e:
-        raise HTTPException(status_code=422, detail=str(e)) from e
-
-
-def _validate_document(design: dict, library: Library) -> Design:
-    try:
-        return Design.model_validate(_migrate_document(design, library))
-    except ValidationError as e:
-        raise HTTPException(status_code=422, detail=e.errors()) from e
-
 _PRINT_STARTS = (
     "staged on print-warden; it starts only when the operator taps Start on "
     "the phone notification (or the printer's auto_start policy passes), "
@@ -279,10 +263,10 @@ def create_app(
     lib = library or default_library()
 
     def _validate_design(design: dict) -> Design:
-        return _validate_document(design, lib)
+        return validate_document(design, lib)
 
     def _migrate(design: dict) -> dict:
-        return _migrate_document(design, lib)
+        return migrate_document(design, lib)
 
     # Pre-compute component and board summaries to avoid re-parsing YAML
     # and re-allocating models on every request. Boards are immutable;
@@ -1673,10 +1657,7 @@ def create_app(
 
     @app.post("/fleet/push", response_model=FleetPushResponse, tags=["fleet"])
     async def fleet_push(req: FleetPushRequest) -> FleetPushResponse:
-        try:
-            d = Design.model_validate(req.design)
-        except ValidationError as e:
-            raise HTTPException(status_code=422, detail=e.errors()) from e
+        d = _validate_design(req.design)
         try:
             target = get_target(d.target)
             # When the caller supplies lorawan_secrets, render directly so the

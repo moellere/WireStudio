@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.3",
+  "schema_version": "1.0",
   "id": "desk-matrix",
   "name": "Desk LED matrix (ESP32 RMT-driven WS2812)",
   "description": "ESP32-DevKitC driving an 8x8 (64 LEDs) WS2812 matrix via the chip's RMT peripheral. Strictly preferred over the bit-banged neopixelbus driver on ESP32 hardware: doesn't disable interrupts, doesn't fight WiFi, hits frame rates the bit-banger can't.",

@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.3",
+  "schema_version": "1.0",
   "id": "air-quality-station",
   "name": "Indoor air quality station",
   "description": "ESP32-DevKitC-V4 with the current-generation Sensirion stack on I2C (SCD4x true CO2, SHT4x temp/RH, SGP4x VOC index, VEML7700 lux, BME680 pressure/gas) and a Plantower PMS5003 particulate sensor on UART2.",

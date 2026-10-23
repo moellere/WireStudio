@@ -5,13 +5,13 @@ by `scripts/schema_doc.py`; do not edit by hand. A field path ending in
 `[]` is an array element; `{}` is a map value. A connection `target`
 is one of several shapes, listed under its `kind`.
 
-Current `schema_version`: **0.3**. Older documents are accepted
+Current `schema_version`: **1.0**. Older documents are accepted
 and migrated on load (`wirestudio.migrate`); see
 [`roadmap.md`](roadmap.md) section 1 for the freeze.
 
 | Field | Type | Required | Values | Description |
 |---|---|---|---|---|
-| `schema_version` | enum | yes | `"0.1"`, `"0.2"`, `"0.3"` | 0.3 is current; older versions are accepted and migrated on load (0.1: the lorawan.gps / dht22 / oled blocks become components; 0.2: fields nothing read are dropped). |
+| `schema_version` | enum | yes | `"0.1"`, `"0.2"`, `"0.3"`, `"1.0"` | 1.0 is current; older versions are accepted and migrated on load (0.1 and 0.3: the lorawan.gps / dht22 / oled blocks become components; 0.2: fields nothing read are dropped). |
 | `id` | string | yes |  |  |
 | `name` | string | yes |  |  |
 | `description` | string |  |  | Shown in the design pane and in the saved-design and example lists. |
@@ -132,11 +132,3 @@ and migrated on load (`wirestudio.migrate`); see
 | `lorawan.payload` | array |  |  | Ordered uplink field list for the ESPHome external-component target path (`lorawan-for-esphome`). Each entry packs a sensor's current value into the uplink; the ChirpStack decoder is generated from the same list so device and server stay in lockstep. Unused by the standalone Arduino path. |
 | `lorawan.payload[]` | object |  |  |  |
 | `lorawan.payload[].sensor` | string | yes |  | design-level component_id whose value goes into this slot |
-| `lorawan.gps` | object |  |  | Deprecated: sugar for a `uart_gps` component on a UART bus. Lowered to that component before generation; removed at 1.0. |
-| `lorawan.gps.rx_pin` | string | yes |  |  |
-| `lorawan.gps.tx_pin` | string | yes |  |  |
-| `lorawan.gps.baud` | integer |  | default `9600` |  |
-| `lorawan.dht22` | object |  |  | Deprecated: sugar for a `dht` component with DATA on `pin`. Lowered before generation; removed at 1.0. |
-| `lorawan.dht22.pin` | string | yes |  |  |
-| `lorawan.oled` | object |  |  | Deprecated: sugar for an `ssd1306` component on the board's I2C bus. Lowered before generation; removed at 1.0. |
-| `lorawan.oled.enabled` | boolean |  | default `true` |  |

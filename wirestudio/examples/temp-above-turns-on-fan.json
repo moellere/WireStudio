@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.3",
+  "schema_version": "1.0",
   "id": "temp-above-turns-on-fan",
   "name": "Fan turns on above a temperature threshold",
   "description": "Phase-4 worked example for intent-to-device synthesis: a BME280's temperature channel fires `on_value_range` with `above: 28.0`, and the action turns a fan on. Demonstrates the threshold-bounds path -- the trigger carries `above` (and optionally `below`), the lowering wraps the action list in a `{above, below, then}` range entry, and the rendered `on_value_range:` lands inside the `temperature:` sub-block (proving the channel + range surfaces compose). The threshold-only case (no `below`) is open-ended on the upper bound -- fires whenever the reading is at or above 28°C.",

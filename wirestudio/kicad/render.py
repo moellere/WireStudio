@@ -25,6 +25,7 @@ from pathlib import Path
 from wirestudio.kicad.pcb import generate_kicad_pcb, pcb_status
 from wirestudio.kicad.schematic import SchematicUnavailable, generate_kicad_sch, sch_status
 from wirestudio.library import Library, default_library
+from wirestudio.migrate import load_design
 from wirestudio.model import Design
 
 _TIMEOUT = 120  # seconds, per subprocess -- kicad-cli is slow to start
@@ -239,7 +240,7 @@ def main(argv: list[str] | None = None) -> int:
     if not args.design:
         parser.error("a design.json path is required (or pass --status)")
 
-    design = Design.model_validate(json.loads(Path(args.design).read_text()))
+    design = load_design(json.loads(Path(args.design).read_text()))
     fmt = "png" if args.png else "svg"
     try:
         data = render_schematic(design, default_library(), fmt=fmt)

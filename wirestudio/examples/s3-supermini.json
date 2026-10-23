@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.3",
+  "schema_version": "1.0",
   "id": "s3-supermini",
   "name": "ESP32-S3 SuperMini (onboard)",
   "description": "ESP32-S3 SuperMini with its onboard WS2812 RGB LED and BOOT button.",

@@ -359,11 +359,13 @@ class TasmotaTarget(TargetPlugin):
     def router(self, library: Library):
         from fastapi import APIRouter, HTTPException, Response
 
+        from wirestudio.api.design_input import validate_document
+
         router = APIRouter(tags=["tasmota"])
 
         @router.post("/template")
         def tasmota_template(design: dict) -> dict:
-            d = Design.model_validate(design)
+            d = validate_document(design, library)
             try:
                 template, warnings = build_template(d, library)
             except ValueError as e:
@@ -427,9 +429,12 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser.add_argument("design", help="path to a design.json")
     args = parser.parse_args(argv)
 
+    from wirestudio.migrate import load_design
+
+    library = default_library()
     with open(args.design) as fh:
-        design = Design.model_validate(json.load(fh))
-    template, warnings = build_template(design, default_library())
+        design = load_design(json.load(fh), library)
+    template, warnings = build_template(design, library)
     print(json.dumps(template))
     for w in warnings:
         print(f"warning: {w}", flush=True)

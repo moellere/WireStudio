@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.3",
+  "schema_version": "1.0",
   "id": "rs485-energy",
   "name": "Eastron SDM230 single-phase energy meter via RS485",
   "description": "ESP32-DevKitC-V4 reading an Eastron SDM230 energy meter over Modbus RTU. UART2 (GPIO16/GPIO17) drives a MAX485 transceiver; GPIO5 toggles the transceiver's combined DE+RE direction pin. The studio's modbus component owns the protocol layer, sdm_meter rides on top.",

@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.3",
+  "schema_version": "1.0",
   "id": "presence-rf",
   "name": "mmWave presence + 433MHz RF bridge",
   "description": "ESP32-DevKitC with a Hi-Link LD2420 24GHz mmWave presence sensor on one UART and a Sonoff-style 433MHz RF bridge (EFM8) on a second UART. Room presence plus relaying cheap 433MHz remotes/sensors into Home Assistant.",

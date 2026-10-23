@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.3",
+  "schema_version": "1.0",
   "id": "wled-sensor-strip",
   "name": "WLED strip with room sensors",
   "description": "A 60-pixel WS2812 strip with a preset button, a BME280 and a DS18B20 on an ESP32 DevKitC. On the ESPHome target it is an ordinary light plus two sensors. On the WLED target the strip and the button are runtime settings in cfg.json, while the two sensors are usermods: the BME280_v2 and Temperature usermods are compiled into the pinned WLED release through the generated platformio_override.ini, and their settings ride cfg.json's um section.",

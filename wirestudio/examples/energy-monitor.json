@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.3",
+  "schema_version": "1.0",
   "id": "energy-monitor",
   "name": "Whole-circuit energy monitor",
   "description": "ESP32-DevKitC-V4 measuring mains power three ways: a PZEM-004T v3 over Modbus/UART2 for real power on one circuit, an SCT-013 CT clamp on GPIO34 for a second circuit's current, and an INA219 on I2C watching a 12V DC rail.",

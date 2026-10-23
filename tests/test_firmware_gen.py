@@ -5,28 +5,28 @@ from pathlib import Path
 import pytest
 
 from wirestudio.library import default_library
+from wirestudio.migrate import migrate
 from wirestudio.model import Design
 from wirestudio.targets.lorawan.firmware_gen import generate_firmware, write_firmware
 
 
 def _design(board_id: str, **lorawan) -> Design:
-    kw = {}
+    """A 0.3 design; `lorawan` may carry the retired gps / dht22 / oled
+    blocks, which the migrator turns into components."""
+    raw = {
+        "schema_version": "0.3", "id": "dev1", "name": "Dev 1",
+        "board": {"library_id": board_id, "mcu": "esp32"},
+        "power": {"supply": "usb", "rail_voltage_v": 3.3},
+    }
     if lorawan:
-        kw["target"] = "lorawan"
-        kw["lorawan"] = lorawan
-    return Design(
-        schema_version="0.1",
-        id="dev1",
-        name="Dev 1",
-        board={"library_id": board_id, "mcu": "esp32"},
-        power={"supply": "usb", "rail_voltage_v": 3.3},
-        **kw,
-    )
+        raw["target"] = "lorawan"
+        raw["lorawan"] = lorawan
+    return Design.model_validate(migrate(raw).document)
 
 
 def _design_with(*library_ids: str) -> Design:
     return Design.model_validate({
-        "schema_version": "0.3", "id": "dev1", "name": "Dev 1", "target": "lorawan", "lorawan": {},
+        "schema_version": "1.0", "id": "dev1", "name": "Dev 1", "target": "lorawan", "lorawan": {},
         "board": {"library_id": "ttgo-lora32-v2", "mcu": "esp32"},
         "power": {"supply": "usb", "rail_voltage_v": 3.3},
         "components": [{"id": cid, "library_id": cid, "label": cid, "params": {}} for cid in library_ids],
@@ -180,7 +180,7 @@ def test_lorawan_matches_golden(lib):
 
 
 def test_synthesized_dht_emits_its_configured_pin(lib):
-    """A DHT requested via `lorawan.dht22` has no wiring, so the render
+    """A DHT from a retired `lorawan.dht22` block has no wiring, so the render
     context sets `pin` to None. Jinja's `default()` only fires on *undefined*,
     so the old template fell through to a literal "None" in the C++."""
     src = generate_firmware(

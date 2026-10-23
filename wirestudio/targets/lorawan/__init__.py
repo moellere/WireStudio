@@ -78,21 +78,6 @@ class LorawanTarget(TargetPlugin):
                     ),
                 )
             )
-        from wirestudio.targets.lorawan.lower import lower_lorawan_sugar, sugar_in_use
-
-        for field in sugar_in_use(design):
-            warnings.append(
-                DesignWarning(
-                    level="info",
-                    code="lorawan_sugar_lowered",
-                    text=(
-                        f"lorawan.{field} is deprecated: it is lowered to a library "
-                        "component with its bus and connections before generation, "
-                        "and the 1.0 migrator rewrites it. Add the component instead."
-                    ),
-                )
-            )
-        design = lower_lorawan_sugar(design, library)
         # On the classic ESP32, U0RXD/U0TXD are GPIO3/GPIO1 -- the USB-serial
         # console the provisioning prompt reads. A GPS UART there floods the
         # prompt with garbage and the device never joins.

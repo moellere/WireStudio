@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.3",
+  "schema_version": "1.0",
   "id": "desk-climate",
   "name": "Desk climate (Sensirion)",
   "description": "ESP32-C3-DevKitM-1 with a Sensirion SHT3x temperature/humidity sensor. Demonstrates the modern precision-sensor option (vs the AHT20 budget pick in room-climate.json).",

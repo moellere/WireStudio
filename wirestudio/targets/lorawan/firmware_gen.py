@@ -25,7 +25,6 @@ from wirestudio.targets.lorawan.codec import (
     payload_size,
     resolve_components,
 )
-from wirestudio.targets.lorawan.lower import lower_lorawan_sugar
 
 _TEMPLATES = Path(__file__).resolve().parent / "templates"
 _jinja = Environment(
@@ -83,7 +82,7 @@ def _radio_ctx(radio: Radio) -> dict:
 
 def _wiring_for(component_id: str, design: Design) -> tuple[dict, Optional[dict]]:
     """Resolved GPIO pins (by role) and bus for a component, from the design's
-    physical connections -- the path a user-authored or lowered component uses.
+    physical connections -- the path a user-authored component uses.
     Synthesized onboard peripherals have no connections and fall back to their
     params."""
     pins: dict[str, int] = {}
@@ -116,7 +115,6 @@ def generate_firmware(design: Design, library: Library) -> dict[str, str]:
             f"board {board.id!r} has no radio: block; the lorawan firmware "
             "generator needs an SX127x or SX126x board"
         )
-    design = lower_lorawan_sugar(design, library)
     lw = design.lorawan
     region = lw.region if lw else _REGION_DEFAULT
     sub_band = lw.sub_band if lw else _SUBBAND_DEFAULT
