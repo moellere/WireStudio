@@ -233,6 +233,16 @@ class WorkbenchClient:
         )
         return data.get("lines", [])
 
+    async def reset(self, slot: str) -> dict:
+        """Hard-reset the board in `slot` with the recorder attached.
+
+        esptool resets the chip at the end of a flash while the bench still
+        has the recorder detached, so the first boot after a flash is never
+        captured. A reset through the bench is, from the first byte.
+        """
+        return await self._post_json("/api/serial/reset", {"slot": slot},
+                                     read_timeout=45.0)
+
     async def _get_json(self, path: str) -> dict:
         if not self.is_configured():
             raise WorkbenchUnavailable(

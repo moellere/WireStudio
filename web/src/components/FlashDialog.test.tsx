@@ -291,7 +291,7 @@ describe("BootStatus", () => {
     expect(screen.getByText(/booted: every esphome component initialised/i)).toBeInTheDocument();
     rerender(<BootStatus result={{ ok: false, framework: "lorawan", booted: false, checks: [{ stage: "boot", matched: false, pattern: "wirestudio lorawan:", timeout_s: 45 }] }} />);
     expect(screen.getByText(/no boot marker within 45 s/i)).toBeInTheDocument();
-    rerender(<BootStatus result={{ ok: false, framework: "meshtastic", error: "no boot signature established -- needs a Meshtastic board on the bench to observe one" }} />);
-    expect(screen.getByText(/boot not verified: no boot signature established/i)).toBeInTheDocument();
+    rerender(<BootStatus result={{ ok: false, framework: "meshtastic", error: "no boot marker for 'meshtastic'; known: esphome" }} />);
+    expect(screen.getByText(/boot not verified: no boot marker for 'meshtastic'/i)).toBeInTheDocument();
   });
 });

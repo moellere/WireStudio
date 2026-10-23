@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Boot verification after a flash resets the board through the bench.**
+  esptool resets the chip at the end of a write while the bench still
+  has its recorder detached, so the boot that follows was never
+  captured; ESPHome's start-up is over in a fraction of a second, and
+  the covbench gate failed it on a healthy board. `verify_boot` takes
+  `reset=True`, which waits for the slot to go idle, resets it with
+  `POST /api/serial/reset` and searches from that moment. The nightly
+  gate and the flash dialog use it; `POST /workbench/verify-boot` and
+  `workbench_verify_boot` accept `reset`. A reset costs a LoRaWAN
+  device a second join, so it stays off unless asked for.
+
+### Added
+
+- **A Meshtastic boot marker.** "Booted, wake cause", observed on a TTGO
+  T3 V1.6.1 on covbench. Every framework the studio flashes now has
+  one, so the gate's no-marker path and its `boot_capture_s` setting
+  are gone; a roster that still sets it is unaffected.
+
 ### Removed
 
 - **Schema version 1.0: the `lorawan.gps`, `dht22` and `oled` blocks.**

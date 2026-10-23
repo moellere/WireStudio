@@ -279,7 +279,8 @@ def _register_workbench_tools(
             "successful flash only proves bytes reached the chip -- a wrong "
             "flash size or an undriven front end flashes perfectly and then "
             "fails at start-up. Frameworks: esphome, lorawan (standalone "
-            "RadioLib), lorawan-esphome.\n\n"
+            "RadioLib), lorawan-esphome, micropython, circuitpython, "
+            "meshtastic.\n\n"
             "Set check_join=true to additionally wait for the LoRaWAN join. "
             "It is off by default and generously timed because the first "
             "join after a flash reliably fails and only the retry, one "
@@ -289,6 +290,11 @@ def _register_workbench_tools(
             "already-captured output is searched before waiting on new "
             "lines -- a boot marker is printed once, seconds after reset, "
             "and is usually gone by the time you ask.\n\n"
+            "Straight after workbench_flash, pass reset=true instead: the "
+            "reset at the end of a flash happens before the bench resumes "
+            "recording, so that boot is never captured. reset=true restarts "
+            "the board through the bench and searches from there. On a "
+            "LoRaWAN device that costs a second join.\n\n"
             "Returns booted=true/false rather than erroring: a board that "
             "flashed but did not boot is a result. When it did not boot, "
             "recent_output carries what it printed instead."
@@ -296,7 +302,7 @@ def _register_workbench_tools(
     )
     async def workbench_verify_boot(
         slot: str, framework: str, check_join: bool = False,
-        since: Optional[float] = None,
+        since: Optional[float] = None, reset: bool = False,
     ) -> dict:
         wc = workbench()
         if not wc.is_configured():
@@ -305,7 +311,8 @@ def _register_workbench_tools(
 
         try:
             return await verify_boot(wc, slot, framework,
-                                     since=since, check_join=check_join)
+                                     since=since, check_join=check_join,
+                                     reset=reset)
         except Exception as e:
             return _err(f"workbench unreachable: {describe(e)}")
 

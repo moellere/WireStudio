@@ -56,11 +56,11 @@ def test_verify_boot_finds_the_marker_in_the_buffer_first():
     assert all(path != "/api/serial/monitor" for _, path, _ in seen)
 
 
-def test_verify_boot_reports_unsupported_and_missing_input():
+def test_verify_boot_reports_unknown_framework_and_missing_input():
     client, _ = _bench([])
     app = TestClient(create_app(workbench_client_factory=lambda: client))
-    out = app.post("/workbench/verify-boot", json={"slot": "SLOT1", "framework": "meshtastic"}).json()
-    assert out["ok"] is False and "no boot signature established" in out["error"]
+    out = app.post("/workbench/verify-boot", json={"slot": "SLOT1", "framework": "nonesuch"}).json()
+    assert out["ok"] is False and "no boot marker for 'nonesuch'" in out["error"]
     assert app.post("/workbench/verify-boot", json={"slot": "SLOT1"}).status_code == 422
 
 
