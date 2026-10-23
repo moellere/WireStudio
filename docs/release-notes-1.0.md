@@ -101,7 +101,7 @@ next time an artifact is rendered, not in stored data.
 |---|---|---|---|
 | MCP server | Works | Verified | the `mcp` client drives the mounted server over Streamable HTTP with the token, every PR |
 | Component authoring | Works | Verified | a user component and its synthetic design through `esphome config`, and a corpus of bad components, every PR |
-| ESPHome dashboard compile | Works | Verified | push, compile and fetch against a live `esphome dashboard`, nightly |
+| ESPHome dashboard compile | Works | Verified | push, compile and fetch against a live ESPHome dashboard, nightly |
 | Agent | Experimental | Verified | the 28-task eval through Claude Code over MCP, nightly, held to `gate.claude_code_min_pass` (**at release:** the score) |
 | WLED target | (new) | Verified | goldens every PR; the usermod build against WLED v0.15.2 on PRs that touch it and nightly |
 | LoRaWAN target | Works (hardware-validated) | **at release** | the flash stage of the hardware gate |

@@ -1,22 +1,22 @@
-"""Push, compile and fetch one example through a real `esphome dashboard`.
+"""Push, compile and fetch one example through a real ESPHome Device Builder.
 
-Starts the pinned ESPHome's dashboard on a free port, twice: open, then
+Starts the pinned `esphome-device-builder` on a free port, twice: open, then
 with a username and password. Against each, the studio's own
 `DashboardClient` probes it, pushes the rendered YAML, compiles over the
-websocket and fetches the image, and this script asserts the wire
-assumptions the client (and the fake in tests/test_esphome_dashboard.py)
+`/ws` command channel and fetches the image, and this script asserts the
+wire assumptions the client (and the fake in tests/test_esphome_dashboard.py)
 encode:
 
-- `/devices` names a config by `configuration`, and a push creates it
+- `devices/list` names a config by `configuration`, and a push creates it
   once;
-- the login form carries Tornado's `_xsrf` token, every POST on a
-  protected dashboard wants it, and the auth cookie rides the compile
-  websocket too;
-- the compile stream ends in an `exit` event with the code;
-- `/downloads` lists the built artifacts and `/download.bin` serves one.
+- a protected builder refuses commands before `auth/login` and the
+  client's in-band login opens the connection;
+- `firmware/follow_job` ends in a `result` event with the exit code;
+- `firmware/get_binaries` lists the built artifacts and a single-use
+  token from `firmware/download_token` fetches one over HTTP.
 
-Run locally:
-    pip install -e . 'esphome==2026.6.5'
+Run locally (Python 3.12+):
+    pip install -e . 'esphome==2026.10.0' 'esphome-device-builder==1.25.0'
     python scripts/check_dashboard.py garage-motion
 
 `--no-compile` skips the build (seconds instead of minutes) and with it
@@ -27,6 +27,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import os
 import socket
 import subprocess
 import sys
@@ -53,18 +54,19 @@ def _free_port() -> int:
 
 
 def _start_dashboard(config_dir: Path, port: int, password: str | None) -> subprocess.Popen:
-    cmd = [sys.executable, "-m", "esphome", "dashboard", str(config_dir),
-           "--address", "127.0.0.1", "--port", str(port)]
+    cmd = [sys.executable, "-m", "esphome_device_builder", str(config_dir),
+           "--host", "127.0.0.1", "--port", str(port)]
+    env = {k: v for k, v in os.environ.items() if k not in ("ESPHOME_USERNAME", "ESPHOME_PASSWORD")}
     if password:
-        cmd += ["--username", "ci", "--password", password]
-    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        env.update(ESPHOME_USERNAME="ci", ESPHOME_PASSWORD=password)
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=env)
     url = f"http://127.0.0.1:{port}"
     deadline = time.monotonic() + 90
     while time.monotonic() < deadline:
         if proc.poll() is not None:
             raise SystemExit(f"dashboard exited early:\n{proc.stdout.read()}")
         try:
-            httpx.get(url + "/login", timeout=2.0)
+            httpx.get(url + "/ping", timeout=2.0)
             return proc
         except httpx.HTTPError:
             time.sleep(0.5)
@@ -83,19 +85,20 @@ async def _exercise(url: str, example: str, yaml_text: str, password: str | None
 
     client = DashboardClient(url, username="ci" if password else None, password=password)
     available, reason = await client.is_available()
-    check(available, f"probe: /devices answers ({reason or 'ok'})")
+    check(available, f"probe: devices/list answers ({reason or 'ok'})")
     if not available:
         return failures
 
     first = await client.push_device(example, yaml_text)
     check(first.created, f"push: {first.filename} created on first push")
-    check(first.filename in await client.list_devices(), "push: /devices lists it by `configuration`")
+    check(first.filename in await client.list_devices(), "push: devices/list lists it by `configuration`")
     second = await client.push_device(example, yaml_text)
     check(not second.created, "push: a second push updates rather than creates")
     if password:
-        unauthed = httpx.post(url + "/edit", params={"configuration": first.filename},
-                              content=yaml_text.encode(), follow_redirects=False)
-        check(unauthed.status_code in (302, 403), f"auth: an unauthenticated POST is refused ({unauthed.status_code})")
+        anon_ok, anon_reason = await DashboardClient(url).is_available()
+        check(not anon_ok and "login" in (anon_reason or ""), "auth: a client without credentials is refused")
+        wrong_ok, _ = await DashboardClient(url, username="ci", password="nope").is_available()
+        check(not wrong_ok, "auth: a wrong password is rejected")
     if not compile_:
         return failures
 
@@ -107,13 +110,14 @@ async def _exercise(url: str, example: str, yaml_text: str, password: str | None
                 lines.append(event["data"].rstrip())
         else:
             done = event
-    check(done is not None and done["ok"], "compile: the websocket stream ends in exit 0"
+    check(done is not None and done["ok"], "compile: follow_job ends in a successful result"
           + ("" if done and done["ok"] else "\n" + "\n".join(lines[-30:])))
     check(bool(lines), f"compile: {len(lines)} log lines relayed")
 
     entries = await client.downloads(first.filename)
     names = [str(e["file"]) for e in entries]
-    check(bool(names), f"downloads: /downloads lists the artifacts ({', '.join(names) or 'none'})")
+    check(bool(names), f"downloads: get_binaries lists the artifacts ({', '.join(names) or 'none'})")
+    check(all(e.get("type") for e in entries), "downloads: every artifact carries a type tag")
     ota = await client.firmware(first.filename) or b""
     check(bool(ota) and ota[0] == ESP_IMAGE_MAGIC and len(ota) > 100_000,
           f"download: the ota image is an ESP app image ({len(ota)} bytes)")
@@ -160,7 +164,7 @@ def main(argv: list[str] | None = None) -> int:
                     proc.kill()
     print()
     if failures:
-        print(f"{len(failures)} assertion(s) failed against esphome dashboard:")
+        print(f"{len(failures)} assertion(s) failed against the Device Builder:")
         for f in failures:
             print(f"  - {f}")
         return 1

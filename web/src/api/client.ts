@@ -425,12 +425,35 @@ export const api = {
     }),
 
   esphomeDashboardStatus: () => request<DashboardStatus>("/esphome/status"),
-  esphomeDashboardPush: (body: { design: Design; compile: boolean; device_name?: string; strict?: boolean }) =>
+  esphomeDashboardPush: (body: {
+    design: Design;
+    compile: boolean;
+    device_name?: string;
+    strict?: boolean;
+    lorawan_secrets?: Record<string, string>;
+  }) =>
     request<DashboardPushResponse>("/esphome/push", { method: "POST", body: JSON.stringify(body) }),
   esphomeDashboardJobLog: (runId: string, offset: number) =>
     request<FleetJobLogResponse>(`/esphome/jobs/${encodeURIComponent(runId)}/log?offset=${offset}`),
   esphomeDashboardRunStatus: (runId: string) =>
     request<DashboardRunStatus>(`/esphome/jobs/${encodeURIComponent(runId)}`),
+  /** The dashboard-built image for a finished run; same contract as
+   *  `fleetFirmware`. */
+  esphomeDashboardFirmware: async (
+    runId: string,
+    opts: { factory?: boolean } = {},
+  ): Promise<Uint8Array> => {
+    const path = `/esphome/jobs/${encodeURIComponent(runId)}/firmware${
+      opts.factory ? "?factory=true" : ""
+    }`;
+    const res = await apiFetch(`${API_BASE}${path}`);
+    if (!res.ok) {
+      let body: unknown = undefined;
+      try { body = await res.json(); } catch { /* not json */ }
+      throw new ApiError(res.status, `GET ${path} -> ${res.status}`, body);
+    }
+    return new Uint8Array(await res.arrayBuffer());
+  },
   fleetStatus: () => request<FleetStatus>("/fleet/status"),
   fleetPush: (body: {
     design: Design;
