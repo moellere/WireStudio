@@ -50,7 +50,7 @@ def no_network(monkeypatch):
     ("circuitpython", "esp32-s3-devkitc-1", 0x0,
      "espressif_esp32s3_devkitc_1_n8/en_US/adafruit-circuitpython-espressif_esp32s3_devkitc_1_n8-en_US-10.0.3.bin"),
     ("meshtastic", "heltec-wifi-lora32-v3", 0x0,
-     "firmware-2.7.11.ee68575/firmware-heltec-v3-2.7.11.ee68575.factory.bin"),
+     "firmware-2.7.11.ee68575/firmware-heltec-v3-2.7.11.ee68575.bin"),
     ("micropython", "esp32-s3-devkitc-1", 0x0, "ESP32_GENERIC_S3-v1.26.1.bin"),
     ("micropython", "esp32-devkitc-v4", 0x1000, "ESP32_GENERIC-v1.26.1.bin"),
 ])
