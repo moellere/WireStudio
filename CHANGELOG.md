@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Meshtastic flashing wrote an app-only image to 0x0.** Meshtastic's
+  file names are not stable across releases: 2.7.26 publishes the
+  clean-install image as `.factory.bin` beside an app-only `.bin`, while
+  2.7.15 published it as the plain `.bin`. 0.42.1 asked for the plain
+  `.bin`, which on 2.7.26 left a TTGO T3 boot-looping on "flash read
+  err, 1000". The studio and the hardware gate now try `.factory.bin`
+  then `.bin` and serve only an image that carries its own bootloader
+  and partition table, so an app-only image is refused instead of
+  written.
+
 - **A low-side driver's load supply was wired to ground.** The NPN and
   MOSFET low-side drivers declare no supply of their own (vcc 0..0), and
   the rail picker for a new part's power pins accepted the 0 V rail as
