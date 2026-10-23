@@ -41,7 +41,7 @@ def test_firmware_resolves_variant_and_version(monkeypatch):
     assert r.headers["x-flash-offset"] == "0"
     assert fetched["url"] == (
         f"{M._FILES_BASE}/firmware-2.6.11.60ec05e/"
-        "firmware-heltec-v3-2.6.11.60ec05e.factory.bin"
+        "firmware-heltec-v3-2.6.11.60ec05e.bin"
     )
 
 
@@ -71,3 +71,11 @@ def test_firmware_upstream_failure_502(monkeypatch):
     client = TestClient(create_app())
     r = client.get("/meshtastic/firmware?board=ttgo-t-beam")
     assert r.status_code == 502
+
+
+def test_boards_meshtastic_stopped_publishing_are_not_offered():
+    """Heltec V1/V2 and TTGO LoRa32 V1 have no image in the stable
+    releases; offering them would end in a 404 after the user picked one."""
+    client = TestClient(create_app())
+    for board in ("heltec-wifi-lora32-v2", "ttgo-lora32-v1"):
+        assert client.get(f"/meshtastic/firmware?board={board}").status_code == 422
