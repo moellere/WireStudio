@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`add_bus` could not give a 1-Wire bus its pin**, on the agent or
+  over MCP: neither tool took `pin` (nor UART `parity`), so a DS18B20 on
+  a new bus was unfinishable and the agent eval's `ds18b20-needs-bus`
+  task failed for every model. Both take them now. `add_bus` also
+  refuses the ids ESPHome reserves (`uart0`-`uart2`, `spi0`, `spi1`),
+  which `esphome config` rejected after the fact. The eval's reference
+  replay checks every call against the agent's tool schema, so a
+  solution can no longer use an argument the agent is never offered,
+  and a test holds each MCP tool to the arguments of its agent twin.
+
 ## [0.41.0] — 2026-10-23
 
 ### Removed

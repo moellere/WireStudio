@@ -176,7 +176,9 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
             "Add a bus to the design. `type` must be one of i2c / spi / uart "
             "/ 1wire / i2s. Other fields depend on the type: i2c needs "
             "sda + scl, spi needs clk + miso? + mosi?, uart needs rx + tx + "
-            "baud_rate, i2s needs lrclk + bclk."
+            "baud_rate (+ parity?), 1wire needs pin, i2s needs lrclk + bclk. "
+            "ESPHome reserves the ids uart0-uart2 and spi0-spi1; pick a "
+            "descriptive id such as co2_uart."
         ),
         "input_schema": {
             "type": "object",
@@ -195,6 +197,8 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                 "baud_rate": {"type": "integer"},
                 "lrclk": {"type": "string"},
                 "bclk": {"type": "string"},
+                "pin": {"type": "string", "description": "1-wire data pin."},
+                "parity": {"type": "string", "enum": ["NONE", "EVEN", "ODD"]},
             },
             "required": ["id", "type"],
             "additionalProperties": False,
@@ -565,8 +569,16 @@ def _run_set_strict(design: dict, library: Library, *, enabled: bool) -> dict:
     return {"ok": True, "strict": enabled}
 
 
+# From esphome.config_validation.RESERVED_IDS: the bus-shaped names in it.
+# ESPHome refuses them as ids because they name its own peripherals.
+_RESERVED_BUS_IDS = {"uart0", "uart1", "uart2", "spi0", "spi1"}
+
+
 def _run_add_bus(design: dict, library: Library, **fields: Any) -> dict:
     buses = design.setdefault("buses", [])
+    if fields["id"] in _RESERVED_BUS_IDS:
+        return {"ok": False, "error": f"bus id '{fields['id']}' is reserved by ESPHome; "
+                                      f"pick another, e.g. '{fields.get('type', 'bus')}_bus'"}
     if any(b.get("id") == fields["id"] for b in buses):
         return {"ok": False, "error": f"bus id '{fields['id']}' already exists"}
 

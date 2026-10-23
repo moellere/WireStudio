@@ -479,7 +479,9 @@ def _register_design_tools(
             "Add a bus to the design. `type` must be one of i2c / spi / "
             "uart / 1wire / i2s. Other fields depend on type: i2c needs "
             "sda + scl, spi needs clk + miso? + mosi?, uart needs rx + tx "
-            "+ baud_rate, i2s needs lrclk + bclk." + _DESIGN_ID_HINT
+            "+ baud_rate (+ parity?), 1wire needs pin, i2s needs lrclk + "
+            "bclk. ESPHome reserves the ids uart0-uart2 and spi0-spi1; pick "
+            "a descriptive id such as co2_uart." + _DESIGN_ID_HINT
         ),
     )
     def add_bus(
@@ -497,6 +499,8 @@ def _register_design_tools(
         baud_rate: Optional[int] = None,
         lrclk: Optional[str] = None,
         bclk: Optional[str] = None,
+        pin: Optional[str] = None,
+        parity: Optional[str] = None,
         design_id: Optional[str] = None,
     ) -> dict:
         rid, design = _load(design_id)
@@ -517,6 +521,8 @@ def _register_design_tools(
             "baud_rate": baud_rate,
             "lrclk": lrclk,
             "bclk": bclk,
+            "pin": pin,
+            "parity": parity,
         }
         result = _run_add_bus(
             design, library, **{k: v for k, v in fields.items() if v is not None}
