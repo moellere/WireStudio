@@ -345,6 +345,12 @@ Stated so nobody waits on them.
   on the C6, Printables search.
 - **Component variants (`extends:`).** `aliases` covers the lookup
   case; inheritance waits for a second concrete need.
+- **Community designs and templates**
+  ([#357](https://github.com/moellere/WireStudio/issues/357), from
+  @agripnt). A submissions repository that takes designs by pull
+  request, checks each one with the studio's own gates and publishes an
+  index the studio browses and imports from. It builds on the frozen
+  1.0 schema, so it starts after the release.
 
 ## Sequencing
 
