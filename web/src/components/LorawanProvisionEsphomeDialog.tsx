@@ -11,8 +11,9 @@
  * clicks Provision, gets back a copy-friendly `secrets:` block to drop into
  * the secrets.yaml that rides next to the rendered ESPHome config, and
  * watches the join land. Build + flash are existing flows (PushToFleetDialog
- * for the fleet-for-esphome path) -- this dialog is purely the LoRaWAN
- * orchestration step.
+ * for the fleet-for-esphome and ESPHome dashboard paths) -- this dialog is
+ * purely the LoRaWAN orchestration step. It builds through fleet-for-esphome
+ * when that is configured and falls back to the dashboard path otherwise.
  */
 import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../api/client";
@@ -224,12 +225,32 @@ export function LorawanProvisionEsphomeDialog({ design, onClose }: Props) {
     | { kind: "pushed"; filename: string; created: boolean; run_id: string | null }
     | { kind: "error"; message: string };
   const [pushState, setPushState] = useState<PushState>({ kind: "idle" });
+  const [build, setBuild] = useState<"fleet" | "dashboard">("fleet");
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const fleet = await api.fleetStatus();
+        if (fleet.available) return;
+        const dash = await api.esphomeDashboardStatus();
+        if (!cancelled && dash.available) setBuild("dashboard");
+      } catch {
+        // Status probes are advisory; the fleet path stays the default.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const buildLabel = build === "fleet" ? "fleet" : "dashboard";
 
   async function handlePushToFleet() {
     if (!result) return;
     setPushState({ kind: "pushing" });
     try {
-      const r = await api.fleetPush({
+      const push = build === "fleet" ? api.fleetPush : api.esphomeDashboardPush;
+      const r = await push({
         design,
         compile: true,
         lorawan_secrets: {
@@ -289,7 +310,10 @@ export function LorawanProvisionEsphomeDialog({ design, onClose }: Props) {
       //    until the run finishes; polling the run-status endpoint is the
       //    canonical "is it ready" signal (reused from the push flow).
       while (true) {
-        const status = await api.fleetRunStatus(runId);
+        const status =
+          build === "fleet"
+            ? await api.fleetRunStatus(runId)
+            : await api.esphomeDashboardRunStatus(runId);
         if (status.verdict === "passed") break;
         if (status.verdict === "failed" || status.verdict === "cancelled") {
           throw new Error(`compile ${status.verdict}`);
@@ -301,7 +325,10 @@ export function LorawanProvisionEsphomeDialog({ design, onClose }: Props) {
       //    The provision step re-flushed DevNonces, so wiping NVS is safe
       //    (the §2.1 reasoning baked into flash.ts's docstring).
       setFlashState({ kind: "fetching" });
-      const data = await api.fleetFirmware(runId, { factory: true });
+      const data =
+        build === "fleet"
+          ? await api.fleetFirmware(runId, { factory: true })
+          : await api.esphomeDashboardFirmware(runId, { factory: true });
       // 3. Dynamic-import the flasher so esptool-js stays out of the bundle
       //    until the user clicks (matches usb-detect's pattern).
       const { flashFirmware } = await import("../lib/flash");
@@ -525,11 +552,11 @@ export function LorawanProvisionEsphomeDialog({ design, onClose }: Props) {
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-[11px] uppercase tracking-wider text-ink-faint">
-                    push to fleet
+                    push to {buildLabel}
                   </div>
                   <div className="mt-1 text-xs text-ink-dim">
-                    Push the rendered YAML to fleet-for-esphome with these LoRaWAN keys
-                    inlined, and enqueue an OTA compile.
+                    Push the rendered YAML to {build === "fleet" ? "fleet-for-esphome" : "the ESPHome dashboard"}{" "}
+                    with these LoRaWAN keys inlined, and start a compile.
                   </div>
                 </div>
                 <Button
@@ -541,14 +568,14 @@ export function LorawanProvisionEsphomeDialog({ design, onClose }: Props) {
                     ? "Pushing…"
                     : pushState.kind === "pushed"
                       ? "Pushed"
-                      : "Push to fleet →"}
+                      : `Push to ${buildLabel} →`}
                 </Button>
               </div>
               {pushState.kind === "pushed" && (
                 <div className="mt-2 text-xs text-emerald-300">
                   {pushState.created ? "Created" : "Updated"}{" "}
                   <code className="rounded-md bg-emerald-500/15 px-1">{pushState.filename}</code>{" "}
-                  on the fleet.
+                  on the {buildLabel}.
                   {pushState.run_id && (
                     <> Compile enqueued (<code>{pushState.run_id}</code>).</>
                   )}
@@ -574,7 +601,7 @@ export function LorawanProvisionEsphomeDialog({ design, onClose }: Props) {
                     flash via WebSerial
                   </div>
                   <div className="mt-1 text-xs text-ink-dim">
-                    Pull the fleet-built factory image and flash a blank board.
+                    Pull the {buildLabel}-built factory image and flash a blank board.
                     Waits for the compile to finish, then erase + write at 0x0.
                   </div>
                 </div>

@@ -69,7 +69,7 @@ The middle tier today, and what moves each row.
 | CircuitPython flash + code.py | nightly flash, boot verdict by the CIRCUITPY drive enumerating on the bench, `code.py` runs without a traceback on the serial console | demote |
 | MicroPython flash + main.py | nightly flash, REPL banner, `main.py` runs without a traceback | demote |
 | Component authoring | **promoted.** A user component goes through `esphome config` in the config gate; `tests/test_component_corpus.py` holds the check gate to a corpus of bad components | |
-| ESPHome dashboard compile | **promoted.** The nightly `dashboard` job runs a real `esphome dashboard`, open and password-protected, and pushes, compiles and fetches through the studio's client with the wire assumptions asserted | |
+| ESPHome dashboard compile | **promoted.** The nightly `dashboard` job runs a real ESPHome Device Builder, open and password-protected, and pushes, compiles and fetches through the studio's client with the wire assumptions asserted | |
 | MCP server | **promoted.** `tests/test_mcp_client.py` drives the mounted server with the `mcp` package's client, every PR; the suite itself now runs in CI (`tests.yml`), which no row could claim before | |
 | Thingiverse relay | nothing; third-party ranking | stays *Experimental* |
 | Agent | **promoted.** The eval harness (section 5) scores the reference solutions every PR and the model nightly; the first scored nightly run sets `gate.min_pass` | |

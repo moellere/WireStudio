@@ -1,4 +1,4 @@
-"""Compile through an ESPHome dashboard: client, in-process jobs, routes, MCP."""
+"""Compile through an ESPHome Device Builder: client, in-process jobs, routes, MCP."""
 from __future__ import annotations
 
 import asyncio
@@ -9,7 +9,7 @@ import httpx
 import pytest
 
 from wirestudio.esphome_dashboard import (
-    DashboardClient, DashboardJobs, PushResult,
+    DashboardClient, DashboardJobs, DashboardUnavailable, PushResult,
 )
 
 pytestmark = pytest.mark.anyio
@@ -18,95 +18,127 @@ EXAMPLES = Path(__file__).resolve().parent.parent / "wirestudio" / "examples"
 
 
 class FakeDashboard:
-    """The dashboard endpoints the studio uses, as an httpx transport plus
-    a websocket connector, with the requests it saw. Mirrors esphome
-    2026.6.5: `/devices` names configs by `configuration`; with a
-    password every POST is xsrf-checked and the websocket wants the
-    auth cookie; `/downloads` lists the built artifacts."""
+    """The Device Builder's WebSocket command API plus its token download,
+    as a websocket connector and an httpx transport, with the commands it
+    saw. Mirrors ESPHome 2026.10.0: the server-info frame on connect,
+    `auth/login` in band when `requires_auth`, replies matched by
+    message_id, `devices/create` answering the config filename,
+    `firmware/follow_job` streaming `output` events and one `result` (`status`, `exit_code`), and a
+    single-use token for the HTTP download."""
 
-    def __init__(self, *, devices=("existing.yaml",), exit_code=0,
-                 lines=("Compiling…", "Linking", "[SUCCESS]"), password=None):
+    def __init__(self, *, devices=("existing.yaml",), success=True, code=None,
+                 lines=("Compiling…", "Linking", "[SUCCESS]"), password=None, hang_up=False):
         self.devices = list(devices)
-        self.exit_code = exit_code
+        self.success = success
+        self.code = (0 if success else 1) if code is None else code
         self.lines = list(lines)
         self.password = password
+        self.hang_up = hang_up
         self.written: dict[str, str] = {}
-        self.spawned: list[dict] = []
+        self.created_args: list[dict] = []
+        self.commands: list[str] = []
         self.firmware: dict[str, dict[str, bytes]] = {}
+        self.types: dict[str, str] = {}
+        self.tokens: dict[str, tuple[str, str]] = {}
         self.logins = 0
-        self.ws_headers: list[dict] = []
 
-    def _authed(self, req: httpx.Request) -> bool:
-        return self.password is None or "authenticated=yes" in req.headers.get("cookie", "")
-
-    def transport(self) -> httpx.MockTransport:
-        def handler(req: httpx.Request) -> httpx.Response:
-            path, q = req.url.path, dict(req.url.params)
-            if path == "/login":
-                if req.method == "GET":
-                    return httpx.Response(200, text="<form>", headers={"set-cookie": "_xsrf=tok; Path=/"})
-                form = dict(httpx.QueryParams(req.content.decode()))
-                self.logins += 1
-                if form.get("_xsrf") != "tok":
-                    return httpx.Response(403)
-                if form.get("password") != self.password:
-                    return httpx.Response(401)
-                return httpx.Response(302, headers={"location": "./", "set-cookie": "authenticated=yes; Path=/"})
-            if not self._authed(req):
-                return httpx.Response(302, headers={"location": "./login"})
-            if self.password and req.method == "POST" and req.headers.get("x-xsrftoken") != "tok":
-                return httpx.Response(403)
-            if req.method == "GET" and path == "/devices":
-                return httpx.Response(200, json={
-                    "configured": [{"name": d[:-5], "configuration": d, "target_platform": None} for d in self.devices],
-                    "importable": [],
-                })
-            if req.method == "POST" and path == "/edit":
-                self.written[q["configuration"]] = req.content.decode()
-                if q["configuration"] not in self.devices:
-                    self.devices.append(q["configuration"])
-                return httpx.Response(200)
-            if req.method == "GET" and path == "/downloads":
-                built = self.firmware.get(q["configuration"])
-                if built is None:
-                    return httpx.Response(404)
-                return httpx.Response(200, json=[
-                    {"title": name, "description": "", "file": name, "download": f"x-{name}"} for name in built
-                ])
-            if req.method == "GET" and path == "/download.bin":
-                blob = (self.firmware.get(q["configuration"]) or {}).get(q.get("file", ""))
-                return httpx.Response(404) if blob is None else httpx.Response(200, content=blob)
-            return httpx.Response(404)
-        return httpx.MockTransport(handler)
+    def _handle(self, authed: list, command: str, args: dict):
+        """(result | error) for one request; streaming handled by the socket."""
+        if self.password is not None and not authed[0] and command != "auth/login":
+            return {"error_code": "not_authenticated", "details": "Authentication required"}
+        if command == "auth/login":
+            self.logins += 1
+            if args.get("password") != self.password:
+                return {"error_code": "not_authenticated", "details": "Invalid credentials"}
+            authed[0] = True
+            return {"result": {"token": "t", "expires_at": 1.0}}
+        if command == "devices/list":
+            return {"result": {"configured": [{"name": d[:-5], "configuration": d} for d in self.devices], "importable": []}}
+        if command == "devices/create":
+            self.created_args.append(args)
+            if len(args["name"]) > 31:
+                return {"error_code": "invalid_args", "details": "hostname too long"}
+            fn = f"{args['name']}.yaml"
+            self.written[fn] = args["file_content"]
+            if fn not in self.devices:
+                self.devices.append(fn)
+            return {"result": {"configuration": fn, "warning": None}}
+        if command == "firmware/compile":
+            return {"result": {"job_id": "job1", "configuration": args["configuration"], "status": "running"}}
+        if command == "firmware/get_binaries":
+            built = self.firmware.get(args["configuration"], {})
+            return {"result": [
+                {"title": n, "file": n, **({"type": self.types[n]} if n in self.types else {})} for n in built
+            ]}
+        if command == "firmware/download_token":
+            token = f"tok{len(self.tokens)}"
+            self.tokens[token] = (args["configuration"], args["file"])
+            return {"result": {"token": token}}
+        return {"error_code": "unknown_command", "details": command}
 
     async def ws_connect(self, url: str, headers: dict):
-        assert url.endswith("/compile") and url.startswith("ws://")
-        self.ws_headers.append(headers)
-        if self.password and "authenticated=yes" not in headers.get("Cookie", ""):
-            raise ConnectionError("no close frame received or sent")
+        assert url.endswith("/ws") and url.startswith("ws://")
         dash = self
 
         class Socket:
             def __init__(self):
+                self.out: asyncio.Queue = asyncio.Queue()
+                self.authed = [False]
                 self.closed = False
+                self.out.put_nowait(json.dumps({
+                    "server_version": "1.25.0", "esphome_version": "2026.10.0",
+                    "requires_auth": dash.password is not None,
+                }))
 
-            async def send(self, raw):
-                dash.spawned.append(json.loads(raw))
+            async def recv(self):
+                return await self.out.get()
 
             def __aiter__(self):
-                async def frames():
+                return self
+
+            async def __anext__(self):
+                raw = await self.out.get()
+                if raw is None:
+                    raise StopAsyncIteration
+                return raw
+
+            async def send(self, raw):
+                req = json.loads(raw)
+                dash.commands.append(req["command"])
+                mid, command, args = req["message_id"], req["command"], req["args"]
+                if command == "firmware/follow_job":
+                    assert args == {"job_id": "job1"}
                     for line in dash.lines:
-                        yield json.dumps({"event": "line", "data": line + "\r\n"})
-                    if dash.exit_code is not None:
-                        yield json.dumps({"event": "exit", "code": dash.exit_code})
-                return frames()
+                        self.out.put_nowait(json.dumps({"message_id": mid, "event": "output", "data": line + "\n"}))
+                    if dash.hang_up:
+                        self.out.put_nowait(None)
+                    else:
+                        self.out.put_nowait(json.dumps({
+                            "message_id": mid, "event": "result",
+                            "data": {"status": "completed" if dash.success else "failed", "exit_code": dash.code,
+                                     "error": None, "queued_update_armed": False},
+                        }))
+                    return
+                self.out.put_nowait(json.dumps({"message_id": "stray", "event": "output", "data": "x"}))
+                self.out.put_nowait(json.dumps({"message_id": mid, **dash._handle(self.authed, command, args)}))
 
             async def close(self):
                 self.closed = True
         return Socket()
 
-    def client(self) -> DashboardClient:
-        return DashboardClient("http://dash.test:6052", transport=self.transport(), ws_connect=self.ws_connect)
+    def transport(self) -> httpx.MockTransport:
+        def handler(req: httpx.Request) -> httpx.Response:
+            if req.method == "GET" and req.url.path == "/api/firmware/download":
+                found = self.tokens.pop(req.url.params.get("token", ""), None)
+                if found is None:
+                    return httpx.Response(401)
+                blob = self.firmware.get(found[0], {}).get(found[1])
+                return httpx.Response(404) if blob is None else httpx.Response(200, content=blob)
+            return httpx.Response(404)
+        return httpx.MockTransport(handler)
+
+    def client(self, **kw) -> DashboardClient:
+        return DashboardClient("http://dash.test:6052", transport=self.transport(), ws_connect=self.ws_connect, **kw)
 
 
 async def test_client_probes_pushes_and_reports_created():
@@ -116,62 +148,90 @@ async def test_client_probes_pushes_and_reports_created():
     assert await client.is_available() == (True, None)
     assert await client.push_device("Garage-Motion", "esphome:\n  name: garage-motion\n") == PushResult("garage-motion.yaml", True)
     assert dash.written["garage-motion.yaml"].startswith("esphome:")
+    assert dash.created_args[0] == {
+        "name": "garage-motion", "friendly_name": "garage-motion",
+        "file_content": "esphome:\n  name: garage-motion\n", "overwrite": True,
+    }
     assert await client.push_device("garage-motion", "x: 1\n") == PushResult("garage-motion.yaml", False)
     with pytest.raises(ValueError):
         await client.push_device("bad name!", "x: 1\n")
 
 
-async def test_client_compile_relays_lines_and_exit():
+async def test_client_passes_a_server_side_name_rejection_as_value_error():
+    with pytest.raises(ValueError, match="invalid_args"):
+        await FakeDashboard().client().push_device("x" * 40, "x: 1\n")
+
+
+async def test_client_compile_relays_lines_and_result():
     dash = FakeDashboard()
     events = [e async for e in dash.client().compile("garage-motion.yaml")]
-    assert dash.spawned == [{"type": "spawn", "configuration": "garage-motion.yaml"}]
-    assert [e["data"] for e in events[:-1]] == ["Compiling…\r\n", "Linking\r\n", "[SUCCESS]\r\n"]
+    assert dash.commands == ["firmware/compile", "firmware/follow_job"]
+    assert [e["data"] for e in events[:-1]] == ["Compiling…\n", "Linking\n", "[SUCCESS]\n"]
     assert events[-1] == {"type": "done", "ok": True, "code": 0}
-    dash.exit_code = 1
-    assert [e async for e in dash.client().compile("x.yaml")][-1]["ok"] is False
-    dash.exit_code = None  # the dashboard hung up
+    dash.success, dash.code = False, 1
+    assert [e async for e in dash.client().compile("x.yaml")][-1] == {"type": "done", "ok": False, "code": 1}
+    dash.hang_up = True
     last = [e async for e in dash.client().compile("x.yaml")][-1]
-    assert last["ok"] is False and "before exit" in last["reason"]
+    assert last["ok"] is False and "before the job finished" in last["reason"]
 
 
 async def test_client_firmware_picks_ota_or_factory_and_unavailable_states():
     dash = FakeDashboard()
-    dash.firmware["garage-motion.yaml"] = {"firmware.factory.bin": b"\xe9merged", "firmware.ota.bin": b"\xe9ota"}
+    dash.firmware["garage-motion.yaml"] = {
+        "firmware.factory.bin": b"\xe9merged", "firmware.ota.bin": b"\xe9ota", "firmware.elf": b"ELF",
+    }
+    dash.types.update({"firmware.factory.bin": "factory", "firmware.ota.bin": "ota", "firmware.elf": "elf"})
     dash.firmware["d1.yaml"] = {"firmware.bin": b"\xe9only"}
     client = dash.client()
     assert await client.firmware("garage-motion.yaml") == b"\xe9ota"
     assert await client.firmware("garage-motion.yaml", factory=True) == b"\xe9merged"
     assert await client.firmware("d1.yaml", factory=True) == b"\xe9only"
     assert await client.firmware("nope.yaml") is None
+    assert [d["file"] for d in await client.downloads("d1.yaml")] == ["firmware.bin"]
     assert not DashboardClient("").is_configured()
-    down = DashboardClient("http://dash.test", transport=httpx.MockTransport(lambda r: httpx.Response(502)))
+
+    async def refuse(url, headers):
+        raise ConnectionRefusedError("refused")
+    down = DashboardClient("http://dash.test", ws_connect=refuse)
     ok, reason = await down.is_available()
-    assert ok is False and "HTTP 502" in reason
-    html = DashboardClient("http://dash.test", transport=httpx.MockTransport(lambda r: httpx.Response(200, text="<html>")))
-    ok, reason = await html.is_available()
-    assert ok is False and "not answer JSON" in reason
+    assert ok is False and "websocket failed" in reason
+
+    async def html(url, headers):
+        class Socket:
+            async def recv(self):
+                return "<html>"
+
+            async def close(self):
+                pass
+        return Socket()
+    ok, reason = await DashboardClient("http://dash.test", ws_connect=html).is_available()
+    assert ok is False and "Device Builder" in reason
 
 
-async def test_client_logs_in_once_with_xsrf_and_carries_the_cookie_everywhere():
+async def test_client_download_token_failures_are_unavailable():
+    dash = FakeDashboard()
+    dash.firmware["a.yaml"] = {"firmware.bin": b"x"}
+    gone = DashboardClient("http://dash.test", ws_connect=dash.ws_connect,
+                           transport=httpx.MockTransport(lambda r: httpx.Response(502)))
+    with pytest.raises(DashboardUnavailable, match="HTTP 502"):
+        await gone.firmware("a.yaml")
+
+
+async def test_client_logs_in_in_band_when_the_server_asks():
     dash = FakeDashboard(password="p")
-    client = DashboardClient("http://dash.test", username="u", password="p",
-                             transport=dash.transport(), ws_connect=dash.ws_connect)
+    client = dash.client(username="u", password="p")
     assert await client.list_devices() == ["existing.yaml"]
     assert await client.push_device("new-node", "esphome:\n") == PushResult("new-node.yaml", True)
     events = [e async for e in client.compile("new-node.yaml")]
     assert events[-1]["ok"] is True
-    assert dash.logins == 1
-    assert "authenticated=yes" in dash.ws_headers[-1]["Cookie"]
+    assert dash.logins == 3
 
 
 async def test_client_reports_missing_or_wrong_credentials():
     dash = FakeDashboard(password="p")
-    anon = DashboardClient("http://dash.test", transport=dash.transport(), ws_connect=dash.ws_connect)
-    ok, reason = await anon.is_available()
-    assert ok is False and "ESPHOME_DASHBOARD_USERNAME" in reason
-    wrong = DashboardClient("http://dash.test", username="u", password="nope",
-                            transport=dash.transport(), ws_connect=dash.ws_connect)
-    ok, reason = await wrong.is_available()
+    ok, reason = await dash.client().is_available()
+    assert ok is False and "ESPHOME_DASHBOARD_USERNAME" in reason and dash.logins == 0
+    ok, reason = await dash.client(username="u", password="nope").is_available()
     assert ok is False and "rejected" in reason
 
 
@@ -186,7 +246,7 @@ async def test_jobs_buffer_the_log_and_settle_a_verdict():
     assert jobs.log(job.run_id, offset=chunk.offset).log == ""
     assert job.verdict == "passed" and jobs.log("nope") is None
 
-    dash.exit_code = 2
+    dash.success, dash.code = False, 2
     failed = jobs.start(dash.client(), "x.yaml")
     await failed.task
     assert failed.verdict == "failed"
@@ -270,8 +330,23 @@ async def test_push_compile_poll_and_firmware(monkeypatch, tmp_path):
     assert r.json()["run_id"] is None and r.json()["created"] is False
 
 
+async def test_push_inlines_lorawan_secrets(monkeypatch, tmp_path):
+    dash = FakeDashboard()
+    client = _app(monkeypatch, tmp_path, dash)
+    design = json.loads((EXAMPLES / "lorawan-battery-uplink.json").read_text())
+    r = client.post("/esphome/push", json={"design": design, "compile": False, "lorawan_secrets": {
+        "dev_eui": "70b3d57ed0001234", "join_eui": "70b3d57ed0000000",
+        "app_key": "00112233445566778899aabbccddeeff",
+    }})
+    assert r.status_code == 200, r.text
+    pushed = dash.written[r.json()["filename"]]
+    assert "dev_eui: 70b3d57ed0001234" in pushed and "!secret app_key" not in pushed
+    kept = client.post("/esphome/push", json={"design": design, "compile": False, "device_name": "plain"})
+    assert "app_key: !secret app_key" in dash.written[kept.json()["filename"]]
+
+
 async def test_failed_compile_and_strict_gate(monkeypatch, tmp_path):
-    dash = FakeDashboard(exit_code=1, lines=("error: boom",))
+    dash = FakeDashboard(success=False, lines=("error: boom",))
     client = _app(monkeypatch, tmp_path, dash)
     design = json.loads((EXAMPLES / "garage-motion.json").read_text())
     run_id = client.post("/esphome/push", json={"design": design}).json()["run_id"]
@@ -284,7 +359,7 @@ async def test_failed_compile_and_strict_gate(monkeypatch, tmp_path):
     broken["connections"] = [c for c in design["connections"] if c["pin_role"] != "OUT"]
     r = client.post("/esphome/push", json={"design": broken})
     assert r.status_code == 422 and "garage-motion.yaml" in dash.written  # only the earlier push landed
-    assert len(dash.spawned) == 1
+    assert dash.commands.count("firmware/compile") == 1
 
 
 async def test_mcp_dashboard_tools(tmp_path):

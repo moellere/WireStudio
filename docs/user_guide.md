@@ -68,8 +68,8 @@
 - **Build ESPHome firmware.** Two paths, both under **Push to fleet**
   (advanced mode): the
   [fleet-for-esphome](integrations.md) add-on (`FLEET_URL` +
-  `FLEET_TOKEN`), or any ESPHome dashboard, the Home Assistant add-on
-  or a standalone `esphome dashboard` (`ESPHOME_DASHBOARD_URL`). Either
+  `FLEET_TOKEN`), or any ESPHome Device Builder, the Home Assistant add-on
+  or a standalone one (`ESPHOME_DASHBOARD_URL`). Either
   writes the rendered YAML as `<device_name>.yaml`, optionally starts a
   compile, and streams the build log; the dashboard path also serves
   the firmware image. The dialog offers whichever backend is
@@ -157,7 +157,7 @@ pinned via `WIRESTUDIO_MCP_TOKEN`). See [the MCP guide](mcp.md#auth).
 | `GET`  | `/fleet/jobs/{run_id}` | aggregated compile verdict for a Push-to-fleet run |
 | `GET`  | `/fleet/jobs/{run_id}/log?offset=N` | poll the addon's build log for a compile run; returns `{log, offset, finished}` |
 | `GET`  | `/fleet/jobs/{run_id}/log/stream` | Server-Sent Events relay over the same log endpoint; ~300ms cadence, exits with `event: done` when the build finishes |
-| `GET`  | `/esphome/status` | check whether `ESPHOME_DASHBOARD_URL` reaches an ESPHome dashboard |
+| `GET`  | `/esphome/status` | check whether `ESPHOME_DASHBOARD_URL` reaches an ESPHome Device Builder |
 | `POST` | `/esphome/push` | render `design.json`, write it to the dashboard as `<device_name>.yaml`, optionally start a compile there |
 | `GET`  | `/esphome/jobs/{run_id}` · `/log` · `/log/stream` · `/firmware` | verdict, incremental log, SSE relay and firmware download for a dashboard compile, the same shapes as the fleet routes |
 | `GET`  | `/workbench/slots/{slot}/output?since=` | lines the bench's recorder captured on a slot after an epoch; the flash dialog relays them after a slot flash |

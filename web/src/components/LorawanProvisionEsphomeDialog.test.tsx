@@ -31,6 +31,9 @@ vi.mock("../api/client", async () => {
       fleetPush: vi.fn(),
       fleetRunStatus: vi.fn(),
       fleetFirmware: vi.fn(),
+      fleetStatus: vi.fn(),
+      esphomeDashboardStatus: vi.fn(),
+      esphomeDashboardPush: vi.fn(),
     },
   };
 });
@@ -63,6 +66,9 @@ const mockApi = api as unknown as {
   fleetPush: ReturnType<typeof vi.fn>;
   fleetRunStatus: ReturnType<typeof vi.fn>;
   fleetFirmware: ReturnType<typeof vi.fn>;
+  fleetStatus: ReturnType<typeof vi.fn>;
+  esphomeDashboardStatus: ReturnType<typeof vi.fn>;
+  esphomeDashboardPush: ReturnType<typeof vi.fn>;
 };
 
 function design(overrides: Partial<Design> = {}): Design {
@@ -99,6 +105,11 @@ beforeEach(() => {
   mockApi.fleetPush.mockReset();
   mockApi.fleetRunStatus.mockReset();
   mockApi.fleetFirmware.mockReset();
+  mockApi.fleetStatus.mockReset();
+  mockApi.fleetStatus.mockResolvedValue({ available: true, reason: null, url: null });
+  mockApi.esphomeDashboardStatus.mockReset();
+  mockApi.esphomeDashboardStatus.mockResolvedValue({ available: false, reason: null, url: null });
+  mockApi.esphomeDashboardPush.mockReset();
   mockDetectChip.mockReset();
   mockSupported.mockReturnValue("yes");
   mockFlash.mockReset();
@@ -361,7 +372,7 @@ describe("push to fleet", () => {
     await user.type(screen.getByPlaceholderText(/70b3d57ed0001234/i), "70b3d57ed0001234");
     await user.click(screen.getByRole("button", { name: /Provision →/i }));
     // Wait for the success block (and the push button) to render.
-    await waitFor(() => expect(screen.getByRole("button", { name: /Push to fleet →/i })).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole("button", { name: /Push to (fleet|dashboard) →/i })).toBeTruthy());
   }
 
   it("hides the push button until provision succeeds", () => {
@@ -398,6 +409,35 @@ describe("push to fleet", () => {
     expect(await screen.findByText(/Created/i)).toBeTruthy();
     expect(screen.getByText("lw-spike.yaml")).toBeTruthy();
     expect(screen.getByText("run-1")).toBeTruthy();
+  });
+
+  it("pushes through the ESPHome dashboard when fleet is not configured", async () => {
+    const user = userEvent.setup();
+    mockApi.fleetStatus.mockResolvedValue({ available: false, reason: "FLEET_URL not set", url: null });
+    mockApi.esphomeDashboardStatus.mockResolvedValue({ available: true, reason: null, url: "http://device-builder:6052" });
+    mockApi.esphomeDashboardPush.mockResolvedValue({
+      filename: "lw-spike.yaml",
+      created: true,
+      run_id: "run-2",
+    });
+
+    render(<LorawanProvisionEsphomeDialog design={design()} onClose={() => {}} />);
+    await provisionFirst(user);
+    await user.click(await screen.findByRole("button", { name: /Push to dashboard →/i }));
+
+    await waitFor(() => {
+      expect(mockApi.esphomeDashboardPush).toHaveBeenCalledWith({
+        design: expect.objectContaining({ id: "lw-spike" }),
+        compile: true,
+        lorawan_secrets: {
+          dev_eui: "70b3d57ed0001234",
+          join_eui: "0000000000000000",
+          app_key: "00112233445566778899aabbccddeeff",
+        },
+      });
+    });
+    expect(mockApi.fleetPush).not.toHaveBeenCalled();
+    expect(await screen.findByText("run-2")).toBeTruthy();
   });
 
   it("disables the push button after a successful push (no double-push)", async () => {

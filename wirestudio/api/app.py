@@ -1551,7 +1551,7 @@ def create_app(
     # ---------------------------------------------------------------------
 
     # ---------------------------------------------------------------------
-    # ESPHome dashboard: the other compile path (HA add-on / esphome dashboard)
+    # ESPHome Device Builder: the other compile path (HA add-on / esphome dashboard)
     # ---------------------------------------------------------------------
     make_dashboard = dashboard_client_factory or DashboardClient
     jobs = dashboard_jobs or DashboardJobs()
@@ -1577,8 +1577,11 @@ def create_app(
         /esphome/jobs routes poll. Same strict gate as the fleet push."""
         d = _validate_design(req.design)
         try:
-            artifacts = get_target(d.target).generate(d, lib)
-            yaml_text = artifacts.get("firmware.yaml")
+            if req.lorawan_secrets and d.target == "esphome":
+                from wirestudio.generate import yaml_gen
+                yaml_text = yaml_gen.render_yaml(d, lib, lorawan_secrets=req.lorawan_secrets)
+            else:
+                yaml_text = get_target(d.target).generate(d, lib).get("firmware.yaml")
         except (FileNotFoundError, ValueError, KeyError) as e:
             raise HTTPException(status_code=422, detail=str(e)) from e
         if not yaml_text:
