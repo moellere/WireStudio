@@ -332,6 +332,35 @@ Section 4 covers the rest.
   the `0.3 → 1.0` step is written, and the rows the flash stage decides
   are filled in at release.
 
+## 8. Community designs and templates
+
+[#357](https://github.com/moellere/WireStudio/issues/357), from
+@agripnt. Moved into 1.0: a catalogue people can browse, import from
+and submit to is the most direct way to bring users in, and the schema
+it depends on is frozen at 1.0.
+
+- **Catalogue.** `moellere/wirestudio-designs`, a separate public
+  repository. Each design is a folder: `design.json` (fleet device
+  name and secret refs stripped), a `meta.yaml` (title, author, SPDX
+  license, tags, board, frameworks, `template: true|false`), and any
+  user-authored components it needs. CI generates `index.json` on
+  merge. Default license CC-BY-4.0.
+- **Review.** Submissions arrive as pull requests. CI runs the studio's
+  own gates (schema and migration, the structural and compatibility
+  checks, `esphome config` on the render, the component-authoring gate
+  for bundled parts) plus hygiene (no credentials, Wi-Fi names or IPs;
+  an SPDX license). Designs that compile or fetch code (`lambda:`,
+  `external_components:`, automation transforms) are labelled. The
+  owner approves every merge.
+- **Studio.** A "Community designs" view reads the index from a URL
+  set by environment (a fork or private catalogue works the same way);
+  import goes through `POST /designs`, which migrates; "Share" exports
+  a submission folder and opens a pre-filled pull request, with no
+  token in the studio.
+- **Photos.** Open: an image classifier and EXIF location stripping in
+  CI would gate them; the launch can ship without them, since every
+  design renders its own diagram.
+
 ## Out of scope for 1.0
 
 Stated so nobody waits on them.
@@ -351,12 +380,6 @@ Stated so nobody waits on them.
   on the C6, Printables search.
 - **Component variants (`extends:`).** `aliases` covers the lookup
   case; inheritance waits for a second concrete need.
-- **Community designs and templates**
-  ([#357](https://github.com/moellere/WireStudio/issues/357), from
-  @agripnt). A submissions repository that takes designs by pull
-  request, checks each one with the studio's own gates and publishes an
-  index the studio browses and imports from. It builds on the frozen
-  1.0 schema, so it starts after the release.
 
 ## Sequencing
 
@@ -373,8 +396,10 @@ The dependency order, not a calendar:
    boards are on a bench; the promote/demote pass follows its first
    green week.
 6. Physical outputs and the hygiene list, in any order.
-7. Docs consolidation and the `1.0` schema cut, last.
+7. Community designs: the catalogue repository and its CI, then
+   browse, import and share in the studio.
+8. Docs consolidation, last. The `1.0` schema cut is in.
 
-The release that carries the schema cut, the two-tier status table and
-the upgrade test is 1.0. Phase 4 of the workbench, the JLCPCB order and
+The release that carries the schema cut, the two-tier status table,
+the upgrade test and the community catalogue is 1.0. Phase 4 of the workbench, the JLCPCB order and
 the printed enclosure are each welcome before it and not required by it.
