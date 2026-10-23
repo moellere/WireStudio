@@ -49,8 +49,6 @@ def no_network(monkeypatch):
 @pytest.mark.parametrize("framework, board, offset, url_part", [
     ("circuitpython", "esp32-s3-devkitc-1", 0x0,
      "espressif_esp32s3_devkitc_1_n8/en_US/adafruit-circuitpython-espressif_esp32s3_devkitc_1_n8-en_US-10.0.3.bin"),
-    ("meshtastic", "heltec-wifi-lora32-v3", 0x0,
-     "firmware-2.7.11.ee68575/firmware-heltec-v3-2.7.11.ee68575.bin"),
     ("micropython", "esp32-s3-devkitc-1", 0x0, "ESP32_GENERIC_S3-v1.26.1.bin"),
     ("micropython", "esp32-devkitc-v4", 0x1000, "ESP32_GENERIC-v1.26.1.bin"),
 ])
@@ -59,6 +57,19 @@ async def test_release_images(lib, no_network, framework, board, offset, url_par
     assert image.offset == offset
     assert no_network[-1].endswith(url_part)
     assert image.data == b"image:" + no_network[-1].encode()
+
+
+async def test_meshtastic_writes_only_a_merged_image(lib, monkeypatch, no_network):
+    from wirestudio.api import meshtastic
+
+    merged = _merged()
+    monkeypatch.setattr(meshtastic, "_fetch_firmware", lambda url: merged)
+    image = await images.image_for("meshtastic", lib.board("heltec-wifi-lora32-v3"), lib)
+    assert (image.offset, image.data, image.version) == (0x0, merged, "2.7.11.ee68575")
+
+    monkeypatch.setattr(meshtastic, "_fetch_firmware", lambda url: b"\xe9" + b"\x00" * 0x10000)
+    with pytest.raises(images.ImageUnavailable, match="app-only"):
+        await images.image_for("meshtastic", lib.board("heltec-wifi-lora32-v3"), lib)
 
 
 async def test_a_board_with_no_build_is_unavailable_not_raised(lib, no_network):

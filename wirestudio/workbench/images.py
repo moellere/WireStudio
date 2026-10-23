@@ -44,10 +44,6 @@ def _release(framework: str, board: LibraryBoard) -> tuple[str, int, str]:
         from wirestudio.api.circuitpython import release_url
         url, version = release_url(board.id)
         return url, 0x0, version
-    if framework == "meshtastic":
-        from wirestudio.api.meshtastic import release_url
-        url, version = release_url(board.id)
-        return url, 0x0, version
     if framework == "micropython":
         from wirestudio.api.micropython import image_for, latest_stable
         entry = image_for(board)
@@ -94,6 +90,10 @@ async def image_for(framework: str, board: LibraryBoard, library: Library, *, da
     if framework == "esphome":
         return await _esphome(board, library, dashboard)
     try:
+        if framework == "meshtastic":
+            from wirestudio.api.meshtastic import install_image
+            data, _, version = await asyncio.to_thread(install_image, board.id)
+            return Image(framework, 0x0, data, version)
         url, offset, version = await asyncio.to_thread(_release, framework, board)
         data = await asyncio.to_thread(_fetch, url)
     except LookupError as e:
