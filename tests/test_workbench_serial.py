@@ -59,8 +59,8 @@ def test_verify_boot_finds_the_marker_in_the_buffer_first():
 def test_verify_boot_reports_unsupported_and_missing_input():
     client, _ = _bench([])
     app = TestClient(create_app(workbench_client_factory=lambda: client))
-    out = app.post("/workbench/verify-boot", json={"slot": "SLOT1", "framework": "circuitpython"}).json()
-    assert out["ok"] is False and "USB mass storage" in out["error"]
+    out = app.post("/workbench/verify-boot", json={"slot": "SLOT1", "framework": "meshtastic"}).json()
+    assert out["ok"] is False and "no boot signature established" in out["error"]
     assert app.post("/workbench/verify-boot", json={"slot": "SLOT1"}).status_code == 422
 
 
