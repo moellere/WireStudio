@@ -113,11 +113,11 @@ ones but none blocks the others' value.
    on it, and the cluster already holds the bench and ChirpStack
    credentials. The cost is that the gate cannot annotate a PR.
 
-   The flashing half — a representative example per framework flashed
-   to a dedicated slot, which is what would let the "Works (lighter
-   checks)" tiers hold hardware-validated status continuously — is
-   **not** yet enabled. It needs a board nothing else depends on;
-   see the caveat under [The gate](#the-gate).
+   The flashing half writes each framework listed for a dedicated
+   board with a full erase and asserts its boot marker, which is what
+   lets the "Works (lighter checks)" tiers hold hardware-validated
+   status continuously. It runs only on devices whose roster entry
+   lists `flash:`; see [The gate](#the-gate).
 4. **Functional loop + RF truth.** AP provision + MQTT/API entity
    assertions for generated ESPHome devices; SDR TX power check for
    radio boards.
@@ -176,8 +176,9 @@ ones but none blocks the others' value.
 
 `wirestudio-hardware-gate --config <roster.yaml>` runs the phase-3
 checks and exits non-zero if any fail. It needs `WORKBENCH_URL` (plus
-`WORKBENCH_TOKEN` if the bench is authenticated) and, for the uplink
-stage, the usual ChirpStack environment.
+`WORKBENCH_TOKEN` if the bench is authenticated), for the uplink stage
+the usual ChirpStack environment, and for an `esphome` flash
+`ESPHOME_DASHBOARD_URL` (plus its username and password if set).
 
 | stage | asserts |
 |---|---|
@@ -185,6 +186,8 @@ stage, the usual ChirpStack environment.
 | `slots` | each configured slot is present and `flashable` |
 | `serial` | the slot's recorder captured output within `max_serial_silence_s` |
 | `uplinks` | ChirpStack saw the DevEUI within `max_uplink_silence_s` |
+| `flash` | each framework in a device's `flash:` list is written to its slot, with a full erase |
+| `boot` | the written firmware printed its boot marker |
 
 The roster is deployment state — slot labels and DevEUIs describe one
 physical bench — so it is not shipped in the package.
@@ -217,13 +220,40 @@ record only proves the device joined *once*; the gate asserts
 from a live one otherwise. A device silent since June still had a
 valid activation.
 
-**The flash stage is not enabled.** Setting `flash: true` on a device
-reports as an explicit failure rather than doing nothing. Turning it on
-needs a *dedicated* board: every device on the reference bench carries
-real traffic, and reflashing one nightly costs a rejoin, a DevNonce and
-about ten minutes off the air each time. Until then the gate is a
-bench-health detector, and the "no live-flash gate" caveat on the
-framework tiers still stands.
+**The flash stage reflashes the board every night**, so it belongs only
+on a dedicated board nothing depends on: every other device on the
+reference bench carries real traffic, and reflashing one costs a rejoin,
+a DevNonce and about ten minutes off the air. A flash entry names the
+library board and the frameworks to write, in order; the last one stays
+on the board until the next run:
+
+```yaml
+boot_capture_s: 20          # output kept for a framework with no marker
+devices:
+  - slot: SLOT2
+    name: spare ESP32-S3
+    board: esp32-s3-devkitc-1
+    flash: [esphome, circuitpython, micropython]
+  - slot: SLOT3
+    name: spare Heltec V3
+    board: heltec-wifi-lora32-v3
+    flash: [esphome, meshtastic]
+```
+
+Each image is the one a user would get: `esphome` compiles a board-only
+design (no Wi-Fi, so no secrets) through the ESPHome dashboard and
+writes its factory image; `circuitpython`, `micropython` and
+`meshtastic` download the newest stable release the flash dialog
+serves. Every write erases the chip first, because each framework
+leaves its own filesystem behind.
+
+A flash device skips the `serial` stage: what it prints at rest depends
+on which framework the previous run left. `boot` asserts the markers in
+`wirestudio/workbench/boot.py`. A framework with none established
+(CircuitPython and Meshtastic today) fails `boot` with the first lines
+it printed after the write; the marker comes from that output once it
+has been seen on hardware. An `esphome` compile takes minutes, so the
+CronJob's deadline has to allow for one per flash board.
 
 ### How a failure reaches you
 

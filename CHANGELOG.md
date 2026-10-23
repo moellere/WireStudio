@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Flash and boot stages in the hardware gate.** A roster entry with
+  `board:` and `flash: [esphome, circuitpython, micropython,
+  meshtastic]` gets each framework written to its slot with a full erase
+  every night, then its boot marker asserted. ESPHome is a board-only
+  design compiled through the ESPHome dashboard; the others are the
+  newest stable releases the flash dialog serves. A framework with no
+  established marker fails `boot` with the output it printed, which is
+  where its marker comes from. Meant for dedicated boards only.
+
 ### Changed
 
 - **Cheaper agent turns.** `search_components` (agent and MCP) ranks

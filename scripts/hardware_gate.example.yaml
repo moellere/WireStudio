@@ -53,7 +53,19 @@ devices:
     framework: lorawan
     dev_eui: 500291fffe9df404
 
-# Add `flash: true` to a device once there is a *dedicated* board that
-# nothing depends on. Every board above carries real traffic, and
+# Dedicated boards for the flash and boot stages. Each listed framework
+# is written with a full erase, in order, and its boot marker asserted;
+# the last one stays on the board until the next run. Only for a board
+# nothing depends on: every board above carries real traffic, and
 # reflashing one nightly costs a rejoin, a DevNonce and roughly ten
-# minutes off the air each time.
+# minutes off the air each time. `board` is the library board id.
+#
+#  - slot: SLOT2
+#    name: spare ESP32-S3
+#    board: esp32-s3-devkitc-1
+#    flash: [esphome, circuitpython, micropython]
+#
+#  - slot: SLOT3
+#    name: spare Heltec V3
+#    board: heltec-wifi-lora32-v3
+#    flash: [esphome, meshtastic]
