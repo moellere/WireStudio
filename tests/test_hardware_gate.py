@@ -255,3 +255,150 @@ def test_an_off_bench_device_without_a_dev_eui_is_rejected(tmp_path):
     p.write_text("devices:\n  - name: ghost\n    on_bench: false\n")
     with pytest.raises(gate.ConfigError, match="nothing about it can be checked"):
         gate._load_config(p)
+
+
+class FlashBench(FakeBench):
+    """Records writes; after one, the slot prints what `boot_lines` scripts
+    for the framework whose image was written last."""
+
+    def __init__(self, slots, boot_lines, fail_write=False):
+        super().__init__(slots)
+        self.boot_lines, self.fail_write = boot_lines, fail_write
+        self.writes: list[dict] = []
+
+    async def flash(self, slot, images, chip="esp32", erase=False, baud=921600):
+        from wirestudio.workbench import WorkbenchUnavailable
+
+        if self.fail_write:
+            raise WorkbenchUnavailable("flash failed: A fatal error occurred: No serial data received.")
+        self.writes.append({"slot": slot, "images": images, "chip": chip, "erase": erase})
+        self._lines[slot] = [{"ts": time.time(), "text": t}
+                             for t in self.boot_lines.get(images[0][1].decode(), [])]
+        yield {"type": "log", "data": "Hash of data verified."}
+        yield {"type": "done", "ok": True, "slot": slot, "returncode": 0}
+
+    async def monitor(self, slot, pattern=None, timeout=10.0):
+        return {"matched": False, "line": None, "output": [e["text"] for e in self._lines.get(slot, [])]}
+
+
+@pytest.fixture
+def fake_images(monkeypatch):
+    from wirestudio.workbench import images
+
+    unavailable: dict[str, str] = {}
+
+    async def image_for(framework, board, library, *, dashboard=None):
+        if framework in unavailable:
+            raise images.ImageUnavailable(unavailable[framework])
+        offset = 0x1000 if framework == "micropython" and board.chip_variant == "esp32" else 0x0
+        return images.Image(framework, offset, framework.encode(), "test")
+
+    monkeypatch.setattr(images, "image_for", image_for)
+    return unavailable
+
+
+FLASH_CONFIG = {
+    "boot_capture_s": 0,
+    "devices": [{"slot": "SLOT2", "name": "spare S3", "board": "esp32-s3-devkitc-1",
+                 "flash": ["esphome", "micropython", "circuitpython"]}],
+}
+
+BOOTS = {
+    "esphome": ["[I][app:117]: setup() finished successfully!"],
+    "micropython": ["MicroPython v1.26.1 on 2025-09-11; Generic ESP32S3 module with ESP32S3"],
+    "circuitpython": ["Auto-reload is on. Simply save files over USB to run them."],
+}
+
+
+async def test_flash_writes_every_listed_framework_with_an_erase(fake_images):
+    report = gate.Report()
+    bench = FlashBench([FakeSlot("SLOT2", chip="esp32s3")], BOOTS)
+    await gate.run(FLASH_CONFIG, report, client=bench)
+
+    assert [w["images"][0][1] for w in bench.writes] == [b"esphome", b"micropython", b"circuitpython"]
+    assert all(w["erase"] and w["chip"] == "esp32s3" for w in bench.writes)
+    assert ("boot", "SLOT2/esphome", True) in [r[:3] for r in report.rows]
+    assert ("boot", "SLOT2/micropython", True) in [r[:3] for r in report.rows]
+
+
+async def test_a_flash_device_skips_the_serial_stage(fake_images):
+    """At rest it runs whatever the last framework left, which may print
+    nothing; boot is its liveness assertion."""
+    report = gate.Report()
+    bench = FlashBench([FakeSlot("SLOT2", chip="esp32s3")], BOOTS)
+    await gate.run(FLASH_CONFIG, report, client=bench)
+    assert not [r for r in report.rows if r[0] == "serial"]
+
+
+async def test_a_framework_without_a_marker_fails_with_what_it_printed(fake_images):
+    """Passing it would claim a verdict nobody established; the captured
+    output is what establishes one."""
+    report = gate.Report()
+    bench = FlashBench([FakeSlot("SLOT2", chip="esp32s3")], BOOTS)
+    await gate.run(FLASH_CONFIG, report, client=bench)
+
+    row = next(r for r in report.rows if r[:2] == ("boot", "SLOT2/circuitpython"))
+    assert row[2] is False
+    assert "Auto-reload is on" in row[3]
+
+
+async def test_firmware_that_does_not_boot_fails(fake_images):
+    report = gate.Report()
+    bench = FlashBench([FakeSlot("SLOT2", chip="esp32s3")],
+                       {"esphome": ["rst:0x10 (RTCWDT_RTC_RESET),boot:0x8"]})
+    cfg = {**FLASH_CONFIG, "devices": [{**FLASH_CONFIG["devices"][0], "flash": ["esphome"]}]}
+    await gate.run(cfg, report, client=bench)
+
+    row = next(r for r in report.rows if r[:2] == ("boot", "SLOT2/esphome"))
+    assert row[2] is False
+    assert "RTCWDT_RTC_RESET" in row[3]
+
+
+async def test_a_failed_write_is_reported_and_boot_not_asserted(fake_images):
+    report = gate.Report()
+    bench = FlashBench([FakeSlot("SLOT2", chip="esp32s3")], BOOTS, fail_write=True)
+    await gate.run(FLASH_CONFIG, report, client=bench)
+
+    flash_rows = [r for r in report.rows if r[0] == "flash"]
+    assert len(flash_rows) == 3 and not any(r[2] for r in flash_rows)
+    assert "No serial data received" in flash_rows[0][3]
+    assert not [r for r in report.rows if r[0] == "boot"]
+
+
+async def test_an_unavailable_image_fails_only_its_framework(fake_images):
+    fake_images["esphome"] = "ESPHome needs ESPHOME_DASHBOARD_URL to compile"
+    report = gate.Report()
+    bench = FlashBench([FakeSlot("SLOT2", chip="esp32s3")], BOOTS)
+    await gate.run(FLASH_CONFIG, report, client=bench)
+
+    assert ("flash", "SLOT2/esphome", False) in [r[:3] for r in report.rows]
+    assert ("boot", "SLOT2/micropython", True) in [r[:3] for r in report.rows]
+
+
+async def test_an_unflashable_slot_is_not_written(fake_images):
+    report = gate.Report()
+    bench = FlashBench([FakeSlot("SLOT2", chip="esp32s3", flapping=True)], BOOTS)
+    await gate.run(FLASH_CONFIG, report, client=bench)
+
+    assert not bench.writes
+    assert any(r[:2] == ("slots", "SLOT2") and not r[2] for r in report.rows)
+
+
+@pytest.mark.parametrize("entry, match", [
+    ("flash: [esphome]", "needs `board`"),
+    ("flash: esphome\n    board: esp32-s3-devkitc-1", "must list frameworks"),
+    ("flash: [tasmota]\n    board: esp32-s3-devkitc-1", "cannot flash tasmota"),
+    ("flash: [esphome]\n    board: no-such-board", "unknown board"),
+])
+def test_a_bad_flash_entry_is_rejected(tmp_path, entry, match):
+    p = tmp_path / "r.yaml"
+    p.write_text(f"devices:\n  - slot: SLOT2\n    {entry}\n")
+    with pytest.raises(gate.ConfigError, match=match):
+        gate._load_config(p)
+
+
+def test_a_valid_flash_entry_loads(tmp_path):
+    p = tmp_path / "r.yaml"
+    p.write_text("devices:\n  - slot: SLOT2\n    board: heltec-wifi-lora32-v3\n"
+                 "    flash: [esphome, meshtastic]\n")
+    assert gate._load_config(p)["devices"][0]["flash"] == ["esphome", "meshtastic"]

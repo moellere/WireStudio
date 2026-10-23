@@ -6,29 +6,30 @@ runner would let any fork's pull request execute code on the network
 this job can reach. Scheduled from inside the perimeter, nothing
 repo-controlled ever runs here.
 
-What this asserts today
------------------------
-Non-destructive checks only:
-
+What this asserts
+-----------------
   bench      the portal answers
   slots      each configured slot is present with its proxy running
   serial     the slot's recorder has captured output recently
   uplinks    the device's DevEUI was seen by ChirpStack recently
+  flash      each framework listed under a device's `flash:` is written
+             to its slot with a full erase
+  boot       the written firmware printed its boot marker (boot.py)
 
-That is a real regression detector for the bench itself. A wedged USB
-bridge went unnoticed for days because nothing was watching -- `slots`
-catches exactly that, and `uplinks` catches a board that is powered but
-off the air.
+The first four are non-destructive and are a real regression detector
+for the bench itself. A wedged USB bridge went unnoticed for days
+because nothing was watching -- `slots` catches exactly that, and
+`uplinks` catches a board that is powered but off the air.
 
-What it does NOT assert yet
----------------------------
-It does not flash. The roadmap's phase 3 wants a representative example
-per framework flashed to a *dedicated* slot, which is what would retire
-the "no live-flash gate" caveat on the Meshtastic / CircuitPython /
-LoRaWAN tiers. Every board currently on the bench is carrying real
-traffic -- reflashing one nightly costs a rejoin, a DevNonce and about
-ten minutes of downtime each time. Add a spare board, set `flash:` on
-its entry, and the stage below turns on.
+`flash` and `boot` retire the "no live-flash gate" caveat on the
+framework tiers. They reflash the board every night, so they belong only
+on a dedicated board nothing depends on: reflashing a board that carries
+real traffic costs a rejoin, a DevNonce and about ten minutes of
+downtime each time. A flash device skips `serial`, since what it prints
+at rest depends on which framework the previous run left on it; `boot`
+asserts its output instead. A framework with no established boot marker
+fails `boot` with the output it captured, which is how a marker gets
+established.
 
 Exit code is 0 when every enabled check passes, 1 when one fails,
 and 2 when the roster itself is unusable -- a bad config must not read
@@ -71,7 +72,31 @@ def _load_config(path: Path) -> dict:
             raise ConfigError(
                 f"roster {path}: device {i} ({dev.get('name', '?')}) is off the "
                 "bench with no dev_eui, so nothing about it can be checked.")
+        if "flash" in dev:
+            _check_flash_entry(path, i, dev)
     return raw
+
+
+def _check_flash_entry(path: Path, i: int, dev: dict) -> None:
+    from wirestudio.library import default_library
+    from wirestudio.workbench.images import FRAMEWORKS
+
+    where = f"roster {path}: device {i} ({dev.get('name', '?')})"
+    flash = dev["flash"]
+    if not isinstance(flash, list) or not flash:
+        raise ConfigError(f"{where}: `flash` must list frameworks, e.g. [esphome, micropython]")
+    unknown = [f for f in flash if f not in FRAMEWORKS]
+    if unknown:
+        raise ConfigError(f"{where}: cannot flash {', '.join(map(str, unknown))}; "
+                          f"known: {', '.join(FRAMEWORKS)}")
+    if not dev.get("on_bench", True):
+        raise ConfigError(f"{where}: is off the bench, so it cannot be flashed")
+    if not dev.get("board"):
+        raise ConfigError(f"{where}: `flash` needs `board`, the library board id")
+    try:
+        default_library().board(dev["board"])
+    except FileNotFoundError:
+        raise ConfigError(f"{where}: unknown board '{dev['board']}'") from None
 
 
 class Report:
@@ -88,9 +113,9 @@ class Report:
         return [r for r in self.rows if not r[2]]
 
 
-async def run(config: dict, report: Report, client=None, chirp=None) -> None:
-    """`client` / `chirp` are injectable so the stages can be tested
-    without a bench; production passes neither."""
+async def run(config: dict, report: Report, client=None, chirp=None, dashboard=None) -> None:
+    """`client` / `chirp` / `dashboard` are injectable so the stages can be
+    tested without a bench; production passes none of them."""
     from wirestudio.workbench import WorkbenchClient, WorkbenchUnavailable
 
     devices = config.get("devices") or []
@@ -156,6 +181,8 @@ async def run(config: dict, report: Report, client=None, chirp=None) -> None:
     # --- serial liveness ------------------------------------------------
     cutoff = time.time() - max_silence
     for dev in on_bench:
+        if dev.get("flash"):
+            continue
         label = dev["slot"]
         s = slots.get(label)
         if s is None or not s.present:
@@ -216,12 +243,66 @@ async def run(config: dict, report: Report, client=None, chirp=None) -> None:
                            if age <= max_offline
                            else f"{detail} -- silent for over {int(max_offline)}s")
 
-    # --- flash (not enabled; needs a dedicated slot) ---------------------
-    for dev in devices:
-        if dev.get("flash"):
-            report.add("flash", dev["slot"], False,
-                       "flash stage requested but not implemented -- see module docstring")
+    # --- flash + boot ---------------------------------------------------
+    flashers = [d for d in on_bench
+                if d.get("flash") and d["slot"] in slots and slots[d["slot"]].flashable[0]]
+    if flashers:
+        from wirestudio.esphome_dashboard import DashboardClient
+        from wirestudio.library import default_library
 
+        dashboard = dashboard or DashboardClient()
+        library = default_library()
+        capture_s = float(config.get("boot_capture_s", 20))
+        for dev in flashers:
+            for framework in dev["flash"]:
+                await _flash_one(dev, framework, client, report, library, dashboard, capture_s)
+
+
+async def _flash_one(dev: dict, framework: str, client, report: Report, library,
+                     dashboard, capture_s: float) -> None:
+    from wirestudio.errors import describe
+    from wirestudio.workbench import images
+    from wirestudio.workbench.boot import boot_check, verify_boot
+
+    label = dev["slot"]
+    subject = f"{label}/{framework}"
+    board = library.board(dev["board"])
+    try:
+        image = await images.image_for(framework, board, library, dashboard=dashboard)
+    except images.ImageUnavailable as e:
+        report.add("flash", subject, False, str(e))
+        return
+
+    t0 = time.time()
+    try:
+        async for _ in client.flash(label, images=[(image.offset, image.data)],
+                                    chip=board.chip_variant, erase=True):
+            pass
+    except Exception as e:
+        report.add("flash", subject, False, describe(e))
+        return
+    report.add("flash", subject, True, f"{image.version}, {len(image.data)} bytes at {image.offset:#x}")
+
+    if boot_check(framework) is None:
+        await asyncio.sleep(capture_s)
+        lines = await client.output(label, lines=200, since=t0)
+        captured = " | ".join(e.get("text", "").strip() for e in lines[:12]) or "nothing"
+        report.add("boot", subject, False,
+                   f"no boot marker established for {framework}; captured: {captured}")
+        return
+    try:
+        res = await verify_boot(client, label, framework, since=t0)
+    except Exception as e:
+        report.add("boot", subject, False, describe(e))
+        return
+    if res.get("booted"):
+        report.add("boot", subject, True, res["checks"][0].get("line") or "")
+    else:
+        tail = " | ".join(str(e.get("text", e) if isinstance(e, dict) else e).strip()
+                          for e in res.get("recent_output", [])[-5:])
+        report.add("boot", subject, False,
+                   f"no '{res['checks'][0]['pattern']}' within "
+                   f"{int(res['checks'][0]['timeout_s'])}s; last output: {tail or 'nothing'}")
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)

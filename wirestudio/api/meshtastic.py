@@ -53,6 +53,18 @@ def _fetch_firmware(url: str) -> bytes:
     return resp.content
 
 
+def release_url(board: str, version: str | None = None) -> tuple[str, str]:
+    """(download URL, version) of the Meshtastic factory image for a
+    library board; the newest stable unless `version` pins one. The image
+    flashes at 0x0 with a full erase."""
+    variant = _VARIANTS.get(board)
+    if variant is None:
+        raise LookupError(f"no Meshtastic firmware mapping for board '{board}'")
+    ver = (version or _latest_stable()).lstrip("v")
+    filename = f"firmware-{variant}-{ver}.factory.bin"
+    return f"{_FILES_BASE}/firmware-{ver}/{filename}", ver
+
+
 def firmware_status() -> dict:
     try:
         version = _latest_stable()
@@ -78,16 +90,14 @@ def router() -> APIRouter:
     # into a string OpenAPI generation can't resolve.
     @router.get("/firmware", response_class=Response)
     def meshtastic_firmware(board: str, version: str | None = None):
-        variant = _VARIANTS.get(board)
-        if variant is None:
+        if board not in _VARIANTS:
             raise HTTPException(
                 status_code=422,
                 detail=f"no Meshtastic firmware mapping for board '{board}'",
             )
         try:
-            ver = (version or _latest_stable()).lstrip("v")
-            filename = f"firmware-{variant}-{ver}.factory.bin"
-            url = f"{_FILES_BASE}/firmware-{ver}/{filename}"
+            url, _ = release_url(board, version)
+            filename = url.rsplit("/", 1)[-1]
             data = _fetch_firmware(url)
         except Exception as e:
             raise HTTPException(

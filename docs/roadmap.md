@@ -76,18 +76,22 @@ The middle tier today, and what moves each row.
 
 ### The nightly flash stage (workbench phase 3)
 
-Blocked on one spare board. Every board on the reference bench carries
-live traffic, so the gate is non-destructive today. One dedicated
-ESP32-S3 (or two: one plain, one radio) turns on `flash: true` for a
-representative example per framework, and that single change retires
-every "no live-flash gate" caveat at once. It is the highest-leverage
-item on this page and the only one a human has to buy hardware for.
+The stage is written: a roster entry with `board:` and `flash:` gets
+each listed framework written with a full erase and its boot marker
+asserted (`docs/workbench.md`, "The gate"). It needs the dedicated
+boards on a bench: one plain ESP32-S3 for ESPHome, CircuitPython and
+MicroPython, one radio board for Meshtastic. Every board on the
+reference bench carries live traffic, so none of them can be the one.
 
-Once it runs: the gate flashes one example per framework per night,
-reads the boot verdict through `workbench_verify_boot`, and the README
-row cites the job. The CronJob stays inside the cluster (a public
-repository cannot run fork PRs against a bench), so a failed Job is the
-report, as with the existing gate.
+Once it runs, the README rows cite the job, and the promote/demote pass
+follows its first green week. CircuitPython and Meshtastic have no boot
+marker yet; their first run on hardware captures the output a marker is
+taken from. The LoRaWAN paths are not among the frameworks the stage
+writes, because a nightly reflash of a LoRaWAN device spends a
+DevNonce and a join; those rows stay *hardware-validated*. The CronJob
+stays inside the cluster (a public repository cannot run fork PRs
+against a bench), so a failed Job is the report, as with the rest of
+the gate.
 
 ### Functional loop (workbench phase 4)
 
@@ -363,8 +367,9 @@ The dependency order, not a calendar:
    pure CI, in parallel with 1 and 2.
 4. Agent eval harness (in, row promoted; the first scored nightly run
    sets its gate).
-5. The flash stage of the hardware gate, as soon as the spare board is
-   on the bench; the promote/demote pass follows its first green week.
+5. The flash stage of the hardware gate (written), as soon as the spare
+   boards are on a bench; the promote/demote pass follows its first
+   green week.
 6. Physical outputs and the hygiene list, in any order.
 7. Docs consolidation and the `1.0` schema cut, last.
 
