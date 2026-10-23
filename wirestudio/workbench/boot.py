@@ -55,12 +55,21 @@ BOOT_CHECKS: dict[str, BootCheck] = {
 # The ESPHome external-component path boots like any ESPHome device.
 BOOT_CHECKS["lorawan-esphome"] = BOOT_CHECKS["esphome"]
 
-# MicroPython prints its banner ("MicroPython v1.25.0 on 2025-04-15; ...")
-# on the REPL at every reset. Documented behaviour, not yet observed on
-# the bench.
+# MicroPython prints its banner on the REPL at every reset. Observed on
+# an ESP32 DevKitC: "MicroPython v1.29.0 on 2026-08-24; Generic ESP32
+# module with ESP32".
 BOOT_CHECKS["micropython"] = BootCheck(
     pattern="MicroPython v",
     proves="MicroPython booted to the REPL",
+    timeout_s=30.0,
+)
+
+# CircuitPython prints its banner on the serial console before running
+# code.py. Observed on an ESP32 DevKitC: "Adafruit CircuitPython 10.3.1 on
+# 2026-09-14; Espressif ESP32 DevKitc V4 WROOM-32E with ESP32".
+BOOT_CHECKS["circuitpython"] = BootCheck(
+    pattern="Adafruit CircuitPython ",
+    proves="CircuitPython booted and printed its banner",
     timeout_s=30.0,
 )
 
@@ -92,10 +101,6 @@ UNSUPPORTED: dict[str, str] = {
         "no boot signature established -- needs a Meshtastic board on the "
         "bench to observe one"
     ),
-    "circuitpython": (
-        "success is CIRCUITPY enumerating as USB mass storage, not a serial "
-        "line, so a serial marker is the wrong mechanism"
-    ),
 }
 
 
@@ -118,14 +123,24 @@ async def _match(client, slot: str, check: BootCheck, since: Optional[float]) ->
     the time a caller finishes flashing and asks, it has usually already
     gone past -- and `monitor` only sees the *next* line. So the
     recorder's buffer is consulted first, and live monitoring is the
-    fallback for a marker still to come.
+    fallback for a marker still to come. A monitor miss is checked against
+    the buffer once more: the bench's own pattern match did not find
+    "setup() finished successfully!" on covbench although the line was
+    printed inside the window, so the verdict rests on a substring match
+    done here.
     """
-    if since is not None:
+    async def from_buffer() -> Optional[dict]:
         for entry in await client.output(slot, lines=1000, since=since):
             text = entry.get("text", "")
             if check.pattern in text:
                 return {"matched": True, "line": _ANSI.sub("", text), "via": "buffer"}
+        return None
+
+    if since is not None and (hit := await from_buffer()):
+        return hit
     res = await client.monitor(slot, pattern=check.pattern, timeout=check.timeout_s)
+    if not res.get("matched") and since is not None and (hit := await from_buffer()):
+        return hit
     line = res.get("line")
     return {
         "matched": bool(res.get("matched")),

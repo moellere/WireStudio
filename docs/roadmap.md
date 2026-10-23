@@ -66,7 +66,7 @@ The middle tier today, and what moves each row.
 | LoRaWAN standalone and external-component paths | the flash stage of the nightly hardware gate (below) | stays *hardware-validated*, labelled as such, no CI claim |
 | Remote workbench | same gate, plus the transport tests already there | same |
 | Meshtastic flash + config | nightly flash of a radio board, boot verdict by banner once one is established upstream, config read back | demote to *Experimental* |
-| CircuitPython flash + code.py | nightly flash, boot verdict by the CIRCUITPY drive enumerating on the bench, `code.py` runs without a traceback on the serial console | demote |
+| CircuitPython flash + code.py | nightly flash, boot verdict by the serial banner, `code.py` runs without a traceback on the serial console | demote |
 | MicroPython flash + main.py | nightly flash, REPL banner, `main.py` runs without a traceback | demote |
 | Component authoring | **promoted.** A user component goes through `esphome config` in the config gate; `tests/test_component_corpus.py` holds the check gate to a corpus of bad components | |
 | ESPHome dashboard compile | **promoted.** The nightly `dashboard` job runs a real ESPHome Device Builder, open and password-protected, and pushes, compiles and fetches through the studio's client with the wire assumptions asserted | |
@@ -84,9 +84,9 @@ MicroPython, one radio board for Meshtastic. Every board on the
 reference bench carries live traffic, so none of them can be the one.
 
 Once it runs, the README rows cite the job, and the promote/demote pass
-follows its first green week. CircuitPython and Meshtastic have no boot
-marker yet; their first run on hardware captures the output a marker is
-taken from. The LoRaWAN paths are not among the frameworks the stage
+follows its first green week. CircuitPython's marker is its serial
+banner, taken from the first covbench run; Meshtastic has none yet, and
+its first run on hardware captures the output one is taken from. The LoRaWAN paths are not among the frameworks the stage
 writes, because a nightly reflash of a LoRaWAN device spends a
 DevNonce and a join; those rows stay *hardware-validated*. The CronJob
 stays inside the cluster (a public repository cannot run fork PRs

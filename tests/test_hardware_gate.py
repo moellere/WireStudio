@@ -306,7 +306,8 @@ FLASH_CONFIG = {
 BOOTS = {
     "esphome": ["[I][app:117]: setup() finished successfully!"],
     "micropython": ["MicroPython v1.26.1 on 2025-09-11; Generic ESP32S3 module with ESP32S3"],
-    "circuitpython": ["Auto-reload is on. Simply save files over USB to run them."],
+    "circuitpython": ["Adafruit CircuitPython 10.3.1 on 2026-09-14; Espressif ESP32 DevKitc V4 WROOM-32E with ESP32"],
+    "meshtastic": ["INFO  | ??:??:?? 0 Booting Meshtastic"],
 }
 
 
@@ -334,12 +335,21 @@ async def test_a_framework_without_a_marker_fails_with_what_it_printed(fake_imag
     """Passing it would claim a verdict nobody established; the captured
     output is what establishes one."""
     report = gate.Report()
+    bench = FlashBench([FakeSlot("SLOT3", chip="esp32s3")], BOOTS)
+    cfg = {"boot_capture_s": 0, "devices": [
+        {"slot": "SLOT3", "board": "heltec-wifi-lora32-v3", "flash": ["meshtastic"]}]}
+    await gate.run(cfg, report, client=bench)
+
+    row = next(r for r in report.rows if r[:2] == ("boot", "SLOT3/meshtastic"))
+    assert row[2] is False
+    assert "Booting Meshtastic" in row[3]
+
+
+async def test_circuitpython_boots_on_its_banner(fake_images):
+    report = gate.Report()
     bench = FlashBench([FakeSlot("SLOT2", chip="esp32s3")], BOOTS)
     await gate.run(FLASH_CONFIG, report, client=bench)
-
-    row = next(r for r in report.rows if r[:2] == ("boot", "SLOT2/circuitpython"))
-    assert row[2] is False
-    assert "Auto-reload is on" in row[3]
+    assert ("boot", "SLOT2/circuitpython", True) in [r[:3] for r in report.rows]
 
 
 async def test_firmware_that_does_not_boot_fails(fake_images):
