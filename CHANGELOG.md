@@ -31,6 +31,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`add_component` left pins unbound** (agent and MCP). A new part's
+  GPIO pins now get a free board pin, as `solve_pins` would, and the
+  result lists them under `assigned`; pins it cannot bind are listed
+  under `unbound` with the next step. The agent eval's `add-oled`,
+  `compound-oled-and-pin` and `first-i2c-part` tasks failed because the
+  model never followed up with `solve_pins`. A bus the call would seed
+  without pins (a 1-Wire bus has no board default) is no longer left
+  behind, since no tool can fill one in afterwards; the part's pin
+  reports as unbound until `add_bus` gives it one.
 - **`add_bus` could not give a 1-Wire bus its pin**, on the agent or
   over MCP: neither tool took `pin` (nor UART `parity`), so a DS18B20 on
   a new bus was unfinishable and the agent eval's `ds18b20-needs-bus`
