@@ -131,3 +131,30 @@ async def test_unknown_framework_lists_the_known_ones():
     assert out["ok"] is False
     for known in supported_frameworks():
         assert known in out["error"]
+
+
+async def test_a_monitor_miss_is_checked_against_the_buffer():
+    """covbench, 2026-10-23: ESPHome printed its marker inside the monitor
+    window but the bench's match missed it. The buffer read after the
+    monitor is the verdict."""
+    marker = BOOT_CHECKS["esphome"].pattern
+    reads = []
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        if req.url.path == "/api/serial/output":
+            reads.append(1)
+            lines = [] if len(reads) == 1 else [
+                {"ts": 2.0, "text": f"\x1b[0;32m[I][app:117]: {marker}\x1b[0m"}]
+            return httpx.Response(200, json={"ok": True, "lines": lines})
+        if req.url.path == "/api/serial/monitor":
+            return httpx.Response(200, json={"ok": True, "matched": False, "line": None,
+                                             "output": ["[C][logger:225]:   Log Baud Rate: 115200"]})
+        return httpx.Response(404, json={"error": "unexpected path"})
+
+    client = WorkbenchClient(base_url="http://bench:8080", token="",
+                             transport=httpx.MockTransport(handler))
+    out = await verify_boot(client, "SLOT1", "esphome", since=1.0)
+
+    assert out["booted"] is True
+    assert out["checks"][0]["line"] == f"[I][app:117]: {marker}"
+    assert len(reads) == 2

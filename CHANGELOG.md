@@ -17,6 +17,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   on 3V3, to be moved to the relay's supply. Found replaying the agent
   eval's `add-relay` task, which now also accepts either driver, since
   a bare relay coil needs one.
+- **The hardware gate missed ESPHome's boot marker.** On the first
+  covbench run the board printed `setup() finished successfully!`
+  inside the monitor window and the bench's own match did not report
+  it. A monitor miss is now checked against the recorder buffer, with
+  the substring match done in the studio, before the board is called
+  not booted.
+
+### Added
+
+- **A CircuitPython boot marker.** `boot` passes on CircuitPython's
+  serial banner ("Adafruit CircuitPython 10.3.1 on ..."), observed on
+  covbench; Meshtastic is now the only framework without one.
 
 ## [0.42.1] — 2026-10-23
 

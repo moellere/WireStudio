@@ -250,7 +250,7 @@ leaves its own filesystem behind.
 A flash device skips the `serial` stage: what it prints at rest depends
 on which framework the previous run left. `boot` asserts the markers in
 `wirestudio/workbench/boot.py`. A framework with none established
-(CircuitPython and Meshtastic today) fails `boot` with the first lines
+(Meshtastic today) fails `boot` with the first lines
 it printed after the write; the marker comes from that output once it
 has been seen on hardware. An `esphome` compile takes minutes, so the
 CronJob's deadline has to allow for one per flash board.
