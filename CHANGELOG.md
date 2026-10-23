@@ -40,6 +40,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   without pins (a 1-Wire bus has no board default) is no longer left
   behind, since no tool can fill one in afterwards; the part's pin
   reports as unbound until `add_bus` gives it one.
+- **WS2812 strips failed `esphome config` off GPIO2.** The template
+  defaulted the neopixelbus method to `ESP8266_UART1`, which ESPHome
+  accepts only on an ESP8266 with DIN on GPIO2 and never on an ESP32.
+  With no `method` param the template now leaves it to ESPHome, which
+  picks DMA, UART or bit-bang from the pin on the ESP8266 and RMT or I2S
+  on the ESP32. A design that sets `method` keeps it.
 - **`add_bus` could not give a 1-Wire bus its pin**, on the agent or
   over MCP: neither tool took `pin` (nor UART `parity`), so a DS18B20 on
   a new bus was unfinishable and the agent eval's `ds18b20-needs-bus`
