@@ -191,7 +191,9 @@ tasks:
     prompt: Add a relay output to run a dehumidifier.
     budget: 4
     expect:
-      components: [gpio_output]
+      # A relay module with its own driver is a gpio_output; a bare coil
+      # needs the transistor driver. Both are right answers.
+      any_of: [gpio_output, npn_low_side_driver, mosfet_low_side_driver]
     solution:
       - [add_component, {library_id: gpio_output, label: Dehumidifier}]
       - [solve_pins]
