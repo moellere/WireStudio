@@ -35,9 +35,10 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
         "name": "search_components",
         "description": (
             "Fuzzy-search the component library by name, category, use_case, or "
-            "alias. Returns up to 10 matches with their library_id, name, "
-            "category, and required ESPHome integrations. Use this before "
-            "calling add_component so you never invent a library_id."
+            "alias. Returns up to 10 matches, best first, each with its "
+            "library_id, name, category and match score. Use this before "
+            "calling add_component so you never invent a library_id; call "
+            "library_detail for a part's pins, params and electrical data."
         ),
         "input_schema": {
             "type": "object",
@@ -450,25 +451,38 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
 # ---------------------------------------------------------------------------
 
 
+def _search_score(c, q: str) -> int:
+    """How well a component matches a query: an exact id or alias first,
+    then a hit in the id, an alias, the name, a use case, the category."""
+    ident, aliases = c.id.lower(), [a.lower() for a in c.aliases]
+    if q == ident:
+        return 100
+    if q in aliases:
+        return 90
+    if q in ident:
+        return 70
+    if any(q in a for a in aliases):
+        return 60
+    if q in c.name.lower():
+        return 50
+    if any(q in u.lower() for u in c.use_cases):
+        return 30
+    if q in c.category.lower():
+        return 10
+    return 0
+
+
 def _run_search_components(design: dict, library: Library, *, query: str) -> dict:
     q = query.strip().lower()
-    results = []
-    for c in library.list_components():
-        haystacks = [
-            c.id, c.name, c.category,
-            *c.use_cases, *c.aliases,
-        ]
-        if any(q in h.lower() for h in haystacks):
-            results.append({
-                "library_id": c.id,
-                "name": c.name,
-                "category": c.category,
-                "use_cases": list(c.use_cases),
-                "required_components": list(c.esphome.required_components),
-                "current_ma_typical": c.electrical.current_ma_typical,
-                "current_ma_peak": c.electrical.current_ma_peak,
-            })
-    return {"matches": results[:10], "total": len(results)}
+    scored = [(_search_score(c, q), c) for c in library.list_components()]
+    hits = sorted(((s, c) for s, c in scored if s), key=lambda sc: (-sc[0], sc[1].id))
+    return {
+        "matches": [
+            {"library_id": c.id, "name": c.name, "category": c.category, "score": s}
+            for s, c in hits[:10]
+        ],
+        "total": len(hits),
+    }
 
 
 def _run_list_boards(design: dict, library: Library) -> dict:

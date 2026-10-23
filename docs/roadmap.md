@@ -253,10 +253,13 @@ Section 4 covers the rest.
   `render`, read `design://{id}/yaml` and a library resource, and a
   client without the token is refused. The server emits no change
   notifications, so there is no event to assert.
-- **Cost line.** Two cost cuts remain: `search_components` results
-  trimmed to id, category and score, and `max_iterations` from 12 to 8
-  (most edits take three to five tool calls). They ship behind the eval
-  so a cheaper turn is shown not to cost passes.
+- **Cost line.** Done. `search_components` returns each match's id,
+  name, category and a relevance score, best first, about half the
+  bytes of the old cards; `library_detail` carries the rest. The
+  embedded agent's `max_iterations` is 8: the largest task budget is
+  six tool calls, so a turn within budget needs at most seven model
+  calls. The Claude Code eval measures the search change against the
+  first nightly baseline.
 
 ## 6. Operations and hygiene
 

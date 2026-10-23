@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Cheaper agent turns.** `search_components` (agent and MCP) ranks
+  its matches, an exact id or alias first, then a hit in the id, an
+  alias, the name, a use case and the category, and returns each as
+  `library_id`, `name`, `category` and `score`: about half the bytes on
+  common queries, and the best match no longer depends on library
+  order. Use cases, required integrations and current draw come from
+  `library_detail`. The embedded agent stops after 8 model calls a
+  turn instead of 12; the largest eval task budget is six tool calls.
+
 ## [0.41.0] — 2026-10-23
 
 ### Removed
