@@ -82,8 +82,8 @@ adds a version, so keep the backup if you may roll back.
 | ESPHome dashboard compile | Works | Verified | Verified | push, compile and fetch against a live ESPHome dashboard, nightly |
 | Agent | Experimental | Verified | Verified | the 28-task eval through Claude Code over MCP, nightly, held to `gate.claude_code_min_pass` (**at release:** the score) |
 | WLED target | (new) | Verified | Verified | goldens every PR; the usermod build against WLED v0.15.2 on PRs that touch it and nightly |
-| LoRaWAN target | Works (hardware-validated) | same | **at release** | the flash stage of the hardware gate |
-| LoRaWAN external-component path | Works (hardware-validated) | same | **at release** | same |
+| LoRaWAN target | Works (hardware-validated) | same | Verified | firmware builds on PRs that touch the target and daily; the nightly hardware gate hears the bench's T-Beam |
+| LoRaWAN external-component path | Works (hardware-validated) | same | Verified | `esphome config` every PR; the nightly hardware gate hears three bench boards on it |
 | Remote workbench | Works (hardware-validated) | same | **at release** | same, plus the transport tests |
 | Meshtastic flashing + config | Works | same | **at release** | a nightly flash of a radio board, or Experimental |
 | CircuitPython flashing | Works | same | **at release** | a nightly flash with a boot verdict, or Experimental |
