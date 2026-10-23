@@ -22,7 +22,9 @@ esphome:
     light:
       - platform: neopixelbus
         variant: {{ params.variant | default('WS2812') }}
-        method: {{ params.method | default('ESP8266_UART1') }}
+    {%- if params.method is defined %}
+        method: {{ params.method }}
+    {%- endif %}
         type: {{ params.type | default('GRB') }}
         pin: {{ pins.DIN | tojson }}
         num_leds: {{ params.num_leds | default(1) }}
@@ -67,7 +69,9 @@ micropython:
 params_schema:
   variant: {type: string, default: "WS2812", enum: ["WS2811", "WS2812", "WS2812X", "400KBPS", "SK6812",
       "TM1814"]}
-  method: {type: string, default: "ESP8266_UART1", enum: ["BIT_BANG", "ESP8266_UART0", "ESP8266_UART1",
+  # Unset, ESPHome picks the method from the chip and pin: on the ESP8266
+  # DMA on GPIO3, UART0 on GPIO1, UART1 on GPIO2, bit-bang elsewhere.
+  method: {type: string, enum: ["BIT_BANG", "ESP8266_UART0", "ESP8266_UART1",
       "ESP8266_DMA", "ESP32_RMT", "ESP32_I2S0", "ESP32_I2S1"]}
   type: {type: string, default: "GRB"}
   num_leds: {type: integer, default: 1, minimum: 1}
