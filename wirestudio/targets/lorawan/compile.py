@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Iterator, Optional
 
 from wirestudio.library import Library, default_library
+from wirestudio.migrate import load_design
 from wirestudio.model import Design
 from wirestudio.targets.lorawan.firmware_gen import generate_firmware
 
@@ -343,7 +344,7 @@ def main(argv: list[str] | None = None) -> int:
     if not args.design:
         parser.error("a design.json path is required (or pass --status)")
 
-    design = Design.model_validate(json.loads(Path(args.design).read_text()))
+    design = load_design(json.loads(Path(args.design).read_text()))
     try:
         result = compile_firmware(design, default_library(), use_cache=not args.no_cache)
     except CompileUnavailable as exc:

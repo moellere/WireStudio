@@ -20,11 +20,10 @@ CIRCUITPY drive.
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Response
-from pydantic import ValidationError
 
 from wirestudio.generate.circuitpython_gen import generate_code
 from wirestudio.library import Library, LibraryBoard
-from wirestudio.model import Design
+from wirestudio.api.design_input import validate_document
 from wirestudio.errors import describe
 
 _RELEASES_LATEST = "https://api.github.com/repos/adafruit/circuitpython/releases/latest"
@@ -261,10 +260,7 @@ def router(lib: Library) -> APIRouter:
         """code.py generated from the design: per-component driver init
         from the library's `circuitpython:` fragments, plus the Adafruit
         bundle libraries to copy to CIRCUITPY/lib."""
-        try:
-            d = Design.model_validate(design)
-        except ValidationError as e:
-            raise HTTPException(status_code=422, detail=e.errors()) from e
+        d = validate_document(design, lib)
         try:
             return generate_code(d, lib)
         except FileNotFoundError as e:

@@ -181,3 +181,24 @@ def test_cli_check_write_and_print(tmp_path, sugar, capsys):
     assert main(["--check", str(path)]) == 0
     path.write_text(json.dumps({"schema_version": "9.0", "id": "x"}))
     assert main(["--check", str(path)]) == 2
+
+
+@pytest.mark.parametrize("path", ["/micropython/code", "/circuitpython/code", "/tasmota/template"])
+def test_design_routes_migrate_before_validating(sugar, path):
+    """These routes validated the request's design directly; once the 1.0
+    model dropped the LoRaWAN blocks, an older document carrying them was a
+    422 instead of an upgrade."""
+    from fastapi.testclient import TestClient
+
+    from wirestudio.api.app import create_app
+
+    r = TestClient(create_app()).post(path, json=sugar)
+    assert r.status_code == 200, r.text
+
+
+def test_load_design_migrates(sugar):
+    from wirestudio.migrate import CURRENT_SCHEMA_VERSION, load_design
+
+    design = load_design(sugar)
+    assert design.schema_version == CURRENT_SCHEMA_VERSION
+    assert {c.library_id for c in design.components} >= {"uart_gps"}

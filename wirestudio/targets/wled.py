@@ -311,7 +311,7 @@ class WledTarget(TargetPlugin):
     def router(self, library: Library):
         from fastapi import APIRouter, HTTPException, Response
         from fastapi.responses import StreamingResponse
-        from pydantic import ValidationError
+        from wirestudio.api.design_input import validate_document
 
         from wirestudio.targets.build_backend import BuildUnavailable
 
@@ -319,10 +319,7 @@ class WledTarget(TargetPlugin):
         backend = self.build_backend()
 
         def _design(design: dict) -> Design:
-            try:
-                return Design.model_validate(design)
-            except ValidationError as exc:
-                raise HTTPException(status_code=422, detail=exc.errors()) from exc
+            return validate_document(design, library)
 
         @router.post("/cfg")
         def wled_cfg(design: dict) -> dict:
@@ -407,9 +404,11 @@ def main(argv: Optional[list[str]] = None) -> int:
                         help="print the platformio_override.ini environment instead of cfg.json")
     args = parser.parse_args(argv)
 
-    with open(args.design) as fh:
-        design = Design.model_validate(json.load(fh))
+    from wirestudio.migrate import load_design
+
     library = default_library()
+    with open(args.design) as fh:
+        design = load_design(json.load(fh), library)
     if args.override:
         text, warnings = build_platformio_override(design, library)
         if text is None:

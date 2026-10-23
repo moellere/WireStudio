@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, Callable, Optional
 
 if TYPE_CHECKING:
     from wirestudio.library import Library
+    from wirestudio.model import Design
 
 CURRENT_SCHEMA_VERSION = "1.0"
 
@@ -211,6 +212,14 @@ def migrate(raw: dict, library=None) -> Migration:
     result.document = document
     result.to_version = version
     return result
+
+
+def load_design(raw: dict, library=None) -> "Design":
+    """`raw` brought to the current version and validated. Raises
+    MigrationError or pydantic's ValidationError."""
+    from wirestudio.model import Design
+
+    return Design.model_validate(migrate(raw, library).document)
 
 
 def main(argv: Optional[list[str]] = None) -> int:
