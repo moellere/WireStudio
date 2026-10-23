@@ -79,7 +79,11 @@ def _garage(library) -> dict:
 
 def test_unbound_pin_fails_validity(library):
     d = _garage(library)
-    ev.apply_calls(d, [("add_component", {"library_id": "gpio_output"})], library)
+    ev.apply_calls(d, [
+        ("add_component", {"library_id": "gpio_output"}),
+        ("set_connection", {"component_id": "gpio_output_1", "pin_role": "OUT",
+                            "target": {"kind": "gpio", "pin": ""}}),
+    ], library)
     reasons = ev.structural_failures(d, library)
     assert reasons == ["gpio_output_1.OUT is unbound"]
 
@@ -101,8 +105,9 @@ def test_pin_off_the_board_fails_validity(library):
 
 def test_incomplete_bus_fails_validity(library):
     d = ev.load_example(BY_ID["ds18b20-needs-bus"], library)
-    ev.apply_calls(d, [("add_component", {"library_id": "ds18b20"})], library)
-    assert ev.structural_failures(d, library) == ["bus 1wire_1 has no pin"]
+    ev.apply_calls(d, [("add_bus", {"id": "wire0", "type": "1wire"}),
+                       ("add_component", {"library_id": "ds18b20"})], library)
+    assert ev.structural_failures(d, library) == ["bus wire0 has no pin"]
 
 
 def test_change_failures_name_each_miss(library):
