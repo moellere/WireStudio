@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Both LoRaWAN paths are Verified.** The README rows cite their
+  gates: the firmware build (standalone; on PRs that touch it and
+  daily), `esphome config` with `lorawan-for-esphome` fetched (external
+  component; every PR), and the nightly hardware gate, which asserts the four Wyola boards running
+  them are on the bench, logging and heard by ChirpStack within the
+  hour. They are not reflashed nightly, since each reflash costs a
+  rejoin and a DevNonce.
+
 ## [0.42.2] — 2026-10-23
 
 ### Fixed

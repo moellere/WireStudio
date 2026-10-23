@@ -63,7 +63,7 @@ The middle tier today, and what moves each row.
 
 | Row | What promotes it | If that cannot happen |
 |---|---|---|
-| LoRaWAN standalone and external-component paths | the flash stage of the nightly hardware gate (below) | stays *hardware-validated*, labelled as such, no CI claim |
+| LoRaWAN standalone and external-component paths | **promoted.** The firmware builds and `esphome config` gate the code every PR; the nightly hardware gate asserts the four Wyola boards running the two paths are on the bench, logging and heard by ChirpStack within the hour. Not reflashed nightly (a rejoin and a DevNonce each time) | |
 | Remote workbench | same gate, plus the transport tests already there | same |
 | Meshtastic flash + config | nightly flash of a radio board, boot verdict by banner once one is established upstream, config read back | demote to *Experimental* |
 | CircuitPython flash + code.py | nightly flash, boot verdict by the serial banner, `code.py` runs without a traceback on the serial console | demote |
@@ -88,7 +88,8 @@ follows its first green week. CircuitPython's marker is its serial
 banner, taken from the first covbench run; Meshtastic has none yet, and
 its first run on hardware captures the output one is taken from. The LoRaWAN paths are not among the frameworks the stage
 writes, because a nightly reflash of a LoRaWAN device spends a
-DevNonce and a join; those rows stay *hardware-validated*. The CronJob
+DevNonce and a join; their rows are *Verified* on the build gates and
+the nightly uplink check instead. The CronJob
 stays inside the cluster (a public repository cannot run fork PRs
 against a bench), so a failed Job is the report, as with the rest of
 the gate.
