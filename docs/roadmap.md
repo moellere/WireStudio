@@ -85,8 +85,8 @@ reference bench carries live traffic, so none of them can be the one.
 
 Once it runs, the README rows cite the job, and the promote/demote pass
 follows its first green week. CircuitPython's marker is its serial
-banner, taken from the first covbench run; Meshtastic has none yet, and
-its first run on hardware captures the output one is taken from. The LoRaWAN paths are not among the frameworks the stage
+banner, taken from the first covbench run; Meshtastic's is its
+"Booted, wake cause" log line, from the second. The LoRaWAN paths are not among the frameworks the stage
 writes, because a nightly reflash of a LoRaWAN device spends a
 DevNonce and a join; their rows are *Verified* on the build gates and
 the nightly uplink check instead. The CronJob

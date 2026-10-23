@@ -230,11 +230,13 @@ export async function flashToTarget(
 
 /** Relay the recorder's lines since the flash and, when a framework is
  *  named, ask the bench whether its boot marker appeared. Runs after
- *  flashToTarget returns so the flash phase ends when the flash does. */
+ *  flashToTarget returns so the flash phase ends when the flash does.
+ *  The boot check resets the board through the bench: the reset at the
+ *  end of a flash comes before the bench is recording again. */
 export async function watchSlot(slot: string, since: number, opts: WatchOptions & Pick<FlashOptions, "onSerial">): Promise<void> {
   const { api } = await import("../api/client");
   if (opts.framework && opts.onBoot) {
-    api.workbenchVerifyBoot({ slot, framework: opts.framework, since })
+    api.workbenchVerifyBoot({ slot, framework: opts.framework, reset: true })
       .then(opts.onBoot)
       .catch((e) => opts.onBoot?.({ ok: false, framework: opts.framework ?? "", error: e instanceof Error ? e.message : String(e) }));
   }

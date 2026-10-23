@@ -13,7 +13,6 @@ from wirestudio.workbench import WorkbenchClient
 from wirestudio.workbench.boot import (
     BOOT_CHECKS,
     JOIN_CHECKS,
-    UNSUPPORTED,
     supported_frameworks,
     verify_boot,
 )
@@ -114,17 +113,6 @@ async def test_join_timeout_allows_for_the_post_flash_retry():
         assert check.timeout_s >= 360, f"{framework} join timeout too tight"
 
 
-@pytest.mark.parametrize("framework", sorted(UNSUPPORTED))
-async def test_unsupported_frameworks_say_why(framework):
-    client, calls = _bench({})
-
-    out = await verify_boot(client, "SLOT1", framework)
-
-    assert out["ok"] is False
-    assert out["error"] == UNSUPPORTED[framework]
-    assert not calls, "should not have touched the bench"
-
-
 async def test_unknown_framework_lists_the_known_ones():
     client, _ = _bench({})
     out = await verify_boot(client, "SLOT1", "nonesuch")
@@ -158,3 +146,45 @@ async def test_a_monitor_miss_is_checked_against_the_buffer():
     assert out["booted"] is True
     assert out["checks"][0]["line"] == f"[I][app:117]: {marker}"
     assert len(reads) == 2
+
+
+async def test_reset_waits_for_the_slot_then_searches_from_the_reset():
+    """covbench, 2026-10-23: esptool's post-flash reset fires while the
+    recorder is detached, so ESPHome's boot burst was never captured. The
+    marker only exists after a reset through the bench."""
+    marker = BOOT_CHECKS["esphome"].pattern
+    events: list[tuple[str, object]] = []
+    state = iter(["flashing", "idle"])
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        path = req.url.path
+        if path == "/api/devices":
+            s = next(state, "idle")
+            events.append(("devices", s))
+            return httpx.Response(200, json={"slots": [
+                {"label": "SLOT1", "state": s, "present": True}]})
+        if path == "/api/serial/reset":
+            events.append(("reset", __import__("json").loads(req.content)["slot"]))
+            return httpx.Response(200, json={"ok": True})
+        if path == "/api/serial/output":
+            since = float(req.url.params["since"])
+            events.append(("output", since))
+            reset_seen = any(e[0] == "reset" for e in events)
+            lines = [{"ts": since + 0.2, "text": f"[I][app:117]: {marker}"}] if reset_seen else []
+            return httpx.Response(200, json={"ok": True, "lines": lines})
+        return httpx.Response(404, json={"error": "unexpected path"})
+
+    client = WorkbenchClient(base_url="http://bench:8080", token="",
+                             transport=httpx.MockTransport(handler))
+    before = __import__("time").time()
+    out = await verify_boot(client, "SLOT1", "esphome", since=0.0, reset=True)
+
+    assert out["booted"] is True and out["checks"][0]["via"] == "buffer"
+    kinds = [k for k, _ in events]
+    assert kinds == ["devices", "devices", "reset", "output"]
+    assert events[3][1] >= before, "the stale `since` must give way to the reset time"
+
+
+async def test_meshtastic_boot_marker_matches_the_observed_line():
+    line = "INFO  | ??:??:?? 0 Booted, wake cause 0 (boot count 1), reset_reason=reset"
+    assert BOOT_CHECKS["meshtastic"].pattern in line

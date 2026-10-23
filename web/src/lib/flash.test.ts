@@ -51,7 +51,7 @@ describe("watchSlot", () => {
     await watchSlot("S1", 100, { framework: "esphome", onBoot: (r) => boots.push(r), onSerial: (t) => serial.push(t), watchSeconds: 1.2 });
     expect(serial).toEqual(["ets Jul 29 2019\n", "setup() finished successfully!\n"]);
     expect(boots).toEqual([{ ok: true, framework: "esphome", booted: true, checks: [] }]);
-    expect((api.workbenchVerifyBoot as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0]).toEqual({ slot: "S1", framework: "esphome", since: 100 });
+    expect((api.workbenchVerifyBoot as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0]).toEqual({ slot: "S1", framework: "esphome", reset: true });
   });
 
   it("reports a failed verify as a result and stops relaying when the bench goes away", async () => {
