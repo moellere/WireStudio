@@ -27,6 +27,7 @@ dependencies = [
     "slowapi>=0.1.9",
     "mcp>=2.0,<3",
     "websockets>=12",
+    "pillow>=10",
 ]
 
 [project.optional-dependencies]

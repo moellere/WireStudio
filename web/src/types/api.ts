@@ -77,6 +77,8 @@ export interface CommunityEntry {
   board: string;
   mcu: string;
   components: string[];
+  /** Raw URLs of merged photos only; never anything from an open PR. */
+  photos?: string[];
   updated: string | null;
   page_url: string;
 }

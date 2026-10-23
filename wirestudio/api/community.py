@@ -10,6 +10,7 @@ GitHub token.
 """
 from __future__ import annotations
 
+import base64
 import io
 import json
 import os
@@ -33,6 +34,11 @@ _SLUG = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$")
 _HANDLE = re.compile(r"^[A-Za-z0-9](?:-?[A-Za-z0-9]){0,38}$")
 _TAG = re.compile(r"^[a-z0-9][a-z0-9-]{0,31}$")
 _MAX_TAGS = 8
+# What the catalogue's CI accepts; photos are re-encoded to fit.
+MAX_PHOTOS = 4
+PHOTO_PX = 2048
+PHOTO_BYTES = 1024 * 1024
+_MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 # The catalogue's CI refuses a literal value under any of these keys; refusing
 # here first keeps a secret out of a public pull request.
 _SECRET_KEY = re.compile(r"pass(word|phrase)?|secret|token|api_?key|app_?key|nwk_?key|psk|encryption",
@@ -72,6 +78,57 @@ def leaked_secrets(node, where: str = "") -> list[str]:
         for i, v in enumerate(node):
             found += leaked_secrets(v, f"{where}[{i}]")
     return found
+
+
+def clean_photo(data: bytes) -> bytes:
+    """A JPEG the catalogue accepts: EXIF rotation applied, at most PHOTO_PX
+    on the long side, under PHOTO_BYTES, and no metadata at all -- a phone
+    photo's EXIF usually records where it was taken. Raises ValueError for
+    anything that is not a still image."""
+    from PIL import Image, ImageOps
+
+    try:
+        with Image.open(io.BytesIO(data)) as img:
+            if getattr(img, "is_animated", False):
+                raise ValueError("animated images are not accepted")
+            img = ImageOps.exif_transpose(img).convert("RGB")
+    except (OSError, Image.DecompressionBombError) as e:
+        raise ValueError(f"not a readable image ({e})") from e
+    img.thumbnail((PHOTO_PX, PHOTO_PX))
+    for quality in (85, 75, 65, 55, 45):
+        out = io.BytesIO()
+        img.save(out, "JPEG", quality=quality, optimize=True)
+        if out.tell() <= PHOTO_BYTES:
+            return out.getvalue()
+    raise ValueError("too detailed to fit 1 MB")
+
+
+def _photos(raw) -> list[tuple[str, bytes]]:
+    """[{name, data(base64)}] -> [(catalogue file name, cleaned JPEG)]."""
+    if not raw:
+        return []
+    if not isinstance(raw, list) or len(raw) > MAX_PHOTOS:
+        raise HTTPException(status_code=422, detail=f"`photos`: at most {MAX_PHOTOS}")
+    out: list[tuple[str, bytes]] = []
+    for i, p in enumerate(raw):
+        label = str(p.get("name") or f"photo {i + 1}") if isinstance(p, dict) else f"photo {i + 1}"
+        try:
+            data = base64.b64decode(p["data"], validate=True)
+        except (KeyError, TypeError, ValueError) as e:
+            raise HTTPException(status_code=422, detail=f"{label}: not base64 image data") from e
+        if len(data) > _MAX_UPLOAD_BYTES:
+            raise HTTPException(status_code=422, detail=f"{label}: over 20 MB")
+        try:
+            jpeg = clean_photo(data)
+        except ValueError as e:
+            raise HTTPException(status_code=422, detail=f"{label}: {e}") from e
+        stem = slugify(label.rsplit(".", 1)[0])[:60] or "photo"
+        taken = {n for n, _ in out}
+        name, n = f"{stem}.jpg", 2
+        while name in taken:
+            name, n = f"{stem}-{n}.jpg", n + 1
+        out.append((name, jpeg))
+    return out
 
 
 async def _http_fetch(url: str) -> bytes:
@@ -156,8 +213,9 @@ def router(library, fetch: Optional[Fetch] = None) -> APIRouter:
 
     @api.post("/share")
     def share(body: dict = Body(...)) -> Response:
-        """A zip of `<slug>/design.json` + `meta.yaml` (+ `README.md`), ready
-        to drag onto the catalogue's upload page."""
+        """A zip of `<slug>/design.json` + `meta.yaml` (+ `README.md`, + up to
+        four `photos/*.jpg`, re-encoded without metadata), ready to drag onto
+        the catalogue's upload page."""
         repo = require_repo()
         design = body.get("design")
         if not isinstance(design, dict):
@@ -182,6 +240,7 @@ def router(library, fetch: Optional[Fetch] = None) -> APIRouter:
             raise HTTPException(status_code=422,
                                 detail="literal credentials at " + ", ".join(leaked)
                                 + " -- replace them with `!secret name` references before sharing")
+        photos = _photos(body.get("photos"))
         origin = document.pop("origin", None) or {}
         document["id"] = slug
 
@@ -198,6 +257,8 @@ def router(library, fetch: Optional[Fetch] = None) -> APIRouter:
             notes = str(body.get("notes") or "").strip()
             if notes:
                 z.writestr(f"{slug}/README.md", notes + "\n")
+            for name, jpeg in photos:
+                z.writestr(f"{slug}/photos/{name}", jpeg)
         return Response(
             content=buf.getvalue(),
             media_type="application/zip",
