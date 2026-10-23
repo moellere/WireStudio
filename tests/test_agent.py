@@ -487,3 +487,22 @@ def test_library_index_is_substantially_smaller_than_full_dump(lib):
     assert len(slim) < 0.25 * full_size, (
         f"slim index ({len(slim)} chars) is not <25% of full dump ({full_size} chars)"
     )
+
+
+def test_search_components_ranks_and_stays_compact(lib):
+    """An exact id comes first and a match carries only what picking a
+    part needs; library_detail has the rest."""
+    body = json.loads(execute_tool("search_components", {"query": "bme280"}, {}, lib)[0])
+    first = body["matches"][0]
+    assert first["library_id"] == "bme280"
+    assert set(first) == {"library_id", "name", "category", "score"}
+    scores = [m["score"] for m in body["matches"]]
+    assert scores == sorted(scores, reverse=True)
+
+
+def test_search_components_puts_an_alias_above_a_use_case(lib):
+    alias_owner = next(c for c in lib.list_components() if c.aliases)
+    alias = alias_owner.aliases[0]
+    body = json.loads(execute_tool("search_components", {"query": alias}, {}, lib)[0])
+    assert body["matches"][0]["score"] >= 90
+    assert alias_owner.id in {m["library_id"] for m in body["matches"] if m["score"] >= 90}

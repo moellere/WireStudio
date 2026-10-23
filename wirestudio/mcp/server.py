@@ -119,9 +119,10 @@ def _register_library_tools(mcp: MCPServer, library: Library) -> None:
         name="search_components",
         description=(
             "Fuzzy-search the component library by name, category, use_case, "
-            "or alias. Returns up to 10 matches with library_id, name, "
-            "category, and required ESPHome integrations. Use this before "
-            "calling add_component so you never invent a library_id."
+            "or alias. Returns up to 10 matches, best first, each with its "
+            "library_id, name, category and match score. Use this before "
+            "calling add_component so you never invent a library_id; call "
+            "library_detail for a part's pins, params and electrical data."
         ),
     )
     def search_components(query: str) -> dict:
