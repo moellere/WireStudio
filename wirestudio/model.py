@@ -63,6 +63,19 @@ class Component(_Strict):
     module: Optional[ModuleRef] = None
 
 
+# The bus-shaped names in esphome.config_validation.RESERVED_IDS: ESPHome
+# refuses them as ids because they name its own peripherals.
+RESERVED_BUS_IDS = frozenset({"uart0", "uart1", "uart2", "spi0", "spi1"})
+
+
+def generated_bus_id(bus_type: str, n: int) -> str:
+    """The n-th generated id for a bus type: i2c0, i2c1, ... and, for the
+    types whose plain names ESPHome reserves, uart_bus0, spi_bus0, ..."""
+    if f"{bus_type}0" in RESERVED_BUS_IDS:
+        return f"{bus_type}_bus{n}"
+    return f"{bus_type}{n}"
+
+
 class Bus(_Strict):
     id: str
     type: Literal["i2c", "spi", "uart", "1wire", "i2s"]

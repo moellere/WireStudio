@@ -23,12 +23,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`add_bus` could not give a 1-Wire bus its pin**, on the agent or
   over MCP: neither tool took `pin` (nor UART `parity`), so a DS18B20 on
   a new bus was unfinishable and the agent eval's `ds18b20-needs-bus`
-  task failed for every model. Both take them now. `add_bus` also
-  refuses the ids ESPHome reserves (`uart0`-`uart2`, `spi0`, `spi1`),
-  which `esphome config` rejected after the fact. The eval's reference
+  task failed for every model. Both take them now. The eval's reference
   replay checks every call against the agent's tool schema, so a
   solution can no longer use an argument the agent is never offered,
   and a test holds each MCP tool to the arguments of its agent twin.
+- **Bus ids ESPHome reserves.** `esphome config` refuses `uart0`-`uart2`,
+  `spi0` and `spi1` as ids, and the studio generated them in three
+  places: a new design seeded for a board with an SPI radio (TTGO LoRa32
+  V2, T-Beam) got `spi0` and failed to render; the component check gave
+  a user-authored UART or SPI part's synthetic design `uart0` / `spi0`,
+  so it failed the gate; and the web UI named a new UART or SPI bus
+  `uart0` / `spi0`. Generated ids for those types are now `uart_bus0`,
+  `spi_bus0`, ...; `add_bus` refuses a reserved id with a suggestion,
+  and the compatibility check reports one as a `reserved_id` error.
 
 ## [0.41.0] — 2026-10-23
 

@@ -21,7 +21,7 @@ from wirestudio.kicad.fab import fab_status, generate_bom, generate_cpl
 from wirestudio.kicad.pcb import PcbUnavailable, generate_kicad_pcb
 from wirestudio.library import Library
 from wirestudio.library.check import check_component_yaml, create_component
-from wirestudio.model import Design
+from wirestudio.model import RESERVED_BUS_IDS, Design, generated_bus_id
 from wirestudio.recommend.recommender import Constraints, recommend_components
 from wirestudio.validate import check_board_flash, check_electrical, check_net_targets, check_part_overrides
 
@@ -583,16 +583,11 @@ def _run_set_strict(design: dict, library: Library, *, enabled: bool) -> dict:
     return {"ok": True, "strict": enabled}
 
 
-# From esphome.config_validation.RESERVED_IDS: the bus-shaped names in it.
-# ESPHome refuses them as ids because they name its own peripherals.
-_RESERVED_BUS_IDS = {"uart0", "uart1", "uart2", "spi0", "spi1"}
-
-
 def _run_add_bus(design: dict, library: Library, **fields: Any) -> dict:
     buses = design.setdefault("buses", [])
-    if fields["id"] in _RESERVED_BUS_IDS:
+    if fields["id"] in RESERVED_BUS_IDS:
         return {"ok": False, "error": f"bus id '{fields['id']}' is reserved by ESPHome; "
-                                      f"pick another, e.g. '{fields.get('type', 'bus')}_bus'"}
+                                      f"pick another, e.g. '{generated_bus_id(fields.get('type', 'bus'), 0)}'"}
     if any(b.get("id") == fields["id"] for b in buses):
         return {"ok": False, "error": f"bus id '{fields['id']}' already exists"}
 
