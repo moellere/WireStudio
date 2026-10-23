@@ -513,7 +513,7 @@ export const api = {
       body: JSON.stringify(body),
     }),
   /** Set the design's decodeUplink codec on the device's ChirpStack profile so
-   *  uplinks decode into named fields (reflects an external GPS in lorawan.gps). */
+   *  uplinks decode into named fields (reflects an external GPS component). */
   lorawanSetCodec: (body: { dev_eui: string; design: Design }) =>
     request<{ dev_eui: string; device_profile_id: string; codec_set: boolean }>(
       "/lorawan/codec",

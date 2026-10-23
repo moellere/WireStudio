@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.3",
+  "schema_version": "1.0",
   "id": "spi-io-node",
   "name": "SPI IO node (MCP23S17 + MCP3008)",
   "description": "ESP32-DevKitC with an MCP23S17 16-bit SPI GPIO expander carrying two door contacts and a siren output, and an MCP3008 8-channel 10-bit SPI ADC reading a tank-level pot and a light sensor. Both chips share the VSPI bus with their own CS lines.",

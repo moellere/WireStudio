@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.3",
+  "schema_version": "1.0",
   "id": "nextion-thermostat",
   "name": "Nextion HMI thermostat panel",
   "description": "ESP32-DevKitC-V4 with a Nextion HMI display on UART2 (GPIO16/GPIO17 @ 9600 baud) and an SHT3xD temp/humidity sensor on the board's default I2C. The Nextion's GUI is uploaded separately via the Nextion Editor; this design just feeds it sensor values.",

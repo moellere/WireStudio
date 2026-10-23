@@ -40,7 +40,7 @@ result against 0.41.0.
 
 ### design.json
 
-0.41.0 writes `schema_version` 0.3; 1.0 writes **at release: 1.0**.
+0.41.0 and 0.42.x write `schema_version` 0.3; 1.0 writes 1.0.
 Every path that reads a design (the file and SQLite stores, every REST
 endpoint that takes one, MCP `create_design`, the generate CLI) runs the
 migration chain first, so old files load unchanged on disk and are
@@ -54,7 +54,7 @@ wirestudio-migrate design.json --check
 
 | Step | Change |
 |---|---|
-| 0.3 → 1.0 | **At release.** The deprecated `lorawan.gps`, `lorawan.dht22` and `lorawan.oled` blocks leave the model; the step rewrites any still in a document into the `uart_gps`, `dht` and `ssd1306` components, which is what 0.41.0 already generated from them; the version becomes 1.0. |
+| 0.3 → 1.0 | The deprecated `lorawan.gps`, `lorawan.dht22` and `lorawan.oled` blocks leave the model; the step rewrites any still in a document into the `uart_gps`, `dht` and `ssd1306` components, which is what 0.41.0 already generated from them, and the version becomes 1.0. A document at 1.0 that carries one of the blocks is refused. |
 
 A document with no `schema_version`, or one written by a newer release,
 is refused with a message saying so.

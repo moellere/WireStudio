@@ -73,17 +73,14 @@ _PROFILE_ORDER = ["gps", "batt", "dht"]
 
 
 def resolve_components(design, library) -> list:
-    """The full LoRaWAN component set: the design's own components (with the
-    deprecated `lorawan.gps` / `dht22` / `oled` blocks lowered to components
-    first) plus the board's onboard peripherals synthesized as components, so
+    """The full LoRaWAN component set: the design's own components plus the
+    board's onboard peripherals synthesized as components, so
     firmware_gen and the codec assemble from one inventory and can't drift.
     Synthesized peripherals carry pin/config params (pins normalized to bare
     ints) and a stable id; an onboard peripheral whose library component the
     user already added is not duplicated."""
     from wirestudio.model import Component
-    from wirestudio.targets.lorawan.lower import lower_lorawan_sugar
 
-    design = lower_lorawan_sugar(design, library)
     components = list(design.components)
     present = {c.library_id for c in components}
     used_ids = {c.id for c in components}

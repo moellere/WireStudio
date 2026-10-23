@@ -51,7 +51,7 @@ def test_steps_form_a_chain_to_the_current_version():
 
 def test_sugar_design_matches_the_golden(sugar):
     result = migrate(sugar)
-    assert result.applied == ["lower_lorawan_sugar", "drop_unread_fields"]
+    assert result.applied == ["lower_lorawan_sugar", "drop_unread_fields", "retire_lorawan_sugar"]
     assert (result.from_version, result.to_version) == ("0.1", CURRENT_SCHEMA_VERSION)
     assert result.document == json.loads(GOLDEN.read_text())
     assert sugar["schema_version"] == "0.1" and sugar["lorawan"]["gps"], "input left alone"
@@ -86,7 +86,7 @@ def test_0_2_drops_the_fields_nothing_read_and_keeps_key_order():
                     "provisioning": "runtime_serial", "dev_eui": "70b3d57ed0001234"},
     }
     result = migrate(old)
-    assert result.applied == ["drop_unread_fields"]
+    assert result.applied == ["drop_unread_fields", "retire_lorawan_sugar"]
     assert result.document == {**raw, "schema_version": CURRENT_SCHEMA_VERSION,
                                "lorawan": {"region": "EU868", "sub_band": 1, "join_eui": "70b3d57ed0000000"}}
     assert list(result.document)[:3] == list(raw)[:3]

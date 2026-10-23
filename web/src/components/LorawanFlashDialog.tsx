@@ -26,8 +26,10 @@ interface GpsCfg {
 }
 
 /** Minimal lorawan design for a radio board: target + lorawan block (US915
- *  sub-band 2 defaults apply). External GPS / DHT22 / OLED (for boards without
- *  them onboard) go in lorawan.*. Credentials arrive via serial provisioning. */
+ *  sub-band 2 defaults apply). Credentials arrive via serial provisioning.
+ *  External GPS / DHT22 / OLED are asked for with the 0.3 lorawan.* blocks:
+ *  the server's migrator turns them into components using the board's
+ *  onboard pin data, which a BoardSummary does not carry. */
 function lorawanDesign(
   board: BoardSummary,
   opts: { gps?: GpsCfg; dht22?: { pin: string }; oled?: boolean } = {},

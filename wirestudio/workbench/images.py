@@ -64,7 +64,7 @@ async def _esphome(board: LibraryBoard, library: Library, dashboard) -> Image:
         raise ImageUnavailable("ESPHome needs ESPHOME_DASHBOARD_URL to compile")
     name = f"hw-gate-{board.id}"
     design = Design.model_validate({
-        "schema_version": "0.3", "id": name, "name": f"Hardware gate ({board.name})",
+        "schema_version": "1.0", "id": name, "name": f"Hardware gate ({board.name})",
         "board": {"library_id": board.id, "mcu": board.mcu, "framework": board.framework},
         "power": {"supply": "usb-5v", "rail_voltage_v": 5.0},
         "components": [], "buses": [], "connections": [],

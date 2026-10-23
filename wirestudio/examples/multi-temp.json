@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.3",
+  "schema_version": "1.0",
   "id": "multi-temp",
   "name": "Multi-zone DS18B20 temperatures",
   "description": "ESP8266 D1 Mini with two DS18B20 1-wire sensors sharing a single GPIO bus. Demonstrates the 1-wire bus type and the per-sensor ROM addressing pattern. Adds an RCWL-0516 microwave motion sensor on a separate GPIO so the controller can suppress polling when the room is empty.",

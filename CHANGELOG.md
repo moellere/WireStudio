@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- **Schema version 1.0: the `lorawan.gps`, `dht22` and `oled` blocks.**
+  The schema cut before 1.0. The 0.2 and 0.3 models still accepted the
+  blocks and lowered them to components before generation; 1.0 drops
+  them from the model and the JSON schema, and a new `0.3 → 1.0`
+  migration step rewrites any still in a document into the `uart_gps`,
+  `dht` and `ssd1306` components, buses and connections they stood for,
+  which is what generation already produced. A 0.3 document without the
+  blocks only changes its version. The LoRaWAN endpoints now migrate
+  their request design like every other endpoint, and the quick-flash
+  dialog sends its blocks as a 0.3 document for the server to expand
+  with the board's onboard pins. The `lorawan_sugar_lowered` validate
+  warning is gone with the blocks. The bundled examples are at 1.0.
+
 ### Changed
 
 - **Both LoRaWAN paths are Verified.** The README rows cite their

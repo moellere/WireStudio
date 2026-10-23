@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.3",
+  "schema_version": "1.0",
   "id": "wemosgps",
   "name": "WeMos D1 Mini GPS tracker",
   "description": "ESP8266 D1 Mini reading a NEO-6M / NEO-8M GPS over hardware UART (D2 RX, D1 TX). Exposes 5 NMEA-derived sensors and an HA-side baud-rate selector.",

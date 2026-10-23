@@ -80,7 +80,7 @@ def component_designs(lib) -> list[Design]:
                     continue
                 connections.append({"component_id": inst, "pin_role": pin.role, "target": target})
         designs.append(Design.model_validate({
-            "schema_version": "0.3", "id": f"ci-components-{n + 1}", "name": f"components {n + 1}",
+            "schema_version": "1.0", "id": f"ci-components-{n + 1}", "name": f"components {n + 1}",
             "target": "lorawan", "lorawan": {},
             "board": {"library_id": _COMPONENT_BOARD, "mcu": "esp32"},
             "power": {"supply": "usb", "rail_voltage_v": 3.3},

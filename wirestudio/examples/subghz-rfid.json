@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.3",
+  "schema_version": "1.0",
   "id": "subghz-rfid",
   "name": "Sub-GHz transceiver + 125kHz RFID",
   "description": "ESP32-DevKitC with a CC1101 sub-GHz (433MHz) transceiver on SPI and an RDM6300 125kHz EM4100 RFID reader on UART. A door/access node: read a tag, talk to 433MHz devices.",

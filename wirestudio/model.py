@@ -261,35 +261,13 @@ class Fleet(_Strict):
     secrets_ref: dict[str, str] = Field(default_factory=dict)
 
 
-class GpsSerial(_Strict):
-    """An external GPS module wired to a UART, for boards without an onboard
-    GPS. Pins are MCU-side: the GPS module's TX wire connects to `rx_pin`, its
-    RX wire to `tx_pin`. (Onboard GPS is detected from the board, not here.)
-    """
-    rx_pin: str          # MCU RX  <- GPS module TX
-    tx_pin: str          # MCU TX  -> GPS module RX
-    baud: int = 9600
-
-
-class Dht22(_Strict):
-    """A DHT22 / AM2302 temperature + humidity sensor on a single data GPIO."""
-    pin: str
-
-
-class Oled(_Strict):
-    """An SSD1306 128x64 OLED on the board's I2C bus, used as a status display
-    (lat/lon/battery/temp). Not a payload field -- display only."""
-    enabled: bool = True
-
-
 class PayloadField(_Strict):
     """One slot in the LoRaWAN uplink payload, used by the external-component
     target path (`lorawan-for-esphome`). `sensor` is a design-level
     `component_id` whose current value is packed into the uplink; the
     ChirpStack `decodeUplink` codec is generated from the same ordered list so
     device wire bytes and server-side decoding stay in lockstep. The standalone
-    Arduino path doesn't use this -- its fields are the explicit `gps`,
-    `dht22`, `oled` blocks below.
+    Arduino path doesn't use this -- it packs the design's components.
     """
     sensor: str
 
@@ -324,20 +302,12 @@ class LoRaWAN(_Strict):
     join_eui: Optional[str] = None                   # MSB hex; defaults applied downstream
     # New path (ESPHome external component): ordered uplink payload field list.
     payload: list[PayloadField] = Field(default_factory=list)
-    # Deprecated sugar from before per-component `lorawan:` codegen. Still
-    # accepted: `targets.lorawan.lower` turns each into the `uart_gps` /
-    # `dht` / `ssd1306` component, bus and connections it stands for before
-    # anything reads the design, and `validate` says so. The 1.0 migrator
-    # rewrites them; nothing new should write them.
-    gps: Optional[GpsSerial] = None
-    dht22: Optional[Dht22] = None
-    oled: Optional[Oled] = None
 
 
 class Design(_Strict):
     # Every version `wirestudio.migrate` can read; a document is brought to
     # `migrate.CURRENT_SCHEMA_VERSION` before it is validated here.
-    schema_version: Literal["0.1", "0.2", "0.3"]
+    schema_version: Literal["0.1", "0.2", "0.3", "1.0"]
     id: str
     name: str
     description: Optional[str] = ""

@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.3",
+  "schema_version": "1.0",
   "id": "oled",
   "name": "Status OLED",
   "description": "ESP8266 D1 Mini driving an SSD1306 128x64 I2C OLED with reset on D0. Shows time, date, and the device IP.",
