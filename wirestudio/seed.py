@@ -19,6 +19,7 @@ from __future__ import annotations
 from typing import Callable, Optional
 
 from wirestudio.library import Library, LibraryBoard
+from wirestudio.model import generated_bus_id
 
 # A handler turns one onboard-peripheral entry (its key + params) into a
 # component dict plus its connection dicts. It calls `ensure_bus(type)`
@@ -34,7 +35,7 @@ class _SeedContext:
         self.buses: dict[str, dict] = {}
 
     def ensure_bus(self, bus_type: str) -> Optional[str]:
-        bus_id = f"{bus_type}0"
+        bus_id = generated_bus_id(bus_type, 0)
         if bus_id in self.buses:
             return bus_id
         spec = (self.board.default_buses or {}).get(bus_type)

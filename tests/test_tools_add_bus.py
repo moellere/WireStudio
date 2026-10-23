@@ -45,7 +45,7 @@ def test_add_bus_fills_i2c_defaults_for_esp32_s3(library):
 
 def test_add_bus_fills_spi_defaults(library):
     design = _design("esp32-s3-devkitc-1")
-    result = _run_add_bus(design, library, id="spi0", type="spi")
+    result = _run_add_bus(design, library, id="spi_main", type="spi")
     assert result["ok"] is True
     bus = design["buses"][0]
     assert bus["clk"] == "GPIO12"
@@ -70,7 +70,7 @@ def test_add_bus_with_no_board_defaults_for_type_is_noop(library):
     be created, just without auto-filled pins. ESPHome won't compile
     until the user provides rx/tx, but the tool itself doesn't fail."""
     design = _design("esp32-s3-devkitc-1")
-    result = _run_add_bus(design, library, id="uart0", type="uart", baud_rate=115200)
+    result = _run_add_bus(design, library, id="uart_main", type="uart", baud_rate=115200)
     assert result["ok"] is True
     bus = design["buses"][0]
     assert bus["baud_rate"] == 115200
@@ -88,3 +88,13 @@ def test_add_bus_with_unknown_board_doesnt_crash(library):
     bus = design["buses"][0]
     assert bus["sda"] == "GPIO1"
     assert bus["scl"] == "GPIO2"
+
+
+def test_add_bus_refuses_an_id_esphome_reserves(library):
+    """ESPHome rejects uart0-uart2 and spi0/spi1 as ids; the tool says so
+    up front instead of leaving it to `esphome config`."""
+    design = _design("esp32-devkitc-v4")
+    result = _run_add_bus(design, library, id="uart0", type="uart", rx="GPIO16", tx="GPIO17")
+    assert result["ok"] is False
+    assert "reserved" in result["error"]
+    assert design["buses"] == []

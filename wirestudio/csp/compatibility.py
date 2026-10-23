@@ -16,6 +16,8 @@ restrictions that conflict with the use:
 - `locked_pin_invalid`  -- a component's `locked_pins[role]` points at a
                             board pin whose capabilities don't satisfy the
                             library role's required kind
+- `reserved_id`         -- a bus id ESPHome reserves (uart0, spi0, ...);
+                            `esphome config` refuses the render
 
 Pure: doesn't mutate the design, doesn't render, doesn't hit the network.
 Cheap enough to run on every render call.
@@ -26,6 +28,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from wirestudio.library import Library, LibraryComponent
+from wirestudio.model import RESERVED_BUS_IDS, generated_bus_id
 
 
 @dataclass
@@ -59,7 +62,15 @@ def _direction_for(kind: str) -> Optional[str]:
 
 
 def check_pin_compatibility(design: dict, library: Library) -> list[CompatibilityWarning]:
-    out: list[CompatibilityWarning] = []
+    out: list[CompatibilityWarning] = [
+        CompatibilityWarning(
+            severity="error", code="reserved_id", pin="", component_id=str(b["id"]),
+            pin_role="id",
+            message=f"Bus id '{b['id']}' is reserved by ESPHome, which refuses the "
+                    f"render. Rename it, e.g. to '{generated_bus_id(str(b.get('type', 'bus')), 0)}'.",
+        )
+        for b in design.get("buses") or [] if b.get("id") in RESERVED_BUS_IDS
+    ]
 
     board_lib_id = (design.get("board") or {}).get("library_id")
     if not board_lib_id:

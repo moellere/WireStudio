@@ -21,7 +21,7 @@ from wirestudio.kicad.fab import fab_status, generate_bom, generate_cpl
 from wirestudio.kicad.pcb import PcbUnavailable, generate_kicad_pcb
 from wirestudio.library import Library
 from wirestudio.library.check import check_component_yaml, create_component
-from wirestudio.model import Design
+from wirestudio.model import RESERVED_BUS_IDS, Design, generated_bus_id
 from wirestudio.recommend.recommender import Constraints, recommend_components
 from wirestudio.validate import check_board_flash, check_electrical, check_net_targets, check_part_overrides
 
@@ -177,7 +177,9 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
             "Add a bus to the design. `type` must be one of i2c / spi / uart "
             "/ 1wire / i2s. Other fields depend on the type: i2c needs "
             "sda + scl, spi needs clk + miso? + mosi?, uart needs rx + tx + "
-            "baud_rate, i2s needs lrclk + bclk."
+            "baud_rate (+ parity?), 1wire needs pin, i2s needs lrclk + bclk. "
+            "ESPHome reserves the ids uart0-uart2 and spi0-spi1; pick a "
+            "descriptive id such as co2_uart."
         ),
         "input_schema": {
             "type": "object",
@@ -196,6 +198,8 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                 "baud_rate": {"type": "integer"},
                 "lrclk": {"type": "string"},
                 "bclk": {"type": "string"},
+                "pin": {"type": "string", "description": "1-wire data pin."},
+                "parity": {"type": "string", "enum": ["NONE", "EVEN", "ODD"]},
             },
             "required": ["id", "type"],
             "additionalProperties": False,
@@ -581,6 +585,9 @@ def _run_set_strict(design: dict, library: Library, *, enabled: bool) -> dict:
 
 def _run_add_bus(design: dict, library: Library, **fields: Any) -> dict:
     buses = design.setdefault("buses", [])
+    if fields["id"] in RESERVED_BUS_IDS:
+        return {"ok": False, "error": f"bus id '{fields['id']}' is reserved by ESPHome; "
+                                      f"pick another, e.g. '{generated_bus_id(fields.get('type', 'bus'), 0)}'"}
     if any(b.get("id") == fields["id"] for b in buses):
         return {"ok": False, "error": f"bus id '{fields['id']}' already exists"}
 
