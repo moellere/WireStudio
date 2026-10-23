@@ -3,10 +3,13 @@
 Not a target plugin: Meshtastic devices run stock firmware, so nothing
 is generated from the design -- the design only tells us which board is
 being flashed. Release binaries are individual files on
-meshtastic.github.io (the same host the official web flasher uses). Since
-2.7 the clean-install image is `firmware-<env>-<ver>.bin` (the old
-`.factory.bin`) and flashes at 0x0 with a full erase; `-update.bin` is the
-app-only OTA image.
+meshtastic.github.io (the same host the official web flasher uses). The
+clean-install image flashes at 0x0 with a full erase. Its name is not
+stable: 2.7.26 publishes it as `firmware-<env>-<ver>.factory.bin` beside
+an app-only `.bin`, while 2.7.15 published it as the plain `.bin` beside
+an app-only `-update.bin`. So each candidate is checked to carry its own
+bootloader and partition table before it is served; an app-only image
+written at 0x0 leaves the board boot-looping on "flash read err, 1000".
 
 Post-flash configuration (region, channels) is protobuf over serial,
 not a text console, so there is no serial config push here -- the UI
@@ -56,16 +59,32 @@ def _fetch_firmware(url: str) -> bytes:
     return resp.content
 
 
-def release_url(board: str, version: str | None = None) -> tuple[str, str]:
-    """(download URL, version) of the Meshtastic factory image for a
-    library board; the newest stable unless `version` pins one. The image
-    flashes at 0x0 with a full erase."""
+def install_image(board: str, version: str | None = None) -> tuple[bytes, str, str]:
+    """(image, filename, version) of the clean-install image for a library
+    board; the newest stable unless `version` pins one. Raises LookupError
+    when the board has no mapping or the release has no merged image."""
+    import httpx
+
+    from wirestudio.mcp.hardware import is_merged_image
+
     variant = _VARIANTS.get(board)
     if variant is None:
         raise LookupError(f"no Meshtastic firmware mapping for board '{board}'")
     ver = (version or _latest_stable()).lstrip("v")
-    filename = f"firmware-{variant}-{ver}.bin"
-    return f"{_FILES_BASE}/firmware-{ver}/{filename}", ver
+    tried: list[str] = []
+    for suffix in (".factory.bin", ".bin"):
+        filename = f"firmware-{variant}-{ver}{suffix}"
+        try:
+            data = _fetch_firmware(f"{_FILES_BASE}/firmware-{ver}/{filename}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code != 404:
+                raise
+            tried.append(f"{filename} not published")
+            continue
+        if is_merged_image(data):
+            return data, filename, ver
+        tried.append(f"{filename} is app-only")
+    raise LookupError(f"Meshtastic {ver} has no clean-install image for {variant}: {'; '.join(tried)}")
 
 
 def firmware_status() -> dict:
@@ -99,9 +118,7 @@ def router() -> APIRouter:
                 detail=f"no Meshtastic firmware mapping for board '{board}'",
             )
         try:
-            url, _ = release_url(board, version)
-            filename = url.rsplit("/", 1)[-1]
-            data = _fetch_firmware(url)
+            data, filename, _ = install_image(board, version)
         except Exception as e:
             raise HTTPException(
                 status_code=502, detail=f"could not fetch firmware: {describe(e)}"
