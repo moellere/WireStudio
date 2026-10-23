@@ -22,9 +22,11 @@ default_buses:
 #   pull_down_external        - board has a fixed pull-down (e.g., 10K to GND)
 #   serial_tx / serial_rx     - shared with the USB serial console
 #   no_pwm / no_i2c           - functional restrictions on this pin
+#   no_fast_gpio              - outside the GPIO register block (RTC pin):
+#                               no bit-banged WS2812 data
 #   adc_max_1v                - ADC pin with a 1.0V max input ceiling
 gpio_capabilities:
-  D0:  [gpio, no_pwm, no_i2c, no_interrupt]               # GPIO16 (only pin with internal pull-down only)
+  D0:  [gpio, no_pwm, no_i2c, no_interrupt, no_fast_gpio]               # GPIO16 (only pin with internal pull-down only)
   D1:  [gpio, i2c_scl]                                     # GPIO5
   D2:  [gpio, i2c_sda]                                     # GPIO4
   D3:  [gpio, strap, boot_high, pull_up_external]          # GPIO0  (10k pull-up; boot mode pin)

@@ -87,6 +87,7 @@ def _gpio_candidates_for_pin(
     is_classic_esp32 = getattr(board, "chip_variant", None) == "esp32"
     requires_pwm = getattr(lib_pin, "requires_pwm", False)
     requires_interrupt = getattr(lib_pin, "requires_interrupt", False)
+    requires_fast_gpio = getattr(lib_pin, "requires_fast_gpio", False)
     candidates: list[tuple[int, int, int, str]] = []
     for name, caps in board.gpio_capabilities.items():
         cap_set = set(caps)
@@ -103,6 +104,8 @@ def _gpio_candidates_for_pin(
         # An interrupt-driven input (pulse_counter) can't live on a pin that
         # can't fire edge interrupts (ESP8266 GPIO16).
         if requires_interrupt and "no_interrupt" in cap_set:
+            continue
+        if requires_fast_gpio and "no_fast_gpio" in cap_set:
             continue
         # Prefer non-special pins. Boot strap pins (boot_high / boot_low) and
         # the legacy `boot` / `strap` / `builtin_led` tags all count as

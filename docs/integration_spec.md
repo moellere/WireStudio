@@ -14,7 +14,7 @@ Every downstream artifact is generated from these files plus a user's
 | Phase | Consumes |
 |---|---|
 | Catalog & search | `id`, `name`, `category`, `use_cases`, `aliases`, `image` |
-| Pin solving (CSP) | `electrical.pins` (kind, requires_pwm, requires_interrupt), board `gpio_capabilities`, `default_buses` |
+| Pin solving (CSP) | `electrical.pins` (kind, requires_pwm, requires_interrupt, requires_fast_gpio), board `gpio_capabilities`, `default_buses` |
 | Electrical validation | `electrical.vcc_min/max`, `current_ma_*`, `pull_up`, `passives`, board `rails`, board `current_ma_*` |
 | ESPHome YAML + compile | `esphome.required_components`, `esphome.yaml_template`, `params_schema`, board `platformio_board`, `framework`, `chip_variant` |
 | Automations | `capability` (provides / accepts / checks) |
@@ -98,6 +98,8 @@ with `parent_library_id`), `passthrough` (a connector position: carries
 no signal of its own, see *Connectors* below). Flags on a pin: `requires_pwm: true` for
 PWM/analog outputs (solver avoids `no_pwm` pins), `requires_interrupt:
 true` for edge-counted inputs (solver avoids `no_interrupt` pins),
+`requires_fast_gpio: true` for bit-banged LED data (solver avoids
+`no_fast_gpio` pins),
 `voltage` when a pin's level differs from VCC.
 
 ```yaml
@@ -352,7 +354,8 @@ GPIO tags: capability tags (`gpio`, `pwm`, `adc`, `adc1`, `adc2`,
 `strap` + `boot_high`/`boot_low` (level required at boot),
 `pull_up_external` / `pull_down_external` (fixed board resistor),
 `serial_tx`/`serial_rx` (shared with the USB console), `input_only`,
-`no_pull_internal`, `no_pwm`, `no_i2c`, `no_interrupt`, `adc_max_1v`.
+`no_pull_internal`, `no_pwm`, `no_i2c`, `no_interrupt`, `no_fast_gpio`,
+`adc_max_1v`.
 Tag accuracy is the single highest-value thing a vendor can review:
 strap and ADC2/Wi-Fi conflicts are exactly what users can't see in a
 pinout diagram.
