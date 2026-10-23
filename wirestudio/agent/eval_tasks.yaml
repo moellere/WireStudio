@@ -15,11 +15,12 @@
 # gate.min_pass is the pass count the nightly run of the embedded agent
 # must hold, and gate.claude_code_min_pass the same for Claude Code over
 # MCP (`--driver claude-code`). Each is 0 until its first run records a
-# score; set it to that score, and raise it when a change lifts the count.
+# score. Runs on one commit differ by a task, so a gate sits one below the
+# lower of two runs; raise it when a change lifts the count.
 
 gate:
   min_pass: 0
-  claude_code_min_pass: 0
+  claude_code_min_pass: 24
 
 tasks:
   # --- garage-motion: ESP32 DevKitC, PIR on GPIO13, BME280 on i2c0 -----

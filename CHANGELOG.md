@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **The agent eval's Claude Code gate is 24 of 28.** Two runs on the
+  same commit scored 26 and 25, so `gate.claude_code_min_pass` sits a
+  task below the lower one and the nightly fails on a real regression,
+  not on run-to-run variation.
+
 ## [0.42.0] — 2026-10-23
 
 ### Added
