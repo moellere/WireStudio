@@ -27,9 +27,9 @@ on a dedicated board nothing depends on: reflashing a board that carries
 real traffic costs a rejoin, a DevNonce and about ten minutes of
 downtime each time. A flash device skips `serial`, since what it prints
 at rest depends on which framework the previous run left on it; `boot`
-asserts its output instead. A framework with no established boot marker
-fails `boot` with the output it captured, which is how a marker gets
-established.
+asserts its output instead, from a reset issued through the bench once
+the flash is done -- the reset esptool issues happens before the bench's
+recorder is back, so that first boot is never captured.
 
 Exit code is 0 when every enabled check passes, 1 when one fails,
 and 2 when the roster itself is unusable -- a bad config must not read
@@ -252,17 +252,16 @@ async def run(config: dict, report: Report, client=None, chirp=None, dashboard=N
 
         dashboard = dashboard or DashboardClient()
         library = default_library()
-        capture_s = float(config.get("boot_capture_s", 20))
         for dev in flashers:
             for framework in dev["flash"]:
-                await _flash_one(dev, framework, client, report, library, dashboard, capture_s)
+                await _flash_one(dev, framework, client, report, library, dashboard)
 
 
 async def _flash_one(dev: dict, framework: str, client, report: Report, library,
-                     dashboard, capture_s: float) -> None:
+                     dashboard) -> None:
     from wirestudio.errors import describe
     from wirestudio.workbench import images
-    from wirestudio.workbench.boot import boot_check, verify_boot
+    from wirestudio.workbench.boot import verify_boot
 
     label = dev["slot"]
     subject = f"{label}/{framework}"
@@ -273,7 +272,6 @@ async def _flash_one(dev: dict, framework: str, client, report: Report, library,
         report.add("flash", subject, False, str(e))
         return
 
-    t0 = time.time()
     try:
         async for _ in client.flash(label, images=[(image.offset, image.data)],
                                     chip=board.chip_variant, erase=True):
@@ -283,15 +281,8 @@ async def _flash_one(dev: dict, framework: str, client, report: Report, library,
         return
     report.add("flash", subject, True, f"{image.version}, {len(image.data)} bytes at {image.offset:#x}")
 
-    if boot_check(framework) is None:
-        await asyncio.sleep(capture_s)
-        lines = await client.output(label, lines=200, since=t0)
-        captured = " | ".join(e.get("text", "").strip() for e in lines[:12]) or "nothing"
-        report.add("boot", subject, False,
-                   f"no boot marker established for {framework}; captured: {captured}")
-        return
     try:
-        res = await verify_boot(client, label, framework, since=t0)
+        res = await verify_boot(client, label, framework, reset=True)
     except Exception as e:
         report.add("boot", subject, False, describe(e))
         return

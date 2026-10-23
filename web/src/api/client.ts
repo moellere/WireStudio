@@ -365,7 +365,7 @@ export const api = {
     request<{ slot: string; lines: WorkbenchOutputLine[] }>(
       `/workbench/slots/${encodeURIComponent(slot)}/output?since=${since}`,
     ),
-  workbenchVerifyBoot: (body: { slot: string; framework: string; since?: number; check_join?: boolean }) =>
+  workbenchVerifyBoot: (body: { slot: string; framework: string; since?: number; check_join?: boolean; reset?: boolean }) =>
     request<WorkbenchBootResult>("/workbench/verify-boot", { method: "POST", body: JSON.stringify(body) }),
   kicadRouteStatus: () =>
     request<KicadRouteStatus>("/design/kicad/route/status"),

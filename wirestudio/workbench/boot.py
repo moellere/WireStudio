@@ -8,15 +8,17 @@ firmware emits, read through the bench's read-only serial fan-out so
 watching cannot disturb what is being watched.
 
 Every marker here comes from a line observed on hardware or emitted by a
-template in this repo; none are guessed. Frameworks whose success
-signature has not been established are absent rather than approximated --
-see UNSUPPORTED.
+template in this repo; none are guessed.
 """
 from __future__ import annotations
 
+import asyncio
 import re
+import time
 from dataclasses import dataclass
 from typing import Optional
+
+from wirestudio.workbench.client import WorkbenchUnavailable
 
 # ESPHome colours its log lines; the escapes survive into the buffer and
 # make a returned line unreadable in JSON.
@@ -73,6 +75,15 @@ BOOT_CHECKS["circuitpython"] = BootCheck(
     timeout_s=30.0,
 )
 
+# Meshtastic logs this from setup() once the filesystem and power state
+# are known. Observed on a TTGO T3 V1.6.1 running 2.7.26: "INFO  | ??:??:??
+# 0 Booted, wake cause 0 (boot count 1), reset_reason=reset".
+BOOT_CHECKS["meshtastic"] = BootCheck(
+    pattern="Booted, wake cause",
+    proves="Meshtastic firmware started",
+    timeout_s=30.0,
+)
+
 
 # Joined: the device reached the network. Deliberately separate from
 # booting, because the first join after a flash reliably fails and only
@@ -94,16 +105,6 @@ JOIN_CHECKS: dict[str, BootCheck] = {
     ),
 }
 
-# Frameworks this cannot verify yet, and why. Listed so the gap is a
-# recorded fact rather than an apparent oversight.
-UNSUPPORTED: dict[str, str] = {
-    "meshtastic": (
-        "no boot signature established -- needs a Meshtastic board on the "
-        "bench to observe one"
-    ),
-}
-
-
 def boot_check(framework: str) -> Optional[BootCheck]:
     return BOOT_CHECKS.get(framework)
 
@@ -114,6 +115,29 @@ def join_check(framework: str) -> Optional[BootCheck]:
 
 def supported_frameworks() -> list[str]:
     return sorted(BOOT_CHECKS)
+
+
+async def reset_for_boot(client, slot: str, wait_s: float = 60.0) -> float:
+    """Reset `slot` through the bench and return the epoch just before it.
+
+    The reset esptool issues at the end of a flash happens while the
+    bench's recorder is still detached, so the boot it triggers is lost --
+    and an ESPHome boot burst is over in a fraction of a second. Once the
+    slot is idle again the recorder is back, and a reset from there is
+    captured whole. The cost is a second boot, which for a LoRaWAN device
+    means a second join.
+    """
+    deadline = time.monotonic() + wait_s
+    while True:
+        ok, reason = (await client.slot(slot)).flashable
+        if ok:
+            break
+        if time.monotonic() >= deadline:
+            raise WorkbenchUnavailable(f"{slot} not idle after {int(wait_s)}s: {reason}")
+        await asyncio.sleep(1.0)
+    since = time.time()
+    await client.reset(slot)
+    return since
 
 
 async def _match(client, slot: str, check: BootCheck, since: Optional[float]) -> dict:
@@ -157,6 +181,7 @@ async def verify_boot(
     *,
     since: Optional[float] = None,
     check_join: bool = False,
+    reset: bool = False,
 ) -> dict:
     """Assert the firmware on `slot` started, and optionally that it joined.
 
@@ -164,6 +189,10 @@ async def verify_boot(
     flashing and the already-captured buffer is searched before waiting
     on new output, which removes the race between a device booting and
     the caller getting around to watching.
+
+    `reset` restarts the board through the bench first and searches from
+    that reset, replacing `since`. Straight after a flash this is the
+    only way to see the boot: see `reset_for_boot`.
 
     Returns {"ok", "booted", "framework", "checks": [...]} -- never raises
     for a failed assertion, only for an unreachable bench. A board that
@@ -174,13 +203,12 @@ async def verify_boot(
         return {
             "ok": False,
             "framework": framework,
-            "error": UNSUPPORTED.get(
-                framework,
-                f"no boot marker for '{framework}'; known: "
-                f"{', '.join(supported_frameworks())}",
-            ),
+            "error": f"no boot marker for '{framework}'; known: "
+                     f"{', '.join(supported_frameworks())}",
         }
 
+    if reset:
+        since = await reset_for_boot(client, slot)
     checks: list[dict] = []
     res = await _match(client, slot, check, since)
     booted = res["matched"]

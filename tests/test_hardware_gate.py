@@ -258,13 +258,25 @@ def test_an_off_bench_device_without_a_dev_eui_is_rejected(tmp_path):
 
 
 class FlashBench(FakeBench):
-    """Records writes; after one, the slot prints what `boot_lines` scripts
-    for the framework whose image was written last."""
+    """Records writes. Like the real bench, the boot that follows a write
+    goes unrecorded; a reset afterwards prints what `boot_lines` scripts
+    for the framework written last."""
 
     def __init__(self, slots, boot_lines, fail_write=False):
         super().__init__(slots)
         self.boot_lines, self.fail_write = boot_lines, fail_write
         self.writes: list[dict] = []
+        self.resets: list[str] = []
+        self._written: dict[str, str] = {}
+
+    async def slot(self, label):
+        return next(s for s in self._slots if s.label == label)
+
+    async def reset(self, slot):
+        self.resets.append(slot)
+        self._lines[slot] = [{"ts": time.time(), "text": t}
+                             for t in self.boot_lines.get(self._written.get(slot, ""), [])]
+        return {"ok": True}
 
     async def flash(self, slot, images, chip="esp32", erase=False, baud=921600):
         from wirestudio.workbench import WorkbenchUnavailable
@@ -272,8 +284,8 @@ class FlashBench(FakeBench):
         if self.fail_write:
             raise WorkbenchUnavailable("flash failed: A fatal error occurred: No serial data received.")
         self.writes.append({"slot": slot, "images": images, "chip": chip, "erase": erase})
-        self._lines[slot] = [{"ts": time.time(), "text": t}
-                             for t in self.boot_lines.get(images[0][1].decode(), [])]
+        self._written[slot] = images[0][1].decode()
+        self._lines[slot] = []
         yield {"type": "log", "data": "Hash of data verified."}
         yield {"type": "done", "ok": True, "slot": slot, "returncode": 0}
 
@@ -298,7 +310,6 @@ def fake_images(monkeypatch):
 
 
 FLASH_CONFIG = {
-    "boot_capture_s": 0,
     "devices": [{"slot": "SLOT2", "name": "spare S3", "board": "esp32-s3-devkitc-1",
                  "flash": ["esphome", "micropython", "circuitpython"]}],
 }
@@ -307,7 +318,7 @@ BOOTS = {
     "esphome": ["[I][app:117]: setup() finished successfully!"],
     "micropython": ["MicroPython v1.26.1 on 2025-09-11; Generic ESP32S3 module with ESP32S3"],
     "circuitpython": ["Adafruit CircuitPython 10.3.1 on 2026-09-14; Espressif ESP32 DevKitc V4 WROOM-32E with ESP32"],
-    "meshtastic": ["INFO  | ??:??:?? 0 Booting Meshtastic"],
+    "meshtastic": ["INFO  | ??:??:?? 0 Booted, wake cause 0 (boot count 1), reset_reason=reset"],
 }
 
 
@@ -331,18 +342,22 @@ async def test_a_flash_device_skips_the_serial_stage(fake_images):
     assert not [r for r in report.rows if r[0] == "serial"]
 
 
-async def test_a_framework_without_a_marker_fails_with_what_it_printed(fake_images):
-    """Passing it would claim a verdict nobody established; the captured
-    output is what establishes one."""
+async def test_boot_is_read_from_a_reset_after_each_write(fake_images):
+    """covbench, 2026-10-23: the boot esptool triggers is never recorded,
+    so without a reset ESPHome failed on a healthy board."""
     report = gate.Report()
-    bench = FlashBench([FakeSlot("SLOT3", chip="esp32s3")], BOOTS)
-    cfg = {"boot_capture_s": 0, "devices": [
-        {"slot": "SLOT3", "board": "heltec-wifi-lora32-v3", "flash": ["meshtastic"]}]}
-    await gate.run(cfg, report, client=bench)
+    bench = FlashBench([FakeSlot("SLOT2", chip="esp32s3")], BOOTS)
+    await gate.run(FLASH_CONFIG, report, client=bench)
+    assert bench.resets == ["SLOT2"] * 3
 
-    row = next(r for r in report.rows if r[:2] == ("boot", "SLOT3/meshtastic"))
-    assert row[2] is False
-    assert "Booting Meshtastic" in row[3]
+
+async def test_meshtastic_boots_on_its_marker(fake_images):
+    report = gate.Report()
+    bench = FlashBench([FakeSlot("SLOT3", chip="esp32")], BOOTS)
+    cfg = {"devices": [
+        {"slot": "SLOT3", "board": "ttgo-lora32-v2", "flash": ["meshtastic"]}]}
+    await gate.run(cfg, report, client=bench)
+    assert ("boot", "SLOT3/meshtastic", True) in [r[:3] for r in report.rows]
 
 
 async def test_circuitpython_boots_on_its_banner(fake_images):

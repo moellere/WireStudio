@@ -113,8 +113,10 @@ def router(client_factory: Optional[Callable[[], WorkbenchClient]] = None) -> AP
     async def workbench_verify_boot(body: dict = Body(...)) -> dict:
         """Assert the firmware on a slot booted: watch its serial for the
         framework's boot marker, searching what the recorder already
-        captured since `since` before waiting on new output. A board
-        that flashed but did not boot is a result, not an error."""
+        captured since `since` before waiting on new output. `reset`
+        restarts the board through the bench first, which a check straight
+        after a flash needs. A board that flashed but did not boot is a
+        result, not an error."""
         from wirestudio.workbench.boot import verify_boot
 
         slot = str(body.get("slot") or "")
@@ -130,6 +132,7 @@ def router(client_factory: Optional[Callable[[], WorkbenchClient]] = None) -> AP
                 wc, slot, framework,
                 since=float(since) if since is not None else None,
                 check_join=bool(body.get("check_join", False)),
+                reset=bool(body.get("reset", False)),
             )
         except WorkbenchUnavailable as e:
             raise HTTPException(status_code=502, detail=str(e)) from e

@@ -228,7 +228,6 @@ library board and the frameworks to write, in order; the last one stays
 on the board until the next run:
 
 ```yaml
-boot_capture_s: 20          # output kept for a framework with no marker
 devices:
   - slot: SLOT2
     name: spare ESP32-S3
@@ -249,11 +248,15 @@ leaves its own filesystem behind.
 
 A flash device skips the `serial` stage: what it prints at rest depends
 on which framework the previous run left. `boot` asserts the markers in
-`wirestudio/workbench/boot.py`. A framework with none established
-(Meshtastic today) fails `boot` with the first lines
-it printed after the write; the marker comes from that output once it
-has been seen on hardware. An `esphome` compile takes minutes, so the
-CronJob's deadline has to allow for one per flash board.
+`wirestudio/workbench/boot.py`, reading from a reset the gate issues
+through the bench (`POST /api/serial/reset`) once the slot is idle
+again. The reset esptool issues at the end of a write comes before the
+bench reattaches its recorder, so that first boot is never captured --
+an ESPHome boot is over in a fraction of a second, and the gate failed
+it on a healthy board until the second reset went in. The flash dialog
+and `workbench_verify_boot(reset=true)` do the same. An `esphome`
+compile takes minutes, so the CronJob's deadline has to allow for one
+per flash board.
 
 ### How a failure reaches you
 

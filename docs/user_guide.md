@@ -161,7 +161,7 @@ pinned via `WIRESTUDIO_MCP_TOKEN`). See [the MCP guide](mcp.md#auth).
 | `POST` | `/esphome/push` | render `design.json`, write it to the dashboard as `<device_name>.yaml`, optionally start a compile there |
 | `GET`  | `/esphome/jobs/{run_id}` · `/log` · `/log/stream` · `/firmware` | verdict, incremental log, SSE relay and firmware download for a dashboard compile, the same shapes as the fleet routes |
 | `GET`  | `/workbench/slots/{slot}/output?since=` | lines the bench's recorder captured on a slot after an epoch; the flash dialog relays them after a slot flash |
-| `POST` | `/workbench/verify-boot` | `{slot, framework, since?}`: did the firmware boot? Searches the recorder from `since`, then watches for the framework's marker |
+| `POST` | `/workbench/verify-boot` | `{slot, framework, since?, reset?}`: did the firmware boot? Searches the recorder from `since`, then watches for the framework's marker. `reset` restarts the board through the bench first and searches from there, which a check straight after a flash needs |
 | `POST` | `/tasmota/template` | emit a Tasmota device template (solved pins → GPIO function ids) |
 | `GET`  | `/tasmota/firmware?chip=` | proxy the official Tasmota release image for the chip (`/tasmota/firmware/status` gates it) |
 | `GET`  | `/meshtastic/firmware?board=` | proxy the official Meshtastic factory image for a mapped radio board (`/meshtastic/firmware/status` gates it) |
