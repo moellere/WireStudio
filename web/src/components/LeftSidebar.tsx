@@ -1,15 +1,22 @@
 import { useMemo, useState } from "react";
-import { FolderHeart, FolderOpen, Cpu, Component, Boxes } from "lucide-react";
+import { FolderHeart, FolderOpen, Cpu, Component, Boxes, Users } from "lucide-react";
 import { Loading, Empty } from "./Status";
 import type {
   BoardSummary,
+  CommunityEntry,
   ComponentSummary,
   ExampleSummary,
   ModuleSummary,
   SavedDesignSummary,
 } from "../types/api";
 
-type Tab = "examples" | "saved" | "boards" | "components" | "modules";
+type Tab = "examples" | "gallery" | "saved" | "boards" | "components" | "modules";
+
+/** The community catalogue, or null when the studio has it turned off. */
+export interface CommunityList {
+  items: CommunityEntry[] | null;
+  error: string | null;
+}
 
 interface Props {
   examples: ExampleSummary[] | null;
@@ -17,9 +24,12 @@ interface Props {
   boards: BoardSummary[] | null;
   components: ComponentSummary[] | null;
   modules: ModuleSummary[] | null;
+  community: CommunityList | null;
   selectedExample: string | null;
+  selectedCommunity: string | null;
   selectedSaved: string | null;
   onSelectExample: (id: string) => void;
+  onSelectCommunity: (slug: string) => void;
   onSelectSaved: (id: string) => void;
   onDeleteSaved: (id: string) => void;
   onSelectBoard: (id: string) => void;
@@ -35,9 +45,12 @@ export function LeftSidebar(props: Props) {
   return (
     <aside className="flex min-h-0 flex-col border-r border-line bg-surface-0">
       <div className="flex border-b border-line p-2 gap-1 bg-surface-0">
-        {(["examples", "saved", "boards", "components", "modules"] as const).map((t) => {
+        {(["examples", "gallery", "saved", "boards", "components", "modules"] as const)
+          .filter((t) => t !== "gallery" || props.community !== null)
+          .map((t) => {
           const Icon =
             t === "examples" ? FolderOpen
+            : t === "gallery" ? Users
             : t === "saved" ? FolderHeart
             : t === "boards" ? Cpu
             : t === "modules" ? Boxes
@@ -51,7 +64,7 @@ export function LeftSidebar(props: Props) {
                   ? "bg-surface-2 text-ink ring-1 ring-line-strong/50"
                   : "text-ink-dim hover:bg-surface-1 hover:text-ink"
               }`}
-              title={t.charAt(0).toUpperCase() + t.slice(1)}
+              title={t === "gallery" ? "Community designs" : t.charAt(0).toUpperCase() + t.slice(1)}
             >
               <Icon className="h-4 w-4" />
               <span className="text-[10px] font-medium capitalize tracking-wide">
@@ -84,6 +97,14 @@ export function LeftSidebar(props: Props) {
             search={search}
             selected={props.selectedExample}
             onSelect={props.onSelectExample}
+          />
+        )}
+        {tab === "gallery" && props.community && (
+          <CommunityGallery
+            list={props.community}
+            search={search}
+            selected={props.selectedCommunity}
+            onSelect={props.onSelectCommunity}
           />
         )}
         {tab === "saved" && (
@@ -243,6 +264,60 @@ function ExamplesList({
                 <span className="h-1 w-1 shrink-0 rounded-full bg-line-strong"></span>
                 <span className="truncate font-mono">{e.board_library_id}</span>
               </div>
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function CommunityGallery({
+  list, search, selected, onSelect,
+}: {
+  list: CommunityList;
+  search: string;
+  selected: string | null;
+  onSelect: (slug: string) => void;
+}) {
+  const filtered = useMemo(() => {
+    if (!list.items) return null;
+    const q = search.trim().toLowerCase();
+    if (!q) return list.items;
+    return list.items.filter((d) =>
+      [d.name, d.slug, d.author, d.board, ...d.tags, ...d.components].some((s) => s.toLowerCase().includes(q)));
+  }, [list.items, search]);
+
+  if (list.error) return <Empty>Community designs unavailable: {list.error}</Empty>;
+  if (filtered === null) return <Loading />;
+  if (filtered.length === 0) {
+    return <Empty>{search ? "No community designs match." : "No community designs yet. Share one of yours."}</Empty>;
+  }
+
+  return (
+    <ul className="space-y-1.5 text-sm">
+      {filtered.map((d) => {
+        const active = selected === d.slug;
+        return (
+          <li key={d.slug}>
+            <button
+              onClick={() => onSelect(d.slug)}
+              title={d.description || d.name}
+              className={`w-full rounded-md px-3 py-2 text-left transition-all ${
+                active
+                  ? "bg-accent-500/5 text-ink ring-1 ring-inset ring-accent-500/50"
+                  : "bg-surface-2/40 hover:bg-surface-2"
+              }`}
+            >
+              <div className="truncate font-medium text-ink">{d.name}</div>
+              <div className="mt-1 flex items-center gap-2 truncate text-xs text-ink-faint">
+                <span className="shrink-0 font-medium text-ink-dim">@{d.author}</span>
+                <span className="h-1 w-1 shrink-0 rounded-full bg-line-strong"></span>
+                <span className="truncate font-mono">{d.board}</span>
+              </div>
+              {d.tags.length > 0 && (
+                <div className="mt-1 truncate text-[10px] text-ink-ghost">{d.tags.join(" · ")}</div>
+              )}
             </button>
           </li>
         );

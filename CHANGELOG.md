@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Community designs.** The studio reads the community catalogue,
+  [`moellere/wirestudio-designs`](https://github.com/moellere/wirestudio-designs),
+  whose CI checks every submission against this release's own gates
+  and publishes an index.
+  - **Gallery.** A new sidebar tab lists the catalogue's designs and
+    opens one like an example. An imported design carries a new
+    optional `origin` field (catalogue, slug, author, license), so the
+    CC-BY credit survives edits.
+  - **Share.** The new header button downloads the open design as the
+    folder the catalogue expects and opens its upload page. The
+    folder's `meta.yaml` names the design it was derived from. Share
+    refuses a design that holds a literal credential.
+  - **API.** The routes are `/community/status`, `/community/designs`,
+    `/community/designs/{slug}` and `POST /community/share`.
+    `WIRESTUDIO_DESIGNS_REPO` points them at a fork, or turns them off
+    when empty.
+
 ## [0.43.0] — 2026-10-23
 
 ### Fixed

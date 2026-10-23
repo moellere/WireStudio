@@ -44,6 +44,7 @@ of them, just with the corresponding feature turned off. See
 | `CHIRPSTACK_API_URL` + `CHIRPSTACK_API_TOKEN` | LoRaWAN device provisioning against ChirpStack (`/lorawan/provision`, `/lorawan/provision-esphome`) |
 | `ESPHOME_DASHBOARD_URL` (+ `ESPHOME_DASHBOARD_USERNAME` / `_PASSWORD`) | compile through an ESPHome Device Builder (`/esphome/*`); the port-exposed add-on or a standalone builder (ESPHome 2026.6+), not the HA ingress path |
 | `WORKBENCH_URL` (+ `WORKBENCH_TOKEN`) | remote flash + LoRaWAN bring-up against an Embedded AI Harness (`/workbench/*`) |
+| `WIRESTUDIO_DESIGNS_REPO` | the community catalogue the Gallery tab and Share use (`/community/*`); `owner/repo`, default `moellere/wirestudio-designs`, empty to turn it off. Needs outbound HTTPS to `raw.githubusercontent.com` |
 | `LIBRARY_USER_DIR` | where studio-authored components are saved (`/data/library` in the image) |
 | `INVENTORY_PATH` | the inventory file (`/data/inventory.json` in the image) |
 | `DESIGNS_DB` / `SESSIONS_DB` | one SQLite file each in place of the `DESIGNS_DIR` / `SESSIONS_DIR` directories |

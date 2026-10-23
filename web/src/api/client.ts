@@ -5,6 +5,8 @@ import type {
   AgentTurnResponse,
   BoardSummary,
   ChirpstackStatus,
+  CommunityEntry,
+  CommunityStatus,
   ComponentSummary,
   EnclosureSearchResponse,
   EnclosureSearchStatus,
@@ -200,6 +202,12 @@ export const api = {
 
   listExamples: () => request<ExampleSummary[]>("/examples"),
   getExample: (id: string) => request<Design>(`/examples/${encodeURIComponent(id)}`),
+  communityStatus: () => request<CommunityStatus>("/community/status"),
+  communityDesigns: () => request<{ repo: string; designs: CommunityEntry[] }>("/community/designs"),
+  communityDesign: (slug: string) =>
+    request<{ design: Design; entry: CommunityEntry }>(`/community/designs/${encodeURIComponent(slug)}`),
+  communityShare: (body: { design: Design; author: string; tags: string[]; notes?: string }) =>
+    requestBlob("/community/share", { method: "POST", body: JSON.stringify(body) }),
 
   // --- Local component inventory ---
   listInventory: () => request<InventoryEntry[]>("/inventory"),

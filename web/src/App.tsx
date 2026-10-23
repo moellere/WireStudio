@@ -5,6 +5,7 @@ import type {
   BoardSummary,
   ComponentSummary,
   Design,
+  CommunityStatus,
   ExampleSummary,
   ModuleSummary,
   PinAssignment,
@@ -12,7 +13,7 @@ import type {
   SavedDesignSummary,
   SolverWarning,
 } from "./types/api";
-import { LeftSidebar } from "./components/LeftSidebar";
+import { LeftSidebar, type CommunityList } from "./components/LeftSidebar";
 import { DesignPane } from "./components/DesignPane";
 import { Inspector, type Selection } from "./components/Inspector";
 import { UsbDetectDialog } from "./components/UsbDetectDialog";
@@ -29,6 +30,7 @@ import { LorawanProvisionEsphomeDialog } from "./components/LorawanProvisionEsph
 import { InventoryDialog } from "./components/InventoryDialog";
 import { ComponentEditorDialog, NEW_COMPONENT_TEMPLATE } from "./components/ComponentEditorDialog";
 import { SettingsDialog } from "./components/SettingsDialog";
+import { ShareDialog } from "./components/ShareDialog";
 import { useDebouncedValue } from "./lib/debounce";
 import { useAdvancedMode } from "./lib/uiMode";
 import { useTheme } from "./lib/theme";
@@ -36,6 +38,7 @@ import {
   Bot,
   FilePlus,
   Save,
+  Share2,
   Wand2,
   Usb,
   Plus,
@@ -76,6 +79,10 @@ export default function App() {
   const [version, setVersion] = useState<string | null>(null);
 
   const [selectedExample, setSelectedExample] = useState<string | null>(null);
+  const [communityStatus, setCommunityStatus] = useState<CommunityStatus | null>(null);
+  const [community, setCommunity] = useState<CommunityList | null>(null);
+  const [selectedCommunity, setSelectedCommunity] = useState<string | null>(null);
+  const [showShareDialog, setShowShareDialog] = useState(false);
   const [originalDesign, setOriginalDesign] = useState<Design | null>(null);
   const [design, setDesign] = useState<Design | null>(null);
 
@@ -161,6 +168,7 @@ export default function App() {
         setModules(md);
         setSavedDesigns(sv);
         if (ex.length > 0) setSelectedExample(ex[0].id);
+        void loadCommunity();
       } catch (e) {
         const msg = e instanceof ApiError
           ? `${e.status}: ${e.message}`
@@ -440,11 +448,47 @@ export default function App() {
     }
   }
 
+  // The catalogue is optional: off, unreachable or slow, the rest of the
+  // studio carries on and the gallery tab says why.
+  async function loadCommunity() {
+    let status: CommunityStatus;
+    try {
+      status = await api.communityStatus();
+    } catch {
+      return;
+    }
+    setCommunityStatus(status);
+    if (!status.enabled) return;
+    setCommunity({ items: null, error: null });
+    try {
+      const { designs } = await api.communityDesigns();
+      setCommunity({ items: designs, error: null });
+    } catch (e) {
+      setCommunity({ items: null, error: e instanceof Error ? e.message : String(e) });
+    }
+  }
+
+  async function handleSelectCommunity(slug: string) {
+    try {
+      const { design: d } = await api.communityDesign(slug);
+      setOriginalDesign(d);
+      setDesign(d);
+      setSelectedExample(null);
+      setSelectedSaved(null);
+      setSelectedCommunity(slug);
+      setSelection({ kind: "design" });
+    } catch (e) {
+      const msg = e instanceof ApiError ? `${e.status}: ${e.message}` : String(e);
+      setRenderError(msg);
+    }
+  }
+
   function handleAdoptDetectedDesign(d: Design) {
     setOriginalDesign(d);
     setDesign(d);
     setSelectedExample(null);  // detached from the examples sidebar
     setSelectedSaved(null);
+    setSelectedCommunity(null);
     setSelection({ kind: "design" });
     setShowUsbDialog(false);
   }
@@ -454,6 +498,7 @@ export default function App() {
     setDesign(d);
     setSelectedExample(null);
     setSelectedSaved(null);
+    setSelectedCommunity(null);
     setSelection({ kind: "design" });
     setShowNewDialog(false);
   }
@@ -464,6 +509,7 @@ export default function App() {
       setOriginalDesign(d);
       setDesign(d);
       setSelectedExample(null);
+      setSelectedCommunity(null);
       setSelectedSaved(id);
       setSelection({ kind: "design" });
     } catch (e) {
@@ -607,6 +653,18 @@ export default function App() {
                 {savingState === "saving" ? "Saving..." : savingState === "saved" ? "Saved" : "Save"}
               </span>
             </button>
+
+            {communityStatus?.enabled && (
+              <button
+                disabled={!design}
+                onClick={() => setShowShareDialog(true)}
+                className="flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium text-ink-dim transition-colors enabled:hover:bg-surface-2 enabled:hover:text-ink disabled:opacity-40"
+                title="Share this design to the community catalogue"
+              >
+                <Share2 className="h-4 w-4" />
+                <span className="hidden sm:inline">Share</span>
+              </button>
+            )}
 
             <div className="mx-1 h-4 w-px bg-line-strong"></div>
 
@@ -814,9 +872,12 @@ export default function App() {
           boards={boards}
           components={components}
           modules={modules}
+          community={community}
           selectedExample={selectedExample}
+          selectedCommunity={selectedCommunity}
+          onSelectCommunity={handleSelectCommunity}
           selectedSaved={selectedSaved}
-          onSelectExample={(id) => { setSelectedSaved(null); setSelectedExample(id); }}
+          onSelectExample={(id) => { setSelectedSaved(null); setSelectedCommunity(null); setSelectedExample(id); }}
           onSelectSaved={handleSelectSaved}
           onDeleteSaved={handleDeleteSaved}
           onSelectBoard={(id) => setSelection({ kind: "board", id })}
@@ -952,6 +1013,9 @@ export default function App() {
         />
       )}
       {showSettingsDialog && <SettingsDialog onClose={() => setShowSettingsDialog(false)} />}
+      {showShareDialog && design && communityStatus?.enabled && (
+        <ShareDialog design={design} status={communityStatus} onClose={() => setShowShareDialog(false)} />
+      )}
       {tokenDialog}
       <AgentSidebar
         open={showAgent}

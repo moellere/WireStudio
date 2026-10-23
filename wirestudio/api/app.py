@@ -257,6 +257,7 @@ def create_app(
     inventory: Optional[InventoryStore] = None,
     workbench_client_factory=None,
     printwarden_client_factory=None,
+    community_fetch=None,
     api_token: Optional[str] = None,
 ) -> FastAPI:
     import os as _os
@@ -1979,6 +1980,10 @@ def create_app(
     from wirestudio.api.workbench import router as workbench_router
 
     app.include_router(workbench_router(workbench_client_factory), prefix="/workbench")
+
+    from wirestudio.api.community import router as community_router
+
+    app.include_router(community_router(lib, community_fetch), prefix="/community")
 
     if mcp_server is not None:
         # Streamable HTTP transport. mcp_server.streamable_http_app() registers
