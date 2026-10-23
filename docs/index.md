@@ -51,7 +51,7 @@ under upstream ESPHome.
   ├─ wirestudio.agent         Claude tool-using agent + session store
   ├─ wirestudio.designs       file-backed designs/<id>.json store
   ├─ wirestudio.fleet         fleet-for-esphome HTTP client
-  ├─ wirestudio.esphome_dashboard  ESPHome dashboard client + in-process compile jobs
+  ├─ wirestudio.esphome_dashboard  ESPHome Device Builder client + in-process compile jobs
   ├─ wirestudio.enclosure     parametric OpenSCAD + Thingiverse search
   ├─ wirestudio.kicad         SKiDL schematic emitter, PCB emit/route, .kicad_sym importer
   ├─ wirestudio.jlcpcb        fab outputs (BOM / CPL / Gerber + drill)
@@ -277,11 +277,11 @@ check re-run shows the new BOM.
 
 **Compile through an ESPHome dashboard.** *Works.* A second build path
 beside fleet-for-esphome: `ESPHOME_DASHBOARD_URL` points at the HA
-add-on (port exposed) or a standalone dashboard; the push dialog and
+add-on (port exposed) or a standalone ESPHome Device Builder (ESPHome 2026.6+); the push dialog and
 the `esphome_dashboard_*` MCP tools write the YAML, start a compile,
 stream the log and report the verdict with the same shapes as the
-fleet path. The wire format was validated against a live 2026.6.5
-dashboard, with and without a password, and is isolated in one module;
+fleet path. The wire format (the Device Builder's WebSocket API) was validated against a live
+ESPHome 2026.10.0 builder, with and without a password, and is isolated in one module;
 see `docs/integrations.md`.
 
 **MicroPython flashing + codegen.** *Works.* The CircuitPython pattern
@@ -445,7 +445,8 @@ shipped, hardware join verification in progress.* Two paths share the
   the device in ChirpStack, flushes its DevNonces, and returns the
   three secrets ready for `secrets.yaml`. The web flasher has a
   one-click flow: detect chip → derive DevEUI from eFuse MAC → provision
-  → push to fleet (secrets inlined) → poll activation. See the
+  → push to fleet, or to the ESPHome dashboard when fleet is not
+  configured (secrets inlined) → poll activation. See the
   [LoRaWAN docs](lorawan/) — `esphome-component-pivot.md` for the
   architecture, `workflow-integration.md` for the orchestration.
 

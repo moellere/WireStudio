@@ -1,22 +1,25 @@
-"""Compile through an ESPHome dashboard (the HA add-on or a standalone
-`esphome dashboard`), as a second build path beside fleet-for-esphome.
+"""Compile through an ESPHome Device Builder (the dashboard shipped with
+ESPHome 2026.6 and later, the HA add-on, or `esphome dashboard`), as a
+second build path beside fleet-for-esphome.
 
-The dashboard schedules its own build workers; the studio only submits.
-Push writes the rendered YAML as `<device>.yaml` through the dashboard's
-editor endpoint, compile opens its `/compile` websocket and relays the
-line events, and the artifact comes back through `/download.bin`. The
-wire details are the constants and the small methods below, validated
-against `esphome dashboard` 2026.6.5 with and without a password: the
-login form carries Tornado's `_xsrf` token, the auth cookie must ride the
-websocket too, `/devices` names a config by `configuration`, and the
-artifact names come from `/downloads` (ESP32 builds ship
-`firmware.factory.bin` + `firmware.ota.bin`, ESP8266 `firmware.bin`).
+The Device Builder schedules its own build workers; the studio only
+submits. Everything but the artifact download rides its single `/ws`
+WebSocket: push writes the rendered YAML as `<device>.yaml` with
+`devices/create`, compile queues `firmware/compile` and relays the line
+events of `firmware/follow_job`, and the artifact names come from
+`firmware/get_binaries` (ESP32 builds ship a factory and an OTA image,
+ESP8266 a single `.bin`). The image itself is a plain HTTP GET with a
+single-use token from `firmware/download_token`. A password-protected
+builder announces `requires_auth` on connect and takes `auth/login`
+in band. The wire details are the constants and small methods below,
+validated against ESPHome 2026.10.0 with and without a password. The
+legacy Tornado dashboard (`/login`, `/edit`, `/download.bin`) is gone
+upstream and not spoken here.
 
-Jobs are in-process: the dashboard has no job id of its own, so the
-studio runs each compile as a task, buffers the log, and hands out a
-run_id that the same log / status / firmware routes the fleet path
-uses can poll. A studio restart forgets running jobs; the dashboard
-keeps compiling, and a re-push starts a fresh one.
+Jobs are in-process: the studio runs each compile as a task, buffers
+the log, and hands out a run_id that the same log / status / firmware
+routes the fleet path uses can poll. A studio restart forgets running
+jobs; the builder keeps compiling, and a re-push starts a fresh one.
 """
 from __future__ import annotations
 
@@ -24,23 +27,18 @@ import asyncio
 import json
 import os
 import secrets
+from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Any, Optional
 
 import httpx
 
 from wirestudio.errors import describe
 
-DEVICES_PATH = "/devices"
-EDIT_PATH = "/edit"
-COMPILE_WS_PATH = "/compile"
-DOWNLOADS_PATH = "/downloads"
-DOWNLOAD_PATH = "/download.bin"
-LOGIN_PATH = "/login"
-AUTH_COOKIE = "authenticated"
-XSRF_COOKIE = "_xsrf"
+WS_PATH = "/ws"
+DOWNLOAD_PATH = "/api/firmware/download"
 
 _TIMEOUT = 15.0
 _ARTIFACT_TIMEOUT = 120.0
@@ -67,12 +65,72 @@ class JobLogChunk:
 WsConnect = Callable[[str, dict[str, str]], Awaitable[object]]
 
 
-class DashboardClient:
-    """Thin client over the dashboard's HTTP + websocket surface.
+class _Conn:
+    """One authenticated WebSocket: request/response commands and streams,
+    matched to their replies by message_id."""
 
-    `transport` injects an httpx transport for tests; `ws_connect` injects
-    the websocket connector (defaults to the `websockets` package) so the
-    compile stream is testable without a socket.
+    def __init__(self, ws: Any) -> None:
+        self._ws = ws
+        self._next = 0
+
+    async def _send(self, command: str, args: dict) -> str:
+        self._next += 1
+        mid = str(self._next)
+        await self._ws.send(json.dumps({"command": command, "message_id": mid, "args": args}))
+        return mid
+
+    async def _frames(self, mid: str) -> AsyncIterator[dict]:
+        async for raw in self._ws:
+            try:
+                frame = json.loads(raw)
+            except (TypeError, ValueError):
+                continue
+            if isinstance(frame, dict) and frame.get("message_id") == mid:
+                if "error_code" in frame:
+                    raise _CommandError(str(frame["error_code"]), str(frame.get("details", "")))
+                yield frame
+        raise _Closed("dashboard closed the websocket mid-command")
+
+    async def call(self, command: str, args: Optional[dict] = None) -> Any:
+        mid = await self._send(command, args or {})
+        async for frame in self._frames(mid):
+            if "result" in frame:
+                return frame["result"]
+        return None
+
+    async def stream(self, command: str, args: dict) -> AsyncIterator[dict]:
+        """Yield the `output` / `result` event frames of a streaming command."""
+        mid = await self._send(command, args)
+        async for frame in self._frames(mid):
+            if frame.get("event") in ("output", "result"):
+                yield frame
+                if frame["event"] == "result":
+                    return
+
+    async def close(self) -> None:
+        try:
+            await self._ws.close()
+        except Exception:
+            pass
+
+
+class _Closed(DashboardUnavailable):
+    pass
+
+
+class _CommandError(Exception):
+    def __init__(self, code: str, details: str) -> None:
+        super().__init__(f"{code}: {details}" if details else code)
+        self.code = code
+
+
+class DashboardClient:
+    """Thin client over the Device Builder's WebSocket command API.
+
+    `transport` injects an httpx transport for the artifact download in
+    tests; `ws_connect` injects the websocket connector (defaults to the
+    `websockets` package) so the command channel is testable without a
+    socket.
     """
 
     def __init__(
@@ -89,73 +147,61 @@ class DashboardClient:
         self.password = password if password is not None else os.environ.get("ESPHOME_DASHBOARD_PASSWORD")
         self._transport = transport
         self._ws_connect = ws_connect
-        self._cookies = httpx.Cookies()
 
     def is_configured(self) -> bool:
         return bool(self.base_url)
 
-    def _client(self) -> httpx.AsyncClient:
-        return httpx.AsyncClient(
-            base_url=self.base_url, timeout=_TIMEOUT, transport=self._transport,
-            cookies=self._cookies, follow_redirects=False,
-        )
+    def _ws_url(self) -> str:
+        return self.base_url.replace("https://", "wss://", 1).replace("http://", "ws://", 1) + WS_PATH
 
-    async def _login(self, c: httpx.AsyncClient) -> None:
-        """Take the dashboard's session cookie once; the login form is
-        Tornado xsrf-protected, so the token comes from a GET first."""
-        if not (self.username and self.password) or self._cookies.get(AUTH_COOKIE):
-            return
+    @asynccontextmanager
+    async def _session(self) -> AsyncIterator[_Conn]:
+        """Connect, read the server-info frame, log in when it asks."""
+        connect = self._ws_connect or _default_ws_connect
         try:
-            page = await c.get(LOGIN_PATH)
-            xsrf = c.cookies.get(XSRF_COOKIE) or page.cookies.get(XSRF_COOKIE) or ""
-            resp = await c.post(
-                LOGIN_PATH,
-                data={"username": self.username, "password": self.password, XSRF_COOKIE: xsrf},
-            )
-        except httpx.HTTPError as e:
+            ws = await asyncio.wait_for(connect(self._ws_url(), {}), _TIMEOUT)
+        except Exception as e:
+            raise DashboardUnavailable(f"dashboard websocket failed: {describe(e)}") from e
+        conn = _Conn(ws)
+        try:
+            try:
+                info = json.loads(await asyncio.wait_for(ws.recv(), _TIMEOUT))
+            except Exception as e:
+                raise DashboardUnavailable(
+                    f"dashboard sent no server info on {WS_PATH}; is the URL an ESPHome Device Builder? ({describe(e)})"
+                ) from e
+            if not isinstance(info, dict) or "requires_auth" not in info:
+                raise DashboardUnavailable(f"unexpected greeting on {WS_PATH}; is the URL an ESPHome Device Builder?")
+            if info["requires_auth"]:
+                if not (self.username and self.password):
+                    raise DashboardUnavailable(
+                        "dashboard requires a login; set ESPHOME_DASHBOARD_USERNAME and ESPHOME_DASHBOARD_PASSWORD"
+                    )
+                try:
+                    await conn.call("auth/login", {"username": self.username, "password": self.password})
+                except _CommandError as e:
+                    raise DashboardUnavailable("dashboard rejected ESPHOME_DASHBOARD_USERNAME / PASSWORD") from e
+            yield conn
+        except _CommandError as e:
+            raise DashboardUnavailable(f"dashboard refused the command: {e}") from e
+        except DashboardUnavailable:
+            raise
+        except (OSError, asyncio.TimeoutError) as e:
             raise DashboardUnavailable(f"dashboard unreachable: {describe(e)}") from e
-        if resp.status_code == 401:
-            raise DashboardUnavailable("dashboard rejected ESPHOME_DASHBOARD_USERNAME / PASSWORD")
-        if resp.status_code >= 400 or not c.cookies.get(AUTH_COOKIE):
-            raise DashboardUnavailable(f"dashboard login failed: HTTP {resp.status_code}")
-        self._cookies.update(c.cookies)
-
-    def _cookie_header(self) -> dict[str, str]:
-        if not self._cookies:
-            return {}
-        return {"Cookie": "; ".join(f"{k}={v}" for k, v in self._cookies.items())}
-
-    def _xsrf_header(self) -> dict[str, str]:
-        """A password-protected dashboard xsrf-checks every POST; the
-        token rides a header so the YAML body stays raw."""
-        token = self._cookies.get(XSRF_COOKIE)
-        return {"X-XSRFToken": token} if token else {}
-
-    @staticmethod
-    def _expect_ok(resp: httpx.Response, path: str) -> None:
-        if resp.status_code in (302, 303) and LOGIN_PATH.lstrip("/") in resp.headers.get("location", ""):
-            raise DashboardUnavailable(
-                "dashboard requires a login; set ESPHOME_DASHBOARD_USERNAME and ESPHOME_DASHBOARD_PASSWORD"
-            )
-        if resp.status_code != 200:
-            raise DashboardUnavailable(f"dashboard answered HTTP {resp.status_code} on {path}")
+        except Exception as e:
+            if type(e).__module__.startswith("websockets"):
+                raise DashboardUnavailable(f"dashboard websocket failed: {describe(e)}") from e
+            raise
+        finally:
+            await conn.close()
 
     async def list_devices(self) -> list[str]:
         """Config filenames the dashboard knows (`x.yaml`)."""
-        async with self._client() as c:
-            await self._login(c)
-            try:
-                resp = await c.get(DEVICES_PATH)
-            except httpx.HTTPError as e:
-                raise DashboardUnavailable(f"dashboard unreachable: {describe(e)}") from e
-            self._expect_ok(resp, DEVICES_PATH)
-            try:
-                body = resp.json()
-            except ValueError as e:
-                raise DashboardUnavailable("dashboard did not answer JSON on /devices; is the URL the dashboard itself?") from e
+        async with self._session() as c:
+            body = await c.call("devices/list")
         configured = body.get("configured") if isinstance(body, dict) else None
         if not isinstance(configured, list):
-            raise DashboardUnavailable("unexpected /devices shape from the dashboard")
+            raise DashboardUnavailable("unexpected devices/list shape from the dashboard")
         return [str(d["configuration"]) for d in configured if isinstance(d, dict) and d.get("configuration")]
 
     async def is_available(self) -> tuple[bool, Optional[str]]:
@@ -166,96 +212,91 @@ class DashboardClient:
         return True, None
 
     async def push_device(self, device_name: str, yaml: str) -> PushResult:
-        filename = f"{_validate_name(device_name)}.yaml"
-        existing = await self.list_devices()
-        async with self._client() as c:
-            await self._login(c)
+        name = _validate_name(device_name)
+        async with self._session() as c:
+            body = await c.call("devices/list")
+            existing = {
+                str(d.get("configuration")) for d in (body.get("configured") or []) if isinstance(d, dict)
+            } if isinstance(body, dict) else set()
             try:
-                resp = await c.post(
-                    EDIT_PATH, params={"configuration": filename},
-                    content=yaml.encode(),
-                    headers={"content-type": "text/plain; charset=utf-8", **self._xsrf_header()},
+                made = await c.call(
+                    "devices/create",
+                    {"name": name, "friendly_name": name, "file_content": yaml, "overwrite": True},
                 )
-            except httpx.HTTPError as e:
-                raise DashboardUnavailable(f"dashboard unreachable: {describe(e)}") from e
-            if resp.status_code != 200:
-                self._expect_ok(resp, EDIT_PATH)
+            except _CommandError as e:
+                if e.code == "invalid_args":
+                    raise ValueError(str(e)) from e
+                raise
+        filename = str(made.get("configuration")) if isinstance(made, dict) and made.get("configuration") else f"{name}.yaml"
         return PushResult(filename=filename, created=filename not in existing)
 
     async def compile(self, filename: str) -> AsyncIterator[dict]:
         """Yield {"type": "log", "data": line} per output line, then
         {"type": "done", "ok": bool, "code": int}."""
-        async with self._client() as c:
-            await self._login(c)
-        url = self.base_url.replace("https://", "wss://", 1).replace("http://", "ws://", 1) + COMPILE_WS_PATH
-        connect = self._ws_connect or _default_ws_connect
-        try:
-            ws = await connect(url, self._cookie_header())
-        except Exception as e:
-            raise DashboardUnavailable(f"dashboard websocket failed: {describe(e)}") from e
-        try:
-            await ws.send(json.dumps({"type": "spawn", "configuration": filename}))
-            async for raw in ws:
-                try:
-                    frame = json.loads(raw)
-                except (TypeError, ValueError):
-                    continue
-                event = frame.get("event")
-                if event == "line":
-                    yield {"type": "log", "data": str(frame.get("data", ""))}
-                elif event == "exit":
-                    code = int(frame.get("code", 1))
-                    yield {"type": "done", "ok": code == 0, "code": code}
-                    return
-            yield {"type": "done", "ok": False, "code": -1, "reason": "dashboard closed the stream before exit"}
-        finally:
+        async with self._session() as c:
+            job = await c.call("firmware/compile", {"configuration": filename})
+            job_id = job.get("job_id") if isinstance(job, dict) else None
+            if not job_id:
+                raise DashboardUnavailable("dashboard did not return a job id for firmware/compile")
             try:
-                await ws.close()
-            except Exception:
+                async for frame in c.stream("firmware/follow_job", {"job_id": job_id}):
+                    if frame["event"] == "output":
+                        yield {"type": "log", "data": str(frame.get("data", ""))}
+                        continue
+                    data = frame.get("data") if isinstance(frame.get("data"), dict) else {}
+                    code = data.get("exit_code")
+                    ok = data.get("status") == "completed" and code in (0, None)
+                    yield {"type": "done", "ok": ok, "code": code if isinstance(code, int) else (0 if ok else 1)}
+                    return
+            except _Closed:
                 pass
+        yield {"type": "done", "ok": False, "code": -1, "reason": "dashboard closed the stream before the job finished"}
 
     async def downloads(self, filename: str) -> list[dict]:
         """The dashboard's artifact list for a built config (`title`,
-        `file`, `download` per entry); empty when nothing was built."""
-        async with self._client() as c:
-            await self._login(c)
+        `file`, `type` per entry); empty when nothing was built."""
+        async with self._session() as c:
             try:
-                resp = await c.get(DOWNLOADS_PATH, params={"configuration": filename})
-            except httpx.HTTPError as e:
-                raise DashboardUnavailable(f"dashboard unreachable: {describe(e)}") from e
-            if resp.status_code == 404:
-                return []
-            self._expect_ok(resp, DOWNLOADS_PATH)
-            try:
-                body = resp.json()
-            except ValueError as e:
-                raise DashboardUnavailable(f"dashboard did not answer JSON on {DOWNLOADS_PATH}") from e
+                body = await c.call("firmware/get_binaries", {"configuration": filename})
+            except _CommandError as e:
+                if e.code == "not_found":
+                    return []
+                raise
         return [d for d in body if isinstance(d, dict) and d.get("file")] if isinstance(body, list) else []
 
     async def firmware(self, filename: str, *, factory: bool = False) -> Optional[bytes]:
         """The built image, or None when the dashboard has none for it.
         `factory` picks the merged image (flash at 0x0) over the OTA one;
         a platform with a single artifact returns that one either way."""
-        entries = await self.downloads(filename)
-        if not entries:
-            return None
-        want = "factory" if factory else "ota"
-        chosen = next((d for d in entries if want in str(d["file"])), entries[0])
-        async with self._client() as c:
-            await self._login(c)
+        async with self._session() as c:
             try:
-                resp = await c.get(
-                    DOWNLOAD_PATH, params={"configuration": filename, "file": chosen["file"]},
-                    timeout=_ARTIFACT_TIMEOUT,
-                )
+                entries = await c.call("firmware/get_binaries", {"configuration": filename})
+            except _CommandError as e:
+                if e.code == "not_found":
+                    return None
+                raise
+            entries = [d for d in entries if isinstance(d, dict) and d.get("file")] if isinstance(entries, list) else []
+            images = [d for d in entries if d.get("type") != "elf"]
+            if not images:
+                return None
+            want = "factory" if factory else "ota"
+            chosen = next((d for d in images if d.get("type") == want or want in str(d["file"])), images[0])
+            minted = await c.call("firmware/download_token", {"configuration": filename, "file": chosen["file"]})
+        token = minted.get("token") if isinstance(minted, dict) else None
+        if not token:
+            raise DashboardUnavailable("dashboard did not mint a download token")
+        async with httpx.AsyncClient(
+            base_url=self.base_url, timeout=_ARTIFACT_TIMEOUT, transport=self._transport, follow_redirects=False,
+        ) as h:
+            try:
+                resp = await h.get(DOWNLOAD_PATH, params={"token": token})
             except httpx.HTTPError as e:
                 raise DashboardUnavailable(f"dashboard unreachable: {describe(e)}") from e
-            # A missing file makes the dashboard shell out to `esphome idedata`,
-            # which answers 500 when the build never produced one.
-            if resp.status_code in (404, 500):
-                return None
-            self._expect_ok(resp, DOWNLOAD_PATH)
-            return resp.content or None
+        if resp.status_code == 404:
+            return None
+        if resp.status_code != 200:
+            raise DashboardUnavailable(f"dashboard answered HTTP {resp.status_code} on {DOWNLOAD_PATH}")
+        return resp.content or None
 
 
 async def _default_ws_connect(url: str, headers: dict[str, str]):

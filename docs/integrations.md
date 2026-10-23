@@ -79,41 +79,56 @@ specific reason (URL missing, unauthorized, unreachable).
 ## ESPHome dashboard
 
 The other compile path. **Push to ESPHome dashboard** writes the
-rendered YAML as `<device>.yaml` to a running ESPHome dashboard -- the
-Home Assistant add-on with its port exposed, or a standalone
-`esphome dashboard` -- and starts a compile there; the dashboard
-dispatches to its own build workers, the studio only submits. The log
-streams back over the dashboard's `/compile` websocket and the dialog
-shows the same passed / failed verdict the fleet path does. The push
-dialog offers both paths when both are configured and defaults to
+rendered YAML as `<device>.yaml` to a running
+[ESPHome Device Builder](https://github.com/esphome/device-builder) --
+the dashboard that ships with ESPHome 2026.6 and later, as the Home
+Assistant add-on with its port exposed, the `ghcr.io/esphome/esphome`
+image, or `esphome-device-builder` from PyPI -- and starts a compile
+there; the builder dispatches to its own build workers, the studio only
+submits. The log streams back over the builder's WebSocket API and the
+dialog shows the same passed / failed verdict the fleet path does. The
+push dialog offers both paths when both are configured and defaults to
 whichever one is.
 
 ```sh
-export ESPHOME_DASHBOARD_URL=http://homeassistant.local:6052
-# only if the dashboard has a username/password set:
+export ESPHOME_DASHBOARD_URL=http://device-builder:6052
+# only if the builder has a username/password set:
 export ESPHOME_DASHBOARD_USERNAME=... ESPHOME_DASHBOARD_PASSWORD=...
 python -m wirestudio.api
 ```
 
-`GET /esphome/status` probes `/devices`; `POST /esphome/push` returns
+A builder started with `ESPHOME_USERNAME` / `ESPHOME_PASSWORD` (for
+example `docker run -e ESPHOME_USERNAME=... -e ESPHOME_PASSWORD=...
+ghcr.io/esphome/esphome dashboard /config`) wants the same pair in
+`ESPHOME_DASHBOARD_USERNAME` / `_PASSWORD`. The URL is the builder's
+own, with no path: the studio connects to `/ws` under it.
+
+`GET /esphome/status` probes `devices/list`; `POST /esphome/push` returns
 a studio-local `run_id` that `GET /esphome/jobs/{run_id}`,
 `.../log`, `.../log/stream` (SSE) and `.../firmware` poll -- the same
 shapes as the fleet routes, so a client can follow either. Run ids do
-not survive a studio restart: the dashboard keeps compiling, and a
-re-push starts a fresh run. The dashboard behind HA ingress alone (no
+not survive a studio restart: the builder keeps compiling, and a
+re-push starts a fresh run. A builder behind HA ingress alone (no
 exposed port) is not reachable this way, because ingress needs an HA
 session.
 
-The wire format is validated against `esphome dashboard` 2026.6.5,
-open and password-protected: `/devices` (configs by `configuration`),
-`POST /edit?configuration=` with the raw YAML, the `/compile` websocket
-(`spawn`, then `line` / `exit` frames), `/downloads` for the artifact
-names (ESP32 builds ship `firmware.factory.bin` and `firmware.ota.bin`,
-ESP8266 `firmware.bin`) and `/download.bin?file=`. With a password the
-login form is xsrf-protected, every POST carries the token, and the
-websocket carries the session cookie; the client does all of that. Every
-path is named in one place (`wirestudio/esphome_dashboard/__init__.py`),
-so a dashboard release that moves one is a one-line change.
+The legacy Tornado dashboard (`/login`, `/edit`, `/download.bin`) was
+removed in ESPHome 2026.10 and the studio no longer speaks it; the
+legacy `/compile` route is not used either.
+
+The wire format is validated against ESPHome 2026.10.0 with Device
+Builder 1.25.0, open and password-protected. Everything but the image
+download is one WebSocket at `/ws`: the server announces
+`requires_auth` on connect and takes `auth/login` in band;
+`devices/list` names configs by `configuration`; `devices/create` with
+`file_content` and `overwrite` writes the YAML as `<name>.yaml`;
+`firmware/compile` returns a job and `firmware/follow_job` streams its
+`output` lines and a final `result` (`status`, `exit_code`);
+`firmware/get_binaries` lists the artifacts with a `type` tag (ESP32
+builds ship `factory` and `ota` images, ESP8266 a single `bin`), and a
+single-use `firmware/download_token` is redeemed with
+`GET /api/firmware/download?token=`. Every command and path is named in
+one place (`wirestudio/esphome_dashboard/__init__.py`).
 
 ## Enclosures
 
@@ -268,7 +283,10 @@ icon) drives the orchestration loop:
    fleet-for-esphome with the minted secrets inlined into the
    `lorawan:` block (via the `lorawan_secrets` field on
    `POST /fleet/push`), so the fleet's `secrets.yaml` doesn't need a
-   separate write. Compile is enqueued in the same call.
+   separate write. Compile is enqueued in the same call. When fleet is
+   not configured but an ESPHome dashboard is, the button reads "Push to
+   dashboard" and does the same through `POST /esphome/push`, which
+   takes the same `lorawan_secrets` field.
 4. **Join** — the dialog polls `GET /lorawan/activation/{dev_eui}`
    every few seconds; the join indicator flips when ChirpStack reports
    the OTAA join landed.

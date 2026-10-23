@@ -359,6 +359,10 @@ class DashboardPushRequest(_S):
     compile: bool = Field(default=True, description="Start a compile on the dashboard after writing the YAML.")
     device_name: Optional[str] = Field(default=None, description="Filename stem on the dashboard; defaults to fleet.device_name, then the design id.")
     strict: bool = Field(default=False, description="Refuse the push when warn/error compatibility issues remain.")
+    lorawan_secrets: Optional[dict[str, str]] = Field(
+        default=None,
+        description="Optional `{dev_eui, join_eui, app_key}` mapping inlined into the lorawan: block, as on /fleet/push.",
+    )
 
 
 class DashboardPushResponse(_S):

@@ -24,6 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The LoRaWAN provision dialog can build through the ESPHome
+  dashboard.** When fleet-for-esphome is not configured and
+  `ESPHOME_DASHBOARD_URL` is, "Push to dashboard" replaces "Push to
+  fleet" and the WebSerial flash reads the image from the dashboard run.
+  `POST /esphome/push` takes the same `lorawan_secrets` field as
+  `/fleet/push`.
 - **The agent eval runs through Claude Code.** `python -m
   wirestudio.agent.eval --driver claude-code` serves the studio's MCP
   endpoint on a local port and sends each task to `claude -p` with
@@ -436,6 +442,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   connector design, not only the pads it asks about.
 
 ### Changed
+
+- **The ESPHome dashboard path speaks the ESPHome Device Builder's
+  WebSocket API.** ESPHome 2026.6 replaced the Tornado dashboard with the
+  Device Builder and 2026.10 removed the old one, taking `/login`,
+  `/edit`, `/downloads` and `/download.bin` with it. `DashboardClient`
+  now pushes with `devices/create`, compiles with `firmware/compile` and
+  `firmware/follow_job`, lists artifacts with `firmware/get_binaries` and
+  downloads through a `firmware/download_token`; a password-protected
+  builder is logged into in band. The environment variables, routes and
+  MCP tools are unchanged. The legacy dashboard is no longer supported.
+  The nightly `dashboard` job runs `esphome-device-builder` 1.25.0
+  against ESPHome 2026.10.0.
 
 - **`START.md` is consolidated into `docs/`.** The decisions the 0.x
   working log held are reference pages: `docs/architecture.md` (the
