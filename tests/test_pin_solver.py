@@ -321,6 +321,24 @@ def test_interrupt_input_avoids_no_interrupt_pin(library):
     assert chosen != "D0"
 
 
+def test_ws2812_data_avoids_no_fast_gpio_pin(library):
+    """WS2812 data on an ESP8266 is bit-banged through the GPIO registers;
+    D0 (GPIO16, tagged no_fast_gpio) sits outside them and esphome config
+    refuses it. The agent eval's ws2812-strip task hit exactly this."""
+    d = _d1_mini_design(
+        [{"id": "strip", "library_id": "ws2812b", "params": {}}],
+        [{"component_id": "strip", "pin_role": "DIN", "target": {"kind": "gpio", "pin": ""}}],
+    )
+    used = ["D1", "D2", "D5", "D6", "D7"]
+    for i, pin in enumerate(used):
+        d["components"].append({"id": f"out{i}", "library_id": "gpio_output", "params": {}})
+        d["connections"].append({"component_id": f"out{i}", "pin_role": "OUT",
+                                 "target": {"kind": "gpio", "pin": pin}})
+    result = solve_pins(d, library)
+    chosen = next(a for a in result.assigned if a.component_id == "strip").new_target["pin"]
+    assert chosen != "D0"
+
+
 def test_net_targets_are_neither_solved_nor_conflicts(library):
     """A passthrough pin pointing at a role's GPIO shares that pin on purpose;
     the solver leaves net targets alone and reports no gpio conflict."""

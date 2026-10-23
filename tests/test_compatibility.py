@@ -171,6 +171,20 @@ def test_interrupt_input_on_no_interrupt_pin_is_an_error(lib):
     assert "interrupt" in errs[0].message
 
 
+def test_ws2812_data_on_no_fast_gpio_pin_is_an_error(lib):
+    """Hand-wiring WS2812 data to D1 Mini's D0 (GPIO16) is refused by
+    esphome config ("Bit bang only supports pins GPIO0-GPIO15")."""
+    d = _load("motion-turns-on-light")
+    for c in d["connections"]:
+        if c["pin_role"] == "DIN":
+            c["target"] = {"kind": "gpio", "pin": "D0"}
+    warnings = check_pin_compatibility(d, lib)
+    errs = [w for w in _by_code(warnings, "function_unsupported")
+            if w.pin == "D0" and w.pin_role == "DIN"]
+    assert len(errs) == 1
+    assert errs[0].severity == "error"
+
+
 def test_no_i2c_pin_used_as_i2c_bus_warns(lib):
     """D1 Mini's D0 is tagged no_i2c. If the user routes an I2C bus's SDA or
     SCL through D0, the validator should warn."""

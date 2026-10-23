@@ -35,7 +35,7 @@ gpio_capabilities:
   GPIO13: [gpio]
   GPIO14: [gpio]
   GPIO15: [gpio, strap, boot_low, pull_down_external]
-  GPIO16: [gpio, no_pwm, no_i2c, no_interrupt]
+  GPIO16: [gpio, no_pwm, no_i2c, no_interrupt, no_fast_gpio]
 
 # KiCad symbol mapping. ESP8285 shares the ESP-12 family footprint;
 # the SMD module form factor is what actually solders onto plug PCBs.
