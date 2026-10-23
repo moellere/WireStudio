@@ -293,6 +293,19 @@
       }
     },
 
+    "origin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["catalogue", "slug", "author", "license"],
+      "description": "The community-catalogue design this one was imported from, kept for attribution. No generator reads it.",
+      "properties": {
+        "catalogue": { "type": "string", "description": "GitHub owner/repo of the catalogue" },
+        "slug": { "type": "string" },
+        "author": { "type": "string", "description": "GitHub handle of the design's author" },
+        "license": { "type": "string" }
+      }
+    },
+
     "target": { "type": "string", "enum": ["esphome", "lorawan"], "default": "esphome", "description": "What generate produces: ESPHome YAML or standalone LoRaWAN firmware. The Tasmota template is an export of an esphome design (POST /tasmota/template), not a target value." },
 
     "strict": { "type": "boolean", "default": false, "description": "When true, warn/error compatibility entries and design warnings block generation instead of surfacing permissively." },

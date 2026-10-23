@@ -339,27 +339,44 @@ Section 4 covers the rest.
 and submit to is the most direct way to bring users in, and the schema
 it depends on is frozen at 1.0.
 
-- **Catalogue.** `moellere/wirestudio-designs`, a separate public
-  repository. Each design is a folder: `design.json` (fleet device
-  name and secret refs stripped), a `meta.yaml` (title, author, SPDX
-  license, tags, board, frameworks, `template: true|false`), and any
-  user-authored components it needs. CI generates `index.json` on
-  merge. Default license CC-BY-4.0.
-- **Review.** Submissions arrive as pull requests. CI runs the studio's
-  own gates (schema and migration, the structural and compatibility
-  checks, `esphome config` on the render, the component-authoring gate
-  for bundled parts) plus hygiene (no credentials, Wi-Fi names or IPs;
-  an SPDX license). Designs that compile or fetch code (`lambda:`,
-  `external_components:`, automation transforms) are labelled. The
-  owner approves every merge.
-- **Studio.** A "Community designs" view reads the index from a URL
-  set by environment (a fork or private catalogue works the same way);
-  import goes through `POST /designs`, which migrates; "Share" exports
-  a submission folder and opens a pre-filled pull request, with no
-  token in the studio.
-- **Photos.** Open: an image classifier and EXIF location stripping in
-  CI would gate them; the launch can ship without them, since every
-  design renders its own diagram.
+- **Catalogue (built).** `moellere/wirestudio-designs`. A design is a
+  folder: `design.json`, a `meta.yaml` (author, tags, and optional
+  `derived_from` and `source`) and an optional `README.md`. The name
+  and board come from the design itself. Every design is CC-BY-4.0.
+  After each merge, CI publishes `index.json` to the repository's
+  `index` branch.
+- **Review (built).** Submissions arrive as pull requests, and the
+  owner approves every merge. CI checks four things:
+  - the design loads in WireStudio after migration;
+  - its render passes `esphome config`;
+  - it holds no literal credentials;
+  - the folder holds nothing but those three files.
+
+  WireStudio and ESPHome are pinned in the catalogue's
+  `requirements.txt`.
+- **Studio (built).** A "Gallery" sidebar tab reads the index from
+  `WIRESTUDIO_DESIGNS_REPO` (default `moellere/wirestudio-designs`; a
+  fork works the same way, and empty turns it off).
+  - **Import** opens a design like an example. It records `origin`
+    (catalogue, slug, author, license) so the credit survives edits.
+  - **Share** refuses literal credentials and downloads the folder as
+    a zip. Its `meta.yaml` carries `derived_from` when the design came
+    from the catalogue. Share then opens the catalogue's upload page;
+    the user drags the folder in and opens the pull request, so the
+    studio holds no token. A pre-filled new-file URL was ruled out: it
+    carries one file, and a design and its meta are two.
+- **Left for 1.0.**
+  - Designs that depend on user-authored components. The pinned
+    library lacks those components, so CI refuses the design. The
+    folder would need to carry the component YAML and run it through
+    the component gate.
+  - The structural and compatibility checks in CI.
+  - A label for designs that compile or fetch code (`lambda:`,
+    `external_components:`).
+  - Seed designs, so the gallery does not open empty.
+- **Photos.** Open: CI would need an image classifier and EXIF
+  location stripping to gate them. Every design renders its own
+  diagram, so the catalogue launched without photos.
 
 ## Out of scope for 1.0
 
