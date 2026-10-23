@@ -54,7 +54,7 @@ from wirestudio.agent.session import FileSessionStore
 from wirestudio.agent.tools import TOOL_SCHEMAS, execute_tool
 from wirestudio.generate.yaml_gen import render_yaml
 from wirestudio.library import Library, default_library
-from wirestudio.model import Design
+from wirestudio.model import Design, missing_bus_pins
 from wirestudio.validate import dry_run, esphome_available, write_secrets_stub
 
 TASKS_PATH = Path(__file__).with_name("eval_tasks.yaml")
@@ -209,13 +209,6 @@ def change_failures(expect: Expect, initial: dict, final: dict) -> list[str]:
     return out
 
 
-_BUS_PINS = {
-    "i2c": (("sda",), ("scl",)),
-    "spi": (("clk",), ("miso", "mosi")),
-    "uart": (("rx", "tx"),),
-    "1wire": (("pin",),),
-    "i2s": (("lrclk",), ("bclk",)),
-}
 
 
 def structural_failures(design: dict, library: Library) -> list[str]:
@@ -233,10 +226,8 @@ def structural_failures(design: dict, library: Library) -> list[str]:
     board_pins = set(board.gpio_capabilities)
     users: dict[str, list[str]] = defaultdict(list)
     for bus in design.get("buses") or []:
-        groups = _BUS_PINS.get(bus.get("type"), ())
-        for group in groups:
-            if not any(bus.get(k) for k in group):
-                out.append(f"bus {bus.get('id')} has no {'/'.join(group)}")
+        for missing in missing_bus_pins(bus):
+            out.append(f"bus {bus.get('id')} has no {missing}")
         if bus.get("type") == "uart" and not bus.get("baud_rate"):
             out.append(f"bus {bus.get('id')} has no baud_rate")
         for k in ("sda", "scl", "clk", "miso", "mosi", "rx", "tx", "pin", "lrclk", "bclk"):

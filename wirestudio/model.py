@@ -76,6 +76,22 @@ def generated_bus_id(bus_type: str, n: int) -> str:
     return f"{bus_type}{n}"
 
 
+# Per bus type, the pin fields ESPHome needs: one of each group set.
+BUS_PIN_GROUPS: dict[str, tuple[tuple[str, ...], ...]] = {
+    "i2c": (("sda",), ("scl",)),
+    "spi": (("clk",), ("miso", "mosi")),
+    "uart": (("rx", "tx"),),
+    "1wire": (("pin",),),
+    "i2s": (("lrclk",), ("bclk",)),
+}
+
+
+def missing_bus_pins(bus: dict) -> list[str]:
+    """The pin groups `bus` leaves empty, e.g. ['pin'] or ['miso/mosi']."""
+    return ["/".join(group) for group in BUS_PIN_GROUPS.get(bus.get("type"), ())
+            if not any(bus.get(k) for k in group)]
+
+
 class Bus(_Strict):
     id: str
     type: Literal["i2c", "spi", "uart", "1wire", "i2s"]

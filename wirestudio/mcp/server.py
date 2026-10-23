@@ -341,7 +341,11 @@ def _register_design_tools(
             "Add a component instance to the design. Auto-generates a "
             "unique instance_id (or use `instance_id_hint`), sets `label` "
             "(default = library component name), copies any provided "
-            "`params`. Returns the new instance_id." + _DESIGN_ID_HINT
+            "`params`, and connects every pin: rails by voltage, bus pins to "
+            "the first matching bus, GPIO pins to a free board pin. Returns "
+            "the new instance_id, `assigned` (pin role -> target) and "
+            "`unbound`: pins it could not bind, which need add_bus or "
+            "set_connection." + _DESIGN_ID_HINT
         ),
     )
     def add_component(

@@ -21,7 +21,7 @@ from wirestudio.kicad.fab import fab_status, generate_bom, generate_cpl
 from wirestudio.kicad.pcb import PcbUnavailable, generate_kicad_pcb
 from wirestudio.library import Library
 from wirestudio.library.check import check_component_yaml, create_component
-from wirestudio.model import RESERVED_BUS_IDS, Design, generated_bus_id
+from wirestudio.model import RESERVED_BUS_IDS, Design, generated_bus_id, missing_bus_pins
 from wirestudio.recommend.recommender import Constraints, recommend_components
 from wirestudio.validate import check_board_flash, check_electrical, check_net_targets, check_part_overrides
 
@@ -79,8 +79,10 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
             "`label` (default = library component name), copies any provided "
             "`params`, and creates one connection per pin in the library "
             "entry. Power pins go to a matching rail by voltage; bus pins "
-            "(I2C/SPI/UART/I2S) link to the first matching bus in the design "
-            "or an empty placeholder. Returns the new instance_id."
+            "(I2C/SPI/UART/I2S) link to the first matching bus in the design; "
+            "GPIO pins get a free board pin, as solve_pins would. Returns the "
+            "new instance_id, `assigned` (pin role -> target) and `unbound`: "
+            "pins it could not bind, which need add_bus or set_connection."
         ),
         "input_schema": {
             "type": "object",
@@ -528,6 +530,7 @@ def _run_add_component(
     instance_id_hint: str | None = None,
     params: dict | None = None,
 ) -> dict:
+    before = {b.get("id") for b in design.get("buses") or []}
     instance_id, _ = add_component_with_connections(
         design, library,
         library_id=library_id,
@@ -535,7 +538,32 @@ def _run_add_component(
         instance_id_hint=instance_id_hint,
         params=params,
     )
-    return {"ok": True, "instance_id": instance_id}
+    # A bus seeded without pins (no board default for its type) cannot be
+    # filled in from here -- add_bus only adds -- so drop it and let the
+    # pin report as unbound; add_bus then solve_pins finishes the part.
+    empty = {b["id"] for b in design.get("buses") or []
+             if b.get("id") not in before and missing_bus_pins(b)}
+    if empty:
+        design["buses"] = [b for b in design["buses"] if b.get("id") not in empty]
+        for c in design.get("connections") or []:
+            if c["target"].get("kind") == "bus" and c["target"].get("bus_id") in empty:
+                c["target"] = {"kind": "bus", "bus_id": ""}
+    # Bind the new part's pins the way solve_pins would, without touching
+    # anything the design already had unbound.
+    solved = _solve_pins(design, library)
+    targets = {c["pin_role"]: c["target"] for c in solved.design.get("connections", [])
+               if c.get("component_id") == instance_id}
+    for c in design.get("connections") or []:
+        if c.get("component_id") == instance_id and c["pin_role"] in targets:
+            c["target"] = targets[c["pin_role"]]
+    out: dict = {"ok": True, "instance_id": instance_id}
+    assigned = {a.pin_role: a.new_target for a in solved.assigned if a.component_id == instance_id}
+    if assigned:
+        out["assigned"] = assigned
+    unbound = [w.text for w in solved.unresolved if w.text.startswith(f"{instance_id}.")]
+    if unbound:
+        out["unbound"] = unbound
+    return out
 
 
 def _run_remove_component(design: dict, library: Library, *, instance_id: str) -> dict:
