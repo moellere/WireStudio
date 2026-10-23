@@ -55,6 +55,32 @@ export interface ExampleSummary {
   mcu: string;
 }
 
+export interface CommunityStatus {
+  enabled: boolean;
+  repo?: string;
+  license?: string;
+  index_url?: string;
+  upload_url?: string;
+  contributing_url?: string;
+}
+
+/** One entry of the community catalogue's index.json. */
+export interface CommunityEntry {
+  slug: string;
+  name: string;
+  description: string;
+  author: string;
+  tags: string[];
+  license: string;
+  derived_from: string | null;
+  source: string | null;
+  board: string;
+  mcu: string;
+  components: string[];
+  updated: string | null;
+  page_url: string;
+}
+
 export interface CompatibilityWarning {
   severity: "info" | "warn" | "error";
   code: string;

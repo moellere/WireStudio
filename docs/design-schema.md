@@ -123,6 +123,11 @@ and migrated on load (`wirestudio.migrate`); see
 | `fleet.tags[]` | string |  |  |  |
 | `fleet.secrets_ref` | object |  |  |  |
 | `fleet.secrets_ref{}` | string |  |  |  |
+| `origin` | object |  |  | The community-catalogue design this one was imported from, kept for attribution. No generator reads it. |
+| `origin.catalogue` | string | yes |  | GitHub owner/repo of the catalogue |
+| `origin.slug` | string | yes |  |  |
+| `origin.author` | string | yes |  | GitHub handle of the design's author |
+| `origin.license` | string | yes |  |  |
 | `target` | enum |  | `"esphome"`, `"lorawan"` | What generate produces: ESPHome YAML or standalone LoRaWAN firmware. The Tasmota template is an export of an esphome design (POST /tasmota/template), not a target value. |
 | `strict` | boolean |  | default `false` | When true, warn/error compatibility entries and design warnings block generation instead of surfacing permissively. |
 | `lorawan` | object |  |  |  |

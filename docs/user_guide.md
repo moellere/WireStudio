@@ -117,7 +117,7 @@ Inspector surfaces:
   Form ⇄ Pinout view toggle for drag-and-drop pin assignment, 🔓/🔒
   per-row pin lock.
 
-Header buttons: **New design**, **Reset**, **Save**, **Download JSON**,
+Header buttons: **New design**, **Reset**, **Save**, **Share**, **Download JSON**,
 **Solve pins**, **strict** (toggle), **Connect device** (USB
 bootstrap), **Add by function** (capability picker), **Inventory**,
 **Flash firmware** (the unified flash dialog), **Provision LoRaWAN
@@ -127,6 +127,23 @@ Thingiverse search), **Push to fleet** (fleet add-on or ESPHome
 dashboard), **Agent** (chat sidebar),
 **Settings** (gear). Advanced mode reveals the Agent, Schematic,
 Enclosure, and Fleet options.
+
+**Community designs.** The sidebar's **Gallery** tab lists the
+designs in the community catalogue,
+[`moellere/wirestudio-designs`](https://github.com/moellere/wirestudio-designs).
+You can filter by name, author, board, tag or part. Picking a design
+opens it like an example. The design keeps an `origin` block naming
+the catalogue entry and its author, because catalogue designs are
+CC-BY-4.0 and the credit has to survive your edits.
+
+**Share** packs the open design as a folder (`design.json`,
+`meta.yaml`, and a README from your notes), downloads it as a zip and
+opens the catalogue's upload page. Unzip it, drag the folder in and
+open the pull request GitHub offers. CI checks the design and the
+owner reviews it. A design imported from the catalogue is shared with
+`derived_from` set. Sharing refuses a design holding a literal Wi-Fi,
+API or LoRaWAN key. `WIRESTUDIO_DESIGNS_REPO` points both at a fork,
+or turns them off.
 
 The **Settings** dialog surfaces the MCP bearer token: reveal, copy, or
 regenerate it without leaving the browser (read-only when the token is
@@ -152,6 +169,10 @@ pinned via `WIRESTUDIO_MCP_TOKEN`). See [the MCP guide](mcp.md#auth).
 | `GET`  | `/enclosure/search/status` | per-source availability + configure hints |
 | `GET`  | `/examples` | list bundled examples |
 | `GET`  | `/examples/{id}` | fetch an example as raw `design.json` |
+| `GET`  | `/community/status` | whether the community catalogue is on, and its repo, upload and contribution URLs |
+| `GET`  | `/community/designs` | the catalogue's index: slug, name, author, tags, board, components per design |
+| `GET`  | `/community/designs/{slug}` | one catalogue design, migrated, with `origin` set for attribution |
+| `POST` | `/community/share` | `{design, author, tags, notes?}`: the design as a zip folder for the catalogue's upload page; 422 on a literal credential |
 | `GET`  | `/fleet/status` | check whether `FLEET_URL` + `FLEET_TOKEN` reach a fleet-for-esphome ha-addon |
 | `POST` | `/fleet/push` | render `design.json` and push it as `<device_name>.yaml` (optionally `compile: true`) |
 | `GET`  | `/fleet/jobs/{run_id}` | aggregated compile verdict for a Push-to-fleet run |

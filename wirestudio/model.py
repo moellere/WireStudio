@@ -253,6 +253,16 @@ class Automation(_Strict):
     actions: list[AutomationAction]
 
 
+class Origin(_Strict):
+    """The community-catalogue design this one was imported from. Kept so
+    the author's credit (the catalogue is CC-BY-4.0) survives edits and a
+    re-share can name what it was derived from. No generator reads it."""
+    catalogue: str
+    slug: str
+    author: str
+    license: str
+
+
 class Fleet(_Strict):
     device_name: Optional[str] = None
     # Labels shown in the inspector; not passed to fleet-for-esphome or
@@ -335,6 +345,7 @@ class Design(_Strict):
     warnings: list[DesignWarning] = Field(default_factory=list)
     esphome_extras: dict = Field(default_factory=dict)
     fleet: Optional[Fleet] = None
+    origin: Optional[Origin] = None
     # Generation target. Defaults to "esphome" so every existing design
     # keeps its current behavior without a schema bump.
     target: Literal["esphome", "lorawan"] = "esphome"
