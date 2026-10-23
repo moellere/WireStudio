@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The pin solver put WS2812 data on ESP8266 GPIO16**, which `esphome
+  config` refuses ("Bit bang only supports pins GPIO0-GPIO15"): GPIO16
+  is an RTC pin outside the GPIO register block. The ESP8266 boards tag
+  it `no_fast_gpio`, the WS2812 data pin carries `requires_fast_gpio`,
+  the solver skips such pins and the compatibility check reports a
+  hand-wired one as a `function_unsupported` error. Found by the agent
+  eval's `ws2812-strip` task.
+
 ### Changed
 
 - **The agent eval's Claude Code gate is 24 of 28.** Two runs on the

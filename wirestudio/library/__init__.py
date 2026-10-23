@@ -33,6 +33,10 @@ class Pin(_Strict):
     # solver hard-excludes pins tagged `no_interrupt` (ESP8266 GPIO16 can't
     # attachInterrupt). Polled inputs (plain gpio binary_sensor) leave it off.
     requires_interrupt: bool = False
+    # A timing-critical output bit-banged through the GPIO registers (WS2812
+    # data on the ESP8266). The pin solver hard-excludes pins tagged
+    # `no_fast_gpio` (ESP8266 GPIO16 is an RTC pin outside that block).
+    requires_fast_gpio: bool = False
     # When kind == "hub_ref", names the library_id of the parent component
     # this pin must connect to (e.g., ads1115_channel.HUB has
     # parent_library_id: ads1115). The pin solver uses this to filter

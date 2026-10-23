@@ -436,7 +436,7 @@ export type BusType = "i2c" | "spi" | "uart" | "i2s" | "1wire";
 const SAFE_PIN_TAGS = new Set([
   "gpio", "pwm", "adc", "adc1", "adc2", "touch", "dac",
   "i2c_sda", "i2c_scl", "spi_clk", "spi_mosi", "spi_miso",
-  "uart_tx", "uart_rx", "no_pull_internal", "no_pwm", "no_i2c", "no_interrupt",
+  "uart_tx", "uart_rx", "no_pull_internal", "no_pwm", "no_i2c", "no_interrupt", "no_fast_gpio",
 ]);
 
 /** Why a pin is a risky manual choice, or null when it's clean. */

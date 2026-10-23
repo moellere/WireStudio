@@ -8,7 +8,7 @@ restrictions that conflict with the use:
 - `input_only_as_output` -- input-only pin used as output (hard error)
 - `serial_console`     -- pin shared with the USB serial console
 - `voltage_limit`      -- pin has a voltage cap (e.g., D1 Mini A0 max 1.0V)
-- `function_unsupported` -- pin tagged no_pwm/no_i2c/no_interrupt assigned to
+- `function_unsupported` -- pin tagged no_pwm/no_i2c/no_interrupt/no_fast_gpio assigned to
                             a peripheral that depends on that capability
 - `adc2_wifi_conflict`  -- analog_in landed on an `adc2`-tagged pin on a
                             classic ESP32 board; the WiFi driver claims ADC2
@@ -253,6 +253,19 @@ def check_pin_compatibility(design: dict, library: Library) -> list[Compatibilit
                     f"{component_id}.{pin_role} is an interrupt-driven input "
                     f"(pulse counter) and won't register here. Pick an "
                     f"interrupt-capable pin."
+                ),
+            ))
+        if getattr(lib_pin, "requires_fast_gpio", False) and "no_fast_gpio" in caps:
+            out.append(CompatibilityWarning(
+                severity="error",
+                code="function_unsupported",
+                pin=pin_name,
+                component_id=component_id,
+                pin_role=pin_role,
+                message=(
+                    f"{pin_name} is outside the GPIO register block. "
+                    f"{component_id}.{pin_role} is a bit-banged LED data line "
+                    f"and esphome config refuses it here. Pick GPIO0-15."
                 ),
             ))
 
