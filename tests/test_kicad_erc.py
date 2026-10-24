@@ -21,9 +21,9 @@ REPORT = {
         "violations": [
             {"type": "pin_not_driven", "severity": "error", "description": "Input Power pin not driven by any Output Power pins",
              "items": [{"description": "Symbol U1 Pin 3 [VCC, Power input]"}], "excluded": False},
-            {"type": "lib_symbol_issues", "severity": "warning", "description": "Pin not connected",
+            {"type": "global_label_dangling", "severity": "warning", "description": "Pin not connected",
              "items": [{"description": "Symbol J2 Pin 4"}], "excluded": False},
-            {"type": "lib_symbol_issues", "severity": "warning", "description": "Pin not connected",
+            {"type": "global_label_dangling", "severity": "warning", "description": "Pin not connected",
              "items": [{"description": "Symbol J2 Pin 5"}], "excluded": True},
             {"type": "endpoint_off_grid", "severity": "error", "description": "Pins of type Output and Output are connected",
              "items": [{"description": "Symbol U1 Pin 7"}, {"description": "Symbol U2 Pin 2"}], "excluded": False},
@@ -51,7 +51,7 @@ def _writer_ok(monkeypatch):
 def test_summarize_flattens_counts_and_drops_exclusions():
     out = summarize(REPORT)
     assert out["kicad_version"] == "8.0.9"
-    assert out["counts"] == {"lib_symbol_issues": 1, "endpoint_off_grid": 1, "pin_not_driven": 1}
+    assert out["counts"] == {"global_label_dangling": 1, "endpoint_off_grid": 1, "pin_not_driven": 1}
     assert out["errors"] == 2 and out["warnings"] == 1
     assert out["violations"][0]["items"] == ["Symbol U1 Pin 3 [VCC, Power input]"]
     assert summarize({}) == {"kicad_version": None, "violations": [], "counts": {}, "errors": 0, "warnings": 0}
@@ -103,11 +103,11 @@ def _load_script():
 def test_gate_judges_against_the_baseline():
     mod = _load_script()
     allowed = mod.load_baseline()
-    assert {"pin_not_driven", "lib_symbol_issues"} <= set(allowed)
+    assert {"pin_not_driven", "global_label_dangling"} <= set(allowed)
     results = {"garage-motion": summarize(REPORT)}
     failures, stale = mod.judge(results, allowed, check_stale=True)
     assert failures == ["garage-motion: [error] endpoint_off_grid: Pins of type Output and Output are connected (Symbol U1 Pin 7)"]
-    assert stale == sorted(set(allowed) - {"pin_not_driven", "lib_symbol_issues"})
+    assert stale == sorted(set(allowed) - {"pin_not_driven", "global_label_dangling"})
     only_power = {"x": summarize({"sheets": [{"path": "/", "violations": [REPORT["sheets"][0]["violations"][0]]}]})}
     failures, stale = mod.judge(only_power, allowed, check_stale=True)
     assert failures == [] and stale == sorted(set(allowed) - {"pin_not_driven"})
@@ -119,3 +119,27 @@ def test_gate_checks_every_example_by_default():
     paths = mod.example_paths([])
     assert len(paths) == len(list(mod.EXAMPLES_DIR.glob("*.json"))) > 50
     assert mod.example_paths(["garage-motion"]) == [mod.EXAMPLES_DIR / "garage-motion.json"]
+
+
+def test_run_erc_checks_the_sheet_inside_a_project(monkeypatch, garage_motion_design, library, tmp_path):
+    """kicad-cli reports every embedded symbol's library as not configured
+    unless the sheet sits in a project whose sym-lib-table names it."""
+    from wirestudio.kicad import erc as E
+
+    (tmp_path / "Sensor.kicad_sym").write_text("(kicad_symbol_lib)")
+    monkeypatch.setattr(E, "default_symbol_dirs", lambda: [tmp_path])
+    monkeypatch.setattr(R.shutil, "which", lambda exe: "/usr/bin/" + exe)
+    _writer_ok(monkeypatch)
+    monkeypatch.setattr(R, "generate_kicad_sch", lambda d, lib: '(kicad_sch (symbol (lib_id "Sensor:BME280")) (symbol (lib_id "power:GND")))')
+    seen = {}
+
+    def run(cmd, **kw):
+        sch = Path(cmd[-1])
+        seen["table"] = (sch.parent / "sym-lib-table").read_text()
+        seen["pro"] = sch.with_suffix(".kicad_pro").is_file()
+        return _fake_run(cmd, **kw)
+    monkeypatch.setattr(subprocess, "run", run)
+    run_erc(garage_motion_design, library)
+    assert seen["pro"]
+    assert f'(name "Sensor")(type "KiCad")(uri "{tmp_path / "Sensor.kicad_sym"}")' in seen["table"]
+    assert '"power"' not in seen["table"]  # no such library here, so no row

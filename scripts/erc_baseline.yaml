@@ -3,11 +3,6 @@
 # a listed type no example raises any more, so this file says exactly
 # what KiCad still objects to and why.
 allowed:
-  lib_symbol_issues: >-
-    kicad-cli runs in CI without a symbol library table, so every symbol,
-    whose definition is embedded in the file, reports its source library
-    as not configured. A sym-lib-table pointing at KICAD8_SYMBOL_DIR
-    would retire this entry.
   pin_not_driven: >-
     Inputs that reach their source through a generic header (a sensor
     KiCad has no symbol for, whose pins are passive rather than outputs)

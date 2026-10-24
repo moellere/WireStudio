@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   GPIO pins in `kicad.expander_pins`, in `expander_pin` number order,
   and the netlist binds the expander's pad. The component gate checks
   each name against the symbol.
+- **ERC no longer flags every symbol's library as not configured.** The
+  sheet is now checked inside a project, a `.kicad_pro` and a
+  `sym-lib-table` naming each library it uses from the pinned symbol
+  libraries, for both the studio's ERC endpoint and the CI gate.
+  `lib_symbol_issues` left the ERC baseline. It had been the largest
+  category on every example.
 
 ## [0.45.0] — 2026-10-24
 

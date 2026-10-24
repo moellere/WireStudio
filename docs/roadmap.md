@@ -234,8 +234,9 @@ Section 4 covers the rest.
   the ATOM U. `global_label_dangling` stays in the ERC baseline only for
   onboard parts on GPIOs no header breaks out. After that the
   baseline holds only what KiCad's pin types cannot express (the
-  passive-header `pin_not_driven` cases and SPI's shared MISO) and the
-  library-table warning a `sym-lib-table` in the image would remove.
+  passive-header `pin_not_driven` cases and SPI's shared MISO). ERC
+  checks the sheet inside a project whose `sym-lib-table` names the
+  pinned symbol libraries, which retired the library-table warning.
 
 ## 5. Agent and MCP
 
