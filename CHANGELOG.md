@@ -32,6 +32,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     the catalogue's `main`, so nothing from an unreviewed pull request
     is ever displayed. Pillow joins the core dependencies.
 
+- **433 MHz OOK receive on an SX127x.** The `sx127x` card takes
+  `bitsync`, `packet_mode`, `bitrate` and `rx_floor`. ESPHome refuses
+  FSK/OOK without `bitsync` and `packet_mode`, so when unset both default
+  by modulation: false for OOK, which puts the raw signal on DIO2, and
+  true for FSK. `remote_receiver` covers 433 MHz data lines as well as
+  IR: an RXB6/SRX882 module, or the GPIO on an SX127x's DIO2. It takes
+  `tolerance`, `filter`, `idle`, `buffer_size` and an `on_rc_switch`
+  automation.
+- **Multi-word component search.** `search_components` scores a query
+  word by word when the whole phrase matches nothing, so
+  "remote receiver 433 rf" finds `remote_receiver` and `rf_bridge`.
+
+### Fixed
+
+- **`!lambda` strings rendered as plain strings.** A `"!lambda ..."`
+  value in `esphome_extras` or an automation param became a tag only
+  when its body was free of `: ` and quotes. Otherwise it stayed a
+  quoted string, and ESPHome would compile it as C++ beginning with
+  `!lambda`. A body quoted the way ESPHome's docs write it
+  (`"!lambda 'return x;'"`) also rendered with stray quotes. The
+  bundled `ttgo-lora32` example's `on_packet` hit the first case; its
+  golden changes accordingly. Every such string, and every
+  `"!secret ..."`, is now a real tag.
+
 ## [0.43.0] — 2026-10-23
 
 ### Fixed
