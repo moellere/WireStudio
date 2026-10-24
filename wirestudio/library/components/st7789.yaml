@@ -15,9 +15,9 @@ electrical:
     - {role: SCK,       kind: spi_clk}
     - {role: MOSI,      kind: spi_mosi}
     - {role: CS,        kind: spi_cs,     voltage: 3.3}
-    - {role: DC,        kind: digital_in, voltage: 3.3}
-    - {role: RESET,     kind: digital_in, voltage: 3.3}
-    - {role: BACKLIGHT, kind: digital_in, voltage: 3.3}
+    - {role: DC,        kind: digital_out, voltage: 3.3}
+    - {role: RESET,     kind: digital_out, voltage: 3.3}
+    - {role: BACKLIGHT, kind: digital_out, voltage: 3.3}
     # MISO is unused: ST7789 SPI is write-only.
   passives:
     - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}

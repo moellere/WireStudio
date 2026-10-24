@@ -14,7 +14,7 @@ electrical:
     - {role: GND, kind: ground}
     - {role: TX, kind: uart_tx, voltage: 3.3}
     - {role: RX, kind: uart_rx, voltage: 3.3}
-    - {role: SET, kind: digital_in, voltage: 3.3}
+    - {role: SET, kind: digital_out, voltage: 3.3}
   passives:
     - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
 
