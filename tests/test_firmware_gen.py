@@ -201,6 +201,13 @@ def test_tbeam_powers_its_rails_before_using_them(lib):
     assert src.index("power.begin") < src.index("GPSSerial.begin")
 
 
+def test_board_revision_picks_the_pa_pin(lib):
+    design = _design("heltec-wifi-lora32-v4")
+    assert "radio.setRfSwitchPins(RADIOLIB_NC, 46);" in generate_firmware(design, lib)["src/main.cpp"]
+    design.board.revision = "4.3"
+    assert "radio.setRfSwitchPins(RADIOLIB_NC, 5);" in generate_firmware(design, lib)["src/main.cpp"]
+
+
 def test_design_flash_size_override_wins_over_board_file(lib):
     # heltec-wifi-lora32-v3 pins 8MB; a design that measured 16MB on its own
     # unit gets the bigger partition table.

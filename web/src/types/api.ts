@@ -13,6 +13,7 @@ export interface BoardSummary {
   flash_size_mb: number | null;
   image: string | null;
   rail_names: string[];
+  revisions: string[];
 }
 
 export interface ComponentSummary {

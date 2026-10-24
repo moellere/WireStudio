@@ -41,19 +41,19 @@ const libraryBoards: BoardSummary[] = [
   {
     id: "wemos-d1-mini", name: "WeMos D1 Mini",
     mcu: "esp8266", chip_variant: "esp8266", framework: "arduino",
-    platformio_board: "d1_mini", flash_size_mb: 4, rail_names: ["5V", "3V3", "GND"], image: "", source: "bundled",
+    platformio_board: "d1_mini", flash_size_mb: 4, rail_names: ["5V", "3V3", "GND"], image: "", source: "bundled", revisions: [],
   },
   {
     id: "esp32-devkitc-v4", name: "ESP32 DevKitC",
     mcu: "esp32", chip_variant: "esp32", framework: "arduino",
-    platformio_board: "esp32dev", flash_size_mb: 4, rail_names: ["5V", "3V3", "GND"], image: "", source: "bundled",
+    platformio_board: "esp32dev", flash_size_mb: 4, rail_names: ["5V", "3V3", "GND"], image: "", source: "bundled", revisions: [],
   },
 ];
 
 const s3Board: BoardSummary = {
   id: "esp32-s3-devkitc-1", name: "ESP32-S3-DevKitC-1",
   mcu: "esp32", chip_variant: "esp32s3", framework: "arduino",
-  platformio_board: "esp32-s3-devkitc-1", flash_size_mb: 8, rail_names: ["5V", "3V3", "GND"], image: "", source: "bundled",
+  platformio_board: "esp32-s3-devkitc-1", flash_size_mb: 8, rail_names: ["5V", "3V3", "GND"], image: "", source: "bundled", revisions: [],
 };
 
 const libraryComponents: ComponentSummary[] = [
@@ -348,6 +348,46 @@ describe("discrete parts (subcircuit expansion)", () => {
       libraryBoards={libraryBoards} libraryComponents={[]} compatibilityWarnings={[]} {...noopProps()} />);
     expect(await screen.findByText("Parameters")).toBeInTheDocument();
     expect(screen.queryByText(/Discrete parts/)).not.toBeInTheDocument();
+  });
+});
+
+describe("board revision", () => {
+  const v4Board: BoardSummary = {
+    ...s3Board, id: "heltec-wifi-lora32-v4", name: "Heltec V4", revisions: ["4.2", "4.3"],
+  };
+  function renderWith(board: Record<string, unknown>) {
+    const props = noopProps();
+    render(
+      <Inspector
+        {...props}
+        selection={designSelection}
+        design={design({ board } as Partial<Design>)}
+        boardData={boardData}
+        libraryBoards={[...libraryBoards, v4Board]}
+        libraryComponents={libraryComponents}
+        compatibilityWarnings={[]}
+      />,
+    );
+    return props;
+  }
+
+  it("is hidden on a board without revisions", () => {
+    renderWith({ library_id: "wemos-d1-mini", mcu: "esp8266" });
+    expect(screen.queryByLabelText(/revision/i)).not.toBeInTheDocument();
+  });
+
+  it("warns while unset and lists the board's revisions", () => {
+    renderWith({ library_id: "heltec-wifi-lora32-v4", mcu: "esp32" });
+    const select = screen.getByLabelText(/revision/i) as HTMLSelectElement;
+    expect(select.value).toBe("");
+    expect(screen.getByRole("option", { name: "4.3" })).toBeInTheDocument();
+    expect(screen.getByText(/silkscreen/)).toBeInTheDocument();
+  });
+
+  it("shows the chosen revision without the hint", () => {
+    renderWith({ library_id: "heltec-wifi-lora32-v4", mcu: "esp32", revision: "4.3" });
+    expect((screen.getByLabelText(/revision/i) as HTMLSelectElement).value).toBe("4.3");
+    expect(screen.queryByText(/silkscreen/)).not.toBeInTheDocument();
   });
 });
 

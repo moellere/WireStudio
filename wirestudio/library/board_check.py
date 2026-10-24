@@ -224,16 +224,17 @@ def _check_pins(board: LibraryBoard, report: BoardCheck) -> None:
             if isinstance(value, str) and key != "address":
                 need(value, f"onboard_peripherals.{name}.{key}")
 
-    if board.radio is not None:
-        radio = board.radio
+    radios = [("radio", board.radio)] if board.radio is not None else []
+    radios += [(f"revisions.{name}.radio", board.radio_for(name)) for name in board.revisions]
+    for where, radio in radios:
         for key, pin in radio.pins.model_dump(exclude_none=True).items():
-            need(pin, f"radio.pins.{key}")
+            need(pin, f"{where}.pins.{key}")
         for key in ("setup_high", "setup_low"):
             for pin in getattr(radio, key):
-                need(pin, f"radio.{key}")
+                need(pin, f"{where}.{key}")
         for key in ("txen", "rxen"):
             if getattr(radio, key):
-                need(getattr(radio, key), f"radio.{key}")
+                need(getattr(radio, key), f"{where}.{key}")
 
 
 def _check_kicad(board: LibraryBoard, report: BoardCheck) -> None:

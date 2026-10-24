@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Board revisions.** A board file can list `revisions:`, each
+  overriding `radio:` keys, and `design.board.revision` picks one.
+  `validate` reports `board_revision_unknown` (error) for a revision the
+  board does not list and `board_revision_unset` (warn) when the board
+  has revisions and the design names none, saying which pins differ.
+  `set_board` (agent and MCP) takes `revision`; `list_boards` and
+  `GET /library/boards` list each board's revisions; the board inspector
+  has a revision picker. The board gate checks every revision's pins.
+  - **Heltec WiFi LoRa 32 V4** is the first: `"4.2"` keeps the PA
+    control (`txen`) on GPIO46, `"4.3"` moves it to GPIO5. Measured on
+    the bench by gateway-side RSSI: on a V4.3 (KCT8103L front end) GPIO46
+    does nothing and GPIO5 switches the PA, so the previous recipe
+    transmitted with the PA bypassed there, about 45 dB down. The board
+    file keeps the V4.2 wiring, so designs that name no revision render
+    as before. The `heltec-v4-gnss-tracker` example is the bench's V4.3
+    and now says so.
 - **Live serial after a workbench flash.** The flash dialog now streams
   the slot's serial from the bench's recorder as the board boots,
   instead of polling for it once a second, and says when the relay ends.

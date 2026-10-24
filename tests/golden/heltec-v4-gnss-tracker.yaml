@@ -70,7 +70,7 @@ lorawan:
     - GPIO2
     setup_low:
     - GPIO36
-    txen_pin: GPIO46
+    txen_pin: GPIO5
 sensor:
 - platform: lorawan
   lorawan_id: lw

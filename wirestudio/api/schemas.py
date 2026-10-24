@@ -31,6 +31,10 @@ class BoardSummary(_S):
     flash_size_mb: Optional[int] = Field(default=None, description="Onboard flash size in MB, if known.")
     image: Optional[str] = Field(default=None, description="Product-image URL for the board picker, if known.")
     rail_names: list[str] = Field(description="Power rail names the board exposes, e.g. ['3V3', 'GND'].")
+    revisions: list[str] = Field(
+        default_factory=list,
+        description="Hardware revisions the board file distinguishes (`design.board.revision`); empty for most boards.",
+    )
 
 
 class ComponentSummary(_S):

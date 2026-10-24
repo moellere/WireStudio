@@ -71,8 +71,17 @@ onboard_peripherals:
 # txen -- RadioLib raises it only while transmitting. The previous
 # static-high [7,2,5,46] drive pinned the GC1109's output stage on and
 # left the receiver deaf: 69 join-requests accepted server-side, zero
-# join-accepts heard. V4.3 (KCT8103L) note: if a V4.3 board stays deaf
-# with this recipe, move txen to GPIO5 (CTX).
+# join-accepts heard.
+#
+# The PA control pin is the one thing that moves between revisions, and
+# the silkscreen is the only way to tell them apart. Measured 2026-10-24
+# on a V4.3 (KCT8103L FEM) by gateway-side RSSI, same board and gateway:
+# txen on GPIO46 (this recipe) -110 to -114 dBm, txen on GPIO5 (CTX)
+# -58 to -67 dBm, GPIO46 held high -110 to -118 dBm. On a V4.3 GPIO46
+# does nothing and GPIO5 switches the PA, so the V4.2 recipe below
+# transmits with the PA bypassed there (moellere/lorawan-for-esphome#16).
+# The board file keeps the V4.2 wiring; a design on a V4.3 says so with
+# board.revision "4.3".
 radio:
   chip: sx1262
   radiolib_class: SX1262
@@ -82,6 +91,10 @@ radio:
   setup_high: [GPIO7, GPIO2]
   setup_low: [GPIO36]
   txen: GPIO46
+
+revisions:
+  "4.2": {radio: {txen: GPIO46}}
+  "4.3": {radio: {txen: GPIO5}}
 
 gpio_capabilities:
   GPIO0:  [gpio, strap, boot_high, button]

@@ -24,7 +24,9 @@ from wirestudio.library.board_check import check_board_yaml, create_board
 from wirestudio.library.check import check_component_yaml, create_component
 from wirestudio.model import RESERVED_BUS_IDS, Design, generated_bus_id, missing_bus_pins
 from wirestudio.recommend.recommender import Constraints, recommend_components
-from wirestudio.validate import check_board_flash, check_electrical, check_net_targets, check_part_overrides
+from wirestudio.validate import (
+    check_board_flash, check_board_revision, check_electrical, check_net_targets, check_part_overrides,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -61,12 +63,15 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
             "Replace the design's board. Looks up the library board by id and "
             "updates `design.board.{library_id, mcu, framework}`. Does NOT "
             "translate existing pin references (e.g. native GPIO names) -- "
-            "those will surface as warnings if the new board can't accept them."
+            "those will surface as warnings if the new board can't accept them. "
+            "`revision` picks one of the board's hardware revisions when "
+            "list_boards shows any (the Heltec V4's PA pin differs by revision)."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
                 "library_id": {"type": "string", "description": "Board library id, e.g. esp32-devkitc-v4."},
+                "revision": {"type": "string", "description": "A revision the board lists, e.g. 4.3; omit for the board file's wiring."},
             },
             "required": ["library_id"],
             "additionalProperties": False,
@@ -592,6 +597,7 @@ def _run_list_boards(design: dict, library: Library) -> dict:
                 "framework": b.framework,
                 "platformio_board": b.platformio_board,
                 "flash_size_mb": b.flash_size_mb,
+                "revisions": sorted(b.revisions),
                 "source": library.board_source(b.id),
             }
             for b in library.list_boards()
@@ -599,19 +605,27 @@ def _run_list_boards(design: dict, library: Library) -> dict:
     }
 
 
-def _run_set_board(design: dict, library: Library, *, library_id: str) -> dict:
+def _run_set_board(design: dict, library: Library, *, library_id: str, revision: str | None = None) -> dict:
     board = library.board(library_id)  # raises FileNotFoundError if unknown
+    if revision is not None and revision not in board.revisions:
+        raise ValueError(
+            f"board {board.id!r} has no revision {revision!r}; "
+            f"it lists {', '.join(sorted(board.revisions)) or 'none'}"
+        )
     kept = dict(design.get("board") or {})
     # A flash size measured on the old board says nothing about the new one,
-    # and carrying it over is the direction that boot-loops.
+    # and carrying it over is the direction that boot-loops. A revision
+    # names the old board's wiring.
     kept.pop("flash_size_mb", None)
+    kept.pop("revision", None)
     design["board"] = {
         **kept,
         "library_id": board.id,
         "mcu": board.mcu,
         "framework": board.framework,
+        **({"revision": revision} if revision is not None else {}),
     }
-    return {"ok": True, "board": {"library_id": board.id, "mcu": board.mcu}}
+    return {"ok": True, "board": {"library_id": board.id, "mcu": board.mcu, "revision": revision}}
 
 
 def _run_add_component(
@@ -827,7 +841,8 @@ def _run_validate(design: dict, library: Library) -> dict:
     except (FileNotFoundError, ValueError) as e:
         return {"ok": False, "error": str(e), "schema_ok": True}
     compat = check_pin_compatibility(design, library)
-    board_warnings = (check_board_flash(d, library) + check_part_overrides(d, library)
+    board_warnings = (check_board_flash(d, library) + check_board_revision(d, library)
+                      + check_part_overrides(d, library)
                       + check_electrical(d, library) + check_net_targets(d, library))
     # Strict blockers are surfaced regardless of mode so the caller can see
     # what *would* block; in strict mode their presence also flips ok=False.
@@ -1115,7 +1130,7 @@ def execute_tool(name: str, tool_input: dict, design: dict, library: Library) ->
         return json.dumps({"error": f"unknown tool: {name}"}), True
     try:
         result = handler(design, library, **tool_input)
-    except FileNotFoundError as e:
+    except (FileNotFoundError, ValueError) as e:
         return json.dumps({"error": str(e)}), True
     except TypeError as e:
         return json.dumps({"error": f"bad arguments: {e}"}), True

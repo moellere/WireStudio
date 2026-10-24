@@ -20,6 +20,7 @@ and migrated on load (`wirestudio.migrate`); see
 | `board.mcu` | string | yes |  |  |
 | `board.framework` | string |  | default `"arduino"` |  |
 | `board.flash_size_mb` | enum |  | `4`, `8`, `16`, `32` |  |
+| `board.revision` | string |  |  | One of the board file's `revisions:`, for boards whose wiring differs between hardware revisions (the Heltec V4's PA control pin). Unset uses the board file's own wiring; validate warns when the board has revisions and the design names none. |
 | `power` | object | yes |  | The supply the design was made for. `budget_ma` is the only field the pin solver and generators read (the current-budget warning and the ASCII summary); `supply`, `rail_voltage_v` and `regulator` are the design's record and appear in no artifact. |
 | `power.supply` | string | yes |  |  |
 | `power.rail_voltage_v` | number | yes |  |  |

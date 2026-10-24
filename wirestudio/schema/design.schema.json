@@ -19,7 +19,8 @@
         "library_id": { "type": "string" },
         "mcu": { "type": "string" },
         "framework": { "type": "string", "default": "arduino" },
-        "flash_size_mb": { "enum": [4, 8, 16, 32] }
+        "flash_size_mb": { "enum": [4, 8, 16, 32] },
+        "revision": { "type": "string", "description": "One of the board file's `revisions:`, for boards whose wiring differs between hardware revisions (the Heltec V4's PA control pin). Unset uses the board file's own wiring; validate warns when the board has revisions and the design names none." }
       }
     },
 

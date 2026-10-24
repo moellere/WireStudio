@@ -434,6 +434,22 @@ def test_front_end_pins_reach_the_esphome_radio_block():
     assert "rxen_pin" not in radio
 
 
+def test_board_revision_moves_the_pa_pin():
+    """Measured 2026-10-24: on a V4.3 the PA is switched by GPIO5 and GPIO46
+    does nothing, so a design that names the revision gets GPIO5 and the
+    rest of the V4 recipe unchanged."""
+    from wirestudio.generate.yaml_gen import build_yaml_dict
+
+    design = _v4_design()
+    design.board.revision = "4.3"
+    radio = build_yaml_dict(design, default_library())["lorawan"]["radio"]
+    assert radio["txen_pin"] == "GPIO5"
+    assert radio["setup_high"] == ["GPIO7", "GPIO2"]
+    design.board.revision = "4.9"
+    with pytest.raises(ValueError, match="no revision"):
+        build_yaml_dict(design, default_library())
+
+
 def test_sx1262_radio_keys_are_emitted():
     from wirestudio.generate.yaml_gen import build_yaml_dict
 

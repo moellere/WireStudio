@@ -365,14 +365,18 @@ def _register_design_tools(
         description=(
             "Replace the design's board. Looks up the library board by id "
             "and updates `design.board.{library_id, mcu, framework}`. Does "
-            "NOT translate existing pin references." + _DESIGN_ID_HINT
+            "NOT translate existing pin references. `revision` picks one of "
+            "the board's hardware revisions when list_boards shows any."
+            + _DESIGN_ID_HINT
         ),
     )
-    def set_board(library_id: str, design_id: Optional[str] = None) -> dict:
+    def set_board(
+        library_id: str, design_id: Optional[str] = None, revision: Optional[str] = None,
+    ) -> dict:
         rid, design = _load(design_id)
         if design is None:
             return _NO_DESIGN_ERROR
-        result = _run_set_board(design, library, library_id=library_id)
+        result = _run_set_board(design, library, library_id=library_id, revision=revision)
         _save(rid, design)
         return result
 

@@ -235,10 +235,19 @@ export function removeWarning(d: Design, index: number): Design {
 
 export function setBoardLibraryId(d: Design, libraryId: string, mcu: string): Design {
   // A flash size measured on the old board says nothing about the new one,
-  // and carrying it over is the direction that boot-loops.
+  // and carrying it over is the direction that boot-loops. A revision names
+  // the old board's wiring.
   const board = { ...((d.board as Record<string, unknown> | undefined) ?? {}) };
   delete board.flash_size_mb;
+  delete board.revision;
   return { ...d, board: { ...board, library_id: libraryId, mcu } };
+}
+
+export function setBoardRevision(d: Design, revision: string | null): Design {
+  const board = { ...((d.board as Record<string, unknown> | undefined) ?? {}) };
+  if (revision === null) delete board.revision;
+  else board.revision = revision;
+  return { ...d, board };
 }
 
 export const FLASH_SIZE_OVERRIDES_MB = [4, 8, 16, 32] as const;
