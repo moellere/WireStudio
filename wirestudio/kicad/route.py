@@ -14,10 +14,14 @@ returns instantly.
 
 Freerouting runs with ``-mt 1``: multithreaded routing is a known source of
 KiCad-DRC clearance violations (freerouting#191).
+
+A routed board is DRC'd (``wirestudio.kicad.drc``) when kicad-cli is
+present, and the summary is stored beside it in the cache slot.
 """
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import shutil
 import subprocess
@@ -121,6 +125,28 @@ def cached_routed_board(key: str, *, cache_dir: Optional[Path] = None) -> Option
     return path.read_text() if path.is_file() else None
 
 
+def routed_drc(key: str, *, cache_dir: Optional[Path] = None) -> Optional[dict]:
+    """The DRC summary of the routed board under ``key``: the stored one,
+    or computed now and stored when kicad-cli is here. None when there is
+    no routed board or no kicad-cli; ``{"error": ...}`` when the check ran
+    and failed."""
+    from wirestudio.kicad.drc import DrcError, drc_status, run_drc
+
+    slot = Path(cache_dir or _default_cache_dir()) / key
+    stored = slot / "drc.json"
+    if stored.is_file():
+        return json.loads(stored.read_text())
+    board = slot / "routed.kicad_pcb"
+    if not board.is_file() or not drc_status()["available"]:
+        return None
+    try:
+        summary = run_drc(board.read_text())
+    except (DrcError, OSError, subprocess.SubprocessError) as exc:
+        return {"error": str(exc)}
+    stored.write_text(json.dumps(summary))
+    return summary
+
+
 def route_cache_key(board_text: str, *, max_passes: int = _DEFAULT_PASSES) -> str:
     h = hashlib.sha256()
     h.update(_CACHE_VERSION.encode())
@@ -166,7 +192,8 @@ def route_events(
             yield {"type": "log", "data": cached_log.read_text()}
         routed = cached_board.read_text()
         yield {"type": "done", "ok": True, "routed": is_routed(routed),
-               "cache_key": key, "cache_hit": True, "board": routed}
+               "cache_key": key, "cache_hit": True, "board": routed,
+               "drc": routed_drc(key, cache_dir=cache_dir)}
         return
 
     status = route_status()
@@ -236,7 +263,8 @@ def route_events(
             cached_board.write_text(routed_text)
         yield {"type": "done", "ok": ok, "routed": ok,
                "cache_key": key, "cache_hit": False,
-               "board": routed_text if ok else None}
+               "board": routed_text if ok else None,
+               "drc": routed_drc(key, cache_dir=cache_dir) if ok else None}
 
 
 def route_board(

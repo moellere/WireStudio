@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Routed DRC in the studio.** A completed route runs `kicad-cli pcb
+  drc` on the routed board and stores the summary with it. The report
+  leads with the count of connections still left as airwires, then
+  groups the violations by type with their items and positions.
+  Footprint-inherent types, such as a module's sub-minimum vias, are
+  listed as waived and never fail.
+  - The Schematic dialog shows the report after a route.
+  - `GET /design/kicad/route/{cache_key}/drc` serves it.
+  - `route_pcb` returns a brief version.
+  - The waiver list lives in `wirestudio.kicad.drc`. The `pcb-drc` and
+    `pcb-route` gates now read the same list, and `pcb-route` also
+    checks that the path reports the airwires of an unrouted board.
 - **Community designs carry their own components.** Share packs the
   user-authored components a design uses. Import installs them into
   your user library through the component editor's gate. It refuses

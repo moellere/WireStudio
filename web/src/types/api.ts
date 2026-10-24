@@ -495,9 +495,39 @@ export interface KicadRouteStatus {
   reason: string | null;
 }
 
+export interface DrcItem {
+  description: string;
+  pos: { x: number | null; y: number | null } | null;
+}
+
+export interface DrcGroup {
+  type: string;
+  severity: string;
+  count: number;
+  /** Footprint-inherent: listed, never failing. */
+  waived: boolean;
+  reason: string | null;
+  violations: { description: string; items: DrcItem[] }[];
+}
+
+/** KiCad DRC of a routed board (wirestudio.kicad.drc.summarize). */
+export interface DrcSummary {
+  kicad_version: string | null;
+  ok: boolean;
+  unconnected: number;
+  errors: number;
+  warnings: number;
+  waived: number;
+  groups: DrcGroup[];
+}
+
 export type KicadRouteEvent =
   | { type: "log"; data: string }
-  | { type: "done"; ok: boolean; routed: boolean; cache_key: string; cache_hit: boolean };
+  | {
+      type: "done"; ok: boolean; routed: boolean; cache_key: string; cache_hit: boolean;
+      /** null without kicad-cli on the server; {error} when the check failed to run. */
+      drc?: DrcSummary | { error: string } | null;
+    };
 
 export interface WorkbenchStatus {
   available: boolean;
