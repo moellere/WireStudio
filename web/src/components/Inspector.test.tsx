@@ -437,5 +437,23 @@ describe("BoardInspector library actions", () => {
     expect(props.onEditBoard).toHaveBeenCalledWith("lolin-s2-mini", "user");
     await userEvent.click(screen.getByRole("button", { name: "Delete" }));
     expect(props.onDeleteBoard).toHaveBeenCalledWith("lolin-s2-mini");
+    expect(screen.queryByRole("button", { name: "Share" })).not.toBeInTheDocument();
+  });
+
+  it("shares a user board when the catalogue is on", async () => {
+    mockApi.getBoard.mockResolvedValue(board);
+    const onShareLibrary = vi.fn();
+    const user: BoardSummary = { ...s3Board, id: "lolin-s2-mini", source: "user" };
+    render(
+      <Inspector
+        {...noopProps()}
+        onShareLibrary={onShareLibrary}
+        selection={{ kind: "board", id: "lolin-s2-mini" }}
+        design={null} boardData={null} libraryBoards={[...libraryBoards, user]}
+        libraryComponents={libraryComponents} compatibilityWarnings={[]}
+      />,
+    );
+    await userEvent.click(await screen.findByRole("button", { name: "Share" }));
+    expect(onShareLibrary).toHaveBeenCalledWith("boards", "lolin-s2-mini");
   });
 });
