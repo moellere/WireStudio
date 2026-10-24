@@ -1,19 +1,25 @@
 # WireStudio — handoff
 
 Written 2026-10-24 by the cloud development session, for a session on a VM
-with direct tool access. Part A is verified as of writing. Part B is the
-bench and homelab state, refreshed and re-checked by the homelab session on
-2026-10-24 (after 0.46.0 rolled out).
+with direct tool access. Part A is verified as of writing and was re-checked
+by a VM session the same evening, after the history rewrite (below). Part B
+is the bench and homelab state, refreshed and re-checked by the homelab
+session on 2026-10-24 (after 0.46.0 rolled out).
 
 # Part A — development
 
 ## Where things stand
 
-- **wirestudio 0.46.0** is released (`v0.46.0`, annotated, on `283a99a`).
-  Prod and both gate CronJobs run `0.46.0-full`, confirmed by the homelab
-  session (Part B).
+- **wirestudio 0.46.0** is released (`v0.46.0`, annotated, on `366103e`
+  after the rewrite). Prod and both gate CronJobs run `0.46.0-full`, and
+  `/api/version` on prod answers 0.46.0 (re-checked 2026-10-24 evening).
 - **main** is past 0.46.0 by docs-only changes plus the promotion script,
   which is the one `[Unreleased]` entry in CHANGELOG.
+- **The public history was rewritten on 2026-10-24** (git-filter-repo,
+  redacting addresses and host names). Every commit hash changed and a
+  clone from before it shares no ancestor with `origin/main`. Re-clone, or
+  `git fetch && git reset --hard origin/main` in an old clone before
+  branching; a PR from the old history cannot merge.
 - **No open pull requests** in `moellere/wirestudio` or
   `moellere/wirestudio-designs`.
 - **The catalogue** (`moellere/wirestudio-designs`) pins `wirestudio @
@@ -84,19 +90,37 @@ can promote shared ones into the bundled library.
 ## Road to 1.0
 
 `docs/roadmap.md` has the plan; its "Sequencing" list is done except the
-flash stage's evidence. What remains:
+flash stage's evidence. Sections 1, 3, 5, 6 and 8 are complete, section 4
+closed its last issues (#344, #345, #346) on 2026-10-24, and the open issues
+are #357 (built; close at 1.0), #312 (only the ATOM U left) and #219 (not a
+blocker). What remains, in order:
 
-- **The flash stage's first green week on covbench**, the dedicated bench
-  (earliest around 2026-10-30). That fills the **at release** cells in
-  `docs/release-notes-1.0.md`: Remote workbench, Meshtastic, CircuitPython
-  and MicroPython either go to Verified on the nightly flash job or are
-  demoted to Experimental; the Agent row records its nightly score.
-- Then the 1.0 release itself: the notes' text opens the `[1.0.0]` section of
-  CHANGELOG, the README status table is the contract, and the upgrade
-  workflow's result against 0.46.0 (or whatever is newest on PyPI) goes in
-  the notes.
-- Not required for 1.0: workbench phase 4, the JLCPCB order, the printed
-  enclosure.
+1. **The flash stage's first green week on covbench.** Night 1 of 7 was
+   2026-10-24: 11 checks, all four frameworks flashed and booted. The
+   CronJob runs 04:30 America/Denver; a red night restarts the count, so
+   the earliest promote/demote pass is 2026-10-30. Nothing to build here.
+2. **The promote/demote pass** (roadmap sections 2 and 7). The README
+   status table still opens with `v0.40.0` and holds four *Works* rows:
+   Remote workbench, Meshtastic, MicroPython, CircuitPython. Each goes to
+   *Verified* citing the covbench CronJob through `docs/workbench.md`
+   ("The gate"), or to *Experimental* with its caveat. `docs/workbench.md`
+   describes the flash stage but not the second bench; add it so the rows
+   have something to cite. The same pass fills the five **at release**
+   cells in `docs/release-notes-1.0.md`: those four rows and the Agent
+   row's nightly score (the `claude-code` job's uploaded results in the
+   latest scheduled `agent-eval` run).
+3. **`gate.min_pass` is still 0.** The embedded agent has never had a
+   scored run: the nightly job scores it only when `ANTHROPIC_API_KEY` is
+   set. Either dispatch one run with the key and set the gate from it, or
+   say in the notes that only Claude Code is held to a score.
+4. **The 1.0 release PR**, with the user's OK: the notes' text opens the
+   `[1.0.0]` section of CHANGELOG with the `[Unreleased]` entries beneath
+   it, `wirestudio/__init__.py` moves, and the `upgrade` workflow's result
+   against 0.46.0 (or whatever is newest on PyPI) goes in the notes. The
+   roadmap's "Written against 0.39.0" header and its section 2 table get
+   their final wording in the same PR.
+5. Not required for 1.0: workbench phase 4, the JLCPCB order, the printed
+   enclosure, and the phase-2 SSE item in Part B.
 
 ## Open threads
 
@@ -110,6 +134,10 @@ flash stage's evidence. What remains:
 
 ## Gotchas from this round
 
+- An old clone looks fine (`git status` clean, tests pass) but is on the
+  pre-rewrite history; `git merge-base main origin/main` returning nothing
+  is the tell. The `release` tags were re-pointed too, so compare against
+  `git ls-remote --tags origin`, not a local tag.
 - `npx tsc -p .` skips files that `tsc -b` (the CI `web` job and the docker
   build) checks, such as `web/src/lib/bootstrap.test.ts`. Run `tsc -b`.
 - `esphome config` accepts an unknown `board:` with only a warning; the board
