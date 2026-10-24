@@ -12,8 +12,8 @@ electrical:
   pins:
     - {role: VCC, kind: power}
     - {role: GND, kind: ground}
-    - {role: D0, kind: digital_out, voltage: 5.0}
-    - {role: D1, kind: digital_out, voltage: 5.0}
+    - {role: D0, kind: digital_in, voltage: 5.0, driven: true}
+    - {role: D1, kind: digital_in, voltage: 5.0, driven: true}
   passives: []
 
 esphome:

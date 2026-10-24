@@ -22,9 +22,15 @@ class PullUp(_Strict):
 
 class Pin(_Strict):
     role: str
+    # The line's direction as the MCU sees it: a sensor's output is the
+    # MCU's digital_in, a driver's input the MCU's digital_out.
     kind: str
     voltage: Optional[float] = None
     pull_up: Optional[PullUp] = None
+    # The part actively drives this digital_in (a sensor or radio output,
+    # not a switch or an open-drain interrupt), so at power-up it holds a
+    # strapping pin wherever its output rests.
+    driven: bool = False
     # A digital_out that carries a PWM/analog output (ledc, esp8266_pwm) rather
     # than a plain level. The pin solver hard-excludes pins tagged `no_pwm`
     # (e.g. ESP8266 GPIO16) for these and prefers pins tagged `pwm`.

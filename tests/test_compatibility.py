@@ -58,31 +58,41 @@ def test_no_board_silently_returns_empty(lib):
     assert check_pin_compatibility({"components": [], "connections": []}, lib) == []
 
 
-def test_input_only_as_output_is_an_error(lib):
-    """
-    GPIO34 on ESP32-DevKitC-V4 is input-only. Wiring an output role to it
-    should emit a hard error.
-    """
-    d = _load("garage-motion")
-    # Reroute pir1.OUT (digital_out) to GPIO34 (input-only).
+def _with_lamp(d: dict, pin: str) -> dict:
+    """garage-motion plus a relay/LED output the MCU drives, on `pin`."""
+    d["components"].append({"id": "lamp", "library_id": "gpio_output", "label": "Lamp", "params": {}})
+    d["connections"].append({"component_id": "lamp", "pin_role": "OUT",
+                             "target": {"kind": "gpio", "pin": pin}})
+    return d
+
+
+def _move_pir(d: dict, pin: str) -> dict:
     for c in d["connections"]:
         if c["component_id"] == "pir1" and c["pin_role"] == "OUT":
-            c["target"] = {"kind": "gpio", "pin": "GPIO34"}
-    warnings = check_pin_compatibility(d, lib)
+            c["target"] = {"kind": "gpio", "pin": pin}
+    return d
+
+
+def test_input_only_as_output_is_an_error(lib):
+    """GPIO34 on ESP32-DevKitC-V4 is input-only; an output the MCU drives
+    there is a hard error."""
+    warnings = check_pin_compatibility(_with_lamp(_load("garage-motion"), "GPIO34"), lib)
     errs = _by_code(warnings, "input_only_as_output")
     assert len(errs) == 1
     assert errs[0].severity == "error"
     assert errs[0].pin == "GPIO34"
 
 
+def test_a_sensor_output_on_an_input_only_pin_is_fine(lib):
+    """A PIR's OUT is the MCU's input: GPIO34-39 are the usual place for it."""
+    warnings = check_pin_compatibility(_move_pir(_load("garage-motion"), "GPIO34"), lib)
+    assert warnings == []
+
+
 def test_boot_high_pin_used_as_output_warns(lib):
     """ESP32 GPIO0 is boot_high (must be HIGH at boot). Driving it as a digital
     output should warn."""
-    d = _load("garage-motion")
-    for c in d["connections"]:
-        if c["component_id"] == "pir1" and c["pin_role"] == "OUT":
-            c["target"] = {"kind": "gpio", "pin": "GPIO0"}
-    warnings = check_pin_compatibility(d, lib)
+    warnings = check_pin_compatibility(_with_lamp(_load("garage-motion"), "GPIO0"), lib)
     boot = _by_code(warnings, "boot_strap_output")
     assert len(boot) == 1
     assert boot[0].severity == "warn"
@@ -92,14 +102,21 @@ def test_boot_high_pin_used_as_output_warns(lib):
 def test_boot_low_pin_used_as_output_warns(lib):
     """ESP32 GPIO12 is boot_low (must be LOW at boot, controls flash voltage).
     Output use should warn."""
-    d = _load("garage-motion")
-    for c in d["connections"]:
-        if c["component_id"] == "pir1" and c["pin_role"] == "OUT":
-            c["target"] = {"kind": "gpio", "pin": "GPIO12"}
-    warnings = check_pin_compatibility(d, lib)
+    warnings = check_pin_compatibility(_with_lamp(_load("garage-motion"), "GPIO12"), lib)
     boot = _by_code(warnings, "boot_strap_output")
     assert len(boot) == 1
     assert "LOW at boot" in boot[0].message
+
+
+@pytest.mark.parametrize("pin, level", [("GPIO0", "HIGH"), ("GPIO12", "LOW")])
+def test_a_strap_pin_driven_by_a_sensor_warns(lib, pin, level):
+    """A PIR holds its output at power-up, so on a strap pin it decides the
+    boot mode -- the hazard is the sensor's, even though the MCU reads it."""
+    warnings = check_pin_compatibility(_move_pir(_load("garage-motion"), pin), lib)
+    driven = _by_code(warnings, "boot_strap_driven")
+    assert len(driven) == 1 and driven[0].severity == "warn"
+    assert f"must be {level} at boot" in driven[0].message
+    assert _by_code(warnings, "boot_strap_output") == []
 
 
 def test_boot_strap_pin_as_input_does_not_warn(lib):
@@ -362,3 +379,29 @@ def test_a_reserved_bus_id_is_an_error(lib):
     assert w.severity == "error"
     assert w.component_id == "uart0"
     assert "uart_bus0" in w.message
+
+
+PART_DRIVEN = {
+    "hc-sr501": ["OUT"], "rcwl-0516": ["OUT"], "ld2410": ["OUT"], "remote_receiver": ["OUT"],
+    "hlw8012": ["CF", "CF1"], "sx127x": ["DIO0"], "wiegand": ["D0", "D1"],
+}
+
+
+@pytest.mark.parametrize("library_id, roles", sorted(PART_DRIVEN.items()))
+def test_part_driven_signals_are_mcu_inputs(lib, library_id, roles):
+    """The audit's verdicts: these lines are outputs of the part, so inputs
+    of the MCU, and the part drives them."""
+    pins = {p.role: p for p in lib.component(library_id).electrical.pins}
+    for role in roles:
+        assert pins[role].kind == "digital_in" and pins[role].driven, f"{library_id}.{role}"
+
+
+def test_the_component_gate_refuses_driven_on_an_output(lib):
+    from wirestudio.library.check import check_component_yaml
+
+    text = (REPO_ROOT / "tests" / "fixtures" / "components" / "led_driver_npn.yaml").read_text()
+    assert check_component_yaml(text, lib).ok
+    bad = text.replace("kind: digital_out", "kind: digital_out, driven: true", 1)
+    assert bad != text
+    report = check_component_yaml(bad, lib)
+    assert not report.ok and any("`driven`" in e for e in report.errors)
