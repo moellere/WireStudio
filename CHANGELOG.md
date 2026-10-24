@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **The agent eval's embedded-agent gate is 25 of 28; Claude Code's
+  moves from 24 to 25.** The embedded agent's first two scored runs,
+  on one commit with the `ANTHROPIC_API_KEY` secret in place, both
+  passed 26, so `gate.min_pass` sits one below. Claude Code passed 27
+  twice and 26 once on the same day, so `gate.claude_code_min_pass`
+  rises to 25. Both drivers miss `ws2812-strip` by one tool call; the
+  embedded agent also loses `first-i2c-part` to an id ESPHome refuses
+  (#410).
+
 ### Added
 
 - **Board revisions.** A board file can list `revisions:`, each

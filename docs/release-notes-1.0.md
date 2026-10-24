@@ -77,7 +77,7 @@ backup if you may roll back.
 | Component authoring | Works | Verified | Verified | a user component and its synthetic design through `esphome config`, and a corpus of bad components, every PR |
 | Board authoring | (new) | Verified | Verified | every bundled board through the board gate, and a user board with its onboard peripherals through `esphome config`, every PR |
 | ESPHome dashboard compile | Works | Verified | Verified | push, compile and fetch against a live ESPHome dashboard, nightly |
-| Agent | Experimental | Verified | Verified | the 28-task eval through Claude Code over MCP, nightly, held to `gate.claude_code_min_pass` (**at release:** the score) |
+| Agent | Experimental | Verified | Verified | the 28-task eval through Claude Code over MCP, nightly, held to `gate.claude_code_min_pass` (25 of 28; Claude Code scored 27 twice and 26 once on 2026-10-24, the embedded agent 26 twice, each gate one below its lower run) |
 | WLED target | (new) | Verified | Verified | goldens every PR; the usermod build against WLED v0.15.2 on PRs that touch it and nightly |
 | LoRaWAN target | Works (hardware-validated) | Verified | Verified | firmware builds on PRs that touch the target and daily; the nightly hardware gate hears the bench's T-Beam |
 | LoRaWAN external-component path | Works (hardware-validated) | Verified | Verified | `esphome config` every PR; the nightly hardware gate hears three bench boards on it |
