@@ -83,6 +83,84 @@ micropython:
     else:
         print("{{ label }}: no reply")
 
+lorawan:
+  globals: |
+    float {{ id }}Volts = 0, {{ id }}Amps = 0, {{ id }}Watts = 0, {{ id }}Hz = 0, {{ id }}ImportKwh = 0, {{ id }}ExportKwh = 0;
+    // Input registers hold IEEE 754 floats, high word first.
+    static float {{ id }}Float(const uint8_t* d, uint16_t reg) {
+      uint32_t _u = (uint32_t)d[reg * 2] << 24 | (uint32_t)d[reg * 2 + 1] << 16 | (uint32_t)d[reg * 2 + 2] << 8 | d[reg * 2 + 3];
+      float _f;
+      memcpy(&_f, &_u, 4);
+      return _f;
+    }
+  loop: |
+    {%- if parent %}
+    {
+      static unsigned long _last = 0;
+      if (_last == 0 || millis() - _last >= 10000) {
+        _last = millis();
+        static uint8_t _d[160];
+        if ({{ parent }}Read({{ params.address | default(1) }}, 0x04, 0, 80, _d)) {
+          {{ id }}Volts = {{ id }}Float(_d, 0x00);  // phase 1
+          {{ id }}Amps = {{ id }}Float(_d, 0x06);
+          {{ id }}Watts = {{ id }}Float(_d, {{ '0x34' if params.three_phase else '0x0C' }});  // {{ 'total system power' if params.three_phase else 'active power' }}
+          {{ id }}Hz = {{ id }}Float(_d, 0x46);
+          {{ id }}ImportKwh = {{ id }}Float(_d, 0x48);
+          {{ id }}ExportKwh = {{ id }}Float(_d, 0x4A);
+        }
+      }
+    }
+    {%- endif %}
+  fields:
+    - name: "{{ id }}_voltage"
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: "(uint16_t)({{ id }}Volts * 10.0 + 0.5)"
+      scale: 10.0
+      ha_device_class: voltage
+      ha_unit: "V"
+      ha_state_class: measurement
+    - name: "{{ id }}_current"
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: "(uint16_t)({{ id }}Amps * 100.0 + 0.5)"
+      scale: 100.0
+      ha_device_class: current
+      ha_unit: "A"
+      ha_state_class: measurement
+    - name: "{{ id }}_power"
+      bytes: 4
+      cpp_type: int32_t
+      cpp_expr: "(int32_t)({{ id }}Watts * 10.0)"
+      signed: true
+      scale: 10.0
+      ha_device_class: power
+      ha_unit: "W"
+      ha_state_class: measurement
+    - name: "{{ id }}_frequency"
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: "(uint16_t)({{ id }}Hz * 100.0 + 0.5)"
+      scale: 100.0
+      ha_device_class: frequency
+      ha_unit: "Hz"
+      ha_state_class: measurement
+    - name: "{{ id }}_import_energy"
+      bytes: 4
+      cpp_type: uint32_t
+      cpp_expr: "(uint32_t)({{ id }}ImportKwh * 100.0 + 0.5)"
+      scale: 100.0
+      ha_device_class: energy
+      ha_unit: "kWh"
+      ha_state_class: total_increasing
+    - name: "{{ id }}_export_energy"
+      bytes: 4
+      cpp_type: uint32_t
+      cpp_expr: "(uint32_t)({{ id }}ExportKwh * 100.0 + 0.5)"
+      scale: 100.0
+      ha_device_class: energy
+      ha_unit: "kWh"
+      ha_state_class: total_increasing
 params_schema:
   address:
     type: number

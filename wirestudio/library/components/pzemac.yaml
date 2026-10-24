@@ -70,6 +70,77 @@ micropython:
     else:
         print("{{ label }}: no reply")
 
+lorawan:
+  globals: |
+    float {{ id }}Volts = 0, {{ id }}Amps = 0, {{ id }}Hz = 0, {{ id }}Pf = 0;
+    uint32_t {{ id }}DeciWatts = 0, {{ id }}Wh = 0;
+  loop: |
+    {%- if parent %}
+    {
+      static unsigned long _last = 0;
+      if (_last == 0 || millis() - _last >= 10000) {
+        _last = millis();
+        uint8_t _d[20];
+        if ({{ parent }}Read({{ params.address | default(1) }}, 0x04, 0, 10, _d)) {
+          uint16_t _r[10];
+          for (int _i = 0; _i < 10; _i++) _r[_i] = _d[2 * _i] << 8 | _d[2 * _i + 1];
+          {{ id }}Volts = _r[0] / 10.0;
+          {{ id }}Amps = (_r[1] | (uint32_t)_r[2] << 16) / 1000.0;
+          {{ id }}DeciWatts = _r[3] | (uint32_t)_r[4] << 16;
+          {{ id }}Wh = _r[5] | (uint32_t)_r[6] << 16;
+          {{ id }}Hz = _r[7] / 10.0;
+          {{ id }}Pf = _r[8] / 100.0;
+        }
+      }
+    }
+    {%- endif %}
+  fields:
+    - name: "{{ id }}_voltage"
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: "(uint16_t)({{ id }}Volts * 10.0 + 0.5)"
+      scale: 10.0
+      ha_device_class: voltage
+      ha_unit: "V"
+      ha_state_class: measurement
+    - name: "{{ id }}_current"
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: "(uint16_t)({{ id }}Amps * 100.0 + 0.5)"
+      scale: 100.0
+      ha_device_class: current
+      ha_unit: "A"
+      ha_state_class: measurement
+    - name: "{{ id }}_power"
+      bytes: 4
+      cpp_type: uint32_t
+      cpp_expr: "{{ id }}DeciWatts"
+      scale: 10.0
+      ha_device_class: power
+      ha_unit: "W"
+      ha_state_class: measurement
+    - name: "{{ id }}_energy"
+      bytes: 4
+      cpp_type: uint32_t
+      cpp_expr: "{{ id }}Wh"
+      ha_device_class: energy
+      ha_unit: "Wh"
+      ha_state_class: total_increasing
+    - name: "{{ id }}_frequency"
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: "(uint16_t)({{ id }}Hz * 10.0 + 0.5)"
+      scale: 10.0
+      ha_device_class: frequency
+      ha_unit: "Hz"
+      ha_state_class: measurement
+    - name: "{{ id }}_power_factor"
+      bytes: 1
+      cpp_type: uint8_t
+      cpp_expr: "(uint8_t)({{ id }}Pf * 100.0 + 0.5)"
+      scale: 100.0
+      ha_device_class: power_factor
+      ha_state_class: measurement
 params_schema:
   address:
     type: number

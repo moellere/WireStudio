@@ -108,6 +108,64 @@ micropython:
     if {{ id }}_reading:
         print("{{ label }}: %s V %.3f A %.1f W" % (("%.1f" % {{ id }}_reading[0]) if {{ id }}_reading[0] else "-", {{ id }}_reading[1], {{ id }}_reading[2]))
 
+lorawan:
+  requires: [uart]
+  globals: |
+    HardwareSerial {{ id }}Serial({{ serial }});
+    uint8_t {{ id }}Frame[24];
+    uint8_t {{ id }}Len = 0;
+    float {{ id }}Volts = 0, {{ id }}Amps = 0, {{ id }}Watts = 0;
+  setup: |
+    {{ id }}Serial.begin({{ bus.baud if bus and bus.baud else 4800 }}, SERIAL_8E1, {{ bus.rx if bus and bus.rx is not none else -1 }}, {{ bus.tx if bus and bus.tx is not none else -1 }});
+  loop: |
+    // 24-byte frames at 4800 8E1: header, 0x5A, coefficient/cycle pairs,
+    // adjustment byte, sum of bytes 2-22. Each value is coefficient / cycle.
+    while ({{ id }}Serial.available()) {
+      uint8_t _b = {{ id }}Serial.read();
+      if ({{ id }}Len == 24) { memmove({{ id }}Frame, {{ id }}Frame + 1, 23); {{ id }}Len = 23; }
+      {{ id }}Frame[{{ id }}Len++] = _b;
+      if ({{ id }}Len < 24) continue;
+      const uint8_t* _f = {{ id }}Frame;
+      if (_f[1] != 0x5A) continue;
+      uint8_t _sum = 0;
+      for (int _i = 2; _i < 23; _i++) _sum += _f[_i];
+      if (_sum != _f[23]) continue;
+      uint8_t _h = _f[0], _adj = _f[20];
+      if (_h != 0x55 && (_h & 0xF1) != 0xF0) continue;
+      uint8_t _over = _h != 0x55 ? _h : 0;
+      uint32_t _vc = (uint32_t)_f[2] << 16 | _f[3] << 8 | _f[4], _vt = (uint32_t)_f[5] << 16 | _f[6] << 8 | _f[7];
+      uint32_t _ic = (uint32_t)_f[8] << 16 | _f[9] << 8 | _f[10], _it = (uint32_t)_f[11] << 16 | _f[12] << 8 | _f[13];
+      uint32_t _pc = (uint32_t)_f[14] << 16 | _f[15] << 8 | _f[16], _pt = (uint32_t)_f[17] << 16 | _f[18] << 8 | _f[19];
+      if ((_adj & 0x40) && !(_over & 0x08) && _vt) {{ id }}Volts = (float)_vc / _vt;
+      {{ id }}Amps = (_adj & 0x20) && !(_over & 0x04) && _it ? (float)_ic / _it : 0;
+      {{ id }}Watts = (_adj & 0x10) && !(_over & 0x02) && _pt ? (float)_pc / _pt : 0;
+      {{ id }}Len = 0;
+    }
+  fields:
+    - name: "{{ id }}_voltage"
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: "(uint16_t)({{ id }}Volts * 10.0 + 0.5)"
+      scale: 10.0
+      ha_device_class: voltage
+      ha_unit: "V"
+      ha_state_class: measurement
+    - name: "{{ id }}_current"
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: "(uint16_t)({{ id }}Amps * 1000.0 + 0.5)"
+      scale: 1000.0
+      ha_device_class: current
+      ha_unit: "A"
+      ha_state_class: measurement
+    - name: "{{ id }}_power"
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: "(uint16_t)({{ id }}Watts * 10.0 + 0.5)"
+      scale: 10.0
+      ha_device_class: power
+      ha_unit: "W"
+      ha_state_class: measurement
 params_schema: {}
 
 notes: |

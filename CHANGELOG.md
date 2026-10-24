@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **LoRaWAN firmware for the UART, SPI and Modbus parts.** These parts
+  now have `lorawan:` blocks, each adding fields to the uplink and the
+  ChirpStack codec. LoRaWAN coverage goes from 26 to 38 of 102 parts.
+  - UART: the MH-Z19, PMSx003, LD2410, LD2420, CSE7766 and BL0906.
+  - SPI: the MAX31855, and the MCP3008 with its channels.
+  - Modbus: a Modbus RTU hub (RS485 direction pin, CRC, a reply found
+    past line noise) with the PZEM-004T and Eastron SDM meters.
+
+  How the generator handles them:
+  - Each UART bus gets its own hardware UART: 1 and 2 on the ESP32 and
+    ESP32-S3. A design that needs more is refused. The GPS moved onto
+    the same allocation.
+  - SPI parts share the radio's bus, and a part on other pins is
+    refused.
+  - A field's name and expression may name the instance, so eight ADC
+    channels or two meters each report their own.
+
+  The decoders are C++ ports of the Python blocks' decoders. They run on
+  the host against the same frames in `tests/test_lorawan_fragments.py`.
 - **Enclosures for the ESP32-C3-DevKitM-1 and ESP32-S3-DevKitC-1.**
   Both cards carry an `enclosure:` block transcribed from Espressif's
   dimension drawings: the board outline, the micro-USB openings (two on
