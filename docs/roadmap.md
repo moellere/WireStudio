@@ -189,7 +189,7 @@ remains is to work the baselines down:
   remaining one. When the pin moves to 0.16 the override switches from build
   flags to `custom_usermods`.
 
-Boards: all 26 have an ESPHome example. The enclosure block is on 9.
+Boards: all 26 have an ESPHome example. The enclosure block is on 11.
 Section 4 covers the rest.
 
 ## 4. Physical outputs
@@ -211,13 +211,12 @@ Section 4 covers the rest.
   bench would be the only test of the fab bundle beyond its structural
   checks; it is not a 1.0 gate.
 - **Enclosure.** `enclosure:` metadata for every board whose outline
-  is published: nine have it. Of the other seventeen, the six M5Stack
+  is published: eleven have it, the ESP32-C3 and S3 DevKits from
+  Espressif's dimension drawings. Of the other fifteen, the six M5Stack
   Atoms ship in their own case, the ESP-01 and ESP8285 are modules for
   a host board, and the two camera boards need a lens window in the lid
-  that the generator does not cut. The ESP32-C3 and S3 DevKits publish
-  their outlines as DXFs on dl.espressif.com, not yet transcribed; the
-  S3 and C6 SuperMinis, the Heltec V2 and V4 and the T-Beam wait on a
-  published drawing. YAPP_Box is
+  that the generator does not cut. The S3 and C6 SuperMinis, the Heltec
+  V2 and V4 and the T-Beam wait on a published drawing. YAPP_Box is
   adopted: the `.scad` endpoint inlines the pinned generator and drives
   it from the `enclosure:` block, base and lid with a ridge and snap
   joins. The fit test runs through print-warden: one enclosure sent with
