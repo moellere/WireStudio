@@ -153,12 +153,55 @@ def local_net_name(component_id: str, name: str) -> str:
     return f"{_py_var(component_id)}_{name}"
 
 
+# The bus line a library pin kind lands on. UART kinds name the part's own
+# pin, so they cross over: the part's TX is the MCU's RX line.
+_BUS_LINE = {
+    "i2c_sda": "sda", "i2c_scl": "scl",
+    "spi_clk": "clk", "spi_miso": "miso", "spi_mosi": "mosi", "spi_cs": "cs",
+    "uart_tx": "rx", "uart_rx": "tx",
+    "i2s_lrclk": "lrclk", "i2s_bclk": "bclk",
+    "onewire_data": "pin",
+}
+
+
+def bus_net_name(bus_id: str, line: str | None) -> str:
+    """One net per bus line, ``BUS_<id>_<LINE>``; a 1-wire bus is one line,
+    ``BUS_<id>``, as is a pin whose kind names no line."""
+    if line is None or line == "pin":
+        return f"BUS_{bus_id}"
+    return f"BUS_{bus_id}_{line.upper()}"
+
+
+def _bus_line(design: Design | None, library, component_id: str, role: str) -> str | None:
+    if design is None or library is None:
+        return None
+    comp = next((c for c in design.components if c.id == component_id), None)
+    if comp is None:
+        return None
+    try:
+        pins = library.component(comp.library_id).electrical.pins
+    except FileNotFoundError:
+        return None
+    kind = next((p.kind for p in pins if p.role == role), None)
+    return _BUS_LINE.get(kind)
+
+
+def connection_net_name(conn, design: Design, library) -> str:
+    """The net a design connection lands on: ``net_name`` of its target,
+    with a bus target narrowed to the line the pin's kind names."""
+    if conn.target.kind == "bus":
+        return bus_net_name(conn.target.bus_id or "UNBOUND",
+                            _bus_line(design, library, conn.component_id, conn.pin_role))
+    return net_name(conn.target, design, library)
+
+
 def net_name(target, design: Design | None = None, library=None) -> str:
     """Canonical net name for a connection target. Used verbatim in the PCB's
     ``(net ...)`` declarations and pad bindings, and as the inline SKiDL net
     name for gpio/expander/component targets, so both artifacts share names.
 
-    rails -> ``GND`` / ``+5V`` / ``+3V3``; bus -> ``BUS_<id>``;
+    rails -> ``GND`` / ``+5V`` / ``+3V3``; bus -> ``BUS_<id>`` (a
+    connection's line comes from ``connection_net_name``);
     gpio -> ``GPIO_<pin>``; expander_pin -> ``<expander>_GP<n>``;
     component (hub) -> ``<component>_HUB``; net -> whatever
     ``resolve_net_target`` finds, which needs the design, else ``UNCONNECTED``.
@@ -220,7 +263,7 @@ def build_netlist(design: Design, library) -> list[Net]:
     for conn in design.connections:
         if conn.component_id in subcircuits:
             if is_bound(conn.target):
-                role_nets[(conn.component_id, conn.pin_role)] = net_name(conn.target, design, library)
+                role_nets[(conn.component_id, conn.pin_role)] = connection_net_name(conn, design, library)
             continue
         ref = refs.get(conn.component_id)
         if ref is None:
@@ -232,7 +275,7 @@ def build_netlist(design: Design, library) -> list[Net]:
             if name is None:
                 continue
         else:
-            name = net_name(conn.target)
+            name = connection_net_name(conn, design, library)
         net = by_name.setdefault(name, Net(name=name))
         net.pads.append(
             NetPad(ref=ref, component_id=conn.component_id, pin_role=conn.pin_role)
@@ -248,21 +291,23 @@ def build_netlist(design: Design, library) -> list[Net]:
                 )
     board_pins, _ = board_bindings(design, library)
     for bp in board_pins:
-        name = net_name(bp.target)
+        name = bp.net
         net = by_name.setdefault(name, Net(name=name))
         net.pads.append(NetPad(ref=refs[BOARD_KEY], component_id=BOARD_KEY, pin_role=bp.pin))
     return [by_name[n] for n in sorted(by_name)]
 
 
-_BUS_PINS = ("sda", "scl", "clk", "miso", "mosi", "cs", "rx", "tx")
+_BUS_PINS = ("sda", "scl", "clk", "miso", "mosi", "cs", "rx", "tx", "lrclk", "bclk", "pin")
 
 
 @dataclass(frozen=True)
 class BoardPin:
-    """One board symbol pin and the connection target whose net it joins."""
+    """One board symbol pin, the connection target whose net it joins, and
+    that net's name."""
     pin: str
     role: str
     target: object
+    net: str
 
 
 def board_bindings(design: Design, library) -> tuple[list[BoardPin], list[str]]:
@@ -288,16 +333,16 @@ def board_bindings(design: Design, library) -> tuple[list[BoardPin], list[str]]:
             f"(add one to library/boards/{board.id}.yaml)"
         ]
     buses = {b.id: b for b in design.buses}
-    wanted: dict[str, object] = {}
+    wanted: dict[str, tuple[object, str]] = {}
     for conn in design.connections:
         t = conn.target
         if not is_bound(t):
             continue
         if t.kind == "gpio":
-            wanted.setdefault(t.pin, t)
+            wanted.setdefault(t.pin, (t, net_name(t)))
         elif t.kind == "rail":
             role = "GND" if t.rail.lower() in ("gnd", "ground") else t.rail
-            wanted.setdefault(role, t)
+            wanted.setdefault(role, (t, net_name(t)))
         elif t.kind == "bus":
             bus = buses.get(t.bus_id)
             if bus is None:
@@ -306,10 +351,10 @@ def board_bindings(design: Design, library) -> tuple[list[BoardPin], list[str]]:
             for name in _BUS_PINS:
                 gpio = getattr(bus, name, None) or defaults.get(name)
                 if gpio:
-                    wanted.setdefault(gpio, t)
+                    wanted.setdefault(gpio, (t, bus_net_name(bus.id, name)))
     pins: list[BoardPin] = []
     notes: list[str] = []
-    for role, target in wanted.items():
+    for role, (target, net) in wanted.items():
         pin = kicad.pin_map.get(role)
         if pin is None:
             notes.append(
@@ -317,7 +362,7 @@ def board_bindings(design: Design, library) -> tuple[list[BoardPin], list[str]]:
                 f"(board {board.id} pin_map)"
             )
             continue
-        pins.append(BoardPin(pin=pin, role=role, target=target))
+        pins.append(BoardPin(pin=pin, role=role, target=target, net=net))
     return pins, notes
 
 
@@ -352,7 +397,7 @@ def resolve_net_target(target, design: Design, library, _seen: tuple = ()) -> st
                 return None
             if conn.target.kind == "net":
                 return resolve_net_target(conn.target, design, library, _seen + (key,))
-            return net_name(conn.target)
+            return connection_net_name(conn, design, library)
     sub = _subcircuit(comp, library) if library is not None else None
     if sub is not None and any(target.net in part.pins.values() for part in sub.parts):
         return local_net_name(comp.id, target.net)

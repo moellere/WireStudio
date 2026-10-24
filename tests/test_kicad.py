@@ -14,12 +14,14 @@ The generator is pure text-out, so we lean on substring assertions +
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import pytest
 
 from wirestudio.kicad import generate_skidl
 from wirestudio.kicad.generator import _py_var
+from wirestudio.kicad.netlist import build_netlist
 from wirestudio.library import default_library
 from wirestudio.model import Design
 
@@ -160,15 +162,24 @@ def test_rail_targets_become_named_nets(lib):
     assert 'NET_PLUS__3V3 = Net("+3V3")' in script
 
 
-def test_bus_targets_share_a_single_net(lib):
-    """All connections targeting bus_id=i2c0 should resolve to the same
-    NET_BUS_i2c0 handle so the schematic's I2C pins land on one net."""
+def test_bus_targets_land_on_a_net_per_line(lib):
+    """A bus is a net per line: the BME280's SDA and SCL go to i2c0's SDA
+    and SCL nets, never one shared net. The symbol's I2C pins are SDI/SCK
+    (pin_map rewrites SDA->SDI, SCL->SCK)."""
     script = generate_skidl(_design("garage-motion"), lib)
-    assert 'NET_BUS_i2c0 = Net("BUS_i2c0")' in script
-    # Both BME280's I2C connections go to that single bus net. The
-    # symbol's I2C pins are SDI/SCK (pin_map rewrites SDA->SDI, SCL->SCK).
-    assert 'c_bme1["SDI"] += NET_BUS_i2c0' in script
-    assert 'c_bme1["SCK"] += NET_BUS_i2c0' in script
+    assert 'NET_BUS_i2c0_SDA = Net("BUS_i2c0_SDA")' in script
+    assert 'NET_BUS_i2c0_SCL = Net("BUS_i2c0_SCL")' in script
+    assert 'Net("BUS_i2c0")' not in script
+    assert 'c_bme1["SDI"] += NET_BUS_i2c0_SDA' in script
+    assert 'c_bme1["SCK"] += NET_BUS_i2c0_SCL' in script
+
+
+def test_uart_lines_cross_over(lib):
+    """A UART part's TX is the MCU's RX line, and its RX the MCU's TX."""
+    nets = {n.name: {(p.ref, p.pin_role) for p in n.pads}
+            for n in build_netlist(_design("nextion-thermostat"), lib)}
+    assert nets["BUS_nextion_uart_RX"] == {("U1", "TX"), ("M1", "IO16")}
+    assert nets["BUS_nextion_uart_TX"] == {("U1", "RX"), ("M1", "IO17")}
 
 
 def test_gpio_targets_share_one_declared_net(lib):
@@ -187,8 +198,8 @@ def test_board_pins_join_gpio_rail_and_bus_nets(lib):
     the module's VDD, and 5V has no module pin, which the script says."""
     script = generate_skidl(_design("garage-motion"), lib)
     assert 'board["IO13"] += NET_GPIO_GPIO13  # GPIO13' in script
-    assert 'board["IO21"] += NET_BUS_i2c0  # GPIO21' in script
-    assert 'board["IO22"] += NET_BUS_i2c0  # GPIO22' in script
+    assert 'board["IO21"] += NET_BUS_i2c0_SDA  # GPIO21' in script
+    assert 'board["IO22"] += NET_BUS_i2c0_SCL  # GPIO22' in script
     assert 'board["VDD"] += NET_PLUS__3V3  # 3V3' in script
     assert 'board["GND"] += GND  # GND' in script
     assert "# 5V: no pin on RF_Module:ESP32-WROOM-32" in script
@@ -198,8 +209,8 @@ def test_board_pins_use_the_boards_own_role_names(lib):
     """A D1 mini design names pins D1/D2; the pin_map turns them into the
     symbol's SCL/D1 and SDA/D2."""
     script = generate_skidl(_design("room-climate"), lib)
-    assert 'board["SDA/D2"] += NET_BUS_' in script
-    assert 'board["SCL/D1"] += NET_BUS_' in script
+    assert re.search(r'board\["SDA/D2"\] \+= NET_BUS_\w+_SDA ', script)
+    assert re.search(r'board\["SCL/D1"\] \+= NET_BUS_\w+_SCL ', script)
     assert 'board["3V3"] += NET_PLUS__3V3' in script
 
 
