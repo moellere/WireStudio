@@ -25,7 +25,8 @@ mappings (symbol, footprint, pin_map applied) appear verbatim.
 from __future__ import annotations
 
 from wirestudio.kicad.netlist import (
-    BOARD_KEY, _py_var, assign_refs, board_bindings, is_bound, local_net_name,
+    _BUS_PINS, BOARD_KEY, _py_var, assign_refs, board_bindings, build_netlist, bus_net_name,
+    connection_net_name, is_bound, local_net_name,
     net_name, part_key, placed_parts, resolve_net_target,
 )
 from wirestudio.library import KicadSymbolRef, Library
@@ -196,7 +197,7 @@ def generate_skidl(design: Design, library: Library) -> str:
     """Emit a SKiDL Python script. Pure: returns the text."""
     rail_decls = _render_rails(design)
     component_decls, ref_index = _render_components(design, library)
-    bus_decls = _render_buses(design)
+    bus_decls = _render_buses(design, library)
     gpio_decls = _render_gpio_nets(design)
     connection_lines = _render_connections(design, library, ref_index)
     board_lines = _render_board_pins(design, library, ref_index)
@@ -287,19 +288,25 @@ def _render_board_pins(design: Design, library: Library, ref_index: dict[str, st
     pins, notes = board_bindings(design, library)
     var = ref_index[BOARD_KEY]
     lines = [
-        f"{var}[{_quote(bp.pin)}] += {_net_handle_for(bp.target, design, ref_index)}  # {bp.role}"
+        f"{var}[{_quote(bp.pin)}] += "
+        f"{_handle_for_net_name(bp.net) if bp.target.kind == 'bus' else _net_handle_for(bp.target, design, ref_index)}"
+        f"  # {bp.role}"
         for bp in pins
     ]
     lines.extend(f"# {note}" for note in notes)
     return "\n".join(lines)
 
 
-def _render_buses(design: Design) -> str:
+def _render_buses(design: Design, library: Library) -> str:
+    """A net per bus line something lands on."""
     if not design.buses:
         return ""
+    used = {net.name for net in build_netlist(design, library)}
     out: list[str] = []
     for b in design.buses:
-        out.append(f'NET_BUS_{_py_var(b.id)} = Net("BUS_{b.id}")  # {b.type} bus')
+        for name in dict.fromkeys(bus_net_name(b.id, line) for line in _BUS_PINS):
+            if name in used:
+                out.append(f'NET_BUS_{_py_var(name[4:])} = Net("{name}")  # {b.type} bus')
     return "\n".join(out)
 
 
@@ -358,7 +365,10 @@ def _render_connections(
                 continue
             deferred.append(f'{comp_var}[{_quote(pin_name)}] += {_handle_for_net_name(name)}')
             continue
-        net_expr = _net_handle_for(conn.target, design, ref_index)
+        if conn.target.kind == "bus":
+            net_expr = _handle_for_net_name(connection_net_name(conn, design, library))
+        else:
+            net_expr = _net_handle_for(conn.target, design, ref_index)
         lines.append(f'{comp_var}[{_quote(pin_name)}] += {net_expr}')
     for comp_id, sub in subcircuits.items():
         lines.extend(_render_subcircuit(comp_id, sub, design, library, ref_index))
@@ -388,8 +398,8 @@ def _render_subcircuit(
     pin on it (an inline ``Net(name)`` per pin would make SKiDL create a fresh
     net each time). A node named after a host role the design has connected
     reuses that connection's net; anything else is local to the instance."""
-    role_targets = {
-        conn.pin_role: conn.target for conn in design.connections
+    role_conns = {
+        conn.pin_role: conn for conn in design.connections
         if conn.component_id == comp_id and is_bound(conn.target)
     }
     nodes: list[str] = []
@@ -400,8 +410,12 @@ def _render_subcircuit(
     lines: list[str] = [f"# {comp_id}: subcircuit"]
     handle: dict[str, str] = {}
     for node in nodes:
-        target = role_targets.get(node)
-        if target is not None and target.kind in ("rail", "bus", "gpio"):
+        conn = role_conns.get(node)
+        target = conn.target if conn is not None else None
+        if target is not None and target.kind == "bus":
+            handle[node] = _handle_for_net_name(connection_net_name(conn, design, library))
+            continue
+        if target is not None and target.kind in ("rail", "gpio"):
             handle[node] = _net_handle_for(target, design, ref_index)
             continue
         var = f"n_{_py_var(comp_id)}_{_py_var(node)}"
@@ -417,8 +431,9 @@ def _render_subcircuit(
 
 def _net_handle_for(target, design: Design, ref_index: dict[str, str]) -> str:
     """Return a SKiDL expression that evaluates to the net for `target`.
-    Rails, buses and gpio pins reference the per-script Net handle declared
-    once (`NET_PLUS_*` / `GND` / `NET_BUS_<id>` / `NET_GPIO_<pin>`);
+    Rails and gpio pins reference the per-script Net handle declared once
+    (`NET_PLUS_*` / `GND` / `NET_GPIO_<pin>`; a bus line's handle comes
+    from `_handle_for_net_name`);
     expander_pin/component targets build a fresh inline `Net(...)` named
     canonically (`net_name`) so the schematic and the PCB land them on
     identically-named nets."""
@@ -427,8 +442,6 @@ def _net_handle_for(target, design: Design, ref_index: dict[str, str]) -> str:
         if target.rail.lower() in ("gnd", "ground"):
             return "GND"
         return f"NET_PLUS_{_py_var(target.rail)}"
-    if kind == "bus":
-        return f"NET_BUS_{_py_var(target.bus_id)}"
     if kind == "gpio":
         return f"NET_GPIO_{_py_var(target.pin)}"
     return f'Net("{net_name(target)}")'
