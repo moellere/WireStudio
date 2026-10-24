@@ -44,7 +44,9 @@ from wirestudio.api.schemas import (
     AgentToolCall,
     AgentTurnRequest,
     AgentTurnResponse,
+    BoardCheckResponse,
     BoardSummary,
+    BoardYamlRequest,
     CompatibilityWarning as CompatWire,
     ComponentSummary,
     ExampleSummary,
@@ -167,6 +169,7 @@ from wirestudio.library import (
     LibraryModule,
     default_library,
 )
+from wirestudio.library.board_check import check_board_yaml, create_board
 from wirestudio.library.check import check_component_yaml, create_component
 from wirestudio.designs.seed import insert_module
 from wirestudio.model import Design
@@ -190,8 +193,9 @@ def _wire_compat(warnings) -> list[CompatWire]:
 EXAMPLES_DIR = Path(__file__).resolve().parent.parent / "examples"
 
 
-def _board_summary(b: LibraryBoard) -> BoardSummary:
+def _board_summary(b: LibraryBoard, source: str = "bundled") -> BoardSummary:
     return BoardSummary(
+        source=source,
         id=b.id,
         name=b.name,
         mcu=b.mcu,
@@ -273,19 +277,24 @@ def create_app(
         return migrate_document(design, lib)
 
     # Pre-compute component and board summaries to avoid re-parsing YAML
-    # and re-allocating models on every request. Boards are immutable;
-    # the component list is rebuilt when the user tree changes.
-    _summaries: dict = {"version": None, "components": []}
+    # and re-allocating models on every request; both are rebuilt when
+    # the user tree changes.
+    _summaries: dict = {"version": None, "components": [], "boards": []}
 
-    def _components() -> list[ComponentSummary]:
+    def _refresh() -> dict:
         if _summaries["version"] != lib.version:
             _summaries["components"] = [
                 _component_summary(c, lib.component_source(c.id)) for c in lib.list_components()
             ]
+            _summaries["boards"] = [_board_summary(b, lib.board_source(b.id)) for b in lib.list_boards()]
             _summaries["version"] = lib.version
-        return _summaries["components"]
+        return _summaries
 
-    _precomputed_boards = [_board_summary(b) for b in lib.list_boards()]
+    def _components() -> list[ComponentSummary]:
+        return _refresh()["components"]
+
+    def _boards() -> list[BoardSummary]:
+        return _refresh()["boards"]
     # SESSIONS_DIR / DESIGNS_DIR env vars let the Docker image point
     # the stores at a /data volume without the caller plumbing args
     # through. Falls back to the package-local default in dev.
@@ -408,11 +417,47 @@ def create_app(
         ),
     ) -> list[BoardSummary]:
         if target is None:
-            return _precomputed_boards
+            return _boards()
         if target not in target_ids():
             raise HTTPException(status_code=422, detail=f"unknown target {target!r}")
         allowed = set(get_target(target).board_ids(lib))
-        return [b for b in _precomputed_boards if b.id in allowed]
+        return [b for b in _boards() if b.id in allowed]
+
+    @app.post("/library/boards/check", response_model=BoardCheckResponse, tags=["library"])
+    def check_board(req: BoardYamlRequest) -> BoardCheckResponse:
+        """Check a draft board YAML without saving it."""
+        return BoardCheckResponse(**check_board_yaml(req.yaml, lib).as_dict())
+
+    @app.post("/library/boards", response_model=BoardCheckResponse, tags=["library"],
+              status_code=201)
+    def create_library_board(req: BoardYamlRequest, response: Response) -> BoardCheckResponse:
+        """Check, then save a board into the user library (LIBRARY_USER_DIR).
+        A failed check comes back 422 with the report; a clash with a
+        bundled or existing user id comes back 409."""
+        report = create_board(req.yaml, lib, overwrite=req.overwrite)
+        if not report.ok:
+            clash = report.exists and any("already exists" in e or "bundled" in e for e in report.errors)
+            response.status_code = 409 if clash else 422
+        return BoardCheckResponse(**report.as_dict())
+
+    @app.get("/library/boards/{board_id}/yaml", response_class=PlainTextResponse, tags=["library"])
+    def get_board_yaml(board_id: str) -> str:
+        """The board's YAML source, bundled or user."""
+        try:
+            return lib.board_yaml(board_id)
+        except FileNotFoundError as e:
+            raise HTTPException(status_code=404, detail=str(e)) from e
+
+    @app.delete("/library/boards/{board_id}", tags=["library"])
+    def delete_library_board(board_id: str) -> dict:
+        """Remove a user-library board. A bundled id is 409."""
+        try:
+            lib.delete_board(board_id)
+        except PermissionError as e:
+            raise HTTPException(status_code=409, detail=str(e)) from e
+        except FileNotFoundError as e:
+            raise HTTPException(status_code=404, detail=str(e)) from e
+        return {"deleted": board_id}
 
     @app.get("/library/boards/{board_id}", response_model=LibraryBoard, tags=["library"])
     def get_board(board_id: str) -> LibraryBoard:

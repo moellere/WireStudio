@@ -72,6 +72,13 @@ jobs:
         # corpus in tests/fixtures/bad_components is cut from.
         run: python scripts/check_examples.py --component tests/fixtures/components/led_driver_npn.yaml
 
+      - name: A user-authored board through `esphome config`
+        # The board gate (`board_check`) renders a draft board with its
+        # onboard peripherals; this runs that design through upstream
+        # ESPHome, so a board a user authors is held to the same bar as
+        # a bundled one.
+        run: python scripts/check_examples.py --board tests/fixtures/boards/lolin-s2-mini.yaml
+
       - name: Coverage baseline (no-regression gate)
         # Fails when a new library entry slips in without an example,
         # or when scripts/coverage_baseline.yaml lists an id that now

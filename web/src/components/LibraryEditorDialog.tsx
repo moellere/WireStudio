@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ApiError, api } from "../api/client";
-import type { ComponentCheckResponse } from "../types/api";
+import type { LibraryCheckResponse } from "../types/api";
 import { Button, Dialog } from "./ui";
 
 export const NEW_COMPONENT_TEMPLATE = `id: my_component
@@ -28,22 +28,66 @@ kicad:
   footprint: Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical
 `;
 
-function reportFromError(e: unknown): ComponentCheckResponse | null {
+export const NEW_BOARD_TEMPLATE = `id: my_board
+name: My board
+mcu: esp32
+chip_variant: esp32
+framework: arduino
+platformio_board: esp32dev
+flash_size_mb: 4
+rails:
+  - {name: "5V", voltage: 5.0, source: usb}
+  - {name: "3V3", voltage: 3.3, source: onboard_regulator}
+  - {name: "GND", voltage: 0.0}
+default_buses:
+  i2c: {sda: GPIO21, scl: GPIO22}
+onboard_peripherals:
+  led: {pin: GPIO2}
+gpio_capabilities:
+  GPIO2:  [gpio, pwm, builtin_led]
+  GPIO4:  [gpio, adc, adc2, pwm]
+  GPIO21: [gpio, pwm, i2c_sda]
+  GPIO22: [gpio, pwm, i2c_scl]
+  GPIO34: [gpio, adc, adc1, input_only]
+`;
+
+export type LibraryKind = "component" | "board";
+
+const GATES: Record<LibraryKind, {
+  check: (yaml: string) => Promise<LibraryCheckResponse>;
+  create: (yaml: string, overwrite: boolean) => Promise<LibraryCheckResponse>;
+  subtitle: string;
+}> = {
+  component: {
+    check: (yaml) => api.checkComponentYaml(yaml),
+    create: (yaml, overwrite) => api.createComponent(yaml, overwrite),
+    subtitle: "Checked like a bundled component: schema, subcircuit nets, template render, KiCad symbols when the libraries are installed. Nothing is simulated.",
+  },
+  board: {
+    check: (yaml) => api.checkBoardYaml(yaml),
+    create: (yaml, overwrite) => api.createBoard(yaml, overwrite),
+    subtitle: "Checked like a bundled board: schema, every bus and onboard pin against the GPIO list, KiCad symbol pins, enclosure geometry, and an ESPHome render with the onboard parts. The pinout is not checked against the datasheet.",
+  },
+};
+
+function reportFromError(e: unknown): LibraryCheckResponse | null {
   if (e instanceof ApiError && e.body && typeof e.body === "object" && "errors" in (e.body as object)) {
-    return e.body as ComponentCheckResponse;
+    return e.body as LibraryCheckResponse;
   }
   return null;
 }
 
-/** Author or edit a library component as YAML: check it against the same
- * gate every bundled component passes, then save into the user library. */
-export function ComponentEditorDialog({
+/** Author or edit a library component or board as YAML: check it against
+ * the same gate every bundled entry passes, then save into the user library. */
+export function LibraryEditorDialog({
+  kind = "component",
   title,
   initialYaml,
   overwrite,
   onClose,
   onSaved,
 }: {
+  kind?: LibraryKind;
   title: string;
   initialYaml: string;
   overwrite: boolean;
@@ -51,15 +95,16 @@ export function ComponentEditorDialog({
   onSaved: (libraryId: string) => void;
 }) {
   const [yaml, setYaml] = useState(initialYaml);
-  const [report, setReport] = useState<ComponentCheckResponse | null>(null);
+  const [report, setReport] = useState<LibraryCheckResponse | null>(null);
   const [busy, setBusy] = useState<"check" | "save" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const gate = GATES[kind];
 
   async function check() {
     setBusy("check");
     setError(null);
     try {
-      setReport(await api.checkComponentYaml(yaml));
+      setReport(await gate.check(yaml));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -71,7 +116,7 @@ export function ComponentEditorDialog({
     setBusy("save");
     setError(null);
     try {
-      const r = await api.createComponent(yaml, overwrite);
+      const r = await gate.create(yaml, overwrite);
       setReport(r);
       if (r.ok) onSaved(r.library_id);
     } catch (e) {
@@ -86,7 +131,7 @@ export function ComponentEditorDialog({
   return (
     <Dialog
       title={title}
-      subtitle="Checked like a bundled component: schema, subcircuit nets, template render, KiCad symbols when the libraries are installed. Nothing is simulated."
+      subtitle={gate.subtitle}
       onClose={onClose}
       maxWidth="max-w-3xl"
       footer={
@@ -109,9 +154,9 @@ export function ComponentEditorDialog({
       />
       {error && <p className="mt-2 text-xs text-rose-300">{error}</p>}
       {report && (
-        <div className="mt-2 space-y-1.5 text-xs" data-testid="component-check-report">
+        <div className="mt-2 space-y-1.5 text-xs" data-testid="library-check-report">
           <p className={report.ok ? "text-emerald-300" : "text-rose-300"}>
-            {report.ok ? `${report.library_id}: passes` : `${report.library_id || "component"}: ${report.errors.length} error(s)`}
+            {report.ok ? `${report.library_id}: passes` : `${report.library_id || kind}: ${report.errors.length} error(s)`}
             {report.saved ? ` — saved to ${report.saved}` : ""}
           </p>
           {report.errors.map((line) => <p key={line} className="text-rose-300">✕ {line}</p>)}

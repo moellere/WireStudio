@@ -28,7 +28,7 @@ import { SchematicDialog } from "./components/SchematicDialog";
 import { FlashDialog } from "./components/FlashDialog";
 import { LorawanProvisionEsphomeDialog } from "./components/LorawanProvisionEsphomeDialog";
 import { InventoryDialog } from "./components/InventoryDialog";
-import { ComponentEditorDialog, NEW_COMPONENT_TEMPLATE } from "./components/ComponentEditorDialog";
+import { LibraryEditorDialog, NEW_BOARD_TEMPLATE, NEW_COMPONENT_TEMPLATE, type LibraryKind } from "./components/LibraryEditorDialog";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { ShareDialog } from "./components/ShareDialog";
 import { useDebouncedValue } from "./lib/debounce";
@@ -126,7 +126,7 @@ export default function App() {
   const [showFlashDialog, setShowFlashDialog] = useState(false);
   const [showProvisionEsphomeDialog, setShowProvisionEsphomeDialog] = useState(false);
   const [showInventoryDialog, setShowInventoryDialog] = useState(false);
-  const [componentEditor, setComponentEditor] = useState<{ title: string; yaml: string; overwrite: boolean } | null>(null);
+  const [libraryEditor, setLibraryEditor] = useState<{ kind: LibraryKind; title: string; yaml: string; overwrite: boolean } | null>(null);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [savingState, setSavingState] = useState<"idle" | "saving" | "saved">("idle");
 
@@ -193,18 +193,38 @@ export default function App() {
     }
   }
 
-  async function handleEditComponent(id: string, source: "bundled" | "user") {
+  async function refreshBoards() {
     try {
-      const yaml = await api.getComponentYaml(id);
+      setBoards(await api.listBoards());
+    } catch {
+      /* the list keeps its last value */
+    }
+  }
+
+  async function handleEditLibrary(kind: LibraryKind, id: string, source: "bundled" | "user") {
+    try {
+      const yaml = kind === "board" ? await api.getBoardYaml(id) : await api.getComponentYaml(id);
       if (source === "user") {
-        setComponentEditor({ title: `Edit ${id}`, yaml, overwrite: true });
+        setLibraryEditor({ kind, title: `Edit ${id}`, yaml, overwrite: true });
       } else {
-        setComponentEditor({
-          title: `New component from ${id}`,
-          yaml: yaml.replace(/^id: .*$/m, `id: ${id}_copy`),
+        setLibraryEditor({
+          kind,
+          title: `New ${kind} from ${id}`,
+          yaml: yaml.replace(/^id: .*$/m, `id: ${id}${kind === "board" ? "-copy" : "_copy"}`),
           overwrite: false,
         });
       }
+    } catch (e) {
+      setBootError(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  async function handleDeleteBoard(id: string) {
+    if (!window.confirm(`Remove ${id} from the user library? Designs on it stop rendering.`)) return;
+    try {
+      await api.deleteBoard(id);
+      await refreshBoards();
+      setSelection((sel) => (sel.kind === "board" && sel.id === id ? { kind: "design" } : sel));
     } catch (e) {
       setBootError(e instanceof Error ? e.message : String(e));
     }
@@ -883,7 +903,8 @@ export default function App() {
           onDeleteSaved={handleDeleteSaved}
           onSelectBoard={(id) => setSelection({ kind: "board", id })}
           onSelectComponent={(id) => setSelection({ kind: "component", id })}
-          onNewComponent={() => setComponentEditor({ title: "New component", yaml: NEW_COMPONENT_TEMPLATE, overwrite: false })}
+          onNewComponent={() => setLibraryEditor({ kind: "component", title: "New component", yaml: NEW_COMPONENT_TEMPLATE, overwrite: false })}
+          onNewBoard={() => setLibraryEditor({ kind: "board", title: "New board", yaml: NEW_BOARD_TEMPLATE, overwrite: false })}
           onInsertModule={handleInsertModule}
         />
         <DesignPane design={design} render={render} renderError={renderError} advancedMode={advancedMode} />
@@ -901,20 +922,24 @@ export default function App() {
           onDesignChange={handleDesignChange}
           onAddComponent={handleAddComponent}
           onRemoveComponent={handleRemoveComponent}
-          onEditComponent={handleEditComponent}
+          onEditComponent={(id, source) => handleEditLibrary("component", id, source)}
           onDeleteComponent={handleDeleteComponent}
+          onEditBoard={(id, source) => handleEditLibrary("board", id, source)}
+          onDeleteBoard={handleDeleteBoard}
         />
       </main>
-      {componentEditor && (
-        <ComponentEditorDialog
-          title={componentEditor.title}
-          initialYaml={componentEditor.yaml}
-          overwrite={componentEditor.overwrite}
-          onClose={() => setComponentEditor(null)}
+      {libraryEditor && (
+        <LibraryEditorDialog
+          kind={libraryEditor.kind}
+          title={libraryEditor.title}
+          initialYaml={libraryEditor.yaml}
+          overwrite={libraryEditor.overwrite}
+          onClose={() => setLibraryEditor(null)}
           onSaved={async (id) => {
-            setComponentEditor(null);
-            await refreshComponents();
-            setSelection({ kind: "component", id });
+            const kind = libraryEditor.kind;
+            setLibraryEditor(null);
+            await (kind === "board" ? refreshBoards() : refreshComponents());
+            setSelection({ kind, id });
           }}
         />
       )}

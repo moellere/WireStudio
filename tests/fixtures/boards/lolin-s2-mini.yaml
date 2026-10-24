@@ -1,0 +1,50 @@
+# A draft board as a contributor would write one: no kicad block yet.
+id: lolin-s2-mini
+name: LOLIN S2 Mini
+mcu: esp32
+chip_variant: esp32s2
+framework: arduino
+platformio_board: lolin_s2_mini
+flash_size_mb: 4
+
+rails:
+  - {name: "5V",  voltage: 5.0, source: usb}
+  - {name: "3V3", voltage: 3.3, source: onboard_regulator}
+  - {name: "GND", voltage: 0.0}
+
+default_buses:
+  i2c: {sda: GPIO33, scl: GPIO35}
+  spi: {clk: GPIO7, mosi: GPIO11, miso: GPIO9}
+
+onboard_peripherals:
+  led: {pin: GPIO15}
+  button: {pin: GPIO0, inverted: true}
+
+gpio_capabilities:
+  GPIO0:  [gpio, strap, boot_high, button]
+  GPIO1:  [gpio, adc, adc1, pwm]
+  GPIO2:  [gpio, adc, adc1, pwm]
+  GPIO3:  [gpio, adc, adc1, pwm]
+  GPIO4:  [gpio, adc, adc1, pwm]
+  GPIO5:  [gpio, adc, adc1, pwm]
+  GPIO6:  [gpio, adc, adc1, pwm]
+  GPIO7:  [gpio, adc, adc1, pwm, spi_clk]
+  GPIO8:  [gpio, adc, adc1, pwm]
+  GPIO9:  [gpio, adc, adc1, pwm, spi_miso]
+  GPIO10: [gpio, adc, adc1, pwm]
+  GPIO11: [gpio, adc, adc2, pwm, spi_mosi]
+  GPIO12: [gpio, adc, adc2, pwm]
+  GPIO13: [gpio, adc, adc2, pwm]
+  GPIO15: [gpio, builtin_led, pwm]
+  GPIO16: [gpio, adc, adc2, pwm]
+  GPIO17: [gpio, adc, adc2, pwm, dac]
+  GPIO18: [gpio, adc, adc2, pwm, dac]
+  GPIO33: [gpio, pwm, i2c_sda]
+  GPIO35: [gpio, pwm, i2c_scl]
+  GPIO37: [gpio, pwm]
+  GPIO39: [gpio, pwm]
+
+enclosure:
+  pcb: {length_mm: 34.3, width_mm: 25.4}
+  ports:
+    - {kind: usb_c, edge: short_a, offset_mm: 8.95, width_mm: 7.5, height_mm: 3.2, height_above_pcb_mm: 1.6}

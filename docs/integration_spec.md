@@ -444,6 +444,42 @@ directly, but needs the chip in download mode, which auto-reset over a
 network RFC2217 link does not reliably achieve; drive the board's
 boot/reset pins, or run esptool locally over USB.
 
+### Checking a board
+
+`board_check` (MCP and agent tool; `POST /library/boards/check`) is the
+board counterpart of `component_check`, and every bundled board passes it.
+It reports:
+
+- `errors`, which block saving:
+  - the schema, and an id that names the file;
+  - `chip_variant` is an ESPHome platform or ESP32 variant, and agrees with
+    `mcu`; `framework` is `arduino` or `esp-idf`;
+  - where ESPHome is installed, a `platformio_board` ESPHome knows is on
+    the same chip (an unknown key is a warning: ESPHome builds it on the
+    variant alone);
+  - a `GND` rail and a supply rail, with no name declared twice;
+  - every pin a `default_buses`, `onboard_peripherals` or `radio` entry
+    names is a key of `gpio_capabilities`, and no `input_only` pin drives
+    a bus line (SDA, SCL, CLK, MOSI, TX, BCLK, LRCLK);
+  - `kicad.pin_map` binds pins the symbol has, and no two roles share a
+    pin; the footprint exists (both only when the KiCad libraries are
+    installed);
+  - the enclosure's ports fit their edge and its holes sit on the PCB, and
+    the `.scad` generates;
+  - the onboard peripherals, seeded the way a new design on the board
+    seeds them, render to ESPHome YAML with no pin-compatibility error.
+- `warnings`: no `kicad:` block, no `pin_map`, `pin_map` roles no design
+  can reach, GPIOs the `pin_map` leaves out, no enclosure, and onboard
+  peripherals with no library component.
+- `unverified`, `verified` and `not_checked`, as for components. What no
+  check covers is the pinout against the datasheet, `esphome config`, and
+  the OpenSCAD render.
+
+`board_create` runs the same check and, if clean, writes the text
+verbatim into `LIBRARY_USER_DIR/boards/<id>.yaml`. It refuses a bundled
+id and an existing user id unless told to overwrite. A bundled board
+wins over a user file with the same id.
+
 ## Validation tiers
 
 - **spec** — file review only. Product is listed and generates

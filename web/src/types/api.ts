@@ -3,6 +3,7 @@
 // versa). When the Python schema changes, update these.
 
 export interface BoardSummary {
+  source: "bundled" | "user";
   id: string;
   name: string;
   mcu: string;
@@ -26,7 +27,7 @@ export interface ComponentSummary {
   source: "bundled" | "user";
 }
 
-export interface ComponentCheckResponse {
+export interface LibraryCheckResponse {
   ok: boolean;
   library_id: string;
   exists: "" | "bundled" | "user";
