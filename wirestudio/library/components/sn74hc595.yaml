@@ -98,3 +98,4 @@ kicad:
     CLOCK: SRCLK
     LATCH: RCLK
     OE: ~{OE}
+  expander_pins: [QA, QB, QC, QD, QE, QF, QG, QH]

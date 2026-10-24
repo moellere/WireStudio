@@ -289,12 +289,39 @@ def build_netlist(design: Design, library) -> list[Net]:
                 net.pads.append(
                     NetPad(ref=ref, component_id=comp_id, pin_role=pin, part_id=part.id)
                 )
+    for name, pad in expander_pads(design, library, refs):
+        by_name.setdefault(name, Net(name=name)).pads.append(pad)
     board_pins, _ = board_bindings(design, library)
     for bp in board_pins:
         name = bp.net
         net = by_name.setdefault(name, Net(name=name))
         net.pads.append(NetPad(ref=refs[BOARD_KEY], component_id=BOARD_KEY, pin_role=bp.pin))
     return [by_name[n] for n in sorted(by_name)]
+
+
+def expander_pads(design: Design, library, refs: dict[str, str]) -> list[tuple[str, NetPad]]:
+    """The expander's own pad on each ``<expander>_GP<n>`` net a connection
+    lands on, from its card's ``kicad.expander_pins``; once per net. A
+    number past that list (a daisy-chained 74HC595's second chip) gets none."""
+    out: dict[str, NetPad] = {}
+    by_id = {c.id: c for c in design.components}
+    for conn in design.connections:
+        t = conn.target
+        if t.kind != "expander_pin" or conn.component_id not in refs:
+            continue
+        comp = by_id.get(t.expander_id)
+        if comp is None or t.expander_id not in refs:
+            continue
+        try:
+            kicad = library.component(comp.library_id).kicad
+        except FileNotFoundError:
+            continue
+        if kicad is None or not 0 <= t.number < len(kicad.expander_pins):
+            continue
+        name = net_name(t)
+        out.setdefault(name, NetPad(ref=refs[comp.id], component_id=comp.id,
+                                    pin_role=kicad.expander_pins[t.number]))
+    return list(out.items())
 
 
 _BUS_PINS = ("sda", "scl", "clk", "miso", "mosi", "cs", "rx", "tx", "lrclk", "bclk", "pin")

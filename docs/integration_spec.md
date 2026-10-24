@@ -138,6 +138,7 @@ kicad:
   symbol: EX1234
   footprint: Package_LGA:EX-1234_2.5x2.5mm
   pin_map: {VCC: VDD}         # library role -> symbol pin name, where they differ
+  # expander_pins: [GPA0, ...]  # IO expanders: symbol pin for expander_pin 0, 1, ...
 
 notes: "3V3 only. On 5V boards, place behind a level shifter."
 
