@@ -75,6 +75,61 @@ micropython:
     if {{ id }}_pm:
         print("{{ label }}: PM1.0 %d PM2.5 %d PM10 %d ug/m3" % tuple({{ id }}_pm))
 
+lorawan:
+  requires: [uart]
+  globals: |
+    HardwareSerial {{ id }}Serial({{ serial }});
+    uint8_t {{ id }}Buf[32];
+    uint8_t {{ id }}Len = 0;
+    uint16_t {{ id }}Pm1 = 0, {{ id }}Pm25 = 0, {{ id }}Pm10 = 0;
+  setup: |
+    {{ id }}Serial.begin({{ bus.baud if bus and bus.baud else 9600 }}, SERIAL_8N1, {{ bus.rx if bus and bus.rx is not none else -1 }}, {{ bus.tx if bus and bus.tx is not none else -1 }});
+    {%- if pins.SET is defined %}
+    pinMode({{ pins.SET }}, OUTPUT);
+    digitalWrite({{ pins.SET }}, HIGH);  // SET high: awake, fan on
+    {%- endif %}
+  loop: |
+    // Frames stream on their own: 0x42 0x4D, length, data, sum of every byte before it.
+    while ({{ id }}Serial.available()) {
+      uint8_t _b = {{ id }}Serial.read();
+      if ({{ id }}Len == 0 && _b != 0x42) continue;
+      if ({{ id }}Len == 1 && _b != 0x4D) { {{ id }}Len = _b == 0x42 ? 1 : 0; continue; }
+      {{ id }}Buf[{{ id }}Len++] = _b;
+      if ({{ id }}Len < 4) continue;
+      uint16_t _n = 4 + ({{ id }}Buf[2] << 8 | {{ id }}Buf[3]);
+      if (_n < 16 || _n > sizeof({{ id }}Buf)) { {{ id }}Len = 0; continue; }
+      if ({{ id }}Len < _n) continue;
+      uint16_t _sum = 0;
+      for (uint16_t _i = 0; _i + 2 < _n; _i++) _sum += {{ id }}Buf[_i];
+      if (_sum == ({{ id }}Buf[_n - 2] << 8 | {{ id }}Buf[_n - 1])) {
+        {{ id }}Pm1 = {{ id }}Buf[10] << 8 | {{ id }}Buf[11];
+        {{ id }}Pm25 = {{ id }}Buf[12] << 8 | {{ id }}Buf[13];
+        {{ id }}Pm10 = {{ id }}Buf[14] << 8 | {{ id }}Buf[15];
+      }
+      {{ id }}Len = 0;
+    }
+  fields:
+    - name: "{{ id }}_pm1_0"
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: "{{ id }}Pm1"
+      ha_device_class: pm1
+      ha_unit: "µg/m³"
+      ha_state_class: measurement
+    - name: "{{ id }}_pm2_5"
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: "{{ id }}Pm25"
+      ha_device_class: pm25
+      ha_unit: "µg/m³"
+      ha_state_class: measurement
+    - name: "{{ id }}_pm10"
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: "{{ id }}Pm10"
+      ha_device_class: pm10
+      ha_unit: "µg/m³"
+      ha_state_class: measurement
 params_schema:
   type:
     type: string

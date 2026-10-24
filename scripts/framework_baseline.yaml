@@ -209,11 +209,8 @@ lorawan:
   max98357a: "no meaning on this framework: the uplink carries sensor readings"
   # binary_sensor
   gpio_input: "deferred: needs a lorawan fields block for the payload codec"
-  ld2410: "deferred: needs a lorawan fields block for the payload codec"
-  ld2420: "deferred: needs a lorawan fields block for the payload codec"
   # bus
   level_shifter: "no meaning on this framework: passive hardware, no code on any framework"
-  modbus: "deferred: needs a Modbus RTU read in the standalone firmware"
   tuya: "no meaning on this framework: the uplink carries sensor readings"
   # camera
   esp32_camera: "no meaning on this framework: the uplink carries sensor readings"
@@ -266,23 +263,14 @@ lorawan:
   # sensor
   ads1115: "deferred: needs a lorawan fields block for the payload codec"
   ads1115_channel: "deferred: carried through the hub's fields block once the hub has one"
-  bl0906: "deferred: needs a lorawan fields block for the payload codec"
   bmp180: "deferred: needs a lorawan fields block for the payload codec"
-  cse7766: "deferred: needs a lorawan fields block for the payload codec"
   ct_clamp: "deferred: needs a lorawan fields block for the payload codec"
   hc-sr04: "deferred: needs a lorawan fields block for the payload codec"
   hlw8012: "deferred: needs a lorawan fields block for the payload codec"
   hx711: "deferred: needs a lorawan fields block for the payload codec"
-  max31855: "deferred: needs a lorawan fields block for the payload codec"
-  mcp3008: "deferred: needs a lorawan fields block for the payload codec"
-  mcp3008_channel: "deferred: carried through the hub's fields block once the hub has one"
-  mhz19: "deferred: needs a lorawan fields block for the payload codec"
   mpu6886: "deferred: needs a lorawan fields block for the payload codec"
-  pmsx003: "deferred: needs a lorawan fields block for the payload codec"
   pulse_counter: "deferred: needs a lorawan fields block for the payload codec"
-  pzemac: "deferred: needs a Modbus RTU read in the standalone firmware"
   rotary_encoder: "deferred: needs a lorawan fields block for the payload codec"
-  sdm_meter: "deferred: needs a Modbus RTU read in the standalone firmware"
   sgp4x: "deferred: needs a lorawan fields block for the payload codec"
   tuya_sensor: "no meaning on this framework: the standalone firmware has no Tuya MCU bridge"
   # switch

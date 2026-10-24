@@ -111,6 +111,62 @@ micropython:
     if {{ id }}_target:
         print("{{ label }}: %s, moving %d cm, still %d cm" % (("none", "moving", "still", "moving and still")[{{ id }}_target[0] & 3], {{ id }}_target[1], {{ id }}_target[3]))
 
+lorawan:
+  requires: [uart]
+  globals: |
+    HardwareSerial {{ id }}Serial({{ serial }});
+    uint8_t {{ id }}Buf[64];
+    uint8_t {{ id }}Len = 0;
+    uint8_t {{ id }}Target = 0;
+    uint16_t {{ id }}MovingCm = 0, {{ id }}StillCm = 0;
+  setup: |
+    {{ id }}Serial.begin({{ bus.baud if bus and bus.baud else 256000 }}, SERIAL_8N1, {{ bus.rx if bus and bus.rx is not none else -1 }}, {{ bus.tx if bus and bus.tx is not none else -1 }});
+  loop: |
+    // Report frames: F4 F3 F2 F1, length (LE), data, F8 F7 F6 F5.
+    {
+      static const uint8_t _head[4] = {0xF4, 0xF3, 0xF2, 0xF1};
+      static const uint8_t _tail[4] = {0xF8, 0xF7, 0xF6, 0xF5};
+      while ({{ id }}Serial.available()) {
+        uint8_t _b = {{ id }}Serial.read();
+        if ({{ id }}Len < 4) {
+          if (_b == _head[{{ id }}Len]) {{ id }}Buf[{{ id }}Len++] = _b;
+          else {{ id }}Len = _b == _head[0] ? 1 : 0;
+          continue;
+        }
+        {{ id }}Buf[{{ id }}Len++] = _b;
+        if ({{ id }}Len < 6) continue;
+        uint16_t _n = {{ id }}Buf[4] | {{ id }}Buf[5] << 8;
+        if (10 + _n > sizeof({{ id }}Buf)) { {{ id }}Len = 0; continue; }
+        if ({{ id }}Len < 10 + _n) continue;
+        const uint8_t* _d = {{ id }}Buf + 6;
+        if (memcmp(_d + _n, _tail, 4) == 0 && _n >= 13 && (_d[0] == 1 || _d[0] == 2) && _d[1] == 0xAA) {
+          {{ id }}Target = _d[2];
+          {{ id }}MovingCm = _d[3] | _d[4] << 8;
+          {{ id }}StillCm = _d[6] | _d[7] << 8;
+        }
+        {{ id }}Len = 0;
+      }
+    }
+  fields:
+    - name: "{{ id }}_target"
+      bytes: 1
+      cpp_type: uint8_t
+      cpp_expr: "{{ id }}Target"
+      ha_icon: mdi:motion-sensor
+    - name: "{{ id }}_moving_cm"
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: "{{ id }}MovingCm"
+      ha_device_class: distance
+      ha_unit: "cm"
+      ha_state_class: measurement
+    - name: "{{ id }}_still_cm"
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: "{{ id }}StillCm"
+      ha_device_class: distance
+      ha_unit: "cm"
+      ha_state_class: measurement
 params_schema:
   throttle:
     type: string

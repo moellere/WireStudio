@@ -89,6 +89,42 @@ micropython:
     {{ id }}_ppm = {{ id }}_co2()
     print("{{ label }}: %s" % ("%d ppm CO2" % {{ id }}_ppm if {{ id }}_ppm is not None else "no reply"))
 
+lorawan:
+  requires: [uart]
+  globals: |
+    HardwareSerial {{ id }}Serial({{ serial }});
+    uint16_t {{ id }}Co2 = 0;
+  setup: |
+    {{ id }}Serial.begin({{ bus.baud if bus and bus.baud else 9600 }}, SERIAL_8N1, {{ bus.rx if bus and bus.rx is not none else -1 }}, {{ bus.tx if bus and bus.tx is not none else -1 }});
+    {
+      const uint8_t _abc[9] = {{ '{0xFF, 0x01, 0x79, 0xA0, 0x00, 0x00, 0x00, 0x00, 0xE6}' if params.automatic_baseline_calibration else '{0xFF, 0x01, 0x79, 0x00, 0x00, 0x00, 0x00, 0x00, 0x86}' }};
+      {{ id }}Serial.write(_abc, 9);  // automatic baseline calibration {{ 'on' if params.automatic_baseline_calibration else 'off' }}
+    }
+  loop: |
+    {
+      static unsigned long _last = 0;
+      if (_last == 0 || millis() - _last >= 5000) {
+        _last = millis();
+        static const uint8_t _q[9] = {0xFF, 0x01, 0x86, 0x00, 0x00, 0x00, 0x00, 0x00, 0x79};
+        while ({{ id }}Serial.available()) {{ id }}Serial.read();
+        {{ id }}Serial.write(_q, 9);
+        uint8_t _r[9];
+        {{ id }}Serial.setTimeout(200);
+        if ({{ id }}Serial.readBytes(_r, 9) == 9 && _r[0] == 0xFF && _r[1] == 0x86) {
+          uint8_t _sum = 0;
+          for (int _i = 1; _i < 8; _i++) _sum += _r[_i];
+          if ((uint8_t)(0 - _sum) == _r[8]) {{ id }}Co2 = (uint16_t)(_r[2] << 8 | _r[3]);
+        }
+      }
+    }
+  fields:
+    - name: "{{ id }}_co2_ppm"
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: "{{ id }}Co2"
+      ha_device_class: carbon_dioxide
+      ha_unit: "ppm"
+      ha_state_class: measurement
 params_schema:
   update_interval:
     type: string

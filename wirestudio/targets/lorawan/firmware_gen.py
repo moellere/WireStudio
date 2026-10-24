@@ -48,6 +48,9 @@ _SUBBAND_DEFAULT = 2
 # sensors' globals so it emits last. Everything else keeps its inventory order.
 _SETUP_PRIORITY = {"axp192": 0, "ssd1306": 2}
 
+# Hardware UARTs a fragment may claim; UART0 stays the console.
+_UARTS = {"esp32": 2, "esp32s3": 2}
+
 
 def _emit_priority(component) -> int:
     return _SETUP_PRIORITY.get(component.library_id, 1)
@@ -80,26 +83,118 @@ def _radio_ctx(radio: Radio) -> dict:
 
 
 
-def _wiring_for(component_id: str, design: Design) -> tuple[dict, Optional[dict]]:
-    """Resolved GPIO pins (by role) and bus for a component, from the design's
-    physical connections -- the path a user-authored component uses.
+def _wiring_for(component_id: str, design: Design) -> tuple[dict, Optional[dict], Optional[str]]:
+    """Resolved GPIO pins (by role), bus and hub for a component, from the
+    design's physical connections -- the path a user-authored component uses.
     Synthesized onboard peripherals have no connections and fall back to their
     params."""
     pins: dict[str, int] = {}
     bus: Optional[dict] = None
+    parent: Optional[str] = None
     for conn in design.connections:
         if conn.component_id != component_id:
             continue
         t = conn.target
         if t.kind == "gpio":
             pins[conn.pin_role] = _pin(t.pin)
+        elif t.kind == "component":
+            parent = t.component_id
         elif t.kind == "bus":
             for b in design.buses:
                 if b.id == t.bus_id:
                     bus = {"id": b.id, "sda": _pin(b.sda), "scl": _pin(b.scl),
-                           "rx": _pin(b.rx), "tx": _pin(b.tx), "pin": _pin(b.pin), "baud": b.baud_rate}
+                           "rx": _pin(b.rx), "tx": _pin(b.tx), "pin": _pin(b.pin),
+                           "clk": _pin(b.clk), "miso": _pin(b.miso), "mosi": _pin(b.mosi),
+                           "baud": b.baud_rate, "parity": b.parity or "NONE"}
                     break
-    return pins, bus
+    return pins, bus, parent
+
+
+def component_fragments(design: Design, library: Library) -> list[dict]:
+    """Each component's `lorawan:` C++ rendered for this design, in emission
+    order: its id, the library deps and shared prerequisites it needs, and
+    its globals, setup and loop fragments. Raises ValueError when the design
+    asks for more hardware UARTs than the chip has, or puts an SPI part on
+    pins other than the radio's."""
+    board = library.board(design.board.library_id)
+    # One inventory for both the payload (codec.fields_for) and the firmware
+    # fragments: the design's components plus synthesized onboard
+    # peripherals. resolve_components returns payload order; emit the C++
+    # fragments in hardware-init order instead -- the PMIC powers the GPS/LoRa
+    # rails so it must initialize first, and the OLED status display reads the
+    # other sensors so it goes last.
+    components = sorted(resolve_components(design, library), key=_emit_priority)
+    onboard = board.onboard_peripherals or {}
+    i2c = (board.default_buses or {}).get("i2c", {})
+    i2c_sda, i2c_scl = _pin(i2c.get("sda")), _pin(i2c.get("scl"))
+
+    # Presence flags fragments key off (e.g. the OLED status display shows a GPS
+    # line only when a GPS is also present).
+    by_lib = {c.library_id for c in components}
+    flags = {
+        "has_gps": "uart_gps" in by_lib,
+        "has_axp": "axp192" in by_lib,
+        "has_dht": "dht" in by_lib,
+        "has_oled": "ssd1306" in by_lib,
+    }
+
+    out: list[dict] = []
+    uarts: dict[str, int] = {}
+    radio_spi = (board.default_buses or {}).get("spi") or {}
+
+    for comp_inst in components:
+        lib_comp = library.component(comp_inst.library_id)
+        spec = lib_comp.lorawan
+        if spec is None:
+            continue
+        pins, bus, parent = _wiring_for(comp_inst.id, design)
+        serial = None
+        if "uart" in spec.requires:
+            key = bus["id"] if bus else comp_inst.id
+            if key not in uarts:
+                if len(uarts) >= _UARTS.get(board.chip_variant, 1):
+                    raise ValueError(
+                        f"{comp_inst.id}: the lorawan firmware has {_UARTS.get(board.chip_variant, 1)} "
+                        f"hardware UART(s) to give on {board.chip_variant}, already taken by "
+                        f"{', '.join(uarts)}"
+                    )
+                uarts[key] = len(uarts) + 1
+            serial = uarts[key]
+        if "spi" in spec.requires and bus is not None:
+            # The fragments share the radio's SPI bus (RadioLib drives the
+            # global SPI), so a part on other pins would re-pin the radio.
+            wanted = {k: _pin(radio_spi.get(k)) for k in ("clk", "miso", "mosi")}
+            got = {k: bus[k] for k in wanted if bus[k] is not None}
+            if any(wanted[k] != v for k, v in got.items()):
+                raise ValueError(
+                    f"{comp_inst.id}: SPI parts share the radio's bus on the lorawan target "
+                    f"(clk/miso/mosi {wanted['clk']}/{wanted['miso']}/{wanted['mosi']} on "
+                    f"{board.id}); bus {bus['id']} is on other pins"
+                )
+        render_ctx = {
+            "id": comp_inst.id,
+            "label": comp_inst.label,
+            "params": comp_inst.params,
+            "pin": next(iter(pins.values()), None),
+            "pins": pins,
+            "bus": bus,
+            "serial": serial,
+            "parent": parent,
+            "radio_spi": {k: _pin(v) for k, v in radio_spi.items()},
+            "onboard": onboard,
+            "board": board,
+            "i2c_sda": i2c_sda,
+            "i2c_scl": i2c_scl,
+            **flags,
+        }
+        out.append({
+            "id": comp_inst.id,
+            "lib_deps": spec.lib_deps,
+            "requires": spec.requires,
+            **{part: _frag_jinja.from_string(getattr(spec, part)).render(**render_ctx)
+               for part in ("globals", "setup", "loop") if getattr(spec, part)},
+        })
+    return out
 
 
 def generate_firmware(design: Design, library: Library) -> dict[str, str]:
@@ -131,63 +226,10 @@ def generate_firmware(design: Design, library: Library) -> dict[str, str]:
     # first post-join uplink isn't rejected as too long; ADR tunes from there.
     min_datarate = 0 if size <= 11 else (1 if size <= 53 else 3)
 
-    # One inventory for both the payload (above, via codec.fields_for) and the
-    # firmware fragments below: the design's components plus synthesized onboard
-    # peripherals. resolve_components returns payload order; emit the C++
-    # fragments in hardware-init order instead -- the PMIC powers the GPS/LoRa
-    # rails so it must initialize first, and the OLED status display reads the
-    # other sensors so it goes last.
-    components = sorted(resolve_components(design, library), key=_emit_priority)
-    onboard = board.onboard_peripherals or {}
+    frags = component_fragments(design, library)
+    lib_deps = list(dict.fromkeys(dep for f in frags for dep in f["lib_deps"]))
     i2c = (board.default_buses or {}).get("i2c", {})
     i2c_sda, i2c_scl = _pin(i2c.get("sda")), _pin(i2c.get("scl"))
-
-    # Presence flags fragments key off (e.g. the OLED status display shows a GPS
-    # line only when a GPS is also present).
-    by_lib = {c.library_id for c in components}
-    flags = {
-        "has_gps": "uart_gps" in by_lib,
-        "has_axp": "axp192" in by_lib,
-        "has_dht": "dht" in by_lib,
-        "has_oled": "ssd1306" in by_lib,
-    }
-
-    component_lib_deps: list[str] = []
-    component_requires: set[str] = set()
-    component_globals: list[str] = []
-    component_setup: list[str] = []
-    component_loop: list[str] = []
-
-    for comp_inst in components:
-        lib_comp = library.component(comp_inst.library_id)
-        spec = lib_comp.lorawan
-        if spec is None:
-            continue
-        for dep in spec.lib_deps:
-            if dep not in component_lib_deps:
-                component_lib_deps.append(dep)
-        component_requires.update(spec.requires)
-
-        pins, bus = _wiring_for(comp_inst.id, design)
-        render_ctx = {
-            "id": comp_inst.id,
-            "label": comp_inst.label,
-            "params": comp_inst.params,
-            "pin": next(iter(pins.values()), None),
-            "pins": pins,
-            "bus": bus,
-            "onboard": onboard,
-            "board": board,
-            "i2c_sda": i2c_sda,
-            "i2c_scl": i2c_scl,
-            **flags,
-        }
-        if spec.globals:
-            component_globals.append(_frag_jinja.from_string(spec.globals).render(**render_ctx))
-        if spec.setup:
-            component_setup.append(_frag_jinja.from_string(spec.setup).render(**render_ctx))
-        if spec.loop:
-            component_loop.append(_frag_jinja.from_string(spec.loop).render(**render_ctx))
 
     ctx = {
         "device_name": device_name,
@@ -204,11 +246,11 @@ def generate_firmware(design: Design, library: Library) -> dict[str, str]:
         "payload_size": size,
         "min_datarate": min_datarate,
         "payload_pack": pack_cpp(fields),
-        "component_lib_deps": component_lib_deps,
-        "component_requires": list(component_requires),
-        "component_globals": "\n".join(component_globals),
-        "component_setup": "\n".join(component_setup),
-        "component_loop": "\n".join(component_loop),
+        "component_lib_deps": lib_deps,
+        "component_requires": list({r for f in frags for r in f["requires"]}),
+        "component_globals": "\n".join(f["globals"] for f in frags if "globals" in f),
+        "component_setup": "\n".join(f["setup"] for f in frags if "setup" in f),
+        "component_loop": "\n".join(f["loop"] for f in frags if "loop" in f),
         "i2c_sda": i2c_sda,
         "i2c_scl": i2c_scl,
         **_radio_ctx(board.radio),
