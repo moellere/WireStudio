@@ -21,7 +21,11 @@ default_buses:
   i2c: {sda: GPIO21, scl: GPIO22}
 
 onboard_peripherals:
-  lora_sx1276: {cs: GPIO18, rst: GPIO23, dio0: GPIO26}
+  # DIO1/DIO2 also reach GPIO33/GPIO32 on the board itself, no jumper
+  # (LilyGO's T3_V1_6_1 pin defines; DIO2 -> GPIO32 is bench-confirmed with
+  # the radio in OOK continuous receive). That makes GPIO32 the 433 MHz OOK
+  # data line for a remote_receiver.
+  lora_sx1276: {cs: GPIO18, rst: GPIO23, dio0: GPIO26, dio1: GPIO33, dio2: GPIO32}
   # No OLED reset pin. GPIO16 is not a safe reset line on the T3 v1.6.1: driving
   # it in the reset pulse wedges the chip at boot (hangs before Wire.begin, so
   # the watchdog reboots -> TG1WDT loop). The SSD1306 self-resets on power-up
@@ -64,6 +68,8 @@ gpio_capabilities:
   GPIO25: [gpio, led, adc, adc2]
   GPIO26: [gpio, lora_dio0, adc, adc2]
   GPIO27: [gpio, spi_mosi, adc, adc2]
+  GPIO32: [gpio, lora_dio2, adc, adc1]
+  GPIO33: [gpio, lora_dio1, adc, adc1]
   GPIO34: [gpio, adc, adc1, input_only, no_pull_internal]
   GPIO35: [gpio, adc, adc1, input_only, battery_sense, no_pull_internal]
   GPIO36: [gpio, adc, adc1, input_only, no_pull_internal]
@@ -99,7 +105,7 @@ enclosure:
 # KiCad symbol mapping. Header order from LilyGO LilyGo-LoRa-Series @
 # 1991b1e, schematic/T3_V1.6.1.pdf (JP1/JP2) and
 # assets/image/lora32_v1.6.1_pinmap.jpg. LoRa1/LoRa2 are the radio's
-# DIO1/DIO2 through 22R, not GPIOs. Viewed module face, antenna up: JP2
+# DIO1/DIO2 through 22R (also on GPIO33/GPIO32, which have no header pad). Viewed module face, antenna up: JP2
 # left, JP1 right, counted from the antenna end. Two rows on a
 # Conn_02xNN_Odd_Even: left-row position k is pad 2k-1, right-row
 # position k is pad 2k. pin_map binds each board role to its first pad;

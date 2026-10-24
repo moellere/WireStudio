@@ -405,3 +405,24 @@ def test_the_component_gate_refuses_driven_on_an_output(lib):
     assert bad != text
     report = check_component_yaml(bad, lib)
     assert not report.ok and any("`driven`" in e for e in report.errors)
+
+
+def _with_receivers(d: dict, n: int, **params) -> dict:
+    for i, pin in enumerate(("GPIO32", "GPIO33", "GPIO25", "GPIO26")[:n]):
+        d["components"].append({"id": f"rx{i}", "library_id": "remote_receiver",
+                                "label": f"RX {i}", "params": dict(params)})
+        d["connections"].append({"component_id": f"rx{i}", "pin_role": "OUT",
+                                 "target": {"kind": "gpio", "pin": pin}})
+    return d
+
+
+def test_a_third_remote_receiver_on_a_classic_esp32_warns(lib):
+    assert _by_code(check_pin_compatibility(_with_receivers(_load("garage-motion"), 2), lib), "rmt_memory") == []
+    warns = _by_code(check_pin_compatibility(_with_receivers(_load("garage-motion"), 3), lib), "rmt_memory")
+    assert len(warns) == 1 and warns[0].component_id == "rx2"
+    assert "rmt_symbols" in warns[0].message
+
+
+def test_receivers_with_rmt_symbols_set_do_not_warn(lib):
+    d = _with_receivers(_load("garage-motion"), 3, rmt_symbols=128)
+    assert _by_code(check_pin_compatibility(d, lib), "rmt_memory") == []

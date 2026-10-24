@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **RMT memory warning.** Validate warns (`rmt_memory`) when a classic
+  ESP32 design has more than two `remote_receiver`s at the default RMT
+  allocation, since a third fails at boot with "out of RMT symbol
+  memory". `remote_receiver` takes an `rmt_symbols` param to shrink
+  each one's share.
+- **TTGO LoRa32 V2.1 (T3 v1.6.1): SX1276 DIO1/DIO2 on GPIO33/GPIO32.**
+  The card now lists both lines. DIO2 on GPIO32 is bench-confirmed as
+  the 433 MHz OOK data line for a `remote_receiver`.
 - **GND pour.** A board with a GND net gets a ground pour on the bottom
   layer over the whole outline. Freerouting sees it as a plane, and the
   route step fills it after importing the session, so the routed board
