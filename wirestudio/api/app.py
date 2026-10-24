@@ -141,6 +141,7 @@ from wirestudio.kicad.route import (
     RouteError,
     RouteUnavailable,
     cached_routed_board,
+    routed_drc,
     route_events,
     route_status,
 )
@@ -875,6 +876,22 @@ def create_app(
             content=board,
             headers={"Content-Disposition": 'attachment; filename="routed.kicad_pcb"'},
         )
+
+    @app.get("/design/kicad/route/{cache_key}/drc", tags=["design"])
+    def design_kicad_routed_drc(cache_key: str) -> dict:
+        """KiCad DRC of the routed board under `cache_key`: the unconnected
+        count, then violations grouped by type, waived types marked. 404
+        until a route for that board has completed; 503 without kicad-cli."""
+        if not re.fullmatch(r"[0-9a-f]{16}", cache_key):
+            raise HTTPException(status_code=422, detail="bad cache key")
+        if cached_routed_board(cache_key) is None:
+            raise HTTPException(status_code=404, detail="no routed board under that key")
+        summary = routed_drc(cache_key)
+        if summary is None:
+            raise HTTPException(status_code=503, detail="kicad-cli not found on PATH")
+        if "error" in summary:
+            raise HTTPException(status_code=502, detail=summary["error"])
+        return summary
 
     @app.get("/design/fab/status", tags=["design"])
     def design_fab_status() -> dict:

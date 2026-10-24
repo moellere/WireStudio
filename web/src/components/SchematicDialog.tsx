@@ -10,6 +10,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api, ApiError, kicadRoute } from "../api/client";
 import type {
+  DrcSummary,
   Design,
   FabStatus,
   KicadPcbStatus,
@@ -18,6 +19,7 @@ import type {
   KicadSchStatus,
 } from "../types/api";
 import { Button, Dialog } from "./ui";
+import { RouteDrcReport } from "./RouteDrcReport";
 
 interface Props {
   design: Design;
@@ -73,6 +75,7 @@ export function SchematicDialog({ design, onClose }: Props) {
   const [routeLog, setRouteLog] = useState("");
   const [routeKey, setRouteKey] = useState<string | null>(null);
   const [routeError, setRouteError] = useState<string | null>(null);
+  const [routeDrc, setRouteDrc] = useState<DrcSummary | { error: string } | null | undefined>(undefined);
   const routeLogRef = useRef<HTMLPreElement | null>(null);
 
   useEffect(() => {
@@ -209,6 +212,7 @@ export function SchematicDialog({ design, onClose }: Props) {
     setRouteLog("");
     setRouteKey(null);
     setRouteError(null);
+    setRouteDrc(undefined);
     try {
       for await (const event of kicadRoute(design)) {
         if (event.type === "log") {
@@ -216,6 +220,7 @@ export function SchematicDialog({ design, onClose }: Props) {
         } else if (event.type === "done") {
           if (event.ok) {
             setRouteKey(event.cache_key);
+            setRouteDrc(event.drc);
           } else {
             setRouteError("Routing completed without a routed board — see the log.");
           }
@@ -455,6 +460,7 @@ python ${design.id ?? "design"}.skidl.py
                   {routeLog || "Starting Freerouting…"}
                 </pre>
               )}
+              {routeKey && <RouteDrcReport drc={routeDrc} />}
             </>
           ) : (
             <div className="rounded-md border border-line bg-surface-2/40 px-2 py-1.5 text-xs text-ink-dim">

@@ -142,3 +142,16 @@ def test_route_board_returns_text_or_raises(toolchain, tmp_path):
     _script(tmp_path / "fake-java", 'echo "could not route"\n')
     with pytest.raises(RouteError, match="could not route"):
         route_board(ROUTED, cache_dir=tmp_path / "c2")
+
+
+def test_a_routed_board_carries_its_drc_and_a_cache_hit_reuses_it(toolchain, tmp_path, monkeypatch):
+    from wirestudio.kicad import drc
+
+    runs = []
+    monkeypatch.setattr(drc, "drc_status", lambda: {"available": True, "reason": None})
+    monkeypatch.setattr(drc, "run_drc", lambda text: runs.append(text) or {"ok": True, "unconnected": 0})
+    cache = tmp_path / "cache"
+    first = list(route_events(UNROUTED, cache_dir=cache))[-1]
+    again = list(route_events(UNROUTED, cache_dir=cache))[-1]
+    assert first["drc"] == again["drc"] == {"ok": True, "unconnected": 0}
+    assert again["cache_hit"] and len(runs) == 1

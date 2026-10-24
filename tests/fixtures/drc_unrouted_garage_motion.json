@@ -1,0 +1,398 @@
+{
+    "$schema": "https://schemas.kicad.org/drc.v1.json",
+    "coordinate_units": "mm",
+    "date": "2026-10-24T01:29:18+0000",
+    "kicad_version": "8.0.9",
+    "schematic_parity": [],
+    "source": "unrouted.kicad_pcb",
+    "unconnected_items": [
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Pad 8 [+3V3] of U2 on F.Cu",
+                    "pos": {
+                        "x": 27.47,
+                        "y": 103.275
+                    },
+                    "uuid": "1babf453-3a82-491c-a2dc-b1ad71de665b"
+                },
+                {
+                    "description": "Pad 2 [+3V3] of M1 on F.Cu",
+                    "pos": {
+                        "x": 43.75,
+                        "y": 52.26
+                    },
+                    "uuid": "f1928da0-0668-49d2-988c-9a74c35c21d1"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Pad 3 [BUS_i2c0] of U2 on F.Cu",
+                    "pos": {
+                        "x": 28.77,
+                        "y": 101.225
+                    },
+                    "uuid": "4bd053f4-40e6-480b-aedc-8cf529952e1b"
+                },
+                {
+                    "description": "Pad 4 [BUS_i2c0] of U2 on F.Cu",
+                    "pos": {
+                        "x": 29.42,
+                        "y": 101.225
+                    },
+                    "uuid": "5ea17325-ab22-40b0-9e3b-ad8d966ba5f9"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Pad 33 [BUS_i2c0] of M1 on F.Cu",
+                    "pos": {
+                        "x": 61.25,
+                        "y": 57.34
+                    },
+                    "uuid": "5eb7c098-0b4b-445d-ab0d-10eae9f544b8"
+                },
+                {
+                    "description": "Pad 36 [BUS_i2c0] of M1 on F.Cu",
+                    "pos": {
+                        "x": 61.25,
+                        "y": 53.53
+                    },
+                    "uuid": "de8163d8-d6e3-46ae-af76-6ca856fbafbf"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Pad 4 [BUS_i2c0] of U2 on F.Cu",
+                    "pos": {
+                        "x": 29.42,
+                        "y": 101.225
+                    },
+                    "uuid": "5ea17325-ab22-40b0-9e3b-ad8d966ba5f9"
+                },
+                {
+                    "description": "Pad 33 [BUS_i2c0] of M1 on F.Cu",
+                    "pos": {
+                        "x": 61.25,
+                        "y": 57.34
+                    },
+                    "uuid": "5eb7c098-0b4b-445d-ab0d-10eae9f544b8"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "PTH pad 2 [GND] of U1",
+                    "pos": {
+                        "x": 88.25,
+                        "y": 37.2
+                    },
+                    "uuid": "2e14092c-1e97-4b3c-b1f4-9b887ef28570"
+                },
+                {
+                    "description": "Pad 1 [GND] of M1 on F.Cu",
+                    "pos": {
+                        "x": 43.75,
+                        "y": 50.99
+                    },
+                    "uuid": "aa510369-0b63-4e21-be52-7558cd7584df"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Pad 1 [GND] of M1 on F.Cu",
+                    "pos": {
+                        "x": 43.75,
+                        "y": 50.99
+                    },
+                    "uuid": "aa510369-0b63-4e21-be52-7558cd7584df"
+                },
+                {
+                    "description": "Pad 1 [GND] of U2 on F.Cu",
+                    "pos": {
+                        "x": 27.47,
+                        "y": 101.225
+                    },
+                    "uuid": "2ca5349a-d4e1-4c30-84d4-e20e221c8854"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Pad 16 [GPIO_GPIO13] of M1 on F.Cu",
+                    "pos": {
+                        "x": 48.06,
+                        "y": 68.75
+                    },
+                    "uuid": "145f6ee9-7a0f-44ff-9f5b-675b334d8636"
+                },
+                {
+                    "description": "PTH pad 3 [GPIO_GPIO13] of U1",
+                    "pos": {
+                        "x": 88.25,
+                        "y": 39.74
+                    },
+                    "uuid": "7072b420-9990-4d8f-a6b8-3c72e84d3433"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        }
+    ],
+    "violations": [
+        {
+            "description": "Hole size out of range (board setup constraints min hole 0.3000 mm; actual 0.2000 mm)",
+            "items": [
+                {
+                    "description": "PTH pad 39 [<no net>] of M1",
+                    "pos": {
+                        "x": 50.295,
+                        "y": 57.5675
+                    },
+                    "uuid": "01deaeb9-eff8-4971-83c0-f60e03f13e57"
+                }
+            ],
+            "severity": "error",
+            "type": "drill_out_of_range"
+        },
+        {
+            "description": "Hole size out of range (board setup constraints min hole 0.3000 mm; actual 0.2000 mm)",
+            "items": [
+                {
+                    "description": "PTH pad 39 [<no net>] of M1",
+                    "pos": {
+                        "x": 50.295,
+                        "y": 59.0925
+                    },
+                    "uuid": "339af272-b753-45be-a8f1-5e3de643d818"
+                }
+            ],
+            "severity": "error",
+            "type": "drill_out_of_range"
+        },
+        {
+            "description": "Hole size out of range (board setup constraints min hole 0.3000 mm; actual 0.2000 mm)",
+            "items": [
+                {
+                    "description": "PTH pad 39 [<no net>] of M1",
+                    "pos": {
+                        "x": 51.0575,
+                        "y": 56.805
+                    },
+                    "uuid": "4b0d2ff9-c164-49d4-971c-1ea9c62f013e"
+                }
+            ],
+            "severity": "error",
+            "type": "drill_out_of_range"
+        },
+        {
+            "description": "Hole size out of range (board setup constraints min hole 0.3000 mm; actual 0.2000 mm)",
+            "items": [
+                {
+                    "description": "PTH pad 39 [<no net>] of M1",
+                    "pos": {
+                        "x": 51.0575,
+                        "y": 58.33
+                    },
+                    "uuid": "ea725275-cf20-4dee-a105-714131954236"
+                }
+            ],
+            "severity": "error",
+            "type": "drill_out_of_range"
+        },
+        {
+            "description": "Hole size out of range (board setup constraints min hole 0.3000 mm; actual 0.2000 mm)",
+            "items": [
+                {
+                    "description": "PTH pad 39 [<no net>] of M1",
+                    "pos": {
+                        "x": 51.0575,
+                        "y": 59.855
+                    },
+                    "uuid": "4aa7635d-eca4-4ab7-b722-ae69558dbeab"
+                }
+            ],
+            "severity": "error",
+            "type": "drill_out_of_range"
+        },
+        {
+            "description": "Hole size out of range (board setup constraints min hole 0.3000 mm; actual 0.2000 mm)",
+            "items": [
+                {
+                    "description": "PTH pad 39 [<no net>] of M1",
+                    "pos": {
+                        "x": 51.82,
+                        "y": 57.5675
+                    },
+                    "uuid": "fcbc6bb6-9f45-4209-b3b1-b163f932b619"
+                }
+            ],
+            "severity": "error",
+            "type": "drill_out_of_range"
+        },
+        {
+            "description": "Hole size out of range (board setup constraints min hole 0.3000 mm; actual 0.2000 mm)",
+            "items": [
+                {
+                    "description": "PTH pad 39 [<no net>] of M1",
+                    "pos": {
+                        "x": 51.82,
+                        "y": 59.0925
+                    },
+                    "uuid": "56830e75-df56-42e6-a590-da6bc25ee469"
+                }
+            ],
+            "severity": "error",
+            "type": "drill_out_of_range"
+        },
+        {
+            "description": "Hole size out of range (board setup constraints min hole 0.3000 mm; actual 0.2000 mm)",
+            "items": [
+                {
+                    "description": "PTH pad 39 [<no net>] of M1",
+                    "pos": {
+                        "x": 52.5825,
+                        "y": 56.805
+                    },
+                    "uuid": "2d414267-5db2-4965-9c50-d5c129687a8a"
+                }
+            ],
+            "severity": "error",
+            "type": "drill_out_of_range"
+        },
+        {
+            "description": "Hole size out of range (board setup constraints min hole 0.3000 mm; actual 0.2000 mm)",
+            "items": [
+                {
+                    "description": "PTH pad 39 [<no net>] of M1",
+                    "pos": {
+                        "x": 52.5825,
+                        "y": 58.33
+                    },
+                    "uuid": "b1f854f5-7657-44bc-88db-ec79ef3ff95b"
+                }
+            ],
+            "severity": "error",
+            "type": "drill_out_of_range"
+        },
+        {
+            "description": "Hole size out of range (board setup constraints min hole 0.3000 mm; actual 0.2000 mm)",
+            "items": [
+                {
+                    "description": "PTH pad 39 [<no net>] of M1",
+                    "pos": {
+                        "x": 52.5825,
+                        "y": 59.855
+                    },
+                    "uuid": "18be99b7-f8cf-4cad-8525-7a4f466c78ca"
+                }
+            ],
+            "severity": "error",
+            "type": "drill_out_of_range"
+        },
+        {
+            "description": "Hole size out of range (board setup constraints min hole 0.3000 mm; actual 0.2000 mm)",
+            "items": [
+                {
+                    "description": "PTH pad 39 [<no net>] of M1",
+                    "pos": {
+                        "x": 53.345,
+                        "y": 57.5675
+                    },
+                    "uuid": "546a90c2-0bff-46d3-8a2d-b116f051573d"
+                }
+            ],
+            "severity": "error",
+            "type": "drill_out_of_range"
+        },
+        {
+            "description": "Hole size out of range (board setup constraints min hole 0.3000 mm; actual 0.2000 mm)",
+            "items": [
+                {
+                    "description": "PTH pad 39 [<no net>] of M1",
+                    "pos": {
+                        "x": 53.345,
+                        "y": 59.0925
+                    },
+                    "uuid": "f5e6aae7-2c13-4be8-97dd-4e90c01e0ed8"
+                }
+            ],
+            "severity": "error",
+            "type": "drill_out_of_range"
+        },
+        {
+            "description": "The current configuration does not include the library 'RF_Module'.",
+            "items": [
+                {
+                    "description": "Footprint M1",
+                    "pos": {
+                        "x": 52.5,
+                        "y": 59.24
+                    },
+                    "uuid": "89220d5e-f99c-4ffc-a3c3-d7438569f4a7"
+                }
+            ],
+            "severity": "warning",
+            "type": "lib_footprint_issues"
+        },
+        {
+            "description": "The current configuration does not include the library 'Connector_PinHeader_2.54mm'.",
+            "items": [
+                {
+                    "description": "Footprint U1",
+                    "pos": {
+                        "x": 88.25,
+                        "y": 34.66
+                    },
+                    "uuid": "b7362d37-16b6-48d4-89bc-1846d2acca52"
+                }
+            ],
+            "severity": "warning",
+            "type": "lib_footprint_issues"
+        },
+        {
+            "description": "The current configuration does not include the library 'Package_LGA'.",
+            "items": [
+                {
+                    "description": "Footprint U2",
+                    "pos": {
+                        "x": 28.445,
+                        "y": 102.25
+                    },
+                    "uuid": "6d51a34d-5fae-4cfd-90c4-f874e7ceb7e3"
+                }
+            ],
+            "severity": "warning",
+            "type": "lib_footprint_issues"
+        }
+    ]
+}

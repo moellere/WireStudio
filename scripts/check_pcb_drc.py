@@ -30,6 +30,7 @@ import sys
 import tempfile
 from pathlib import Path
 
+from wirestudio.kicad.drc import WAIVED
 from wirestudio.kicad.pcb import generate_kicad_pcb, pcb_status
 from wirestudio.library import default_library
 from wirestudio.model import Design
@@ -37,22 +38,11 @@ from wirestudio.model import Design
 REPO_ROOT = Path(__file__).resolve().parent.parent
 EXAMPLES_DIR = REPO_ROOT / "wirestudio" / "examples"
 
-# Violation types that don't reflect emitter correctness for a placed-but-
-# unrouted board: unrouted airwires (unconnected); fab-rule constraints
-# inherent to the footprints or KiCad's default rules (drill size, mask
-# bridges on fine-pitch parts, board-edge clearance); and keep-out/cosmetic
-# advisories (courtyard overlap, silk). What we DO fail on is copper shorts and
-# clearance — i.e. footprints physically overlapping, which is a placement bug.
-_IGNORED_VIOLATIONS = {
-    "unconnected_items",
-    "drill_out_of_range",
-    "solder_mask_bridge",
-    "copper_edge_clearance",
-    "courtyards_overlap",
-    "silk_over_copper",
-    "silk_overlap",
-    "silk_edge_clearance",
-}
+# A placed-but-unrouted board is all airwires, so unconnected items are
+# expected here; past that, the footprint-inherent types the UI's report also
+# waives (wirestudio.kicad.drc.WAIVED). What fails is copper shorts and
+# clearance -- footprints physically overlapping, which is a placement bug.
+_IGNORED_VIOLATIONS = {"unconnected_items", *WAIVED}
 
 
 def _run_drc(board: Path, report: Path) -> tuple[int, str]:
