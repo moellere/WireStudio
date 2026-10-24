@@ -76,6 +76,8 @@ export function SchematicDialog({ design, onClose }: Props) {
   const [routeKey, setRouteKey] = useState<string | null>(null);
   const [routeError, setRouteError] = useState<string | null>(null);
   const [routeDrc, setRouteDrc] = useState<DrcSummary | { error: string } | null | undefined>(undefined);
+  const [viaCosts, setViaCosts] = useState("");
+  const [keepouts, setKeepouts] = useState("");
   const routeLogRef = useRef<HTMLPreElement | null>(null);
 
   useEffect(() => {
@@ -214,7 +216,11 @@ export function SchematicDialog({ design, onClose }: Props) {
     setRouteError(null);
     setRouteDrc(undefined);
     try {
-      for await (const event of kicadRoute(design)) {
+      const params = {
+        viaCosts: viaCosts.trim() ? Number(viaCosts) : undefined,
+        keepouts: keepouts.split(/[;\n]/).map((k) => k.trim()).filter(Boolean),
+      };
+      for await (const event of kicadRoute(design, params)) {
         if (event.type === "log") {
           setRouteLog((prev) => prev + event.data);
         } else if (event.type === "done") {
@@ -439,6 +445,25 @@ python ${design.id ?? "design"}.skidl.py
             <div className="text-xs text-ink-faint">Checking…</div>
           ) : routeStatus.available ? (
             <>
+              <div className="grid grid-cols-[auto_1fr] items-center gap-x-2 gap-y-1 text-xs text-ink-dim">
+                <label htmlFor="route-via-costs" title="Higher trades vias for longer tracks; empty is Freerouting's default">Via cost</label>
+                <input
+                  id="route-via-costs"
+                  inputMode="numeric"
+                  value={viaCosts}
+                  onChange={(e) => setViaCosts(e.target.value.replace(/[^0-9]/g, ""))}
+                  placeholder="default"
+                  className="w-24 rounded-md border border-line bg-surface-1 px-2 py-1 text-ink"
+                />
+                <label htmlFor="route-keepouts" title="x,y,w,h in the board's mm (open the placed .kicad_pcb to read them); add ,tracks or ,vias to keep out only one; separate with ;">Keepouts</label>
+                <input
+                  id="route-keepouts"
+                  value={keepouts}
+                  onChange={(e) => setKeepouts(e.target.value)}
+                  placeholder="x,y,w,h; …"
+                  className="rounded-md border border-line bg-surface-1 px-2 py-1 font-mono text-ink"
+                />
+              </div>
               <div className="flex flex-wrap gap-2">
                 <Button variant="primary" onClick={handleRoute} disabled={routing}>
                   {routing ? "Routing…" : routeKey ? "Route again" : "Route board"}

@@ -645,8 +645,22 @@ export async function* agentStream(body: {
  * final `{type:"done"}` carrying the cache_key to fetch the routed board
  * with. Throws ApiError on non-2xx and Error on an `event: error` frame.
  */
-export async function* kicadRoute(design: Design): AsyncGenerator<KicadRouteEvent> {
-  const res = await apiFetch(`${API_BASE}/design/kicad/route`, {
+export interface RouteParams {
+  viaCosts?: number;
+  /** `x,y,w,h` in board mm, optionally `,tracks` or `,vias` to keep out only that. */
+  keepouts?: string[];
+}
+
+export function routeQuery(params: RouteParams = {}): string {
+  const q = new URLSearchParams();
+  if (params.viaCosts !== undefined) q.set("via_costs", String(params.viaCosts));
+  for (const k of params.keepouts ?? []) q.append("keepout", k);
+  const s = q.toString();
+  return s ? `?${s}` : "";
+}
+
+export async function* kicadRoute(design: Design, params: RouteParams = {}): AsyncGenerator<KicadRouteEvent> {
+  const res = await apiFetch(`${API_BASE}/design/kicad/route${routeQuery(params)}`, {
     method: "POST",
     headers: { "content-type": "application/json", accept: "text/event-stream" },
     body: JSON.stringify(design),

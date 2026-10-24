@@ -99,3 +99,14 @@ def test_route_pcb_brief_drops_item_detail():
     assert unconnected == {"type": "unconnected_items", "severity": "error", "count": 7, "waived": False,
                            "examples": ["Missing connection between items"] * 3}
     assert "examples" not in brief["groups"][-1], "waived groups carry counts only"
+
+
+def test_route_pcb_refuses_bad_parameters():
+    from wirestudio.agent.tools import _run_route_pcb
+    from wirestudio.library import default_library
+
+    design = json.loads((Path(__file__).resolve().parent.parent / "wirestudio/examples/garage-motion.json").read_text())
+    out = _run_route_pcb(design, default_library(), keepouts=[{"x": 0, "y": 0, "w": 0, "h": 1}])
+    assert out["ok"] is False and "bad route parameters" in out["error"]
+    out = _run_route_pcb(design, default_library(), via_costs=-1)
+    assert out["ok"] is False and "bad route parameters" in out["error"]

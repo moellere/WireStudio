@@ -314,9 +314,31 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
             "cached, so re-routing an unchanged design is instant. Needs the "
             "route toolchain on the server (pcbnew + java + the Freerouting "
             "jar) -- returns ok=false, available=false otherwise. Can take a "
-            "minute or two on a dense board. Read-only."
+            "minute or two on a dense board. The summary carries KiCad's DRC of "
+            "the routed board. Optional via_costs (higher trades vias for "
+            "longer tracks) and keepouts ({x, y, w, h} rectangles in the "
+            "emitted board's millimetres). Read-only."
         ),
-        "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "via_costs": {"type": "integer", "minimum": 0, "maximum": 10000},
+                "keepouts": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "x": {"type": "number"}, "y": {"type": "number"},
+                            "w": {"type": "number"}, "h": {"type": "number"},
+                            "tracks": {"type": "boolean"}, "vias": {"type": "boolean"},
+                        },
+                        "required": ["x", "y", "w", "h"],
+                        "additionalProperties": False,
+                    },
+                },
+            },
+            "additionalProperties": False,
+        },
     },
     {
         "name": "fab_status",
@@ -829,11 +851,16 @@ def _run_kicad_pcb(design: dict, library: Library) -> dict:
     }
 
 
-def _run_route_pcb(design: dict, library: Library) -> dict:
+def _run_route_pcb(
+    design: dict, library: Library, *,
+    via_costs: Optional[int] = None, keepouts: Optional[list[dict]] = None,
+) -> dict:
     """Route and return a summary, not the board text (that's the artifact
     endpoint's job). A cache hit makes repeat calls instant."""
     from wirestudio.kicad.route import (
+        Keepout,
         RouteError,
+        RouteParams,
         RouteUnavailable,
         route_board,
         route_cache_key,
@@ -845,18 +872,22 @@ def _run_route_pcb(design: dict, library: Library) -> dict:
     except Exception as e:
         return {"ok": False, "error": f"design failed validation: {e}"}
     try:
+        params = RouteParams(via_costs=via_costs, keepouts=tuple(Keepout(**k) for k in keepouts or []))
+    except (TypeError, ValueError) as e:
+        return {"ok": False, "error": f"bad route parameters: {e}"}
+    try:
         board = generate_kicad_pcb(d, library)
     except PcbUnavailable as e:
         return {"ok": False, "available": False, "error": str(e)}
     except (FileNotFoundError, ValueError) as e:
         return {"ok": False, "error": str(e)}
     try:
-        routed = route_board(board)
+        routed = route_board(board, params)
     except RouteUnavailable as e:
         return {"ok": False, "available": False, "error": str(e)}
     except RouteError as e:
         return {"ok": False, "error": str(e)[-2000:]}
-    key = route_cache_key(board)
+    key = route_cache_key(board, params)
     return {
         "ok": True,
         "routed": True,

@@ -199,9 +199,10 @@ Section 4 covers the rest.
   runs KiCad DRC on the result and the Schematic dialog, the
   `/design/kicad/route/{key}/drc` endpoint and `route_pcb` report it,
   with the footprint-inherent types waived in one list
-  (`wirestudio.kicad.drc.WAIVED`) the CI gates share. Backlog: route
-  parameters for via cost and keepouts
-  ([#345](https://github.com/moellere/WireStudio/issues/345)), copper
+  (`wirestudio.kicad.drc.WAIVED`) the CI gates share. Route parameters
+  ([#345](https://github.com/moellere/WireStudio/issues/345)): via cost
+  and keepout rectangles from the dialog, the API and `route_pcb`, with
+  the `pcb-route` gate checking both take effect. Backlog: copper
   pours for the power nets
   ([#346](https://github.com/moellere/WireStudio/issues/346)). An example ordered from JLCPCB and brought up on the
   bench would be the only test of the fab bundle beyond its structural

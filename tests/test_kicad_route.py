@@ -14,7 +14,9 @@ from pathlib import Path
 import pytest
 
 from wirestudio.kicad.route import (
+    Keepout,
     RouteError,
+    RouteParams,
     RouteUnavailable,
     route_board,
     route_cache_key,
@@ -76,7 +78,9 @@ def test_cache_key_folds_in_board_and_passes():
     a = route_cache_key(UNROUTED)
     assert a == route_cache_key(UNROUTED)
     assert a != route_cache_key(ROUTED)
-    assert a != route_cache_key(UNROUTED, max_passes=5)
+    assert a != route_cache_key(UNROUTED, RouteParams(max_passes=5))
+    assert a != route_cache_key(UNROUTED, RouteParams(via_costs=500))
+    assert a != route_cache_key(UNROUTED, RouteParams(keepouts=(Keepout(1, 1, 2, 2),)))
 
 
 def test_route_events_roundtrip(toolchain, tmp_path):
@@ -155,3 +159,58 @@ def test_a_routed_board_carries_its_drc_and_a_cache_hit_reuses_it(toolchain, tmp
     again = list(route_events(UNROUTED, cache_dir=cache))[-1]
     assert first["drc"] == again["drc"] == {"ok": True, "unconnected": 0}
     assert again["cache_hit"] and len(runs) == 1
+
+
+def test_keepout_parse_and_validation():
+    assert Keepout.parse("1, 2, 3, 4") == Keepout(1, 2, 3, 4)
+    assert Keepout.parse("1,2,3,4,vias") == Keepout(1, 2, 3, 4, tracks=False, vias=True)
+    assert Keepout.parse("1,2,3,4,tracks") == Keepout(1, 2, 3, 4, tracks=True, vias=False)
+    for bad in ("1,2,3", "1,2,3,4,pads", "a,2,3,4", "1,2,0,4", "1,2,3,-1"):
+        with pytest.raises(ValueError):
+            Keepout.parse(bad)
+    with pytest.raises(ValueError):
+        Keepout(0, 0, 1, 1, tracks=False, vias=False)
+
+
+def test_route_params_validation():
+    for kwargs in ({"max_passes": 0}, {"max_passes": 201}, {"via_costs": -1}, {"via_costs": 10_001}):
+        with pytest.raises(ValueError):
+            RouteParams(**kwargs)
+
+
+def test_apply_adds_rule_areas_inside_the_board():
+    board = RouteParams(keepouts=(Keepout(1, 2, 3, 4, vias=False),)).apply(UNROUTED)
+    assert board.count("(") == board.count(")")
+    assert board.rstrip().endswith(")")
+    assert "(keepout (tracks not_allowed) (vias allowed)" in board
+    assert "(xy 1 2) (xy 4 2) (xy 4 6) (xy 1 6)" in board
+    assert RouteParams().apply(UNROUTED) == UNROUTED
+
+
+def test_freerouting_args():
+    default = RouteParams().freerouting_args()
+    assert "--usage_and_diagnostic_data.disable_analytics=true" in default
+    assert not any("via_costs" in a for a in default)
+    assert "--router.scoring.via_costs=800" in RouteParams(via_costs=800).freerouting_args()
+
+
+def test_params_reach_freerouting_and_the_board(toolchain, tmp_path):
+    seen = tmp_path / "seen"
+    _script(
+        tmp_path / "fake-java",
+        f'echo "$@" > {seen}/args\necho session > "$6"\n',
+    )
+    _script(
+        tmp_path / "fake-python",
+        'case "$2" in\n'
+        "probe) echo 8.0.9 ;;\n"
+        f'dsn) cp "$3" {seen}/board; echo dsn > "$4" ;;\n'
+        'ses) printf \'%s\' \'' + ROUTED.replace("\n", "") + '\' > "$3" ;;\n'
+        "esac\n",
+    )
+    seen.mkdir()
+    params = RouteParams(via_costs=1500, keepouts=(Keepout(5, 5, 2, 2),))
+    done = list(route_events(UNROUTED, params, cache_dir=tmp_path / "cache"))[-1]
+    assert done["ok"] is True
+    assert "--router.scoring.via_costs=1500" in (seen / "args").read_text()
+    assert "wirestudio keepout" in (seen / "board").read_text()
