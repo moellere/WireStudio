@@ -9,18 +9,25 @@ is drawn (generic headers for parts KiCad has no symbol for), so
 `scripts/check_erc.py` holds a baseline of the violation types the
 writer cannot avoid and fails on anything else.
 
+The sheet is checked inside a project: a `.kicad_pro` and a
+`sym-lib-table` naming each library the sheet uses, from the symbol
+libraries the sheet was drawn from. Without one kicad-cli reports every
+embedded symbol's library as not configured.
+
 CLI: `python -m wirestudio.kicad.erc <design.json> [--json]`.
 """
 from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 import tempfile
 from collections import Counter
 from pathlib import Path
 
+from wirestudio.kicad.importer import default_symbol_dirs
 from wirestudio.kicad.render import (
     _TIMEOUT, RenderError, RenderUnavailable, render_status, write_schematic,
 )
@@ -65,6 +72,17 @@ def summarize(report: dict) -> dict:
     }
 
 
+def _write_project(sch: Path) -> None:
+    rows = []
+    for lib in sorted(set(re.findall(r'\(lib_id "([^:"]+):', sch.read_text()))):
+        path = next((d / f"{lib}.kicad_sym" for d in default_symbol_dirs()
+                     if (d / f"{lib}.kicad_sym").is_file()), None)
+        if path is not None:
+            rows.append(f'  (lib (name "{lib}")(type "KiCad")(uri "{path}")(options "")(descr ""))\n')
+    (sch.parent / "sym-lib-table").write_text("(sym_lib_table\n  (version 7)\n" + "".join(rows) + ")\n")
+    sch.with_suffix(".kicad_pro").write_text("{}\n")
+
+
 def run_erc(design: Design, library: Library) -> dict:
     """ERC the design's schematic. Raises `RenderUnavailable` when a tool
     is missing and `RenderError` when a step fails."""
@@ -77,6 +95,7 @@ def run_erc(design: Design, library: Library) -> dict:
     with tempfile.TemporaryDirectory(prefix="wirestudio-erc-") as td:
         tmp = Path(td)
         sch = write_schematic(design, library, tmp)
+        _write_project(sch)
         report_path = tmp / "erc.json"
         cli_run = subprocess.run(
             [
