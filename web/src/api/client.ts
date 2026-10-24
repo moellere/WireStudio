@@ -204,8 +204,9 @@ export const api = {
   getExample: (id: string) => request<Design>(`/examples/${encodeURIComponent(id)}`),
   communityStatus: () => request<CommunityStatus>("/community/status"),
   communityDesigns: () => request<{ repo: string; designs: CommunityEntry[] }>("/community/designs"),
-  communityDesign: (slug: string) =>
-    request<{ design: Design; entry: CommunityEntry }>(`/community/designs/${encodeURIComponent(slug)}`),
+  communityImport: (slug: string) =>
+    request<{ design: Design; entry: CommunityEntry; installed_components: string[] }>(
+      `/community/designs/${encodeURIComponent(slug)}/import`, { method: "POST" }),
   communityShare: (body: {
     design: Design;
     author: string;

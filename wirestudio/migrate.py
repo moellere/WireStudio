@@ -9,6 +9,9 @@ runs it by hand and `--check` makes a gate of it.
 Steps change only what they are about and leave the rest of the
 document byte-for-byte as it was, so a migrated file diffs as the change
 it carries and nothing else.
+
+Repairs run after the steps on every document, at any version: fixes for
+a document no version of the studio should have written but some did.
 """
 from __future__ import annotations
 
@@ -177,6 +180,57 @@ STEPS: list[Step] = [
 ]
 
 
+def _rename_reserved_bus_ids(raw: dict) -> dict:
+    """A bus named after an ESPHome peripheral (`spi0`, `uart0`, ...)
+    makes ESPHome refuse the whole render. Older onboard seeding wrote
+    exactly that, so rename the bus the way the studio names one now
+    (`spi_bus0`) and follow every reference: connection targets, and any
+    `*_id` value in component params or esphome_extras."""
+    from wirestudio.model import RESERVED_BUS_IDS, generated_bus_id
+
+    buses = raw.get("buses") or []
+    taken = {b.get("id") for b in buses if isinstance(b, dict)}
+    renames: dict[str, str] = {}
+    for b in buses:
+        if not isinstance(b, dict) or b.get("id") not in RESERVED_BUS_IDS:
+            continue
+        n = 0
+        while (new := generated_bus_id(str(b.get("type") or "bus"), n)) in taken:
+            n += 1
+        renames[b["id"]] = new
+        taken.add(new)
+    if not renames:
+        return raw
+
+    def refs(node):
+        if isinstance(node, dict):
+            return {k: renames.get(v, v) if k.endswith("_id") and isinstance(v, str) else refs(v)
+                    for k, v in node.items()}
+        if isinstance(node, list):
+            return [refs(v) for v in node]
+        return node
+
+    out = dict(raw)
+    out["buses"] = [{**b, "id": renames[b["id"]]} if isinstance(b, dict) and b.get("id") in renames else b
+                    for b in buses]
+    out["connections"] = [
+        {**c, "target": {**c["target"], "bus_id": renames[c["target"]["bus_id"]]}}
+        if isinstance(c, dict) and isinstance(c.get("target"), dict)
+        and c["target"].get("bus_id") in renames else c
+        for c in raw.get("connections") or []
+    ]
+    out["components"] = [{**c, "params": refs(c["params"])} if isinstance(c, dict) and "params" in c else c
+                         for c in raw.get("components") or []]
+    if "esphome_extras" in raw:
+        out["esphome_extras"] = refs(raw["esphome_extras"])
+    return out
+
+
+REPAIRS: list[tuple[str, "Callable[[dict], dict]"]] = [
+    ("rename_reserved_bus_ids", _rename_reserved_bus_ids),
+]
+
+
 def needs_migration(raw: dict) -> bool:
     return raw.get("schema_version") != CURRENT_SCHEMA_VERSION
 
@@ -192,8 +246,6 @@ def migrate(raw: dict, library=None) -> Migration:
     if not isinstance(version, str) or not version:
         raise MigrationError("design has no schema_version")
     result = Migration(document=raw, from_version=version, to_version=version)
-    if version == CURRENT_SCHEMA_VERSION:
-        return result
     known = {s.from_version for s in STEPS} | {CURRENT_SCHEMA_VERSION}
     if version not in known:
         raise MigrationError(
@@ -209,6 +261,11 @@ def migrate(raw: dict, library=None) -> Migration:
         document = {**step.apply(document, library), "schema_version": step.to_version}
         result.applied.append(step.name)
         version = step.to_version
+    for name, repair in REPAIRS:
+        repaired = repair(document)
+        if repaired is not document:
+            document = repaired
+            result.applied.append(name)
     result.document = document
     result.to_version = version
     return result

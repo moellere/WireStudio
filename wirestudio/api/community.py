@@ -4,7 +4,8 @@ The catalogue is a GitHub repository (moellere/wirestudio-designs unless
 WIRESTUDIO_DESIGNS_REPO says otherwise; set it empty to turn this off).
 Its CI publishes index.json to an `index` branch; browse reads that.
 Import fetches a design only through an index entry, never a caller's
-URL. Share packs a design as the folder the catalogue's CI expects and
+URL, and installs the user components it ships through the same gate the
+component editor runs. Share packs a design as the folder the catalogue's CI expects and
 leaves the upload and pull request to the user, so the studio holds no
 GitHub token.
 """
@@ -180,10 +181,41 @@ def router(library, fetch: Optional[Fetch] = None) -> APIRouter:
         index = await load_index(repo)
         return {"repo": repo, "generated": index.get("generated"), "designs": index["designs"]}
 
-    @api.get("/designs/{slug}")
-    async def get_design(slug: str) -> dict:
+    async def install_components(repo: str, entry: dict) -> list[str]:
+        """Add the design's user components to this studio's user library.
+        One that is already here with the same text is left alone; one here
+        with different text is a conflict the user resolves, never an
+        overwrite."""
+        from wirestudio.errors import describe
+        from wirestudio.library.check import create_component
+
+        installed: list[str] = []
+        for comp in entry.get("user_components") or []:
+            cid, url = str(comp.get("id") or ""), str(comp.get("url") or "")
+            if not url.startswith(f"https://raw.githubusercontent.com/{repo}/"):
+                raise HTTPException(status_code=502, detail=f"component '{cid}' points outside {repo}")
+            try:
+                text = (await fetch(url)).decode()
+            except Exception as e:
+                raise HTTPException(status_code=502, detail=f"could not fetch component '{cid}': {describe(e)}") from e
+            where = library.component_source(cid)
+            if where == "user":
+                if library.component_yaml(cid) == text:
+                    continue
+                raise HTTPException(status_code=409, detail=(
+                    f"your library already has a different component '{cid}'; rename or delete "
+                    "yours to import this design"))
+            report = create_component(text, library)
+            if not report.ok:
+                raise HTTPException(status_code=502, detail=f"component '{cid}': " + "; ".join(report.errors))
+            installed.append(cid)
+        return installed
+
+    @api.post("/designs/{slug}/import")
+    async def import_design(slug: str) -> dict:
         """The design, migrated to this studio's schema, with `origin`
-        stamped so its author stays credited after it is edited."""
+        stamped so its author stays credited after it is edited, and its
+        user components installed."""
         from wirestudio.errors import describe
 
         repo = require_repo()
@@ -198,6 +230,7 @@ def router(library, fetch: Optional[Fetch] = None) -> APIRouter:
             raw = json.loads(await fetch(url))
         except Exception as e:
             raise HTTPException(status_code=502, detail=f"could not fetch '{slug}': {describe(e)}") from e
+        installed = await install_components(repo, entry)
         try:
             document = migrate_document(raw, library)
             validate_document(document, library)
@@ -209,13 +242,14 @@ def router(library, fetch: Optional[Fetch] = None) -> APIRouter:
             "author": str(entry.get("author", "")),
             "license": str(entry.get("license", LICENSE)),
         }
-        return {"design": document, "entry": entry}
+        return {"design": document, "entry": entry, "installed_components": installed}
 
     @api.post("/share")
     def share(body: dict = Body(...)) -> Response:
         """A zip of `<slug>/design.json` + `meta.yaml` (+ `README.md`, + up to
-        four `photos/*.jpg`, re-encoded without metadata), ready to drag onto
-        the catalogue's upload page."""
+        four `photos/*.jpg`, re-encoded without metadata, + the user
+        components the design uses), ready to drag onto the catalogue's
+        upload page."""
         repo = require_repo()
         design = body.get("design")
         if not isinstance(design, dict):
@@ -259,6 +293,9 @@ def router(library, fetch: Optional[Fetch] = None) -> APIRouter:
                 z.writestr(f"{slug}/README.md", notes + "\n")
             for name, jpeg in photos:
                 z.writestr(f"{slug}/photos/{name}", jpeg)
+            for cid in sorted({c.get("library_id") for c in document.get("components") or []}):
+                if cid and library.component_source(cid) == "user":
+                    z.writestr(f"{slug}/components/{cid}.yaml", library.component_yaml(cid))
         return Response(
             content=buf.getvalue(),
             media_type="application/zip",

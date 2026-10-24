@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Community designs carry their own components.** Share packs the
+  user-authored components a design uses. Import installs them into
+  your user library through the component editor's gate. It refuses
+  (409) rather than overwrite a different component of yours with the
+  same id. Import is now `POST /community/designs/{slug}/import`.
+- **A custom-code badge in the Gallery.** It appears on designs whose
+  catalogue entry says they run code the studio did not generate: a
+  lambda, `external_components`, `includes` or `libraries`.
+
+### Fixed
+
+- **Designs with a bus named `spi0`, `uart0`, ... no longer fail to
+  render.** Older onboard seeding named buses after ESPHome's reserved
+  peripheral ids, and ESPHome refuses the whole config. Migration now
+  renames such a bus on every load, at any schema version, the way
+  the studio names one today (`spi_bus0`). Connection targets and
+  `*_id` references in component params and `esphome_extras` follow
+  the rename.
+
 ## [0.44.0] — 2026-10-24
 
 ### Added

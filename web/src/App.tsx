@@ -470,7 +470,8 @@ export default function App() {
 
   async function handleSelectCommunity(slug: string) {
     try {
-      const { design: d } = await api.communityDesign(slug);
+      const { design: d, installed_components } = await api.communityImport(slug);
+      if (installed_components.length > 0) setComponents(await api.listComponents());
       setOriginalDesign(d);
       setDesign(d);
       setSelectedExample(null);

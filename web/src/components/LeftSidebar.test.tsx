@@ -51,6 +51,12 @@ describe("LeftSidebar community gallery", () => {
     expect(document.querySelector(`img[src="${photo}"]`)).not.toBeNull();
   });
 
+  it("badges a design that runs custom code", async () => {
+    sidebar({ items: [{ ...ENTRY, custom_code: ["lambda"] }], error: null });
+    await userEvent.click(screen.getByTitle("Community designs"));
+    expect(screen.getByText("custom code")).toHaveAttribute("title", expect.stringContaining("lambda"));
+  });
+
   it("says why the catalogue is unavailable", async () => {
     sidebar({ items: null, error: "502: catalogue index unavailable" });
     await userEvent.click(screen.getByTitle("Community designs"));

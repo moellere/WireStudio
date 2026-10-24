@@ -325,8 +325,18 @@ function CommunityGallery({
                 <span className="h-1 w-1 shrink-0 rounded-full bg-line-strong"></span>
                 <span className="truncate font-mono">{d.board}</span>
               </div>
-              {d.tags.length > 0 && (
-                <div className="mt-1 truncate text-[10px] text-ink-ghost">{d.tags.join(" · ")}</div>
+              {(d.tags.length > 0 || (d.custom_code?.length ?? 0) > 0) && (
+                <div className="mt-1 flex items-center gap-1.5 truncate text-[10px] text-ink-ghost">
+                  {d.custom_code && d.custom_code.length > 0 && (
+                    <span
+                      className="shrink-0 rounded bg-amber-500/15 px-1 text-amber-300"
+                      title={`Runs code the studio did not generate (${d.custom_code.join(", ")}); read it before you flash`}
+                    >
+                      custom code
+                    </span>
+                  )}
+                  <span className="truncate">{d.tags.join(" · ")}</span>
+                </div>
               )}
             </button>
           </li>
