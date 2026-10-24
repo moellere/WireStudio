@@ -221,6 +221,13 @@ only that. Placement is deterministic, so a design's coordinates stay
 put between runs. Every parameter is part of the cache key. Freerouting
 runs with its usage analytics off.
 
+A board with a GND net carries a GND pour on B.Cu over the whole
+outline, inset 0.5 mm, 0.3 mm clearance, pads connected solid. The
+emitted board holds it unfilled; the route step fills it after the
+session import, so the routed board and `?route=true` Gerbers carry the
+copper and unrouted Gerbers do not. Keepouts, including the antenna
+keepouts in module footprints, stay clear of it.
+
 The output is gate-verified three ways. The
 [`kicad-schematic`](../.github/workflows/kicad-schematic.yml) workflow
 runs every bundled example's SKiDL script against the pinned upstream

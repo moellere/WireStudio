@@ -202,9 +202,12 @@ Section 4 covers the rest.
   (`wirestudio.kicad.drc.WAIVED`) the CI gates share. Route parameters
   ([#345](https://github.com/moellere/WireStudio/issues/345)): via cost
   and keepout rectangles from the dialog, the API and `route_pcb`, with
-  the `pcb-route` gate checking both take effect. Backlog: copper
-  pours for the power nets
-  ([#346](https://github.com/moellere/WireStudio/issues/346)). An example ordered from JLCPCB and brought up on the
+  the `pcb-route` gate checking both take effect. A GND pour on B.Cu
+  ([#346](https://github.com/moellere/WireStudio/issues/346)), filled
+  after the route so Freerouting treats GND as a plane; the gate checks
+  every routed board fills it and that it reaches the Gerbers. A supply
+  pour on top is left out: on two layers it would split the signal
+  layer. An example ordered from JLCPCB and brought up on the
   bench would be the only test of the fab bundle beyond its structural
   checks; it is not a 1.0 gate.
 - **Enclosure.** `enclosure:` metadata for every board whose outline

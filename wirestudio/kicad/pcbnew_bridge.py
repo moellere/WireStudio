@@ -9,7 +9,8 @@ which interpreter carries the bindings.
 Commands:
     probe                       print the pcbnew build version
     dsn <board> <out.dsn>       export a Specctra DSN
-    ses <board> <in.ses>        import a routed session into <board> in place
+    ses <board> <in.ses>        import a routed session into <board> in place,
+                                then fill its zones
 
 Requires KiCad >= 8: the standalone ImportSpecctraSES(BOARD, path) overload
 does not exist in KiCad 7.
@@ -38,6 +39,9 @@ def main() -> int:
         board = pcbnew.LoadBoard(board_path)
         if not pcbnew.ImportSpecctraSES(board, ses_path):
             print("ImportSpecctraSES failed", file=sys.stderr)
+            return 1
+        if not pcbnew.ZONE_FILLER(board).Fill(board.Zones()):
+            print("zone fill failed", file=sys.stderr)
             return 1
         pcbnew.SaveBoard(board_path, board)
         return 0
