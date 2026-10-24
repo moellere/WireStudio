@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **IO-expander pins never reached the expander on the PCB or schematic.**
+  A part wired to an expander pin landed on `<expander>_GP<n>`, but the
+  expander's own GPx pad never joined that net, so the board had one-pad
+  nets and the expander's GPIOs went nowhere. The expander cards
+  (mcp23017, mcp23s17, mcp23008, pcf8574, sn74hc595) now list their
+  GPIO pins in `kicad.expander_pins`, in `expander_pin` number order,
+  and the netlist binds the expander's pad. The component gate checks
+  each name against the symbol.
+
 ## [0.45.0] — 2026-10-24
 
 ### Added

@@ -394,12 +394,17 @@ class KicadSymbolRef(_Strict):
     to the symbol name); useful for parts whose useful identity differs
     from their canonical symbol (the HC-SR501 PIR uses a generic 3-pin
     header symbol but should print as "HC-SR501" on the sheet).
+
+    `expander_pins` is an IO expander's own GPIOs: the symbol pin name for
+    each `expander_pin` number, in order, so a part wired to expander pin
+    n lands on the expander's pad for it.
     """
     symbol_lib: str
     symbol: str
     footprint: Optional[str] = None
     value: Optional[str] = None
     pin_map: dict[str, str] = Field(default_factory=dict)
+    expander_pins: list[str] = Field(default_factory=list)
 
 
 # Families a discrete part can belong to. Coarse on purpose: this is what

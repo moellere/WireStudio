@@ -328,7 +328,7 @@ def _check_kicad(comp: LibraryComponent, report: ComponentCheck) -> None:
                 continue
             sym = resolve_symbol(symbols, ref.symbol)
             names = {p[0] for p in sym.pins if p[0]} | {p[1] for p in sym.pins if p[1]}
-            mapped = part.pins.keys() if part is not None else ref.pin_map.values()
+            mapped = part.pins.keys() if part is not None else [*ref.pin_map.values(), *ref.expander_pins]
             for pin in mapped:
                 if pin not in names:
                     report.errors.append(

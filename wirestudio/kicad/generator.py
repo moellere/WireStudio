@@ -26,7 +26,7 @@ from __future__ import annotations
 
 from wirestudio.kicad.netlist import (
     _BUS_PINS, BOARD_KEY, _py_var, assign_refs, board_bindings, build_netlist, bus_net_name,
-    connection_net_name, is_bound, local_net_name,
+    connection_net_name, expander_pads, is_bound, local_net_name,
     net_name, part_key, placed_parts, resolve_net_target,
 )
 from wirestudio.library import KicadSymbolRef, Library
@@ -372,6 +372,8 @@ def _render_connections(
         lines.append(f'{comp_var}[{_quote(pin_name)}] += {net_expr}')
     for comp_id, sub in subcircuits.items():
         lines.extend(_render_subcircuit(comp_id, sub, design, library, ref_index))
+    for name, pad in expander_pads(design, library, ref_index):
+        deferred.append(f'{ref_index[pad.component_id]}[{_quote(pad.pin_role)}] += {_handle_for_net_name(name)}')
     if deferred:
         lines.append("# passthrough pins")
         lines.extend(deferred)
