@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Enclosures for the ESP32-C3-DevKitM-1 and ESP32-S3-DevKitC-1.**
+  Both cards carry an `enclosure:` block transcribed from Espressif's
+  dimension drawings: the board outline, the micro-USB openings (two on
+  the S3, native USB and UART), and the module antenna that overhangs
+  the far edge, which the shell's length includes. Neither board has
+  mounting holes, so the generated `.scad` says to glue or clip it.
+  Eleven boards now have enclosures.
+
 ### Fixed
 
 - **IO-expander pins never reached the expander on the PCB or schematic.**
