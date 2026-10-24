@@ -260,3 +260,19 @@ def test_build_netlist_binds_board_pins(lib):
     assert ("GND", "GND") in board
     assert all(p.component_id == "__board__" for n in nets.values() for p in n.pads if p.ref == "M1")
     assert not any(p.ref == "M1" for p in nets["+5V"].pads)  # the module has no 5V pin
+
+
+def test_build_netlist_lands_expander_pins_on_the_expanders_pads(lib):
+    """An expander_pin target joins the expander's own GPIO: MCP23017 pin
+    4 is GPA4 and pin 8 is GPB0, from the card's kicad.expander_pins."""
+    nets = {n.name: {(p.component_id, p.pin_role) for p in n.pads}
+            for n in build_netlist(_design("securitypanel"), lib)}
+    assert ("mcp_hub", "GPA4") in nets["mcp_hub_GP4"]
+    assert ("mcp_hub", "GPB0") in nets["mcp_hub_GP8"]
+    assert all(len(pads) == 2 for name, pads in nets.items() if name.startswith("mcp_hub_GP"))
+
+
+def test_build_netlist_lands_a_74hc595_output_on_its_q_pin(lib):
+    nets = {n.name: {(p.component_id, p.pin_role) for p in n.pads}
+            for n in build_netlist(_design("output-hub"), lib)}
+    assert ("shift1", "QA") in nets["shift1_GP0"]

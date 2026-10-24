@@ -318,3 +318,9 @@ def test_subcircuit_refs_do_not_disturb_other_prefixes(lib):
     assert refs[part_key("bridge", "q_hi_a")] == "Q1"
     assert refs[part_key("bridge", "r_gate_a")] == "R1"
     assert refs["feedback"] == "U1"
+
+
+def test_expander_pads_join_the_expander_pin_net(lib):
+    script = generate_skidl(_design("keypad"), lib)
+    assert 'Net("kpd_hub_GP0")' in script
+    assert 'c_kpd_hub["P0"] += Net.fetch("kpd_hub_GP0")' in script
