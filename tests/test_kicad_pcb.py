@@ -43,10 +43,12 @@ def _design(name: str) -> Design:
 
 def test_build_netlist_groups_rails_and_buses(lib):
     nets = {n.name: n for n in build_netlist(_design("garage-motion"), lib)}
-    assert {"GND", "+5V", "+3V3", "BUS_i2c0"} <= set(nets)
-    # The BME280's SDA + SCL both land on the single I2C bus net.
-    roles = {(p.component_id, p.pin_role) for p in nets["BUS_i2c0"].pads}
-    assert ("bme1", "SDA") in roles and ("bme1", "SCL") in roles
+    assert {"GND", "+5V", "+3V3", "BUS_i2c0_SDA", "BUS_i2c0_SCL"} <= set(nets)
+    assert "BUS_i2c0" not in nets
+    sda = {(p.component_id, p.pin_role) for p in nets["BUS_i2c0_SDA"].pads}
+    scl = {(p.component_id, p.pin_role) for p in nets["BUS_i2c0_SCL"].pads}
+    assert sda == {("bme1", "SDA"), ("__board__", "IO21")}
+    assert scl == {("bme1", "SCL"), ("__board__", "IO22")}
 
 
 def test_build_netlist_refs_agree_with_assign_refs(lib):
@@ -96,11 +98,12 @@ def test_pcb_embeds_board_and_component_footprints(lib):
 @libs_required
 def test_pcb_binds_pin_mapped_pad_to_net(lib):
     """The BME280's VCC role -> VDD pin -> a real footprint pad, carrying the
-    +3V3 net; SDA/SCL land on the I2C bus net. Exercises symbol pin-name ->
+    +3V3 net; SDA/SCL land on the I2C bus's line nets. Exercises symbol pin-name ->
     number -> pad resolution end to end."""
     pcb = generate_kicad_pcb(_design("garage-motion"), lib)
     assert re.search(r'\(net \d+ "\+3V3"\)', pcb)
-    assert re.search(r'\(net \d+ "BUS_i2c0"\)', pcb)
+    assert re.search(r'\(net \d+ "BUS_i2c0_SDA"\)', pcb)
+    assert re.search(r'\(net \d+ "BUS_i2c0_SCL"\)', pcb)
 
 
 @libs_required
@@ -228,7 +231,7 @@ def test_build_netlist_binds_board_pins(lib):
     nets = {n.name: n for n in build_netlist(_design("garage-motion"), lib)}
     board = {(p.pin_role, name) for name, n in nets.items() for p in n.pads if p.ref == "M1"}
     assert ("IO13", "GPIO_GPIO13") in board
-    assert ("IO21", "BUS_i2c0") in board and ("IO22", "BUS_i2c0") in board
+    assert ("IO21", "BUS_i2c0_SDA") in board and ("IO22", "BUS_i2c0_SCL") in board
     assert ("VDD", "+3V3") in board
     assert ("GND", "GND") in board
     assert all(p.component_id == "__board__" for n in nets.values() for p in n.pads if p.ref == "M1")

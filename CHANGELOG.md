@@ -39,6 +39,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Board and schematic nets shorted every bus line together.** The
+  netlist put all of a bus's pins on one `BUS_<id>` net, so a routed
+  I2C board tied SDA to SCL, and an SPI or UART board tied every line
+  of the bus together. The SKiDL schematic carried the same merged net.
+  Each line is now its own net, `BUS_<id>_SDA`, `BUS_<id>_SCL`, and so
+  on. A part's UART TX lands on the MCU's RX line, and its RX on the
+  MCU's TX. A 1-wire bus stays one net, and its board pin is now bound,
+  as are the I2S clock pins.
+
 - **A sensor on an input-only GPIO was reported as an error.** A pin's
   `kind` is the line's direction as the MCU sees it. Ten library cards
   had their part's outputs as `digital_out` instead:
