@@ -30,34 +30,44 @@ describe("flashFirmware", () => {
   });
 });
 
+const workbenchStream = vi.fn();
 vi.mock("../api/client", () => ({
   api: {
-    workbenchOutput: vi.fn(),
     workbenchVerifyBoot: vi.fn(),
   },
+  workbenchStream: (...args: unknown[]) => workbenchStream(...args),
 }));
 
+async function* events(...items: unknown[]) {
+  for (const item of items) {
+    if (item instanceof Error) throw item;
+    yield item;
+  }
+}
+
 describe("watchSlot", () => {
-  it("relays new recorder lines once each and hands over the boot verdict", async () => {
+  it("relays the stream's lines as they arrive, notes its end, and hands over the boot verdict", async () => {
     const { api } = await import("../api/client");
     const { watchSlot } = await import("./flash");
-    const output = api.workbenchOutput as unknown as ReturnType<typeof vi.fn>;
-    output
-      .mockResolvedValueOnce({ slot: "S1", lines: [{ ts: 1, text: "ets Jul 29 2019" }] })
-      .mockResolvedValue({ slot: "S1", lines: [{ ts: 1, text: "ets Jul 29 2019" }, { ts: 2, text: "setup() finished successfully!\n" }] });
+    workbenchStream.mockReturnValue(events(
+      { type: "log", data: "ets Jul 29 2019", ts: 1 },
+      { type: "log", data: "setup() finished successfully!\n", ts: 2 },
+      { type: "done", ok: true, slot: "S1", reason: "idle" },
+    ));
     (api.workbenchVerifyBoot as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ ok: true, framework: "esphome", booted: true, checks: [] });
     const serial: string[] = [];
     const boots: unknown[] = [];
-    await watchSlot("S1", 100, { framework: "esphome", onBoot: (r) => boots.push(r), onSerial: (t) => serial.push(t), watchSeconds: 1.2 });
-    expect(serial).toEqual(["ets Jul 29 2019\n", "setup() finished successfully!\n"]);
+    await watchSlot("S1", 100, { framework: "esphome", onBoot: (r) => boots.push(r), onSerial: (t) => serial.push(t), watchSeconds: 30 });
+    expect(serial).toEqual(["ets Jul 29 2019\n", "setup() finished successfully!\n", "\n[slot relay ended: idle]\n"]);
     expect(boots).toEqual([{ ok: true, framework: "esphome", booted: true, checks: [] }]);
     expect((api.workbenchVerifyBoot as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0]).toEqual({ slot: "S1", framework: "esphome", reset: true });
+    expect(workbenchStream.mock.calls[0]).toEqual(["S1", { since: 100, seconds: 30, signal: undefined }]);
   });
 
-  it("reports a failed verify as a result and stops relaying when the bench goes away", async () => {
+  it("reports a failed verify as a result and a refused stream as a line", async () => {
     const { api } = await import("../api/client");
     const { watchSlot } = await import("./flash");
-    (api.workbenchOutput as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("502: unreachable"));
+    workbenchStream.mockReturnValue(events(new Error("502: unreachable")));
     (api.workbenchVerifyBoot as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("502: unreachable"));
     const serial: string[] = [];
     const boots: { ok: boolean; error?: string }[] = [];
@@ -65,5 +75,18 @@ describe("watchSlot", () => {
     await new Promise((r) => setTimeout(r, 0));
     expect(serial).toEqual(["\n[slot output unavailable: 502: unreachable]\n"]);
     expect(boots[0]).toMatchObject({ ok: false, error: "502: unreachable" });
+  });
+
+  it("goes quiet when the caller aborts the relay", async () => {
+    const { watchSlot } = await import("./flash");
+    const controller = new AbortController();
+    workbenchStream.mockImplementation(async function* () {
+      yield { type: "log", data: "one", ts: 1 };
+      controller.abort();
+      throw new DOMException("The operation was aborted.", "AbortError");
+    });
+    const serial: string[] = [];
+    await watchSlot("S1", 1, { onSerial: (t) => serial.push(t), signal: controller.signal });
+    expect(serial).toEqual(["one\n"]);
   });
 });

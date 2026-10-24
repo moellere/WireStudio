@@ -599,8 +599,8 @@ export interface WorkbenchBootResult {
 }
 
 export type WorkbenchFlashEvent =
-  | { type: "log"; data: string }
-  | { type: "done"; ok: boolean; slot: string; returncode: number | null };
+  | { type: "log"; data: string; ts?: number | null }
+  | { type: "done"; ok: boolean; slot: string; returncode?: number | null; reason?: "timeout" | "idle" };
 
 export interface FabStatus {
   bom: boolean;
