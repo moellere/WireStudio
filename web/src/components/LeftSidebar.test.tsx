@@ -63,3 +63,47 @@ describe("LeftSidebar community gallery", () => {
     expect(screen.getByText(/catalogue index unavailable/)).toBeInTheDocument();
   });
 });
+
+describe("LeftSidebar community library", () => {
+  const library = {
+    components: [
+      { id: "led_driver_npn", name: "NPN LED driver", author: "octocat", license: "MIT", url: "u1", installed: "" as const },
+      { id: "bme280", name: "BME280", author: "octocat", license: "MIT", url: "u2", installed: "bundled" as const },
+    ],
+    boards: [{ id: "lolin-s2-mini", name: "LOLIN S2 Mini", author: "octocat", license: "MIT", url: "u3", installed: "" as const }],
+  };
+
+  function withLibrary(onInstall = vi.fn()) {
+    const noop = () => {};
+    render(
+      <LeftSidebar
+        examples={[]} saved={[]} boards={[]} components={[]} modules={[]}
+        community={{ items: [], error: null }} communityLibrary={library} onInstallLibrary={onInstall}
+        selectedExample={null} selectedCommunity={null} selectedSaved={null}
+        onSelectExample={noop} onSelectCommunity={noop} onSelectSaved={noop}
+        onDeleteSaved={noop} onSelectBoard={noop} onSelectComponent={noop}
+        onNewComponent={noop} onNewBoard={noop} onInsertModule={noop}
+      />,
+    );
+    return onInstall;
+  }
+
+  it("offers what this studio does not have, with its author", async () => {
+    const onInstall = withLibrary();
+    await userEvent.click(screen.getByTitle("Components"));
+    const section = screen.getByRole("region", { name: "Community components" });
+    expect(section).toHaveTextContent("NPN LED driver");
+    expect(section).toHaveTextContent("@octocat");
+    expect(section).not.toHaveTextContent("BME280");
+    await userEvent.click(screen.getByRole("button", { name: "Install" }));
+    expect(onInstall).toHaveBeenCalledWith("components", "led_driver_npn");
+  });
+
+  it("lists community boards in the Boards tab", async () => {
+    const onInstall = withLibrary();
+    await userEvent.click(screen.getByTitle("Boards"));
+    await userEvent.click(screen.getByRole("button", { name: "Install" }));
+    expect(onInstall).toHaveBeenCalledWith("boards", "lolin-s2-mini");
+  });
+});
+

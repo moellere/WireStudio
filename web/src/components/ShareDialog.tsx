@@ -3,31 +3,7 @@ import { Share2 } from "lucide-react";
 import { api, ApiError } from "../api/client";
 import type { CommunityStatus, Design } from "../types/api";
 import { Button, Dialog, FieldLabel, Input } from "./ui";
-
-const HANDLE_KEY = "wirestudio.githubHandle";
-
-function storedHandle(): string {
-  try {
-    return localStorage.getItem(HANDLE_KEY) ?? "";
-  } catch {
-    return "";
-  }
-}
-
-const MAX_PHOTOS = 4;
-
-async function toBase64(file: File): Promise<string> {
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += 0x8000) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  }
-  return btoa(binary);
-}
-
-export function parseTags(text: string): string[] {
-  return [...new Set(text.split(/[\s,]+/).map((t) => t.trim().toLowerCase()).filter(Boolean))];
-}
+import { MAX_PHOTOS, downloadBlob, parseTags, rememberHandle, storedHandle, toBase64 } from "../lib/share";
 
 /** Packs the design as the folder the catalogue's CI expects and opens its
  *  upload page. The studio holds no GitHub token: the user uploads the
@@ -53,15 +29,8 @@ export function ShareDialog({ design, status, onClose }: {
     try {
       const encoded = await Promise.all(photos.map(async (f) => ({ name: f.name, data: await toBase64(f) })));
       const blob = await api.communityShare({ design, author: handle, tags: parseTags(tags), notes, photos: encoded });
-      try { localStorage.setItem(HANDLE_KEY, handle); } catch { /* private mode */ }
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${String(design.id ?? "design")}.zip`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      rememberHandle(handle);
+      downloadBlob(blob, `${String(design.id ?? "design")}.zip`);
       window.open(status.upload_url, "_blank", "noopener");
       setDone(true);
     } catch (e) {

@@ -6,7 +6,10 @@ import type {
   BoardSummary,
   ChirpstackStatus,
   CommunityEntry,
+  CommunityLibrary,
+  CommunityLibraryEntry,
   CommunityStatus,
+  LibraryCollection,
   ComponentSummary,
   EnclosureSearchResponse,
   EnclosureSearchStatus,
@@ -218,7 +221,7 @@ export const api = {
   communityStatus: () => request<CommunityStatus>("/community/status"),
   communityDesigns: () => request<{ repo: string; designs: CommunityEntry[] }>("/community/designs"),
   communityImport: (slug: string) =>
-    request<{ design: Design; entry: CommunityEntry; installed_components: string[] }>(
+    request<{ design: Design; entry: CommunityEntry; installed_components: string[]; installed_boards: string[] }>(
       `/community/designs/${encodeURIComponent(slug)}/import`, { method: "POST" }),
   communityShare: (body: {
     design: Design;
@@ -228,6 +231,19 @@ export const api = {
     photos?: { name: string; data: string }[];
   }) =>
     requestBlob("/community/share", { method: "POST", body: JSON.stringify(body) }),
+  communityLibrary: () => request<{ repo: string } & CommunityLibrary>("/community/library"),
+  communityInstall: (kind: LibraryCollection, id: string) =>
+    request<{ kind: LibraryCollection; id: string; installed: boolean; entry: CommunityLibraryEntry }>(
+      `/community/library/${kind}/${encodeURIComponent(id)}/install`, { method: "POST" }),
+  communityShareLibrary: (body: {
+    kind: LibraryCollection;
+    id: string;
+    author: string;
+    tags: string[];
+    source?: string;
+    notes?: string;
+  }) =>
+    requestBlob("/community/library/share", { method: "POST", body: JSON.stringify(body) }),
 
   // --- Local component inventory ---
   listInventory: () => request<InventoryEntry[]>("/inventory"),

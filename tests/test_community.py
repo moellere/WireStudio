@@ -43,9 +43,10 @@ def studio(monkeypatch, user_library):
             raise RuntimeError(f"404 {url}")
         return files[url]
 
-    def publish(*entries, designs=None, components=None):
+    def publish(*entries, designs=None, components=None, library=None):
         files[f"{RAW}/index/index.json"] = json.dumps(
-            {"version": 1, "generated": "2026-10-23T00:00:00+00:00", "designs": list(entries)}).encode()
+            {"version": 1, "generated": "2026-10-23T00:00:00+00:00", "designs": list(entries),
+             **(library or {})}).encode()
         for slug, doc in (designs or {}).items():
             files[f"{RAW}/main/designs/{slug}/design.json"] = json.dumps(doc).encode()
         for url, text in (components or {}).items():
@@ -246,3 +247,141 @@ def test_share_packs_the_user_components_the_design_uses(studio, user_library):
     assert z.read(f"{slug}/components/led_driver_npn.yaml").decode() == LED_DRIVER
     assert not [n for n in z.namelist() if "/components/" in n and "led_driver_npn" not in n], \
         "bundled components are not packed"
+
+
+S2_MINI = (Path(__file__).resolve().parent / "fixtures" / "boards" / "lolin-s2-mini.yaml").read_text()
+LIB_LED_URL = f"{RAW}/main/library/components/led_driver_npn/component.yaml"
+LIB_S2_URL = f"{RAW}/main/library/boards/lolin-s2-mini/board.yaml"
+
+
+def _publish_library(publish, **over):
+    publish(library={
+        "components": [{"id": "led_driver_npn", "name": "NPN LED driver", "author": "octocat",
+                        "license": "MIT", "url": LIB_LED_URL, **over}],
+        "boards": [{"id": "lolin-s2-mini", "name": "LOLIN S2 Mini", "author": "octocat",
+                    "license": "MIT", "url": LIB_S2_URL}],
+    }, components={LIB_LED_URL: LED_DRIVER, LIB_S2_URL: S2_MINI})
+
+
+def test_library_lists_entries_and_what_is_here(studio, user_library):
+    app, publish, _ = studio
+    _publish_library(publish)
+    user_library.save_component("led_driver_npn", LED_DRIVER)
+    body = app.get("/community/library").json()
+    assert [(e["id"], e["installed"]) for e in body["components"]] == [("led_driver_npn", "user")]
+    assert [(e["id"], e["installed"]) for e in body["boards"]] == [("lolin-s2-mini", "")]
+
+
+def test_an_index_without_library_entries_lists_none(studio):
+    app, publish, _ = studio
+    publish(_entry("porch-motion"))
+    body = app.get("/community/library").json()
+    assert body["components"] == [] and body["boards"] == []
+
+
+def test_install_runs_the_gate_and_is_idempotent(studio, user_library):
+    app, publish, _ = studio
+    _publish_library(publish)
+    r = app.post("/community/library/boards/lolin-s2-mini/install")
+    assert r.status_code == 200 and r.json()["installed"] is True
+    assert user_library.board_source("lolin-s2-mini") == "user"
+    assert app.post("/community/library/boards/lolin-s2-mini/install").json()["installed"] is False
+    r = app.post("/community/library/components/led_driver_npn/install")
+    assert r.status_code == 200 and user_library.component_source("led_driver_npn") == "user"
+
+
+def test_install_refuses_conflicts_and_foreign_urls(studio, user_library):
+    app, publish, _ = studio
+    _publish_library(publish)
+    user_library.save_component("led_driver_npn", LED_DRIVER.replace("NPN low-side LED driver", "mine", 1))
+    r = app.post("/community/library/components/led_driver_npn/install")
+    assert r.status_code == 409 and "different component" in r.json()["detail"]
+    assert "mine" in user_library.component_yaml("led_driver_npn")
+    assert app.post("/community/library/components/nope/install").status_code == 404
+    assert app.post("/community/library/modules/x/install").status_code == 404
+
+
+def test_install_only_follows_urls_inside_the_catalogue(studio, user_library):
+    app, publish, fetched = studio
+    _publish_library(publish, url="https://evil.example/led.yaml")
+    r = app.post("/community/library/components/led_driver_npn/install")
+    assert r.status_code == 502 and "points outside" in r.json()["detail"]
+    assert "https://evil.example/led.yaml" not in fetched
+
+
+def test_install_refuses_an_entry_whose_file_names_another_id(studio, user_library):
+    app, publish, _ = studio
+    publish(library={"boards": [{"id": "lolin-s2", "url": LIB_S2_URL}]}, components={LIB_S2_URL: S2_MINI})
+    r = app.post("/community/library/boards/lolin-s2/install")
+    assert r.status_code == 502 and "declares id 'lolin-s2-mini'" in r.json()["detail"]
+    assert user_library.board_source("lolin-s2-mini") == ""
+
+
+def test_install_of_a_broken_entry_is_reported_not_saved(studio, user_library):
+    app, publish, _ = studio
+    broken = S2_MINI.replace("pin: GPIO15", "pin: GPIO14")
+    publish(library={"boards": [{"id": "lolin-s2-mini", "url": LIB_S2_URL}]}, components={LIB_S2_URL: broken})
+    r = app.post("/community/library/boards/lolin-s2-mini/install")
+    assert r.status_code == 502 and "GPIO14 is not in gpio_capabilities" in r.json()["detail"]
+    assert user_library.board_source("lolin-s2-mini") == ""
+
+
+def _share_library(app, **over):
+    body = {"kind": "boards", "id": "lolin-s2-mini", "author": "@octocat", "tags": ["esp32s2"],
+            "source": "https://www.wemos.cc/en/latest/s2/s2_mini.html", **over}
+    return app.post("/community/library/share", json=body)
+
+
+def test_share_library_packs_the_entry_folder(studio, user_library):
+    app, _, _ = studio
+    user_library.save_board("lolin-s2-mini", S2_MINI)
+    r = _share_library(app, notes="Pinout from the WEMOS docs.")
+    assert r.status_code == 200, r.text
+    z = zipfile.ZipFile(io.BytesIO(r.content))
+    assert sorted(z.namelist()) == ["lolin-s2-mini/README.md", "lolin-s2-mini/board.yaml", "lolin-s2-mini/meta.yaml"]
+    assert z.read("lolin-s2-mini/board.yaml").decode() == S2_MINI
+    assert yaml.safe_load(z.read("lolin-s2-mini/meta.yaml")) == {
+        "author": "octocat", "tags": ["esp32s2"], "source": "https://www.wemos.cc/en/latest/s2/s2_mini.html"}
+
+    user_library.save_component("led_driver_npn", LED_DRIVER)
+    r = _share_library(app, kind="components", id="led_driver_npn", source="")
+    assert sorted(zipfile.ZipFile(io.BytesIO(r.content)).namelist()) == [
+        "led_driver_npn/component.yaml", "led_driver_npn/meta.yaml"]
+
+
+def test_share_library_refuses_what_is_not_yours_or_not_clean(studio, user_library):
+    app, _, _ = studio
+    assert _share_library(app, id="esp32-devkitc-v4").status_code == 422
+    user_library.save_board("lolin-s2-mini", S2_MINI)
+    assert "GitHub handle" in _share_library(app, author="not a handle").json()["detail"]
+    assert "https://" in _share_library(app, source="ftp://x").json()["detail"]
+    assert _share_library(app, kind="widgets").status_code == 404
+    user_library.save_board("lolin-s2-mini", S2_MINI.replace("pin: GPIO15", "pin: GPIO14"))
+    assert "no longer passes its gate" in _share_library(app).json()["detail"]
+
+
+def _s2_design() -> dict:
+    return {**EXAMPLE, "id": "s2-blink",
+            "board": {"library_id": "lolin-s2-mini", "mcu": "esp32"},
+            "components": [{"id": "led", "library_id": "gpio_output", "label": "LED", "params": {}}],
+            "buses": [],
+            "connections": [{"component_id": "led", "pin_role": "OUT", "target": {"kind": "gpio", "pin": "GPIO15"}}]}
+
+
+def test_design_share_and_import_carry_a_user_board(studio, user_library):
+    app, publish, _ = studio
+    user_library.save_board("lolin-s2-mini", S2_MINI)
+    r = _share(app, design=_s2_design())
+    assert r.status_code == 200, r.text
+    z = zipfile.ZipFile(io.BytesIO(r.content))
+    assert z.read("s2-blink/boards/lolin-s2-mini.yaml").decode() == S2_MINI
+
+    user_library.delete_board("lolin-s2-mini")
+    url = f"{RAW}/main/designs/s2-blink/boards/lolin-s2-mini.yaml"
+    publish(_entry("s2-blink", user_boards=[{"id": "lolin-s2-mini", "url": url}]),
+            designs={"s2-blink": _s2_design()}, components={url: S2_MINI})
+    r = app.post("/community/designs/s2-blink/import")
+    assert r.status_code == 200, r.text
+    assert r.json()["installed_boards"] == ["lolin-s2-mini"]
+    assert user_library.board_source("lolin-s2-mini") == "user"
+

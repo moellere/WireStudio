@@ -5,7 +5,9 @@ import type {
   BoardSummary,
   ComponentSummary,
   Design,
+  CommunityLibrary,
   CommunityStatus,
+  LibraryCollection,
   ExampleSummary,
   ModuleSummary,
   PinAssignment,
@@ -31,6 +33,7 @@ import { InventoryDialog } from "./components/InventoryDialog";
 import { LibraryEditorDialog, NEW_BOARD_TEMPLATE, NEW_COMPONENT_TEMPLATE, type LibraryKind } from "./components/LibraryEditorDialog";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { ShareDialog } from "./components/ShareDialog";
+import { LibraryShareDialog } from "./components/LibraryShareDialog";
 import { useDebouncedValue } from "./lib/debounce";
 import { useAdvancedMode } from "./lib/uiMode";
 import { useTheme } from "./lib/theme";
@@ -81,6 +84,8 @@ export default function App() {
   const [selectedExample, setSelectedExample] = useState<string | null>(null);
   const [communityStatus, setCommunityStatus] = useState<CommunityStatus | null>(null);
   const [community, setCommunity] = useState<CommunityList | null>(null);
+  const [communityLibrary, setCommunityLibrary] = useState<CommunityLibrary | null>(null);
+  const [libraryShare, setLibraryShare] = useState<{ kind: LibraryCollection; id: string } | null>(null);
   const [selectedCommunity, setSelectedCommunity] = useState<string | null>(null);
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [originalDesign, setOriginalDesign] = useState<Design | null>(null);
@@ -486,12 +491,34 @@ export default function App() {
     } catch (e) {
       setCommunity({ items: null, error: e instanceof Error ? e.message : String(e) });
     }
+    await loadCommunityLibrary();
+  }
+
+  async function loadCommunityLibrary() {
+    try {
+      const { components: c, boards: b } = await api.communityLibrary();
+      setCommunityLibrary({ components: c, boards: b });
+    } catch {
+      setCommunityLibrary(null);
+    }
+  }
+
+  async function handleInstallLibrary(kind: LibraryCollection, id: string) {
+    try {
+      await api.communityInstall(kind, id);
+      await (kind === "boards" ? refreshBoards() : refreshComponents());
+      await loadCommunityLibrary();
+      setSelection({ kind: kind === "boards" ? "board" : "component", id });
+    } catch (e) {
+      setBootError(e instanceof Error ? e.message : String(e));
+    }
   }
 
   async function handleSelectCommunity(slug: string) {
     try {
-      const { design: d, installed_components } = await api.communityImport(slug);
+      const { design: d, installed_components, installed_boards } = await api.communityImport(slug);
       if (installed_components.length > 0) setComponents(await api.listComponents());
+      if (installed_boards.length > 0) setBoards(await api.listBoards());
       setOriginalDesign(d);
       setDesign(d);
       setSelectedExample(null);
@@ -904,6 +931,8 @@ export default function App() {
           onSelectBoard={(id) => setSelection({ kind: "board", id })}
           onSelectComponent={(id) => setSelection({ kind: "component", id })}
           onNewComponent={() => setLibraryEditor({ kind: "component", title: "New component", yaml: NEW_COMPONENT_TEMPLATE, overwrite: false })}
+          communityLibrary={communityLibrary}
+          onInstallLibrary={handleInstallLibrary}
           onNewBoard={() => setLibraryEditor({ kind: "board", title: "New board", yaml: NEW_BOARD_TEMPLATE, overwrite: false })}
           onInsertModule={handleInsertModule}
         />
@@ -926,6 +955,7 @@ export default function App() {
           onDeleteComponent={handleDeleteComponent}
           onEditBoard={(id, source) => handleEditLibrary("board", id, source)}
           onDeleteBoard={handleDeleteBoard}
+          onShareLibrary={communityStatus?.enabled ? (kind, id) => setLibraryShare({ kind, id }) : undefined}
         />
       </main>
       {libraryEditor && (
@@ -1039,6 +1069,14 @@ export default function App() {
         />
       )}
       {showSettingsDialog && <SettingsDialog onClose={() => setShowSettingsDialog(false)} />}
+      {libraryShare && communityStatus?.enabled && (
+        <LibraryShareDialog
+          kind={libraryShare.kind}
+          id={libraryShare.id}
+          status={communityStatus}
+          onClose={() => setLibraryShare(null)}
+        />
+      )}
       {showShareDialog && design && communityStatus?.enabled && (
         <ShareDialog design={design} status={communityStatus} onClose={() => setShowShareDialog(false)} />
       )}

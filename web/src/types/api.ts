@@ -62,8 +62,29 @@ export interface CommunityStatus {
   license?: string;
   index_url?: string;
   upload_url?: string;
+  library_upload_url?: string;
+  library_license?: string;
   contributing_url?: string;
 }
+
+export type LibraryCollection = "components" | "boards";
+
+/** A component or board in the catalogue's library/, as its index lists it. */
+export interface CommunityLibraryEntry {
+  id: string;
+  name?: string;
+  description?: string;
+  author: string;
+  tags?: string[];
+  license: string;
+  source?: string | null;
+  url: string;
+  page_url?: string;
+  /** Where this studio already has the id; "" when it does not. */
+  installed: "" | "bundled" | "user";
+}
+
+export type CommunityLibrary = Record<LibraryCollection, CommunityLibraryEntry[]>;
 
 /** One entry of the community catalogue's index.json. */
 export interface CommunityEntry {
