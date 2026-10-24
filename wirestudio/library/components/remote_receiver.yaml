@@ -28,7 +28,7 @@ esphome:
         mode:
           input: true
       dump: {{ params.dump | default('all') }}
-    {%- for key in ['tolerance', 'filter', 'idle', 'buffer_size'] %}
+    {%- for key in ['tolerance', 'filter', 'idle', 'buffer_size', 'rmt_symbols'] %}
     {%- if params[key] is defined %}
       {{ key }}: {{ params[key] }}
     {%- endif %}
@@ -92,6 +92,7 @@ params_schema:
   filter: {type: string, description: "Drop pulses shorter than this, e.g. '250us' for 433 MHz noise"}
   idle: {type: string, description: "Gap that ends a frame, e.g. '4ms' for RC-switch"}
   buffer_size: {type: string, description: "Receive buffer, e.g. '2kb'"}
+  rmt_symbols: {type: integer, description: "ESP32: RMT symbols this receiver reserves. A classic ESP32 has 512 and the default is 192, so a third receiver needs this lower, e.g. 128."}
   on_rc_switch:
     type: object
     description: "RC-switch (433 MHz) automation, e.g. {code: '100010000000000010111110', then: [...]}"

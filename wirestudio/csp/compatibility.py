@@ -299,6 +299,24 @@ def check_pin_compatibility(design: dict, library: Library) -> list[Compatibilit
     # on a non-ADC pin is a mistake worth surfacing).
     out.extend(_locked_pin_warnings(components_by_id, lib_components, board))
 
+    # 8. RMT memory. A classic ESP32 has 512 RMT symbols and ESPHome gives
+    # each remote_receiver 192 by default, so a third one fails at boot.
+    if board.chip_variant == "esp32":
+        receivers = [c for c in design.get("components") or []
+                     if c.get("library_id") == "remote_receiver"
+                     and "rmt_symbols" not in (c.get("params") or {})]
+        if len(receivers) > 2:
+            out.append(CompatibilityWarning(
+                severity="warn", code="rmt_memory", pin="",
+                component_id=str(receivers[2]["id"]), pin_role="",
+                message=(
+                    f"{len(receivers)} remote_receivers on a classic ESP32: each takes 192 "
+                    "of its 512 RMT symbols by default, so the third fails at boot "
+                    "(out of RMT symbol memory). Set rmt_symbols lower (e.g. 128) on "
+                    "each, or use two."
+                ),
+            ))
+
     return out
 
 
