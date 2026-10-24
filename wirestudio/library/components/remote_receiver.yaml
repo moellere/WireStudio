@@ -1,8 +1,8 @@
 id: remote_receiver
-name: IR receiver (TSOP38238/VS1838B, 38kHz demodulated)
+name: Remote receiver (IR demodulator, or a 433 MHz OOK data line)
 category: input
-use_cases: [ir, remote_control, media_control, learning_remote]
-aliases: ["tsop38238", "vs1838b", "tsop4838", "ir-receiver"]
+use_cases: [ir, remote_control, media_control, learning_remote, rf_433, rc_switch]
+aliases: ["tsop38238", "vs1838b", "tsop4838", "ir-receiver", "rxb6", "srx882", "433mhz receiver", "rf receiver", "ook receiver"]
 
 electrical:
   vcc_min: 2.5
@@ -28,8 +28,16 @@ esphome:
         mode:
           input: true
       dump: {{ params.dump | default('all') }}
+    {%- for key in ['tolerance', 'filter', 'idle', 'buffer_size'] %}
+    {%- if params[key] is defined %}
+      {{ key }}: {{ params[key] }}
+    {%- endif %}
+    {%- endfor %}
     {%- if params.on_nec is defined %}
       on_nec: {{ params.on_nec | tojson }}
+    {%- endif %}
+    {%- if params.on_rc_switch is defined %}
+      on_rc_switch: {{ params.on_rc_switch | tojson }}
     {%- endif %}
 
 tasmota:
@@ -40,6 +48,7 @@ capability:
   role: input
   provides:
     - {event: on_nec, kind: event}
+    - {event: on_rc_switch, kind: event}
 
 circuitpython:
   imports: ["import adafruit_irremote", "import pulseio"]
@@ -74,10 +83,18 @@ params_schema:
   inverted:
     type: boolean
     default: true
-    description: "Demodulating receivers idle high and pull low on carrier -- leave true."
+    description: "IR demodulators idle high and pull low on carrier -- leave true. A 433 MHz data line
+      (an RXB6/SRX882 module, or an SX127x's DIO2 in OOK mode) is active high -- set false."
   on_nec:
     type: object
     description: "NEC automation, e.g. {address: 0x407F, command: 0xC03F, then: [...]}"
+  tolerance: {type: string, description: "Timing tolerance, e.g. '25%'. RF remotes want more than IR."}
+  filter: {type: string, description: "Drop pulses shorter than this, e.g. '250us' for 433 MHz noise"}
+  idle: {type: string, description: "Gap that ends a frame, e.g. '4ms' for RC-switch"}
+  buffer_size: {type: string, description: "Receive buffer, e.g. '2kb'"}
+  on_rc_switch:
+    type: object
+    description: "RC-switch (433 MHz) automation, e.g. {code: '100010000000000010111110', then: [...]}"
 
 notes: |
   Counterpart to the remote_transmitter entry: a demodulating 38kHz
@@ -86,6 +103,11 @@ notes: |
   binary_sensor or automation. On ESP32 the RMT peripheral does the
   timing; on ESP8266 pick a pin that tolerates interrupts (avoid
   GPIO16).
+
+  For 433 MHz remotes the same component reads an OOK data line: an
+  RXB6/SRX882 module's DATA pin, or the GPIO wired to an SX127x's DIO2
+  with the radio in OOK mode. Set inverted: false, dump: rc_switch, and
+  tolerance 25%, filter 250us, idle 4ms as a starting point.
 kicad:
   symbol_lib: Connector_Generic
   symbol: Conn_01x03

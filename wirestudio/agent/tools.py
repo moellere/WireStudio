@@ -478,9 +478,19 @@ def _search_score(c, q: str) -> int:
     return 0
 
 
+def _query_score(c, q: str) -> int:
+    """The whole query's score, or else the sum over its words -- "remote
+    receiver 433 rf" matches no single field, but each word matches some."""
+    whole = _search_score(c, q)
+    words = q.split()
+    if whole or len(words) < 2:
+        return whole
+    return sum(_search_score(c, w) for w in words)
+
+
 def _run_search_components(design: dict, library: Library, *, query: str) -> dict:
     q = query.strip().lower()
-    scored = [(_search_score(c, q), c) for c in library.list_components()]
+    scored = [(_query_score(c, q), c) for c in library.list_components()]
     hits = sorted(((s, c) for s, c in scored if s), key=lambda sc: (-sc[0], sc[1].id))
     return {
         "matches": [

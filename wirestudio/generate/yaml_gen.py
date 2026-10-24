@@ -55,6 +55,36 @@ def _restore_lambdas(obj: Any) -> Any:
     return obj
 
 
+_EXTRAS_TAG = re.compile(r"^!(lambda|secret)\s+(.*)$", re.DOTALL)
+
+
+def _tag_strings(obj: Any) -> Any:
+    """Turn `"!lambda ..."` / `"!secret ..."` strings -- from esphome_extras
+    or an automation param, both plain JSON -- into tagged scalars. Left as
+    strings, a body containing `: ` stays a quoted string ESPHome compiles
+    as C++ starting with `!lambda`, and one quoted the way ESPHome's docs
+    write it (`"!lambda 'return x;'"`) dumps with its quotes doubled."""
+    if isinstance(obj, str):
+        m = _EXTRAS_TAG.match(obj)
+        if not m:
+            return obj
+        body = m.group(2).strip()
+        if len(body) >= 2 and body[0] == body[-1] and body[0] in "'\"":
+            # A quoted body follows YAML's quoting rules ('' and \"), so let
+            # YAML read it rather than just trimming the quotes.
+            try:
+                parsed = yaml.safe_load(body)
+            except yaml.YAMLError:
+                parsed = None
+            body = parsed if isinstance(parsed, str) else body[1:-1]
+        return Lambda(body) if m.group(1) == "lambda" else Secret(body)
+    if isinstance(obj, list):
+        return [_tag_strings(v) for v in obj]
+    if isinstance(obj, dict):
+        return {k: _tag_strings(v) for k, v in obj.items()}
+    return obj
+
+
 def _str_representer(dumper: yaml.Dumper, data: str) -> yaml.ScalarNode:
     if "\n" in data:
         return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")
@@ -642,12 +672,13 @@ def build_yaml_dict(
 #     string starts with `!`, since it would otherwise be parsed as a tag.
 # We only strip quotes when the inner content is safe as a plain YAML scalar;
 # otherwise the unquoted form would parse as malformed mapping/comment syntax.
-_TAGGED_THEN_QUOTED = re.compile(r"!(secret|lambda) '([^']*)'")
-_QUOTED_TAG = re.compile(r"'(!(?:secret|lambda) [^']*)'")
+# A single-quoted scalar escapes ' as '', so a body runs to the first lone '.
+_TAGGED_THEN_QUOTED = re.compile(r"!(secret|lambda) '((?:[^']|'')*)'")
+_QUOTED_TAG = re.compile(r"'(!(?:secret|lambda) (?:[^']|'')*)'")
 
 
 def _plain_scalar_safe(content: str) -> bool:
-    if ": " in content or " #" in content or "\t" in content:
+    if ": " in content or " #" in content or "\t" in content or "'" in content:
         return False
     if content.startswith(("[", "{", "&", "*", "?", ",", "-")):
         return False
@@ -675,7 +706,7 @@ def render_yaml(
     *,
     lorawan_secrets: dict[str, str] | None = None,
 ) -> str:
-    data = build_yaml_dict(design, library, lorawan_secrets=lorawan_secrets)
+    data = _tag_strings(build_yaml_dict(design, library, lorawan_secrets=lorawan_secrets))
     text = yaml.dump(
         data,
         sort_keys=False,
