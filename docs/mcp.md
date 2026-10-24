@@ -233,11 +233,14 @@ and persist back to `designs/<id>.json`.
 | Tool | Mutates | Notes |
 |------|---------|-------|
 | `search_components` | no | fuzzy library lookup by name/category/use_case/alias, best match first |
-| `list_boards` | no | every board with mcu / framework / platformio_board |
+| `list_boards` | no | every board with mcu / framework / platformio_board and `source` (bundled or user) |
 | `library_detail` | no | full component/board card on demand |
 | `component_check` | no | check a draft component YAML: schema, subcircuit nets, template render, KiCad symbols/pins/footprints when libraries are installed |
 | `component_create` | yes | `component_check`, then save into the user library (`LIBRARY_USER_DIR`); never a bundled id |
 | `component_delete` | yes | remove a user-library component; never a bundled id |
+| `board_check` | no | check a draft board YAML: schema, every bus/onboard/radio pin against `gpio_capabilities`, KiCad symbol pins and footprint when libraries are installed, enclosure geometry, an ESPHome render of the onboard peripherals |
+| `board_create` | yes | `board_check`, then save into the user library (`LIBRARY_USER_DIR/boards`); never a bundled id |
+| `board_delete` | yes | remove a user-library board; never a bundled id |
 | `recommend` | no | ranked capability search with rationale + constraints |
 | `render` | no | YAML + ASCII for a stored design |
 | `validate` | no | schema + library check |

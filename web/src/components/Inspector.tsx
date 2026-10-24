@@ -51,13 +51,15 @@ interface Props {
   onRemoveComponent: (instanceId: string) => void;
   onEditComponent: (libraryId: string, source: "bundled" | "user") => void;
   onDeleteComponent: (libraryId: string) => void;
+  onEditBoard: (libraryId: string, source: "bundled" | "user") => void;
+  onDeleteBoard: (libraryId: string) => void;
 }
 
 export function Inspector({
   selection, design, boardData, libraryBoards, libraryComponents,
   compatibilityWarnings,
   onSelect, onParamChange, onConnectionChange, onLockedPinChange, onDesignChange,
-  onEditComponent, onDeleteComponent,
+  onEditComponent, onDeleteComponent, onEditBoard, onDeleteBoard,
   onAddComponent, onRemoveComponent,
 }: Props) {
   return (
@@ -96,7 +98,14 @@ export function Inspector({
             onRemoveComponent={onRemoveComponent}
           />
         )}
-        {selection.kind === "board" && <BoardInspector id={selection.id} />}
+        {selection.kind === "board" && (
+          <BoardInspector
+            id={selection.id}
+            source={libraryBoards?.find((b) => b.id === selection.id)?.source ?? "bundled"}
+            onEdit={onEditBoard}
+            onDelete={onDeleteBoard}
+          />
+        )}
         {selection.kind === "component" && (
           <LibraryComponentInspector
             id={selection.id}
@@ -526,7 +535,14 @@ function Field({
   );
 }
 
-function BoardInspector({ id }: { id: string }) {
+function BoardInspector({
+  id, source, onEdit, onDelete,
+}: {
+  id: string;
+  source: "bundled" | "user";
+  onEdit: (libraryId: string, source: "bundled" | "user") => void;
+  onDelete: (libraryId: string) => void;
+}) {
   const board = useFetched(() => api.getBoard(id), [id]);
   if (!board) return <Loading />;
   const b = board as Record<string, unknown>;
@@ -548,6 +564,8 @@ function BoardInspector({ id }: { id: string }) {
           )}
         </div>
       </div>
+
+      <LibraryEntryActions kind="board" id={id} source={source} onEdit={onEdit} onDelete={onDelete} />
 
       <div className="space-y-3 rounded-md border border-line bg-surface-2/40 p-4 text-xs">
         <div className="flex justify-between items-center border-b border-line/50 pb-2">
@@ -591,6 +609,37 @@ function BoardInspector({ id }: { id: string }) {
   );
 }
 
+function LibraryEntryActions({
+  kind, id, source, onEdit, onDelete,
+}: {
+  kind: "component" | "board";
+  id: string;
+  source: "bundled" | "user";
+  onEdit: (libraryId: string, source: "bundled" | "user") => void;
+  onDelete: (libraryId: string) => void;
+}) {
+  return (
+    <div className="flex gap-2 text-xs">
+      <button
+        onClick={() => onEdit(id, source)}
+        className="rounded-md bg-surface-2 px-2 py-1 text-ink-dim ring-1 ring-inset ring-line hover:bg-surface-3 hover:text-ink"
+        title={source === "user" ? `Edit this ${kind}'s YAML` : `Start a new ${kind} from this one's YAML`}
+      >
+        {source === "user" ? "Edit YAML" : "Copy as new"}
+      </button>
+      {source === "user" && (
+        <button
+          onClick={() => onDelete(id)}
+          className="rounded-md bg-surface-2 px-2 py-1 text-rose-300 ring-1 ring-inset ring-line hover:bg-surface-3"
+          title="Remove from the user library"
+        >
+          Delete
+        </button>
+      )}
+    </div>
+  );
+}
+
 function LibraryComponentInspector({
   id, source, designReady, onAdd, onEdit, onDelete,
 }: {
@@ -626,24 +675,7 @@ function LibraryComponentInspector({
         Add to design
       </button>
 
-      <div className="flex gap-2 text-xs">
-        <button
-          onClick={() => onEdit(id, source)}
-          className="rounded-md bg-surface-2 px-2 py-1 text-ink-dim ring-1 ring-inset ring-line hover:bg-surface-3 hover:text-ink"
-          title={source === "user" ? "Edit this component's YAML" : "Start a new component from this one's YAML"}
-        >
-          {source === "user" ? "Edit YAML" : "Copy as new"}
-        </button>
-        {source === "user" && (
-          <button
-            onClick={() => onDelete(id)}
-            className="rounded-md bg-surface-2 px-2 py-1 text-rose-300 ring-1 ring-inset ring-line hover:bg-surface-3"
-            title="Remove from the user library"
-          >
-            Delete
-          </button>
-        )}
-      </div>
+      <LibraryEntryActions kind="component" id={id} source={source} onEdit={onEdit} onDelete={onDelete} />
 
       <div className="rounded-md border border-line bg-surface-2/40 p-4 text-xs">
         {c.notes ? (

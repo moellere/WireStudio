@@ -20,6 +20,7 @@ from wirestudio.kicad import generate_skidl
 from wirestudio.kicad.fab import fab_status, generate_bom, generate_cpl
 from wirestudio.kicad.pcb import PcbUnavailable, generate_kicad_pcb
 from wirestudio.library import Library
+from wirestudio.library.board_check import check_board_yaml, create_board
 from wirestudio.library.check import check_component_yaml, create_component
 from wirestudio.model import RESERVED_BUS_IDS, Design, generated_bus_id, missing_bus_pins
 from wirestudio.recommend.recommender import Constraints, recommend_components
@@ -469,6 +470,63 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
             "additionalProperties": False,
         },
     },
+    {
+        "name": "board_check",
+        "description": (
+            "Check a draft library board (full YAML text, same shape as "
+            "wirestudio/library/boards/*.yaml) before saving it: the file "
+            "validates, every pin a default bus, onboard peripheral or radio "
+            "names is in gpio_capabilities, the KiCad symbol has the pins "
+            "kicad.pin_map binds, the enclosure's ports and holes sit on the "
+            "PCB, and the onboard peripherals render to ESPHome YAML. Returns "
+            "errors, warnings, what could not be verified here, and what is "
+            "never checked (the pinout against the datasheet). Read-only."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "yaml": {"type": "string", "description": "The board YAML text."},
+            },
+            "required": ["yaml"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "board_create",
+        "description": (
+            "Run board_check and, if it passes, save the YAML into the user "
+            "library so designs can target the board. Refuses a bundled id; "
+            "refuses an existing user id unless overwrite is true. Relay the "
+            "warnings and not_checked list to the user."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "yaml": {"type": "string", "description": "The board YAML text."},
+                "overwrite": {
+                    "type": "boolean",
+                    "description": "Replace an existing user-library board with the same id.",
+                },
+            },
+            "required": ["yaml"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "board_delete",
+        "description": (
+            "Remove a board from the user library. Refuses a bundled id. "
+            "Designs on the board stop rendering until it is recreated."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "library_id": {"type": "string", "description": "The user board id to remove."},
+            },
+            "required": ["library_id"],
+            "additionalProperties": False,
+        },
+    },
 ]
 
 
@@ -534,6 +592,7 @@ def _run_list_boards(design: dict, library: Library) -> dict:
                 "framework": b.framework,
                 "platformio_board": b.platformio_board,
                 "flash_size_mb": b.flash_size_mb,
+                "source": library.board_source(b.id),
             }
             for b in library.list_boards()
         ]
@@ -982,6 +1041,24 @@ def _run_component_create(
     return create_component(yaml, library, overwrite=overwrite).as_dict()
 
 
+def _run_board_delete(_design: dict, library: Library, *, library_id: str) -> dict:
+    try:
+        library.delete_board(library_id)
+    except (PermissionError, FileNotFoundError) as e:
+        return {"ok": False, "error": str(e)}
+    return {"ok": True, "deleted": library_id}
+
+
+def _run_board_check(_design: dict, library: Library, *, yaml: str) -> dict:
+    return check_board_yaml(yaml, library).as_dict()
+
+
+def _run_board_create(
+    _design: dict, library: Library, *, yaml: str, overwrite: bool = False,
+) -> dict:
+    return create_board(yaml, library, overwrite=overwrite).as_dict()
+
+
 def _run_fab_cpl(design: dict, library: Library) -> dict:
     try:
         d = Design.model_validate(design)
@@ -1020,6 +1097,9 @@ TOOL_HANDLERS: dict[str, Callable[..., Any]] = {
     "component_check": _run_component_check,
     "component_create": _run_component_create,
     "component_delete": _run_component_delete,
+    "board_check": _run_board_check,
+    "board_create": _run_board_create,
+    "board_delete": _run_board_delete,
 }
 
 

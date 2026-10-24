@@ -20,7 +20,7 @@ function sidebar(community: CommunityList | null, onSelectCommunity = vi.fn()) {
       community={community} selectedExample={null} selectedCommunity={null} selectedSaved={null}
       onSelectExample={noop} onSelectCommunity={onSelectCommunity} onSelectSaved={noop}
       onDeleteSaved={noop} onSelectBoard={noop} onSelectComponent={noop}
-      onNewComponent={noop} onInsertModule={noop}
+      onNewComponent={noop} onNewBoard={noop} onInsertModule={noop}
     />,
   );
   return onSelectCommunity;

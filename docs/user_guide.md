@@ -49,6 +49,13 @@
   passes lands in the user library (`LIBRARY_USER_DIR`) and is
   available to every design; `component_create` does the same over
   MCP.
+- **Author boards.** **New board** in the Boards tab, and *Copy as new*
+  or *Edit YAML* on a board, open the same editor on a board's YAML. Its
+  *Check* runs the board gate: every bus, onboard-peripheral and radio
+  pin against the GPIO list, the KiCad symbol's pins, the enclosure's
+  geometry, and an ESPHome render with the onboard parts. A board that
+  passes lands in the user library and is offered for new designs;
+  `board_create` does the same over MCP.
 - **Flash.** One flash dialog (**Flash firmware**, radio icon) covers
   six frameworks over the same WebSerial + esptool-js mechanism:
   **ESPHome** hands off to a fleet push or an ESPHome dashboard

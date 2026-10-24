@@ -175,7 +175,7 @@ def _process_tool_calls(response, working_design: dict, library: Library, tool_c
 _SUPERSEDABLE = {
     "render", "validate", "kicad_schematic", "kicad_pcb", "fab_bom", "fab_cpl",
     "fab_status", "list_boards", "search_components", "recommend", "library_detail",
-    "component_check",
+    "component_check", "board_check",
 }
 _TRIM_FLOOR = 400  # chars; below this a result costs less than its digest
 

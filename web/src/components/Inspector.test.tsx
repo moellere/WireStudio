@@ -22,11 +22,12 @@ vi.mock("../api/client", async () => {
   const actual = await vi.importActual<typeof import("../api/client")>("../api/client");
   return {
     ...actual,
-    api: { ...actual.api, getComponent: vi.fn(), designParts: vi.fn() },
+    api: { ...actual.api, getComponent: vi.fn(), getBoard: vi.fn(), designParts: vi.fn() },
   };
 });
 const mockApi = api as unknown as {
   getComponent: ReturnType<typeof vi.fn>;
+  getBoard: ReturnType<typeof vi.fn>;
   designParts: ReturnType<typeof vi.fn>;
 };
 
@@ -40,19 +41,19 @@ const libraryBoards: BoardSummary[] = [
   {
     id: "wemos-d1-mini", name: "WeMos D1 Mini",
     mcu: "esp8266", chip_variant: "esp8266", framework: "arduino",
-    platformio_board: "d1_mini", flash_size_mb: 4, rail_names: ["5V", "3V3", "GND"], image: "",
+    platformio_board: "d1_mini", flash_size_mb: 4, rail_names: ["5V", "3V3", "GND"], image: "", source: "bundled",
   },
   {
     id: "esp32-devkitc-v4", name: "ESP32 DevKitC",
     mcu: "esp32", chip_variant: "esp32", framework: "arduino",
-    platformio_board: "esp32dev", flash_size_mb: 4, rail_names: ["5V", "3V3", "GND"], image: "",
+    platformio_board: "esp32dev", flash_size_mb: 4, rail_names: ["5V", "3V3", "GND"], image: "", source: "bundled",
   },
 ];
 
 const s3Board: BoardSummary = {
   id: "esp32-s3-devkitc-1", name: "ESP32-S3-DevKitC-1",
   mcu: "esp32", chip_variant: "esp32s3", framework: "arduino",
-  platformio_board: "esp32-s3-devkitc-1", flash_size_mb: 8, rail_names: ["5V", "3V3", "GND"], image: "",
+  platformio_board: "esp32-s3-devkitc-1", flash_size_mb: 8, rail_names: ["5V", "3V3", "GND"], image: "", source: "bundled",
 };
 
 const libraryComponents: ComponentSummary[] = [
@@ -101,6 +102,8 @@ function noopProps() {
     onRemoveComponent: vi.fn(),
     onEditComponent: vi.fn(),
     onDeleteComponent: vi.fn(),
+    onEditBoard: vi.fn(),
+    onDeleteBoard: vi.fn(),
   };
 }
 
@@ -396,5 +399,43 @@ describe("flash size override", () => {
   it("does not warn when the override is below the board file", () => {
     renderWith({ library_id: "esp32-s3-devkitc-1", mcu: "esp32", flash_size_mb: 4 });
     expect(screen.queryByText(/boot-loops/)).not.toBeInTheDocument();
+  });
+});
+
+describe("BoardInspector library actions", () => {
+  const board = { name: "LOLIN S2 Mini", chip_variant: "esp32s2", framework: "arduino", rails: [], gpio_capabilities: {} };
+
+  it("offers a copy of a bundled board and nothing to delete", async () => {
+    mockApi.getBoard.mockResolvedValue(board);
+    const props = noopProps();
+    render(
+      <Inspector
+        {...props}
+        selection={{ kind: "board", id: "esp32-devkitc-v4" }}
+        design={null} boardData={null} libraryBoards={libraryBoards}
+        libraryComponents={libraryComponents} compatibilityWarnings={[]}
+      />,
+    );
+    await userEvent.click(await screen.findByRole("button", { name: "Copy as new" }));
+    expect(props.onEditBoard).toHaveBeenCalledWith("esp32-devkitc-v4", "bundled");
+    expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
+  });
+
+  it("edits and deletes a user board", async () => {
+    mockApi.getBoard.mockResolvedValue(board);
+    const props = noopProps();
+    const user: BoardSummary = { ...s3Board, id: "lolin-s2-mini", source: "user" };
+    render(
+      <Inspector
+        {...props}
+        selection={{ kind: "board", id: "lolin-s2-mini" }}
+        design={null} boardData={null} libraryBoards={[...libraryBoards, user]}
+        libraryComponents={libraryComponents} compatibilityWarnings={[]}
+      />,
+    );
+    await userEvent.click(await screen.findByRole("button", { name: "Edit YAML" }));
+    expect(props.onEditBoard).toHaveBeenCalledWith("lolin-s2-mini", "user");
+    await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+    expect(props.onDeleteBoard).toHaveBeenCalledWith("lolin-s2-mini");
   });
 });

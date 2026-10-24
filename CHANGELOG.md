@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **User boards.** Boards can now be written at runtime, as components
+  already could. They are saved under `LIBRARY_USER_DIR/boards/` and
+  list with `source: user`; a bundled id always wins.
+  - A board gate, `board_check`, checks:
+    - every pin a bus, onboard peripheral or radio names against
+      `gpio_capabilities`;
+    - the KiCad symbol's pins for `pin_map`, and that no two roles
+      share a pin;
+    - the enclosure's ports and holes against the PCB outline;
+    - an ESPHome render of the board's onboard peripherals.
+  - All 26 bundled boards pass it.
+  - It is reachable as `POST /library/boards/check` and
+    `POST /library/boards`, `GET /library/boards/{id}/yaml`,
+    `DELETE /library/boards/{id}`, and the `board_check`,
+    `board_create` and `board_delete` MCP and agent tools.
+  - In the studio: **New board** in the Boards tab, and *Copy as new*,
+    *Edit YAML* and *Delete* on the board inspector, through the same
+    editor as components.
+
 - **LoRaWAN firmware for the UART, SPI and Modbus parts.** These parts
   now have `lorawan:` blocks, each adding fields to the uplink and the
   ChirpStack codec. LoRaWAN coverage goes from 26 to 38 of 102 parts.

@@ -659,34 +659,75 @@ class LibraryModule(_Strict):
 class Library:
     """Lazy loader for board, component, and module definitions.
 
-    `user_dir` is a second components tree (`<user_dir>/components/*.yaml`)
-    for components authored at runtime. The bundled tree wins on an id
-    clash, so a user file can never shadow a shipped component."""
+    `user_dir` is a second tree (`<user_dir>/components/*.yaml`,
+    `<user_dir>/boards/*.yaml`) for entries authored at runtime or
+    installed from the community catalogue. The bundled tree wins on an id
+    clash, so a user file can never shadow a shipped component or board."""
 
     def __init__(self, root: Path, user_dir: Optional[Path] = None):
         self.root = Path(root)
         self.user_dir = Path(user_dir) if user_dir else None
         # Bumped on every user-tree write so callers caching a listing
-        # (the API's component summaries) know when to rebuild.
+        # (the API's component and board summaries) know when to rebuild.
         self.version = 0
         self._components: dict[str, LibraryComponent] = {}
         self._boards: dict[str, LibraryBoard] = {}
         self._modules: dict[str, LibraryModule] = {}
 
-    def component_source(self, library_id: str) -> str:
-        """'bundled', 'user' or '' for where a component id resolves."""
-        if (self.root / "components" / f"{library_id}.yaml").exists():
+    def _source(self, kind: str, library_id: str) -> str:
+        if (self.root / kind / f"{library_id}.yaml").exists():
             return "bundled"
-        if self.user_dir and (self.user_dir / "components" / f"{library_id}.yaml").exists():
+        if self.user_dir and (self.user_dir / kind / f"{library_id}.yaml").exists():
             return "user"
         return ""
 
+    def _path(self, kind: str, library_id: str) -> Path:
+        base = self.user_dir if self._source(kind, library_id) == "user" else self.root
+        return base / kind / f"{library_id}.yaml"
+
+    def _ids(self, kind: str) -> list[str]:
+        ids = {p.stem for p in (self.root / kind).glob("*.yaml")}
+        if self.user_dir:
+            ids |= {p.stem for p in (self.user_dir / kind).glob("*.yaml")}
+        return sorted(ids)
+
+    def _save(self, kind: str, library_id: str, text: str, cache: dict) -> Path:
+        if self.user_dir is None:
+            raise PermissionError("no user library directory configured (LIBRARY_USER_DIR)")
+        if (self.root / kind / f"{library_id}.yaml").exists():
+            raise FileExistsError(f"'{library_id}' is a bundled {kind[:-1]}")
+        path = self.user_dir / kind / f"{library_id}.yaml"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text)
+        cache.pop(library_id, None)
+        self.version += 1
+        return path
+
+    def _delete(self, kind: str, library_id: str, cache: dict) -> Path:
+        source = self._source(kind, library_id)
+        if source == "bundled":
+            raise PermissionError(f"'{library_id}' is a bundled {kind[:-1]}")
+        if source != "user":
+            raise FileNotFoundError(f"Unknown {kind[:-1]} '{library_id}'")
+        path = self.user_dir / kind / f"{library_id}.yaml"
+        path.unlink()
+        cache.pop(library_id, None)
+        self.version += 1
+        return path
+
+    def _yaml(self, kind: str, library_id: str) -> str:
+        if not self._source(kind, library_id):
+            raise FileNotFoundError(f"Unknown {kind[:-1]} '{library_id}'")
+        return self._path(kind, library_id).read_text()
+
+    def component_source(self, library_id: str) -> str:
+        """'bundled', 'user' or '' for where a component id resolves."""
+        return self._source("components", library_id)
+
     def component(self, library_id: str) -> LibraryComponent:
         if library_id not in self._components:
-            source = self.component_source(library_id)
-            base = self.root if source == "bundled" else self.user_dir
-            path = (base or self.root) / "components" / f"{library_id}.yaml"
-            if not source:
+            path = self._path("components", library_id)
+            if not self.component_source(library_id):
                 raise FileNotFoundError(f"Unknown component '{library_id}' (looked at {path})")
             with path.open() as f:
                 data = yaml.safe_load(f)
@@ -701,55 +742,47 @@ class Library:
     def save_component(self, library_id: str, text: str) -> Path:
         """Write a component's YAML source into the user tree. Refuses a
         bundled id. The source text is kept verbatim so comments survive."""
-        if self.user_dir is None:
-            raise PermissionError("no user library directory configured (LIBRARY_USER_DIR)")
-        if (self.root / "components" / f"{library_id}.yaml").exists():
-            raise FileExistsError(f"'{library_id}' is a bundled component")
-        path = self.user_dir / "components" / f"{library_id}.yaml"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(text)
-        self._components.pop(library_id, None)
-        self.version += 1
-        return path
+        return self._save("components", library_id, text, self._components)
 
     def component_yaml(self, library_id: str) -> str:
-        source = self.component_source(library_id)
-        if not source:
-            raise FileNotFoundError(f"Unknown component '{library_id}'")
-        base = self.root if source == "bundled" else self.user_dir
-        return (base / "components" / f"{library_id}.yaml").read_text()
+        return self._yaml("components", library_id)
 
     def delete_component(self, library_id: str) -> Path:
         """Remove a user component. A bundled id is refused."""
-        source = self.component_source(library_id)
-        if source == "bundled":
-            raise PermissionError(f"'{library_id}' is a bundled component")
-        if source != "user":
-            raise FileNotFoundError(f"Unknown component '{library_id}'")
-        path = self.user_dir / "components" / f"{library_id}.yaml"
-        path.unlink()
-        self._components.pop(library_id, None)
-        self.version += 1
-        return path
+        return self._delete("components", library_id, self._components)
+
+    def board_source(self, library_id: str) -> str:
+        """'bundled', 'user' or '' for where a board id resolves."""
+        return self._source("boards", library_id)
 
     def board(self, library_id: str) -> LibraryBoard:
         if library_id not in self._boards:
-            path = self.root / "boards" / f"{library_id}.yaml"
-            if not path.exists():
+            path = self._path("boards", library_id)
+            if not self.board_source(library_id):
                 raise FileNotFoundError(f"Unknown board '{library_id}' (looked at {path})")
             with path.open() as f:
                 data = yaml.safe_load(f)
             self._boards[library_id] = LibraryBoard.model_validate(data)
         return self._boards[library_id]
 
+    def register_board(self, board: LibraryBoard) -> None:
+        """A draft board resolvable without a file, as `register` is for components."""
+        self._boards[board.id] = board
+
+    def save_board(self, library_id: str, text: str) -> Path:
+        return self._save("boards", library_id, text, self._boards)
+
+    def board_yaml(self, library_id: str) -> str:
+        return self._yaml("boards", library_id)
+
+    def delete_board(self, library_id: str) -> Path:
+        return self._delete("boards", library_id, self._boards)
+
     def list_components(self) -> list[LibraryComponent]:
-        ids = {p.stem for p in (self.root / "components").glob("*.yaml")}
-        if self.user_dir:
-            ids |= {p.stem for p in (self.user_dir / "components").glob("*.yaml")}
-        return [self.component(i) for i in sorted(ids)]
+        return [self.component(i) for i in self._ids("components")]
 
     def list_boards(self) -> list[LibraryBoard]:
-        return [self.board(p.stem) for p in sorted((self.root / "boards").glob("*.yaml"))]
+        return [self.board(i) for i in self._ids("boards")]
 
     def module(self, module_id: str) -> LibraryModule:
         if module_id not in self._modules:
@@ -769,6 +802,6 @@ def default_library() -> Library:
     # The bundled component + board YAMLs live alongside this module
     # (wirestudio/library/components/, wirestudio/library/boards/) so
     # they ship inside the wheel. LIBRARY_USER_DIR adds a writable tree
-    # for components authored at runtime (/data/library in the image).
+    # for components and boards authored at runtime (/data/library in the image).
     user_dir = os.environ.get("LIBRARY_USER_DIR")
     return Library(Path(__file__).resolve().parent, Path(user_dir) if user_dir else None)

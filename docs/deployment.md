@@ -45,7 +45,7 @@ of them, just with the corresponding feature turned off. See
 | `ESPHOME_DASHBOARD_URL` (+ `ESPHOME_DASHBOARD_USERNAME` / `_PASSWORD`) | compile through an ESPHome Device Builder (`/esphome/*`); the port-exposed add-on or a standalone builder (ESPHome 2026.6+), not the HA ingress path |
 | `WORKBENCH_URL` (+ `WORKBENCH_TOKEN`) | remote flash + LoRaWAN bring-up against an Embedded AI Harness (`/workbench/*`) |
 | `WIRESTUDIO_DESIGNS_REPO` | the community catalogue the Gallery tab and Share use (`/community/*`); `owner/repo`, default `moellere/wirestudio-designs`, empty to turn it off. Needs outbound HTTPS to `raw.githubusercontent.com` |
-| `LIBRARY_USER_DIR` | where studio-authored components are saved (`/data/library` in the image) |
+| `LIBRARY_USER_DIR` | where studio-authored components and boards are saved (`/data/library` in the image) |
 | `INVENTORY_PATH` | the inventory file (`/data/inventory.json` in the image) |
 | `DESIGNS_DB` / `SESSIONS_DB` | one SQLite file each in place of the `DESIGNS_DIR` / `SESSIONS_DIR` directories |
 
@@ -93,7 +93,7 @@ Everything the studio keeps is under `/data`:
 | `designs/` or `DESIGNS_DB` | saved designs, one `design.json` each, or one SQLite file | yes |
 | `sessions/` or `SESSIONS_DB` | agent conversation history, JSONL per session, or one SQLite file | yes |
 | `inventory.json` | the parts drawer | yes |
-| `library/` | user-authored components (`LIBRARY_USER_DIR`) | yes |
+| `library/` | user-authored components and boards (`LIBRARY_USER_DIR`) | yes |
 | `firmware-cache/`, `route-cache/`, `pio/` | build caches | no; rebuilt on demand |
 
 **The file stores** (the default) are plain files. Stop the studio and

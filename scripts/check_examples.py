@@ -27,6 +27,7 @@ from pathlib import Path
 
 from wirestudio.generate.yaml_gen import render_yaml
 from wirestudio.library import Library, default_library
+from wirestudio.library.board_check import create_board, seeded_design
 from wirestudio.library.check import create_component, synthetic_design
 from wirestudio.model import Design
 from wirestudio.validate import write_secrets_stub
@@ -49,6 +50,17 @@ def _user_component(path: Path, workdir: Path) -> tuple[str, Design, Library]:
         raise SystemExit(f"{path}: component_check failed:\n  " + "\n  ".join(report.errors))
     design = synthetic_design(library.component(report.library_id), library, on_buses=True)
     return f"component-{report.library_id}", design, library
+
+
+def _user_board(path: Path, workdir: Path) -> tuple[str, Design, Library]:
+    """A board YAML through the gate `board_create` runs, with its onboard
+    peripherals seeded as the gate renders them."""
+    library = Library(default_library().root, workdir / "user-library")
+    report = create_board(path.read_text(), library)
+    if not report.ok:
+        raise SystemExit(f"{path}: board_check failed:\n  " + "\n  ".join(report.errors))
+    design, _ = seeded_design(library.board(report.library_id), library)
+    return f"board-{report.library_id}", design, library
 
 
 def esphome_version() -> str:
@@ -128,17 +140,29 @@ def main(argv: list[str] | None = None) -> int:
             "component_check and placed on the gate's synthetic design"
         ),
     )
+    parser.add_argument(
+        "--board",
+        type=Path,
+        action="append",
+        default=[],
+        metavar="YAML",
+        help=(
+            "instead of examples: a user board YAML, run through board_check "
+            "and rendered with its onboard peripherals"
+        ),
+    )
     args = parser.parse_args(argv)
     subcommand = "compile" if args.compile else "config"
 
-    if args.component:
+    if args.component or args.board:
         if args.names:
-            print("--component takes no example names", file=sys.stderr)
+            print("--component and --board take no example names", file=sys.stderr)
             return 2
+        entries = [(p, _user_component) for p in args.component] + [(p, _user_board) for p in args.board]
         with tempfile.TemporaryDirectory() as tmp:
             failures = []
-            for path in args.component:
-                name, design, library = _user_component(path, Path(tmp))
+            for path, load in entries:
+                name, design, library = load(path, Path(tmp))
                 ok, detail = _check_design(name, design, library, Path(tmp), subcommand)
                 print(f"  {'PASS' if ok else 'FAIL'}  {path}")
                 if not ok:
