@@ -134,6 +134,60 @@ micropython:
         {{ id }}_transmit(False)
         return {{ id }}_parse(address, function, {{ id }}_collect(0.1 + (5 + 2 * count) * 11 / {{ id }}_baud))
 
+lorawan:
+  requires: [uart]
+  globals: |
+    HardwareSerial {{ id }}Serial({{ serial }});
+    static uint16_t {{ id }}Crc(const uint8_t* d, size_t n) {
+      uint16_t c = 0xFFFF;
+      for (size_t i = 0; i < n; i++) {
+        c ^= d[i];
+        for (int b = 0; b < 8; b++) c = (c & 1) ? (c >> 1) ^ 0xA001 : c >> 1;
+      }
+      return c;
+    }
+    // Modbus RTU read: `count` registers from `start` with function `fn`
+    // (0x03 holding, 0x04 input); the register bytes land in `out`. False on
+    // a timeout, an exception reply or a bad CRC.
+    static bool {{ id }}Read(uint8_t addr, uint8_t fn, uint16_t start, uint16_t count, uint8_t* out) {
+      uint8_t _q[8] = {addr, fn, (uint8_t)(start >> 8), (uint8_t)start, (uint8_t)(count >> 8), (uint8_t)count, 0, 0};
+      uint16_t _c = {{ id }}Crc(_q, 6);
+      _q[6] = _c & 0xFF;
+      _q[7] = _c >> 8;
+      while ({{ id }}Serial.available()) {{ id }}Serial.read();
+    {%- if pins.FLOW is defined %}
+      digitalWrite({{ pins.FLOW }}, HIGH);  // RS485 driver on
+    {%- endif %}
+      {{ id }}Serial.write(_q, 8);
+      {{ id }}Serial.flush();
+    {%- if pins.FLOW is defined %}
+      digitalWrite({{ pins.FLOW }}, LOW);
+    {%- endif %}
+      // The reply can trail a noise byte or two from the line turning
+      // around, so take the frame wherever it ends rather than at byte 0.
+      uint8_t _r[16 + 5 + 2 * 80];  // the largest read: an SDM meter's 80 registers
+      size_t _n = 5 + 2 * count, _got = 0;
+      if (_n + 16 > sizeof(_r)) return false;
+      unsigned long _t0 = millis(), _wait = 100 + _n * 11000UL / {{ bus.baud if bus and bus.baud else 9600 }};
+      while (millis() - _t0 < _wait && _got < sizeof(_r)) {
+        if (!{{ id }}Serial.available()) { delay(1); continue; }
+        _r[_got++] = {{ id }}Serial.read();
+        if (_got < _n) continue;
+        const uint8_t* _f = _r + _got - _n;
+        if (_f[0] != addr || _f[1] != fn || _f[2] != 2 * count) continue;
+        _c = {{ id }}Crc(_f, _n - 2);
+        if (_f[_n - 2] != (_c & 0xFF) || _f[_n - 1] != (_c >> 8)) continue;
+        memcpy(out, _f + 3, 2 * count);
+        return true;
+      }
+      return false;
+    }
+  setup: |
+    {{ id }}Serial.begin({{ bus.baud if bus and bus.baud else 9600 }}, {{ 'SERIAL_8E1' if bus and bus.parity == 'EVEN' else ('SERIAL_8O1' if bus and bus.parity == 'ODD' else 'SERIAL_8N1') }}, {{ bus.rx if bus and bus.rx is not none else -1 }}, {{ bus.tx if bus and bus.tx is not none else -1 }});
+    {%- if pins.FLOW is defined %}
+    pinMode({{ pins.FLOW }}, OUTPUT);
+    digitalWrite({{ pins.FLOW }}, LOW);
+    {%- endif %}
 params_schema:
   send_wait_time:
     type: string

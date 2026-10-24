@@ -115,6 +115,70 @@ micropython:
     if {{ id }}_state:
         print("{{ label }}: %s, %s" % ({None: "?", True: "present", False: "clear"}[{{ id }}_state[0]], "?" if {{ id }}_state[1] is None else "%d cm" % {{ id }}_state[1]))
 
+lorawan:
+  requires: [uart]
+  globals: |
+    HardwareSerial {{ id }}Serial({{ serial }});
+    uint8_t {{ id }}Buf[64];
+    uint8_t {{ id }}Len = 0;
+    char {{ id }}Line[16];
+    uint8_t {{ id }}LineLen = 0;
+    uint8_t {{ id }}Presence = 0;
+    uint16_t {{ id }}DistanceCm = 0;
+  setup: |
+    {{ id }}Serial.begin({{ bus.baud if bus and bus.baud else 115200 }}, SERIAL_8N1, {{ bus.rx if bus and bus.rx is not none else -1 }}, {{ bus.tx if bus and bus.tx is not none else -1 }});
+  loop: |
+    // Two firmware dialects: text lines ("ON", "OFF", "Range 123") or the
+    // binary frame F4 F3 F2 F1, length (LE), presence, distance, F8 F7 F6 F5.
+    {
+      static const uint8_t _head[4] = {0xF4, 0xF3, 0xF2, 0xF1};
+      static const uint8_t _tail[4] = {0xF8, 0xF7, 0xF6, 0xF5};
+      while ({{ id }}Serial.available()) {
+        uint8_t _b = {{ id }}Serial.read();
+        if (_b == '\n') {
+          if ({{ id }}LineLen && {{ id }}Line[{{ id }}LineLen - 1] == '\r') {{ id }}LineLen--;
+          {{ id }}Line[{{ id }}LineLen] = 0;
+          if (strcmp({{ id }}Line, "ON") == 0) {{ id }}Presence = 1;
+          else if (strcmp({{ id }}Line, "OFF") == 0) {{ id }}Presence = 0;
+          else if (strncmp({{ id }}Line, "Range ", 6) == 0 && isdigit((unsigned char){{ id }}Line[6]))
+            {{ id }}DistanceCm = (uint16_t)atoi({{ id }}Line + 6);
+          {{ id }}LineLen = 0;
+        } else if ({{ id }}LineLen < sizeof({{ id }}Line) - 1) {
+          {{ id }}Line[{{ id }}LineLen++] = (char)_b;
+        } else {
+          {{ id }}LineLen = 0;
+        }
+        if ({{ id }}Len < 4) {
+          if (_b == _head[{{ id }}Len]) {{ id }}Buf[{{ id }}Len++] = _b;
+          else {{ id }}Len = _b == _head[0] ? 1 : 0;
+          continue;
+        }
+        {{ id }}Buf[{{ id }}Len++] = _b;
+        if ({{ id }}Len < 6) continue;
+        uint16_t _n = {{ id }}Buf[4] | {{ id }}Buf[5] << 8;
+        if (10 + _n > sizeof({{ id }}Buf)) { {{ id }}Len = 0; continue; }
+        if ({{ id }}Len < 10 + _n) continue;
+        const uint8_t* _d = {{ id }}Buf + 6;
+        if (memcmp(_d + _n, _tail, 4) == 0 && _n >= 3) {
+          {{ id }}Presence = _d[0] != 0;
+          {{ id }}DistanceCm = _d[1] | _d[2] << 8;
+        }
+        {{ id }}Len = 0;
+      }
+    }
+  fields:
+    - name: "{{ id }}_presence"
+      bytes: 1
+      cpp_type: uint8_t
+      cpp_expr: "{{ id }}Presence"
+      ha_device_class: occupancy
+    - name: "{{ id }}_distance_cm"
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: "{{ id }}DistanceCm"
+      ha_device_class: distance
+      ha_unit: "cm"
+      ha_state_class: measurement
 params_schema:
   presence_timeout:
     type: integer

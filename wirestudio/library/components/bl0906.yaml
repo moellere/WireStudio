@@ -139,6 +139,170 @@ micropython:
     for {{ id }}_n, ({{ id }}_amps, {{ id }}_watts) in enumerate({{ id }}_channels, 1):
         print("{{ label }} ch%d: %s A %s W" % ({{ id }}_n, "-" if {{ id }}_amps is None else "%.3f" % {{ id }}_amps, "-" if {{ id }}_watts is None else "%.1f" % {{ id }}_watts))
 
+lorawan:
+  requires: [uart]
+  globals: |
+    HardwareSerial {{ id }}Serial({{ serial }});
+    float {{ id }}Volts = 0, {{ id }}Hz = 0, {{ id }}TempC = 0;
+    float {{ id }}Amps[6] = {0}, {{ id }}Watts[6] = {0};
+    // One register: 0x35 + address out, three data bytes (LE) + checksum back.
+    static bool {{ id }}Query(uint8_t addr, bool sgn, int32_t& out) {
+      while ({{ id }}Serial.available()) {{ id }}Serial.read();
+      const uint8_t _q[2] = {0x35, addr};
+      {{ id }}Serial.write(_q, 2);
+      uint8_t _p[4];
+      {{ id }}Serial.setTimeout(50);
+      if ({{ id }}Serial.readBytes(_p, 4) != 4) return false;
+      if ((uint8_t)((addr + _p[0] + _p[1] + _p[2]) ^ 0xFF) != _p[3]) return false;
+      int32_t _v = (int32_t)_p[2] << 16 | _p[1] << 8 | _p[0];
+      if (sgn && (_v & 0x800000)) _v -= 0x1000000;
+      out = _v;
+      return true;
+    }
+  setup: |
+    {{ id }}Serial.begin({{ bus.baud if bus and bus.baud else 19200 }}, SERIAL_8N1, {{ bus.rx if bus and bus.rx is not none else -1 }}, {{ bus.tx if bus and bus.tx is not none else -1 }});
+  loop: |
+    {
+      static unsigned long _last = 0;
+      if (_last == 0 || millis() - _last >= 5000) {
+        _last = millis();
+        const float _uref = 1.097 * 100000 / (13162.0 * 100 * 1000);
+        const float _iref = 1.097 / (12875.0 * (5.1 + 5.1) * 1000 / 2000);
+        const float _pref = 1.097 * 1.097 * 100000 / (40.41259 * ((5.1 + 5.1) * 1000 / 2000) * 100 * 1000);
+        static const uint8_t _regs[6][2] = { {0x0D, 0x23}, {0x0E, 0x24}, {0x0F, 0x25}, {0x10, 0x26}, {0x13, 0x29}, {0x14, 0x2A} };
+        int32_t _v;
+        if ({{ id }}Query(0x16, false, _v)) {{ id }}Volts = _v * _uref;
+        if ({{ id }}Query(0x4E, false, _v) && _v) {{ id }}Hz = 10000000.0 / _v;
+        if ({{ id }}Query(0x5E, true, _v)) {{ id }}TempC = (_v - 64) * 12.5 / 59 - 40;
+        for (int _i = 0; _i < 6; _i++) {
+          if ({{ id }}Query(_regs[_i][0], false, _v)) {{ id }}Amps[_i] = _v * _iref;
+          if ({{ id }}Query(_regs[_i][1], true, _v)) {{ id }}Watts[_i] = _v * _pref;
+        }
+      }
+    }
+  fields:
+    - name: "{{ id }}_voltage"
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: "(uint16_t)({{ id }}Volts * 10.0 + 0.5)"
+      scale: 10.0
+      ha_device_class: voltage
+      ha_unit: "V"
+      ha_state_class: measurement
+    - name: "{{ id }}_frequency"
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: "(uint16_t)({{ id }}Hz * 100.0 + 0.5)"
+      scale: 100.0
+      ha_device_class: frequency
+      ha_unit: "Hz"
+      ha_state_class: measurement
+    - name: "{{ id }}_temp_c"
+      bytes: 2
+      cpp_type: int16_t
+      cpp_expr: "(int16_t)({{ id }}TempC * 10.0)"
+      signed: true
+      scale: 10.0
+      ha_device_class: temperature
+      ha_unit: "°C"
+      ha_state_class: measurement
+      ha_diagnostic: true
+    - name: "{{ id }}_ch1_current"
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: "(uint16_t)({{ id }}Amps[0] * 1000.0 + 0.5)"
+      scale: 1000.0
+      ha_device_class: current
+      ha_unit: "A"
+      ha_state_class: measurement
+    - name: "{{ id }}_ch1_power"
+      bytes: 2
+      cpp_type: int16_t
+      cpp_expr: "(int16_t)({{ id }}Watts[0])"
+      signed: true
+      ha_device_class: power
+      ha_unit: "W"
+      ha_state_class: measurement
+    - name: "{{ id }}_ch2_current"
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: "(uint16_t)({{ id }}Amps[1] * 1000.0 + 0.5)"
+      scale: 1000.0
+      ha_device_class: current
+      ha_unit: "A"
+      ha_state_class: measurement
+    - name: "{{ id }}_ch2_power"
+      bytes: 2
+      cpp_type: int16_t
+      cpp_expr: "(int16_t)({{ id }}Watts[1])"
+      signed: true
+      ha_device_class: power
+      ha_unit: "W"
+      ha_state_class: measurement
+    - name: "{{ id }}_ch3_current"
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: "(uint16_t)({{ id }}Amps[2] * 1000.0 + 0.5)"
+      scale: 1000.0
+      ha_device_class: current
+      ha_unit: "A"
+      ha_state_class: measurement
+    - name: "{{ id }}_ch3_power"
+      bytes: 2
+      cpp_type: int16_t
+      cpp_expr: "(int16_t)({{ id }}Watts[2])"
+      signed: true
+      ha_device_class: power
+      ha_unit: "W"
+      ha_state_class: measurement
+    - name: "{{ id }}_ch4_current"
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: "(uint16_t)({{ id }}Amps[3] * 1000.0 + 0.5)"
+      scale: 1000.0
+      ha_device_class: current
+      ha_unit: "A"
+      ha_state_class: measurement
+    - name: "{{ id }}_ch4_power"
+      bytes: 2
+      cpp_type: int16_t
+      cpp_expr: "(int16_t)({{ id }}Watts[3])"
+      signed: true
+      ha_device_class: power
+      ha_unit: "W"
+      ha_state_class: measurement
+    - name: "{{ id }}_ch5_current"
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: "(uint16_t)({{ id }}Amps[4] * 1000.0 + 0.5)"
+      scale: 1000.0
+      ha_device_class: current
+      ha_unit: "A"
+      ha_state_class: measurement
+    - name: "{{ id }}_ch5_power"
+      bytes: 2
+      cpp_type: int16_t
+      cpp_expr: "(int16_t)({{ id }}Watts[4])"
+      signed: true
+      ha_device_class: power
+      ha_unit: "W"
+      ha_state_class: measurement
+    - name: "{{ id }}_ch6_current"
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: "(uint16_t)({{ id }}Amps[5] * 1000.0 + 0.5)"
+      scale: 1000.0
+      ha_device_class: current
+      ha_unit: "A"
+      ha_state_class: measurement
+    - name: "{{ id }}_ch6_power"
+      bytes: 2
+      cpp_type: int16_t
+      cpp_expr: "(int16_t)({{ id }}Watts[5])"
+      signed: true
+      ha_device_class: power
+      ha_unit: "W"
+      ha_state_class: measurement
 params_schema:
   update_interval:
     type: string

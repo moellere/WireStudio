@@ -48,6 +48,23 @@ micropython:
         {{ id }}_cs(1)
         return ((buf[1] & 0x03) << 8) | buf[2]
 
+lorawan:
+  requires: [spi]
+  globals: |
+    static uint16_t {{ id }}Read(uint8_t ch) {
+      SPI.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE0));
+      digitalWrite({{ pins.CS }}, LOW);
+      SPI.transfer(0x01);
+      uint8_t _hi = SPI.transfer((0x08 | ch) << 4);
+      uint8_t _lo = SPI.transfer(0x00);
+      digitalWrite({{ pins.CS }}, HIGH);
+      SPI.endTransaction();
+      return (uint16_t)((_hi & 0x03) << 8 | _lo);
+    }
+  setup: |
+    pinMode({{ pins.CS }}, OUTPUT);
+    digitalWrite({{ pins.CS }}, HIGH);
+    SPI.begin({{ radio_spi.clk }}, {{ radio_spi.miso }}, {{ radio_spi.mosi }});  // the radio's bus; RadioLib keeps it
 params_schema: {}
 
 notes: |

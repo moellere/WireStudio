@@ -71,7 +71,9 @@ class LorawanField(_Strict):
     """One uplink payload field a component contributes (LoRaWAN target).
 
     `cpp_expr` is the C++ expression packed into the payload; it references the
-    C++ symbols the component's `globals`/`loop` declare. The `ha_*` hints are
+    C++ symbols the component's `globals`/`loop` declare. `name` and
+    `cpp_expr` may name the instance (`{{ id }}_voltage`, `{{ id }}Mv`) so two
+    of one part, or a hub's channels, each get their own field. The `ha_*` hints are
     optional Home Assistant entity metadata, consumed by the codec's
     `getHaDeviceInfo` (the chirp2mqtt integration). They mirror the keys on
     codec.Field so a migrated field reproduces its old HA entity exactly.
@@ -91,10 +93,16 @@ class LorawanField(_Strict):
 
 
 class LorawanSpec(_Strict):
+    """The C++ a component contributes to the LoRaWAN firmware. The
+    fragments are Jinja over `id`, `params`, `pins`, `bus`, `board` and:
+    `serial`, the hardware UART number its bus was given (with `uart` in
+    `requires`); `parent`, the id of the hub a `hub_ref` pin points at,
+    whose helpers a part on it calls; and `radio_spi`, the radio's SPI
+    pins, which an SPI part shares."""
     lib_deps: list[str] = Field(default_factory=list)
-    # Shared build prerequisites a fragment needs (e.g. "i2c", "spi"); the
+    # Shared build prerequisites a fragment needs ("i2c", "spi", "uart"); the
     # firmware template brings the corresponding bus up once when any
-    # component requires it.
+    # component requires it, and each UART bus gets its own hardware UART.
     requires: list[str] = Field(default_factory=list)
     globals: str = ""
     setup: str = ""

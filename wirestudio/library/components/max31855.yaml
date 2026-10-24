@@ -74,6 +74,44 @@ micropython:
     {{ id }}_t = {{ id }}_read()
     print("{{ label }}: %s" % ("fault" if {{ id }}_t is None else "%.2fC" % {{ id }}_t))
 
+lorawan:
+  requires: [spi]
+  globals: |
+    int16_t {{ id }}Quarters = 0;  // degrees C x 4
+  setup: |
+    pinMode({{ pins.CS }}, OUTPUT);
+    digitalWrite({{ pins.CS }}, HIGH);
+    SPI.begin({{ radio_spi.clk }}, {{ radio_spi.miso }}, {{ radio_spi.mosi }});  // the radio's bus; RadioLib keeps it
+  loop: |
+    {
+      static unsigned long _last = 0;
+      if (_last == 0 || millis() - _last >= 1000) {
+        _last = millis();
+        SPI.beginTransaction(SPISettings(4000000, MSBFIRST, SPI_MODE0));
+        digitalWrite({{ pins.CS }}, LOW);
+        uint32_t _v = (uint32_t)SPI.transfer(0) << 24;
+        _v |= (uint32_t)SPI.transfer(0) << 16;
+        _v |= (uint32_t)SPI.transfer(0) << 8;
+        _v |= SPI.transfer(0);
+        digitalWrite({{ pins.CS }}, HIGH);
+        SPI.endTransaction();
+        if (!(_v & 0x10000)) {  // bit 16: thermocouple fault
+          int16_t _t = (int16_t)(_v >> 18);
+          if (_t & 0x2000) _t -= 0x4000;
+          {{ id }}Quarters = _t;
+        }
+      }
+    }
+  fields:
+    - name: "{{ id }}_temp_c"
+      bytes: 2
+      cpp_type: int16_t
+      cpp_expr: "{{ id }}Quarters"
+      signed: true
+      scale: 4.0
+      ha_device_class: temperature
+      ha_unit: "°C"
+      ha_state_class: measurement
 params_schema:
   update_interval:
     type: string

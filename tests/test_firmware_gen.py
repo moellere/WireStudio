@@ -7,6 +7,7 @@ import pytest
 from wirestudio.library import default_library
 from wirestudio.migrate import migrate
 from wirestudio.model import Design
+from wirestudio.targets.lorawan.codec import decode_js, fields_for
 from wirestudio.targets.lorawan.firmware_gen import generate_firmware, write_firmware
 
 
@@ -230,14 +231,11 @@ def test_ci_component_designs_carry_every_lorawan_block(lib):
     assert built | board_built == {c.id for c in lib.list_components() if c.lorawan is not None}
     for design in designs:
         main = generate_firmware(design, lib)["src/main.cpp"]
-        for comp in design.components:
-            for field in lib.component(comp.library_id).lorawan.fields:
-                assert field.cpp_expr in main
+        for field in fields_for(design, lib):
+            assert field["cpp_expr"] in main
 
 
 def test_i2c_sensor_blocks_bring_up_wire_and_report_scaled_fields(lib):
-    from wirestudio.targets.lorawan.codec import fields_for
-
     design = _design_with("bme280", "sht4x")
     names = [f["name"] for f in fields_for(design, lib)]
     assert {"bme280_temp_c", "bme280_humidity", "bme280_pressure", "sht4x_temp_c"} <= set(names)
@@ -245,3 +243,73 @@ def test_i2c_sensor_blocks_bring_up_wire_and_report_scaled_fields(lib):
     assert "Wire.begin(" in main
     assert "bme280Ok = bme280.begin(0x76, &Wire);" in main
     assert "(int16_t)(bme280TempC * 100.0)" in main
+
+
+def _wired(components, buses, connections) -> Design:
+    return Design.model_validate({
+        "schema_version": "1.0", "id": "dev1", "name": "Dev 1", "target": "lorawan", "lorawan": {},
+        "board": {"library_id": "ttgo-lora32-v2", "mcu": "esp32"},
+        "power": {"supply": "usb", "rail_voltage_v": 3.3},
+        "components": [{"id": i, "library_id": c, "label": i, "params": p} for i, c, p in components],
+        "buses": buses,
+        "connections": [{"component_id": c, "pin_role": r, "target": t} for c, r, t in connections],
+    })
+
+
+def _uart(bus_id, rx, tx, baud=9600):
+    return {"id": bus_id, "type": "uart", "rx": rx, "tx": tx, "baud_rate": baud}
+
+
+def _on(bus_id):
+    return {"kind": "bus", "bus_id": bus_id}
+
+
+def test_each_uart_bus_gets_its_own_hardware_uart(lib):
+    parts = [("co2", "mhz19", {}), ("pm", "pmsx003", {})]
+    buses = [_uart("u1", "GPIO16", "GPIO17"), _uart("u2", "GPIO32", "GPIO33")]
+    conns = [("co2", "TX", _on("u1")), ("co2", "RX", _on("u1")), ("pm", "TX", _on("u2")), ("pm", "RX", _on("u2"))]
+    main = generate_firmware(_wired(parts, buses, conns), lib)["src/main.cpp"]
+    assert "HardwareSerial co2Serial(1);" in main and "HardwareSerial pmSerial(2);" in main
+    assert "co2Serial.begin(9600, SERIAL_8N1, 16, 17);" in main
+    third = _wired(parts + [("radar", "ld2410", {})], buses + [_uart("u3", "GPIO4", "GPIO25", 256000)],
+                   conns + [("radar", "TX", _on("u3")), ("radar", "RX", _on("u3"))])
+    with pytest.raises(ValueError, match="hardware UART"):
+        generate_firmware(third, lib)
+
+
+def test_a_uart_bus_keeps_its_parity(lib):
+    design = _wired([("plug", "cse7766", {})], [{**_uart("u1", "GPIO16", "GPIO17", 4800), "parity": "EVEN"}],
+                    [("plug", "TX", _on("u1"))])
+    assert "plugSerial.begin(4800, SERIAL_8E1, 16, 17);" in generate_firmware(design, lib)["src/main.cpp"]
+
+
+def test_spi_parts_share_the_radio_bus(lib):
+    spi = lib.board("ttgo-lora32-v2").default_buses["spi"]
+    conns = [("tc", "CLK", _on("s")), ("tc", "MISO", _on("s")), ("tc", "CS", {"kind": "gpio", "pin": "GPIO25"})]
+    main = generate_firmware(_wired([("tc", "max31855", {})], [{"id": "s", "type": "spi", **spi}], conns),
+                             lib)["src/main.cpp"]
+    assert "#include <SPI.h>" in main and "SPI.begin(5, 19, 27);" in main
+    elsewhere = {"id": "s", "type": "spi", "clk": "GPIO14", "miso": "GPIO12", "mosi": "GPIO13"}
+    with pytest.raises(ValueError, match="radio's bus"):
+        generate_firmware(_wired([("tc", "max31855", {})], [elsewhere], conns), lib)
+
+
+def test_parts_on_a_hub_read_through_it_and_name_their_fields(lib):
+    spi = lib.board("ttgo-lora32-v2").default_buses["spi"]
+    parts = [("adc", "mcp3008", {}), ("ch0", "mcp3008_channel", {"number": 0}),
+             ("ch5", "mcp3008_channel", {"number": 5, "reference_voltage": "5.0V"}),
+             ("bus", "modbus", {}), ("mains", "pzemac", {"address": 2})]
+    conns = [("adc", r, _on("s")) for r in ("CLK", "MOSI", "MISO")] + [
+        ("adc", "CS", {"kind": "gpio", "pin": "GPIO2"}),
+        ("ch0", "HUB", {"kind": "component", "component_id": "adc"}),
+        ("ch5", "HUB", {"kind": "component", "component_id": "adc"}),
+        ("bus", "UART", _on("u1")), ("bus", "FLOW", {"kind": "gpio", "pin": "GPIO4"}),
+        ("mains", "HUB", {"kind": "component", "component_id": "bus"})]
+    design = _wired(parts, [{"id": "s", "type": "spi", **spi}, _uart("u1", "GPIO16", "GPIO17")], conns)
+    main = generate_firmware(design, lib)["src/main.cpp"]
+    assert "ch5Mv = (uint16_t)(adcRead(5) * 5.0 * 1000.0 / 1023.0 + 0.5);" in main
+    assert "busRead(2, 0x04, 0, 10, _d)" in main
+    assert "digitalWrite(4, HIGH);  // RS485 driver on" in main
+    names = [f["name"] for f in fields_for(design, lib)]
+    assert {"ch0_voltage", "ch5_voltage", "mains_voltage", "mains_energy"} <= set(names)
+    assert "ch5_voltage" in decode_js(fields_for(design, lib))

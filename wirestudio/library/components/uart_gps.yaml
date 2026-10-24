@@ -21,10 +21,11 @@ electrical:
 lorawan:
   lib_deps:
     - "mikalhart/TinyGPSPlus@^1.1.0"
+  requires: [uart]
   globals: |
     #include <TinyGPS++.h>
     TinyGPSPlus gps;
-    HardwareSerial GPSSerial(1);
+    HardwareSerial GPSSerial({{ serial }});
   setup: |
     {%- if params.enable_pin is defined and params.enable_pin %}
       pinMode({{ params.enable_pin | string | replace('GPIO', '') }}, OUTPUT);

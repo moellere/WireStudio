@@ -14,6 +14,13 @@ from __future__ import annotations
 
 from typing import Optional, TypedDict
 
+from jinja2 import Environment
+
+# A field's name and expression may name the component instance
+# (`{{ id }}_volts`), so two of one part, or a hub's eight channels, each
+# get their own field.
+_field_jinja = Environment()
+
 
 class Field(TypedDict, total=False):
     name: str
@@ -162,6 +169,12 @@ def fields_for(design=None, library=None) -> list[Field]:
         if not (lib_comp.lorawan and lib_comp.lorawan.fields):
             continue
         for fld in lib_comp.lorawan.fields:
+            if "{{" in fld.name or "{{" in fld.cpp_expr:
+                ctx = {"id": comp.id, "params": comp.params, "label": comp.label}
+                fld = fld.model_copy(update={
+                    "name": _field_jinja.from_string(fld.name).render(**ctx),
+                    "cpp_expr": _field_jinja.from_string(fld.cpp_expr).render(**ctx),
+                })
             if fld.name in seen:
                 raise ValueError(
                     f"duplicate lorawan payload field {fld.name!r} "

@@ -54,6 +54,28 @@ micropython:
   loop: |
     print("{{ label }}: %.3f V" % ({{ parent }}_read({{ params.number | default(0) }}) / 1023 * {{ id }}_vref))
 
+lorawan:
+  globals: |
+    uint16_t {{ id }}Mv = 0;
+  loop: |
+    {%- if parent %}
+    {
+      static unsigned long _last = 0;
+      if (_last == 0 || millis() - _last >= 1000) {
+        _last = millis();
+        {{ id }}Mv = (uint16_t)({{ parent }}Read({{ params.number | default(0) }}) * {{ (params.reference_voltage | default("3.3V") | string).rstrip("Vv") | float }} * 1000.0 / 1023.0 + 0.5);
+      }
+    }
+    {%- endif %}
+  fields:
+    - name: "{{ id }}_voltage"
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: "{{ id }}Mv"
+      scale: 1000.0
+      ha_device_class: voltage
+      ha_unit: "V"
+      ha_state_class: measurement
 params_schema:
   number:
     type: integer

@@ -38,42 +38,80 @@ def _design(board_id: str) -> Design:
 
 
 _COMPONENT_BOARD = "ttgo-lora32-v2"
-_SIGNAL_KINDS = ("digital_in", "digital_out", "analog_in", "adc", "pwm")
+_SIGNAL_KINDS = ("digital_in", "digital_out", "analog_in", "adc", "pwm", "spi_cs")
+_SPI_KINDS = ("spi_clk", "spi_miso", "spi_mosi")
+_UART_KINDS = ("uart_tx", "uart_rx")
+_UARTS = 2  # the ESP32's UART1 and UART2; UART0 is the console
+
+
+def _field_names(comp, inst: str) -> set[str]:
+    return {f.name.replace("{{ id }}", inst) for f in comp.lorawan.fields}
 
 
 def component_designs(lib) -> list[Design]:
     """Designs on one radio board that between them carry every component with
-    a `lorawan:` block, split so no design repeats a payload field name. A
-    component whose fields the board already reports (its battery divider, a
-    PMIC) is left out: the board builds compile those blocks."""
+    a `lorawan:` block, split so no design repeats a payload field name or
+    needs more UARTs than the board has. A part on a hub (a Modbus meter, an
+    ADC channel) goes in with an instance of its hub. A component whose fields
+    the board already reports (its battery divider, a PMIC) is left out: the
+    board builds compile those blocks."""
     board_fields = {f["name"] for f in fields_for(_design(_COMPONENT_BOARD), lib)}
-    groups: list[tuple[set[str], list[str]]] = []
+    groups: list[dict] = []
     for comp in sorted(lib.list_components(), key=lambda c: c.id):
         if comp.lorawan is None:
             continue
-        names = {f.name for f in comp.lorawan.fields}
+        hub = next((p.parent_library_id for p in comp.electrical.pins if p.kind == "hub_ref"), None)
+        if hub is None and any(
+            p.kind == "hub_ref" and p.parent_library_id == comp.id
+            for c in lib.list_components() for p in c.electrical.pins
+        ):
+            continue  # a hub rides in with the parts on it
+        inst = comp.id.replace("-", "_")
+        names = _field_names(comp, inst)
         if names & board_fields:
             continue
-        for used, members in groups:
-            if not used & names:
-                used |= names
-                members.append(comp.id)
+        unit = [comp.id] if hub is None else [hub, comp.id]
+        uarts = sum("uart" in lib.component(cid).lorawan.requires for cid in unit)
+        for g in groups:
+            new_uarts = uarts - (hub in g["members"] and "uart" in lib.component(hub).lorawan.requires)
+            if not g["names"] & names and g["uarts"] + new_uarts <= _UARTS:
+                g["names"] |= names
+                g["uarts"] += new_uarts
+                g["members"] += [cid for cid in unit if cid not in g["members"]]
                 break
         else:
-            groups.append((set(names), [comp.id]))
+            groups.append({"names": set(names), "uarts": uarts, "members": list(unit)})
+    board = lib.board(_COMPONENT_BOARD)
+    spi = board.default_buses["spi"]
     designs = []
-    for n, (_, members) in enumerate(groups):
+    for n, g in enumerate(groups):
         # Pins only have to exist for the build; two parts may share one.
         gpios = itertools.cycle(["GPIO36", "GPIO39", "GPIO34", "GPIO4", "GPIO25", "GPIO2", "GPIO15", "GPIO12"])
+        uart_pins = iter([("GPIO16", "GPIO17"), ("GPIO32", "GPIO33")])
         components, connections = [], []
-        for cid in members:
-            inst = cid.replace("-", "_")
+        buses = [{"id": "i2c0", "type": "i2c", "sda": "GPIO21", "scl": "GPIO22"},
+                 {"id": "ow0", "type": "1wire", "pin": "GPIO13"},
+                 {"id": "spi_bus0", "type": "spi", **spi}]
+        insts = {cid: cid.replace("-", "_") for cid in g["members"]}
+        for cid in g["members"]:
+            inst = insts[cid]
             components.append({"id": inst, "library_id": cid, "label": cid, "params": {}})
+            uart_bus = None
             for pin in lib.component(cid).electrical.pins:
                 if pin.kind in ("i2c_sda", "i2c_scl"):
                     target = {"kind": "bus", "bus_id": "i2c0"}
                 elif pin.kind == "onewire_data":
                     target = {"kind": "bus", "bus_id": "ow0"}
+                elif pin.kind in _SPI_KINDS:
+                    target = {"kind": "bus", "bus_id": "spi_bus0"}
+                elif pin.kind in _UART_KINDS:
+                    if uart_bus is None:
+                        rx, tx = next(uart_pins)
+                        uart_bus = f"uart_{inst}"
+                        buses.append({"id": uart_bus, "type": "uart", "rx": rx, "tx": tx, "baud_rate": 9600})
+                    target = {"kind": "bus", "bus_id": uart_bus}
+                elif pin.kind == "hub_ref":
+                    target = {"kind": "component", "component_id": insts[pin.parent_library_id]}
                 elif pin.kind in _SIGNAL_KINDS:
                     target = {"kind": "gpio", "pin": next(gpios)}
                 else:
@@ -85,8 +123,7 @@ def component_designs(lib) -> list[Design]:
             "board": {"library_id": _COMPONENT_BOARD, "mcu": "esp32"},
             "power": {"supply": "usb", "rail_voltage_v": 3.3},
             "components": components,
-            "buses": [{"id": "i2c0", "type": "i2c", "sda": "GPIO21", "scl": "GPIO22"},
-                      {"id": "ow0", "type": "1wire", "pin": "GPIO13"}],
+            "buses": buses,
             "connections": connections,
         }))
     return designs
