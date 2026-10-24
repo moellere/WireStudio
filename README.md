@@ -91,7 +91,7 @@ Detailed docs live in [`docs/`](docs/):
 
 ## Status
 
-`v0.40.0` — on PyPI (`pip install wirestudio`). The studio has wide
+`v0.46.0` — on PyPI (`pip install wirestudio`). The studio has wide
 surface area (YAML, schematic, PCB + fab outputs, enclosure,
 subcircuits with electrical rules, inventory matching, component
 authoring, agent, MCP server, two ESPHome build paths, remote
