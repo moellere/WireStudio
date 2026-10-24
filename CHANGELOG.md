@@ -54,6 +54,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Lines the MCU drives were marked as MCU inputs.** These cards used
+  the part's own view, against the MCU-view convention:
+  - resets: sx127x RST, and RESET on the displays, the MCP230xx
+    expanders, rc522 and ssd1306;
+  - LED data lines: ws2812b, apa102 and the RMT strip;
+  - display DC and backlight;
+  - the 74HC595 and TM1637 lines;
+  - vl53l0x XSHUT, pca9685 OE, max98357a SD, hlw8012 SEL, pmsx003 SET
+    and bh1750 ADDR;
+  - the servo PWM.
+
+  They are now `digital_out`. The solver keeps them off input-only
+  GPIOs, and a boot-strap pin under one now warns. The servo PWM is
+  `requires_pwm`.
 - **Board and schematic nets shorted every bus line together.** The
   netlist put all of a bus's pins on one `BUS_<id>` net, so a routed
   I2C board tied SDA to SCL, and an SPI or UART board tied every line
