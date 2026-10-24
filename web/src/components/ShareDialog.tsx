@@ -14,6 +14,17 @@ function storedHandle(): string {
   }
 }
 
+const MAX_PHOTOS = 4;
+
+async function toBase64(file: File): Promise<string> {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(binary);
+}
+
 export function parseTags(text: string): string[] {
   return [...new Set(text.split(/[\s,]+/).map((t) => t.trim().toLowerCase()).filter(Boolean))];
 }
@@ -29,6 +40,7 @@ export function ShareDialog({ design, status, onClose }: {
   const [author, setAuthor] = useState(storedHandle());
   const [tags, setTags] = useState("");
   const [notes, setNotes] = useState("");
+  const [photos, setPhotos] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -39,7 +51,8 @@ export function ShareDialog({ design, status, onClose }: {
     setBusy(true);
     setError(null);
     try {
-      const blob = await api.communityShare({ design, author: handle, tags: parseTags(tags), notes });
+      const encoded = await Promise.all(photos.map(async (f) => ({ name: f.name, data: await toBase64(f) })));
+      const blob = await api.communityShare({ design, author: handle, tags: parseTags(tags), notes, photos: encoded });
       try { localStorage.setItem(HANDLE_KEY, handle); } catch { /* private mode */ }
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -108,6 +121,24 @@ export function ShareDialog({ design, status, onClose }: {
               placeholder="What it does, whether you built it, anything to watch for."
               className="w-full rounded-md border border-line bg-surface-1 px-2.5 py-1.5 text-sm text-ink placeholder:text-ink-ghost transition-colors focus:border-accent-500/60 focus:outline-none"
             />
+          </div>
+          <div>
+            <FieldLabel>Photos of the build (optional, up to {MAX_PHOTOS})</FieldLabel>
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              multiple
+              aria-label="Photos of the build"
+              onChange={(e) => setPhotos(Array.from(e.target.files ?? []).slice(0, MAX_PHOTOS))}
+              className="block w-full text-xs text-ink-dim file:mr-2 file:rounded-md file:border-0 file:bg-surface-2 file:px-2 file:py-1 file:text-xs file:text-ink"
+            />
+            {photos.length > 0 && (
+              <p className="mt-1 text-xs text-ink-faint">{photos.map((f) => f.name).join(", ")}</p>
+            )}
+            <p className="mt-1 text-xs text-ink-faint">
+              The device, its wiring or enclosure; no people. The studio shrinks each photo and strips its
+              metadata, including any GPS location, before packing it.
+            </p>
           </div>
           <p className="text-xs text-ink-faint">
             Wi-Fi, API and LoRaWAN keys must be <code className="font-mono">!secret</code> references;

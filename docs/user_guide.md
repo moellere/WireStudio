@@ -137,8 +137,12 @@ the catalogue entry and its author, because catalogue designs are
 CC-BY-4.0 and the credit has to survive your edits.
 
 **Share** packs the open design as a folder (`design.json`,
-`meta.yaml`, and a README from your notes), downloads it as a zip and
-opens the catalogue's upload page. Unzip it, drag the folder in and
+`meta.yaml`, a README from your notes, and up to four photos of the
+build), downloads it as a zip and opens the catalogue's upload page.
+Each photo is shrunk to 2048 px and re-encoded as JPEG with all its
+metadata removed, including any GPS location a phone recorded. The
+Gallery shows a design's first photo once it has merged; photos in an
+open pull request never reach the studio. Unzip it, drag the folder in and
 open the pull request GitHub offers. CI checks the design and the
 owner reviews it. A design imported from the catalogue is shared with
 `derived_from` set. Sharing refuses a design holding a literal Wi-Fi,
@@ -172,7 +176,7 @@ pinned via `WIRESTUDIO_MCP_TOKEN`). See [the MCP guide](mcp.md#auth).
 | `GET`  | `/community/status` | whether the community catalogue is on, and its repo, upload and contribution URLs |
 | `GET`  | `/community/designs` | the catalogue's index: slug, name, author, tags, board, components per design |
 | `GET`  | `/community/designs/{slug}` | one catalogue design, migrated, with `origin` set for attribution |
-| `POST` | `/community/share` | `{design, author, tags, notes?}`: the design as a zip folder for the catalogue's upload page; 422 on a literal credential |
+| `POST` | `/community/share` | `{design, author, tags, notes?, photos?: [{name, data}]}`: the design as a zip folder for the catalogue's upload page, photos (base64, up to 4) re-encoded without metadata; 422 on a literal credential or an unreadable photo |
 | `GET`  | `/fleet/status` | check whether `FLEET_URL` + `FLEET_TOKEN` reach a fleet-for-esphome ha-addon |
 | `POST` | `/fleet/push` | render `design.json` and push it as `<device_name>.yaml` (optionally `compile: true`) |
 | `GET`  | `/fleet/jobs/{run_id}` | aggregated compile verdict for a Push-to-fleet run |

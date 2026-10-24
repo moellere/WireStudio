@@ -44,6 +44,13 @@ describe("LeftSidebar community gallery", () => {
     expect(screen.getByText(/no community designs match/i)).toBeInTheDocument();
   });
 
+  it("shows the first merged photo as a thumbnail", async () => {
+    const photo = "https://raw.githubusercontent.com/moellere/wirestudio-designs/main/designs/porch-motion/photos/front.jpg";
+    sidebar({ items: [{ ...ENTRY, photos: [photo] }], error: null });
+    await userEvent.click(screen.getByTitle("Community designs"));
+    expect(document.querySelector(`img[src="${photo}"]`)).not.toBeNull();
+  });
+
   it("says why the catalogue is unavailable", async () => {
     sidebar({ items: null, error: "502: catalogue index unavailable" });
     await userEvent.click(screen.getByTitle("Community designs"));

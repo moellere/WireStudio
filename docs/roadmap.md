@@ -374,9 +374,15 @@ it depends on is frozen at 1.0.
   - A label for designs that compile or fetch code (`lambda:`,
     `external_components:`).
   - Seed designs, so the gallery does not open empty.
-- **Photos.** Open: CI would need an image classifier and EXIF
-  location stripping to gate them. Every design renders its own
-  diagram, so the catalogue launched without photos.
+- **Photos (built).** Up to four per design. CI checks their shape: a
+  still JPEG, PNG or WebP under 1 MB and 2048 px with no EXIF/XMP.
+  Share re-encodes attached photos to fit and strips their metadata;
+  `scripts/strip_photos.py` does the same for a by-hand submission.
+  Content is the owner's review: the studio shows only merged photos,
+  and CSAM detection is GitHub's platform-level PhotoDNA scanning. No
+  classifier runs in CI -- pull requests from forks get no secrets for a
+  cloud moderation API, and nothing CI does can stop an upload, only a
+  merge.
 
 ## Out of scope for 1.0
 

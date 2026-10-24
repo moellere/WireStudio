@@ -25,6 +25,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `/community/designs/{slug}` and `POST /community/share`.
     `WIRESTUDIO_DESIGNS_REPO` points them at a fork, or turns them off
     when empty.
+  - **Photos.** Share takes up to four photos of the build. Each is
+    shrunk to 2048 px and re-encoded as a JPEG under 1 MB with all
+    metadata removed, including any GPS location a phone recorded. The
+    Gallery shows a design's first photo as a thumbnail, and only from
+    the catalogue's `main`, so nothing from an unreviewed pull request
+    is ever displayed. Pillow joins the core dependencies.
 
 ## [0.43.0] — 2026-10-23
 

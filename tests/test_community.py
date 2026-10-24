@@ -146,3 +146,46 @@ def test_share_refuses_what_the_catalogue_would(studio, over, match):
     app, _, _ = studio
     r = _share(app, **over)
     assert r.status_code == 422 and match in r.json()["detail"]
+
+
+def _jpeg(size=(3000, 2000), exif=True, fmt="JPEG") -> str:
+    import base64
+
+    from PIL import Image
+
+    img = Image.new("RGB", size, (200, 80, 40))
+    kwargs = {}
+    if exif:
+        e = Image.Exif()
+        e[0x010F] = "PhoneMaker"
+        e[0x0112] = 6  # Orientation: rotate 90 CW on display
+        kwargs["exif"] = e
+    buf = io.BytesIO()
+    img.save(buf, fmt, **kwargs)
+    return base64.b64encode(buf.getvalue()).decode()
+
+
+def test_share_re_encodes_photos_without_metadata(studio):
+    from PIL import Image
+
+    app, _, _ = studio
+    r = _share(app, photos=[{"name": "IMG_0042.JPG", "data": _jpeg()},
+                            {"name": "IMG_0042.JPG", "data": _jpeg(fmt="PNG", exif=False)}])
+    assert r.status_code == 200, r.text
+    z = zipfile.ZipFile(io.BytesIO(r.content))
+    names = sorted(n for n in z.namelist() if "/photos/" in n)
+    assert names == ["porch-motion-v2/photos/img-0042-2.jpg", "porch-motion-v2/photos/img-0042.jpg"]
+    with Image.open(io.BytesIO(z.read("porch-motion-v2/photos/img-0042.jpg"))) as img:
+        assert img.format == "JPEG" and not img.getexif()
+        assert img.size == (1365, 2048), "the EXIF rotation is applied before EXIF is dropped"
+    assert all(z.getinfo(n).file_size <= 1024 * 1024 for n in names)
+
+
+def test_share_refuses_what_is_not_a_photo(studio):
+    import base64
+
+    app, _, _ = studio
+    r = _share(app, photos=[{"name": "notes.txt", "data": base64.b64encode(b"hello").decode()}])
+    assert r.status_code == 422 and "not a readable image" in r.json()["detail"]
+    r = _share(app, photos=[{"name": f"p{i}.jpg", "data": _jpeg((10, 10))} for i in range(5)])
+    assert r.status_code == 422 and "at most 4" in r.json()["detail"]
