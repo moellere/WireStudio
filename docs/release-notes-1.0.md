@@ -6,10 +6,10 @@ release body; the feature entries accumulated under `[Unreleased]` stay
 below it. Items marked **at release** are filled in when the flash
 stage of the hardware gate has run and the schema is cut.
 
-These notes cover what changes for someone upgrading from 0.45.0 and
+These notes cover what changes for someone upgrading from 0.46.0 and
 what each part of the studio now promises. Coming from an earlier
 release, read the last section too: the migrations run automatically
-from any release, but 0.41.0 through 0.45.0 changed some outputs on the
+from any release, but 0.41.0 through 0.46.0 changed some outputs on the
 way.
 
 ## What 1.0 promises
@@ -25,7 +25,7 @@ way.
   when the surface breaks; everything else is *Experimental* and says
   what it lacks.
 
-## Upgrading from 0.45.0
+## Upgrading from 0.46.0
 
 Back up the data directory first (`docs/deployment.md`, "Backup and
 restore"). For the SQLite layout, copy the databases with
@@ -33,15 +33,15 @@ restore"). For the SQLite layout, copy the databases with
 while the studio runs; a plain copy of a WAL database is not.
 
 Nothing else is manual. The `upgrade` workflow seeds a data directory
-with the newest release on PyPI (0.45.0) through its own REST API, in
+with the newest release on PyPI (0.46.0) through its own REST API, in
 both store layouts, and 1.0 must load every design at the current
 schema, render it as the original renders, and read back the user
 library, inventory, sessions and store versions. **At release:** the
-result against 0.45.0.
+result against 0.46.0.
 
 ### design.json
 
-0.43.0 through 0.45.0 already write `schema_version` 1.0, so their
+0.43.0 through 0.46.0 already write `schema_version` 1.0, so their
 designs load unchanged. Every path that reads a design (the file and
 SQLite stores, every REST endpoint that takes one, MCP `create_design`,
 the generate CLI) runs the migration chain first, so a file from an
@@ -69,20 +69,13 @@ No store schema change since 0.41.0. A store that 1.0 has opened is
 refused by an older release if a later step adds a version, so keep the
 backup if you may roll back.
 
-### KiCad outputs
-
-- **IO-expander pins reach the expander.** A part wired to an expander
-  pin now lands on the expander's own GPx pad in the schematic, the
-  netlist and the PCB. Before, each such net had one pad. Regenerate any
-  board laid out under 0.45.0 for a design with an MCP230xx, PCF8574 or
-  74HC595.
-
 ## Tier changes
 
-| Row | 0.40.0 | 0.45.0 | 1.0 | Gate |
+| Row | 0.40.0 | 0.46.0 | 1.0 | Gate |
 |---|---|---|---|---|
 | MCP server | Works | Verified | Verified | the `mcp` client drives the mounted server over Streamable HTTP with the token, every PR |
 | Component authoring | Works | Verified | Verified | a user component and its synthetic design through `esphome config`, and a corpus of bad components, every PR |
+| Board authoring | (new) | Verified | Verified | every bundled board through the board gate, and a user board with its onboard peripherals through `esphome config`, every PR |
 | ESPHome dashboard compile | Works | Verified | Verified | push, compile and fetch against a live ESPHome dashboard, nightly |
 | Agent | Experimental | Verified | Verified | the 28-task eval through Claude Code over MCP, nightly, held to `gate.claude_code_min_pass` (**at release:** the score) |
 | WLED target | (new) | Verified | Verified | goldens every PR; the usermod build against WLED v0.15.2 on PRs that touch it and nightly |
@@ -103,6 +96,11 @@ upgrades straight to 1.0. Releases write these schema versions: 0.40.0
 and earlier 0.1, 0.41.0 through 0.42.2 0.3, and 0.43.0 on 1.0. What
 changed on the way, newest first:
 
+- **IO-expander pins reach the expander (0.46.0).** A part wired to an
+  expander pin now lands on the expander's own GPx pad in the
+  schematic, the netlist and the PCB. Before, each such net had one
+  pad. Regenerate any board laid out before 0.46.0 for a design with an
+  MCP230xx, PCF8574 or 74HC595.
 - **Routed boards before 0.45.0 shorted their buses.** The netlist put
   every line of a bus on one net, so a routed I2C board tied SDA to SCL,
   and SPI and UART boards tied every bus line together, in the PCB and
