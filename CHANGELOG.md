@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.44.0] — 2026-10-24
+
 ### Added
 
 - **Community designs.** The studio reads the community catalogue,
@@ -3300,7 +3302,8 @@ ConnectionForm, EnclosureDialog, Inspector, CapabilityPickerDialog,
 PinoutView, PushToFleetDialog, SchematicDialog. ruff + tsc + vite
 build clean across the whole arc.
 
-[Unreleased]: https://github.com/moellere/wirestudio/compare/v0.43.0...HEAD
+[Unreleased]: https://github.com/moellere/wirestudio/compare/v0.44.0...HEAD
+[0.44.0]: https://github.com/moellere/wirestudio/compare/v0.43.0...v0.44.0
 [0.43.0]: https://github.com/moellere/wirestudio/compare/v0.42.2...v0.43.0
 [0.42.2]: https://github.com/moellere/wirestudio/compare/v0.42.1...v0.42.2
 [0.42.1]: https://github.com/moellere/wirestudio/compare/v0.42.0...v0.42.1
