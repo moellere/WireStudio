@@ -13,8 +13,11 @@ session on 2026-10-24 (after 0.46.0 rolled out).
 - **wirestudio 0.46.0** is released (`v0.46.0`, annotated, on `366103e`
   after the rewrite). Prod and both gate CronJobs run `0.46.0-full`, and
   `/api/version` on prod answers 0.46.0 (re-checked 2026-10-24 evening).
-- **main** is past 0.46.0 by docs-only changes plus the promotion script,
-  which is the one `[Unreleased]` entry in CHANGELOG.
+- **main** is past 0.46.0 by three `[Unreleased]` entries: the promotion
+  script (#400), board revisions with the Heltec V4 PA pin (#407) and the
+  live serial relay in the flash dialog (#408), plus docs. That is a 0.47.0
+  when the user wants one; the release notes' upgrade baseline then moves
+  again (#401 shows the shape).
 - **The public history was rewritten on 2026-10-24** (git-filter-repo,
   redacting addresses and host names). Every commit hash changed and a
   clone from before it shares no ancestor with `origin/main`. Re-clone, or
@@ -58,7 +61,11 @@ components, the pin-direction audit.
 - LoRaWAN blocks for the UART, SPI and Modbus parts; coverage 38 of 102 (#396).
 - **Community library, steps 1 to 3** (#397, #398, wirestudio-designs#5).
 
-After 0.46.0: the promotion script (#400), release notes from 0.46.0 (#401).
+After 0.46.0: the promotion script (#400), release notes from 0.46.0 (#401),
+this handoff (#402 to #405), the two-bench section of `docs/workbench.md` and
+the README header (#406), board revisions (#407, Part B's Heltec finding
+turned into `design.board.revision`), live serial over SSE after a workbench
+flash (#408, closing workbench phase 2).
 
 ## The community library
 
@@ -100,18 +107,19 @@ blocker). What remains, in order:
    CronJob runs 04:30 America/Denver; a red night restarts the count, so
    the earliest promote/demote pass is 2026-10-30. Nothing to build here.
 2. **The promote/demote pass** (roadmap sections 2 and 7). The README
-   status table still opens with `v0.40.0` and holds four *Works* rows:
-   Remote workbench, Meshtastic, MicroPython, CircuitPython. Each goes to
-   *Verified* citing the covbench CronJob through `docs/workbench.md`
-   ("The gate"), or to *Experimental* with its caveat. `docs/workbench.md`
-   describes the flash stage but not the second bench; add it so the rows
-   have something to cite. The same pass fills the five **at release**
-   cells in `docs/release-notes-1.0.md`: those four rows and the Agent
-   row's nightly score (the `claude-code` job's uploaded results in the
-   latest scheduled `agent-eval` run).
+   status table holds four *Works* rows: Remote workbench, Meshtastic,
+   MicroPython, CircuitPython. Each goes to *Verified* citing the flash
+   bench through `docs/workbench.md` ("The reference deployment: two
+   benches", added in #406), or to *Experimental* with its caveat. The
+   same pass fills the five **at release** cells in
+   `docs/release-notes-1.0.md`: those four rows and the Agent row's
+   score. Claude Code has scored 26 of 28 on every scored run so far,
+   the last on 2026-10-24 (dispatched run 40113780344); the gate is 24.
 3. **`gate.min_pass` is still 0.** The embedded agent has never had a
-   scored run: the nightly job scores it only when `ANTHROPIC_API_KEY` is
-   set. Either dispatch one run with the key and set the gate from it, or
+   scored run: the nightly job scores it only when the `ANTHROPIC_API_KEY`
+   repository secret is set, and as of the 2026-10-24 dispatch it was not
+   (`gh secret list` shows only `CLAUDE_CODE_OAUTH_TOKEN`). Set the secret,
+   dispatch `agent-eval`, and set the gate from the `model` job's score, or
    say in the notes that only Claude Code is held to a score.
 4. **The 1.0 release PR**, with the user's OK: the notes' text opens the
    `[1.0.0]` section of CHANGELOG with the `[Unreleased]` entries beneath
@@ -120,7 +128,7 @@ blocker). What remains, in order:
    roadmap's "Written against 0.39.0" header and its section 2 table get
    their final wording in the same PR.
 5. Not required for 1.0: workbench phase 4, the JLCPCB order, the printed
-   enclosure, and the phase-2 SSE item in Part B.
+   enclosure.
 
 ## Open threads
 
@@ -150,6 +158,9 @@ blocker). What remains, in order:
 - `CHANGELOG.md` headings are checked by `scripts/check_changelog.py`, and a
   new library entry must satisfy `python scripts/coverage_matrix.py --strict`
   (an example or a baseline entry, and a reason per framework gap).
+- Branch protection wants a PR up to date with main. `gh pr update-branch`
+  does it, but two open PRs that both add to `[Unreleased]` conflict there;
+  merge `origin/main` into the branch, keep both entries, push.
 
 ## Tooling the cloud container lacked
 
@@ -227,16 +238,15 @@ boards nothing else depends on, so it flashes nightly. The LoRaWAN bench stays
 non-destructive, because every board there carries live traffic and a reflash
 costs a rejoin and a DevNonce.
 
-## Still open from workbench phase 2
+## Workbench phase 2 is closed
 
-Streaming a slot's serial into the flash dialog live over SSE, so a human
-watches the boot as it happens. The dialog already shows the boot output and
-verdict after a flash (#290) and after a bench reset (#375). Touchpoints:
-`wirestudio/api/workbench.py` (`/workbench/flash` already streams SSE),
-`wirestudio/workbench/client.py` (`monitor()`/`output()`), and
-`web/src/components/FlashDialog.tsx`. The harness admits **one serial reader**
-and the always-on recorder is already one, so anything long-running must
-expect a busy state and release its lease on failure.
+#408 streams a slot's serial live into the flash dialog:
+`GET /workbench/slots/{slot}/stream` relays the recorder's buffer as SSE in
+the `/workbench/flash` event shape, bounded by `seconds` and `idle`, and
+stops polling the bench when the client disconnects. It reads the buffer,
+never the port, so the harness's one serial reader (the recorder) is
+untouched. The boot verdict (#290, #375) is unchanged beside it. Phase 4 is
+the only workbench phase left, and it is not a 1.0 item.
 
 ## Heltec V4 on SLOT14 is a V4.3: PA control is GPIO5
 
@@ -252,9 +262,14 @@ builds of lorawan-for-esphome main:
 So on this board GPIO5 (V4.3 CTX) turns the PA on and GPIO46 does nothing.
 The "proven" config transmits with the PA bypassed. The bench's own build
 holds GPIO5 and GPIO46 high statically, which works at bench range but leaves
-the TX path selected during RX. Any V4 board WireStudio emits should pick
-`txen_pin` by revision (V4.2 GPIO46, V4.3 GPIO5). Details are on
+the TX path selected during RX. Details are on
 moellere/lorawan-for-esphome#16.
+
+WireStudio picks the pin by revision since #407: the board file lists
+`revisions: "4.2"` (txen GPIO46, the default) and `"4.3"` (GPIO5), a design
+chooses with `board.revision`, `validate` warns when a V4 design names none,
+and the `heltec-v4-gnss-tracker` example is marked `"4.3"`. The bench's own
+build (137d06e) predates this and still holds both pins high.
 
 The same session validated lorawan-for-esphome main @ ca52396 (RadioLib
 7.7.1) on this board: radio init, OTAA join, uplink, fport-10 downlink, no
