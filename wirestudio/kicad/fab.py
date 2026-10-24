@@ -6,9 +6,9 @@ Gerber + drill need ``kicad-cli`` and are gated the same way the schematic
 render is. ``export_fab_package`` zips Gerbers + drill + CPL + BOM into the
 JLCPCB upload bundle.
 
-The boards are unrouted until the Freerouting step lands, so Gerbers carry
-pads but no copper traces -- ``routing_status`` flags that so a caller can warn
-before someone sends an unroutable board to a fab.
+Without ``route=True`` the board is placed but unrouted, so Gerbers carry
+pads but no tracks and no GND pour (the route step fills it) --
+``is_routed`` lets a caller warn before someone sends that to a fab.
 """
 from __future__ import annotations
 

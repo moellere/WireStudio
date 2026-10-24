@@ -175,9 +175,9 @@ representative examples to the routed bar (copper present, zero
 unconnected items, routed DRC clean). Routing is surfaced everywhere the
 board is: `POST /design/kicad/route` (SSE), the `route_pcb` MCP/agent
 tool, the web UI's Autoroute section, `?route=true` on the fab exports,
-and the `-pcb` image variant that carries the toolchain. Next: routed
-DRC feedback in the UI, via-cost/keepout tuning, and copper pours for
-power nets.
+and the `-pcb` image variant that carries the toolchain. A route
+reports KiCad's DRC of the result, takes a via cost and keepout
+rectangles, and fills the board's GND pour on the bottom layer.
 
 **Tasmota target (0.22).** *Works.* Emits a Tasmota device template --
 a pure mapping of solved pins to Tasmota GPIO function ids -- via

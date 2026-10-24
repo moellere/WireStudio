@@ -88,6 +88,30 @@ def test_pcb_starts_correctly_and_is_paren_balanced(lib):
 
 
 @libs_required
+def test_pcb_pours_gnd_on_the_bottom_inside_the_outline(lib):
+    pcb = generate_kicad_pcb(_design("garage-motion"), lib)
+    gnd = re.search(r'\(net (\d+) "GND"\)', pcb).group(1)
+    zones = re.findall(r"^\t\(zone\n(.*?)^\t\)$", pcb, re.S | re.M)
+    assert len(zones) == 1
+    zone = zones[0]
+    assert f"(net {gnd})" in zone and '(layer "B.Cu")' in zone
+    assert "(connect_pads yes" in zone
+    assert "(filled_polygon" not in pcb  # the route step fills it
+    ox0, oy0, ox1, oy1 = map(float, re.search(
+        r"\(gr_rect\n\t\t\(start ([\d.]+) ([\d.]+)\)\n\t\t\(end ([\d.]+) ([\d.]+)\)", pcb).groups())
+    pts = [tuple(map(float, p)) for p in re.findall(r"\(xy ([\d.]+) ([\d.]+)\)", zone)]
+    assert all(ox0 < x < ox1 and oy0 < y < oy1 for x, y in pts)
+
+
+@libs_required
+def test_pcb_without_a_gnd_net_has_no_pour(lib):
+    design = _design("garage-motion")
+    design.connections = [c for c in design.connections
+                          if not (c.target.kind == "rail" and c.target.rail.lower() == "gnd")]
+    assert not re.search(r"^\t\(zone$", generate_kicad_pcb(design, lib), re.M)
+
+
+@libs_required
 def test_pcb_embeds_board_and_component_footprints(lib):
     pcb = generate_kicad_pcb(_design("garage-motion"), lib)
     fps = re.findall(r'\(footprint "([^"]+)"', pcb)
@@ -98,8 +122,8 @@ def test_pcb_embeds_board_and_component_footprints(lib):
 @libs_required
 def test_pcb_binds_pin_mapped_pad_to_net(lib):
     """The BME280's VCC role -> VDD pin -> a real footprint pad, carrying the
-    +3V3 net; SDA/SCL land on the I2C bus's line nets. Exercises symbol pin-name ->
-    number -> pad resolution end to end."""
+    +3V3 net; SDA/SCL land on the I2C bus's line nets. Exercises symbol
+    pin-name -> number -> pad resolution end to end."""
     pcb = generate_kicad_pcb(_design("garage-motion"), lib)
     assert re.search(r'\(net \d+ "\+3V3"\)', pcb)
     assert re.search(r'\(net \d+ "BUS_i2c0_SDA"\)', pcb)
