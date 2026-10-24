@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import asdict
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 from wirestudio.csp.compatibility import check_pin_compatibility, strict_blockers
 from wirestudio.csp.pin_solver import solve_pins as _solve_pins
@@ -837,6 +837,7 @@ def _run_route_pcb(design: dict, library: Library) -> dict:
         RouteUnavailable,
         route_board,
         route_cache_key,
+        routed_drc,
     )
 
     try:
@@ -855,12 +856,29 @@ def _run_route_pcb(design: dict, library: Library) -> dict:
         return {"ok": False, "available": False, "error": str(e)}
     except RouteError as e:
         return {"ok": False, "error": str(e)[-2000:]}
+    key = route_cache_key(board)
     return {
         "ok": True,
         "routed": True,
         "segments": len(re.findall(r"^\t\(segment$", routed, re.M)),
         "vias": len(re.findall(r"^\t\(via$", routed, re.M)),
-        "cache_key": route_cache_key(board),
+        "cache_key": key,
+        "drc": _drc_brief(routed_drc(key)),
+    }
+
+
+def _drc_brief(summary: Optional[dict]) -> Optional[dict]:
+    """The routed DRC without every violation's items: counts per type,
+    and the first descriptions of anything not waived."""
+    if not summary or "error" in summary:
+        return summary
+    return {
+        **{k: summary[k] for k in ("ok", "unconnected", "errors", "warnings", "waived")},
+        "groups": [
+            {"type": g["type"], "severity": g["severity"], "count": g["count"], "waived": g["waived"],
+             **({} if g["waived"] else {"examples": [v["description"] for v in g["violations"][:3]]})}
+            for g in summary["groups"]
+        ],
     }
 
 

@@ -601,7 +601,9 @@ def _register_design_tools(
         name="route_pcb",
         description=(
             "Autoroute the named design's .kicad_pcb with Freerouting and "
-            "return a summary (routed, segments, vias, cache_key). The routed "
+            "return a summary (routed, segments, vias, cache_key) with KiCad's "
+            "DRC of the routed board: unconnected count, errors, and counts per "
+            "violation type, footprint-inherent types marked waived. The routed "
             "board file is downloaded via GET /design/kicad/route/{cache_key}. "
             "Cached, so re-routing an unchanged design is instant; a fresh "
             "route can take a minute or two. Needs the route toolchain on the "

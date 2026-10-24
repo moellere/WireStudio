@@ -21,11 +21,10 @@ from __future__ import annotations
 
 import json
 import shutil
-import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
+from wirestudio.kicad.drc import DrcError, run_drc
 from wirestudio.kicad.fab import is_routed
 from wirestudio.kicad.pcb import generate_kicad_pcb, pcb_status
 from wirestudio.kicad.route import RouteError, route_board, route_status
@@ -39,29 +38,15 @@ EXAMPLES_DIR = REPO_ROOT / "wirestudio" / "examples"
 # difficulty, not an exhaustive sweep.
 REPRESENTATIVE = ["garage-motion", "solder-fan", "weather-station", "securitypanel"]
 
-# The footprint-inherent waivers from check_pcb_drc.py — but NOT
-# unconnected_items: a routed board with airwires is a routing failure.
-_IGNORED_VIOLATIONS = {
-    "drill_out_of_range",
-    "solder_mask_bridge",
-    "copper_edge_clearance",
-    "courtyards_overlap",
-    "silk_over_copper",
-    "silk_overlap",
-    "silk_edge_clearance",
-}
-
-
-def _routed_problems(report: Path) -> list[str]:
-    data = json.loads(report.read_text())
-    out = [
-        f"{v.get('type')}: {v.get('description')}"
-        for v in data.get("violations", [])
-        if v.get("severity") == "error" and v.get("type") not in _IGNORED_VIOLATIONS
-    ]
-    unconnected = data.get("unconnected_items", [])
-    if unconnected:
-        out.append(f"{len(unconnected)} unconnected item(s) after routing")
+def _routed_problems(summary: dict) -> list[str]:
+    """Anything the routed bar refuses: an airwire, or an error outside the
+    waivers (wirestudio.kicad.drc.WAIVED, shared with the UI's report)."""
+    out = [f"{g['type']}: {v['description']}"
+           for g in summary["groups"]
+           if g["severity"] == "error" and not g["waived"] and g["type"] != "unconnected_items"
+           for v in g["violations"]]
+    if summary["unconnected"]:
+        out.append(f"{summary['unconnected']} unconnected item(s) after routing")
     return out
 
 
@@ -80,42 +65,42 @@ def main() -> int:
 
     lib = default_library()
     failures: dict[str, list[str]] = {}
-    with tempfile.TemporaryDirectory(prefix="wirestudio-route-") as td:
-        tmp = Path(td)
-        for name in REPRESENTATIVE:
-            design = Design.model_validate(
-                json.loads((EXAMPLES_DIR / f"{name}.json").read_text())
-            )
-            try:
-                unrouted = generate_kicad_pcb(design, lib)
-            except Exception as exc:  # noqa: BLE001
-                failures[name] = [f"emit raised {type(exc).__name__}: {exc}"]
-                continue
-            try:
-                routed = route_board(unrouted, use_cache=False)
-            except RouteError as exc:
-                failures[name] = [f"routing failed: {str(exc)[-800:]}"]
-                continue
-            if not is_routed(routed):
-                failures[name] = ["routed board carries no copper"]
-                continue
-            board = tmp / f"{name}.kicad_pcb"
-            board.write_text(routed)
-            report = tmp / f"{name}.drc.json"
-            proc = subprocess.run(
-                ["kicad-cli", "pcb", "drc", "--format", "json",
-                 "--output", str(report), str(board)],
-                capture_output=True, text=True, timeout=180,
-            )
-            if not report.is_file():
-                failures[name] = [f"kicad-cli produced no report (rc={proc.returncode}): "
-                                  f"{(proc.stderr or proc.stdout or '')[-500:]}"]
-                continue
-            problems = _routed_problems(report)
-            if problems:
-                failures[name] = problems
-            else:
-                print(f"{name}: routed clean", file=sys.stderr)
+    for name in REPRESENTATIVE:
+        design = Design.model_validate(
+            json.loads((EXAMPLES_DIR / f"{name}.json").read_text())
+        )
+        try:
+            unrouted = generate_kicad_pcb(design, lib)
+        except Exception as exc:  # noqa: BLE001
+            failures[name] = [f"emit raised {type(exc).__name__}: {exc}"]
+            continue
+        try:
+            routed = route_board(unrouted, use_cache=False)
+        except RouteError as exc:
+            failures[name] = [f"routing failed: {str(exc)[-800:]}"]
+            continue
+        if not is_routed(routed):
+            failures[name] = ["routed board carries no copper"]
+            continue
+        try:
+            problems = _routed_problems(run_drc(routed))
+        except DrcError as exc:
+            failures[name] = [str(exc)]
+            continue
+        if problems:
+            failures[name] = problems
+        else:
+            print(f"{name}: routed clean", file=sys.stderr)
+
+    # The same report on a board left unrouted must show its airwires:
+    # a DRC path that reported nothing would pass every board above.
+    unrouted = run_drc(generate_kicad_pcb(
+        Design.model_validate(json.loads((EXAMPLES_DIR / "garage-motion.json").read_text())), lib))
+    if unrouted["unconnected"] == 0 or unrouted["ok"]:
+        failures["garage-motion (unrouted)"] = ["DRC reported no unconnected items on an unrouted board"]
+    else:
+        print(f"garage-motion unrouted: {unrouted['unconnected']} unconnected, as expected",
+              file=sys.stderr)
 
     if failures:
         print(f"{len(failures)} board(s) failed the routed gate:", file=sys.stderr)

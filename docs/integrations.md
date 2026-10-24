@@ -202,7 +202,9 @@ library.
 PCB layout and routing are server-side: `POST /design/kicad/pcb` emits
 the placed board, `POST /design/kicad/route` autoroutes it with
 Freerouting (SSE log stream; fetch the routed board from
-`GET /design/kicad/route/{cache_key}`), and the fab endpoints accept
+`GET /design/kicad/route/{cache_key}`, and KiCad's DRC of it from
+`GET /design/kicad/route/{cache_key}/drc` when kicad-cli is present), and
+the fab endpoints accept
 `?route=true` to route before exporting Gerbers. The route step needs
 pcbnew, a JRE, and the Freerouting jar on the server — set
 `WIRESTUDIO_PCBNEW_PYTHON`, `WIRESTUDIO_JAVA`, and

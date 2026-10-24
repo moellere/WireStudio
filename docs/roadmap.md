@@ -194,9 +194,12 @@ Section 4 covers the rest.
 
 ## 4. Physical outputs
 
-- **PCB.** Backlog, one issue each: routed DRC results in the UI
-  (today it is a CI verdict,
-  [#344](https://github.com/moellere/WireStudio/issues/344)), route
+- **PCB.** Routed DRC is in the UI
+  ([#344](https://github.com/moellere/WireStudio/issues/344)): a route
+  runs KiCad DRC on the result and the Schematic dialog, the
+  `/design/kicad/route/{key}/drc` endpoint and `route_pcb` report it,
+  with the footprint-inherent types waived in one list
+  (`wirestudio.kicad.drc.WAIVED`) the CI gates share. Backlog: route
   parameters for via cost and keepouts
   ([#345](https://github.com/moellere/WireStudio/issues/345)), copper
   pours for the power nets
