@@ -36,6 +36,16 @@ esphome:
     {%- if params.modulation is defined %}
       modulation: {{ params.modulation }}
     {%- endif %}
+    {%- if (params.modulation | default('LORA')) != 'LORA' %}
+      bitsync: {{ params.bitsync | default(params.modulation == 'FSK') | tojson }}
+      packet_mode: {{ params.packet_mode | default(params.modulation == 'FSK') | tojson }}
+    {%- if params.bitrate is defined %}
+      bitrate: {{ params.bitrate }}
+    {%- endif %}
+    {%- if params.rx_floor is defined %}
+      rx_floor: {{ params.rx_floor }}
+    {%- endif %}
+    {%- endif %}
     {%- if params.bandwidth is defined %}
       bandwidth: {{ params.bandwidth }}
     {%- endif %}
@@ -146,8 +156,19 @@ params_schema:
   pa_pin: {type: string, enum: [BOOST, RFO], default: BOOST}
   pa_power: {type: integer, minimum: 2, maximum: 20, default: 17}
   rx_start: {type: boolean, default: true}
+  bitsync:
+    type: boolean
+    description: "FSK/OOK only, and ESPHome requires it there. Defaults to false for OOK -- raw edges on DIO2
+      for a remote_receiver, the 433 MHz RC-switch case -- and true for FSK packet mode."
+  packet_mode:
+    type: boolean
+    description: "FSK/OOK only, and ESPHome requires it there. Defaults to false for OOK -- continuous mode, the
+      demodulated signal straight out on DIO2 -- and true for FSK."
+  bitrate: {type: integer, description: "FSK/OOK bit rate in bit/s"}
+  rx_floor: {type: integer, description: "FSK/OOK receive threshold in dBm, e.g. -90; lower hears weaker signals and more noise"}
 
-notes: "ESPHome's `sx127x` is a singleton. The module typically needs a 10uF bulk cap close to VCC because
+notes: "ESPHome's `sx127x` is a singleton. For 433 MHz OOK receive (RC-switch remotes), set modulation OOK
+  and frequency 433920000, and add a remote_receiver on the GPIO wired to the radio's DIO2. The module typically needs a 10uF bulk cap close to VCC because
   TX bursts pull >100mA momentarily. Frequency must match a band legal in your region."
 # KiCad symbol mapping (0.9 schematic export). Generic SX1276 covers
 # the SX1272/SX1278 variants with the same pinout.

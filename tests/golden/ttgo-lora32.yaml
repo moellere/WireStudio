@@ -42,7 +42,7 @@ sx127x:
   rx_start: true
   on_packet:
     then:
-    - lambda: '!lambda ESP_LOGD("lora", "Received packet RSSI: %.2f dBm, SNR: %.2f dB, Data: %s", rssi, snr, format_hex(x).c_str());'
+    - lambda: !lambda 'ESP_LOGD("lora", "Received packet RSSI: %.2f dBm, SNR: %.2f dB, Data: %s", rssi, snr, format_hex(x).c_str());'
 display:
 - platform: ssd1306_i2c
   model: SSD1306 128x64
