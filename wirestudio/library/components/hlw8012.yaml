@@ -17,8 +17,8 @@ electrical:
     # The MCU drives SEL to switch CF1 between voltage and current modes,
     # and reads pulse rates on CF + CF1 -- no UART, no I2C.
     - {role: SEL, kind: digital_in,  voltage: 3.3}
-    - {role: CF,  kind: digital_out, voltage: 3.3}
-    - {role: CF1, kind: digital_out, voltage: 3.3}
+    - {role: CF,  kind: digital_in, voltage: 3.3, driven: true}
+    - {role: CF1, kind: digital_in, voltage: 3.3, driven: true}
   passives:
     - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
 

@@ -18,7 +18,7 @@ electrical:
   - role: SCL
     kind: i2c_scl
     pull_up: {required: true, value: "4.7k", to: VCC}
-  - {role: INT, kind: digital_out, voltage: 3.3}
+  - {role: INT, kind: digital_in, voltage: 3.3}
   passives:
   - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
 

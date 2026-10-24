@@ -20,6 +20,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A sensor on an input-only GPIO was reported as an error.** A pin's
+  `kind` is the line's direction as the MCU sees it. Ten library cards
+  had their part's outputs as `digital_out` instead:
+  - the PIR and radar OUT (`hc-sr501`, `rcwl-0516`, `ld2410`);
+  - `remote_receiver` OUT and `sx127x` DIO0;
+  - the `hlw8012` CF/CF1 pulses and the Wiegand D0/D1;
+  - the `pcf8574`, `vl53l0x` and `xpt2046` interrupt lines.
+
+  Such a part on ESP32 GPIO34-39 drew `input_only_as_output`, and the
+  pin solver never offered those pins. They are now `digital_in`. A new
+  `driven` flag marks the ones the part actively drives, and a strap pin
+  under one of those gets `boot_strap_driven`: the sensor sets the boot
+  mode. Switches and open-drain interrupts on a strap pin stay silent,
+  as before. The component gate refuses `driven` on any kind but
+  `digital_in`.
+
 - **Designs with a bus named `spi0`, `uart0`, ... no longer fail to
   render.** Older onboard seeding named buses after ESPHome's reserved
   peripheral ids, and ESPHome refuses the whole config. Migration now

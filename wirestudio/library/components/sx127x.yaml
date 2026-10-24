@@ -17,7 +17,7 @@ electrical:
   - {role: MOSI, kind: spi_mosi}
   - {role: CS, kind: spi_cs, voltage: 3.3}
   - {role: RST, kind: digital_in, voltage: 3.3}
-  - {role: DIO0, kind: digital_out, voltage: 3.3}
+  - {role: DIO0, kind: digital_in, voltage: 3.3, driven: true}
   passives:
   - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
   - {kind: capacitor, value: "10uF", between: [VCC, GND], purpose: bulk decoupling on TX}

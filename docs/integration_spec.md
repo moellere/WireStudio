@@ -14,7 +14,7 @@ Every downstream artifact is generated from these files plus a user's
 | Phase | Consumes |
 |---|---|
 | Catalog & search | `id`, `name`, `category`, `use_cases`, `aliases`, `image` |
-| Pin solving (CSP) | `electrical.pins` (kind, requires_pwm, requires_interrupt, requires_fast_gpio), board `gpio_capabilities`, `default_buses` |
+| Pin solving (CSP) | `electrical.pins` (kind, driven, requires_pwm, requires_interrupt, requires_fast_gpio), board `gpio_capabilities`, `default_buses` |
 | Electrical validation | `electrical.vcc_min/max`, `current_ma_*`, `pull_up`, `passives`, board `rails`, board `current_ma_*` |
 | ESPHome YAML + compile | `esphome.required_components`, `esphome.yaml_template`, `params_schema`, board `platformio_board`, `framework`, `chip_variant` |
 | Automations | `capability` (provides / accepts / checks) |
@@ -90,7 +90,9 @@ electrical:
   - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
 ```
 
-Pin `kind` values in use: `power`, `ground`, `digital_in`,
+A signal pin's `kind` is the line's direction as the MCU sees it: a
+sensor's OUT is `digital_in`, a driver's IN is `digital_out`. Pin
+`kind` values in use: `power`, `ground`, `digital_in`,
 `digital_out`, `analog_in`, `i2c_sda`, `i2c_scl`, `spi_clk`,
 `spi_mosi`, `spi_miso`, `spi_cs`, `uart_tx`, `uart_rx`,
 `onewire_data`, `i2s_*`, `hub_ref` (channel of a parent component,
@@ -99,7 +101,9 @@ no signal of its own, see *Connectors* below). Flags on a pin: `requires_pwm: tr
 PWM/analog outputs (solver avoids `no_pwm` pins), `requires_interrupt:
 true` for edge-counted inputs (solver avoids `no_interrupt` pins),
 `requires_fast_gpio: true` for bit-banged LED data (solver avoids
-`no_fast_gpio` pins),
+`no_fast_gpio` pins), `driven: true` on a `digital_in` the part
+actively drives -- a sensor or radio output, not a switch or an
+open-drain interrupt -- so a strap pin under it gets a boot warning,
 `voltage` when a pin's level differs from VCC.
 
 ```yaml

@@ -113,6 +113,11 @@ def check_component_yaml(text: str, library: Library) -> ComponentCheck:
             f"id {comp.id!r} must be lowercase letters, digits, '_' or '-' (it names the file)")
     if comp.subcircuit is not None:
         _check_subcircuit(comp, report)
+    for pin in comp.electrical.pins:
+        if pin.driven and pin.kind != "digital_in":
+            report.errors.append(
+                f"pin {pin.role}: `driven` describes a part driving an MCU input, so it needs "
+                f"kind digital_in, not {pin.kind}")
     _check_template(comp, library, report)
     _check_kicad(comp, report)
     _check_electrical(comp, report)
