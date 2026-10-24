@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Route parameters.** A route takes a via cost and keepout
+  rectangles in board millimetres, from the Schematic dialog,
+  `POST /design/kicad/route` (`via_costs`, repeatable `keepout`) and
+  `route_pcb`. Keepouts are written into the board as rule areas
+  before the DSN export. The `pcb-route` gate checks that a high via
+  cost removes vias and that a keepout clears the tracks under it,
+  both still DRC-clean.
 - **Routed DRC in the studio.** A completed route runs `kicad-cli pcb
   drc` on the routed board and stores the summary with it. The report
   leads with the count of connections still left as airwires, then

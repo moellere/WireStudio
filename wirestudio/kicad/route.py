@@ -13,7 +13,15 @@ firmware cache, so re-routing an unchanged board replays the stored log and
 returns instantly.
 
 Freerouting runs with ``-mt 1``: multithreaded routing is a known source of
-KiCad-DRC clearance violations (freerouting#191).
+KiCad-DRC clearance violations (freerouting#191), and with its usage
+analytics off -- a server routing a user's board reports nothing upstream.
+
+``RouteParams`` carries what the caller may tune: passes, via cost, and
+keepout rectangles in the board's own coordinates (the placement is
+deterministic, so a design always lands the same way). Keepouts are written
+into the board as rule areas before the DSN export, next to the antenna
+keepouts module footprints already carry. Every parameter is part of the
+cache key.
 
 A routed board is DRC'd (``wirestudio.kicad.drc``) when kicad-cli is
 present, and the summary is stored beside it in the cache slot.
@@ -27,16 +35,101 @@ import shutil
 import subprocess
 import tempfile
 import threading
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterator, Optional
 
 from wirestudio.kicad.fab import is_routed
 
-_CACHE_VERSION = "1"
+_CACHE_VERSION = "2"
 _TIMEOUT = int(os.environ.get("WIRESTUDIO_ROUTE_TIMEOUT", "600"))
 _BRIDGE_TIMEOUT = 120  # seconds per pcbnew bridge call
-_DEFAULT_PASSES = 20
 _BRIDGE = Path(__file__).with_name("pcbnew_bridge.py")
+
+
+@dataclass(frozen=True)
+class Keepout:
+    """A rectangle (board mm, top-left origin as in the emitted board) the
+    router keeps tracks and/or vias out of, on both copper layers."""
+    x: float
+    y: float
+    w: float
+    h: float
+    tracks: bool = True
+    vias: bool = True
+
+    def __post_init__(self) -> None:
+        if self.w <= 0 or self.h <= 0:
+            raise ValueError("a keepout needs a positive width and height")
+        if not (self.tracks or self.vias):
+            raise ValueError("a keepout must keep out tracks, vias, or both")
+
+    @classmethod
+    def parse(cls, text: str) -> "Keepout":
+        """`x,y,w,h` keeps out tracks and vias; a fifth field `tracks` or
+        `vias` keeps out only that."""
+        fields = [f.strip() for f in text.split(",")]
+        if len(fields) not in (4, 5):
+            raise ValueError(f"keepout {text!r}: expected x,y,w,h[,tracks|vias]")
+        try:
+            x, y, w, h = (float(f) for f in fields[:4])
+        except ValueError:
+            raise ValueError(f"keepout {text!r}: x, y, w and h are millimetres") from None
+        only = fields[4] if len(fields) == 5 else None
+        if only not in (None, "tracks", "vias"):
+            raise ValueError(f"keepout {text!r}: the fifth field is tracks or vias")
+        return cls(x, y, w, h, tracks=only in (None, "tracks"), vias=only in (None, "vias"))
+
+    def zone(self) -> str:
+        x0, y0, x1, y1 = self.x, self.y, self.x + self.w, self.y + self.h
+        tracks = "not_allowed" if self.tracks else "allowed"
+        vias = "not_allowed" if self.vias else "allowed"
+        return (
+            "\t(zone\n\t\t(net 0)\n\t\t(net_name \"\")\n"
+            '\t\t(layers "F.Cu" "B.Cu")\n'
+            '\t\t(name "wirestudio keepout")\n'
+            "\t\t(hatch edge 0.5)\n"
+            "\t\t(connect_pads (clearance 0))\n"
+            "\t\t(min_thickness 0.25)\n"
+            "\t\t(filled_areas_thickness no)\n"
+            f"\t\t(keepout (tracks {tracks}) (vias {vias}) "
+            "(pads allowed) (copperpour not_allowed) (footprints allowed))\n"
+            "\t\t(fill (thermal_gap 0.5) (thermal_bridge_width 0.5))\n"
+            f"\t\t(polygon (pts (xy {x0:g} {y0:g}) (xy {x1:g} {y0:g}) (xy {x1:g} {y1:g}) (xy {x0:g} {y1:g})))\n"
+            "\t)\n"
+        )
+
+
+@dataclass(frozen=True)
+class RouteParams:
+    max_passes: int = 20
+    # Freerouting's router.scoring.via_costs; higher trades vias for longer
+    # tracks. None keeps Freerouting's default.
+    via_costs: Optional[int] = None
+    keepouts: tuple[Keepout, ...] = field(default_factory=tuple)
+
+    def __post_init__(self) -> None:
+        if not 1 <= self.max_passes <= 200:
+            raise ValueError("max_passes must be 1-200")
+        if self.via_costs is not None and not 0 <= self.via_costs <= 10_000:
+            raise ValueError("via_costs must be 0-10000")
+
+    def key(self) -> str:
+        return repr((self.max_passes, self.via_costs, self.keepouts))
+
+    def apply(self, board_text: str) -> str:
+        """The board with the keepout rule areas added, before the DSN."""
+        if not self.keepouts:
+            return board_text
+        head, close = board_text.rstrip().rsplit(")", 1)
+        return head.rstrip() + "\n" + "".join(k.zone() for k in self.keepouts) + ")" + close + "\n"
+
+    def freerouting_args(self) -> list[str]:
+        args = ["-mp", str(self.max_passes), "-mt", "1", "--gui.enabled=false",
+                "--usage_and_diagnostic_data.disable_analytics=true"]
+        if self.via_costs is not None:
+            args.append(f"--router.scoring.via_costs={self.via_costs}")
+        return args
 
 
 class RouteUnavailable(RuntimeError):
@@ -147,10 +240,10 @@ def routed_drc(key: str, *, cache_dir: Optional[Path] = None) -> Optional[dict]:
     return summary
 
 
-def route_cache_key(board_text: str, *, max_passes: int = _DEFAULT_PASSES) -> str:
+def route_cache_key(board_text: str, params: RouteParams = RouteParams()) -> str:
     h = hashlib.sha256()
     h.update(_CACHE_VERSION.encode())
-    h.update(str(max_passes).encode())
+    h.update(params.key().encode())
     h.update(b"\0")
     h.update(board_text.encode())
     return h.hexdigest()[:16]
@@ -167,8 +260,8 @@ def _bridge(python: str, *args: str) -> None:
 
 def route_events(
     board_text: str,
+    params: RouteParams = RouteParams(),
     *,
-    max_passes: int = _DEFAULT_PASSES,
     timeout: int = _TIMEOUT,
     cache_dir: Optional[Path] = None,
     use_cache: bool = True,
@@ -182,7 +275,7 @@ def route_events(
     a cache miss with the toolchain missing; a routing run that completes
     without producing copper is a normal ``done`` event (ok=False).
     """
-    key = route_cache_key(board_text, max_passes=max_passes)
+    key = route_cache_key(board_text, params)
     slot = Path(cache_dir or _default_cache_dir()) / key
     cached_board = slot / "routed.kicad_pcb"
     cached_log = slot / "route.log"
@@ -207,7 +300,7 @@ def route_events(
         board_path = work / "board.kicad_pcb"
         dsn_path = work / "board.dsn"
         ses_path = work / "board.ses"
-        board_path.write_text(board_text)
+        board_path.write_text(params.apply(board_text))
 
         try:
             _bridge(python, "dsn", str(board_path), str(dsn_path))
@@ -219,8 +312,7 @@ def route_events(
 
         proc = subprocess.Popen(
             [_java(), "-jar", str(_freerouting_jar()),
-             "-de", str(dsn_path), "-do", str(ses_path),
-             "-mp", str(max_passes), "-mt", "1", "--gui.enabled=false"],
+             "-de", str(dsn_path), "-do", str(ses_path), *params.freerouting_args()],
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
             text=True, bufsize=1, cwd=tmp,
         )
@@ -269,8 +361,8 @@ def route_events(
 
 def route_board(
     board_text: str,
+    params: RouteParams = RouteParams(),
     *,
-    max_passes: int = _DEFAULT_PASSES,
     timeout: int = _TIMEOUT,
     cache_dir: Optional[Path] = None,
     use_cache: bool = True,
@@ -279,8 +371,7 @@ def route_board(
     Freerouting log) if routing completed without producing copper."""
     log: list[str] = []
     for event in route_events(
-        board_text, max_passes=max_passes, timeout=timeout,
-        cache_dir=cache_dir, use_cache=use_cache,
+        board_text, params, timeout=timeout, cache_dir=cache_dir, use_cache=use_cache,
     ):
         if event["type"] == "log":
             log.append(event["data"])
@@ -299,7 +390,8 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="Autoroute a .kicad_pcb with Freerouting")
     parser.add_argument("board", nargs="?", help="path to a .kicad_pcb")
     parser.add_argument("--status", action="store_true", help="print availability and exit")
-    parser.add_argument("--passes", type=int, default=_DEFAULT_PASSES)
+    parser.add_argument("--passes", type=int, default=RouteParams.max_passes)
+    parser.add_argument("--via-costs", type=int, default=None)
     parser.add_argument("--out", help="write the routed board here (default: stdout)")
     args = parser.parse_args(argv)
 
@@ -309,7 +401,8 @@ def main(argv: Optional[list[str]] = None) -> int:
     if not args.board:
         parser.error("board path required unless --status")
     try:
-        routed = route_board(Path(args.board).read_text(), max_passes=args.passes)
+        routed = route_board(Path(args.board).read_text(),
+                             RouteParams(max_passes=args.passes, via_costs=args.via_costs))
     except (RouteUnavailable, RouteError) as exc:
         print(str(exc), file=sys.stderr)
         return 1

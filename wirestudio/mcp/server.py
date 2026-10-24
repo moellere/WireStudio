@@ -603,18 +603,25 @@ def _register_design_tools(
             "Autoroute the named design's .kicad_pcb with Freerouting and "
             "return a summary (routed, segments, vias, cache_key) with KiCad's "
             "DRC of the routed board: unconnected count, errors, and counts per "
-            "violation type, footprint-inherent types marked waived. The routed "
+            "violation type, footprint-inherent types marked waived. Optional: "
+            "via_costs (higher trades vias for longer tracks) and keepouts, a "
+            "list of {x, y, w, h} rectangles in the emitted board's millimetres "
+            "(tracks/vias booleans to keep out only one). The routed "
             "board file is downloaded via GET /design/kicad/route/{cache_key}. "
             "Cached, so re-routing an unchanged design is instant; a fresh "
             "route can take a minute or two. Needs the route toolchain on the "
             "server. Read-only." + _DESIGN_ID_HINT
         ),
     )
-    def route_pcb(design_id: Optional[str] = None) -> dict:
+    def route_pcb(
+        design_id: Optional[str] = None,
+        via_costs: Optional[int] = None,
+        keepouts: Optional[list[dict]] = None,
+    ) -> dict:
         rid, design = _load(design_id)
         if design is None:
             return _NO_DESIGN_ERROR
-        return _run_route_pcb(design, library)
+        return _run_route_pcb(design, library, via_costs=via_costs, keepouts=keepouts)
 
     @mcp.tool(
         name="fab_status",

@@ -99,3 +99,9 @@ def test_fab_gerbers_route_unavailable_is_503(client, monkeypatch):
 def test_fab_status_reports_route(client):
     body = client.get("/design/fab/status").json()
     assert "route" in body and "route_reason" in body
+
+
+def test_route_bad_params_are_422(client, toolchain):
+    for query in ("keepout=1,2,3", "keepout=1,2,3,4,pads", "via_costs=-5", "passes=0"):
+        resp = client.post(f"/design/kicad/route?{query}", json=_design())
+        assert resp.status_code == 422, query

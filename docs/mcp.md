@@ -253,7 +253,7 @@ and persist back to `designs/<id>.json`.
 | `kicad_schematic` | no | SKiDL script summary |
 | `kicad_sch` | no | write the `.kicad_sch` the studio draws; summary (symbols, labels, notes); the file comes from `POST /design/kicad/sch` |
 | `kicad_pcb` | no | board emit summary (size, footprints, nets, routed) |
-| `route_pcb` | no | Freerouting autoroute; returns segments/vias/cache_key and the routed DRC (unconnected, errors, counts per type), board via `GET /design/kicad/route/{cache_key}` |
+| `route_pcb` | no | Freerouting autoroute, optionally with `via_costs` and `keepouts` (`[{x, y, w, h, tracks?, vias?}]`, board mm); returns segments/vias/cache_key and the routed DRC (unconnected, errors, counts per type), board via `GET /design/kicad/route/{cache_key}` |
 | `fab_status` | no | server fab capabilities (BOM/CPL/Gerbers/route) |
 | `fab_bom` | no | JLCPCB BOM CSV |
 | `fab_cpl` | no | JLCPCB CPL CSV |
