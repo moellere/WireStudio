@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **GND pour.** A board with a GND net gets a ground pour on the bottom
+  layer over the whole outline. Freerouting sees it as a plane, and the
+  route step fills it after importing the session, so the routed board
+  and `?route=true` Gerbers carry it. Pads connect solid, and keepouts
+  stay clear. The `pcb-route` gate checks that every routed board fills
+  its pour and that garage-motion's B.Cu Gerber carries it as a GND
+  region.
 - **Route parameters.** A route takes a via cost and keepout
   rectangles in board millimetres, from the Schematic dialog,
   `POST /design/kicad/route` (`via_costs`, repeatable `keepout`) and

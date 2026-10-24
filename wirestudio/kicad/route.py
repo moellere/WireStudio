@@ -41,7 +41,7 @@ from typing import Iterator, Optional
 
 from wirestudio.kicad.fab import is_routed
 
-_CACHE_VERSION = "2"
+_CACHE_VERSION = "3"
 _TIMEOUT = int(os.environ.get("WIRESTUDIO_ROUTE_TIMEOUT", "600"))
 _BRIDGE_TIMEOUT = 120  # seconds per pcbnew bridge call
 _BRIDGE = Path(__file__).with_name("pcbnew_bridge.py")

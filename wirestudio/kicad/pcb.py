@@ -22,6 +22,13 @@ The dev board's pads are bound through its ``kicad.pin_map`` (board role ->
 symbol pin name, see ``netlist.board_bindings``); a board whose library entry
 has no pin_map -- the ones drawn as generic headers -- is placed with its pins
 floating, as before.
+
+A design with a GND net gets a GND pour on B.Cu over the whole outline. The
+zone is emitted unfilled; the route step fills it after importing the
+routed session (``pcbnew_bridge.py ses``), so Freerouting sees it as a plane
+and the routed board and its Gerbers carry the copper. Pads connect solid:
+thermal spokes beside a routed track come out starved (one spoke where DRC
+wants two). Keepouts, a module's antenna area among them, stay clear of it.
 """
 from __future__ import annotations
 
@@ -45,6 +52,8 @@ from wirestudio.model import Design
 _ORIGIN_MM = 25.4
 _GAP_MM = 5.0       # clear space between adjacent footprints
 _MARGIN_MM = 10.0   # Edge.Cuts border around the placement bounding box
+_POUR_INSET_MM = 0.5
+_POUR_CLEARANCE_MM = 0.3
 
 _FOOTPRINT_ENV_VARS = (
     "KICAD8_FOOTPRINT_DIR", "KICAD9_FOOTPRINT_DIR", "KICAD7_FOOTPRINT_DIR",
@@ -378,6 +387,24 @@ def generate_kicad_pcb(
         '\t\t(layer "Edge.Cuts")\n'
         "\t)"
     )
+    pour = ""
+    if "GND" in net_index:
+        px0, py0 = _fmt(x0 + _POUR_INSET_MM), _fmt(y0 + _POUR_INSET_MM)
+        px1, py1 = _fmt(x1 - _POUR_INSET_MM), _fmt(y1 - _POUR_INSET_MM)
+        pour = (
+            "\t(zone\n"
+            f"\t\t(net {net_index['GND']})\n"
+            '\t\t(net_name "GND")\n'
+            '\t\t(layer "B.Cu")\n'
+            '\t\t(name "GND pour")\n'
+            "\t\t(hatch edge 0.5)\n"
+            f"\t\t(connect_pads yes (clearance {_fmt(_POUR_CLEARANCE_MM)}))\n"
+            "\t\t(min_thickness 0.25)\n"
+            "\t\t(filled_areas_thickness no)\n"
+            "\t\t(fill (thermal_gap 0.5) (thermal_bridge_width 0.5))\n"
+            f"\t\t(polygon (pts (xy {px0} {py0}) (xy {px1} {py0}) (xy {px1} {py1}) (xy {px0} {py1})))\n"
+            "\t)\n"
+        )
     return (
         '(kicad_pcb\n'
         "\t(version 20240108)\n"
@@ -390,7 +417,8 @@ def generate_kicad_pcb(
         + net_decls + "\n"
         + "\n".join(fp_blocks) + ("\n" if fp_blocks else "")
         + outline + "\n"
-        ")\n"
+        + pour
+        + ")\n"
     )
 
 

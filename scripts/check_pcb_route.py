@@ -4,7 +4,9 @@ Where check_pcb_drc.py proves KiCad accepts every placed-but-unrouted board
 (waiving unconnected airwires), this gate runs the full Freerouting roundtrip
 on a representative spread of examples and asserts the *routed* standard:
 zero unconnected items, copper present, and no error-severity violations
-beyond the footprint-inherent set the DRC tier already waives.
+beyond the footprint-inherent set the DRC tier already waives. A board
+with a GND net must come back with its GND pour filled, and one routed
+board's B.Cu Gerber must carry the pour as a GND region.
 
 A representative subset, not every example: routing cost scales with board
 density and the point is proving the pipeline, not re-routing the catalog
@@ -23,10 +25,11 @@ import json
 import re
 import shutil
 import sys
+import tempfile
 from pathlib import Path
 
 from wirestudio.kicad.drc import DrcError, run_drc
-from wirestudio.kicad.fab import is_routed
+from wirestudio.kicad.fab import _gerbers_into, is_routed
 from wirestudio.kicad.pcb import generate_kicad_pcb, pcb_status
 from wirestudio.kicad.route import Keepout, RouteError, RouteParams, route_board, route_status
 from wirestudio.library import default_library
@@ -69,19 +72,31 @@ def _crossings(board: str, k: Keepout) -> int:
     return n
 
 
+def _keepout_site(routed: str) -> Keepout | None:
+    """A 3x3 mm keepout over the longest track it can cover without reaching
+    within 1 mm of any track end, which is where the pads are."""
+    segs = [tuple(map(float, m.groups())) for m in _SEGMENT.finditer(routed)]
+    ends = [(x, y) for s in segs for x, y in (s[:2], s[2:])]
+    for x0, y0, x1, y1 in sorted(segs, key=lambda s: -((s[2] - s[0]) ** 2 + (s[3] - s[1]) ** 2)):
+        k = Keepout((x0 + x1) / 2 - 1.5, (y0 + y1) / 2 - 1.5, 3, 3)
+        if not any(k.x - 1 <= x <= k.x + k.w + 1 and k.y - 1 <= y <= k.y + k.h + 1 for x, y in ends):
+            return k
+    return None
+
+
 def _check_params(name: str, unrouted: str, routed: str) -> list[str]:
     """Route parameters do what they say on one board: a high via cost
-    routes with fewer vias, and a keepout over the longest default track
-    moves the copper out of it, both still passing the routed bar."""
+    routes with fewer vias, and a keepout over a long default track (clear
+    of the pads) moves the copper out of it, both still passing the routed
+    bar."""
     out: list[str] = []
     cheap = route_board(unrouted, RouteParams(via_costs=2000), use_cache=False)
     if not _vias(cheap) < _vias(routed):
         out.append(f"via_costs=2000 left {_vias(cheap)} vias (default {_vias(routed)})")
     out += _routed_problems(run_drc(cheap))
-    x0, y0, x1, y1 = max(
-        (tuple(map(float, m.groups())) for m in _SEGMENT.finditer(routed)),
-        key=lambda s: (s[2] - s[0]) ** 2 + (s[3] - s[1]) ** 2)
-    k = Keepout((x0 + x1) / 2 - 1.5, (y0 + y1) / 2 - 1.5, 3, 3)
+    k = _keepout_site(routed)
+    if k is None:
+        return out + ["no track long enough to hold a keepout clear of every pad"]
     kept = route_board(unrouted, RouteParams(keepouts=(k,)), use_cache=False)
     if _crossings(kept, k):
         out.append(f"{_crossings(kept, k)} segment(s) still cross the keepout")
@@ -90,6 +105,23 @@ def _check_params(name: str, unrouted: str, routed: str) -> list[str]:
         print(f"{name}: via cost {_vias(routed)} -> {_vias(cheap)} vias; keepout cleared, routed clean",
               file=sys.stderr)
     return out
+
+
+def _pour_problems(routed: str) -> list[str]:
+    if '(net_name "GND")' in routed and "(filled_polygon" not in routed:
+        return ["the GND pour came back unfilled"]
+    return []
+
+
+def _gerber_pour_problems(routed: str) -> list[str]:
+    with tempfile.TemporaryDirectory() as td:
+        _gerbers_into(Path(td), routed)
+        bottom = next(Path(td).glob("*B_Cu.gbl"), None)
+        if bottom is None:
+            return ["no B.Cu Gerber exported"]
+        if not re.search(r"%TO\.N,GND\*%\s*G36\*", bottom.read_text()):
+            return ["the B.Cu Gerber carries no GND region"]
+    return []
 
 
 def main() -> int:
@@ -126,7 +158,7 @@ def main() -> int:
             failures[name] = ["routed board carries no copper"]
             continue
         try:
-            problems = _routed_problems(run_drc(routed))
+            problems = _routed_problems(run_drc(routed)) + _pour_problems(routed)
         except DrcError as exc:
             failures[name] = [str(exc)]
             continue
@@ -137,6 +169,11 @@ def main() -> int:
             boards[name] = (unrouted, routed)
 
     if "garage-motion" in boards:
+        problems = _gerber_pour_problems(boards["garage-motion"][1])
+        if problems:
+            failures["garage-motion (Gerbers)"] = problems
+        else:
+            print("garage-motion: B.Cu Gerber carries the GND pour", file=sys.stderr)
         problems = _check_params("garage-motion", *boards["garage-motion"])
         if problems:
             failures["garage-motion (route parameters)"] = problems
