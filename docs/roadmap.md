@@ -365,15 +365,21 @@ it depends on is frozen at 1.0.
     the user drags the folder in and opens the pull request, so the
     studio holds no token. A pre-filled new-file URL was ruled out: it
     carries one file, and a design and its meta are two.
-- **Left for 1.0.**
-  - Designs that depend on user-authored components. The pinned
-    library lacks those components, so CI refuses the design. The
-    folder would need to carry the component YAML and run it through
-    the component gate.
-  - The structural and compatibility checks in CI.
-  - A label for designs that compile or fetch code (`lambda:`,
-    `external_components:`).
-  - Seed designs, so the gallery does not open empty.
+- **User components, studio checks, custom code (built).**
+  - **User components.** A design ships the components its author
+    wrote, under `components/`. CI runs each through the component
+    gate. Import installs them, and never over a different one of the
+    user's own. Share packs them.
+  - **Studio checks.** CI runs the studio's validate checks. An error
+    fails the design; a warning goes to the reviewer.
+  - **Custom code.** A design with a lambda, `external_components`,
+    `includes` or `libraries` is flagged for review and badged in the
+    Gallery.
+  - **Seeds.** The catalogue launched with 14 of the owner's designs.
+- **Left.** Some library cards mark part-driven signals `digital_out`
+  (a PIR's or receiver's OUT, some radios' DIO0 and IRQ lines). The
+  compatibility check then calls a sensor on an input-only GPIO an
+  error. That false error would also fail a catalogue submission.
 - **Photos (built).** Up to four per design. CI checks their shape: a
   still JPEG, PNG or WebP under 1 MB and 2048 px with no EXIF/XMP.
   Share re-encodes attached photos to fit and strips their metadata;

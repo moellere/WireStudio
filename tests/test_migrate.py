@@ -202,3 +202,53 @@ def test_load_design_migrates(sugar):
     design = load_design(sugar)
     assert design.schema_version == CURRENT_SCHEMA_VERSION
     assert {c.library_id for c in design.components} >= {"uart_gps"}
+
+
+def _tbeam_with_spi0() -> dict:
+    """The live t-beam design: saved by an older onboard seeding with its
+    SPI bus named `spi0`, which ESPHome refuses."""
+    doc = json.loads((REPO_ROOT / "wirestudio" / "examples" / "t-beam.json").read_text())
+    old = next(b["id"] for b in doc["buses"] if b["type"] == "spi")
+    doc["buses"] = [{**b, "id": "spi0"} if b["id"] == old else b for b in doc["buses"]]
+    for c in doc["connections"]:
+        if c["target"].get("bus_id") == old:
+            c["target"]["bus_id"] = "spi0"
+    doc["esphome_extras"] = {"sx127x": {"spi_id": "spi0"}, "note": "spi0 stays as text"}
+    return doc
+
+
+def test_a_reserved_bus_id_is_renamed_at_any_version():
+    doc = _tbeam_with_spi0()
+    assert doc["schema_version"] == CURRENT_SCHEMA_VERSION
+    result = migrate(doc)
+    assert result.applied == ["rename_reserved_bus_ids"] and result.changed
+    out = result.document
+    assert "spi0" not in [b["id"] for b in out["buses"]]
+    assert "spi_bus0" in [b["id"] for b in out["buses"]]
+    assert all(c["target"].get("bus_id") != "spi0" for c in out["connections"])
+    assert out["esphome_extras"] == {"sx127x": {"spi_id": "spi_bus0"}, "note": "spi0 stays as text"}
+    assert "spi0" in json.dumps(doc), "the input is not mutated"
+
+
+def test_the_renamed_design_renders_without_the_reserved_id(library):
+    from wirestudio.generate.yaml_gen import render_yaml
+
+    from wirestudio.migrate import load_design
+
+    doc = _tbeam_with_spi0()
+    del doc["esphome_extras"]["note"]
+    design = load_design(doc, library)
+    assert "spi0" not in render_yaml(design, library).replace("spi_bus0", "")
+
+
+def test_a_rename_skips_an_id_already_taken():
+    doc = _tbeam_with_spi0()
+    doc["buses"].append({"id": "spi_bus0", "type": "spi", "clk": "GPIO14", "miso": "GPIO12", "mosi": "GPIO13"})
+    out = migrate(doc).document
+    assert sorted(b["id"] for b in out["buses"] if b["type"] == "spi") == ["spi_bus0", "spi_bus1"]
+
+
+def test_a_clean_current_document_is_returned_untouched():
+    doc = json.loads((REPO_ROOT / "wirestudio" / "examples" / "t-beam.json").read_text())
+    result = migrate(doc)
+    assert result.document is doc and not result.changed

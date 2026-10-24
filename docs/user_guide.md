@@ -132,13 +132,18 @@ Enclosure, and Fleet options.
 designs in the community catalogue,
 [`moellere/wirestudio-designs`](https://github.com/moellere/wirestudio-designs).
 You can filter by name, author, board, tag or part. Picking a design
-opens it like an example. The design keeps an `origin` block naming
+opens it like an example, installing any components its author wrote
+into your user library first (never over one of yours with the same
+id). A design that runs code the studio did not generate -- a lambda,
+external components -- carries a **custom code** badge: read it before
+you flash. The design keeps an `origin` block naming
 the catalogue entry and its author, because catalogue designs are
 CC-BY-4.0 and the credit has to survive your edits.
 
 **Share** packs the open design as a folder (`design.json`,
 `meta.yaml`, a README from your notes, and up to four photos of the
-build), downloads it as a zip and opens the catalogue's upload page.
+build, and the components you wrote that it uses), downloads it as a
+zip and opens the catalogue's upload page.
 Each photo is shrunk to 2048 px and re-encoded as JPEG with all its
 metadata removed, including any GPS location a phone recorded. The
 Gallery shows a design's first photo once it has merged; photos in an
@@ -175,7 +180,7 @@ pinned via `WIRESTUDIO_MCP_TOKEN`). See [the MCP guide](mcp.md#auth).
 | `GET`  | `/examples/{id}` | fetch an example as raw `design.json` |
 | `GET`  | `/community/status` | whether the community catalogue is on, and its repo, upload and contribution URLs |
 | `GET`  | `/community/designs` | the catalogue's index: slug, name, author, tags, board, components per design |
-| `GET`  | `/community/designs/{slug}` | one catalogue design, migrated, with `origin` set for attribution |
+| `POST` | `/community/designs/{slug}/import` | one catalogue design, migrated, with `origin` set for attribution; installs the user components it ships (409 if yours differs) |
 | `POST` | `/community/share` | `{design, author, tags, notes?, photos?: [{name, data}]}`: the design as a zip folder for the catalogue's upload page, photos (base64, up to 4) re-encoded without metadata; 422 on a literal credential or an unreadable photo |
 | `GET`  | `/fleet/status` | check whether `FLEET_URL` + `FLEET_TOKEN` reach a fleet-for-esphome ha-addon |
 | `POST` | `/fleet/push` | render `design.json` and push it as `<device_name>.yaml` (optionally `compile: true`) |
