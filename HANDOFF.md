@@ -9,12 +9,11 @@ bench and homelab state, refreshed and re-checked by the homelab session on
 
 ## Where things stand
 
-- **wirestudio 0.46.0** is tagged (`v0.46.0`, annotated, on `283a99a`). The
-  homelab session pushed the tag with the user's OK; the release and
-  docker workflows were running at handoff, and that session was to
-  confirm prod and both gate CronJobs on `0.46.0-full`. Confirm that first.
-- **main** is at `2c898dc`. `[Unreleased]` holds one entry, the promotion
-  script.
+- **wirestudio 0.46.0** is released (`v0.46.0`, annotated, on `283a99a`).
+  Prod and both gate CronJobs run `0.46.0-full`, confirmed by the homelab
+  session (Part B).
+- **main** is past 0.46.0 by docs-only changes plus the promotion script,
+  which is the one `[Unreleased]` entry in CHANGELOG.
 - **No open pull requests** in `moellere/wirestudio` or
   `moellere/wirestudio-designs`.
 - **The catalogue** (`moellere/wirestudio-designs`) pins `wirestudio @
