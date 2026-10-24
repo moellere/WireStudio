@@ -19,8 +19,8 @@
 # lower of two runs; raise it when a change lifts the count.
 
 gate:
-  min_pass: 0
-  claude_code_min_pass: 24
+  min_pass: 25
+  claude_code_min_pass: 25
 
 tasks:
   # --- garage-motion: ESP32 DevKitC, PIR on GPIO13, BME280 on i2c0 -----

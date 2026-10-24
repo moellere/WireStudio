@@ -115,12 +115,12 @@ blocker). What remains, in order:
    `docs/release-notes-1.0.md`: those four rows and the Agent row's
    score. Claude Code has scored 26 of 28 on every scored run so far,
    the last on 2026-10-24 (dispatched run 40113780344); the gate is 24.
-3. **`gate.min_pass` is still 0.** The embedded agent has never had a
-   scored run: the nightly job scores it only when the `ANTHROPIC_API_KEY`
-   repository secret is set, and as of the 2026-10-24 dispatch it was not
-   (`gh secret list` shows only `CLAUDE_CODE_OAUTH_TOKEN`). Set the secret,
-   dispatch `agent-eval`, and set the gate from the `model` job's score, or
-   say in the notes that only Claude Code is held to a score.
+3. **Both eval gates are set** (done 2026-10-24). The `ANTHROPIC_API_KEY`
+   secret is in place; the embedded agent scored 26 of 28 on two runs
+   (40118320452, 40118970332), so `gate.min_pass` is 25, and Claude Code's
+   gate rose to 25 on 27, 27 and 26. The release notes' Agent cell is
+   filled. The embedded agent's `first-i2c-part` miss is a studio bug,
+   #410; fixing it should lift its count.
 4. **The 1.0 release PR**, with the user's OK: the notes' text opens the
    `[1.0.0]` section of CHANGELOG with the `[Unreleased]` entries beneath
    it, `wirestudio/__init__.py` moves, and the `upgrade` workflow's result
