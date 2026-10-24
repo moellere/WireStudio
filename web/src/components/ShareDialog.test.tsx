@@ -2,7 +2,8 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { ShareDialog, parseTags } from "./ShareDialog";
+import { ShareDialog } from "./ShareDialog";
+import { parseTags } from "../lib/share";
 import { api, ApiError } from "../api/client";
 import type { CommunityStatus } from "../types/api";
 

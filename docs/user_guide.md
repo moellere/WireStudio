@@ -161,6 +161,18 @@ owner reviews it. A design imported from the catalogue is shared with
 API or LoRaWAN key. `WIRESTUDIO_DESIGNS_REPO` points both at a fork,
 or turns them off.
 
+**Community library.** The catalogue also holds components and boards on
+their own, MIT-licensed so they can be promoted into the bundled library.
+The Components and Boards tabs list the ones you do not have under
+**From the community**, with their author. **Install** runs the same gate
+as the editor before saving into your user library, and never replaces
+an entry of yours with the same id. A user component or board you wrote
+has **Share** on its inspector card: it packs the YAML, a `meta.yaml`
+with your handle, tags and the datasheet you worked from, and a README
+from your notes, and opens the catalogue's library upload page. A design
+on a board you wrote shares and imports with that board, as it does with
+your components.
+
 The **Settings** dialog surfaces the MCP bearer token: reveal, copy, or
 regenerate it without leaving the browser (read-only when the token is
 pinned via `WIRESTUDIO_MCP_TOKEN`). See [the MCP guide](mcp.md#auth).
@@ -171,6 +183,8 @@ pinned via `WIRESTUDIO_MCP_TOKEN`). See [the MCP guide](mcp.md#auth).
 |---|---|---|
 | `GET`  | `/library/boards` | summaries of every board in the library |
 | `GET`  | `/library/boards/{id}` | full board, including pinout |
+| `POST` | `/library/boards/check` · `/library/boards` | run the board gate on a YAML draft; save it into the user library (201, 409 on a clash, 422 on a failed check) |
+| `GET` / `DELETE` | `/library/boards/{id}/yaml` · `/library/boards/{id}` | a board's YAML source; remove a user board |
 | `GET`  | `/library/components?category=&use_case=&bus=` | filtered component summaries |
 | `GET`  | `/library/components/{id}` | full component, including ESPHome template |
 | `GET`  | `/library/use_cases` | distinct capabilities across the library, with counts; powers the **Add by function** picker |
@@ -187,8 +201,11 @@ pinned via `WIRESTUDIO_MCP_TOKEN`). See [the MCP guide](mcp.md#auth).
 | `GET`  | `/examples/{id}` | fetch an example as raw `design.json` |
 | `GET`  | `/community/status` | whether the community catalogue is on, and its repo, upload and contribution URLs |
 | `GET`  | `/community/designs` | the catalogue's index: slug, name, author, tags, board, components per design |
-| `POST` | `/community/designs/{slug}/import` | one catalogue design, migrated, with `origin` set for attribution; installs the user components it ships (409 if yours differs) |
+| `POST` | `/community/designs/{slug}/import` | one catalogue design, migrated, with `origin` set for attribution; installs the user components and board it ships (409 if yours differs) |
 | `POST` | `/community/share` | `{design, author, tags, notes?, photos?: [{name, data}]}`: the design as a zip folder for the catalogue's upload page, photos (base64, up to 4) re-encoded without metadata; 422 on a literal credential or an unreadable photo |
+| `GET`  | `/community/library` | the catalogue's components and boards, each with `installed` (`bundled`, `user` or empty) |
+| `POST` | `/community/library/{components\|boards}/{id}/install` | install one through its gate; nothing to do when the same text is here, 409 when a different one is |
+| `POST` | `/community/library/share` | `{kind, id, author, tags, source?, notes?}`: a user component or board as the zip folder the catalogue's `library/` expects; 422 unless it is yours and still passes its gate |
 | `GET`  | `/fleet/status` | check whether `FLEET_URL` + `FLEET_TOKEN` reach a fleet-for-esphome ha-addon |
 | `POST` | `/fleet/push` | render `design.json` and push it as `<device_name>.yaml` (optionally `compile: true`) |
 | `GET`  | `/fleet/jobs/{run_id}` | aggregated compile verdict for a Push-to-fleet run |

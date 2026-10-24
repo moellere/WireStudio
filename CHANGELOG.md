@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Community library in the studio.** The catalogue can carry
+  components and boards on their own, under `library/`, MIT-licensed.
+  - The Components and Boards tabs list catalogue entries you do not
+    have, with their author. **Install** runs the same gate as the
+    editor, and never replaces an entry of yours.
+  - **Share** on a user component or board packs it, with your handle,
+    tags, the datasheet link and a README, for the catalogue's library
+    upload page.
+  - A design on a user board now shares and imports with that board, as
+    it already did with user components.
+  - New endpoints: `GET /community/library`,
+    `POST /community/library/{components|boards}/{id}/install` and
+    `POST /community/library/share`.
+
 - **User boards.** Boards can now be written at runtime, as components
   already could. They are saved under `LIBRARY_USER_DIR/boards/` and
   list with `source: user`; a bundled id always wins.

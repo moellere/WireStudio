@@ -4,7 +4,10 @@ import { Loading, Empty } from "./Status";
 import type {
   BoardSummary,
   CommunityEntry,
+  CommunityLibrary,
+  CommunityLibraryEntry,
   ComponentSummary,
+  LibraryCollection,
   ExampleSummary,
   ModuleSummary,
   SavedDesignSummary,
@@ -25,6 +28,9 @@ interface Props {
   components: ComponentSummary[] | null;
   modules: ModuleSummary[] | null;
   community: CommunityList | null;
+  /** The catalogue's components and boards; null when off or unavailable. */
+  communityLibrary?: CommunityLibrary | null;
+  onInstallLibrary?: (kind: LibraryCollection, id: string) => void;
   selectedExample: string | null;
   selectedCommunity: string | null;
   selectedSaved: string | null;
@@ -127,6 +133,11 @@ export function LeftSidebar(props: Props) {
               + New board
             </button>
             <BoardsList items={props.boards} search={search} onSelect={props.onSelectBoard} />
+            {props.communityLibrary && props.onInstallLibrary && (
+              <CommunityLibraryList
+                kind="boards" items={props.communityLibrary.boards} search={search} onInstall={props.onInstallLibrary}
+              />
+            )}
           </>
         )}
         {tab === "components" && (
@@ -139,6 +150,11 @@ export function LeftSidebar(props: Props) {
               + New component
             </button>
             <ComponentsList items={props.components} search={search} onSelect={props.onSelectComponent} />
+            {props.communityLibrary && props.onInstallLibrary && (
+              <CommunityLibraryList
+                kind="components" items={props.communityLibrary.components} search={search} onInstall={props.onInstallLibrary}
+              />
+            )}
           </>
         )}
         {tab === "modules" && (
@@ -279,6 +295,46 @@ function ExamplesList({
         );
       })}
     </ul>
+  );
+}
+
+/** Catalogue entries this studio does not have yet, each installable
+ *  through the same gate the editor runs. */
+function CommunityLibraryList({
+  kind, items, search, onInstall,
+}: {
+  kind: LibraryCollection;
+  items: CommunityLibraryEntry[];
+  search: string;
+  onInstall: (kind: LibraryCollection, id: string) => void;
+}) {
+  const q = search.trim().toLowerCase();
+  const shown = items.filter((e) => !e.installed && (!q || [e.id, e.name ?? "", e.author, ...(e.tags ?? [])]
+    .some((s) => s.toLowerCase().includes(q))));
+  if (shown.length === 0) return null;
+  return (
+    <section className="mt-4" aria-label={`Community ${kind}`}>
+      <h3 className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-ink-faint">From the community</h3>
+      <ul className="space-y-1.5 text-sm">
+        {shown.map((e) => (
+          <li key={e.id} className="flex items-center gap-2 rounded-md bg-surface-2/40 px-3 py-2">
+            <div className="min-w-0 flex-1">
+              <div className="truncate font-medium text-ink" title={e.description || e.name || e.id}>{e.name || e.id}</div>
+              <div className="truncate text-xs text-ink-faint">
+                <span className="font-mono">{e.id}</span> · @{e.author} · {e.license}
+              </div>
+            </div>
+            <button
+              onClick={() => onInstall(kind, e.id)}
+              className="shrink-0 rounded-md bg-surface-2 px-2 py-1 text-xs text-ink-dim ring-1 ring-inset ring-line hover:bg-surface-3 hover:text-ink"
+              title="Check it with the library gate and add it to your user library"
+            >
+              Install
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

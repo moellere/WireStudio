@@ -4,10 +4,14 @@ The catalogue is a GitHub repository (moellere/wirestudio-designs unless
 WIRESTUDIO_DESIGNS_REPO says otherwise; set it empty to turn this off).
 Its CI publishes index.json to an `index` branch; browse reads that.
 Import fetches a design only through an index entry, never a caller's
-URL, and installs the user components it ships through the same gate the
-component editor runs. Share packs a design as the folder the catalogue's CI expects and
-leaves the upload and pull request to the user, so the studio holds no
-GitHub token.
+URL, and installs the user components and board it ships through the same
+gates the library editor runs. Share packs a design as the folder the
+catalogue's CI expects and leaves the upload and pull request to the user,
+so the studio holds no GitHub token.
+
+The catalogue also carries library entries, components and boards on
+their own under `library/`, MIT rather than CC-BY. They are browsed,
+installed and shared the same way.
 """
 from __future__ import annotations
 
@@ -28,6 +32,9 @@ from wirestudio.api.design_input import migrate_document, validate_document
 
 DEFAULT_REPO = "moellere/wirestudio-designs"
 LICENSE = "CC-BY-4.0"
+LIBRARY_LICENSE = "MIT"
+# Catalogue directory -> the file name an entry's YAML has inside its folder.
+LIBRARY_FILES = {"components": "component.yaml", "boards": "board.yaml"}
 INDEX_TTL_S = 300.0
 
 _REPO = re.compile(r"^[A-Za-z0-9-]+/[A-Za-z0-9._-]+$")
@@ -57,6 +64,7 @@ def _urls(repo: str) -> dict:
     return {
         "index_url": f"https://raw.githubusercontent.com/{repo}/index/index.json",
         "upload_url": f"https://github.com/{repo}/upload/main/designs",
+        "library_upload_url": f"https://github.com/{repo}/upload/main/library",
         "contributing_url": f"https://github.com/{repo}/blob/main/CONTRIBUTING.md",
     }
 
@@ -173,7 +181,8 @@ def router(library, fetch: Optional[Fetch] = None) -> APIRouter:
         repo = catalogue_repo()
         if repo is None:
             return {"enabled": False}
-        return {"enabled": True, "repo": repo, "license": LICENSE, **_urls(repo)}
+        return {"enabled": True, "repo": repo, "license": LICENSE, "library_license": LIBRARY_LICENSE,
+                **_urls(repo)}
 
     @api.get("/designs")
     async def list_designs() -> dict:
@@ -181,34 +190,45 @@ def router(library, fetch: Optional[Fetch] = None) -> APIRouter:
         index = await load_index(repo)
         return {"repo": repo, "generated": index.get("generated"), "designs": index["designs"]}
 
-    async def install_components(repo: str, entry: dict) -> list[str]:
-        """Add the design's user components to this studio's user library.
-        One that is already here with the same text is left alone; one here
-        with different text is a conflict the user resolves, never an
-        overwrite."""
+    async def install(repo: str, kind: str, refs: list) -> list[str]:
+        """Add catalogue components or boards to this studio's user library.
+        One already here with the same text is left alone; one here with
+        different text is a conflict the user resolves, never an overwrite."""
         from wirestudio.errors import describe
+        from wirestudio.library.board_check import create_board
         from wirestudio.library.check import create_component
 
+        noun = kind[:-1]
+        source, current, create = (
+            (library.board_source, library.board_yaml, create_board) if kind == "boards"
+            else (library.component_source, library.component_yaml, create_component))
         installed: list[str] = []
-        for comp in entry.get("user_components") or []:
-            cid, url = str(comp.get("id") or ""), str(comp.get("url") or "")
+        for ref in refs:
+            lid, url = str(ref.get("id") or ""), str(ref.get("url") or "")
             if not url.startswith(f"https://raw.githubusercontent.com/{repo}/"):
-                raise HTTPException(status_code=502, detail=f"component '{cid}' points outside {repo}")
+                raise HTTPException(status_code=502, detail=f"{noun} '{lid}' points outside {repo}")
             try:
                 text = (await fetch(url)).decode()
             except Exception as e:
-                raise HTTPException(status_code=502, detail=f"could not fetch component '{cid}': {describe(e)}") from e
-            where = library.component_source(cid)
-            if where == "user":
-                if library.component_yaml(cid) == text:
-                    continue
+                raise HTTPException(status_code=502, detail=f"could not fetch {noun} '{lid}': {describe(e)}") from e
+            try:
+                data = yaml.safe_load(text)
+            except yaml.YAMLError:
+                data = None
+            declared = data.get("id") if isinstance(data, dict) else None
+            if declared is not None and declared != lid:
+                raise HTTPException(status_code=502, detail=f"{noun} '{lid}' declares id '{declared}'")
+            where = source(lid)
+            if where and current(lid) == text:
+                continue
+            if where:
                 raise HTTPException(status_code=409, detail=(
-                    f"your library already has a different component '{cid}'; rename or delete "
-                    "yours to import this design"))
-            report = create_component(text, library)
+                    f"your library already has a different {noun} '{lid}'"
+                    + ("" if where == "bundled" else "; rename or delete yours first")))
+            report = create(text, library)
             if not report.ok:
-                raise HTTPException(status_code=502, detail=f"component '{cid}': " + "; ".join(report.errors))
-            installed.append(cid)
+                raise HTTPException(status_code=502, detail=f"{noun} '{lid}': " + "; ".join(report.errors))
+            installed.append(lid)
         return installed
 
     @api.post("/designs/{slug}/import")
@@ -230,7 +250,8 @@ def router(library, fetch: Optional[Fetch] = None) -> APIRouter:
             raw = json.loads(await fetch(url))
         except Exception as e:
             raise HTTPException(status_code=502, detail=f"could not fetch '{slug}': {describe(e)}") from e
-        installed = await install_components(repo, entry)
+        installed_boards = await install(repo, "boards", entry.get("user_boards") or [])
+        installed = await install(repo, "components", entry.get("user_components") or [])
         try:
             document = migrate_document(raw, library)
             validate_document(document, library)
@@ -242,14 +263,15 @@ def router(library, fetch: Optional[Fetch] = None) -> APIRouter:
             "author": str(entry.get("author", "")),
             "license": str(entry.get("license", LICENSE)),
         }
-        return {"design": document, "entry": entry, "installed_components": installed}
+        return {"design": document, "entry": entry, "installed_components": installed,
+                "installed_boards": installed_boards}
 
     @api.post("/share")
     def share(body: dict = Body(...)) -> Response:
         """A zip of `<slug>/design.json` + `meta.yaml` (+ `README.md`, + up to
         four `photos/*.jpg`, re-encoded without metadata, + the user
-        components the design uses), ready to drag onto the catalogue's
-        upload page."""
+        components and board the design uses), ready to drag onto the
+        catalogue's upload page."""
         repo = require_repo()
         design = body.get("design")
         if not isinstance(design, dict):
@@ -296,10 +318,101 @@ def router(library, fetch: Optional[Fetch] = None) -> APIRouter:
             for cid in sorted({c.get("library_id") for c in document.get("components") or []}):
                 if cid and library.component_source(cid) == "user":
                     z.writestr(f"{slug}/components/{cid}.yaml", library.component_yaml(cid))
+            bid = (document.get("board") or {}).get("library_id")
+            if bid and library.board_source(bid) == "user":
+                z.writestr(f"{slug}/boards/{bid}.yaml", library.board_yaml(bid))
         return Response(
             content=buf.getvalue(),
             media_type="application/zip",
             headers={"Content-Disposition": f'attachment; filename="{slug}.zip"'},
+        )
+
+    def require_kind(kind: str) -> str:
+        if kind not in LIBRARY_FILES:
+            raise HTTPException(status_code=404, detail=f"no library kind '{kind}'; components or boards")
+        return kind
+
+    def library_entries(index: dict, kind: str) -> list[dict]:
+        entries = index.get(kind) or []
+        return [e for e in entries if isinstance(e, dict)] if isinstance(entries, list) else []
+
+    @api.get("/library")
+    async def list_library() -> dict:
+        """The catalogue's components and boards, each marked with whether
+        this studio already has that id and where."""
+        repo = require_repo()
+        index = await load_index(repo)
+        out: dict = {"repo": repo, "generated": index.get("generated")}
+        for kind in LIBRARY_FILES:
+            source = library.board_source if kind == "boards" else library.component_source
+            out[kind] = [{**e, "installed": source(str(e.get("id") or ""))} for e in library_entries(index, kind)]
+        return out
+
+    @api.post("/library/{kind}/{library_id}/install")
+    async def install_library_entry(kind: str, library_id: str) -> dict:
+        """Install one catalogue component or board through its gate. The
+        URL comes from the index entry, never the caller."""
+        require_kind(kind)
+        repo = require_repo()
+        index = await load_index(repo)
+        entry = next((e for e in library_entries(index, kind) if e.get("id") == library_id), None)
+        if entry is None:
+            raise HTTPException(status_code=404, detail=f"no {kind[:-1]} '{library_id}' in {repo}")
+        installed = await install(repo, kind, [entry])
+        return {"kind": kind, "id": library_id, "installed": bool(installed), "entry": entry}
+
+    @api.post("/library/share")
+    def share_library_entry(body: dict = Body(...)) -> Response:
+        """A zip of `<id>/component.yaml` or `<id>/board.yaml` + `meta.yaml`
+        (+ `README.md`), ready to drag onto the catalogue's library upload
+        page for its kind. Only a user-library entry is shared, and only
+        while it still passes its gate."""
+        from wirestudio.library.board_check import check_board_yaml
+        from wirestudio.library.check import check_component_yaml
+
+        require_repo()
+        kind = require_kind(str(body.get("kind") or ""))
+        lid = str(body.get("id") or "")
+        source, current, check = (
+            (library.board_source, library.board_yaml, check_board_yaml) if kind == "boards"
+            else (library.component_source, library.component_yaml, check_component_yaml))
+        if source(lid) != "user":
+            raise HTTPException(status_code=422, detail=f"'{lid}' is not a {kind[:-1]} in your user library")
+        author = str(body.get("author") or "").strip().lstrip("@")
+        if not _HANDLE.match(author):
+            raise HTTPException(status_code=422, detail="`author` must be your GitHub handle")
+        tags = body.get("tags") or []
+        if (not isinstance(tags, list) or len(tags) > _MAX_TAGS
+                or not all(isinstance(t, str) and _TAG.match(t) for t in tags)):
+            raise HTTPException(status_code=422,
+                                detail=f"`tags`: at most {_MAX_TAGS} lowercase words (a-z, 0-9, -)")
+        link = str(body.get("source") or "").strip()
+        if link and not link.startswith("https://"):
+            raise HTTPException(status_code=422, detail="`source` must be an https:// URL (a datasheet or product page)")
+        text = current(lid)
+        report = check(text, library)
+        if not report.ok:
+            raise HTTPException(status_code=422, detail=f"'{lid}' no longer passes its gate: " + "; ".join(report.errors))
+        leaked = leaked_secrets(yaml.safe_load(text))
+        if leaked:
+            raise HTTPException(status_code=422, detail="literal credentials at " + ", ".join(leaked))
+
+        meta: dict = {"author": author}
+        if tags:
+            meta["tags"] = tags
+        if link:
+            meta["source"] = link
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+            z.writestr(f"{lid}/{LIBRARY_FILES[kind]}", text)
+            z.writestr(f"{lid}/meta.yaml", yaml.safe_dump(meta, sort_keys=False))
+            notes = str(body.get("notes") or "").strip()
+            if notes:
+                z.writestr(f"{lid}/README.md", notes + "\n")
+        return Response(
+            content=buf.getvalue(),
+            media_type="application/zip",
+            headers={"Content-Disposition": f'attachment; filename="{lid}.zip"'},
         )
 
     return api
