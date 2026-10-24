@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Promoting community entries.** `scripts/promote_library.py` brings a
+  component or board from the community catalogue's `library/` into the
+  bundled library, credited to its author. A dry run checks the entry and
+  shows the file. `--write` adds it with a credit header, a CHANGELOG
+  line and the baseline entries the coverage gate needs, then lists the
+  catalogue files to remove at the next pin bump. See
+  `docs/library.md`, "Promoting a community entry".
+
 ## [0.46.0] — 2026-10-24
 
 ### Added

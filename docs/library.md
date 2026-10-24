@@ -179,6 +179,29 @@ The library spans the device classes used across the
 [`moellere/esphome`](https://github.com/moellere/esphome) device
 configurations and keeps growing as new device configs land.
 
+## Promoting a community entry
+
+Components and boards shared to the community catalogue's `library/`
+are MIT, so the maintainer can bring one into the bundled library. That
+is a per-entry decision, made in a pull request here:
+
+```
+python scripts/promote_library.py ../wirestudio-designs boards/<id>          # dry run
+python scripts/promote_library.py ../wirestudio-designs boards/<id> --write
+```
+
+The dry run checks the entry's `meta.yaml` (a handle to credit, MIT, an
+https `source`), runs the board or component gate against the bundled
+library, and prints the file it would add. `--write` adds that file under
+a header crediting the author, the catalogue path, the license and the
+source. It also adds a CHANGELOG line naming the author, and the coverage
+and framework baseline entries `coverage_matrix.py --strict` needs for a
+part with no example and no framework blocks. It then lists what is left
+by hand: this file's line for the part, an example if one is worth
+having, and the catalogue files the next pin bump there removes. Those
+are the entry and any design's copy of it, because the catalogue refuses
+a bundled id.
+
 ## Sourcing
 
 Each part of an entry has its own best source; some are mined, some are
