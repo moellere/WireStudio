@@ -783,4 +783,35 @@ export async function* workbenchFlash(body: {
   yield* parseSse<WorkbenchFlashEvent>(res.body);
 }
 
+/**
+ * Relay a workbench slot's serial live over SSE, in the flash event shape:
+ * `{type:"log"}` per line the bench's recorder captures after `since`, then
+ * `{type:"done", reason}` when the server's time or idle bound ends it.
+ * Abort `signal` to stop early; the server stops polling the bench as soon
+ * as the connection drops.
+ */
+export async function* workbenchStream(
+  slot: string,
+  opts: { since?: number; seconds?: number; idle?: number; signal?: AbortSignal } = {},
+): AsyncGenerator<WorkbenchFlashEvent> {
+  const q = new URLSearchParams();
+  if (opts.since !== undefined) q.set("since", String(opts.since));
+  if (opts.seconds !== undefined) q.set("seconds", String(opts.seconds));
+  if (opts.idle !== undefined) q.set("idle", String(opts.idle));
+  const path = `/workbench/slots/${encodeURIComponent(slot)}/stream`;
+  const res = await apiFetch(`${API_BASE}${path}?${q}`, {
+    headers: { accept: "text/event-stream" },
+    signal: opts.signal,
+  });
+  if (!res.ok) {
+    let errBody: unknown = undefined;
+    try { errBody = await res.json(); } catch { /* not json */ }
+    throw new ApiError(res.status, apiErrorMessage("GET", path, res.status, errBody), errBody);
+  }
+  if (!res.body) {
+    throw new Error("workbench/stream: no response body");
+  }
+  yield* parseSse<WorkbenchFlashEvent>(res.body);
+}
+
 export { ApiError };

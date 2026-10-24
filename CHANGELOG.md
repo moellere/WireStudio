@@ -25,6 +25,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     file keeps the V4.2 wiring, so designs that name no revision render
     as before. The `heltec-v4-gnss-tracker` example is the bench's V4.3
     and now says so.
+- **Live serial after a workbench flash.** The flash dialog now streams
+  the slot's serial from the bench's recorder as the board boots,
+  instead of polling for it once a second, and says when the relay ends.
+  `GET /workbench/slots/{slot}/stream` is the SSE relay behind it, in
+  the event shape `/workbench/flash` uses, bounded by `seconds` (at most
+  600) and `idle`, and it stops polling the bench as soon as the client
+  disconnects. Bench refusals on any read now carry the bench's own
+  error text rather than a bare status code.
 - **Promoting community entries.** `scripts/promote_library.py` brings a
   component or board from the community catalogue's `library/` into the
   bundled library, credited to its author. A dry run checks the entry and

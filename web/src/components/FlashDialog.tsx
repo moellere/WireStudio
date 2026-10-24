@@ -128,7 +128,8 @@ function FlashTargetPicker({
       {target.kind === "workbench" && (
         <p className="text-[11px] text-ink-faint">
           The bench runs esptool on its own USB and reports when the flash
-          finishes, so the log arrives at the end rather than live.
+          finishes, so its log arrives at the end. The board's serial then
+          streams here live from the bench's recorder while it boots.
         </p>
       )}
     </div>
@@ -244,6 +245,7 @@ function MeshtasticFlash({ design, boards }: { design: Design | null; boards: Bo
   const [boot, setBoot] = useState<WorkbenchBootResult | null>(null);
   const [target, setTarget] = useState<FlashTarget>({ kind: "usb" });
   const sessionRef = useRef<FlashSession | null>(null);
+  const watchRef = useRef<AbortController | null>(null);
   const [enums, setEnums] = useState<{ regions: Array<[string, number]>; presets: Array<[string, number]> } | null>(null);
   const [settings, setSettings] = useState<MeshtasticSettings | null>(null);
   const [configured, setConfigured] = useState<MeshtasticNode | null>(null);
@@ -312,7 +314,7 @@ function MeshtasticFlash({ design, boards }: { design: Design | null; boards: Bo
     return () => { cancelled = true; };
   }, []);
 
-  useEffect(() => () => { void sessionRef.current?.close(); }, []);
+  useEffect(() => () => { void sessionRef.current?.close(); watchRef.current?.abort(); }, []);
 
   function appendLog(line: string) {
     setLog((l) => [...l.slice(-200), line]);
@@ -326,6 +328,8 @@ function MeshtasticFlash({ design, boards }: { design: Design | null; boards: Bo
       const { data, offset } = await api.meshtasticFirmware(boardLibraryId);
       appendLog(`fetched ${status?.version ?? "release"} factory image (${(data.length / 1024).toFixed(0)} KiB)`);
       setPhase("flashing");
+      watchRef.current?.abort();
+      watchRef.current = new AbortController();
       const session = await flashToTarget(target, {
         framework: "meshtastic",
         onBoot: setBoot,
@@ -335,6 +339,7 @@ function MeshtasticFlash({ design, boards }: { design: Design | null; boards: Bo
         onProgress: (written, total) => setProgress(total ? written / total : 0),
         onLog: appendLog,
         onSerial: (text) => setSerial((s) => (s + text).slice(-8000)),
+        signal: watchRef.current.signal,
       });
       sessionRef.current = session;
       setPhase("flashed");
@@ -521,6 +526,7 @@ function CircuitPythonFlash({ design, boards }: { design: Design | null; boards:
   const [saved, setSaved] = useState<string | null>(null);
   const [target, setTarget] = useState<FlashTarget>({ kind: "usb" });
   const sessionRef = useRef<FlashSession | null>(null);
+  const watchRef = useRef<AbortController | null>(null);
 
   const boardLibraryId = String((design?.board as Record<string, unknown> | undefined)?.library_id ?? "");
   const board = useMemo(
@@ -566,7 +572,7 @@ function CircuitPythonFlash({ design, boards }: { design: Design | null; boards:
     return () => { cancelled = true; };
   }, [supported, boardLibraryId, design]);
 
-  useEffect(() => () => { void sessionRef.current?.close(); }, []);
+  useEffect(() => () => { void sessionRef.current?.close(); watchRef.current?.abort(); }, []);
 
   function appendLog(line: string) {
     setLog((l) => [...l.slice(-200), line]);
@@ -580,6 +586,8 @@ function CircuitPythonFlash({ design, boards }: { design: Design | null; boards:
       const { data, offset } = await api.circuitpythonFirmware(boardLibraryId);
       appendLog(`fetched CircuitPython ${status?.version ?? "release"} image (${(data.length / 1024).toFixed(0)} KiB)`);
       setPhase("flashing");
+      watchRef.current?.abort();
+      watchRef.current = new AbortController();
       const session = await flashToTarget(target, {
         framework: "circuitpython",
         onBoot: setBoot,
@@ -589,6 +597,7 @@ function CircuitPythonFlash({ design, boards }: { design: Design | null; boards:
         onProgress: (written, total) => setProgress(total ? written / total : 0),
         onLog: appendLog,
         onSerial: (text) => setSerial((s) => (s + text).slice(-8000)),
+        signal: watchRef.current.signal,
       });
       sessionRef.current = session;
       setPhase("flashed");
@@ -755,6 +764,7 @@ function MicroPythonFlash({ design, boards }: { design: Design | null; boards: B
   const [fromDesign, setFromDesign] = useState(false);
   const [target, setTarget] = useState<FlashTarget>({ kind: "usb" });
   const sessionRef = useRef<FlashSession | null>(null);
+  const watchRef = useRef<AbortController | null>(null);
 
   const boardLibraryId = String((design?.board as Record<string, unknown> | undefined)?.library_id ?? "");
   const board = useMemo(
@@ -799,7 +809,7 @@ function MicroPythonFlash({ design, boards }: { design: Design | null; boards: B
     return () => { cancelled = true; };
   }, [supported, boardLibraryId, design]);
 
-  useEffect(() => () => { void sessionRef.current?.close(); }, []);
+  useEffect(() => () => { void sessionRef.current?.close(); watchRef.current?.abort(); }, []);
 
   function appendLog(line: string) {
     setLog((l) => [...l.slice(-200), line]);
@@ -813,6 +823,8 @@ function MicroPythonFlash({ design, boards }: { design: Design | null; boards: B
       const { data, offset, version } = await api.micropythonFirmware(boardLibraryId);
       appendLog(`fetched MicroPython ${version ?? status?.version ?? "release"} image (${(data.length / 1024).toFixed(0)} KiB), flashing at 0x${offset.toString(16)}`);
       setPhase("flashing");
+      watchRef.current?.abort();
+      watchRef.current = new AbortController();
       const session = await flashToTarget(target, {
         framework: "micropython",
         onBoot: setBoot,
@@ -822,6 +834,7 @@ function MicroPythonFlash({ design, boards }: { design: Design | null; boards: B
         onProgress: (written, total) => setProgress(total ? written / total : 0),
         onLog: appendLog,
         onSerial: (text) => setSerial((s) => (s + text).slice(-8000)),
+        signal: watchRef.current.signal,
       });
       sessionRef.current = session;
       setPhase("flashed");
@@ -976,6 +989,7 @@ function TasmotaFlash({ design, boards }: { design: Design | null; boards: Board
   const [password, setPassword] = useState("");
   const [target, setTarget] = useState<FlashTarget>({ kind: "usb" });
   const sessionRef = useRef<FlashSession | null>(null);
+  const watchRef = useRef<AbortController | null>(null);
 
   const boardLibraryId = String((design?.board as Record<string, unknown> | undefined)?.library_id ?? "");
   const board = useMemo(
@@ -1007,7 +1021,7 @@ function TasmotaFlash({ design, boards }: { design: Design | null; boards: Board
     return () => { cancelled = true; };
   }, [design]);
 
-  useEffect(() => () => { void sessionRef.current?.close(); }, []);
+  useEffect(() => () => { void sessionRef.current?.close(); watchRef.current?.abort(); }, []);
 
   function appendLog(line: string) {
     setLog((l) => [...l.slice(-200), line]);
@@ -1022,6 +1036,8 @@ function TasmotaFlash({ design, boards }: { design: Design | null; boards: Board
       const { data, offset } = await api.tasmotaFirmware(chip);
       appendLog(`fetched release image (${(data.length / 1024).toFixed(0)} KiB) for ${chip}`);
       setPhase("flashing");
+      watchRef.current?.abort();
+      watchRef.current = new AbortController();
       const session = await flashToTarget(target, {
         framework: "tasmota",
         onBoot: setBoot,
@@ -1031,6 +1047,7 @@ function TasmotaFlash({ design, boards }: { design: Design | null; boards: Board
         onProgress: (written, total) => setProgress(total ? written / total : 0),
         onLog: appendLog,
         onSerial: (text) => setSerial((s) => (s + text).slice(-8000)),
+        signal: watchRef.current.signal,
       });
       sessionRef.current = session;
       setPhase("flashed");
