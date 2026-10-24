@@ -98,9 +98,17 @@ ones but none blocks the others' value.
    flash runs that cycle against the real network from anywhere, and
    every later phase — and every headless or MCP-driven use of the
    bench — depends on it.
-2. **Boot-marker verification.** A `/workbench/verify` step and serial
-   SSE relay in the dialog, with per-framework success/failure
-   signatures over the slot's serial.
+2. **Boot-marker verification and live serial.** Done. `/workbench/verify-boot`
+   resets the slot through the bench and asserts the framework's boot
+   marker (`wirestudio/workbench/boot.py`), and `GET
+   /workbench/slots/{slot}/stream` relays the slot's serial as SSE in
+   the same event shape `/flash` uses, so the dialog shows the boot as it
+   happens and the verdict beside it. The relay reads the recorder's
+   buffer, never the port, so it does not contend for the bench's one
+   serial reader and holds no lease; it ends after `seconds` (at most
+   600) or `idle` seconds without a line, and stops polling the moment
+   the client disconnects. A bench that refuses the read answers as an
+   `error` event carrying the bench's own words.
 3. **Nightly hardware gate.** A scheduled job asserts the bench and
    everything on it is still alive — see [The gate](#the-gate) below.
 

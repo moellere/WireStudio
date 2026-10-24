@@ -48,12 +48,16 @@ class FakeBench:
         "A fatal error occurred: Packet content transfer stopped\n"
     )
 
-    def __init__(self, slots=None, flash_status=200, returncode=0, require_token="s3cret"):
+    def __init__(self, slots=None, flash_status=200, returncode=0, require_token="s3cret",
+                 output=(), output_status=200):
         self.slots = slots if slots is not None else [_slot()]
         self.flash_status = flash_status
         self.returncode = returncode
         self.require_token = require_token
         self.flashed: list[dict] = []
+        self.output = list(output)
+        self.output_status = output_status
+        self.output_reads = 0
 
     def handler(self, req: httpx.Request) -> httpx.Response:
         if self.require_token and req.headers.get("authorization") != f"Bearer {self.require_token}":
@@ -62,6 +66,16 @@ class FakeBench:
             return httpx.Response(200, json={"hostname": "bench", "slots_configured": len(self.slots)})
         if req.url.path == "/api/devices":
             return httpx.Response(200, json={"slots": self.slots})
+        if req.url.path == "/api/serial/output":
+            self.output_reads += 1
+            if self.output_status >= 400:
+                return httpx.Response(self.output_status, json={"ok": False, "error": "slot busy: monitoring"})
+            # Inclusive `since`, the reading that would duplicate lines if
+            # the relay trusted the cursor alone.
+            since = float(req.url.params.get("since", 0))
+            return httpx.Response(200, json={"lines": [
+                {"ts": ts, "text": text} for ts, text in self.output if ts >= since
+            ]})
         if req.url.path == "/api/flash":
             if self.flash_status >= 400:
                 return httpx.Response(
@@ -85,10 +99,10 @@ class FakeBench:
         return WorkbenchClient(transport=httpx.MockTransport(self.handler), **kw)
 
 
-def _app(bench, monkeypatch):
+def _app(bench, monkeypatch, **client_kw):
     monkeypatch.delenv("WORKBENCH_URL", raising=False)
     monkeypatch.delenv("WORKBENCH_TOKEN", raising=False)
-    return TestClient(create_app(workbench_client_factory=bench.client))
+    return TestClient(create_app(workbench_client_factory=lambda: bench.client(**client_kw)))
 
 
 def _parse_sse(body: str) -> list[dict]:
@@ -360,6 +374,84 @@ def test_flash_bench_error_becomes_sse_error_frame(monkeypatch):
     assert events[-1]["event"] == "error"
     # The bench's own words, not a generic "http 500".
     assert "esptool: no serial data" in events[-1]["data"]["message"]
+
+
+# ----------------------------------------------------------------------
+# Live serial relay
+# ----------------------------------------------------------------------
+
+_BOOT = [(1.0, "ets Jul 29 2019"), (2.0, "setup() finished successfully!\n")]
+
+
+def test_stream_relays_each_recorder_line_once_then_ends_idle(monkeypatch):
+    bench = FakeBench(output=_BOOT)
+    r = _app(bench, monkeypatch, poll_interval=0.01).get(
+        "/workbench/slots/SLOT1/stream?since=0.5&idle=0.1&seconds=5"
+    )
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("text/event-stream")
+    events = [e["data"] for e in _parse_sse(r.text) if "data" in e]
+    assert [e["data"] for e in events if e["type"] == "log"] == [
+        "ets Jul 29 2019", "setup() finished successfully!",
+    ]
+    assert events[-1] == {"type": "done", "ok": True, "slot": "SLOT1", "reason": "idle"}
+    # The bench was asked again after the lines landed and repeated none.
+    assert bench.output_reads >= 2
+
+
+def test_stream_defaults_to_lines_from_now(monkeypatch):
+    bench = FakeBench(output=_BOOT)
+    r = _app(bench, monkeypatch, poll_interval=0.01).get(
+        "/workbench/slots/SLOT1/stream?idle=0.05"
+    )
+    events = [e["data"] for e in _parse_sse(r.text) if "data" in e]
+    assert [e["type"] for e in events] == ["done"]
+
+
+def test_stream_busy_bench_is_an_error_frame_with_its_words(monkeypatch):
+    bench = FakeBench(output_status=409)
+    r = _app(bench, monkeypatch, poll_interval=0.01).get("/workbench/slots/SLOT1/stream")
+    assert r.status_code == 200
+    events = _parse_sse(r.text)
+    assert events[-1]["event"] == "error"
+    assert "slot busy: monitoring" in events[-1]["data"]["message"]
+
+
+def test_stream_unknown_slot_is_502(monkeypatch):
+    r = _app(FakeBench(), monkeypatch).get("/workbench/slots/SLOT9/stream")
+    assert r.status_code == 502
+    assert "SLOT9" in r.json()["detail"]
+
+
+def test_stream_503_when_unconfigured(monkeypatch):
+    monkeypatch.delenv("WORKBENCH_URL", raising=False)
+    r = TestClient(create_app()).get("/workbench/slots/SLOT1/stream")
+    assert r.status_code == 503
+
+
+async def test_stream_ends_at_its_time_bound_while_lines_keep_coming():
+    bench = FakeBench(output=_BOOT)
+    events = [e async for e in bench.client(poll_interval=0.01).stream_output(
+        "SLOT1", 0.0, seconds=0.05, idle=0,
+    )]
+    assert events[-1]["reason"] == "timeout"
+    assert sum(e["type"] == "log" for e in events) == 2
+
+
+async def test_stream_stops_polling_once_the_client_is_gone():
+    bench = FakeBench(output=_BOOT)
+    polls = 0
+
+    async def gone() -> bool:
+        nonlocal polls
+        polls += 1
+        return polls > 2
+
+    events = [e async for e in bench.client(poll_interval=0.01).stream_output(
+        "SLOT1", 0.0, seconds=60, idle=0, stop=gone,
+    )]
+    assert bench.output_reads == 2
+    assert not any(e["type"] == "done" for e in events)
 
 
 async def test_client_flash_refuses_empty_images():

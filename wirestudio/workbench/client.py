@@ -15,9 +15,11 @@ control. See docs/workbench.md.
 """
 from __future__ import annotations
 
+import asyncio
 import os
+import time
 from dataclasses import dataclass
-from typing import AsyncIterator, Iterator, Optional
+from typing import AsyncIterator, Awaitable, Callable, Iterator, Optional
 
 import httpx
 from wirestudio.errors import describe
@@ -136,6 +138,7 @@ class WorkbenchClient:
         timeout: float = 30.0,
         flash_timeout: float = 300.0,
         transport: Optional[httpx.AsyncBaseTransport] = None,
+        poll_interval: float = 0.5,
     ) -> None:
         self.base_url = (
             base_url if base_url is not None else os.environ.get("WORKBENCH_URL", "")
@@ -143,6 +146,7 @@ class WorkbenchClient:
         self.token = token if token is not None else os.environ.get("WORKBENCH_TOKEN", "")
         self.timeout = timeout
         self.flash_timeout = flash_timeout
+        self.poll_interval = poll_interval
         self._transport = transport
 
     def _client(self, timeout: Optional[float] = None) -> httpx.AsyncClient:
@@ -233,6 +237,65 @@ class WorkbenchClient:
         )
         return data.get("lines", [])
 
+    async def stream_output(
+        self,
+        slot: str,
+        since: float,
+        seconds: float = 120.0,
+        idle: float = 30.0,
+        stop: Optional[Callable[[], Awaitable[bool]]] = None,
+    ) -> AsyncIterator[dict]:
+        """Relay the recorder's lines on `slot` after `since` as they land.
+
+        Polls the recorder buffer, which taps the port without being a
+        reader of it, so a relay never contends for the bench's one
+        serial reader and holds no lease to release. It ends on its own
+        after `seconds`, after `idle` seconds without a new line (0 turns
+        that off), or as soon as `stop()` says the consumer is gone, so an
+        abandoned tab cannot keep the bench answering. Yields
+        {"type": "log", "data", "ts"} per line, {"type": "ping"} when
+        nothing has been said for a while, and {"type": "done", "reason"}
+        at the end.
+        """
+        started = time.monotonic()
+        last_line = started
+        last_sent = started
+        cursor = since
+        # The bench's `since` may be inclusive; texts seen at the cursor
+        # instant are remembered so a line is never relayed twice.
+        at_cursor: set[str] = set()
+        while True:
+            if stop is not None and await stop():
+                return
+            fresh = False
+            for entry in await self.output(slot, lines=1000, since=cursor):
+                if not isinstance(entry, dict):
+                    continue
+                ts = entry.get("ts")
+                text = str(entry.get("text", ""))
+                if isinstance(ts, (int, float)):
+                    if ts < cursor or (ts == cursor and text in at_cursor):
+                        continue
+                    if ts > cursor:
+                        cursor = ts
+                        at_cursor = set()
+                    at_cursor.add(text)
+                fresh = True
+                yield {"type": "log", "data": text.rstrip("\n"), "ts": ts}
+            now = time.monotonic()
+            if fresh:
+                last_line = last_sent = now
+            if now - started >= seconds:
+                yield {"type": "done", "ok": True, "slot": slot, "reason": "timeout"}
+                return
+            if idle and now - last_line >= idle:
+                yield {"type": "done", "ok": True, "slot": slot, "reason": "idle"}
+                return
+            if now - last_sent >= 15.0:
+                yield {"type": "ping"}
+                last_sent = now
+            await asyncio.sleep(self.poll_interval)
+
     async def reset(self, slot: str) -> dict:
         """Hard-reset the board in `slot` with the recorder attached.
 
@@ -256,7 +319,7 @@ class WorkbenchClient:
         if r.status_code == 401:
             raise WorkbenchUnavailable("unauthorized (check WORKBENCH_TOKEN)")
         if r.status_code >= 400:
-            raise WorkbenchUnavailable(f"{path}: http {r.status_code}")
+            raise WorkbenchUnavailable(f"{path}: {_error_text(r)}")
         return r.json()
 
     async def _post_json(
@@ -274,7 +337,7 @@ class WorkbenchClient:
         if r.status_code == 401:
             raise WorkbenchUnavailable("unauthorized (check WORKBENCH_TOKEN)")
         if r.status_code >= 400:
-            raise WorkbenchUnavailable(f"{path}: http {r.status_code}")
+            raise WorkbenchUnavailable(f"{path}: {_error_text(r)}")
         return r.json()
 
     # ------------------------------------------------------------------

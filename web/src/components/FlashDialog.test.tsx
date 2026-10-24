@@ -28,12 +28,20 @@ vi.mock("../lib/meshtastic", async () => {
   };
 });
 
+const flashToTarget = vi.fn();
+vi.mock("../lib/flash", async () => {
+  const actual = await vi.importActual<typeof import("../lib/flash")>("../lib/flash");
+  return { ...actual, flashToTarget: (...args: unknown[]) => flashToTarget(...args) };
+});
+
 vi.mock("../api/client", async () => {
   const actual = await vi.importActual<typeof import("../api/client")>("../api/client");
   return {
     ...actual,
     api: {
       ...actual.api,
+      workbenchStatus: vi.fn(),
+      workbenchSlots: vi.fn(),
       tasmotaFirmwareStatus: vi.fn(),
       tasmotaTemplate: vi.fn(),
       tasmotaFirmware: vi.fn(),
@@ -55,6 +63,8 @@ vi.mock("./LorawanFlashDialog", () => ({
 }));
 
 const mockApi = api as unknown as {
+  workbenchStatus: ReturnType<typeof vi.fn>;
+  workbenchSlots: ReturnType<typeof vi.fn>;
   tasmotaFirmwareStatus: ReturnType<typeof vi.fn>;
   tasmotaTemplate: ReturnType<typeof vi.fn>;
   tasmotaFirmware: ReturnType<typeof vi.fn>;
@@ -86,6 +96,10 @@ const boards: BoardSummary[] = [
 ];
 
 beforeEach(() => {
+  flashToTarget.mockReset();
+  mockApi.workbenchStatus.mockReset().mockResolvedValue({ available: false, reason: "WORKBENCH_URL not set", url: null, configure_hint: null });
+  mockApi.workbenchSlots.mockReset().mockResolvedValue({ slots: [] });
+  mockApi.meshtasticFirmware.mockReset();
   mockApi.tasmotaFirmwareStatus.mockReset().mockResolvedValue({
     available: true,
     chips: ["esp8266"],
@@ -246,6 +260,36 @@ describe("FlashDialog", () => {
       expect(screen.getByRole("button", { name: /flash meshtastic/i })).toBeEnabled(),
     );
     expect(screen.getByText(/v2\.6\.11\.60ec05e/)).toBeInTheDocument();
+  });
+
+  it("relays the slot's serial live and shows the bench's boot verdict after a workbench flash", async () => {
+    mockApi.workbenchStatus.mockResolvedValue({ available: true, reason: null, url: "http://bench:8080", configure_hint: null });
+    mockApi.workbenchSlots.mockResolvedValue({ slots: [{
+      label: "SLOT1", state: "idle", present: true, chip: "esp32s3", product: null, serial_url: null,
+      flapping: false, last_error: null, flashable: true, blocked_reason: null,
+    }] });
+    mockApi.meshtasticFirmware.mockResolvedValue({ data: new Uint8Array([1, 2, 3]), offset: 0 });
+    flashToTarget.mockImplementation(async (_target: unknown, opts: {
+      onLog?: (l: string) => void; onSerial?: (t: string) => void; onBoot?: (r: unknown) => void;
+    }) => {
+      opts.onLog?.("Hash of data verified.");
+      opts.onSerial?.("ets Jul 29 2019\n");
+      opts.onSerial?.("Booted, wake cause 0\n");
+      opts.onBoot?.({ ok: true, framework: "meshtastic", booted: true, checks: [{ stage: "boot", proves: "Meshtastic started", line: "Booted, wake cause 0" }] });
+      return null;
+    });
+    const heltecDesign = { ...design, board: { library_id: "heltec-wifi-lora32-v3", mcu: "esp32s3" } } as Design;
+    const heltecBoards = [{ id: "heltec-wifi-lora32-v3", name: "Heltec V3", chip_variant: "esp32s3" } as BoardSummary];
+    renderDialog({ design: heltecDesign, boards: heltecBoards });
+    await userEvent.click(screen.getByRole("button", { name: /meshtastic/i }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /1 slot ready/i })).toBeEnabled());
+    await userEvent.click(screen.getByRole("button", { name: /1 slot ready/i }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /flash meshtastic/i })).toBeEnabled());
+    await userEvent.click(screen.getByRole("button", { name: /flash meshtastic/i }));
+    await waitFor(() => expect(screen.getByText(/Booted: Meshtastic started/)).toBeInTheDocument());
+    expect(screen.getByText(/ets Jul 29 2019/)).toBeInTheDocument();
+    expect(flashToTarget.mock.calls[0][0]).toEqual({ kind: "workbench", slot: "SLOT1" });
+    expect(flashToTarget.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
   });
 });
 

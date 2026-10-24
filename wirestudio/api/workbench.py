@@ -7,9 +7,10 @@ already serves it; this module only moves it to a slot.
 from __future__ import annotations
 
 import json
+import time
 from typing import Callable, Optional
 
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter, Body, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 from wirestudio.workbench import WorkbenchClient, WorkbenchUnavailable
@@ -108,6 +109,48 @@ def router(client_factory: Optional[Callable[[], WorkbenchClient]] = None) -> AP
         return {"slot": slot, "lines": [
             {"ts": e.get("ts"), "text": str(e.get("text", ""))} for e in entries if isinstance(e, dict)
         ]}
+
+    @router.get("/slots/{slot}/stream")
+    async def workbench_slot_stream(
+        request: Request,
+        slot: str,
+        since: Optional[float] = None,
+        seconds: float = 120.0,
+        idle: float = 30.0,
+    ) -> StreamingResponse:
+        """Relay `slot`'s serial live as SSE, in the shape `/flash` uses:
+        each line the recorder captured after `since` (default: now) as it
+        lands, then a `done` event. Read-only through the recorder, so it
+        never takes the port. Bounded: it ends after `seconds` (at most
+        600) or `idle` seconds without a line, and stops when the client
+        goes away. A bench that refuses the read answers as an `error`
+        event carrying its own words."""
+        wc = make_client()
+        if not wc.is_configured():
+            raise HTTPException(status_code=503, detail="workbench not configured (set WORKBENCH_URL)")
+        try:
+            await wc.slot(slot)
+        except WorkbenchUnavailable as e:
+            raise HTTPException(status_code=502, detail=str(e)) from e
+        start = time.time() if since is None else since
+        seconds = min(max(seconds, 1.0), 600.0)
+        idle = max(idle, 0.0)
+
+        async def events():
+            try:
+                async for event in wc.stream_output(
+                    slot, start, seconds=seconds, idle=idle, stop=request.is_disconnected,
+                ):
+                    if event["type"] == "ping":
+                        yield ": ping\n\n"
+                    else:
+                        yield f"data: {json.dumps(event)}\n\n"
+            except WorkbenchUnavailable as e:
+                yield f"event: error\ndata: {json.dumps({'message': str(e)})}\n\n"
+
+        return StreamingResponse(
+            events(), media_type="text/event-stream", headers=_SSE_HEADERS
+        )
 
     @router.post("/verify-boot")
     async def workbench_verify_boot(body: dict = Body(...)) -> dict:

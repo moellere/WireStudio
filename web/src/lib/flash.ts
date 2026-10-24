@@ -188,13 +188,15 @@ export interface WatchOptions {
   onBoot?: (result: WorkbenchBootResult) => void;
   /** How long to relay the slot's serial after the flash. */
   watchSeconds?: number;
+  /** Abort to stop the relay early, e.g. when the dialog closes. */
+  signal?: AbortSignal;
 }
 
 /**
  * Flash to either target. Returns a FlashSession for USB; returns null for
  * the workbench, which has no serial session to hand back -- the bench owns
  * the port and only answers once the flash is done. On a slot, the boot
- * output is relayed to `onSerial` from the bench's recorder for a while
+ * output is relayed live to `onSerial` from the bench's recorder for a while
  * after the flash, and `onBoot` gets the bench's boot-marker verdict.
  */
 export async function flashToTarget(
@@ -228,31 +230,29 @@ export async function flashToTarget(
   return null;
 }
 
-/** Relay the recorder's lines since the flash and, when a framework is
- *  named, ask the bench whether its boot marker appeared. Runs after
- *  flashToTarget returns so the flash phase ends when the flash does.
- *  The boot check resets the board through the bench: the reset at the
- *  end of a flash comes before the bench is recording again. */
+/** Stream the recorder's lines since the flash as they land and, when a
+ *  framework is named, ask the bench whether its boot marker appeared.
+ *  Runs after flashToTarget returns so the flash phase ends when the
+ *  flash does. The boot check resets the board through the bench: the
+ *  reset at the end of a flash comes before the bench is recording
+ *  again, and the stream, opened from before the flash, shows that boot
+ *  live. */
 export async function watchSlot(slot: string, since: number, opts: WatchOptions & Pick<FlashOptions, "onSerial">): Promise<void> {
-  const { api } = await import("../api/client");
+  const { api, workbenchStream } = await import("../api/client");
   if (opts.framework && opts.onBoot) {
     api.workbenchVerifyBoot({ slot, framework: opts.framework, reset: true })
       .then(opts.onBoot)
       .catch((e) => opts.onBoot?.({ ok: false, framework: opts.framework ?? "", error: e instanceof Error ? e.message : String(e) }));
   }
   if (!opts.onSerial) return;
-  const deadline = Date.now() + (opts.watchSeconds ?? 20) * 1000;
-  let emitted = 0;
-  while (Date.now() < deadline) {
-    try {
-      const { lines } = await api.workbenchOutput(slot, since);
-      for (const line of lines.slice(emitted)) opts.onSerial(line.text.endsWith("\n") ? line.text : line.text + "\n");
-      emitted = Math.max(emitted, lines.length);
-    } catch (e) {
-      opts.onSerial(`\n[slot output unavailable: ${e instanceof Error ? e.message : String(e)}]\n`);
-      return;
+  try {
+    for await (const event of workbenchStream(slot, { since, seconds: opts.watchSeconds ?? 20, signal: opts.signal })) {
+      if (event.type === "log") opts.onSerial(event.data.endsWith("\n") ? event.data : event.data + "\n");
+      else if (event.type === "done") opts.onSerial(`\n[slot relay ended: ${event.reason ?? "done"}]\n`);
     }
-    await sleep(1000);
+  } catch (e) {
+    if (opts.signal?.aborted) return;
+    opts.onSerial(`\n[slot output unavailable: ${e instanceof Error ? e.message : String(e)}]\n`);
   }
 }
 
