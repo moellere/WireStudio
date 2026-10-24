@@ -16,7 +16,7 @@ electrical:
     - {role: MISO,  kind: spi_miso}
     - {role: MOSI,  kind: spi_mosi}
     - {role: CS,    kind: spi_cs,    voltage: 3.3}
-    - {role: RESET, kind: digital_in, voltage: 3.3}
+    - {role: RESET, kind: digital_out, voltage: 3.3}
     # IRQ pin exists but is rarely connected; leave out for 0.1.
   passives:
     - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}

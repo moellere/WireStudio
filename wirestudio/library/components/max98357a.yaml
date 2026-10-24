@@ -15,7 +15,7 @@ electrical:
   - {role: LRCLK, kind: i2s_lrclk}
   - {role: BCLK, kind: i2s_bclk}
   - {role: DIN, kind: i2s_dout, voltage: 3.3}
-  - {role: SD, kind: digital_in, voltage: 3.3}
+  - {role: SD, kind: digital_out, voltage: 3.3}
   - {role: GAIN, kind: analog_in, voltage: 3.3}
   passives:
   - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}

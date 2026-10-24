@@ -12,10 +12,10 @@ electrical:
   pins:
   - {role: VCC, kind: power}
   - {role: GND, kind: ground}
-  - {role: DATA, kind: digital_in, voltage: 3.3}
-  - {role: CLOCK, kind: digital_in, voltage: 3.3}
-  - {role: LATCH, kind: digital_in, voltage: 3.3}
-  - {role: OE, kind: digital_in, voltage: 3.3}
+  - {role: DATA, kind: digital_out, voltage: 3.3}
+  - {role: CLOCK, kind: digital_out, voltage: 3.3}
+  - {role: LATCH, kind: digital_out, voltage: 3.3}
+  - {role: OE, kind: digital_out, voltage: 3.3}
   passives:
   - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
 

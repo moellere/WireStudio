@@ -16,7 +16,7 @@ electrical:
     # two pulse-frequency outputs (CF, CF1) and one selector input (SEL).
     # The MCU drives SEL to switch CF1 between voltage and current modes,
     # and reads pulse rates on CF + CF1 -- no UART, no I2C.
-    - {role: SEL, kind: digital_in,  voltage: 3.3}
+    - {role: SEL, kind: digital_out,  voltage: 3.3}
     - {role: CF,  kind: digital_in, voltage: 3.3, driven: true}
     - {role: CF1, kind: digital_in, voltage: 3.3, driven: true}
   passives:

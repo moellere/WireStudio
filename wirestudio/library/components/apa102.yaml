@@ -12,8 +12,8 @@ electrical:
   pins:
     - {role: VCC,  kind: power}
     - {role: GND,  kind: ground}
-    - {role: DI,   kind: digital_in, voltage: 5.0}
-    - {role: CI,   kind: digital_in, voltage: 5.0}
+    - {role: DI,   kind: digital_out, voltage: 5.0}
+    - {role: CI,   kind: digital_out, voltage: 5.0}
   passives:
     - {kind: capacitor, value: "100nF", between: [VCC, GND], purpose: decoupling}
     - {kind: capacitor, value: "1000uF", between: [VCC, GND], purpose: bulk for strips > 8 LEDs}
