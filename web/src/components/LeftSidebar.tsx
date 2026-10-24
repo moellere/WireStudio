@@ -309,7 +309,17 @@ function CommunityGallery({
                   : "bg-surface-2/40 hover:bg-surface-2"
               }`}
             >
-              <div className="truncate font-medium text-ink">{d.name}</div>
+              <div className="flex items-start gap-2">
+                {d.photos && d.photos.length > 0 && (
+                  <img
+                    src={d.photos[0]}
+                    alt=""
+                    loading="lazy"
+                    className="h-10 w-10 shrink-0 rounded object-cover ring-1 ring-line"
+                  />
+                )}
+                <div className="min-w-0 truncate font-medium text-ink">{d.name}</div>
+              </div>
               <div className="mt-1 flex items-center gap-2 truncate text-xs text-ink-faint">
                 <span className="shrink-0 font-medium text-ink-dim">@{d.author}</span>
                 <span className="h-1 w-1 shrink-0 rounded-full bg-line-strong"></span>

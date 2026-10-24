@@ -206,7 +206,13 @@ export const api = {
   communityDesigns: () => request<{ repo: string; designs: CommunityEntry[] }>("/community/designs"),
   communityDesign: (slug: string) =>
     request<{ design: Design; entry: CommunityEntry }>(`/community/designs/${encodeURIComponent(slug)}`),
-  communityShare: (body: { design: Design; author: string; tags: string[]; notes?: string }) =>
+  communityShare: (body: {
+    design: Design;
+    author: string;
+    tags: string[];
+    notes?: string;
+    photos?: { name: string; data: string }[];
+  }) =>
     requestBlob("/community/share", { method: "POST", body: JSON.stringify(body) }),
 
   // --- Local component inventory ---

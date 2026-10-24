@@ -42,9 +42,23 @@ describe("ShareDialog", () => {
     await userEvent.click(screen.getByRole("button", { name: /download and open github/i }));
 
     await waitFor(() => expect(open).toHaveBeenCalledWith(STATUS.upload_url, "_blank", "noopener"));
-    expect(share.mock.calls[0][0]).toEqual({ design: { id: "porch" }, author: "me", tags: ["motion", "pir"], notes: "" });
+    expect(share.mock.calls[0][0]).toEqual({ design: { id: "porch" }, author: "me", tags: ["motion", "pir"], notes: "", photos: [] });
     expect(localStorage.getItem("wirestudio.githubHandle")).toBe("me");
     expect(screen.getByText(/drag that folder/i)).toBeInTheDocument();
+  });
+
+  it("sends attached photos as base64, at most four", async () => {
+    share.mockResolvedValue(new Blob(["zip"]));
+    vi.spyOn(window, "open").mockReturnValue(null);
+    render(<ShareDialog design={{ id: "porch" }} status={STATUS} onClose={() => {}} />);
+    await userEvent.type(screen.getByPlaceholderText("octocat"), "me");
+    const files = Array.from({ length: 5 }, (_, i) => new File([new Uint8Array([1, 2, 3])], `p${i}.jpg`, { type: "image/jpeg" }));
+    await userEvent.upload(screen.getByLabelText("Photos of the build"), files);
+    await userEvent.click(screen.getByRole("button", { name: /download and open github/i }));
+    await waitFor(() => expect(share).toHaveBeenCalled());
+    const sent = share.mock.calls[0][0].photos;
+    expect(sent).toHaveLength(4);
+    expect(sent[0]).toEqual({ name: "p0.jpg", data: "AQID" });
   });
 
   it("shows why the studio refused to share", async () => {
