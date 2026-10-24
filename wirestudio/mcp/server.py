@@ -34,6 +34,9 @@ from wirestudio.agent.tools import (
     _run_component_check,
     _run_component_create,
     _run_component_delete,
+    _run_board_check,
+    _run_board_create,
+    _run_board_delete,
     _run_library_detail,
     _run_list_boards,
     _run_recommend,
@@ -211,6 +214,44 @@ def _register_library_tools(mcp: MCPServer, library: Library) -> None:
     )
     def component_delete(library_id: str) -> dict:
         return _run_component_delete({}, library, library_id=library_id)
+
+    @mcp.tool(
+        name="board_check",
+        description=(
+            "Check a draft library board (full YAML text, same shape as "
+            "wirestudio/library/boards/*.yaml) before saving it: the file "
+            "validates, every pin a default bus, onboard peripheral or "
+            "radio names is in gpio_capabilities, the KiCad symbol has the "
+            "pins kicad.pin_map binds, the enclosure's ports and holes sit "
+            "on the PCB, and the onboard peripherals render to ESPHome "
+            "YAML. Returns errors, warnings, what could not be verified "
+            "here, and what is never checked. Read-only."
+        ),
+    )
+    def board_check(yaml: str) -> dict:
+        return _run_board_check({}, library, yaml=yaml)
+
+    @mcp.tool(
+        name="board_create",
+        description=(
+            "Run board_check and, if it passes, save the YAML into the "
+            "user library so designs can target the board. Refuses a "
+            "bundled id; refuses an existing user id unless overwrite is "
+            "true. Relay the warnings and not_checked list."
+        ),
+    )
+    def board_create(yaml: str, overwrite: bool = False) -> dict:
+        return _run_board_create({}, library, yaml=yaml, overwrite=overwrite)
+
+    @mcp.tool(
+        name="board_delete",
+        description=(
+            "Remove a board from the user library. Refuses a bundled id. "
+            "Designs on the board stop rendering until it is recreated."
+        ),
+    )
+    def board_delete(library_id: str) -> dict:
+        return _run_board_delete({}, library, library_id=library_id)
 
 
 _DESIGN_ID_HINT = (

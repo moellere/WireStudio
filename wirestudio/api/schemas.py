@@ -21,6 +21,7 @@ class McpTokenResponse(_S):
 
 
 class BoardSummary(_S):
+    source: str = Field(default="bundled", description="'bundled' or 'user' (LIBRARY_USER_DIR).")
     id: str = Field(description="Board library id, e.g. 'esp32-devkitc-v4'.")
     name: str = Field(description="Human-readable board name.")
     mcu: str = Field(description="MCU family, e.g. 'esp32' or 'esp8266'.")
@@ -179,6 +180,23 @@ class ComponentCheckResponse(_S):
     unverified: list[str] = Field(default_factory=list, description="Checks this server could not run (missing KiCad libraries).")
     not_checked: list[str] = Field(default_factory=list, description="What no check here ever covers.")
     verified: list[str] = Field(default_factory=list, description="Declared electrical rules that passed at the block's defaults, with the numbers used.")
+    saved: str = Field(default="", description="Path written, when created.")
+
+
+class BoardYamlRequest(_S):
+    yaml: str = Field(description="Full board YAML text, the shape of wirestudio/library/boards/*.yaml.")
+    overwrite: bool = Field(default=False, description="Replace an existing user-library board with the same id.")
+
+
+class BoardCheckResponse(_S):
+    ok: bool = Field(description="No errors. Warnings and unverified items may still be present.")
+    library_id: str = Field(default="", description="The board id the YAML declares.")
+    exists: str = Field(default="", description="'bundled', 'user' or '' for where the id already resolves.")
+    errors: list[str] = Field(default_factory=list, description="Problems that block saving.")
+    warnings: list[str] = Field(default_factory=list, description="Suspicious but not blocking.")
+    unverified: list[str] = Field(default_factory=list, description="Checks this server could not run (missing KiCad libraries).")
+    not_checked: list[str] = Field(default_factory=list, description="What no check here ever covers.")
+    verified: list[str] = Field(default_factory=list, description="What was rendered or looked up and passed.")
     saved: str = Field(default="", description="Path written, when created.")
 
 

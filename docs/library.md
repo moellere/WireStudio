@@ -10,6 +10,15 @@ exercised by a bundled example, see
 
 `wirestudio/library/boards/`
 
+Boards have a user tree too, at `LIBRARY_USER_DIR/boards/`, written
+through `board_create` (MCP, the in-studio agent, `POST /library/boards`,
+or *New board* in the studio's Boards tab). They list with `source: user`,
+and a bundled id always wins. `board_check` cross-checks the pins, the
+KiCad symbol and the enclosure, and renders the onboard peripherals to
+ESPHome YAML; see [Checking a board](integration_spec.md#checking-a-board).
+The board inspector offers the same *Copy as new*, *Edit YAML* and
+*Delete* as a component's.
+
 - `esp32-devkitc-v4` — ESP32 DevKitC V4 (ESP32-WROOM-32, 4MB flash)
 - `nodemcu-32s` — NodeMCU-32S (ESP32-WROOM-32, marks I2S-capable pins)
 - `ttgo-lora32-v1` — LilyGO TTGO LoRa32 V1 (ESP32 + onboard SX1276 + onboard SSD1306)

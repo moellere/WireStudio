@@ -21,7 +21,7 @@ import type {
   FleetStatus,
   InventoryEntry,
   BuyListResponse,
-  ComponentCheckResponse,
+  LibraryCheckResponse,
   DashboardPushResponse,
   DashboardRunStatus,
   DashboardStatus,
@@ -167,6 +167,19 @@ export const api = {
   listBoardsForTarget: (target: string) =>
     request<BoardSummary[]>(`/library/boards?target=${encodeURIComponent(target)}`),
   getBoard: (id: string) => request<unknown>(`/library/boards/${encodeURIComponent(id)}`),
+  getBoardYaml: (id: string) => requestText(`/library/boards/${encodeURIComponent(id)}/yaml`),
+  checkBoardYaml: (yaml: string) =>
+    request<LibraryCheckResponse>("/library/boards/check", {
+      method: "POST",
+      body: JSON.stringify({ yaml }),
+    }),
+  createBoard: (yaml: string, overwrite = false) =>
+    request<LibraryCheckResponse>("/library/boards", {
+      method: "POST",
+      body: JSON.stringify({ yaml, overwrite }),
+    }),
+  deleteBoard: (id: string) =>
+    request<{ deleted: string }>(`/library/boards/${encodeURIComponent(id)}`, { method: "DELETE" }),
 
   listComponents: (filters?: { category?: string; use_case?: string; bus?: string }) => {
     const qs = new URLSearchParams();
@@ -179,12 +192,12 @@ export const api = {
   getComponent: (id: string) => request<unknown>(`/library/components/${encodeURIComponent(id)}`),
   getComponentYaml: (id: string) => requestText(`/library/components/${encodeURIComponent(id)}/yaml`),
   checkComponentYaml: (yaml: string) =>
-    request<ComponentCheckResponse>("/library/components/check", {
+    request<LibraryCheckResponse>("/library/components/check", {
       method: "POST",
       body: JSON.stringify({ yaml }),
     }),
   createComponent: (yaml: string, overwrite = false) =>
-    request<ComponentCheckResponse>("/library/components", {
+    request<LibraryCheckResponse>("/library/components", {
       method: "POST",
       body: JSON.stringify({ yaml, overwrite }),
     }),
