@@ -37,6 +37,15 @@ def test_every_bundled_board_passes(lib):
         assert report.exists == "bundled"
 
 
+def test_revision_pins_are_checked(lib):
+    v4 = (BUNDLED / "boards" / "heltec-wifi-lora32-v4.yaml").read_text()
+    assert check_board_yaml(v4, lib).errors == []
+    broken = v4.replace('"4.3": {radio: {txen: GPIO5}}', '"4.3": {radio: {txen: GPIO99}}')
+    assert "revisions.4.3.radio.txen: GPIO99 is not in gpio_capabilities" in _errors(broken, lib)
+    bad_key = v4.replace('"4.3": {radio: {txen: GPIO5}}', '"4.3": {radio: {pa_pin: GPIO5}}')
+    assert "unknown keys ['pa_pin']" in _errors(bad_key, lib)
+
+
 def test_draft_passes_and_renders_its_onboard_parts(lib):
     report = check_board_yaml(DRAFT, lib)
     assert report.ok, report.errors

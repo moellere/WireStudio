@@ -599,6 +599,13 @@ class Radio(_Strict):
         return self
 
 
+class BoardRevision(_Strict):
+    """One hardware revision sold under the board's name. `radio` holds the
+    top-level `radio:` keys this revision changes; everything else is the
+    board file's. A design picks one with `board.revision`."""
+    radio: dict = Field(default_factory=dict)
+
+
 class LibraryBoard(_Strict):
     id: str
     name: str
@@ -624,10 +631,45 @@ class LibraryBoard(_Strict):
     enclosure: Optional[BoardEnclosure] = None
     kicad: Optional[KicadSymbolRef] = None
     radio: Optional[Radio] = None
+    revisions: dict[str, BoardRevision] = Field(default_factory=dict)
 
     @property
     def has_radio(self) -> bool:
         return self.radio is not None
+
+    @model_validator(mode="after")
+    def _revisions_need_a_radio(self) -> "LibraryBoard":
+        if self.revisions and self.radio is None:
+            raise ValueError("revisions override radio keys, but the board has no radio: block")
+        for name, rev in self.revisions.items():
+            unknown = set(rev.radio) - set(Radio.model_fields)
+            if unknown:
+                raise ValueError(f"revisions.{name}.radio: unknown keys {sorted(unknown)}")
+        return self
+
+    def radio_for(self, revision: Optional[str]) -> Optional[Radio]:
+        """The radio block as a given revision wires it; `None` is the board
+        file's own, which every design without `board.revision` gets."""
+        if revision is None or self.radio is None:
+            return self.radio
+        if revision not in self.revisions:
+            raise ValueError(
+                f"board {self.id!r} has no revision {revision!r}; "
+                f"it lists {sorted(self.revisions) or 'none'}"
+            )
+        return Radio.model_validate({**self.radio.model_dump(), **self.revisions[revision].radio})
+
+    def revision_differences(self) -> dict[str, dict[str, str]]:
+        """radio key -> {revision: value} for every key some revision changes."""
+        out: dict[str, dict[str, str]] = {}
+        base = self.radio.model_dump() if self.radio else {}
+        for name, rev in self.revisions.items():
+            for key, value in rev.radio.items():
+                out.setdefault(key, {})[name] = str(value)
+        for key, by_rev in out.items():
+            for name in self.revisions:
+                by_rev.setdefault(name, str(base.get(key)))
+        return out
 
 
 class ModuleComponent(_Strict):

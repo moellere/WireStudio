@@ -20,6 +20,7 @@ import {
   removeWarning,
   setBoardFlashSize,
   setBoardLibraryId,
+  setBoardRevision,
   setFleetField,
   setLockedPin,
   updateBus,
@@ -180,6 +181,20 @@ describe("board + fleet", () => {
     (d.board as Record<string, unknown>).flash_size_mb = 32;
     const next = setBoardLibraryId(d, "esp32-devkitc-v4", "esp32");
     expect(next.board).not.toHaveProperty("flash_size_mb");
+  });
+
+  it("setBoardLibraryId drops a revision", () => {
+    const d: Design = clone(baseDesign);
+    (d.board as Record<string, unknown>).revision = "4.3";
+    const next = setBoardLibraryId(d, "esp32-devkitc-v4", "esp32");
+    expect(next.board).not.toHaveProperty("revision");
+  });
+
+  it("setBoardRevision sets the revision and null removes it", () => {
+    const set = setBoardRevision(baseDesign, "4.3");
+    expect((set.board as Record<string, unknown>).revision).toBe("4.3");
+    const cleared = setBoardRevision(set, null);
+    expect(cleared.board).toEqual(baseDesign.board);
   });
 
   it("setBoardFlashSize sets the override and null removes it", () => {

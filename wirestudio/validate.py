@@ -67,6 +67,44 @@ def check_board_flash(design: Design, library: Library) -> list[DesignWarning]:
     return []
 
 
+def check_board_revision(design: Design, library: Library) -> list[DesignWarning]:
+    """`design.board.revision` against the board file's `revisions:`. An
+    unlisted revision is an error: the generators refuse it. A board with
+    revisions and a design that names none gets the board file's wiring and
+    a warning saying which pins the choice moves, since the silkscreen is
+    the only way to tell the revisions apart."""
+    try:
+        board = library.board(design.board.library_id)
+    except FileNotFoundError:
+        return []
+    revision = design.board.revision
+    if revision is None:
+        if not board.revisions:
+            return []
+        moved = ", ".join(
+            f"radio.{key} ({', '.join(f'{rev}: {pin}' for rev, pin in sorted(by_rev.items()))})"
+            for key, by_rev in sorted(board.revision_differences().items())
+        )
+        return [DesignWarning(
+            level="warn",
+            code="board_revision_unset",
+            text=(
+                f"board {board.id!r} ships as revisions "
+                f"{', '.join(sorted(board.revisions))} and the design names none, "
+                f"so it gets the board file's wiring. The revisions differ in {moved}. "
+                "Read the revision off the silkscreen and set board.revision."
+            ),
+        )]
+    if revision not in board.revisions:
+        listed = ", ".join(sorted(board.revisions)) or "no revisions"
+        return [DesignWarning(
+            level="error",
+            code="board_revision_unknown",
+            text=f"board.revision {revision!r}: board {board.id!r} lists {listed}",
+        )]
+    return []
+
+
 def esphome_available() -> bool:
     return shutil.which("esphome") is not None
 

@@ -452,7 +452,7 @@ def _emit_lorawan_blocks(
     })
 
     board = library.board(design.board.library_id)
-    radio = board.radio
+    radio = board.radio_for(design.board.revision)
     if radio is None:
         # The validator should already flag a LoRaWAN design on a non-radio
         # board; the generator just skips the lorawan block rather than emit

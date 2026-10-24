@@ -19,6 +19,13 @@ ESPHome YAML; see [Checking a board](integration_spec.md#checking-a-board).
 The board inspector offers the same *Copy as new*, *Edit YAML* and
 *Delete* as a component's.
 
+A board sold in several hardware revisions under one name lists them
+under `revisions:`, each a map of the `radio:` keys that revision changes
+(`"4.3": {radio: {txen: GPIO5}}`); the file's own `radio:` is what a
+design gets when `board.revision` is unset, and `validate` warns then,
+naming the pins that differ. The generators refuse a revision the file
+does not list, and `board_check` checks every revision's pins.
+
 - `esp32-devkitc-v4` — ESP32 DevKitC V4 (ESP32-WROOM-32, 4MB flash)
 - `nodemcu-32s` — NodeMCU-32S (ESP32-WROOM-32, marks I2S-capable pins)
 - `ttgo-lora32-v1` — LilyGO TTGO LoRa32 V1 (ESP32 + onboard SX1276 + onboard SSD1306)

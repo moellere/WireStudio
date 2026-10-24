@@ -6,7 +6,8 @@
  "board": {
   "library_id": "heltec-wifi-lora32-v4",
   "mcu": "esp32",
-  "framework": "arduino"
+  "framework": "arduino",
+  "revision": "4.3"
  },
  "power": {
   "supply": "usb-5v",

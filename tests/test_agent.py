@@ -75,6 +75,33 @@ def test_set_board_drops_a_flash_size_measured_on_the_old_board(lib, garage_moti
     assert "flash_size_mb" not in garage_motion_design["board"]
 
 
+def test_set_board_takes_a_revision_and_drops_it_with_the_board(lib, garage_motion_design):
+    out, is_error = execute_tool(
+        "set_board", {"library_id": "heltec-wifi-lora32-v4", "revision": "4.3"}, garage_motion_design, lib,
+    )
+    assert is_error is False
+    assert json.loads(out)["board"]["revision"] == "4.3"
+    assert garage_motion_design["board"]["revision"] == "4.3"
+    execute_tool("set_board", {"library_id": "wemos-d1-mini"}, garage_motion_design, lib)
+    assert "revision" not in garage_motion_design["board"]
+
+
+def test_set_board_unlisted_revision_returns_error(lib, garage_motion_design):
+    out, is_error = execute_tool(
+        "set_board", {"library_id": "heltec-wifi-lora32-v4", "revision": "4.9"}, garage_motion_design, lib,
+    )
+    assert is_error is True
+    assert "4.2, 4.3" in json.loads(out)["error"]
+    assert garage_motion_design["board"]["library_id"] != "heltec-wifi-lora32-v4"
+
+
+def test_list_boards_shows_revisions(lib, garage_motion_design):
+    out, _ = execute_tool("list_boards", {}, garage_motion_design, lib)
+    by_id = {b["library_id"]: b for b in json.loads(out)["boards"]}
+    assert by_id["heltec-wifi-lora32-v4"]["revisions"] == ["4.2", "4.3"]
+    assert by_id["esp32-devkitc-v4"]["revisions"] == []
+
+
 def test_set_board_unknown_returns_error(lib, garage_motion_design):
     out, is_error = execute_tool(
         "set_board", {"library_id": "no-such-board"}, garage_motion_design, lib,

@@ -205,7 +205,8 @@ def generate_firmware(design: Design, library: Library) -> dict[str, str]:
     generator validates the boundary regardless).
     """
     board = library.board(design.board.library_id)
-    if board.radio is None:
+    radio = board.radio_for(design.board.revision)
+    if radio is None:
         raise ValueError(
             f"board {board.id!r} has no radio: block; the lorawan firmware "
             "generator needs an SX127x or SX126x board"
@@ -253,7 +254,7 @@ def generate_firmware(design: Design, library: Library) -> dict[str, str]:
         "component_loop": "\n".join(f["loop"] for f in frags if "loop" in f),
         "i2c_sda": i2c_sda,
         "i2c_scl": i2c_scl,
-        **_radio_ctx(board.radio),
+        **_radio_ctx(radio),
     }
     return {
         "platformio.ini": _jinja.get_template("platformio.ini.j2").render(**ctx),

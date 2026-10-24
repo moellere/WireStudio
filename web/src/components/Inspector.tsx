@@ -19,6 +19,7 @@ import {
   removeWarning,
   setBoardFlashSize,
   setBoardLibraryId,
+  setBoardRevision,
   FLASH_SIZE_OVERRIDES_MB,
   setFleetField,
   updateRequirement,
@@ -172,6 +173,11 @@ function DesignInspector({
           options={libraryBoards}
           onChange={(libId, mcu) => onDesignChange((d) => setBoardLibraryId(d, libId, mcu))}
         />
+        <RevisionPicker
+          libraryBoard={libraryBoards?.find((b) => b.id === board.library_id)}
+          revision={typeof board.revision === "string" ? board.revision : null}
+          onChange={(rev) => onDesignChange((d) => setBoardRevision(d, rev))}
+        />
         <FlashSizeOverride
           libraryBoard={libraryBoards?.find((b) => b.id === board.library_id)}
           override={typeof board.flash_size_mb === "number" ? board.flash_size_mb : null}
@@ -310,6 +316,40 @@ function AddComponentControl({
       >
         Add
       </button>
+    </div>
+  );
+}
+
+function RevisionPicker({
+  libraryBoard, revision, onChange,
+}: {
+  libraryBoard: BoardSummary | undefined;
+  revision: string | null;
+  onChange: (revision: string | null) => void;
+}) {
+  if (!libraryBoard?.revisions.length) return null;
+  return (
+    <div className="mt-2">
+      <label htmlFor="board-revision" className="block text-[11px] text-ink-faint">
+        revision
+      </label>
+      <select
+        id="board-revision"
+        value={revision ?? ""}
+        onChange={(e) => onChange(e.target.value === "" ? null : e.target.value)}
+        className="mt-0.5 w-full rounded-md border border-line bg-surface-1 px-2 py-1 text-xs text-ink focus:border-accent-500/60 focus:outline-none"
+      >
+        <option value="">Board default</option>
+        {libraryBoard.revisions.map((rev) => (
+          <option key={rev} value={rev}>{rev}</option>
+        ))}
+      </select>
+      {revision === null && (
+        <p className="mt-1 text-[11px] text-amber-300">
+          This board's wiring differs by revision. Read it off the silkscreen;
+          the default is the board file's wiring.
+        </p>
+      )}
     </div>
   );
 }

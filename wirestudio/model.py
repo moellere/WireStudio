@@ -20,11 +20,17 @@ class Board(_Strict):
     "SPI Flash Size" banner, or `esptool flash-id`): raising it past what the
     chip has boot-loops the board. Restricted to sizes both generators can
     emit a partition table for, and ignored on non-ESP32 boards.
+
+    `revision` names one of the board file's `revisions:` for boards whose
+    wiring changed between hardware revisions sold under one name (the
+    Heltec V4's PA control pin moved from GPIO46 on the V4.2 to GPIO5 on
+    the V4.3). Unset, the board file's own wiring is used.
     """
     library_id: str
     mcu: str
     framework: str = "arduino"
     flash_size_mb: Optional[Literal[4, 8, 16, 32]] = None
+    revision: Optional[str] = None
 
 
 class Power(_Strict):
