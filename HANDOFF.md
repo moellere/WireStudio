@@ -2,8 +2,8 @@
 
 Written 2026-10-24 by the cloud development session, for a session on a VM
 with direct tool access. Part A is verified as of writing. Part B is the
-bench and homelab state the homelab session last recorded (2026-09-26); it
-was not re-checked for this handoff.
+bench and homelab state, refreshed and re-checked by the homelab session on
+2026-10-24 (after 0.46.0 rolled out).
 
 # Part A — development
 
@@ -140,163 +140,156 @@ The VM should have these directly; the cloud session worked around them.
   homelab session.
 - `.venv/` carries `esphome==2026.6.5`, the pin the config gate uses.
 
-# Part B — bench and homelab (as of 2026-09-26)
+# Part B — bench and homelab (re-checked 2026-10-24)
 
-The homelab session's last recorded state, not re-checked for this handoff.
-Its version line was 0.32.0 then; prod has since followed every release.
+Re-checked by the homelab session after 0.46.0 rolled out. Addresses, host
+names and site names are deliberately left out of this public file: the
+homelab session's notes and the gate ConfigMaps in the (private) argocd repo
+hold them. `WORKBENCH_URL` in each gate's config is the source of truth.
 
-- **Bench** (`[lan-ip]`, address by IP) on upstream **Embedded-AI-Harness v1.0.1**.
-  Merged onto the ChirpStack host `[bench-host]` 2026-09-26: `[lan-ip]` and
-  `[lan-ip]` are aliases of one machine. ChirpStack holds `:8080`, so the
-  workbench portal is on **`:8081`** (`WORKBENCH_URL=http://[lan-ip]:8081`).
-- **Nightly hardware gate** runs 03:30 America/Denver, currently 11/11 green.
-  Run on demand:
-  `kubectl create job -n wirestudio gate-x --from=cronjob/wirestudio-hardware-gate`
-- **Alerts**: 9 firing cluster-wide, down from 25. All remaining are actionable.
+## Releases and prod
 
-### Devices
+- **Prod and both gate CronJobs run `0.46.0-full`** (tag pushed 2026-10-24 on
+  283a99a; the API reports 0.46.0). Each minor release since 0.43.0 was
+  preceded by a snapshot of the `/data` PVC, kept off-cluster by the homelab
+  session.
+- Release flow that works: tag → `release` + `docker` workflows → Argo CD
+  Image Updater writes the new tag → force a refresh
+  (`kubectl annotate application -n argocd app-wirestudio argocd.argoproj.io/refresh=normal --overwrite`)
+  → check the Deployment **and both CronJob** images. A `cancelled`
+  `full-image`/`lorawan-image` check on the main commit is the docker
+  workflow's concurrency, not a failure; the tag run builds them.
 
-| DevEUI | Board | Slot | State |
+## Two benches, two gates
+
+| | LoRaWAN bench | Flash bench |
+|---|---|---|
+| Harness | Embedded-AI-Harness (upstream), portal on `:8081` because ChirpStack shares the host and holds `:8080` | Embedded-AI-Harness (upstream), portal on `:8080` |
+| CronJob | `wirestudio-hardware-gate`, 03:30 America/Denver | `wirestudio-hardware-gate-covbench`, 04:30 America/Denver |
+| Mode | **non-destructive**: slot presence, serial freshness, uplinks in ChirpStack | **flashes every night**: ESPHome, CircuitPython, MicroPython on the dev board, Meshtastic on the T3, then boot verification |
+| Last run (2026-10-24) | OK, 13 checks | OK, 11 checks |
+
+Run either on demand:
+`kubectl create job -n wirestudio gate-x --from=cronjob/<cronjob>`.
+Delete one-off jobs when done: a failed one keeps `KubeJobFailed` firing.
+
+### LoRaWAN bench devices
+
+| DevEUI | Board | Slot | State 2026-10-24 |
 |---|---|---|---|
-| `10521cfffe66b6e0` | TTGO T-Beam | SLOT12 | 0.32.0 fw, joined, 24-byte payload |
-| `8cfd49fffeb55758` | Heltec V4 GNSS | SLOT14 | ESPHome build, 12-byte payload (lat, lon, sats); no fix at all on 09-26 (NaN coords, 0 sats) -- L76K reports ANTENNA OPEN |
-| `64b708fffeab8974` | TTGO T3 v1.6.1 spare (battery) | SLOT19 | ESPHome, 8-byte payload; took over the old Heltec V2 identity |
-| `70b3baec29813d83` | Heltec V2 | SLOT31 | on loan to roboat P4 HIL since 2026-08-29, joins as monet-node in the `roboat` app, 20-byte payload on fport 10 |
-| `500291fffe9df404` | TTGO LoRa32 v2 | off bench | on the air (4-byte payload, 5 min) but USB cable out; `on_bench: false` in the gate; still needs the ADC-pin/divider reflash |
-| `c44f33fffe76e03d` | Heltec GPS | — | not on USB; ChirpStack last saw it 2026-09-26 21:49 UTC |
+| `10521cfffe66b6e0` | TTGO T-Beam | SLOT12 | joined, uplinking (standalone RadioLib) |
+| `8cfd49fffeb55758` | Heltec V4 GNSS (**V4.3**, see below) | SLOT14 | joined, uplinking; ESPHome build pinned to lorawan-for-esphome 137d06e |
+| `64b708fffeab8974` | TTGO T3 v1.6.1 spare (battery) | SLOT19 | joined, uplinking |
+| `70b3baec29813d83` | Heltec V2 | SLOT31 | still on loan to the roboat HIL work, joins as monet-node |
+| `500291fffe9df404` | TTGO LoRa32 v2 | off bench | ChirpStack last saw it 2026-09-26; not on the air |
+| `c44f33fffe76e03d` | Heltec GPS | off bench | ChirpStack last saw it 2026-09-26 |
 
 Identify boards by USB bridge and payload, never by slot label (labels are
-positional; the bench was re-enumerated 2026-09-26 and the gate roster in the
-argocd repo and the ChirpStack `slot` tags match the labels above):
-`10c4:ea60` CP2104=T-Beam, `10c4:ea60` CP2102=Heltec V2, `1a86:55d4`=TTGO T3,
-`303a:1001`=V4/esp32s3. When two boards share a bridge, match the slot's serial
-log timestamps against each DevEUI's uplink times in ChirpStack.
+positional): CP2104 `10c4:ea60` = T-Beam, CP2102 `10c4:ea60` = Heltec V2,
+`1a86:55d4` = TTGO T3, `303a:1001` = V4 (ESP32-S3 native USB).
 
----
+### Flash bench devices
 
-## 1. Workbench phase 2 — the UI half
+| Slot | Board | Gate flashes |
+|---|---|---|
+| AUTO-1 | ESP32 dev board (ESP32-D0WD, CP2102) | ESPHome, CircuitPython, MicroPython (the last stays on at rest) |
+| AUTO-2 | TTGO T3 V1.6.1 (ESP32-PICO-D4, CH9102), **433 MHz** radio | Meshtastic `.factory.bin` (the app-only `.bin` boot-loops) |
 
-Server side shipped in 0.29.0 and needs no changes: `verify_boot()` in
-`wirestudio/workbench/boot.py` holds the per-framework markers, exposed as the
-`workbench_verify_boot` MCP tool (`wirestudio/mcp/hardware.py:254`).
+The flash bench answers the old "phase 3: enable the flash stage" item: it has
+boards nothing else depends on, so it flashes nightly. The LoRaWAN bench stays
+non-destructive, because every board there carries live traffic and a reflash
+costs a rejoin and a DevNonce.
 
-Since #290 the flash dialog shows a slot's boot output and verdict after a
-slot flash (`/workbench/slots/{slot}/output`), and #375 verifies a boot from a
-bench reset. Still not done: **streaming the serial into the dialog live over
-SSE**, so a human watches the boot as it happens.
+## Still open from workbench phase 2
 
-Touchpoints:
+Streaming a slot's serial into the flash dialog live over SSE, so a human
+watches the boot as it happens. The dialog already shows the boot output and
+verdict after a flash (#290) and after a bench reset (#375). Touchpoints:
+`wirestudio/api/workbench.py` (`/workbench/flash` already streams SSE),
+`wirestudio/workbench/client.py` (`monitor()`/`output()`), and
+`web/src/components/FlashDialog.tsx`. The harness admits **one serial reader**
+and the always-on recorder is already one, so anything long-running must
+expect a busy state and release its lease on failure.
 
-- `wirestudio/api/workbench.py:97` — `/workbench/flash` already returns a
-  `StreamingResponse` of SSE. The relay wants the same shape.
-- `wirestudio/workbench/client.py` — has `monitor()` and `output()`; note
-  `/api/serial/output` returns **oldest-first**, which reads as "nothing
-  happened" if you take the tail (filed upstream as SensorsIot#30).
-- `web/src/components/FlashDialog.tsx` — the dialog, with an existing test file
-  alongside it.
+## Heltec V4 on SLOT14 is a V4.3: PA control is GPIO5
 
-Worth knowing before wiring it: the bench's serial port admits **one reader**,
-and the always-on recorder is already one. Anything long-running has to expect
-a busy state and release its lease on failure rather than assuming the bench is
-idle (`docs/workbench.md`, design constraints).
+Measured 2026-10-24 by gateway-side RSSI, same board and gateway, three
+builds of lorawan-for-esphome main:
 
-## 2. Workbench phase 3 — enable the flash stage
+| PA pin config | Gateway RSSI |
+|---|---|
+| `txen_pin: GPIO46` (the "proven" V4 config) | -110 to -114 dBm |
+| `txen_pin: GPIO5` | **-58 to -67 dBm** |
+| GPIO46 held high | -110 to -118 dBm, still receives fine |
 
-The gate is non-destructive today. `flash: true` on a roster entry deliberately
-reports an explicit failure rather than doing nothing.
+So on this board GPIO5 (V4.3 CTX) turns the PA on and GPIO46 does nothing.
+The "proven" config transmits with the PA bypassed. The bench's own build
+holds GPIO5 and GPIO46 high statically, which works at bench range but leaves
+the TX path selected during RX. Any V4 board WireStudio emits should pick
+`txen_pin` by revision (V4.2 GPIO46, V4.3 GPIO5). Details are on
+moellere/lorawan-for-esphome#16.
 
-**Blocked on hardware, not code.** It needs a *dedicated* board nothing depends
-on — all three on the bench carry live traffic, and a nightly reflash costs a
-rejoin, a DevNonce and ~10 min off air each. Adding one spare board turns this
-on, and that is what retires the "no live-flash gate" caveat on the Meshtastic
-/ CircuitPython / LoRaWAN tiers.
+The same session validated lorawan-for-esphome main @ ca52396 (RadioLib
+7.7.1) on this board: radio init, OTAA join, uplink, fport-10 downlink, no
+Task-WDT panic across six failed joins, and nonce persistence across a reset.
+The bench went back to its gate firmware afterwards.
 
-## 3. Workbench phase 4 — not started
+**Reflashing a LoRaWAN bench board:** flush its DevNonces server-side first
+(`ChirpStackClient.flush_dev_nonces`), flash the factory image, reset through
+the harness (`/api/serial/reset`) so the recorder sees the boot, and restore
+the gate firmware when done. The gate's silence windows (30 min serial, 60 min
+uplink) give room for a short swap.
 
-AP provision + MQTT/API entity assertions for generated ESPHome devices; SDR
-TX power check for radio boards.
+## Upstream harness issues (all still open, 2026-10-24)
 
----
+- SensorsIot/Embedded-AI-Harness#29: MCP could reset a slot but never answer it.
+- SensorsIot/Embedded-AI-Harness#30: `/api/serial/output?lines=N` returns the
+  **oldest** lines. Read with `since=` or take the whole buffer.
+- SensorsIot/Embedded-AI-Harness#31: keep-hostname opt-out; the LoRaWAN
+  bench still carries a local patch for it.
+- SensorsIot/Embedded-AI-Harness#57: the first boot after `/api/flash` is never
+  recorded, because esptool's final reset fires before the recorder
+  reattaches. WireStudio 0.43.0 works around it by resetting through the
+  harness after a flash.
+- moellere/WireStudio#219: board `flash_size` measurement. Still blocked on
+  boards; SLOT14 is a V4 already verified at 16 MB.
 
-## Open issues / PRs
+## Verification gaps (unchanged since 2026-09-26)
 
-- **wirestudio #219** — board `flash_size` unverified; `esp32-s3-devkitc-1`
-  ships 8 MB and 32 MB under one name. The undecidable half is now handled:
-  the board file keeps the floor and `design.json` carries a
-  `board.flash_size_mb` override for a unit whose size has been measured.
-  What remains is measurement, and it is still blocked — none of the four
-  boards named in the issue is on the bench (SLOT14 is a V4, already
-  verified at 16 MB). Each is seconds of `esptool flash-id` once present.
-- **SensorsIot/Embedded-AI-Harness #29** — "MCP could reset a slot but never
-  answer it". Open **18 days, no review**. Nudge or ping.
-- **SensorsIot/Embedded-AI-Harness #31** — keep-hostname opt-out (opened
-  2026-08-26). If merged, the bench's local patch can be dropped.
+- `fix_age_min` non-zero path never observed on hardware; it reads 0 with a
+  live fix. Treat it as unproven until it moves.
+- T-Beam GPS is poor but genuine indoors. Lat/lon go out unconditionally on
+  purpose, so a position in the payload is not evidence of a current fix.
 
----
+## Alerts (2026-10-24)
 
-## Verification gaps (things believed true but not proven)
+Apart from the Watchdog, the only unsilenced alerts are `WoLNodeStuckOff`
+for two cluster nodes that are powered off. They are unrelated to WireStudio.
+The September list (redis CPU throttling, prometheus DaemonSet rollouts, an
+external node_exporter) is no longer firing.
 
-- **`fix_age_min` non-zero path never observed on hardware.** New in 0.32.0.
-  Reads 0 correctly with a live fix, across 13 uplinks. The stale (`>0`) and
-  never-fixed (`65535`) paths are covered by unit tests and construction only.
-  A field that always reads 0 is indistinguishable from a broken one — treat as
-  unproven until it moves. Should show itself the first time the T-Beam is
-  parked with its GNSS off.
-- **T-Beam GPS quality** is poor but genuine: sats 0–8, ~25–70 m scatter,
-  altitude still climbing an hour into uptime. That is the metal workshop, not
-  a fault. Expect it to improve outdoors on the vehicle.
-  Note lat/lon are published **unconditionally on purpose** (last-known position
-  is the feature for a vehicle tracker) — a position in the payload is *not*
-  evidence of a current fix.
+## Hardware, needs a human at the LoRaWAN bench
 
----
-
-## Remaining alerts (all real — do not silence)
-
-- `TargetDown job=dorkwall` — node_exporter on `[host]:9100`
-  unreachable (external host).
-- `CPUThrottlingHigh ns=redis` ×2 — CPU limit too tight; tuning.
-- `KubeDaemonSetNotScheduled` / `RolloutStuck` ×2 in ns `prometheus`. The
-  `node-feature-discovery` pair is already null-routed at the alertmanager
-  route; the `prometheus` pair is not covered.
-
-The `nomtom-app` 404 that used to sit in this list is fixed — its
-ServiceMonitor was disabled in nomtom-deploy#4. Giving that app real metrics
-is tracked in `HANDOFF-METRICS.md` in the nomtom repo, not here.
-
-## Hardware, needs a human at Wyola
-
-- **Reflash the TTGO LoRa32 v2** with the ADC-pin/divider fix; its USB cable
-  is out again, so plug it in first (it will appear as an unclaimed slot).
-- **Fix the Heltec V4's GNSS antenna.** The L76K on SLOT14 reports ANTENNA
-  OPEN every cycle and sees ~9 satellites with only two at a usable SNR, so it
-  fixes only intermittently -- on 2026-09-26 not at all. Reseat the antenna
-  connector or fit an external antenna. Unfixed uplinks carry NaN coordinates
-  with `satellites=0`.
-- **Heltec GPS** (`c44f33…`): when it returns it needs a rebuild, reflash and
-  profile update before it decodes — `fix_age_min` moved its payload 17 → 19
-  bytes, and a refreshed profile would reject the old firmware's 17-byte uplink.
-
----
+- **Heltec V4 GNSS antenna** still reports ANTENNA OPEN every cycle. Reseat it
+  or fit an external antenna; until then its uplinks carry no fix.
+- **TTGO LoRa32 v2** (`500291…`) is off the air. It needs plugging back in and
+  the ADC-pin/divider reflash.
+- **Heltec GPS** (`c44f33…`) needs a rebuild, reflash and profile update when
+  it returns: `fix_age_min` moved its payload from 17 to 19 bytes.
+- Optional: read the V4's silkscreen to confirm V4.3.
 
 ## Gotchas worth knowing before you start
 
-- **The argocd repo is not on `master` by default.** It was sitting on
-  `fix/uptime-kuma-heap-oom`. Check the branch before committing.
-- **ArgoCD often will not pick up a push on its own** — annotate to force:
-  `kubectl annotate app -n argocd <app> argocd.argoproj.io/refresh=normal --overwrite`
+- **The argocd repo is often not on its main branch locally.** Check the
+  branch before committing.
+- **Argo CD often will not pick up a push on its own.** Annotate to force a
+  refresh (command above).
 - **`severity: info` alerts route to the null receiver** and can never notify.
-- **One invalid rule voids an entire PrometheusRule object** — that is how 12
-  homelab alerts stayed dead for 114 days.
-- **Prometheus retention is 10 d** — a `[14d]` range silently evaluates over
+- **One invalid rule voids an entire PrometheusRule object.**
+- **Prometheus retention is 10 d.** A `[14d]` range silently evaluates over
   less.
-- **Bench installs reboot every attached board** (USB re-enumeration), costing
-  a rejoin each. Budget for it.
-- **The bench hostname patch** lives at `~/bench-patches/keep-hostname.patch`
-  with marker `/etc/rfc2217/keep-hostname`; re-apply if an update clobbers
-  `install.sh`.
-- **"Wyola" is a street address in NW Arkansas** (~[redacted], [redacted]), not
-  Wyola, Montana. Do not infer the site's location from the name.
-- **"The TTGO" is ambiguous** — the T-Beam (SLOT12) and the TTGO LoRa32 v2 are
-  different boards with different radio pin maps and different battery sensing.
-  Confirm which before flashing.
+- **Harness installs re-enumerate USB**, which reboots every attached board
+  and costs each LoRaWAN board a rejoin.
+- **"The TTGO" is ambiguous**: T-Beam, T3 v1.6.1 and LoRa32 v2 are different
+  boards with different radio pin maps. The T3 on the flash bench is a 433 MHz
+  unit and cannot do US915. Confirm which board before flashing.
