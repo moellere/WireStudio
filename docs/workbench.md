@@ -266,6 +266,25 @@ and `workbench_verify_boot(reset=true)` do the same. An `esphome`
 compile takes minutes, so the CronJob's deadline has to allow for one
 per flash board.
 
+### The reference deployment: two benches
+
+The two modes do not share a bench, because a reflash and live traffic
+cannot coexist on one board. The reference deployment runs two
+CronJobs, each against its own harness and roster:
+
+| | LoRaWAN bench | Flash bench |
+|---|---|---|
+| Roster | four radio boards with DevEUIs; no `flash:` entries | two boards that exist only for the gate, each with `board:` and `flash:` |
+| Stages | `bench`, `slots`, `serial`, `uplinks` | `bench`, `slots`, `flash`, `boot` |
+| Writes firmware | never: each board carries live traffic and a reflash costs a rejoin and a DevNonce | every night: ESPHome, CircuitPython and MicroPython on an ESP32 dev board (the last stays on at rest), Meshtastic on a TTGO T3 |
+| Green run | 13 checks | 11 checks |
+
+The flash bench is the evidence behind the README's Meshtastic,
+CircuitPython, MicroPython and remote-workbench rows: a row that cites
+this section is asserting that last night's Job flashed that framework
+onto a real board and saw its boot marker. The first flash-bench run was
+2026-10-24. Both rosters live in the deployment repository, not here.
+
 ### How a failure reaches you
 
 There is no PR to annotate, so a failed Job is the report. Two Prometheus
