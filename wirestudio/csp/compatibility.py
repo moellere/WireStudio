@@ -6,6 +6,7 @@ restrictions that conflict with the use:
 
 - `boot_strap_output`  -- pin must be HIGH or LOW at boot, used as output
 - `input_only_as_output` -- input-only pin used as output (hard error)
+- `boot_strap_driven`  -- strap pin read from a part that drives the line
 - `serial_console`     -- pin shared with the USB serial console
 - `voltage_limit`      -- pin has a voltage cap (e.g., D1 Mini A0 max 1.0V)
 - `function_unsupported` -- pin tagged no_pwm/no_i2c/no_interrupt/no_fast_gpio assigned to
@@ -162,6 +163,24 @@ def check_pin_compatibility(design: dict, library: Library) -> list[Compatibilit
                         f"etc.). Pick a non-strap pin if you can."
                     ),
                 ))
+
+        # 2b. A part that drives the line sets the strap at power-up. A
+        # switch or open-drain line does not, so plain inputs stay silent.
+        if direction == "in" and lib_pin.driven and ("boot_high" in caps or "boot_low" in caps):
+            level = "HIGH" if "boot_high" in caps else "LOW"
+            out.append(CompatibilityWarning(
+                severity="warn",
+                code="boot_strap_driven",
+                pin=pin_name,
+                component_id=component_id,
+                pin_role=pin_role,
+                message=(
+                    f"{pin_name} must be {level} at boot, and {component_id}.{pin_role} "
+                    f"drives it. If that output is not {level} at power-up the chip "
+                    f"will not boot normally. Pick a non-strap pin unless the part's "
+                    f"output is known to rest {level}."
+                ),
+            ))
 
         # 3. Serial console pin used at all.
         if "serial_tx" in caps or "serial_rx" in caps:

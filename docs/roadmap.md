@@ -376,10 +376,6 @@ it depends on is frozen at 1.0.
     `includes` or `libraries` is flagged for review and badged in the
     Gallery.
   - **Seeds.** The catalogue launched with 14 of the owner's designs.
-- **Left.** Some library cards mark part-driven signals `digital_out`
-  (a PIR's or receiver's OUT, some radios' DIO0 and IRQ lines). The
-  compatibility check then calls a sensor on an input-only GPIO an
-  error. That false error would also fail a catalogue submission.
 - **Photos (built).** Up to four per design. CI checks their shape: a
   still JPEG, PNG or WebP under 1 MB and 2048 px with no EXIF/XMP.
   Share re-encodes attached photos to fit and strips their metadata;
