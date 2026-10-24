@@ -77,6 +77,37 @@ gpio_capabilities:
   GPIO46: [gpio, strap, boot_low, pwm]
   GPIO47: [gpio, pwm]
   GPIO48: [gpio, builtin_led, pwm]
+# Enclosure geometry (mm), from Espressif's ESP32-S3-DevKitC-1 v1.1
+# dimension drawing (DXF_ESP32-S3-DevKitC-1_V1.1_20220429, DXF and PDF).
+# USB end at x=0. The CAD outline is 62.87 x 25.40 (the length callout
+# reads 62.74; the outline is used so the shell is not tight) with no
+# mounting holes; length_mm includes the WROOM-1 antenna, which overhangs
+# the far edge by 6.32. Two micro-USB receptacles on that drawing, 7.40
+# wide, overhanging x=0 by 0.87: native USB (J4) centred at y=6.00 and
+# UART (J2) at y=19.40. Not on the drawing, so the DevKit conventions:
+# 1.6 thick, a 3.0-tall micro-USB opening 1.5 above the board, 13.0
+# to clear the header pins.
+enclosure:
+  pcb:
+    length_mm: 69.19
+    width_mm: 25.4
+    thickness_mm: 1.6
+  mount_holes: []
+  ports:
+  - kind: usb_micro            # J4, native USB
+    edge: short_a
+    offset_mm: 2.3
+    width_mm: 7.4
+    height_mm: 3.0
+    height_above_pcb_mm: 1.5
+  - kind: usb_micro            # J2, UART
+    edge: short_a
+    offset_mm: 15.7
+    width_mm: 7.4
+    height_mm: 3.0
+    height_above_pcb_mm: 1.5
+  component_height_max_mm: 13.0
+
 # KiCad symbol mapping. Header order from Espressif esp-dev-kits @
 # 4ffc5bd, docs/en/esp32-s3-devkitc-1/user_guide_v1.1.rst (Header Block
 # J1/J3; v1.0 identical). Viewed front, antenna up: J1 left, J3 right,
