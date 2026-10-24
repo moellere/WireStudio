@@ -25,7 +25,14 @@ def _entry(slug, **over):
 
 
 @pytest.fixture
-def studio(monkeypatch):
+def user_library(tmp_path):
+    from wirestudio.library import Library, default_library
+
+    return Library(default_library().root, tmp_path / "user-library")
+
+
+@pytest.fixture
+def studio(monkeypatch, user_library):
     monkeypatch.delenv("WIRESTUDIO_DESIGNS_REPO", raising=False)
     files: dict[str, bytes] = {}
     fetched: list[str] = []
@@ -36,13 +43,15 @@ def studio(monkeypatch):
             raise RuntimeError(f"404 {url}")
         return files[url]
 
-    def publish(*entries, designs=None):
+    def publish(*entries, designs=None, components=None):
         files[f"{RAW}/index/index.json"] = json.dumps(
             {"version": 1, "generated": "2026-10-23T00:00:00+00:00", "designs": list(entries)}).encode()
         for slug, doc in (designs or {}).items():
             files[f"{RAW}/main/designs/{slug}/design.json"] = json.dumps(doc).encode()
+        for url, text in (components or {}).items():
+            files[url] = text.encode()
 
-    app = TestClient(create_app(community_fetch=fetch))
+    app = TestClient(create_app(library=user_library, community_fetch=fetch))
     return app, publish, fetched
 
 
@@ -77,7 +86,7 @@ def test_an_unreachable_index_is_a_502(studio):
 def test_import_stamps_the_origin(studio):
     app, publish, _ = studio
     publish(_entry("porch-motion"), designs={"porch-motion": {**EXAMPLE, "id": "porch-motion"}})
-    body = app.get("/community/designs/porch-motion").json()
+    body = app.post("/community/designs/porch-motion/import").json()
     assert body["design"]["origin"] == {"catalogue": REPO, "slug": "porch-motion",
                                         "author": "octocat", "license": "CC-BY-4.0"}
     assert app.post("/design/validate", json=body["design"]).status_code == 200
@@ -86,14 +95,14 @@ def test_import_stamps_the_origin(studio):
 def test_import_only_follows_urls_inside_the_catalogue(studio):
     app, publish, fetched = studio
     publish(_entry("evil", design_url="http://169.254.169.254/latest/meta-data"))
-    assert app.get("/community/designs/evil").status_code == 502
+    assert app.post("/community/designs/evil/import").status_code == 502
     assert not any("169.254" in u for u in fetched)
 
 
 def test_import_of_an_unknown_slug_is_a_404(studio):
     app, publish, _ = studio
     publish()
-    assert app.get("/community/designs/nope").status_code == 404
+    assert app.post("/community/designs/nope/import").status_code == 404
 
 
 def _share(app, **over):
@@ -189,3 +198,51 @@ def test_share_refuses_what_is_not_a_photo(studio):
     assert r.status_code == 422 and "not a readable image" in r.json()["detail"]
     r = _share(app, photos=[{"name": f"p{i}.jpg", "data": _jpeg((10, 10))} for i in range(5)])
     assert r.status_code == 422 and "at most 4" in r.json()["detail"]
+
+
+LED_DRIVER = (Path(__file__).resolve().parent / "fixtures" / "components" / "led_driver_npn.yaml").read_text()
+LED_URL = f"{RAW}/main/designs/porch-led/components/led_driver_npn.yaml"
+
+
+def _led_design() -> dict:
+    doc = {**EXAMPLE, "id": "porch-led"}
+    doc["components"] = [*EXAMPLE["components"],
+                         {"id": "status", "library_id": "led_driver_npn", "label": "Status LED", "params": {}}]
+    return doc
+
+
+def _publish_led(publish):
+    publish(_entry("porch-led", user_components=[{"id": "led_driver_npn", "url": LED_URL}]),
+            designs={"porch-led": _led_design()}, components={LED_URL: LED_DRIVER})
+
+
+def test_import_installs_the_designs_user_components(studio, user_library):
+    app, publish, _ = studio
+    _publish_led(publish)
+    r = app.post("/community/designs/porch-led/import")
+    assert r.status_code == 200, r.text
+    assert r.json()["installed_components"] == ["led_driver_npn"]
+    assert user_library.component_source("led_driver_npn") == "user"
+    again = app.post("/community/designs/porch-led/import").json()
+    assert again["installed_components"] == [], "the same text is already here"
+
+
+def test_import_never_overwrites_a_different_user_component(studio, user_library):
+    app, publish, _ = studio
+    _publish_led(publish)
+    user_library.save_component("led_driver_npn", LED_DRIVER.replace("NPN low-side LED driver", "mine", 1))
+    r = app.post("/community/designs/porch-led/import")
+    assert r.status_code == 409 and "different component 'led_driver_npn'" in r.json()["detail"]
+    assert "mine" in user_library.component_yaml("led_driver_npn")
+
+
+def test_share_packs_the_user_components_the_design_uses(studio, user_library):
+    app, _, _ = studio
+    user_library.save_component("led_driver_npn", LED_DRIVER)
+    r = _share(app, design=_led_design())
+    assert r.status_code == 200, r.text
+    z = zipfile.ZipFile(io.BytesIO(r.content))
+    slug = "porch-led"
+    assert z.read(f"{slug}/components/led_driver_npn.yaml").decode() == LED_DRIVER
+    assert not [n for n in z.namelist() if "/components/" in n and "led_driver_npn" not in n], \
+        "bundled components are not packed"

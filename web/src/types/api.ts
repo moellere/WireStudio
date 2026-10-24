@@ -79,6 +79,9 @@ export interface CommunityEntry {
   components: string[];
   /** Raw URLs of merged photos only; never anything from an open PR. */
   photos?: string[];
+  /** Why a reviewer should read its code: lambda, external_components, ... */
+  custom_code?: string[];
+  user_components?: { id: string; url: string }[];
   updated: string | null;
   page_url: string;
 }
