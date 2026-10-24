@@ -140,6 +140,8 @@ from wirestudio.kicad.schematic import SchematicUnavailable, generate_kicad_sch,
 from wirestudio.kicad.route import (
     RouteError,
     RouteUnavailable,
+    Keepout,
+    RouteParams,
     cached_routed_board,
     routed_drc,
     route_events,
@@ -831,8 +833,18 @@ def create_app(
         return route_status()
 
     @app.post("/design/kicad/route", tags=["design"])
-    def design_kicad_route(design: dict) -> StreamingResponse:
+    def design_kicad_route(
+        design: dict,
+        passes: int = Query(RouteParams.max_passes),
+        via_costs: Optional[int] = Query(None),
+        keepout: list[str] = Query(default=[]),
+    ) -> StreamingResponse:
         """Autoroute the design's board, streaming the Freerouting log as SSE.
+
+        Route parameters ride the query: `passes`, `via_costs` (higher
+        trades vias for longer tracks) and repeatable `keepout=x,y,w,h` in
+        board millimetres, with an optional fifth field `tracks` or `vias`
+        to keep out only that.
 
         Frames are `data: {"type": "log"|"done", ...}`; the done frame carries
         `ok`, `routed`, and `cache_key` -- fetch the routed board from
@@ -842,6 +854,11 @@ def create_app(
         """
         d = _validate_design(design)
         try:
+            params = RouteParams(max_passes=passes, via_costs=via_costs,
+                                 keepouts=tuple(Keepout.parse(k) for k in keepout))
+        except ValueError as e:
+            raise HTTPException(status_code=422, detail=str(e)) from e
+        try:
             board = generate_kicad_pcb(d, lib)
         except PcbUnavailable as e:
             raise HTTPException(status_code=503, detail=str(e)) from e
@@ -850,7 +867,7 @@ def create_app(
 
         def events():
             try:
-                for event in route_events(board):
+                for event in route_events(board, params):
                     if event["type"] == "done":
                         # The routed board is fetched via cache_key, not SSE.
                         event = {k: v for k, v in event.items() if k != "board"}

@@ -212,6 +212,15 @@ pcbnew, a JRE, and the Freerouting jar on the server — set
 bakes all three in. `GET /design/kicad/route/status` reports what's
 missing.
 
+The route takes its parameters on the query: `passes` (1-200, default
+20), `via_costs` (Freerouting's `router.scoring.via_costs`, 0-10000;
+higher trades vias for longer tracks) and a repeatable
+`keepout=x,y,w,h`, a rectangle in board millimetres that the router
+keeps tracks and vias out of. A fifth field `tracks` or `vias` keeps out
+only that. Placement is deterministic, so a design's coordinates stay
+put between runs. Every parameter is part of the cache key. Freerouting
+runs with its usage analytics off.
+
 The output is gate-verified three ways. The
 [`kicad-schematic`](../.github/workflows/kicad-schematic.yml) workflow
 runs every bundled example's SKiDL script against the pinned upstream

@@ -20,6 +20,7 @@ least one failed, 2 = KiCad libraries not found.
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -27,7 +28,7 @@ from pathlib import Path
 from wirestudio.kicad.drc import DrcError, run_drc
 from wirestudio.kicad.fab import is_routed
 from wirestudio.kicad.pcb import generate_kicad_pcb, pcb_status
-from wirestudio.kicad.route import RouteError, route_board, route_status
+from wirestudio.kicad.route import Keepout, RouteError, RouteParams, route_board, route_status
 from wirestudio.library import default_library
 from wirestudio.model import Design
 
@@ -50,6 +51,47 @@ def _routed_problems(summary: dict) -> list[str]:
     return out
 
 
+_SEGMENT = re.compile(r"\(segment\s*\(start ([\d.-]+) ([\d.-]+)\)\s*\(end ([\d.-]+) ([\d.-]+)\)")
+
+
+def _vias(board: str) -> int:
+    return len(re.findall(r"^\t\(via$", board, re.M))
+
+
+def _crossings(board: str, k: Keepout) -> int:
+    """Segments with a sampled point inside the keepout rectangle."""
+    n = 0
+    for m in _SEGMENT.finditer(board):
+        x0, y0, x1, y1 = map(float, m.groups())
+        if any(k.x <= x0 + (x1 - x0) * t / 20 <= k.x + k.w and k.y <= y0 + (y1 - y0) * t / 20 <= k.y + k.h
+               for t in range(21)):
+            n += 1
+    return n
+
+
+def _check_params(name: str, unrouted: str, routed: str) -> list[str]:
+    """Route parameters do what they say on one board: a high via cost
+    routes with fewer vias, and a keepout over the longest default track
+    moves the copper out of it, both still passing the routed bar."""
+    out: list[str] = []
+    cheap = route_board(unrouted, RouteParams(via_costs=2000), use_cache=False)
+    if not _vias(cheap) < _vias(routed):
+        out.append(f"via_costs=2000 left {_vias(cheap)} vias (default {_vias(routed)})")
+    out += _routed_problems(run_drc(cheap))
+    x0, y0, x1, y1 = max(
+        (tuple(map(float, m.groups())) for m in _SEGMENT.finditer(routed)),
+        key=lambda s: (s[2] - s[0]) ** 2 + (s[3] - s[1]) ** 2)
+    k = Keepout((x0 + x1) / 2 - 1.5, (y0 + y1) / 2 - 1.5, 3, 3)
+    kept = route_board(unrouted, RouteParams(keepouts=(k,)), use_cache=False)
+    if _crossings(kept, k):
+        out.append(f"{_crossings(kept, k)} segment(s) still cross the keepout")
+    out += _routed_problems(run_drc(kept))
+    if not out:
+        print(f"{name}: via cost {_vias(routed)} -> {_vias(cheap)} vias; keepout cleared, routed clean",
+              file=sys.stderr)
+    return out
+
+
 def main() -> int:
     status = route_status()
     if not status["available"]:
@@ -65,6 +107,7 @@ def main() -> int:
 
     lib = default_library()
     failures: dict[str, list[str]] = {}
+    boards: dict[str, tuple[str, str]] = {}
     for name in REPRESENTATIVE:
         design = Design.model_validate(
             json.loads((EXAMPLES_DIR / f"{name}.json").read_text())
@@ -91,6 +134,12 @@ def main() -> int:
             failures[name] = problems
         else:
             print(f"{name}: routed clean", file=sys.stderr)
+            boards[name] = (unrouted, routed)
+
+    if "garage-motion" in boards:
+        problems = _check_params("garage-motion", *boards["garage-motion"])
+        if problems:
+            failures["garage-motion (route parameters)"] = problems
 
     # The same report on a board left unrouted must show its airwires:
     # a DRC path that reported nothing would pass every board above.
