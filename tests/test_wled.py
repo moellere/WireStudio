@@ -144,7 +144,7 @@ def test_target_registry_boards_components_and_validate(lib):
         "rcwl-0516", "remote_receiver", "gpio_output",
         "bme280", "bmp280", "sht3xd", "ds18b20", "dht", "aht10", "grove-aht20", "bh1750", "vl53l0x",
         "battery_adc", "voltage_divider", "rtttl", "i2s_microphone", "ld2410", "ssd1306", "st7789",
-        "rotary_encoder", "mpu6050", "bme680", "ads1115", "adc", "potentiometer",
+        "rotary_encoder", "mpu6050", "bme680", "adc", "potentiometer",
     }
     files = target.generate(_design("atom-matrix"), lib)
     assert json.loads(files["cfg.json"])["hw"]["led"]["total"] == 25

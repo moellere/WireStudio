@@ -135,10 +135,13 @@ lorawan:
       ha_state_class: measurement
       ha_icon: mdi:axis-arrow
 
+# v0.15.2's usermod declares its sample counter as `uint32`, an ESP8266 SDK
+# typedef, so the ESP32 build gets the standard name for it.
 wled:
   kind: usermod
   usermod: mpu6050_imu
   define: USERMOD_MPU6050_IMU
+  build_flags: ["-D uint32=uint32_t"]
   lib_deps: ["electroniccats/MPU6050@1.0.1", "bolderflight/Bolder Flight Systems Eigen@^3.0.0"]
   um_name: MPU6050_IMU
   um: {enabled: true}

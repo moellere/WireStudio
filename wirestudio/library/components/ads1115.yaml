@@ -101,9 +101,3 @@ lorawan:
     }
   setup: |
     {{ id }}Ok = {{ id }}Ads.begin({{ params.address | default('0x48') }}, &Wire);
-
-wled:
-  kind: usermod
-  usermod: ADS1115_v2
-  define: USERMOD_ADS1115
-  lib_deps: ["adafruit/Adafruit ADS1X15 @ 2.4.0", "SPI"]  # BusIO includes SPI.h; the LDF misses it

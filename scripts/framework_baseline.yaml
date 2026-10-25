@@ -150,6 +150,7 @@ wled:
   rc522: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
   rdm6300: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
   # sensor
+  ads1115: "deferred: the ADS1115_v2 usermod's Adafruit BusIO cannot find SPI.h in the v0.15.2 esp32dev environment (the LDF leaves the framework's SPI out); needs an LDF setting the override does not carry"
   ads1115_channel: "no meaning on this framework: channels are read through the hub's usermod"
   bl0906: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
   bmp180: "no meaning on this framework: WLED is a lighting controller with no driver for this part"

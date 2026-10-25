@@ -26,17 +26,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `codec.py` now states for a part that reports an event rather than a
   reading. The Wiegand decoder runs on the host against the Python
   block's frames. The LoRaWAN baseline holds no deferred entry.
-- **WLED usermod blocks for thirteen more parts.** The Battery reader
+- **WLED usermod blocks for twelve more parts.** The Battery reader
   (`battery_adc`, `voltage_divider`), the buzzer (`rtttl`), the LD2410,
   the I2S microphone (audioreactive), the rotary encoder, the SSD1306
-  (four-line display), the ST7789, the MPU6050, the BME680 (BSEC) and
-  the ADS1115 compile in through the override; `adc` and
-  `potentiometer` are WLED's analog button. A usermod pin on a bus
+  (four-line display), the ST7789, the MPU6050 and the BME680 (BSEC)
+  compile in through the override; `adc` and `potentiometer` are
+  WLED's analog button. A usermod pin on a bus
   resolves to the bus line (the LD2410's UART, the ST7789's SPI), a
   `wled:` block can carry verbatim `build_flags`, and a `param_defines`
   entry can name a `default`. The `wled-firmware` gate builds the
-  usermods five to a design. The WLED baseline keeps one deferred
-  entry, the PWM fan.
+  usermods five to a design. The WLED baseline keeps two deferred
+  entries: the PWM fan, and the ADS1115, whose usermod's Adafruit
+  BusIO does not find SPI.h in the release's environment.
 - **Board revisions.** A board file can list `revisions:`, each
   overriding `radio:` keys, and `design.board.revision` picks one.
   `validate` reports `board_revision_unknown` (error) for a revision the
