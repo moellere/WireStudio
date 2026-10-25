@@ -110,3 +110,16 @@ kicad:
   symbol: Conn_01x08
   footprint: Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical
   value: ST7789V
+
+# TFT_eSPI is configured by build flags (USER_SETUP_LOADED); the SPI pins
+# repeat the design's bus for it, and WLED's hw.if.spi-pin carries them too.
+wled:
+  kind: usermod
+  usermod: ST7789_display
+  define: USERMOD_ST7789_DISPLAY
+  build_flags: ["-D USER_SETUP_LOADED=1", "-D ST7789_DRIVER=1", "-D CGRAM_OFFSET=1", "-D LOAD_GLCD=1", "-D SPI_FREQUENCY=40000000"]
+  lib_deps: ["TFT_eSPI @ 2.5.33"]
+  pin_defines: {MOSI: TFT_MOSI, SCK: TFT_SCLK, CS: TFT_CS, DC: TFT_DC, RESET: TFT_RST, BACKLIGHT: TFT_BL}
+  param_defines:
+    width: {define: TFT_WIDTH, default: 240}
+    height: {define: TFT_HEIGHT, default: 320}

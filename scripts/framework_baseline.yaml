@@ -72,8 +72,8 @@ tasmota:
   connector_2x05_idc: "no meaning on this framework: passive hardware, no code on any framework"
   # display
   ili9xxx: "deferred: Universal Display needs a display.ini descriptor beside the template; the CS and DC functions alone do not start it"
-  nextion: "no driver upstream: Tasmota drives a Nextion from a Berry script; no template function names it"
   st7789: "deferred: Universal Display needs a display.ini descriptor beside the template; the CS and DC functions alone do not start it"
+  nextion: "no driver upstream: Tasmota drives a Nextion from a Berry script; no template function names it"
   # light
   apa102: "no driver upstream: Tasmota's addressable-LED driver is WS281x only"
   # power
@@ -97,12 +97,9 @@ wled:
   servo: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
   uln2003: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
   # audio
-  i2s_microphone: "deferred: needs a usermod block (audioreactive), the compile-in tier"
-  rtttl: "deferred: needs a usermod block (buzzer), the compile-in tier"
   # audio_dac
   max98357a: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
   # binary_sensor
-  ld2410: "deferred: needs a usermod block (LD2410_v2), the compile-in tier"
   ld2420: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
   # bus
   level_shifter: "no meaning on this framework: passive hardware, no code on any framework"
@@ -124,8 +121,6 @@ wled:
   lcd_pcf8574: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
   max7219: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
   nextion: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
-  ssd1306: "deferred: needs a usermod block (usermod_v2_four_line_display_ALT), the compile-in tier"
-  st7789: "deferred: needs a usermod block (ST7789_display), the compile-in tier"
   tm1637: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
   tm1638: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
   # fan
@@ -146,7 +141,6 @@ wled:
   remote_transmitter: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
   # power
   axp192: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
-  battery_adc: "deferred: needs a usermod block (Battery), the compile-in tier"
   usb_c_power_in: "no meaning on this framework: passive hardware, no code on any framework"
   # radio
   cc1101: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
@@ -156,11 +150,9 @@ wled:
   rc522: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
   rdm6300: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
   # sensor
-  adc: "deferred: maps to the analog button type in hw.btn; the block is not written"
-  ads1115: "deferred: needs a usermod block (ADS1115_v2), the compile-in tier"
+  ads1115: "deferred: the ADS1115_v2 usermod's Adafruit BusIO cannot find SPI.h in the v0.15.2 esp32dev environment (the LDF leaves the framework's SPI out); needs an LDF setting the override does not carry"
   ads1115_channel: "no meaning on this framework: channels are read through the hub's usermod"
   bl0906: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
-  bme680: "deferred: needs a usermod block (BME68X_v2), the compile-in tier"
   bmp180: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
   cse7766: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
   ct_clamp: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
@@ -173,13 +165,10 @@ wled:
   mcp3008: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
   mcp3008_channel: "no meaning on this framework: channels are read through the hub's usermod"
   mhz19: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
-  mpu6050: "deferred: needs a usermod block (mpu6050_imu), the compile-in tier"
   mpu6886: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
   pmsx003: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
-  potentiometer: "deferred: maps to the analog button type in hw.btn; the block is not written"
   pulse_counter: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
   pzemac: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
-  rotary_encoder: "deferred: needs a usermod block (usermod_v2_rotary_encoder_ui_ALT), the compile-in tier"
   scd4x: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
   sdm_meter: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
   sgp4x: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
@@ -188,7 +177,6 @@ wled:
   tuya_sensor: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
   uart_gps: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
   veml7700: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
-  voltage_divider: "deferred: needs a usermod block (Battery), the compile-in tier"
   # switch
   mosfet_low_side_driver: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
   npn_low_side_driver: "no meaning on this framework: WLED is a lighting controller with no driver for this part"
@@ -233,9 +221,6 @@ lorawan:
   # fan
   pwm_fan: "no meaning on this framework: the uplink carries sensor readings"
   # input
-  pn532: "deferred: event-shaped (a tag UID at an instant, not a reading); needs a last-seen field convention in the codec"
-  remote_receiver: "deferred: event-shaped (an IR code at an instant, not a reading); needs a last-seen field convention in the codec"
-  wiegand: "deferred: event-shaped (a card id at an instant, not a reading); needs a last-seen field convention in the codec"
   # io_expander
   mcp23008: "no meaning on this framework: the uplink carries sensor readings"
   mcp23017: "no meaning on this framework: the uplink carries sensor readings"

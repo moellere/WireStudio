@@ -74,12 +74,19 @@ def checkout(root: Path) -> Path:
     return _fix_include_case(src)
 
 
+# v0.15.2's usermods_list.cpp includes these headers under names that only
+# resolve on a case-insensitive filesystem.
+_INCLUDE_CASE = {
+    ("BH1750_v2", "usermod_BH1750.h"): "usermod_bh1750.h",
+    ("ST7789_display", "ST7789_Display.h"): "ST7789_display.h",
+}
+
+
 def _fix_include_case(src: Path) -> Path:
-    # v0.15.2's usermods_list.cpp includes usermod_BH1750.h but the file is
-    # usermod_bh1750.h, which only resolves on a case-insensitive filesystem.
-    link = src / "usermods" / "BH1750_v2" / "usermod_BH1750.h"
-    if not link.exists() and link.with_name("usermod_bh1750.h").exists():
-        link.symlink_to("usermod_bh1750.h")
+    for (usermod, included), actual in _INCLUDE_CASE.items():
+        link = src / "usermods" / usermod / included
+        if not link.exists() and link.with_name(actual).exists():
+            link.symlink_to(actual)
     return src
 
 

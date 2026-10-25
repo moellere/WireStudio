@@ -190,9 +190,12 @@ class TasmotaSpec(_Strict):
 class WledParamDefine(_Strict):
     """A compile-time define a component param sets: `values` maps the
     param's values to the define's (a DHT `model` of DHT22 is
-    `USERMOD_DHT_DHTTYPE=22`); empty passes the value through."""
+    `USERMOD_DHT_DHTTYPE=22`); empty passes the value through. `default`
+    is emitted when the param is unset, for a define the build cannot
+    do without."""
     define: str
     values: dict[str, Union[int, str]] = Field(default_factory=dict)
+    default: Optional[Union[int, str]] = None
 
 
 class WledSpec(_Strict):
@@ -208,9 +211,11 @@ class WledSpec(_Strict):
 
     The compile-in tier (`kind` usermod) is a usermod built into the
     pinned release: `usermod` is its directory under `usermods/`,
-    `define` the build flag that enables it, `lib_deps` the libraries
-    its README asks for, `pin_defines` the compile-time define per pin
-    role and `param_defines` the ones params set. What the usermod reads
+    `define` the build flag that enables it, `build_flags` the other
+    flags it needs verbatim, `lib_deps` the libraries its README asks
+    for, `pin_defines` the compile-time define per pin role (a role on
+    a bus resolves to the bus pin it rides) and `param_defines` the
+    ones params set. What the usermod reads
     from `cfg.json` at boot goes under `um_name`: `um` verbatim, plus a
     pin per `um_pins` role and a param per `um_params` key."""
     kind: Literal["led", "button", "ir", "relay", "usermod"]
@@ -220,9 +225,10 @@ class WledSpec(_Strict):
     chipset_param: Optional[str] = None
     order_param: Optional[str] = None
     length_param: str = "num_leds"
-    button: Literal["push", "push_act_high", "switch", "pir", "touch"] = "push"
+    button: Literal["push", "push_act_high", "switch", "pir", "touch", "analog"] = "push"
     usermod: Optional[str] = None
     define: Optional[str] = None
+    build_flags: list[str] = Field(default_factory=list)
     lib_deps: list[str] = Field(default_factory=list)
     pin_defines: dict[str, str] = Field(default_factory=dict)
     param_defines: dict[str, WledParamDefine] = Field(default_factory=dict)

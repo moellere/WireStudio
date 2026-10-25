@@ -32,7 +32,12 @@ PRELUDE = r"""
 #include <deque>
 #include <functional>
 #include <vector>
-enum { SERIAL_8N1, SERIAL_8E1, SERIAL_8O1, LOW = 0, HIGH = 1, OUTPUT = 1, MSBFIRST = 1, SPI_MODE0 = 0 };
+enum { SERIAL_8N1, SERIAL_8E1, SERIAL_8O1, LOW = 0, HIGH = 1, OUTPUT = 1, INPUT_PULLUP = 5, FALLING = 2, MSBFIRST = 1, SPI_MODE0 = 0 };
+#define IRAM_ATTR
+#define digitalPinToInterrupt(p) (p)
+void attachInterrupt(int, void (*)(), int) {}
+void noInterrupts() {}
+void interrupts() {}
 unsigned long now_ms = 1;
 unsigned long millis() { return now_ms++; }
 void delay(unsigned long ms) { now_ms += ms; }
@@ -277,3 +282,34 @@ def test_sdm_meter_reads_big_endian_floats(tmp_path, three_phase, watts):
               _answer(_read(80), T._modbus_reply(regs)(_read(80))))
     assert got == {"meter_voltage": 2315, "meter_current": 425, "meter_power": watts, "meter_frequency": 5002,
                    "meter_import_energy": 123450, "meter_export_energy": 675}
+
+
+def _wiegand(value: int, n: int) -> list[int]:
+    data = [value >> i & 1 for i in range(n - 3, -1, -1)]
+    first, last = {26: (12, 12), 34: (16, 16), 37: (18, 17)}[n]
+    return [sum(data[:first]) % 2] + data + [1 - sum(data[last:]) % 2]
+
+
+def _edges(inst, frame) -> str:
+    return "".join(f"  {inst}D{bit}Isr(); delay(2);\n" for bit in frame) + "  delay(30);\n"
+
+
+@pytest.mark.parametrize("frame, want", [
+    (_wiegand(1 << 16 | 12345, 26), 1 << 16 | 12345),
+    (_wiegand(0xDEADBEEF, 34), 0xDEADBEEF),
+    (_wiegand(0x5DEADBEEF, 37), 0xDEADBEEF),  # the top three bits do not fit the field
+    ([1, 0, 1, 1], 0),  # a key, not a tag
+])
+def test_wiegand_decodes_a_tag_after_the_gap(tmp_path, frame, want):
+    design = _design([("dut", "wiegand", {})], (),
+                     [("dut", "D0", {"kind": "gpio", "pin": "GPIO32"}), ("dut", "D1", {"kind": "gpio", "pin": "GPIO33"})])
+    got = run(tmp_path, design, _edges("dut", frame))
+    assert got == {"dut_last": want, "dut_count": int(want != 0), "dut_last_age_min": 0 if want else 65535}
+
+
+def test_wiegand_drops_a_frame_with_bad_parity(tmp_path):
+    bad = _wiegand(42, 26)
+    bad[0] ^= 1
+    design = _design([("dut", "wiegand", {})], (),
+                     [("dut", "D0", {"kind": "gpio", "pin": "GPIO32"}), ("dut", "D1", {"kind": "gpio", "pin": "GPIO33"})])
+    assert run(tmp_path, design, _edges("dut", bad)) == {"dut_last": 0, "dut_count": 0, "dut_last_age_min": 65535}

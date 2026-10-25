@@ -113,15 +113,18 @@ blocker). What remains, in order:
    benches", added in #406), or to *Experimental* with its caveat. The
    same pass fills the five **at release** cells in
    `docs/release-notes-1.0.md`: those four rows and the Agent row's
-   score. Claude Code has scored 26 of 28 on every scored run so far,
-   the last on 2026-10-24 (dispatched run 40113780344); the gate is 24.
+   score. Claude Code scored 27, 27 and 26 of 28 on 2026-10-24 and 28
+   on 2026-10-25 (run 40199003816); the gate is 25.
 3. **Both eval gates are set** (done 2026-10-24). The `ANTHROPIC_API_KEY`
    secret is in place; the embedded agent scored 26 of 28 on two runs
    (40118320452, 40118970332), so `gate.min_pass` is 25, and Claude Code's
    gate rose to 25 on 27, 27 and 26. The release notes' Agent cell is
    filled. The embedded agent's `first-i2c-part` miss was a studio bug,
-   #410, fixed on main after the scored runs: the next dispatched run
-   should show it passing, and the gate can move up on two such runs.
+   #410, fixed on main after the scored runs. The first run on the
+   fixed main (40199003816, 2026-10-25) scored the embedded agent 26
+   (its two misses, `mosfet-driver` and `third-probe`, are tool-call
+   budgets) and Claude Code 28 of 28; one more run like it and both
+   gates can move up.
 4. **The 1.0 release PR**, with the user's OK: the notes' text opens the
    `[1.0.0]` section of CHANGELOG with the `[Unreleased]` entries beneath
    it, `wirestudio/__init__.py` moves, and the `upgrade` workflow's result
@@ -137,11 +140,11 @@ blocker). What remains, in order:
   that repo's CLAUDE.md calls it gitignored. Whether to untrack it (and
   rotate what it holds) is the user's decision, still pending. Never print
   its contents.
-- **LoRaWAN coverage:** 52 parts still lack a `lorawan:` block; each is
-  explained in `scripts/framework_baseline.yaml`. Twelve deferred parts
-  gained blocks on 2026-10-25; the three left `deferred:` (pn532, wiegand,
-  remote_receiver) report an id at an instant and wait on a last-seen field
-  convention in the codec.
+- **LoRaWAN coverage:** 49 parts have no `lorawan:` block, every one a
+  `no meaning` reason in `scripts/framework_baseline.yaml`; the baseline
+  holds no `deferred:` entry for this framework since 2026-10-25, when
+  the event parts (pn532, wiegand, remote_receiver) gained blocks under
+  the last-seen convention in `codec.py`'s docstring.
 
 ## Gotchas from this round
 

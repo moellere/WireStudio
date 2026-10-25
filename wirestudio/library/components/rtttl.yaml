@@ -91,3 +91,9 @@ kicad:
     GND: '2'
 tasmota:
   pins: {OUT: Buzzer}
+
+wled:
+  kind: usermod
+  usermod: buzzer
+  define: USERMOD_BUZZER
+  pin_defines: {OUT: USERMOD_BUZZER_PIN}

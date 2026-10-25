@@ -129,3 +129,8 @@ lorawan:
       ha_unit: V
       ha_state_class: measurement
       ha_divide: 1000
+
+wled:
+  kind: button
+  button: analog
+  pins: [WIPER]

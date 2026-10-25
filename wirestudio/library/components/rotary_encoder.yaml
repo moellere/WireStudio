@@ -149,3 +149,14 @@ lorawan:
       cpp_expr: "{{ id }}Position"
       signed: true
       ha_icon: mdi:rotate-right
+
+# No switch pin on this part, so the usermod's default SW pin is released.
+wled:
+  kind: usermod
+  usermod: usermod_v2_rotary_encoder_ui_ALT
+  define: USERMOD_ROTARY_ENCODER_UI
+  pins: [A, B]
+  pin_defines: {A: ENCODER_CLK_PIN, B: ENCODER_DT_PIN}
+  um_name: Rotary-Encoder
+  um: {enabled: true, SW-pin: -1}
+  um_pins: {A: CLK-pin, B: DT-pin}
