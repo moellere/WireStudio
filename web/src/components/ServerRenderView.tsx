@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import type { Design } from "../types/api";
 import { api, ApiError } from "../api/client";
-import { Button } from "./ui";
+import { Button, Notice } from "./ui";
 
 interface Status {
   available: boolean;
@@ -87,10 +87,9 @@ export function ServerRenderView({ design, kind }: { design: Design; kind: "sche
       )}
 
       {error && (
-        <div className="rounded-lg border border-rose-500/40 bg-rose-500/10 p-3 text-xs text-rose-200">
-          <div className="font-semibold">Render failed</div>
+        <Notice tone="rose" title="Render failed">
           <div className="mt-1 whitespace-pre-wrap">{error}</div>
-        </div>
+        </Notice>
       )}
 
       {url ? (

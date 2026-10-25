@@ -29,6 +29,7 @@ import { ParamForm } from "./ParamForm";
 import { ConnectionForm } from "./ConnectionForm";
 import { PinoutView } from "./PinoutView";
 import { BusList } from "./BusList";
+import { Chip, CompatibilityRow, KeyValueRow, Section } from "./ui";
 
 export type Selection =
   | { kind: "design" }
@@ -598,7 +599,7 @@ function BoardInspector({
       <div>
         <h2 className="text-base font-semibold text-ink">{String(b.name)}</h2>
         <div className="mt-1 flex items-center gap-2 text-xs text-ink-faint">
-          <span className="rounded-md bg-surface-2 px-1.5 py-0.5 font-mono font-medium">{String(b.chip_variant)}</span>
+          <Chip variant="mcu">{String(b.chip_variant)}</Chip>
           <span>·</span>
           <span>{String(b.framework)}</span>
           {Boolean(b.flash_size_mb) && (
@@ -716,9 +717,7 @@ function LibraryComponentInspector({
       <div>
         <h2 className="text-base font-semibold text-ink">{String(c.name)}</h2>
         <div className="mt-2 flex items-center gap-2 text-xs text-ink-faint">
-          <span className="rounded-md bg-surface-2 px-2 py-0.5 uppercase tracking-wider text-[10px] font-medium text-ink-dim">
-            {String(c.category)}
-          </span>
+          <Chip variant="category">{String(c.category)}</Chip>
         </div>
       </div>
 
@@ -965,10 +964,10 @@ function FullComponentView(
       )}
       <div>
         {electrical.vcc_min != null && (
-          <KV k="VCC" v={`${electrical.vcc_min} – ${electrical.vcc_max}V`} />
+          <KeyValueRow k="VCC" v={`${electrical.vcc_min} – ${electrical.vcc_max}V`} />
         )}
         {electrical.current_ma_typical != null && (
-          <KV k="current" v={`${electrical.current_ma_typical} typ / ${electrical.current_ma_peak} peak mA`} />
+          <KeyValueRow k="current" v={`${electrical.current_ma_typical} typ / ${electrical.current_ma_peak} peak mA`} />
         )}
       </div>
       {pins.length > 0 && (
@@ -987,7 +986,7 @@ function FullComponentView(
         </div>
       )}
       {required.length > 0 && (
-        <KV k="required" v={required.join(", ")} />
+        <KeyValueRow k="required" v={required.join(", ")} />
       )}
       {!hideNotes && Boolean(c.notes) && (
         <p className="text-[11px] text-ink-dim">{String(c.notes)}</p>
@@ -999,44 +998,12 @@ function FullComponentView(
 function CompatibilityList({ warnings }: { warnings: CompatibilityWarning[] }) {
   return (
     <ul className="space-y-1.5">
-      {warnings.map((w, i) => {
-        const palette =
-          w.severity === "error"
-            ? "border-rose-500/40 bg-rose-500/10 text-rose-200"
-            : w.severity === "warn"
-              ? "border-amber-500/40 bg-amber-500/10 text-amber-100"
-              : "border-accent-500/40 bg-accent-500/5 text-accent-200";
-        return (
-          <li key={i} className={`rounded-md border px-2 py-1.5 text-xs ${palette}`}>
-            <div className="flex items-baseline justify-between gap-2 font-mono">
-              <span>[{w.severity}] {w.code}</span>
-              <span className="text-[11px] opacity-80">
-                {w.pin} · {w.component_id}.{w.pin_role}
-              </span>
-            </div>
-            <div className="mt-1">{w.message}</div>
-          </li>
-        );
-      })}
+      {warnings.map((w, i) => (
+        <CompatibilityRow key={i} severity={w.severity} code={w.code} where={`${w.pin} · ${w.component_id}.${w.pin_role}`}>
+          {w.message}
+        </CompatibilityRow>
+      ))}
     </ul>
-  );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section>
-      <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-ink-faint">{title}</h3>
-      <div>{children}</div>
-    </section>
-  );
-}
-
-function KV({ k, v }: { k: string; v: string }) {
-  return (
-    <div className="flex items-baseline justify-between gap-3 text-xs">
-      <span className="text-ink-faint">{k}</span>
-      <span className="font-mono text-ink">{v}</span>
-    </div>
   );
 }
 

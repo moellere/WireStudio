@@ -3,7 +3,7 @@ import { api, ApiError } from "../api/client";
 import type { Recommendation, UseCaseEntry } from "../types/api";
 import { Loading } from "./Status";
 import { useDebouncedValue } from "../lib/debounce";
-import { Dialog, FieldLabel, Input } from "./ui";
+import { Code, Dialog, FieldLabel, Input } from "./ui";
 
 interface Props {
   /** True when the design has a board picked. We disable Add when there's
@@ -243,7 +243,7 @@ export function CapabilityPickerDialog({ designReady, designBusTypes, onAdd, onC
                 return (
                   <div className="text-xs text-ink-faint">
                     no library components match{" "}
-                    <code className="rounded-md bg-surface-2 px-1">{activeQuery}</code>.
+                    <Code>{activeQuery}</Code>.
                   </div>
                 );
               }

@@ -426,11 +426,13 @@ release PR and does not touch the green-week clock.
   it, and a test fails when the two disagree. The emerald, amber and
   rose dark values the CSS now inherits from Tailwind's defaults are
   stated in the tokens.
-- **The inline patterns become components.** The eight patterns that
-  are copied markup today are exported from `ui.tsx` and the screens
-  use them, so the cards mount real components instead of static
-  renditions. Per-dialog markup is left alone unless it repeats one of
-  them.
+- **The inline patterns become components.** Done: `Section`,
+  `KeyValueRow`, `ListRow`, `Chip`, `Code`, `Notice`, `PinTag` and
+  `CompatibilityRow` are exported from `ui.tsx` and the screens use
+  them, so the cards can mount real components instead of static
+  renditions. `WarningList` and `RequirementList` stay in
+  `Inspector.tsx`: they are forms bound to `design.json` with one use
+  each. Per-dialog markup is left alone unless it repeats one of them.
 - **The contrast flag is fixed.** `ink-faint` reads 4.0:1 on
   `surface-0` in dark and 4.4:1 in light. It carries section and field
   labels, so it moves to at least 4.5:1 in both themes, or those labels

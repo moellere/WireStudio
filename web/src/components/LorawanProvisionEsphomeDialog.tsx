@@ -25,7 +25,7 @@ import type {
 } from "../types/api";
 import { detectChip, isWebSerialSupported } from "../lib/usb-detect";
 import { macToEui64 } from "../lib/provision";
-import { Button, Dialog } from "./ui";
+import { Button, Code, Dialog } from "./ui";
 
 const ACTIVATION_POLL_INTERVAL_MS = 3000;
 const DEV_EUI_RE = /^[0-9a-fA-F]{16}$/;
@@ -404,9 +404,9 @@ export function LorawanProvisionEsphomeDialog({ design, onClose }: Props) {
             {!eligible ? (
               <div className="mt-2 text-xs text-amber-300">
                 This design isn't eligible for the external-component path. Set{" "}
-                <code className="rounded-md bg-surface-2 px-1">target: "esphome"</code> and add at
+                <Code>target: "esphome"</Code> and add at
                 least one entry to{" "}
-                <code className="rounded-md bg-surface-2 px-1">lorawan.payload</code>, then reopen
+                <Code>lorawan.payload</Code>, then reopen
                 this dialog. The standalone Arduino path uses{" "}
                 <em>Flash LoRaWAN firmware</em> instead.
               </div>

@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The web UI's repeated patterns are shared components.** `Section`,
+  `KeyValueRow`, `ListRow`, `Chip`, `Code`, `Notice`, `PinTag` and
+  `CompatibilityRow` move into `web/src/components/ui.tsx` and replace
+  the copied markup in the inspector, the library sidebar, the pinout
+  view, the design pane, the agent sidebar and five dialogs. The only
+  visible differences: the sidebar's MCU chip pads like the inspector's,
+  and the server-render error box and the settings dialog's inline code
+  use the same corner radius as the rest.
+
 - **The roadmap adds a design-system step before 1.0.** Section 9 of
   `docs/roadmap.md` brings the web UI's design package into the tree:
   `tokens.json` becomes the source of the theme in `index.css`, the
