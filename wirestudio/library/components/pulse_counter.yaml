@@ -110,3 +110,20 @@ kicad:
   value: Pulse source
 tasmota:
   pins: {PULSE: Counter}
+
+# A running total on rising edges (count_mode is not applied), so a missed
+# uplink loses nothing; the rate is the difference between uplinks.
+lorawan:
+  globals: |
+    volatile uint32_t {{ id }}Pulses = 0;
+    void IRAM_ATTR {{ id }}Isr() { {{ id }}Pulses++; }
+  setup: |
+    pinMode({{ pins.PULSE }}, {{ params.input_mode | default('INPUT_PULLUP') }});
+    attachInterrupt(digitalPinToInterrupt({{ pins.PULSE }}), {{ id }}Isr, RISING);
+  fields:
+    - name: "{{ id }}_pulses"
+      bytes: 4
+      cpp_type: uint32_t
+      cpp_expr: "{{ id }}Pulses"
+      ha_state_class: total_increasing
+      ha_icon: mdi:counter

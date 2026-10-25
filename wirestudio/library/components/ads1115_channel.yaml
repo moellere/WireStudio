@@ -107,3 +107,29 @@ kicad:
   symbol: Conn_01x01
   footprint: Connector_PinHeader_2.54mm:PinHeader_1x01_P2.54mm_Vertical
   value: ADS1115 channel
+
+lorawan:
+  globals: |
+    int16_t {{ id }}Mv = 0;
+  loop: |
+    {%- if parent %}
+    {%- set mux = {"A0_GND": 0, "A1_GND": 1, "A2_GND": 2, "A3_GND": 3, "A0_A1": 4, "A0_A3": 5, "A1_A3": 6, "A2_A3": 7}[params.multiplexer | default("A0_GND")] %}
+    {%- set gain = {"6.144": "GAIN_TWOTHIRDS", "4.096": "GAIN_ONE", "2.048": "GAIN_TWO", "1.024": "GAIN_FOUR", "0.512": "GAIN_EIGHT", "0.256": "GAIN_SIXTEEN"}[params.gain | default("6.144") | string] %}
+    {
+      static unsigned long _last = 0;
+      if (_last == 0 || millis() - _last >= 1000) {
+        _last = millis();
+        {{ id }}Mv = (int16_t)({{ parent }}Read({{ mux }}, {{ gain }}) * 1000.0f);
+      }
+    }
+    {%- endif %}
+  fields:
+    - name: "{{ id }}_voltage"
+      bytes: 2
+      cpp_type: int16_t
+      cpp_expr: "{{ id }}Mv"
+      signed: true
+      scale: 1000.0
+      ha_device_class: voltage
+      ha_unit: V
+      ha_state_class: measurement

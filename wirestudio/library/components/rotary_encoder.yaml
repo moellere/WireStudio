@@ -118,3 +118,34 @@ kicad:
   value: Rotary encoder
 tasmota:
   pins: {A: Rotary_A, B: Rotary_B}
+
+lorawan:
+  globals: |
+    volatile int32_t {{ id }}Position = 0;
+    void IRAM_ATTR {{ id }}Isr() {
+      {{ id }}Position += digitalRead({{ pins.A }}) != digitalRead({{ pins.B }}) ? 1 : -1;
+    }
+  setup: |
+    pinMode({{ pins.A }}, INPUT_PULLUP);
+    pinMode({{ pins.B }}, INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt({{ pins.A }}), {{ id }}Isr, FALLING);
+  loop: |
+    {%- if params.min_value is defined or params.max_value is defined %}
+    {
+      int32_t _p = {{ id }}Position;
+      {%- if params.min_value is defined %}
+      if (_p < {{ params.min_value }}) _p = {{ params.min_value }};
+      {%- endif %}
+      {%- if params.max_value is defined %}
+      if (_p > {{ params.max_value }}) _p = {{ params.max_value }};
+      {%- endif %}
+      {{ id }}Position = _p;
+    }
+    {%- endif %}
+  fields:
+    - name: "{{ id }}_position"
+      bytes: 4
+      cpp_type: int32_t
+      cpp_expr: "{{ id }}Position"
+      signed: true
+      ha_icon: mdi:rotate-right

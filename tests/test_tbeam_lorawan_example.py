@@ -54,16 +54,16 @@ def test_the_pmic_supplies_the_cell_voltage(design, lib):
 def test_payload_carries_gps_environment_and_battery(design, lib):
     names = [f["name"] for f in codec.fields_for(design, lib)]
     assert names == ["uptime_s", "boot_count", "lat", "lon", "alt_m",
-                     "sats", "fix_age_min", "temp_c", "humidity", "batt_mv"]
+                     "sats", "fix_age_min", "onboard_button_state", "temp_c", "humidity", "batt_mv"]
 
 
 def test_the_datarate_floor_clears_the_payload(design, lib):
-    """US915 DR0 caps the app payload at 11 bytes and this payload is 24, so
+    """US915 DR0 caps the app payload at 11 bytes and this payload is 25, so
     a build that let ADR reach DR0 would have its uplinks rejected outright.
-    24 is still well inside DR1's 53-byte cap, so adding fix_age_min cost no
-    range."""
+    25 is still well inside DR1's 53-byte cap, so adding fix_age_min and the
+    button's state cost no range."""
     size = codec.payload_size(codec.fields_for(design, lib))
-    assert size == 24
+    assert size == 25
     assert size <= 53, "still fits DR1"
 
     cpp = generate_firmware(design, lib)["src/main.cpp"]
