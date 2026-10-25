@@ -127,11 +127,12 @@ blocker). What remains, in order:
    gates can move up.
 4. **Adopt the design system** (roadmap section 9). A separate session
    is building the package as a Design System artifact
-   (https://claude.ai/artifact/757SNFzUieMBwgzSLb2p24); start when it is
-   handed over. Tokens into `web/design/tokens.json` with `index.css`
-   generated from them, the eight inline patterns exported from
-   `ui.tsx`, the `ink-faint` contrast fix. Runs in parallel with the
-   green week.
+   (https://claude.ai/artifact/757SNFzUieMBwgzSLb2p24); start when it was
+   handed over. Done 2026-10-25: the package was handed over (artifact
+   version 10), the shared components are in `ui.tsx` (#417), and
+   `web/design/tokens.json` generates the theme in `index.css` with the
+   `ink-faint` contrast fix. Left: re-sync the artifact from code, point
+   `CONTRIBUTING.md` at it, and the light/dark screenshot gate.
 5. **The 1.0 release PR**, with the user's OK: the notes' text opens the
    `[1.0.0]` section of CHANGELOG with the `[Unreleased]` entries beneath
    it, `wirestudio/__init__.py` moves, and the `upgrade` workflow's result
@@ -155,6 +156,11 @@ blocker). What remains, in order:
 
 ## Gotchas from this round
 
+- `main` was rewritten a second time on 2026-10-25: #415's squash commit
+  had swept in the scrub's replacement list (`scrub.txt`, which names a live
+  host) and the scrub's bare repo (`ws-purge/`). The rebuilt #415, #416 and
+  #417 have new ids (`1d9bc2e`, `98c8d4d`, `5bcdd05`) with identical trees.
+  Never `git add -A` here; stage named paths.
 - An old clone looks fine (`git status` clean, tests pass) but is on the
   pre-rewrite history; `git merge-base main origin/main` returning nothing
   is the tell. The `release` tags were re-pointed too, so compare against

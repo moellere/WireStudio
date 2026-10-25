@@ -59,6 +59,9 @@ jobs:
 
       - run: npm ci
 
+      - name: Theme matches design/tokens.json
+        run: node scripts/theme.mjs --check
+
       - name: Typecheck
         run: npx tsc -b
 

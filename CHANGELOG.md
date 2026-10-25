@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The web theme is generated from the design system's tokens.**
+  `web/design/tokens.json`, handed over from the design package, is the
+  source of the color, shadow and font variables in `web/src/index.css`;
+  `npm run theme` rewrites them and CI fails when they drift.
+  `ink-faint`, the label and hint color, is lighter in dark mode and
+  darker in light mode so it reads at 4.5:1 or better on the page,
+  panels and controls.
+
 - **The web UI's repeated patterns are shared components.** `Section`,
   `KeyValueRow`, `ListRow`, `Chip`, `Code`, `Notice`, `PinTag` and
   `CompatibilityRow` move into `web/src/components/ui.tsx` and replace
