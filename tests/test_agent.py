@@ -533,3 +533,19 @@ def test_search_components_puts_an_alias_above_a_use_case(lib):
     body = json.loads(execute_tool("search_components", {"query": alias}, {}, lib)[0])
     assert body["matches"][0]["score"] >= 90
     assert alias_owner.id in {m["library_id"] for m in body["matches"] if m["score"] >= 90}
+
+
+def test_add_component_hint_esphome_refuses_is_suffixed_with_a_note(lib, garage_motion_design):
+    out, _ = execute_tool(
+        "add_component", {"library_id": "bh1750", "instance_id_hint": "bh1750"}, garage_motion_design, lib,
+    )
+    body = json.loads(out)
+    assert body["instance_id"] == "bh1750_1"
+    assert body["note"].startswith("instance_id_hint 'bh1750' names an ESPHome integration")
+    out, _ = execute_tool(
+        "add_component", {"library_id": "bh1750", "instance_id_hint": "bh1750_1"}, garage_motion_design, lib,
+    )
+    body = json.loads(out)
+    assert body["instance_id"] == "bh1750_2" and "is already in use" in body["note"]
+    out, _ = execute_tool("add_component", {"library_id": "bh1750", "instance_id_hint": "lux"}, garage_motion_design, lib)
+    assert "note" not in json.loads(out)

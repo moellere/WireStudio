@@ -384,7 +384,9 @@ def _register_design_tools(
         name="add_component",
         description=(
             "Add a component instance to the design. Auto-generates a "
-            "unique instance_id (or use `instance_id_hint`), sets `label` "
+            "unique instance_id (or use `instance_id_hint`; a hint that is "
+            "taken, or that ESPHome refuses because it names an integration "
+            "the design loads, is suffixed and `note` says so), sets `label` "
             "(default = library component name), copies any provided "
             "`params`, and connects every pin: rails by voltage, bus pins to "
             "the first matching bus, GPIO pins to a free board pin. Returns "

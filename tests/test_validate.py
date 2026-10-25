@@ -177,3 +177,18 @@ def test_net_target_warnings() -> None:
     assert ("net_unresolved", "warn") in codes
     assert ("net_unassigned", "info") in codes
     assert ("net_target_on_signal_pin", "warn") in codes
+
+
+def test_an_id_esphome_refuses_is_an_error() -> None:
+    import json
+
+    from wirestudio.validate import check_esphome_ids
+
+    raw = json.loads((Path(__file__).parent.parent / "wirestudio" / "examples" / "room-climate.json").read_text())
+    assert check_esphome_ids(Design.model_validate(raw), default_library()) == []
+    for c in raw["components"] + raw["connections"]:
+        if c.get("id") == "lux1" or c.get("component_id") == "lux1":
+            c["id" if "id" in c else "component_id"] = "bh1750"
+    [w] = check_esphome_ids(Design.model_validate(raw), default_library())
+    assert (w.level, w.code) == ("error", "id_is_integration_name")
+    assert "'bh1750'" in w.text and "bh1750_1" in w.text

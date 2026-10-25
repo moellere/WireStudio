@@ -33,17 +33,29 @@ gpio_capabilities:
   GPIO19: [gpio, pdm_data]
   GPIO21: [gpio]
   GPIO22: [gpio]
-  GPIO23: [gpio]
   GPIO25: [gpio, dac, adc, adc2]
   GPIO26: [gpio, grove_sda, i2c_sda, dac, adc, adc2]
   GPIO27: [gpio, builtin_led, adc, adc2, pwm]
   GPIO32: [gpio, grove_scl, i2c_scl, adc, adc1, pwm]
   GPIO33: [gpio, adc, adc1, pwm]
   GPIO39: [gpio, button, adc, adc1, input_only, no_pull_internal]
-# KiCad symbol mapping (0.9). USB-A stick, ESP32-PICO-D4, Grove +
-# bottom header broken out.
+# KiCad symbol mapping. Header order from M5Stack's ATOM U pin map
+# (docs.m5stack.com/en/core/ATOM U, K117_PinMap_01.jpg), which matches
+# the back label: the six "Ext. Pins" from the USB end (pads 1-6, GND 5V
+# G25 G33 G22 G21), then PORT A, the Grove port (pads 7-10, GND 5V G26
+# G32). One row, pads numbered straight through; 3V3 is not broken out.
+# pin_map binds each board role to its first pad.
 kicad:
   symbol_lib: Connector_Generic
-  symbol: Conn_01x09
-  footprint: Connector_PinHeader_2.54mm:PinHeader_1x09_P2.54mm_Vertical
+  symbol: Conn_01x10
+  footprint: Connector_PinHeader_2.54mm:PinHeader_1x10_P2.54mm_Vertical
   value: M5Stack AtomU
+  pin_map:
+    GPIO21: "6"
+    GPIO22: "5"
+    GPIO25: "3"
+    GPIO26: "9"
+    GPIO32: "10"
+    GPIO33: "4"
+    5V: "2"
+    GND: "1"

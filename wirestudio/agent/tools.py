@@ -25,7 +25,8 @@ from wirestudio.library.check import check_component_yaml, create_component
 from wirestudio.model import RESERVED_BUS_IDS, Design, generated_bus_id, missing_bus_pins
 from wirestudio.recommend.recommender import Constraints, recommend_components
 from wirestudio.validate import (
-    check_board_flash, check_board_revision, check_electrical, check_net_targets, check_part_overrides,
+    check_board_flash, check_board_revision, check_electrical, check_esphome_ids, check_net_targets,
+    check_part_overrides,
 )
 
 
@@ -81,7 +82,9 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
         "name": "add_component",
         "description": (
             "Add a component instance to the design. Auto-generates a unique "
-            "instance_id (or use `instance_id_hint` to suggest one), sets "
+            "instance_id (or use `instance_id_hint` to suggest one; a hint that "
+            "is taken, or that ESPHome refuses because it names an integration "
+            "the design loads, is suffixed and `note` says so), sets "
             "`label` (default = library component name), copies any provided "
             "`params`, and creates one connection per pin in the library "
             "entry. Power pins go to a matching rail by voltage; bus pins "
@@ -636,6 +639,7 @@ def _run_add_component(
     params: dict | None = None,
 ) -> dict:
     before = {b.get("id") for b in design.get("buses") or []}
+    ids_before = {c.get("id") for c in design.get("components") or []}
     instance_id, _ = add_component_with_connections(
         design, library,
         library_id=library_id,
@@ -662,6 +666,10 @@ def _run_add_component(
         if c.get("component_id") == instance_id and c["pin_role"] in targets:
             c["target"] = targets[c["pin_role"]]
     out: dict = {"ok": True, "instance_id": instance_id}
+    if instance_id_hint and instance_id != instance_id_hint:
+        why = ("is already in use" if instance_id_hint in ids_before else
+               "names an ESPHome integration this design loads, which ESPHome refuses as an id")
+        out["note"] = f"instance_id_hint {instance_id_hint!r} {why}; the new part is {instance_id!r}"
     assigned = {a.pin_role: a.new_target for a in solved.assigned if a.component_id == instance_id}
     if assigned:
         out["assigned"] = assigned
@@ -842,7 +850,7 @@ def _run_validate(design: dict, library: Library) -> dict:
         return {"ok": False, "error": str(e), "schema_ok": True}
     compat = check_pin_compatibility(design, library)
     board_warnings = (check_board_flash(d, library) + check_board_revision(d, library)
-                      + check_part_overrides(d, library)
+                      + check_part_overrides(d, library) + check_esphome_ids(d, library)
                       + check_electrical(d, library) + check_net_targets(d, library))
     # Strict blockers are surfaced regardless of mode so the caller can see
     # what *would* block; in strict mode their presence also flips ok=False.

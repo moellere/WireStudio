@@ -18,6 +18,7 @@ from wirestudio.inventory.match import family_for_ref
 from wirestudio.kicad.netlist import assign_refs, is_bound, part_key, resolve_net_target
 from typing import Optional
 
+from wirestudio.generate.yaml_gen import esphome_id_conflicts
 from wirestudio.library import Library
 from wirestudio.library.electrical import run_checks
 from wirestudio.model import Design, DesignWarning
@@ -103,6 +104,22 @@ def check_board_revision(design: Design, library: Library) -> list[DesignWarning
             text=f"board.revision {revision!r}: board {board.id!r} lists {listed}",
         )]
     return []
+
+
+def check_esphome_ids(design: Design, library: Library) -> list[DesignWarning]:
+    """A component or bus id ESPHome refuses because the render loads an
+    integration of that name. A design that does not render is reported by
+    the render itself."""
+    try:
+        conflicts = esphome_id_conflicts(design, library)
+    except (FileNotFoundError, ValueError):
+        return []
+    return [DesignWarning(
+        level="error",
+        code="id_is_integration_name",
+        text=(f"id {cid!r} is the name of an ESPHome integration this design loads, "
+              f"and ESPHome refuses the render; rename it, e.g. to '{cid}_1'"),
+    ) for cid in sorted(conflicts)]
 
 
 def esphome_available() -> bool:

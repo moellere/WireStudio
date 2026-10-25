@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import functools
+import pkgutil
 import re
+from pathlib import Path
 from typing import Any
 
 import yaml
@@ -717,3 +720,48 @@ def render_yaml(
     text = _TAGGED_THEN_QUOTED.sub(_unquote_tagged, text)
     text = _QUOTED_TAG.sub(_unquote_quoted_tag, text)
     return text
+
+
+_INTEGRATIONS = Path(__file__).with_name("esphome_integrations.txt")
+
+
+@functools.cache
+def esphome_integration_names() -> frozenset[str]:
+    """Every ESPHome integration name, from the installed ESPHome when there
+    is one and otherwise from the pinned release's list beside this module."""
+    try:
+        import esphome.components as components
+    except ImportError:
+        return frozenset(line for line in _INTEGRATIONS.read_text().splitlines()
+                         if line and not line.startswith("#"))
+    return frozenset(m.name for m in pkgutil.iter_modules(components.__path__))
+
+
+def esphome_id_conflicts(design: Design, library: Library) -> set[str]:
+    """Component and bus ids ESPHome refuses: the render emits the id and
+    loads an integration of the same name ("ID 'bh1750' conflicts with the
+    name of an esphome integration"). An id that only matches an integration
+    the config never loads (`fan` on a design with no fan) is accepted, so
+    this renders to tell the two apart. Raises what `render_yaml` raises."""
+    names = esphome_integration_names()
+    suspects = ({c.id for c in design.components} | {b.id for b in design.buses}) & names
+    if not suspects:
+        return set()
+    config = build_yaml_dict(design, library)
+    loaded: set[str] = set(config)
+    emitted: set[str] = set()
+
+    def walk(node: Any) -> None:
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if key == "platform" and isinstance(value, str):
+                    loaded.add(value)
+                elif key == "id" and isinstance(value, str):
+                    emitted.add(value)
+                walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value)
+
+    walk(config)
+    return suspects & loaded & emitted

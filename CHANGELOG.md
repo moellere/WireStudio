@@ -51,6 +51,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   line and the baseline entries the coverage gate needs, then lists the
   catalogue files to remove at the next pin bump. See
   `docs/library.md`, "Promoting a community entry".
+- **ATOM U pin map** (#312, the last board). Header order from M5Stack's
+  ATOM U pin map image, which matches the back label: the six Ext. Pins
+  from the USB end, then the Grove port, as a 1x10 header (was an
+  unmapped 1x09). Its GPIO and rail nets now reach the board's pads in
+  the schematic, PCB and netlist like every other bundled board's.
+
+### Fixed
+
+- **Ids ESPHome refuses as integration names** (#410). ESPHome rejects
+  an id equal to the name of an integration the config loads
+  (`bh1750` on a BH1750, `i2c` on an I2C bus, `sensor`); the studio
+  accepted such ids and the render failed at `esphome config`. Now
+  `add_component` (agent and MCP) suffixes an `instance_id_hint` ESPHome
+  would refuse (`bh1750_1`) and says so in `note`; `validate` reports
+  `id_is_integration_name` (error) for a component or bus id in that
+  position; and a saved design that carries one is renamed on load, with
+  its connections, automations and `*_id` references. The check renders
+  the design to see what it loads, so an id that only matches an
+  integration the design never uses (`fan` on a design with no fan)
+  stays as it is. Without ESPHome installed the integration list is the
+  pin's, in `wirestudio/generate/esphome_integrations.txt`.
 
 ## [0.46.0] — 2026-10-24
 

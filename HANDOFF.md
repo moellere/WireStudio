@@ -119,8 +119,9 @@ blocker). What remains, in order:
    secret is in place; the embedded agent scored 26 of 28 on two runs
    (40118320452, 40118970332), so `gate.min_pass` is 25, and Claude Code's
    gate rose to 25 on 27, 27 and 26. The release notes' Agent cell is
-   filled. The embedded agent's `first-i2c-part` miss is a studio bug,
-   #410; fixing it should lift its count.
+   filled. The embedded agent's `first-i2c-part` miss was a studio bug,
+   #410, fixed on main after the scored runs: the next dispatched run
+   should show it passing, and the gate can move up on two such runs.
 4. **The 1.0 release PR**, with the user's OK: the notes' text opens the
    `[1.0.0]` section of CHANGELOG with the `[Unreleased]` entries beneath
    it, `wirestudio/__init__.py` moves, and the `upgrade` workflow's result

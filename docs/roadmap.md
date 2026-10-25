@@ -235,8 +235,8 @@ Section 4 covers the rest.
   layout, and `check_sch.py` fails a layout that leaves a pin to the
   fallback stub. Boards drawn as generic headers carry a `kicad.pin_map`
   transcribed from the vendor's own header documentation
-  ([#312](https://github.com/moellere/WireStudio/issues/312)), all but
-  the ATOM U. `global_label_dangling` stays in the ERC baseline only for
+  ([#312](https://github.com/moellere/WireStudio/issues/312)).
+  `global_label_dangling` stays in the ERC baseline only for
   onboard parts on GPIOs no header breaks out. After that the
   baseline holds only what KiCad's pin types cannot express (the
   passive-header `pin_not_driven` cases and SPI's shared MISO). ERC

@@ -683,3 +683,56 @@ def test_design_flash_size_override_wins_over_board_file(garage_motion_design, l
     override.board.flash_size_mb = 16
     parsed = yaml.unsafe_load(render_yaml(override, library))
     assert parsed["esp32"]["flash_size"] == "16MB"
+
+
+def _example(name: str) -> dict:
+    import json
+    from pathlib import Path
+
+    return json.loads((Path(__file__).parent.parent / "wirestudio" / "examples" / f"{name}.json").read_text())
+
+
+def _renamed(design: dict, old: str, new: str) -> dict:
+    import copy
+
+    out = copy.deepcopy(design)
+    for c in out["components"]:
+        if c["id"] == old:
+            c["id"] = new
+    for c in out["connections"]:
+        if c["component_id"] == old:
+            c["component_id"] = new
+    return out
+
+
+def test_integration_names_come_from_esphome_or_the_pinned_list():
+    from wirestudio.generate.yaml_gen import _INTEGRATIONS, esphome_integration_names
+
+    pinned = {line for line in _INTEGRATIONS.read_text().splitlines() if line and not line.startswith("#")}
+    assert len(pinned) > 600 and {"bh1750", "i2c", "sensor", "fan", "light"} <= pinned
+    assert {"bh1750", "i2c", "sensor", "fan", "light"} <= esphome_integration_names()
+
+
+def test_id_conflicts_are_the_ids_esphome_refuses(library):
+    """ESPHome refuses an id that names an integration the config loads
+    (the part's own platform, the `sensor` domain, the `i2c` bus), accepts
+    one that names an integration it never loads (`fan` here), and never
+    sees an id the render does not emit."""
+    from wirestudio.generate.yaml_gen import esphome_id_conflicts
+
+    room = _example("room-climate")
+
+    def conflicts(new_id: str) -> set[str]:
+        return esphome_id_conflicts(Design.model_validate(_renamed(room, "lux1", new_id)), library)
+
+    assert conflicts("bh1750") == {"bh1750"}
+    assert conflicts("sensor") == {"sensor"}
+    assert conflicts("fan") == set()
+    assert conflicts("lux1") == set()
+    bus = Design.model_validate({**room, "buses": [{**room["buses"][0], "id": "i2c"}],
+                                 "connections": [{**c, "target": {"kind": "bus", "bus_id": "i2c"}}
+                                                 if c["target"].get("bus_id") == "i2c0" else c
+                                                 for c in room["connections"]]})
+    assert esphome_id_conflicts(bus, library) == {"i2c"}
+    gps = Design.model_validate(_example("wemosgps"))
+    assert "gps" in {c.id for c in gps.components} and esphome_id_conflicts(gps, library) == set()
