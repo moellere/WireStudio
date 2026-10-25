@@ -309,10 +309,11 @@ def test_list_examples(client):
     assert r.status_code == 200
     examples = r.json()
     ids = {e["id"] for e in examples}
-    assert {"garage-motion-v1", "awning-control", "ttgo-lora32"} <= ids
+    assert {"garage-motion", "awning-control", "ttgo-lora32"} <= ids
     for e in examples:
         assert e["board_library_id"]
         assert e["mcu"] in {"esp8266", "esp32"}
+        assert client.get(f"/examples/{e['id']}").status_code == 200
 
 
 def test_get_example_returns_design_json(client):

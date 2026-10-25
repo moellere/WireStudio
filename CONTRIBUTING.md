@@ -316,6 +316,26 @@ for f in examples/*.json; do
 done
 ```
 
+## Web UI
+
+The UI follows the `wirestudio` design system
+(https://claude.ai/artifact/757SNFzUieMBwgzSLb2p24): its README is the
+reference for color, type, spacing and voice, and each shared component
+in `web/src/components/ui.tsx` has a card there. Two rules hold it to
+the code:
+
+- Colors, shadows and fonts come from `web/design/tokens.json`. Change a
+  value there and run `npm run theme` in `web/`; never edit the
+  generated blocks in `web/src/index.css`. CI fails when they drift.
+- Reuse the primitives in `ui.tsx` (`Button`, `Section`, `ListRow`,
+  `Notice`, `Chip`, ...) before writing new markup for the same job.
+
+`python scripts/check_ui_themes.py` (after `npm run build` in `web/` and
+`pip install playwright && python -m playwright install chromium`)
+loads an example in both themes, checks the tokens resolve and nothing
+logs an error, and writes screenshots to `ui-screenshots/`. CI runs it
+as the `ui-themes` job.
+
 ## Quick checklist before opening a PR
 
 - [ ] `python -m pytest` passes.

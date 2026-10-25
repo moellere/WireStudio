@@ -240,7 +240,7 @@ def _module_summary(m: LibraryModule) -> ModuleSummary:
 def _example_summary(path: Path) -> ExampleSummary:
     data = json.loads(path.read_text())
     return ExampleSummary(
-        id=data["id"],
+        id=path.stem,
         name=data["name"],
         description=data.get("description", ""),
         board_library_id=data["board"]["library_id"],

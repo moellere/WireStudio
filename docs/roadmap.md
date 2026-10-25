@@ -441,11 +441,11 @@ release PR and does not touch the green-week clock.
   4.1:1 on `surface-3`, so it is not for text on a hovered control. The
   primary button's label (`accent-50` on `accent-600`, 3.9:1) is a known
   flag left as built.
-- **Code owns it afterwards.** Once adopted, the artifact is re-synced
-  from code (`/design-sync`, `editing: "code"`) and its README is the
-  contributor reference for UI work; `CONTRIBUTING.md` points at it.
-  The UI vitest suite and a light/dark screenshot of the workbench in
-  CI are the gate.
+- **Code owns it afterwards.** The UI gate is in: `ui-themes` in CI
+  loads an example in both themes and checks the tokens resolve, and
+  `CONTRIBUTING.md` points UI work at the design system. Left: re-sync
+  the artifact from code (`editing: "code"`) so its cards mount the
+  components in `ui.tsx` and carry the `ink-faint` values from the tree.
 
 ## Out of scope for 1.0
 
