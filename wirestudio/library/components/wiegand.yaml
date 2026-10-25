@@ -109,3 +109,61 @@ kicad:
   symbol: Conn_01x04
   footprint: Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical
   value: Wiegand reader
+
+# An event part: the payload carries the last tag read, how many have been
+# read since boot and how long ago the last one was (65535 = none yet).
+# Tags only: keys are a PIN-entry flow a 60 s uplink cannot carry. A 37-bit
+# tag's top three bits do not fit the field.
+lorawan:
+  globals: |
+    volatile uint64_t {{ id }}Bits = 0;
+    volatile uint8_t {{ id }}Len = 0;
+    volatile unsigned long {{ id }}Edge = 0;
+    void IRAM_ATTR {{ id }}D0Isr() { {{ id }}Bits = {{ id }}Bits << 1; {{ id }}Len++; {{ id }}Edge = millis(); }
+    void IRAM_ATTR {{ id }}D1Isr() { {{ id }}Bits = {{ id }}Bits << 1 | 1; {{ id }}Len++; {{ id }}Edge = millis(); }
+    uint32_t {{ id }}Last = 0;
+    uint16_t {{ id }}Count = 0;
+    unsigned long {{ id }}At = 0;
+  setup: |
+    pinMode({{ pins.D0 }}, INPUT_PULLUP);
+    pinMode({{ pins.D1 }}, INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt({{ pins.D0 }}), {{ id }}D0Isr, FALLING);
+    attachInterrupt(digitalPinToInterrupt({{ pins.D1 }}), {{ id }}D1Isr, FALLING);
+  loop: |
+    if ({{ id }}Len && millis() - {{ id }}Edge > 25) {
+      noInterrupts();
+      uint64_t _v = {{ id }}Bits;
+      uint8_t _n = {{ id }}Len;
+      {{ id }}Bits = 0;
+      {{ id }}Len = 0;
+      interrupts();
+      uint8_t _half = _n == 26 ? 13 : _n == 34 ? 17 : _n == 37 ? 19 : 0;
+      if (_half && __builtin_popcountll(_v >> (_n - _half)) % 2 == 0
+          && __builtin_popcountll(_v & ((1ULL << _half) - 1)) % 2 == 1) {
+        {{ id }}Last = (uint32_t)(_v >> 1 & ((1ULL << (_n - 2)) - 1));
+        {{ id }}Count++;
+        {{ id }}At = millis();
+      }
+    }
+  fields:
+    - name: "{{ id }}_last"
+      bytes: 4
+      cpp_type: uint32_t
+      cpp_expr: "{{ id }}Last"
+      ha_icon: mdi:card-account-details
+    - name: "{{ id }}_count"
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: "{{ id }}Count"
+      ha_state_class: total_increasing
+      ha_icon: mdi:counter
+    - name: "{{ id }}_last_age_min"
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: >-
+        (uint16_t)({{ id }}Count
+          ? (((millis() - {{ id }}At) / 60000UL) > 65534UL ? 65534UL : ((millis() - {{ id }}At) / 60000UL))
+          : 65535UL)
+      ha_unit: min
+      ha_state_class: measurement
+      ha_icon: mdi:clock-outline

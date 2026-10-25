@@ -383,3 +383,23 @@ def test_register_level_i2c_blocks_and_the_power_meter(lib):
     assert "hlw8012.begin(34, 39, 4, LOW, true);" in main
     assert "hlw8012.setResistors(0.002, (1700 - 1.0) * 1000.0, 1000.0);" in main
     assert {"hlw8012_voltage", "hlw8012_energy"} <= {f["name"] for f in fields_for(meter, lib)}
+
+
+def test_event_parts_report_the_last_id_a_count_and_its_age(lib):
+    parts = [("badge", "pn532", {}), ("door", "wiegand", {}), ("ir", "remote_receiver", {})]
+    buses = [{"id": "i2c0", "type": "i2c", "sda": "GPIO21", "scl": "GPIO22"}]
+    conns = [("badge", "SDA", _on("i2c0")), ("badge", "SCL", _on("i2c0")),
+             ("door", "D0", _gpio("GPIO32")), ("door", "D1", _gpio("GPIO33")), ("ir", "OUT", _gpio("GPIO34"))]
+    design = _wired(parts, buses, conns)
+    out = generate_firmware(design, lib)
+    main = out["src/main.cpp"]
+    assert "badgeNfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, _uid, &_len, 50)" in main
+    assert "attachInterrupt(digitalPinToInterrupt(32), doorD0Isr, FALLING);" in main
+    assert "IRrecv irRecv(34);" in main and "irRecv.enableIRIn();" in main
+    for dep in ("adafruit/Adafruit PN532@^1.3.3", "crankyoldgit/IRremoteESP8266@^2.8.6"):
+        assert dep in out["platformio.ini"]
+    names = [f["name"] for f in fields_for(design, lib)]
+    for inst in ("badge", "door", "ir"):
+        assert [n for n in names if n.startswith(inst)] == [f"{inst}_last", f"{inst}_count", f"{inst}_last_age_min"]
+    age = next(f for f in fields_for(design, lib) if f["name"] == "door_last_age_min")
+    assert "doorCount" in age["cpp_expr"] and "65535UL" in age["cpp_expr"]

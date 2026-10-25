@@ -233,9 +233,6 @@ lorawan:
   # fan
   pwm_fan: "no meaning on this framework: the uplink carries sensor readings"
   # input
-  pn532: "deferred: event-shaped (a tag UID at an instant, not a reading); needs a last-seen field convention in the codec"
-  remote_receiver: "deferred: event-shaped (an IR code at an instant, not a reading); needs a last-seen field convention in the codec"
-  wiegand: "deferred: event-shaped (a card id at an instant, not a reading); needs a last-seen field convention in the codec"
   # io_expander
   mcp23008: "no meaning on this framework: the uplink carries sensor readings"
   mcp23017: "no meaning on this framework: the uplink carries sensor readings"

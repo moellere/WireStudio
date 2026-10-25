@@ -1,0 +1,5 @@
+35.8833==>[redacted]
+-94.0737==>[redacted]
+regex:10\.25[04]\.\d+\.\d+==>[lan-ip]
+wyolora==>[bench-host]
+dorkwall.dorktool.com==>[host]

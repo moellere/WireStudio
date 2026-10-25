@@ -137,11 +137,11 @@ blocker). What remains, in order:
   that repo's CLAUDE.md calls it gitignored. Whether to untrack it (and
   rotate what it holds) is the user's decision, still pending. Never print
   its contents.
-- **LoRaWAN coverage:** 52 parts still lack a `lorawan:` block; each is
-  explained in `scripts/framework_baseline.yaml`. Twelve deferred parts
-  gained blocks on 2026-10-25; the three left `deferred:` (pn532, wiegand,
-  remote_receiver) report an id at an instant and wait on a last-seen field
-  convention in the codec.
+- **LoRaWAN coverage:** 49 parts have no `lorawan:` block, every one a
+  `no meaning` reason in `scripts/framework_baseline.yaml`; the baseline
+  holds no `deferred:` entry for this framework since 2026-10-25, when
+  the event parts (pn532, wiegand, remote_receiver) gained blocks under
+  the last-seen convention in `codec.py`'s docstring.
 
 ## Gotchas from this round
 

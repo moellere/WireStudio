@@ -118,7 +118,7 @@ Components each framework's generator can use today, out of 102
 | circuitpython | 89 |
 | micropython | 89 |
 | wled | 17 |
-| lorawan | 38 |
+| lorawan | 53 |
 
 100% is the wrong bar: a Tuya MCU bridge has no CircuitPython meaning.
 The bar is the one `library-coverage.md` already holds ESPHome to:
@@ -172,20 +172,22 @@ remains is to work the baselines down:
   module, not a GPIO function), the BL0906 and the Universal Display
   panels (a `display.ini` beside the template); the rest are reasons,
   not work.
-- **LoRaWAN** has blocks for the boards' own peripherals and for 33
-  parts: the I2C environment, light, distance, current and motion
-  parts, the DS18B20, the ADC parts and the motion detectors; the UART
+- **LoRaWAN** has blocks for the boards' own peripherals and for 48
+  parts: the I2C environment, light, distance, current, motion and
+  register-level parts, the DS18B20, the ADC parts and hubs, the pin
+  parts (counters, encoder, ultrasonic, load cell, CT clamp), the UART
   sensors (MH-Z19, PMSx003, LD2410, LD2420, CSE7766, BL0906), each bus on
   its own hardware UART; the SPI MAX31855 and MCP3008 with its channels,
-  on the radio's bus; and a Modbus RTU hub with the PZEM-004T and SDM
-  meters. Each adds named fields to the payload codec, per instance
-  where a part can repeat. The frame decoders are C++ ports of the
+  on the radio's bus; a Modbus RTU hub with the PZEM-004T and SDM
+  meters; and the event parts (PN532, Wiegand, IR receiver), which
+  carry the last id seen, a count and its age. Each adds named fields
+  to the payload codec, per instance where a part can repeat. The frame decoders are C++ ports of the
   Python blocks', run on the host against the same frames in
   `tests/test_lorawan_fragments.py`, and the `lorawan-firmware` gate
   builds designs that carry every block, so a library or API mismatch
   fails the PR that brings it. What remains in the baseline is
-  deferred I2C and pin parts (ADS1115, BMP180, HX711, the pulse and
-  rotary inputs, ...) and the parts with nothing to report.
+  reasons, not work: actuators, lights, displays and expanders have
+  nothing to report, and the radio comes from the board.
 - **WLED** has both tiers: the runtime one (LED outputs, buttons, IR,
   relay as `cfg.json`) and the compile-in one (a `usermod` block that
   emits a `platformio_override.ini` environment, built by `wled_build`

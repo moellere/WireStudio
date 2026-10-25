@@ -20,6 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **LoRaWAN blocks for the event parts.** The PN532, the Wiegand reader
+  and the IR receiver report the last id seen, how many since boot and
+  minutes since the last one (65535 = none yet), the convention
+  `codec.py` now states for a part that reports an event rather than a
+  reading. The Wiegand decoder runs on the host against the Python
+  block's frames. The LoRaWAN baseline holds no deferred entry.
 - **Board revisions.** A board file can list `revisions:`, each
   overriding `radio:` keys, and `design.board.revision` picks one.
   `validate` reports `board_revision_unknown` (error) for a revision the

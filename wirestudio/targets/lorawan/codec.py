@@ -9,6 +9,13 @@ fields contributed by the board's onboard sensors (GPS, battery) when present.
 ``pack_cpp`` emits the C++ that fills the payload buffer (referencing the globals
 the firmware template declares: ``gps``, ``batteryMv``, ``bootCount``);
 ``decode_js`` emits the ChirpStack codec that reads it back into named fields.
+
+A part that reports an event rather than a reading (a tag on a reader, an
+IR code) carries three fields: ``<id>_last``, the last id seen (uint32),
+``<id>_count``, how many since boot (uint16, ``total_increasing``), and
+``<id>_last_age_min``, minutes since the last one (uint16, 65535 = none
+yet), so an uplink says both what was seen and whether it was seen since
+the last one.
 """
 from __future__ import annotations
 
