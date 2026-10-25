@@ -67,3 +67,40 @@ jobs:
 
       - name: vitest
         run: npx vitest run
+
+  ui-themes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Build the web bundle
+        working-directory: web
+        run: npm ci && npm run build
+
+      - name: Install studio and Chromium
+        run: |
+          pip install -e . playwright
+          python -m playwright install --with-deps chromium
+
+      - name: Workbench renders in both themes with the design tokens
+        run: python scripts/check_ui_themes.py
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ui-screenshots
+          path: ui-screenshots/
+          if-no-files-found: ignore

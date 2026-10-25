@@ -43,6 +43,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A light/dark gate for the web UI.** `scripts/check_ui_themes.py`
+  serves the built bundle with the API, loads an example in each theme
+  in headless Chromium, and fails on a page or console error or when the
+  page background and section headings do not resolve to the theme's
+  `surface-0` and `ink-faint` tokens. CI runs it as `ui-themes` and keeps
+  the screenshots. `CONTRIBUTING.md` points UI work at the design system.
+
 - **LoRaWAN blocks for the event parts.** The PN532, the Wiegand reader
   and the IR receiver report the last id seen, how many since boot and
   minutes since the last one (65535 = none yet), the convention
@@ -110,6 +117,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reading, and the codec has no last-seen field convention yet.
 
 ### Fixed
+
+- **Three bundled examples would not open from the sidebar.** The
+  examples list gave each design's own `id`, but `/examples/{id}` looks
+  the file up by name, so Garage motion sensor, Motorized blind and
+  XIAO Grove climate node answered 404. The list now gives the file
+  name.
 
 - **`add_bus` refuses a bus on pins another bus already uses.** A second
   I2C bus on the first one's SDA and SCL can never render (ESPHome sees
