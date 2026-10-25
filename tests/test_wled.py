@@ -143,6 +143,8 @@ def test_target_registry_boards_components_and_validate(lib):
         "ws2812b", "apa102", "esp32_rmt_led_strip", "gpio_input", "hc-sr501",
         "rcwl-0516", "remote_receiver", "gpio_output",
         "bme280", "bmp280", "sht3xd", "ds18b20", "dht", "aht10", "grove-aht20", "bh1750", "vl53l0x",
+        "battery_adc", "voltage_divider", "rtttl", "i2s_microphone", "ld2410", "ssd1306", "st7789",
+        "rotary_encoder", "mpu6050", "bme680", "ads1115", "adc", "potentiometer",
     }
     files = target.generate(_design("atom-matrix"), lib)
     assert json.loads(files["cfg.json"])["hw"]["led"]["total"] == 25
@@ -311,3 +313,63 @@ def test_aht_usermod_tells_the_aht20_from_the_aht10():
     lib = default_library()
     for cid, sensor_type in (("aht10", 0), ("grove-aht20", 2)):
         assert lib.component(cid).wled.um["SensorType"] == sensor_type
+
+
+def _usermod_design(components, connections, buses=()):
+    return Design.model_validate({
+        "schema_version": "1.0", "id": "um", "name": "um",
+        "board": {"library_id": "esp32-devkitc-v4", "mcu": "esp32"},
+        "power": {"supply": "usb", "rail_voltage_v": 3.3},
+        "components": [{"id": i, "library_id": c, "label": i, "params": p} for i, c, p in components],
+        "buses": list(buses),
+        "connections": [{"component_id": c, "pin_role": r, "target": t} for c, r, t in connections],
+    })
+
+
+def test_bus_parts_resolve_their_usermod_pins_through_the_bus(lib):
+    spi = {"id": "spi_bus0", "type": "spi", "clk": "GPIO18", "mosi": "GPIO23", "miso": "GPIO19"}
+    uart = {"id": "uart_bus0", "type": "uart", "rx": "GPIO16", "tx": "GPIO17", "baud_rate": 256000}
+    bus = lambda b: {"kind": "bus", "bus_id": b}
+    gpio = lambda p: {"kind": "gpio", "pin": p}
+    design = _usermod_design(
+        [("tft", "st7789", {"width": 135}), ("radar", "ld2410", {})],
+        [("tft", "SCK", bus("spi_bus0")), ("tft", "MOSI", bus("spi_bus0")), ("tft", "CS", gpio("GPIO5")),
+         ("tft", "DC", gpio("GPIO27")), ("tft", "RESET", gpio("GPIO26")), ("tft", "BACKLIGHT", gpio("GPIO14")),
+         ("radar", "TX", bus("uart_bus0")), ("radar", "RX", bus("uart_bus0"))],
+        [spi, uart])
+    override, warnings = build_platformio_override(design, lib)
+    assert warnings == []
+    lines = [l.strip() for l in override.splitlines()]
+    assert {"-D TFT_MOSI=23", "-D TFT_SCLK=18", "-D TFT_CS=5", "-D TFT_DC=27", "-D TFT_RST=26", "-D TFT_BL=14",
+            "-D TFT_WIDTH=135", "-D TFT_HEIGHT=320", "-D USER_SETUP_LOADED=1", "TFT_eSPI @ 2.5.33"} <= set(lines)
+    cfg, cfg_warnings = build_cfg(design, lib)
+    assert cfg_warnings == ["no LED output: WLED will boot with its default strip on GPIO2"]
+    assert cfg["um"]["LD2410Usermod"] == {"enabled": True, "uart_rx_pin": 16, "uart_tx_pin": 17}
+    assert cfg["hw"]["if"]["spi-pin"] == [23, 18, 19]
+
+
+def test_usermod_settings_and_the_analog_button(lib):
+    gpio = lambda p: {"kind": "gpio", "pin": p}
+    i2c = {"id": "i2c0", "type": "i2c", "sda": "GPIO21", "scl": "GPIO22"}
+    design = _usermod_design(
+        [("mic", "i2s_microphone", {"pdm": True}), ("knob", "rotary_encoder", {}), ("cell", "battery_adc", {}),
+         ("air", "bme680", {"address": "0x77"}), ("oled", "ssd1306", {"model": "SH1106 128x32"}),
+         ("dial", "potentiometer", {}), ("beep", "rtttl", {})],
+        [("mic", "DIN", gpio("GPIO32")), ("mic", "WS", gpio("GPIO15")), ("mic", "BCLK", gpio("GPIO14")),
+         ("knob", "A", gpio("GPIO25")), ("knob", "B", gpio("GPIO26")), ("cell", "SENSE", gpio("GPIO35")),
+         ("air", "SDA", {"kind": "bus", "bus_id": "i2c0"}), ("air", "SCL", {"kind": "bus", "bus_id": "i2c0"}),
+         ("oled", "SDA", {"kind": "bus", "bus_id": "i2c0"}), ("oled", "SCL", {"kind": "bus", "bus_id": "i2c0"}),
+         ("dial", "WIPER", gpio("GPIO34")), ("beep", "OUT", gpio("GPIO27"))],
+        [i2c])
+    cfg, _ = build_cfg(design, lib)
+    assert cfg["um"]["AudioReactive"] == {"enabled": True}
+    assert cfg["um"]["Rotary-Encoder"] == {"enabled": True, "SW-pin": -1, "CLK-pin": 25, "DT-pin": 26}
+    assert cfg["um"]["Battery"] == {"interval": 30000, "pin": 35}
+    assert cfg["um"]["BME680X"] == {"Enabled": True, "i2C Address": 0x77}
+    assert cfg["hw"]["btn"]["ins"] == [{"type": 7, "pin": [34], "macros": [0, 0, 0]}]
+    override, warnings = build_platformio_override(design, lib)
+    lines = [l.strip() for l in override.splitlines()]
+    assert {"-D I2S_SDPIN=32", "-D I2S_WSPIN=15", "-D I2S_CKPIN=14", "-D SR_DMTYPE=5", "-D sqrt_internal=sqrtf",
+            "-D ENCODER_CLK_PIN=25", "-D ENCODER_DT_PIN=26", "-D USERMOD_BATTERY_MEASUREMENT_PIN=35",
+            "-D USERMOD_BUZZER_PIN=27", "boschsensortec/BSEC Software Library @ ^1.8.1492"} <= set(lines)
+    assert [w for w in warnings if "FLD_TYPE" in w] == ["oled: model='SH1106 128x32' has no FLD_TYPE value; usermod default used"]

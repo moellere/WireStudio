@@ -185,3 +185,13 @@ kicad:
   symbol: Conn_01x05
   footprint: Connector_PinHeader_1.27mm:PinHeader_1x05_P1.27mm_Vertical
   value: LD2410
+
+wled:
+  kind: usermod
+  usermod: LD2410_v2
+  define: USERMOD_LD2410
+  lib_deps: ["ncmreynolds/ld2410@^0.1.3"]
+  pins: [TX, RX]
+  um_name: LD2410Usermod
+  um: {enabled: true}
+  um_pins: {TX: uart_rx_pin, RX: uart_tx_pin}

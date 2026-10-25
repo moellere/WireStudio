@@ -145,3 +145,16 @@ micropython:
     {{ id }} = ssd1306.SSD1306_I2C(128, {{ 32 if '128x32' in (params.model | default('SSD1306 128x64')) else 64 }}, {{ bus_var }}, addr={{ params.address | default('0x3C') }})
     {{ id }}.text("{{ label }}", 0, 0)
     {{ id }}.show()
+
+# The I2C pins come from WLED's own bus settings (hw.if.i2c-pin).
+wled:
+  kind: usermod
+  usermod: usermod_v2_four_line_display_ALT
+  define: USERMOD_FOUR_LINE_DISPLAY
+  lib_deps: ["olikraus/U8g2 @ ^2.28.8"]
+  param_defines:
+    model:
+      define: FLD_TYPE
+      values: {"SSD1306 128x64": SSD1306_64, "SSD1306 128x32": SSD1306, "SH1106 128x64": SH1106, "SSD1309 128x64": SSD1309_64}
+  um_name: 4LineDisplay
+  um: {enabled: true}

@@ -39,7 +39,7 @@ WLED_RELEASE = "v0.15.2"
 COLOR_ORDER = {"GRB": 0, "RGB": 1, "BRG": 2, "RBG": 3, "BGR": 4, "GBR": 5}
 
 # BTN_TYPE_* from const.h, the ones a library block may name.
-BUTTON_TYPES = {"push": 2, "push_act_high": 3, "switch": 4, "pir": 5, "touch": 6}
+BUTTON_TYPES = {"push": 2, "push_act_high": 3, "switch": 4, "pir": 5, "touch": 6, "analog": 7}
 
 # Chips WLED publishes release images for. The C6 has no build yet.
 _CHIPS = {"esp8266", "esp8285", "esp32", "esp32s2", "esp32s3", "esp32c3"}
@@ -58,10 +58,18 @@ _BASE_ENV = {
 _KEY_RE = re.compile(r"^[0-9A-Za-z][0-9A-Za-z._-]{0,127}$")
 
 
-def _gpio(design: Design, comp_id: str, role: str) -> Optional[str]:
-    """The GPIO a pin role lands on: wired directly, or through a 1-wire
-    bus, whose single pin is the GPIO."""
+# A part's line on a bus, as the bus names the MCU pin: the part's TX lands
+# on the MCU's RX.
+_BUS_PIN = {"i2c_sda": "sda", "i2c_scl": "scl", "spi_clk": "clk", "spi_mosi": "mosi",
+            "spi_miso": "miso", "uart_tx": "rx", "uart_rx": "tx"}
+
+
+def _gpio(design: Design, lib_comp, comp_id: str, role: str) -> Optional[str]:
+    """The GPIO a pin role lands on: wired directly, or through a bus
+    (a 1-wire bus's single pin, or the line of an I2C, SPI or UART bus
+    the role's kind rides)."""
     buses = {b.id: b for b in design.buses}
+    kind = next((p.kind for p in lib_comp.electrical.pins if p.role == role), None)
     for c in design.connections:
         if c.component_id != comp_id or c.pin_role != role:
             continue
@@ -69,8 +77,11 @@ def _gpio(design: Design, comp_id: str, role: str) -> Optional[str]:
             return c.target.pin
         if c.target.kind == "bus":
             bus = buses.get(c.target.bus_id)
-            if bus is not None and bus.type == "1wire":
+            if bus is None:
+                return None
+            if bus.type == "1wire":
                 return bus.pin
+            return getattr(bus, _BUS_PIN.get(kind, ""), None)
     return None
 
 
@@ -99,10 +110,10 @@ def build_cfg(design: Design, library: Library) -> tuple[dict, list[str]]:
     max_buttons = _MAX_BUTTONS.get(chip, 10)
     max_outputs = _MAX_OUTPUTS[chip]
 
-    def pins_for(comp, spec) -> Optional[list[int]]:
+    def pins_for(comp, lib_comp, spec) -> Optional[list[int]]:
         numbers = []
         for role in spec.pins:
-            pin = _gpio(design, comp.id, role)
+            pin = _gpio(design, lib_comp, comp.id, role)
             num = pin_number(pin) if pin else None
             if num is None:
                 warnings.append(f"{comp.id}.{role}: not wired to a GPIO; skipped")
@@ -117,7 +128,7 @@ def build_cfg(design: Design, library: Library) -> tuple[dict, list[str]]:
             warnings.append(f"{comp.id} ({comp.library_id}): no WLED mapping; not in cfg.json")
             continue
         params = comp.params or {}
-        pins = pins_for(comp, spec)
+        pins = pins_for(comp, lib_comp, spec)
         if pins is None:
             continue
 
@@ -233,8 +244,9 @@ def build_platformio_override(design: Design, library: Library) -> tuple[Optiona
             continue
         seen.add(spec.define)
         flags.append(f"-D {spec.define}")
+        flags += spec.build_flags
         for role, define in spec.pin_defines.items():
-            pin = _gpio(design, comp.id, role)
+            pin = _gpio(design, lib_comp, comp.id, role)
             num = pin_number(pin) if pin else None
             if num is None:
                 warnings.append(f"{comp.id}.{role}: not wired to a GPIO; {define} left at the usermod default")
@@ -244,6 +256,8 @@ def build_platformio_override(design: Design, library: Library) -> tuple[Optiona
         for param, pd in spec.param_defines.items():
             value = params.get(param)
             if value is None:
+                if pd.default is not None:
+                    flags.append(f"-D {pd.define}={pd.default}")
                 continue
             mapped = pd.values.get(str(value), value) if not pd.values else pd.values.get(str(value))
             if mapped is None:

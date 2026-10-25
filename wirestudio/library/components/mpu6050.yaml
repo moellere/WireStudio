@@ -134,3 +134,11 @@ lorawan:
       ha_unit: "m/s²"
       ha_state_class: measurement
       ha_icon: mdi:axis-arrow
+
+wled:
+  kind: usermod
+  usermod: mpu6050_imu
+  define: USERMOD_MPU6050_IMU
+  lib_deps: ["electroniccats/MPU6050@1.0.1"]
+  um_name: MPU6050_IMU
+  um: {enabled: true}
