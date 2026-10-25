@@ -4,6 +4,7 @@ import type { Design, RenderResponse } from "../types/api";
 import { Loading } from "./Status";
 import { WiringView } from "./WiringView";
 import { ServerRenderView } from "./ServerRenderView";
+import { Notice } from "./ui";
 
 type Tab = "wiring" | "ascii" | "yaml" | "json" | "schematic" | "pcb";
 
@@ -125,8 +126,7 @@ export function DesignPane({ design, render, renderError, advancedMode }: Props)
 
       <div className="min-h-0 flex-1 overflow-auto p-4 font-mono text-[13px] leading-snug">
         {renderError && (
-          <div className="mb-3 rounded-md border border-rose-500/40 bg-rose-500/10 p-3 text-sm text-rose-200">
-            <div className="font-semibold">Render failed</div>
+          <Notice tone="rose" title="Render failed" className="mb-3 text-sm">
             <div className="mt-1 whitespace-pre-wrap text-xs">{renderError}</div>
             {tabStale && (
               <div className="mt-2 border-t border-rose-500/30 pt-2 text-[11px] text-rose-200/80">
@@ -135,7 +135,7 @@ export function DesignPane({ design, render, renderError, advancedMode }: Props)
                 the live design state, or fix the error above to refresh this view.
               </div>
             )}
-          </div>
+          </Notice>
         )}
 
         {!design ? (

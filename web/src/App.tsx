@@ -70,6 +70,7 @@ import {
   type ConnectionTarget,
   type LibraryComponentDetail,
 } from "./lib/design";
+import { Chip } from "./components/ui";
 
 export default function App() {
   const [examples, setExamples] = useState<ExampleSummary[] | null>(null);
@@ -668,9 +669,7 @@ export default function App() {
               </span>
             )}
             {dirty && !rendering && (
-              <span className="rounded-md bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-400 ring-1 ring-amber-500/30">
-                Unsaved changes
-              </span>
+              <Chip variant="state">Unsaved changes</Chip>
             )}
           </div>
         </div>

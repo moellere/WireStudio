@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { agentStream, api, ApiError } from "../api/client";
 import type { AgentToolCall, Design } from "../types/api";
+import { Notice } from "./ui";
 
 interface PendingToolCall {
   tool_use_id: string;
@@ -175,10 +176,9 @@ export function AgentSidebar({ open, design, onClose, onDesignReplaced }: Props)
 
       <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-auto p-4 text-sm">
         {status && !status.available && (
-          <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-100">
-            <div className="mb-1 font-semibold">Agent unavailable</div>
-            <div className="whitespace-pre-wrap">{status.reason}</div>
-          </div>
+          <Notice tone="amber" title="Agent unavailable">
+            <div className="mt-1 whitespace-pre-wrap">{status.reason}</div>
+          </Notice>
         )}
 
         {messages.length === 0 && status?.available && (

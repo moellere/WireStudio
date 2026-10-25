@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Check, Copy, Eye, EyeOff, KeyRound, RotateCcw } from "lucide-react";
 import { ApiError, api, getApiToken, setApiToken, type McpTokenInfo } from "../api/client";
-import { Button, Dialog } from "./ui";
+import { Button, Code, Dialog } from "./ui";
 
 type LoadState =
   | { kind: "loading" }
@@ -91,8 +91,8 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
             </span>
           </div>
           <p className="mt-1 text-xs text-ink-dim">
-            MCP clients (Claude Desktop, Claude Code) authenticate to the <code className="rounded bg-surface-2 px-1">/mcp</code>{" "}
-            endpoint with this token via an <code className="rounded bg-surface-2 px-1">Authorization: Bearer …</code> header.
+            MCP clients (Claude Desktop, Claude Code) authenticate to the <Code>/mcp</Code>{" "}
+            endpoint with this token via an <Code>Authorization: Bearer …</Code> header.
           </p>
 
           {state.kind === "loading" && (
@@ -135,7 +135,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
 
               {envManaged ? (
                 <div className="mt-3 text-xs text-ink-dim">
-                  This token is set via the <code className="rounded bg-surface-2 px-1">WIRESTUDIO_MCP_TOKEN</code>{" "}
+                  This token is set via the <Code>WIRESTUDIO_MCP_TOKEN</Code>{" "}
                   environment variable, so it's read-only here. Rotate it by updating that secret and
                   restarting the server.
                 </div>
@@ -187,7 +187,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
             </span>
           </div>
           <p className="mt-1 text-xs text-ink-dim">
-            When the server runs with <code className="rounded bg-surface-2 px-1">WIRESTUDIO_API_TOKEN</code>, every
+            When the server runs with <Code>WIRESTUDIO_API_TOKEN</Code>, every
             request from this browser carries the token stored here. Leave it empty on an open studio.
           </p>
           <div className="mt-3 flex items-stretch gap-2">

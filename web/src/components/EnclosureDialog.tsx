@@ -28,7 +28,7 @@ import type {
   EnclosureSourceStatus,
   PrintWardenPrinter,
 } from "../types/api";
-import { Button, Dialog, FieldLabel, Input } from "./ui";
+import { Button, Code, Dialog, FieldLabel, Input } from "./ui";
 
 type Tab = "generate" | "print" | "search";
 
@@ -586,7 +586,7 @@ function SearchTab({ boardLibraryId, boardName }: { boardLibraryId: string; boar
 
       {!searching && response && results.length === 0 && anyAvailable && (
         <div className="text-xs text-ink-faint">
-          No matches for <code className="rounded-md bg-surface-2 px-1">{response.query}</code>.
+          No matches for <Code>{response.query}</Code>.
           Try a different refinement.
         </div>
       )}

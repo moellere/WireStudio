@@ -12,6 +12,7 @@ import type {
   ModuleSummary,
   SavedDesignSummary,
 } from "../types/api";
+import { Chip, ListRow } from "./ui";
 
 type Tab = "examples" | "gallery" | "saved" | "boards" | "components" | "modules";
 
@@ -199,13 +200,10 @@ function SavedList({
         const active = selected === s.id;
         return (
           <li key={s.id} className="flex items-stretch gap-1">
-            <button
+            <ListRow
               onClick={() => onSelect(s.id)}
-              className={`flex-1 rounded-md px-3 py-2 text-left transition-all ${
-                active
-                  ? "bg-accent-500/5 text-ink ring-1 ring-inset ring-accent-500/50"
-                  : "bg-surface-2/40 hover:bg-surface-2"
-              }`}
+              active={active}
+              className="flex-1"
             >
               <div className="flex items-baseline justify-between gap-2">
                 <div className="truncate font-medium text-ink">
@@ -222,7 +220,7 @@ function SavedList({
                 <span className="h-1 w-1 shrink-0 rounded-full bg-line-strong"></span>
                 <span className="shrink-0">{s.component_count} comp</span>
               </div>
-            </button>
+            </ListRow>
             <button
               onClick={() => {
                 if (confirm(`Delete saved design "${s.name || s.id}"?`)) onDelete(s.id);
@@ -274,14 +272,7 @@ function ExamplesList({
         const active = selected === e.id;
         return (
           <li key={e.id}>
-            <button
-              onClick={() => onSelect(e.id)}
-              className={`w-full rounded-md px-3 py-2 text-left transition-all ${
-                active
-                  ? "bg-accent-500/5 text-ink ring-1 ring-inset ring-accent-500/50"
-                  : "bg-surface-2/40 hover:bg-surface-2"
-              }`}
-            >
+            <ListRow onClick={() => onSelect(e.id)} active={active}>
               <div className="truncate font-medium text-ink">
                 {e.name}
               </div>
@@ -290,7 +281,7 @@ function ExamplesList({
                 <span className="h-1 w-1 shrink-0 rounded-full bg-line-strong"></span>
                 <span className="truncate font-mono">{e.board_library_id}</span>
               </div>
-            </button>
+            </ListRow>
           </li>
         );
       })}
@@ -366,14 +357,10 @@ function CommunityGallery({
         const active = selected === d.slug;
         return (
           <li key={d.slug}>
-            <button
+            <ListRow
               onClick={() => onSelect(d.slug)}
               title={d.description || d.name}
-              className={`w-full rounded-md px-3 py-2 text-left transition-all ${
-                active
-                  ? "bg-accent-500/5 text-ink ring-1 ring-inset ring-accent-500/50"
-                  : "bg-surface-2/40 hover:bg-surface-2"
-              }`}
+              active={active}
             >
               <div className="flex items-start gap-2">
                 {d.photos && d.photos.length > 0 && (
@@ -404,7 +391,7 @@ function CommunityGallery({
                   <span className="truncate">{d.tags.join(" · ")}</span>
                 </div>
               )}
-            </button>
+            </ListRow>
           </li>
         );
       })}
@@ -432,20 +419,15 @@ function BoardsList({
     <ul className="space-y-1.5 text-sm">
       {filtered.map((b) => (
         <li key={b.id}>
-          <button
-            onClick={() => onSelect(b.id)}
-            className="w-full rounded-md bg-surface-2/40 px-3 py-2 text-left transition-colors hover:bg-surface-2"
-          >
+          <ListRow onClick={() => onSelect(b.id)}>
             <div className="truncate font-medium text-ink">
               {b.name}
               {b.source === "user" && (
-                <span className="ml-1.5 rounded bg-accent-500/10 px-1 py-0.5 text-[9px] font-medium uppercase tracking-wider text-accent-200 ring-1 ring-accent-500/30">
-                  user
-                </span>
+                <Chip variant="source" className="ml-1.5">user</Chip>
               )}
             </div>
             <div className="mt-1 flex items-center gap-1.5 truncate text-xs text-ink-faint">
-              <span className="rounded-md bg-surface-2 px-1 py-0.5 font-mono font-medium text-ink-dim">{b.chip_variant}</span>
+              <Chip variant="mcu">{b.chip_variant}</Chip>
               <span className="text-ink-ghost">·</span>
               <span>{b.framework}</span>
               {b.flash_size_mb && (
@@ -455,7 +437,7 @@ function BoardsList({
                 </>
               )}
             </div>
-          </button>
+          </ListRow>
         </li>
       ))}
     </ul>
@@ -490,17 +472,12 @@ function ComponentsList({
     <ul className="space-y-1.5 text-sm">
       {filtered.map((c) => (
         <li key={c.id}>
-          <button
-            onClick={() => onSelect(c.id)}
-            className="w-full rounded-md bg-surface-2/40 px-3 py-2 text-left transition-colors hover:bg-surface-2"
-          >
+          <ListRow onClick={() => onSelect(c.id)}>
             <div className="flex items-baseline justify-between gap-2">
               <div className="truncate font-medium text-ink">
                 {c.name}
                 {c.source === "user" && (
-                  <span className="ml-1.5 rounded bg-accent-500/10 px-1 py-0.5 text-[9px] font-medium uppercase tracking-wider text-accent-200 ring-1 ring-accent-500/30">
-                    user
-                  </span>
+                  <Chip variant="source" className="ml-1.5">user</Chip>
                 )}
               </div>
               <div className="shrink-0 text-[10px] font-medium uppercase tracking-wider text-ink-faint">
@@ -513,7 +490,7 @@ function ComponentsList({
                 {c.required_components.join(", ")}
               </div>
             )}
-          </button>
+          </ListRow>
         </li>
       ))}
     </ul>
@@ -547,10 +524,9 @@ function ModulesList({
     <ul className="space-y-1.5 text-sm">
       {filtered.map((m) => (
         <li key={m.id}>
-          <button
+          <ListRow
             onClick={() => onInsert(m.id)}
             title={`Insert all ${m.component_count} components of this module`}
-            className="w-full rounded-md bg-surface-2/40 px-3 py-2 text-left transition-colors hover:bg-surface-2"
           >
             <div className="flex items-baseline justify-between gap-2">
               <div className="truncate font-medium text-ink">{m.name}</div>
@@ -561,7 +537,7 @@ function ModulesList({
             {m.description && (
               <div className="mt-1 line-clamp-2 text-xs text-ink-faint">{m.description}</div>
             )}
-          </button>
+          </ListRow>
         </li>
       ))}
     </ul>

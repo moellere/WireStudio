@@ -18,6 +18,7 @@
  */
 import { useMemo } from "react";
 import type { ComponentInstance, ConnectionRow, ConnectionTarget } from "../lib/design";
+import { PinTag, type PinTagTone } from "./ui";
 
 interface Props {
   rows: ConnectionRow[];                    // connections of the selected instance
@@ -27,16 +28,16 @@ interface Props {
   onChange: (connectionIndex: number, target: ConnectionTarget) => void;
 }
 
-const SPECIAL_BADGES: { tag: string; label: string; tone: string }[] = [
-  { tag: "boot_high", label: "boot HIGH", tone: "border-amber-500/30 bg-amber-500/10 text-amber-200" },
-  { tag: "boot_low",  label: "boot LOW",  tone: "border-amber-500/30 bg-amber-500/10 text-amber-200" },
-  { tag: "input_only", label: "input only", tone: "border-rose-500/30 bg-rose-500/10 text-rose-200" },
-  { tag: "serial_tx", label: "TX",        tone: "border-rose-500/30 bg-rose-500/10 text-rose-200" },
-  { tag: "serial_rx", label: "RX",        tone: "border-rose-500/30 bg-rose-500/10 text-rose-200" },
-  { tag: "adc1",      label: "ADC1",      tone: "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" },
-  { tag: "adc2",      label: "ADC2",      tone: "border-amber-500/30 bg-amber-500/10 text-amber-200" },
-  { tag: "i2c_sda",   label: "SDA",       tone: "border-accent-500/30 bg-accent-500/10 text-accent-200" },
-  { tag: "i2c_scl",   label: "SCL",       tone: "border-accent-500/30 bg-accent-500/10 text-accent-200" },
+const SPECIAL_BADGES: { tag: string; label: string; tone: PinTagTone }[] = [
+  { tag: "boot_high", label: "boot HIGH", tone: "amber" },
+  { tag: "boot_low",  label: "boot LOW",  tone: "amber" },
+  { tag: "input_only", label: "input only", tone: "rose" },
+  { tag: "serial_tx", label: "TX",        tone: "rose" },
+  { tag: "serial_rx", label: "RX",        tone: "rose" },
+  { tag: "adc1",      label: "ADC1",      tone: "emerald" },
+  { tag: "adc2",      label: "ADC2",      tone: "amber" },
+  { tag: "i2c_sda",   label: "SDA",       tone: "accent" },
+  { tag: "i2c_scl",   label: "SCL",       tone: "accent" },
 ];
 
 const DRAG_MIME = "application/x-wirestudio-connection-index";
@@ -131,12 +132,7 @@ export function PinoutView({
                   <span className="w-14 shrink-0 font-mono">{pin}</span>
                   <div className="flex flex-1 flex-wrap items-center gap-1">
                     {SPECIAL_BADGES.map((b) => caps.includes(b.tag) ? (
-                      <span
-                        key={b.tag}
-                        className={`rounded-md border px-1 text-[10px] uppercase tracking-wider ${b.tone}`}
-                      >
-                        {b.label}
-                      </span>
+                      <PinTag key={b.tag} tone={b.tone}>{b.label}</PinTag>
                     ) : null)}
                     {heldHere && (
                       <span className="ml-auto text-[10px] text-accent-300">

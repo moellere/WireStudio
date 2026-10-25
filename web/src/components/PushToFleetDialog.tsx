@@ -4,7 +4,7 @@ import type { Design, FleetPushResponse, FleetRunStatus, DashboardPushResponse,
   DashboardStatus,
   FleetJobLogResponse,
   FleetStatus } from "../types/api";
-import { Button, Dialog, FieldLabel, Input } from "./ui";
+import { Button, Code, Dialog, FieldLabel, Input } from "./ui";
 
 const LOG_POLL_INTERVAL_MS = 1500;
 
@@ -381,7 +381,7 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
             <div className="mt-1 space-y-1 text-xs">
               <div className="text-amber-300">unavailable: {status.reason || "unknown"}</div>
               <div className="text-ink-faint">
-                Set <code className="rounded-md bg-surface-2 px-1">{be.envHint}</code> in the API server's
+                Set <Code>{be.envHint}</Code> in the API server's
                 environment, then restart it.
               </div>
             </div>

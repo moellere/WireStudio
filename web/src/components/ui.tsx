@@ -104,3 +104,114 @@ export function Dialog({ title, subtitle, onClose, children, footer, maxWidth = 
     </div>
   );
 }
+
+export function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section>
+      <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-ink-faint">{title}</h3>
+      <div>{children}</div>
+    </section>
+  );
+}
+
+export function KeyValueRow({ k, v }: { k: string; v: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3 text-xs">
+      <span className="text-ink-faint">{k}</span>
+      <span className="font-mono text-ink">{v}</span>
+    </div>
+  );
+}
+
+interface ListRowProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  active?: boolean;
+}
+
+export function ListRow({ active = false, className = "w-full", ...rest }: ListRowProps) {
+  return (
+    <button
+      className={`rounded-md px-3 py-2 text-left transition-all ${
+        active
+          ? "bg-accent-500/5 text-ink ring-1 ring-inset ring-accent-500/50"
+          : "bg-surface-2/40 hover:bg-surface-2"
+      } ${className}`}
+      {...rest}
+    />
+  );
+}
+
+type ChipVariant = "category" | "mcu" | "source" | "state";
+
+const CHIP_VARIANT: Record<ChipVariant, string> = {
+  category: "rounded-md bg-surface-2 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-ink-dim",
+  mcu: "rounded-md bg-surface-2 px-1.5 py-0.5 font-mono font-medium text-ink-dim",
+  source:
+    "rounded bg-accent-500/10 px-1 py-0.5 text-[9px] font-medium uppercase tracking-wider text-accent-200 " +
+    "ring-1 ring-accent-500/30",
+  state: "rounded-md bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-400 ring-1 ring-amber-500/30",
+};
+
+export function Chip({ variant, className = "", children }: { variant: ChipVariant; className?: string; children: ReactNode }) {
+  return <span className={`${CHIP_VARIANT[variant]} ${className}`}>{children}</span>;
+}
+
+export function Code({ children }: { children: ReactNode }) {
+  return <code className="rounded-md bg-surface-2 px-1 font-mono">{children}</code>;
+}
+
+type NoticeTone = "rose" | "amber";
+
+const NOTICE_TONE: Record<NoticeTone, string> = {
+  rose: "border-rose-500/40 bg-rose-500/10 text-rose-200",
+  amber: "border-amber-500/40 bg-amber-500/10 text-amber-100",
+};
+
+export function Notice({
+  tone, title, className = "text-xs", children,
+}: { tone: NoticeTone; title: string; className?: string; children: ReactNode }) {
+  return (
+    <div className={`rounded-md border p-3 ${NOTICE_TONE[tone]} ${className}`}>
+      <div className="font-semibold">{title}</div>
+      {children}
+    </div>
+  );
+}
+
+export type PinTagTone = "amber" | "rose" | "emerald" | "accent";
+
+const PIN_TAG_TONE: Record<PinTagTone, string> = {
+  amber: "border-amber-500/30 bg-amber-500/10 text-amber-200",
+  rose: "border-rose-500/30 bg-rose-500/10 text-rose-200",
+  emerald: "border-emerald-500/30 bg-emerald-500/10 text-emerald-200",
+  accent: "border-accent-500/30 bg-accent-500/10 text-accent-200",
+};
+
+export function PinTag({ tone, children }: { tone: PinTagTone; children: ReactNode }) {
+  return (
+    <span className={`rounded-md border px-1 text-[10px] uppercase tracking-wider ${PIN_TAG_TONE[tone]}`}>
+      {children}
+    </span>
+  );
+}
+
+export type Severity = "error" | "warn" | "info";
+
+const SEVERITY_TONE: Record<Severity, string> = {
+  error: "border-rose-500/40 bg-rose-500/10 text-rose-200",
+  warn: "border-amber-500/40 bg-amber-500/10 text-amber-100",
+  info: "border-accent-500/40 bg-accent-500/5 text-accent-200",
+};
+
+export function CompatibilityRow({
+  severity, code, where, children,
+}: { severity: Severity; code: string; where: string; children: ReactNode }) {
+  return (
+    <li className={`rounded-md border px-2 py-1.5 text-xs ${SEVERITY_TONE[severity]}`}>
+      <div className="flex items-baseline justify-between gap-2 font-mono">
+        <span>[{severity}] {code}</span>
+        <span className="text-[11px] opacity-80">{where}</span>
+      </div>
+      <div className="mt-1">{children}</div>
+    </li>
+  );
+}
