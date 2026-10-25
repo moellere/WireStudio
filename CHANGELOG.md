@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Roadmap section 9 (design system) is complete.** The design
+  system artifact is re-synced from code and now follows it; the roadmap
+  and HANDOFF record the sync recipe.
+
 ## [0.47.0] — 2026-10-25
 
 ### Changed

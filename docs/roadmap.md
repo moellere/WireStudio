@@ -441,11 +441,13 @@ release PR and does not touch the green-week clock.
   4.1:1 on `surface-3`, so it is not for text on a hovered control. The
   primary button's label (`accent-50` on `accent-600`, 3.9:1) is a known
   flag left as built.
-- **Code owns it afterwards.** The UI gate is in: `ui-themes` in CI
-  loads an example in both themes and checks the tokens resolve, and
-  `CONTRIBUTING.md` points UI work at the design system. Left: re-sync
-  the artifact from code (`editing: "code"`) so its cards mount the
-  components in `ui.tsx` and carry the `ink-faint` values from the tree.
+- **Code owns it afterwards.** Done: `ui-themes` in CI loads an
+  example in both themes and checks the tokens resolve, `CONTRIBUTING.md`
+  points UI work at the design system, and the artifact was re-synced
+  from `main@9d92ebb` (version 11, `editing: "code"`): its cards mount
+  the `ui.tsx` exports and its `tokens.json` matches the tree's. Later
+  syncs rebuild the bundle from code; the artifact is read-only between
+  them.
 
 ## Out of scope for 1.0
 
@@ -485,9 +487,7 @@ The dependency order, not a calendar:
 7. Community designs: the catalogue repository and its CI, then
    browse, import and share in the studio.
 8. Docs consolidation, last. The `1.0` schema cut is in.
-9. The design system: tokens, then components, then the contrast fix,
-   once the design session hands the package over. Before the 1.0
-   release PR, in parallel with the green week.
+9. The design system (done 2026-10-25, released in 0.47.0).
 
 The release that carries the schema cut, the two-tier status table,
 the upgrade test, the community catalogue and the adopted design system
