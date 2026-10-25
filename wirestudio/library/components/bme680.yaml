@@ -136,3 +136,12 @@ lorawan:
       ha_unit: "kΩ"
       ha_icon: mdi:air-filter
       ha_state_class: measurement
+
+wled:
+  kind: usermod
+  usermod: BME68X_v2
+  define: USERMOD_BME68X
+  lib_deps: ["boschsensortec/BSEC Software Library @ ^1.8.1492"]
+  um_name: BME680X
+  um: {Enabled: true}
+  um_params: {i2C Address: address}

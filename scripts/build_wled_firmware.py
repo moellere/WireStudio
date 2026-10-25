@@ -26,18 +26,24 @@ EXAMPLES = Path(__file__).resolve().parent.parent / "wirestudio" / "examples"
 DEFAULT = ["wled-sensor-strip"]
 
 
-_SIGNAL_KINDS = ("digital_in", "digital_out", "analog_in", "adc", "pwm")
+_SIGNAL_KINDS = ("digital_in", "digital_out", "analog_in", "adc", "pwm", "spi_cs")
+_BUS_KINDS = {"i2c_sda": "i2c0", "i2c_scl": "i2c0", "onewire_data": "ow0", "spi_clk": "spi_bus0",
+              "spi_mosi": "spi_bus0", "spi_miso": "spi_bus0", "uart_tx": "uart_bus0", "uart_rx": "uart_bus0"}
+
+
+_PER_DESIGN = 5  # the 4MB image's 1.5MB app slot holds about this many usermods
 
 
 def usermod_designs(lib) -> list[Design]:
     """Designs on an ESP32 DevKitC that between them carry every component
-    with a usermod block, split so no design enables a usermod twice."""
+    with a usermod block, split so no design enables a usermod twice or
+    compiles in more than the app slot holds."""
     groups: list[tuple[set[str], list[str]]] = []
     for comp in sorted(lib.list_components(), key=lambda c: c.id):
         if comp.wled is None or comp.wled.kind != "usermod":
             continue
         for defines, members in groups:
-            if comp.wled.define not in defines:
+            if comp.wled.define not in defines and len(defines) < _PER_DESIGN:
                 defines.add(comp.wled.define)
                 members.append(comp.id)
                 break
@@ -45,16 +51,15 @@ def usermod_designs(lib) -> list[Design]:
             groups.append(({comp.wled.define}, [comp.id]))
     designs = []
     for n, (_, members) in enumerate(groups):
-        gpios = iter(["GPIO4", "GPIO13", "GPIO14", "GPIO25", "GPIO26", "GPIO27", "GPIO32", "GPIO33"])
+        gpios = iter(["GPIO4", "GPIO13", "GPIO14", "GPIO25", "GPIO26", "GPIO27", "GPIO32", "GPIO33",
+                      "GPIO15", "GPIO2", "GPIO12", "GPIO5"])
         components, connections = [], []
         for cid in members:
             inst = cid.replace("-", "_")
             components.append({"id": inst, "library_id": cid, "label": cid, "params": {}})
             for pin in lib.component(cid).electrical.pins:
-                if pin.kind in ("i2c_sda", "i2c_scl"):
-                    target = {"kind": "bus", "bus_id": "i2c0"}
-                elif pin.kind == "onewire_data":
-                    target = {"kind": "bus", "bus_id": "ow0"}
+                if pin.kind in _BUS_KINDS:
+                    target = {"kind": "bus", "bus_id": _BUS_KINDS[pin.kind]}
                 elif pin.kind in _SIGNAL_KINDS:
                     target = {"kind": "gpio", "pin": next(gpios)}
                 else:
@@ -66,7 +71,9 @@ def usermod_designs(lib) -> list[Design]:
             "power": {"supply": "usb", "rail_voltage_v": 3.3},
             "components": components,
             "buses": [{"id": "i2c0", "type": "i2c", "sda": "GPIO21", "scl": "GPIO22"},
-                      {"id": "ow0", "type": "1wire", "pin": "GPIO23"}],
+                      {"id": "ow0", "type": "1wire", "pin": "GPIO0"},
+                      {"id": "spi_bus0", "type": "spi", "clk": "GPIO18", "mosi": "GPIO23", "miso": "GPIO19"},
+                      {"id": "uart_bus0", "type": "uart", "rx": "GPIO16", "tx": "GPIO17", "baud_rate": 256000}],
             "connections": connections,
         }))
     return designs

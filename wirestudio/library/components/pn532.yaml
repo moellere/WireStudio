@@ -139,3 +139,58 @@ kicad:
   symbol: Conn_01x04
   footprint: Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical
   value: PN532
+
+# An event part: the payload carries the last tag seen, how many have been
+# seen since boot and how long ago the last one was (65535 = none yet). A
+# tag held on the reader counts once; the first four UID bytes are the id.
+lorawan:
+  lib_deps: ["adafruit/Adafruit PN532@^1.3.3"]
+  requires: [i2c]
+  globals: |
+    #include <Adafruit_PN532.h>
+    Adafruit_PN532 {{ id }}Nfc(-1, -1, &Wire);
+    bool {{ id }}Ok = false, {{ id }}Present = false;
+    uint32_t {{ id }}Last = 0;
+    uint16_t {{ id }}Count = 0;
+    unsigned long {{ id }}At = 0;
+  setup: |
+    {{ id }}Ok = {{ id }}Nfc.begin() && {{ id }}Nfc.getFirmwareVersion() != 0;
+    if ({{ id }}Ok) {{ id }}Nfc.SAMConfig();
+  loop: |
+    if ({{ id }}Ok) {
+      uint8_t _uid[7] = {0}, _len = 0;
+      if ({{ id }}Nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, _uid, &_len, 50)) {
+        uint32_t _id = 0;
+        for (uint8_t i = 0; i < _len && i < 4; i++) _id = _id << 8 | _uid[i];
+        if (!{{ id }}Present || _id != {{ id }}Last) {
+          {{ id }}Last = _id;
+          {{ id }}Count++;
+          {{ id }}At = millis();
+        }
+        {{ id }}Present = true;
+      } else {
+        {{ id }}Present = false;
+      }
+    }
+  fields:
+    - name: "{{ id }}_last"
+      bytes: 4
+      cpp_type: uint32_t
+      cpp_expr: "{{ id }}Last"
+      ha_icon: mdi:nfc
+    - name: "{{ id }}_count"
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: "{{ id }}Count"
+      ha_state_class: total_increasing
+      ha_icon: mdi:counter
+    - name: "{{ id }}_last_age_min"
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: >-
+        (uint16_t)({{ id }}Count
+          ? (((millis() - {{ id }}At) / 60000UL) > 65534UL ? 65534UL : ((millis() - {{ id }}At) / 60000UL))
+          : 65535UL)
+      ha_unit: min
+      ha_state_class: measurement
+      ha_icon: mdi:clock-outline

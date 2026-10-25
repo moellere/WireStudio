@@ -97,3 +97,17 @@ kicad:
 # A PDM mic's clock goes on I2S_WS, as Tasmota's audio driver reads it.
 tasmota:
   pins: {WS: I2S_WS, BCLK: I2S_BCLK, DIN: I2S_DIN}
+
+# The ESP32 release already compiles audioreactive in; the override
+# repeats its flags for the chips whose environment does not.
+wled:
+  kind: usermod
+  usermod: audioreactive
+  define: USERMOD_AUDIOREACTIVE
+  build_flags: ["-D sqrt_internal=sqrtf"]
+  lib_deps: ["kosme/arduinoFFT @ 2.0.1"]
+  pin_defines: {DIN: I2S_SDPIN, WS: I2S_WSPIN, BCLK: I2S_CKPIN}
+  param_defines:
+    pdm: {define: SR_DMTYPE, values: {"True": 5, "False": 1}}
+  um_name: AudioReactive
+  um: {enabled: true}

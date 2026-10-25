@@ -146,3 +146,15 @@ lorawan:
       ha_unit: V
       ha_state_class: measurement
       ha_divide: 1000
+
+# WLED's one analog voltage reader is the Battery usermod; the divider
+# ratio is set in its settings page, not from r_top / r_bottom.
+wled:
+  kind: usermod
+  usermod: Battery
+  define: USERMOD_BATTERY
+  pins: [IN]
+  pin_defines: {IN: USERMOD_BATTERY_MEASUREMENT_PIN}
+  um_name: Battery
+  um: {interval: 30000}
+  um_pins: {IN: pin}

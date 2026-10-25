@@ -118,3 +118,50 @@ kicad:
 wled:
   kind: ir
   pins: [OUT]
+
+# An event part: the payload carries the last code decoded, how many have
+# been decoded since boot and how long ago the last one was (65535 = none
+# yet). IR only: IRremoteESP8266 has no rc-switch decoder, so an OOK
+# receiver on this part reports no code. Repeat frames are not events.
+lorawan:
+  lib_deps: ["crankyoldgit/IRremoteESP8266@^2.8.6"]
+  globals: |
+    #include <IRrecv.h>
+    IRrecv {{ id }}Recv({{ pins.OUT }});
+    decode_results {{ id }}Results;
+    uint32_t {{ id }}Last = 0;
+    uint16_t {{ id }}Count = 0;
+    unsigned long {{ id }}At = 0;
+  setup: |
+    {{ id }}Recv.enableIRIn();
+  loop: |
+    if ({{ id }}Recv.decode(&{{ id }}Results)) {
+      if (!{{ id }}Results.repeat && {{ id }}Results.decode_type != decode_type_t::UNKNOWN) {
+        {{ id }}Last = (uint32_t){{ id }}Results.value;
+        {{ id }}Count++;
+        {{ id }}At = millis();
+      }
+      {{ id }}Recv.resume();
+    }
+  fields:
+    - name: "{{ id }}_last"
+      bytes: 4
+      cpp_type: uint32_t
+      cpp_expr: "{{ id }}Last"
+      ha_icon: mdi:remote
+    - name: "{{ id }}_count"
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: "{{ id }}Count"
+      ha_state_class: total_increasing
+      ha_icon: mdi:counter
+    - name: "{{ id }}_last_age_min"
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: >-
+        (uint16_t)({{ id }}Count
+          ? (((millis() - {{ id }}At) / 60000UL) > 65534UL ? 65534UL : ((millis() - {{ id }}At) / 60000UL))
+          : 65535UL)
+      ha_unit: min
+      ha_state_class: measurement
+      ha_icon: mdi:clock-outline
