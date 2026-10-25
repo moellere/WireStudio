@@ -125,14 +125,15 @@ blocker). What remains, in order:
    (its two misses, `mosfet-driver` and `third-probe`, are tool-call
    budgets) and Claude Code 28 of 28; one more run like it and both
    gates can move up.
-4. **Adopt the design system** (roadmap section 9). A separate session
-   is building the package as a Design System artifact
-   (https://claude.ai/artifact/757SNFzUieMBwgzSLb2p24); start when it was
-   handed over. Done 2026-10-25: the package was handed over (artifact
-   version 10), the shared components are in `ui.tsx` (#417), and
-   `web/design/tokens.json` generates the theme in `index.css` with the
-   `ink-faint` contrast fix. Left: re-sync the artifact from code, point
-   `CONTRIBUTING.md` at it, and the light/dark screenshot gate.
+4. **Adopt the design system** (roadmap section 9). Done 2026-10-25 and
+   shipped in 0.47.0: #417 shared components, #418 tokens-generated theme
+   and the `ink-faint` fix, #419 the `ui-themes` gate, and the artifact
+   (https://claude.ai/artifact/757SNFzUieMBwgzSLb2p24) re-synced from
+   code at version 11 with `editing: "code"`. A re-sync is a Vite lib
+   build (iife, react and react-dom as globals, `react/jsx-runtime`
+   shimmed over `React.createElement`) of an entry re-exporting `ui.tsx`,
+   `Status.tsx` and `SolveResultBanner.tsx`, with the Tailwind output's
+   `var(--color-X)` mapped to `var(--X)`.
 5. **The 1.0 release PR**, with the user's OK: the notes' text opens the
    `[1.0.0]` section of CHANGELOG with the `[Unreleased]` entries beneath
    it, `wirestudio/__init__.py` moves, and the `upgrade` workflow's result
