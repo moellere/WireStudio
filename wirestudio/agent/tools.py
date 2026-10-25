@@ -22,7 +22,7 @@ from wirestudio.kicad.pcb import PcbUnavailable, generate_kicad_pcb
 from wirestudio.library import Library
 from wirestudio.library.board_check import check_board_yaml, create_board
 from wirestudio.library.check import check_component_yaml, create_component
-from wirestudio.model import RESERVED_BUS_IDS, Design, generated_bus_id, missing_bus_pins
+from wirestudio.model import BUS_PIN_GROUPS, RESERVED_BUS_IDS, Design, generated_bus_id, missing_bus_pins
 from wirestudio.recommend.recommender import Constraints, recommend_components
 from wirestudio.validate import (
     check_board_flash, check_board_revision, check_electrical, check_esphome_ids, check_net_targets,
@@ -724,6 +724,9 @@ def _run_set_strict(design: dict, library: Library, *, enabled: bool) -> dict:
     return {"ok": True, "strict": enabled}
 
 
+_BUS_PIN_KEYS = tuple(k for groups in BUS_PIN_GROUPS.values() for group in groups for k in group) + ("cs",)
+
+
 def _run_add_bus(design: dict, library: Library, **fields: Any) -> dict:
     buses = design.setdefault("buses", [])
     if fields["id"] in RESERVED_BUS_IDS:
@@ -754,6 +757,13 @@ def _run_add_bus(design: dict, library: Library, **fields: Any) -> dict:
     for k, v in fields.items():
         if v is not None:
             new_bus[k] = v
+    wanted = {str(new_bus[k]) for k in _BUS_PIN_KEYS if new_bus.get(k)}
+    for other in buses:
+        shared = sorted(wanted & {str(other[k]) for k in _BUS_PIN_KEYS if other.get(k)})
+        if shared:
+            return {"ok": False, "existing_bus_id": other.get("id"),
+                    "error": f"bus '{other.get('id')}' already runs on {', '.join(shared)}; "
+                             "connect the part to it instead of adding another bus"}
     buses.append(new_bus)
     applied_defaults = sorted(k for k, v in defaults.items() if fields.get(k) is None)
     out: dict[str, Any] = {"ok": True}

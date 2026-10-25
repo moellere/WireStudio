@@ -59,6 +59,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`add_bus` refuses a bus on pins another bus already uses.** A second
+  I2C bus on the first one's SDA and SCL can never render (ESPHome sees
+  each pin twice), and the embedded agent added exactly that on
+  `first-i2c-part` once `add_component` had seeded `i2c0`. The tool now
+  returns the existing bus's id and says to connect the part to it.
 - **Ids ESPHome refuses as integration names** (#410). ESPHome rejects
   an id equal to the name of an integration the config loads
   (`bh1750` on a BH1750, `i2c` on an I2C bus, `sensor`); the studio

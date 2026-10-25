@@ -98,3 +98,18 @@ def test_add_bus_refuses_an_id_esphome_reserves(library):
     assert result["ok"] is False
     assert "reserved" in result["error"]
     assert design["buses"] == []
+
+
+def test_add_bus_refuses_a_second_bus_on_the_same_pins(library):
+    """A second I2C bus on the pins the first already uses can never render
+    (ESPHome sees each pin twice). The embedded agent did exactly this on
+    first-i2c-part when add_component had already seeded i2c0; the tool
+    names the bus to connect to instead."""
+    design = _design("wemos-d1-mini")
+    assert _run_add_bus(design, library, id="i2c0", type="i2c", sda="D2", scl="D1")["ok"]
+    result = _run_add_bus(design, library, id="i2c_1", type="i2c", sda="D2", scl="D1")
+    assert result["ok"] is False and result["existing_bus_id"] == "i2c0"
+    assert "already runs on D1, D2" in result["error"]
+    assert [b["id"] for b in design["buses"]] == ["i2c0"]
+    assert _run_add_bus(design, library, id="i2c_1", type="i2c", sda="D6", scl="D5")["ok"]
+    assert _run_add_bus(design, library, id="u1", type="uart", rx="D7", tx="D5")["ok"] is False
