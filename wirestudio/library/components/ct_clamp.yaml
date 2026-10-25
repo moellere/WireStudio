@@ -116,3 +116,46 @@ kicad:
   symbol: Conn_01x02
   footprint: Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical
   value: SCT-013
+
+# Every 10 s: sample the ADC for the sample duration, take the RMS around
+# the samples' mean and scale volts to amps by the calibration point, as
+# ESPHome's ct_clamp does. The window blocks the loop while it runs.
+lorawan:
+  globals: |
+    uint16_t {{ id }}CentiAmps = 0;
+  loop: |
+    {%- set point = (params.calibration_point | default('0.0125 -> 1.25')).split('->') %}
+    {%- set d = (params.sample_duration | default('200ms')) | string | trim %}
+    {
+      static unsigned long _last = 0;
+      if (_last == 0 || millis() - _last >= 10000) {
+        _last = millis();
+        const unsigned long _window = {{ ((d[:-2] | float) if d.endswith('ms') else ((d | replace('s', '') | float) * 1000)) | int }};
+        const float _ampsPerVolt = {{ point[1] | trim | float }} / {{ point[0] | trim | float }};
+        double _sum = 0, _sumSq = 0;
+        uint32_t _n = 0;
+        unsigned long _t0 = millis();
+        while (millis() - _t0 < _window) {
+          float _v = analogReadMilliVolts({{ pins.OUT }}) / 1000.0f;
+          _sum += _v;
+          _sumSq += (double)_v * _v;
+          _n++;
+        }
+        float _rms = 0;
+        if (_n) {
+          double _mean = _sum / _n;
+          double _var = _sumSq / _n - _mean * _mean;
+          _rms = _var > 0 ? sqrt(_var) : 0;
+        }
+        {{ id }}CentiAmps = (uint16_t)(_rms * _ampsPerVolt * 100.0f + 0.5f);
+      }
+    }
+  fields:
+    - name: "{{ id }}_current"
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: "{{ id }}CentiAmps"
+      scale: 100.0
+      ha_device_class: current
+      ha_unit: A
+      ha_state_class: measurement

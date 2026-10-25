@@ -320,3 +320,66 @@ def test_parts_on_a_hub_read_through_it_and_name_their_fields(lib):
     names = [f["name"] for f in fields_for(design, lib)]
     assert {"ch0_voltage", "ch5_voltage", "mains_voltage", "mains_energy"} <= set(names)
     assert "ch5_voltage" in decode_js(fields_for(design, lib))
+
+
+def _gpio(pin):
+    return {"kind": "gpio", "pin": pin}
+
+
+def test_pin_blocks_wire_their_pins_and_name_fields_by_instance(lib):
+    parts = [("tach", "pulse_counter", {"input_mode": "INPUT"}),
+             ("knob", "rotary_encoder", {"min_value": 0, "max_value": 100}),
+             ("tank", "hc-sr04", {}), ("cell", "hx711", {"gain": 64}), ("door", "gpio_input", {}),
+             ("mains", "ct_clamp", {"calibration_point": "0.01 -> 1.0", "sample_duration": "1s"})]
+    conns = [("tach", "PULSE", _gpio("GPIO34")), ("knob", "A", _gpio("GPIO32")), ("knob", "B", _gpio("GPIO33")),
+             ("tank", "TRIGGER", _gpio("GPIO4")), ("tank", "ECHO", _gpio("GPIO36")),
+             ("cell", "DOUT", _gpio("GPIO39")), ("cell", "SCK", _gpio("GPIO25")), ("door", "IN", _gpio("GPIO2")),
+             ("mains", "OUT", _gpio("GPIO35"))]
+    design = _wired(parts, [], conns)
+    main = generate_firmware(design, lib)["src/main.cpp"]
+    assert "pinMode(34, INPUT);" in main
+    assert "attachInterrupt(digitalPinToInterrupt(34), tachIsr, RISING);" in main
+    assert "knobPosition += digitalRead(32) != digitalRead(33) ? 1 : -1;" in main
+    assert "if (_p > 100) _p = 100;" in main and "if (_p < 0) _p = 0;" in main
+    assert "pulseIn(36, HIGH, 30000)" in main
+    assert "cellScale.begin(39, 25, 64);" in main
+    assert "doorState = digitalRead(2) == HIGH;" in main
+    assert "const unsigned long _window = 1000;" in main
+    assert "const float _ampsPerVolt = 1.0 / 0.01;" in main and "analogReadMilliVolts(35)" in main
+    names = {f["name"] for f in fields_for(design, lib)}
+    assert {"tach_pulses", "knob_position", "tank_distance_cm", "cell_raw", "door_state", "mains_current"} <= names
+    assert "#include <HX711.h>" in main and "bogde/HX711@^0.7.5" in generate_firmware(design, lib)["platformio.ini"]
+
+
+def test_ads1115_channels_read_through_their_hub(lib):
+    parts = [("ads", "ads1115", {"address": "0x49"}), ("ch0", "ads1115_channel", {}),
+             ("diff", "ads1115_channel", {"multiplexer": "A0_A1", "gain": "1.024"})]
+    buses = [{"id": "i2c0", "type": "i2c", "sda": "GPIO21", "scl": "GPIO22"}]
+    hub = {"kind": "component", "component_id": "ads"}
+    conns = [("ads", "SDA", _on("i2c0")), ("ads", "SCL", _on("i2c0")), ("ch0", "HUB", hub), ("diff", "HUB", hub)]
+    design = _wired(parts, buses, conns)
+    main = generate_firmware(design, lib)["src/main.cpp"]
+    assert "adsOk = adsAds.begin(0x49, &Wire);" in main
+    assert "ch0Mv = (int16_t)(adsRead(0, GAIN_TWOTHIRDS) * 1000.0f);" in main
+    assert "diffMv = (int16_t)(adsRead(4, GAIN_FOUR) * 1000.0f);" in main
+    assert {"ch0_voltage", "diff_voltage"} <= {f["name"] for f in fields_for(design, lib)}
+
+
+def test_register_level_i2c_blocks_and_the_power_meter(lib):
+    design = _design_with("bmp180", "mpu6886", "sgp4x")
+    main = generate_firmware(design, lib)["src/main.cpp"]
+    assert "bmp180Ok = bmp180.begin(BMP085_ULTRAHIGHRES, &Wire);" in main
+    assert "mpu6886Write(0x6B, 0x01) && mpu6886Write(0x1B, 0x18) && mpu6886Write(0x1C, 0x00)" in main
+    assert "{0x26, 0x0F, 0x80, 0x00, 0xA2, 0x66, 0x66, 0x93}" in main and "0x26, 0x12" not in main
+    names = {f["name"] for f in fields_for(design, lib)}
+    assert {"bmp180_pressure", "mpu6886_accel_z", "mpu6886_gyro_x", "sgp4x_voc_raw"} <= names
+    sgp41 = _wired([("air", "sgp4x", {"model": "sgp41"})],
+                   [{"id": "i2c0", "type": "i2c", "sda": "GPIO21", "scl": "GPIO22"}],
+                   [("air", "SDA", _on("i2c0")), ("air", "SCL", _on("i2c0"))])
+    assert "0x26, 0x12" in generate_firmware(sgp41, lib)["src/main.cpp"]
+    meter = _wired([("plug", "hlw8012", {"model": "BL0937", "voltage_divider": 1700, "current_resistor": "0.002 ohm"})],
+                   [], [("plug", "SEL", _gpio("GPIO4")), ("plug", "CF", _gpio("GPIO34")), ("plug", "CF1", _gpio("GPIO39"))])
+    main = generate_firmware(meter, lib)["src/main.cpp"]
+    assert "hlw8012.begin(34, 39, 4, LOW, true);" in main
+    assert "hlw8012.setResistors(0.002, (1700 - 1.0) * 1000.0, 1000.0);" in main
+    assert {"hlw8012_voltage", "hlw8012_energy"} <= {f["name"] for f in fields_for(meter, lib)}

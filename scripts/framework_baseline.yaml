@@ -208,7 +208,6 @@ lorawan:
   # audio_dac
   max98357a: "no meaning on this framework: the uplink carries sensor readings"
   # binary_sensor
-  gpio_input: "deferred: needs a lorawan fields block for the payload codec"
   # bus
   level_shifter: "no meaning on this framework: passive hardware, no code on any framework"
   tuya: "no meaning on this framework: the uplink carries sensor readings"
@@ -234,9 +233,9 @@ lorawan:
   # fan
   pwm_fan: "no meaning on this framework: the uplink carries sensor readings"
   # input
-  pn532: "deferred: needs a lorawan fields block for the payload codec"
-  remote_receiver: "deferred: needs a lorawan fields block for the payload codec"
-  wiegand: "deferred: needs a lorawan fields block for the payload codec"
+  pn532: "deferred: event-shaped (a tag UID at an instant, not a reading); needs a last-seen field convention in the codec"
+  remote_receiver: "deferred: event-shaped (an IR code at an instant, not a reading); needs a last-seen field convention in the codec"
+  wiegand: "deferred: event-shaped (a card id at an instant, not a reading); needs a last-seen field convention in the codec"
   # io_expander
   mcp23008: "no meaning on this framework: the uplink carries sensor readings"
   mcp23017: "no meaning on this framework: the uplink carries sensor readings"
@@ -261,17 +260,6 @@ lorawan:
   rc522: "no meaning on this framework: the uplink carries sensor readings"
   rdm6300: "no meaning on this framework: the uplink carries sensor readings"
   # sensor
-  ads1115: "deferred: needs a lorawan fields block for the payload codec"
-  ads1115_channel: "deferred: carried through the hub's fields block once the hub has one"
-  bmp180: "deferred: needs a lorawan fields block for the payload codec"
-  ct_clamp: "deferred: needs a lorawan fields block for the payload codec"
-  hc-sr04: "deferred: needs a lorawan fields block for the payload codec"
-  hlw8012: "deferred: needs a lorawan fields block for the payload codec"
-  hx711: "deferred: needs a lorawan fields block for the payload codec"
-  mpu6886: "deferred: needs a lorawan fields block for the payload codec"
-  pulse_counter: "deferred: needs a lorawan fields block for the payload codec"
-  rotary_encoder: "deferred: needs a lorawan fields block for the payload codec"
-  sgp4x: "deferred: needs a lorawan fields block for the payload codec"
   tuya_sensor: "no meaning on this framework: the standalone firmware has no Tuya MCU bridge"
   # switch
   gpio_output: "no meaning on this framework: the uplink carries sensor readings"

@@ -82,3 +82,48 @@ kicad:
   symbol: Conn_01x04
   footprint: Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical
   value: SGP4x
+
+# Measure-raw with the default 50% RH / 25 C compensation words, as the
+# MicroPython block; the raw VOC signal (ticks), not the VOC index, since
+# the index algorithm needs a 24 h baseline the uplink side can keep.
+lorawan:
+  requires: [i2c]
+  globals: |
+    uint16_t sgp4xVocRaw = 0;
+    bool sgp4xOk = false;
+    static bool sgp4xCommand(const uint8_t* cmd, size_t n) {
+      Wire.beginTransmission(0x59);
+      Wire.write(cmd, n);
+      return Wire.endTransmission() == 0;
+    }
+  setup: |
+    {%- if (params.model | default('sgp40')) == 'sgp41' %}
+    static const uint8_t _condition[] = {0x26, 0x12, 0x80, 0x00, 0xA2, 0x66, 0x66, 0x93};
+    sgp4xOk = sgp4xCommand(_condition, sizeof(_condition));
+    {%- else %}
+    sgp4xOk = true;
+    {%- endif %}
+  loop: |
+    {
+      static unsigned long _last = 0;
+      if (sgp4xOk && (_last == 0 || millis() - _last >= 1000)) {
+        _last = millis();
+        static const uint8_t _measure[] = {% if (params.model | default('sgp40')) == 'sgp41' %}{0x26, 0x19, 0x80, 0x00, 0xA2, 0x66, 0x66, 0x93}{% else %}{0x26, 0x0F, 0x80, 0x00, 0xA2, 0x66, 0x66, 0x93}{% endif %};
+        if (sgp4xCommand(_measure, sizeof(_measure))) {
+          delay(50);
+          if (Wire.requestFrom((uint8_t)0x59, (uint8_t)3) == 3) {
+            uint16_t _raw = (uint16_t)Wire.read() << 8;
+            _raw |= Wire.read();
+            Wire.read();
+            sgp4xVocRaw = _raw;
+          }
+        }
+      }
+    }
+  fields:
+    - name: sgp4x_voc_raw
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: sgp4xVocRaw
+      ha_state_class: measurement
+      ha_icon: mdi:air-filter

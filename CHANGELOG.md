@@ -57,6 +57,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unmapped 1x09). Its GPIO and rail nets now reach the board's pads in
   the schematic, PCB and netlist like every other bundled board's.
 
+- **LoRaWAN blocks for twelve more parts.** The uplink can now carry a
+  GPIO input's level, a pulse counter's running total, a rotary
+  encoder's position, an HC-SR04 distance, an HX711's raw count, a CT
+  clamp's RMS current, a BMP180's temperature and pressure, an
+  MPU6886's accelerations and rates, an SGP40/41's raw VOC signal, an
+  ADS1115's channels (each through its hub, with its own multiplexer
+  and gain) and an HLW8012/BL0937 meter's voltage, current, power and
+  energy. The coverage baseline keeps `pn532`, `wiegand` and
+  `remote_receiver` deferred: they report an id at an instant, not a
+  reading, and the codec has no last-seen field convention yet.
+
 ### Fixed
 
 - **`add_bus` refuses a bus on pins another bus already uses.** A second

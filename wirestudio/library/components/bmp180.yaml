@@ -172,3 +172,37 @@ kicad:
   symbol: Conn_01x04
   footprint: Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical
   value: BMP180
+
+lorawan:
+  lib_deps: ["adafruit/Adafruit BMP085 Library@^1.2.4"]
+  requires: [i2c]
+  globals: |
+    #include <Adafruit_BMP085.h>
+    Adafruit_BMP085 bmp180;
+    bool bmp180Ok = false;
+    float bmp180TempC = 0, bmp180HPa = 0;
+  setup: |
+    bmp180Ok = bmp180.begin(BMP085_ULTRAHIGHRES, &Wire);
+  loop: |
+    if (bmp180Ok) {
+      bmp180TempC = bmp180.readTemperature();
+      bmp180HPa = bmp180.readPressure() / 100.0F;
+    }
+  fields:
+    - name: bmp180_temp_c
+      bytes: 2
+      cpp_type: int16_t
+      cpp_expr: (int16_t)(bmp180TempC * 100.0)
+      signed: true
+      scale: 100.0
+      ha_device_class: temperature
+      ha_unit: "°C"
+      ha_state_class: measurement
+    - name: bmp180_pressure
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: (uint16_t)(bmp180HPa * 10.0)
+      scale: 10.0
+      ha_device_class: atmospheric_pressure
+      ha_unit: hPa
+      ha_state_class: measurement

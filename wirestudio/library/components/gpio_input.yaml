@@ -96,3 +96,18 @@ tasmota:
 wled:
   kind: button
   pins: [IN]
+
+# The pin's level, as ESPHome's gpio binary_sensor reports it, with the
+# pull-up the other frameworks' blocks use.
+lorawan:
+  globals: |
+    uint8_t {{ id }}State = 0;
+  setup: |
+    pinMode({{ pins.IN }}, INPUT_PULLUP);
+  loop: |
+    {{ id }}State = digitalRead({{ pins.IN }}) == HIGH;
+  fields:
+    - name: "{{ id }}_state"
+      bytes: 1
+      cpp_type: uint8_t
+      cpp_expr: "{{ id }}State"

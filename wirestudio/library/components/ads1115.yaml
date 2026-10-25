@@ -76,3 +76,28 @@ kicad:
   footprint: Package_SO:MSOP-10_3x3mm_P0.5mm
   pin_map:
     VCC: VDD
+
+# Hub: the channels on it read through `<id>Read(mux, gain)`, mux being the
+# multiplexer's index (A0_GND..A3_GND 0-3, then A0_A1, A0_A3, A1_A3, A2_A3).
+lorawan:
+  lib_deps: ["adafruit/Adafruit ADS1X15@^2.5.0"]
+  requires: [i2c]
+  globals: |
+    #include <Adafruit_ADS1X15.h>
+    Adafruit_ADS1115 {{ id }}Ads;
+    bool {{ id }}Ok = false;
+    float {{ id }}Read(uint8_t mux, adsGain_t gain) {
+      if (!{{ id }}Ok) return 0;
+      {{ id }}Ads.setGain(gain);
+      int16_t raw;
+      switch (mux) {
+        case 4: raw = {{ id }}Ads.readADC_Differential_0_1(); break;
+        case 5: raw = {{ id }}Ads.readADC_Differential_0_3(); break;
+        case 6: raw = {{ id }}Ads.readADC_Differential_1_3(); break;
+        case 7: raw = {{ id }}Ads.readADC_Differential_2_3(); break;
+        default: raw = {{ id }}Ads.readADC_SingleEnded(mux); break;
+      }
+      return {{ id }}Ads.computeVolts(raw);
+    }
+  setup: |
+    {{ id }}Ok = {{ id }}Ads.begin({{ params.address | default('0x48') }}, &Wire);

@@ -95,3 +95,24 @@ kicad:
     SCK: PD_SCK
 tasmota:
   pins: {SCK: HX711_SCK, DOUT: HX711_DAT}
+
+# Raw counts, as ESPHome without a calibrate_linear filter; the slope and
+# offset belong to the receiving side.
+lorawan:
+  lib_deps: ["bogde/HX711@^0.7.5"]
+  globals: |
+    #include <HX711.h>
+    HX711 {{ id }}Scale;
+    int32_t {{ id }}Raw = 0;
+  setup: |
+    {{ id }}Scale.begin({{ pins.DOUT }}, {{ pins.SCK }}, {{ params.gain | default(128) }});
+  loop: |
+    if ({{ id }}Scale.is_ready()) {{ id }}Raw = {{ id }}Scale.read();
+  fields:
+    - name: "{{ id }}_raw"
+      bytes: 4
+      cpp_type: int32_t
+      cpp_expr: "{{ id }}Raw"
+      signed: true
+      ha_state_class: measurement
+      ha_icon: mdi:scale
