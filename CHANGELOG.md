@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.47.0] — 2026-10-25
+
 ### Changed
 
 - **The web theme is generated from the design system's tokens.**
@@ -3615,7 +3617,8 @@ ConnectionForm, EnclosureDialog, Inspector, CapabilityPickerDialog,
 PinoutView, PushToFleetDialog, SchematicDialog. ruff + tsc + vite
 build clean across the whole arc.
 
-[Unreleased]: https://github.com/moellere/wirestudio/compare/v0.46.0...HEAD
+[Unreleased]: https://github.com/moellere/wirestudio/compare/v0.47.0...HEAD
+[0.47.0]: https://github.com/moellere/wirestudio/compare/v0.46.0...v0.47.0
 [0.46.0]: https://github.com/moellere/wirestudio/compare/v0.45.0...v0.46.0
 [0.45.0]: https://github.com/moellere/wirestudio/compare/v0.44.0...v0.45.0
 [0.44.0]: https://github.com/moellere/wirestudio/compare/v0.43.0...v0.44.0
