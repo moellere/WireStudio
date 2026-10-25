@@ -87,3 +87,32 @@ kicad:
   value: HC-SR04
 tasmota:
   pins: {TRIGGER: SR04_Trig, ECHO: SR04_Echo}
+
+# One ping a second; 0 means no echo within the 30 ms (about 5 m) window.
+lorawan:
+  globals: |
+    uint16_t {{ id }}DistanceCm = 0;
+  setup: |
+    pinMode({{ pins.TRIGGER }}, OUTPUT);
+    digitalWrite({{ pins.TRIGGER }}, LOW);
+    pinMode({{ pins.ECHO }}, INPUT);
+  loop: |
+    {
+      static unsigned long _last = 0;
+      if (_last == 0 || millis() - _last >= 1000) {
+        _last = millis();
+        digitalWrite({{ pins.TRIGGER }}, HIGH);
+        delayMicroseconds(10);
+        digitalWrite({{ pins.TRIGGER }}, LOW);
+        unsigned long _us = pulseIn({{ pins.ECHO }}, HIGH, 30000);
+        {{ id }}DistanceCm = _us ? (uint16_t)(_us / 58) : 0;
+      }
+    }
+  fields:
+    - name: "{{ id }}_distance_cm"
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: "{{ id }}DistanceCm"
+      ha_device_class: distance
+      ha_unit: cm
+      ha_state_class: measurement

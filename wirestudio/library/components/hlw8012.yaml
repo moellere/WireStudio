@@ -180,3 +180,66 @@ kicad:
   value: HLW8012
 tasmota:
   pins: {SEL: NRG_SEL, CF: HLW_CF, CF1: NRG_CF1}
+
+# xoseperez's HLW8012 library on interrupts. BL0937 (and the CSE7759
+# rebadge) read current with SEL low, the HLW8012 with SEL high. ESPHome's
+# voltage_divider is the whole ratio; the library wants the two legs.
+lorawan:
+  lib_deps: ["xoseperez/HLW8012@^1.1.1"]
+  globals: |
+    #include <HLW8012.h>
+    HLW8012 hlw8012;
+    void IRAM_ATTR hlw8012CfIsr() { hlw8012.cf_interrupt(); }
+    void IRAM_ATTR hlw8012Cf1Isr() { hlw8012.cf1_interrupt(); }
+    float hlw8012Voltage = 0, hlw8012Current = 0, hlw8012Power = 0;
+    uint32_t hlw8012EnergyWh = 0;
+  setup: |
+    {%- set model = params.model | default('HLW8012') %}
+    hlw8012.begin({{ pins.CF }}, {{ pins.CF1 }}, {{ pins.SEL }}, {{ 'HIGH' if model == 'HLW8012' else 'LOW' }}, true);
+    hlw8012.setResistors({{ (params.current_resistor | default('0.001 ohm')) | string | replace('ohm', '') | trim | float }}, ({{ params.voltage_divider | default(2351) }} - 1.0) * 1000.0, 1000.0);
+    attachInterrupt(digitalPinToInterrupt({{ pins.CF }}), hlw8012CfIsr, FALLING);
+    attachInterrupt(digitalPinToInterrupt({{ pins.CF1 }}), hlw8012Cf1Isr, FALLING);
+  loop: |
+    {
+      static unsigned long _last = 0;
+      if (_last == 0 || millis() - _last >= 5000) {
+        _last = millis();
+        hlw8012Power = hlw8012.getActivePower();
+        hlw8012Voltage = hlw8012.getVoltage();
+        hlw8012Current = hlw8012.getCurrent();
+        hlw8012EnergyWh = (uint32_t)(hlw8012.getEnergy() / 3600.0);
+        hlw8012.toggleMode();
+      }
+    }
+  fields:
+    - name: hlw8012_voltage
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: (uint16_t)(hlw8012Voltage * 10.0)
+      scale: 10.0
+      ha_device_class: voltage
+      ha_unit: V
+      ha_state_class: measurement
+    - name: hlw8012_current
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: (uint16_t)(hlw8012Current * 1000.0)
+      scale: 1000.0
+      ha_device_class: current
+      ha_unit: A
+      ha_state_class: measurement
+    - name: hlw8012_power
+      bytes: 2
+      cpp_type: uint16_t
+      cpp_expr: (uint16_t)(hlw8012Power * 10.0)
+      scale: 10.0
+      ha_device_class: power
+      ha_unit: W
+      ha_state_class: measurement
+    - name: hlw8012_energy
+      bytes: 4
+      cpp_type: uint32_t
+      cpp_expr: hlw8012EnergyWh
+      ha_device_class: energy
+      ha_unit: Wh
+      ha_state_class: total_increasing

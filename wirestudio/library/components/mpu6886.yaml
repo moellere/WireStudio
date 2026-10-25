@@ -118,3 +118,81 @@ kicad:
   symbol: Conn_01x04
   footprint: Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical
   value: MPU6886
+
+# The same registers as the other frameworks' blocks, read over Wire;
+# accelerations in milli-g, rates in tenths of a degree per second.
+lorawan:
+  requires: [i2c]
+  globals: |
+    bool mpu6886Ok = false;
+    int16_t mpu6886Accel[3] = {0, 0, 0}, mpu6886Gyro[3] = {0, 0, 0};
+    static bool mpu6886Write(uint8_t reg, uint8_t value) {
+      Wire.beginTransmission({{ params.address | default('0x68') }});
+      Wire.write(reg);
+      Wire.write(value);
+      return Wire.endTransmission() == 0;
+    }
+  setup: |
+    mpu6886Ok = mpu6886Write(0x6B, 0x01) && mpu6886Write(0x1B, 0x18) && mpu6886Write(0x1C, 0x00);
+  loop: |
+    if (mpu6886Ok) {
+      Wire.beginTransmission({{ params.address | default('0x68') }});
+      Wire.write(0x3B);
+      if (Wire.endTransmission(false) == 0 && Wire.requestFrom((uint8_t){{ params.address | default('0x68') }}, (uint8_t)14) == 14) {
+        uint8_t _b[14];
+        for (uint8_t _i = 0; _i < 14; _i++) _b[_i] = Wire.read();
+        for (uint8_t _i = 0; _i < 3; _i++) {
+          mpu6886Accel[_i] = (int16_t)((_b[2 * _i] << 8) | _b[2 * _i + 1]);
+          mpu6886Gyro[_i] = (int16_t)((_b[8 + 2 * _i] << 8) | _b[9 + 2 * _i]);
+        }
+      }
+    }
+  fields:
+    - name: mpu6886_accel_x
+      bytes: 2
+      cpp_type: int16_t
+      cpp_expr: (int16_t)(mpu6886Accel[0] * 1000L / 16384)
+      signed: true
+      scale: 1000.0
+      ha_unit: g
+      ha_state_class: measurement
+    - name: mpu6886_accel_y
+      bytes: 2
+      cpp_type: int16_t
+      cpp_expr: (int16_t)(mpu6886Accel[1] * 1000L / 16384)
+      signed: true
+      scale: 1000.0
+      ha_unit: g
+      ha_state_class: measurement
+    - name: mpu6886_accel_z
+      bytes: 2
+      cpp_type: int16_t
+      cpp_expr: (int16_t)(mpu6886Accel[2] * 1000L / 16384)
+      signed: true
+      scale: 1000.0
+      ha_unit: g
+      ha_state_class: measurement
+    - name: mpu6886_gyro_x
+      bytes: 2
+      cpp_type: int16_t
+      cpp_expr: (int16_t)(mpu6886Gyro[0] * 100L / 164)
+      signed: true
+      scale: 10.0
+      ha_unit: "°/s"
+      ha_state_class: measurement
+    - name: mpu6886_gyro_y
+      bytes: 2
+      cpp_type: int16_t
+      cpp_expr: (int16_t)(mpu6886Gyro[1] * 100L / 164)
+      signed: true
+      scale: 10.0
+      ha_unit: "°/s"
+      ha_state_class: measurement
+    - name: mpu6886_gyro_z
+      bytes: 2
+      cpp_type: int16_t
+      cpp_expr: (int16_t)(mpu6886Gyro[2] * 100L / 164)
+      signed: true
+      scale: 10.0
+      ha_unit: "°/s"
+      ha_state_class: measurement

@@ -1,7 +1,7 @@
 function decodeUplink(input) {
   var b = input.bytes;
-  if (b.length < 24) {
-    return { data: {}, warnings: [], errors: ['expected 24 bytes, got ' + b.length] };
+  if (b.length < 25) {
+    return { data: {}, warnings: [], errors: ['expected 25 bytes, got ' + b.length] };
   }
   var data = {};
   data.uptime_s = (((b[0] << 24) | (b[1] << 16) | (b[2] << 8) | b[3]) >>> 0);
@@ -11,9 +11,10 @@ function decodeUplink(input) {
   data.alt_m = ((((b[14] << 8) | b[15]) << 16) >> 16);
   data.sats = ((b[16]) >>> 0);
   data.fix_age_min = (((b[17] << 8) | b[18]) >>> 0);
-  data.temp_c = ((((b[19] << 8) | b[20]) << 16) >> 16) / 100;
-  data.humidity = ((b[21]) >>> 0);
-  data.batt_mv = (((b[22] << 8) | b[23]) >>> 0);
+  data.onboard_button_state = ((b[19]) >>> 0);
+  data.temp_c = ((((b[20] << 8) | b[21]) << 16) >> 16) / 100;
+  data.humidity = ((b[22]) >>> 0);
+  data.batt_mv = (((b[23] << 8) | b[24]) >>> 0);
   return { data: data, warnings: [], errors: [] };
 }
 
