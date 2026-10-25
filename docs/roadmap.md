@@ -407,6 +407,40 @@ it depends on is frozen at 1.0.
   cloud moderation API, and nothing CI does can stop an upload, only a
   merge.
 
+## 9. Design system
+
+A design package for the web UI is being written in a separate session
+as a Design System artifact (`wirestudio`, synced from `web/src` at
+2050b2b): `tokens.json` (both themes), a brand-book README, fonts, and
+cards for the seven shared primitives in `ui.tsx`, `Status.tsx` and
+`SolveResultBanner.tsx` plus the inline patterns (`PinTag`,
+`CompatibilityRow`, `Section`, `KeyValueRow`, `ListRow`, `Chip`,
+`Notice`, `WarningList`), with the header toolbar, tabs and banners in
+progress. It describes the UI as built, so adopting it is a refactor
+with a few deliberate fixes, not a redesign. It lands before the 1.0
+release PR and does not touch the green-week clock.
+
+- **Tokens are the source.** The package's `tokens.json` goes in the
+  tree at `web/design/tokens.json`; a script writes the `@theme` block
+  and the `[data-theme="light"]` overrides in `web/src/index.css` from
+  it, and a test fails when the two disagree. The emerald, amber and
+  rose dark values the CSS now inherits from Tailwind's defaults are
+  stated in the tokens.
+- **The inline patterns become components.** The eight patterns that
+  are copied markup today are exported from `ui.tsx` and the screens
+  use them, so the cards mount real components instead of static
+  renditions. Per-dialog markup is left alone unless it repeats one of
+  them.
+- **The contrast flag is fixed.** `ink-faint` reads 4.0:1 on
+  `surface-0` in dark and 4.4:1 in light. It carries section and field
+  labels, so it moves to at least 4.5:1 in both themes, or those labels
+  move to `ink-dim`.
+- **Code owns it afterwards.** Once adopted, the artifact is re-synced
+  from code (`/design-sync`, `editing: "code"`) and its README is the
+  contributor reference for UI work; `CONTRIBUTING.md` points at it.
+  The UI vitest suite and a light/dark screenshot of the workbench in
+  CI are the gate.
+
 ## Out of scope for 1.0
 
 Stated so nobody waits on them.
@@ -445,7 +479,11 @@ The dependency order, not a calendar:
 7. Community designs: the catalogue repository and its CI, then
    browse, import and share in the studio.
 8. Docs consolidation, last. The `1.0` schema cut is in.
+9. The design system: tokens, then components, then the contrast fix,
+   once the design session hands the package over. Before the 1.0
+   release PR, in parallel with the green week.
 
 The release that carries the schema cut, the two-tier status table,
-the upgrade test and the community catalogue is 1.0. Phase 4 of the workbench, the JLCPCB order and
+the upgrade test, the community catalogue and the adopted design system
+is 1.0. Phase 4 of the workbench, the JLCPCB order and
 the printed enclosure are each welcome before it and not required by it.

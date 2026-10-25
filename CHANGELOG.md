@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The roadmap adds a design-system step before 1.0.** Section 9 of
+  `docs/roadmap.md` brings the web UI's design package into the tree:
+  `tokens.json` becomes the source of the theme in `index.css`, the
+  inline UI patterns become shared components, and `ink-faint` is
+  raised to 4.5:1 contrast.
+
 - **The agent eval's embedded-agent gate is 25 of 28; Claude Code's
   moves from 24 to 25.** The embedded agent's first two scored runs,
   on one commit with the `ANTHROPIC_API_KEY` secret in place, both
