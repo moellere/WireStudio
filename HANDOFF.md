@@ -125,13 +125,20 @@ blocker). What remains, in order:
    (its two misses, `mosfet-driver` and `third-probe`, are tool-call
    budgets) and Claude Code 28 of 28; one more run like it and both
    gates can move up.
-4. **The 1.0 release PR**, with the user's OK: the notes' text opens the
+4. **Adopt the design system** (roadmap section 9). A separate session
+   is building the package as a Design System artifact
+   (https://claude.ai/artifact/757SNFzUieMBwgzSLb2p24); start when it is
+   handed over. Tokens into `web/design/tokens.json` with `index.css`
+   generated from them, the eight inline patterns exported from
+   `ui.tsx`, the `ink-faint` contrast fix. Runs in parallel with the
+   green week.
+5. **The 1.0 release PR**, with the user's OK: the notes' text opens the
    `[1.0.0]` section of CHANGELOG with the `[Unreleased]` entries beneath
    it, `wirestudio/__init__.py` moves, and the `upgrade` workflow's result
    against 0.46.0 (or whatever is newest on PyPI) goes in the notes. The
    roadmap's "Written against 0.39.0" header and its section 2 table get
    their final wording in the same PR.
-5. Not required for 1.0: workbench phase 4, the JLCPCB order, the printed
+6. Not required for 1.0: workbench phase 4, the JLCPCB order, the printed
    enclosure.
 
 ## Open threads
