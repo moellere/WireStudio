@@ -139,6 +139,6 @@ wled:
   kind: usermod
   usermod: mpu6050_imu
   define: USERMOD_MPU6050_IMU
-  lib_deps: ["electroniccats/MPU6050@1.0.1"]
+  lib_deps: ["electroniccats/MPU6050@1.0.1", "bolderflight/Bolder Flight Systems Eigen@^3.0.0"]
   um_name: MPU6050_IMU
   um: {enabled: true}

@@ -259,14 +259,18 @@ def test_build_runs_pio_on_the_checkout_and_caches_the_artifact(lib, tmp_path, m
     assert wled_build.cache_key(override) == done["cache_key"]
 
 
-def test_checkout_links_the_bh1750_header_the_release_includes(tmp_path):
+def test_checkout_links_the_headers_the_release_includes_by_the_wrong_case(tmp_path):
     src = tmp_path / f"wled-{WLED_RELEASE}"
     um = src / "usermods" / "BH1750_v2"
     um.mkdir(parents=True)
+    tft = src / "usermods" / "ST7789_display"
+    tft.mkdir()
     (src / "platformio.ini").write_text("")
     (um / "usermod_bh1750.h").write_text("// bh1750\n")
+    (tft / "ST7789_display.h").write_text("// st7789\n")
     assert wled_build.checkout(tmp_path) == src
     assert (um / "usermod_BH1750.h").read_text() == "// bh1750\n"
+    assert (tft / "ST7789_Display.h").read_text() == "// st7789\n"
     wled_build.checkout(tmp_path)
 
 
