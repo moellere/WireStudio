@@ -14,7 +14,9 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
+from wirestudio.generate.yaml_gen import esphome_id_conflicts, esphome_integration_names
 from wirestudio.library import Library, LibraryBoard, LibraryComponent, LibraryModule
+from wirestudio.model import Design
 
 
 _BUS_KIND_TO_TYPE: dict[str, str] = {
@@ -203,7 +205,28 @@ def add_component_with_connections(
     if board is not None:
         prepare_buses(design, lib, board)
     seed_connections(design, instance_id, lib, board)
+    if instance_id in esphome_integration_names() and _esphome_refuses(design, library, instance_id):
+        n = 1
+        while f"{instance_id}_{n}" in used:
+            n += 1
+        renamed = f"{instance_id}_{n}"
+        for c in components:
+            if c["id"] == instance_id:
+                c["id"] = renamed
+        for c in design.get("connections") or []:
+            if c.get("component_id") == instance_id:
+                c["component_id"] = renamed
+        instance_id = renamed
     return instance_id, design
+
+
+def _esphome_refuses(design: dict, library: Library, instance_id: str) -> bool:
+    """Whether ESPHome would refuse `instance_id` as an id. A design that
+    cannot be checked keeps the safe answer."""
+    try:
+        return instance_id in esphome_id_conflicts(Design.model_validate(design), library)
+    except (FileNotFoundError, ValueError):
+        return True
 
 
 def _next_module_instance(design: dict, module_id: str) -> str:

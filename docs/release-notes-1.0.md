@@ -59,6 +59,7 @@ wirestudio-migrate design.json --check
 | 0.2 → 0.3 | 0.41.0 | Drops fields nothing read: `created_at`, `updated_at`, `agent`, and `lorawan.chirpstack_application_id`, `device_profile_id`, `provisioning` and `dev_eui`. |
 | 0.3 → 1.0 | 0.43.0 | The `lorawan` sugar blocks leave the model; any still in a document are rewritten as in `0.1 → 0.2`, and the version becomes 1.0. A document at 1.0 that carries one is refused. |
 | any version | 0.45.0 | A bus named after an ESPHome-reserved id (`spi0`, `uart0`, ...) is renamed the way the studio names one (`spi_bus0`), with its connection targets and `*_id` references. |
+| any version | 0.47.0 | A component or bus id that names an ESPHome integration the design loads (`bh1750` on a BH1750, `i2c` on an I2C bus) is renamed (`bh1750_1`, `i2c0`), with its connections, automations and `*_id` references. An id that names an integration the design never loads is kept. |
 
 A document with no `schema_version`, or one written by a newer release,
 is refused with a message saying so.

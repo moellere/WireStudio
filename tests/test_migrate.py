@@ -252,3 +252,52 @@ def test_a_clean_current_document_is_returned_untouched():
     doc = json.loads((REPO_ROOT / "wirestudio" / "examples" / "t-beam.json").read_text())
     result = migrate(doc)
     assert result.document is doc and not result.changed
+
+
+def _room_climate_named_bh1750() -> dict:
+    doc = json.loads((REPO_ROOT / "wirestudio" / "examples" / "room-climate.json").read_text())
+    doc["components"] = [{**c, "id": "bh1750"} if c["id"] == "lux1" else c for c in doc["components"]]
+    doc["connections"] = [{**c, "component_id": "bh1750"} if c["component_id"] == "lux1" else c
+                          for c in doc["connections"]]
+    doc["automations"] = [{"id": "bright", "trigger": {"component_id": "bh1750", "event": "on_value"},
+                           "actions": [{"component_id": "th1", "action": "update"}]}]
+    doc["esphome_extras"] = {"x": {"sensor_id": "bh1750"}, "note": "bh1750 stays as text"}
+    return doc
+
+
+def test_an_id_esphome_refuses_is_renamed_at_any_version():
+    doc = _room_climate_named_bh1750()
+    result = migrate(doc)
+    assert result.applied == ["rename_integration_name_ids"] and result.changed
+    out = result.document
+    assert [c["id"] for c in out["components"]] == ["bh1750_1", "th1"]
+    assert [c["library_id"] for c in out["components"]] == ["bh1750", "aht10"]
+    assert {c["component_id"] for c in out["connections"]} == {"bh1750_1", "th1"}
+    assert out["automations"][0]["trigger"]["component_id"] == "bh1750_1"
+    assert out["esphome_extras"] == {"x": {"sensor_id": "bh1750_1"}, "note": "bh1750 stays as text"}
+    assert next(c["id"] for c in doc["components"] if c["library_id"] == "bh1750") == "bh1750", "input not mutated"
+
+
+def test_an_id_esphome_accepts_is_kept():
+    doc = _room_climate_named_bh1750()
+    doc["components"] = [{**c, "id": "fan"} if c["id"] == "bh1750" else c for c in doc["components"]]
+    doc["connections"] = [{**c, "component_id": "fan"} if c["component_id"] == "bh1750" else c
+                          for c in doc["connections"]]
+    result = migrate(doc)
+    assert result.document is doc and not result.changed
+
+
+def test_the_renamed_design_renders_and_validates(library, tmp_path):
+    from wirestudio.generate.yaml_gen import render_yaml
+    from wirestudio.migrate import load_design
+    from wirestudio.validate import dry_run, esphome_available, write_secrets_stub
+
+    doc = _room_climate_named_bh1750()
+    del doc["automations"], doc["esphome_extras"]
+    text = render_yaml(load_design(doc, library), library)
+    assert "id: bh1750_1" in text and "id: bh1750\n" not in text
+    if esphome_available():
+        (tmp_path / "design.yaml").write_text(text)
+        write_secrets_stub(text, tmp_path / "secrets.yaml")
+        ok, output = dry_run(tmp_path / "design.yaml")
+        assert ok, output

@@ -12,8 +12,7 @@ allowed:
     An onboard part wired to a GPIO the board does not break out (an
     Atom's LED and button, the ESP32-CAM's camera bus, the T-Beam's radio
     and GPS) has no header pad to meet, so its GPIO label has no partner
-    on the board. The ATOM U has no pin map: no vendor source for its
-    header order was reachable.
+    on the board.
   pin_to_pin: >-
     SPI peripherals' SDO pins are outputs sharing the MISO line (the
     spi-io-node example's MCP23S17 and MCP3008); they tri-state when

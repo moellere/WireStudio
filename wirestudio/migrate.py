@@ -180,54 +180,101 @@ STEPS: list[Step] = [
 ]
 
 
-def _rename_reserved_bus_ids(raw: dict) -> dict:
-    """A bus named after an ESPHome peripheral (`spi0`, `uart0`, ...)
-    makes ESPHome refuse the whole render. Older onboard seeding wrote
-    exactly that, so rename the bus the way the studio names one now
-    (`spi_bus0`) and follow every reference: connection targets, and any
-    `*_id` value in component params or esphome_extras."""
-    from wirestudio.model import RESERVED_BUS_IDS, generated_bus_id
+def _free_bus_id(bus: dict, taken: set) -> str:
+    from wirestudio.model import generated_bus_id
 
-    buses = raw.get("buses") or []
-    taken = {b.get("id") for b in buses if isinstance(b, dict)}
-    renames: dict[str, str] = {}
-    for b in buses:
-        if not isinstance(b, dict) or b.get("id") not in RESERVED_BUS_IDS:
-            continue
-        n = 0
-        while (new := generated_bus_id(str(b.get("type") or "bus"), n)) in taken:
-            n += 1
-        renames[b["id"]] = new
-        taken.add(new)
+    n = 0
+    while (new := generated_bus_id(str(bus.get("type") or "bus"), n)) in taken:
+        n += 1
+    return new
+
+
+# `library_id` and `module_id` name library entries, which may share an
+# instance's id (a `bh1750` of library `bh1750`); they never reference one.
+_NOT_REFERENCES = frozenset({"library_id", "module_id"})
+
+
+def _apply_id_renames(raw: dict, renames: dict[str, str]) -> dict:
+    """The document with `renames` applied to component and bus ids and to
+    every reference to one: `connections[].component_id`, connection targets,
+    automations, `lorawan.payload[].sensor`, and any `*_id` value in params
+    or esphome_extras. Returns `raw` itself when there is nothing to do."""
     if not renames:
         return raw
 
-    def refs(node):
+    def walk(node, key=None):
         if isinstance(node, dict):
-            return {k: renames.get(v, v) if k.endswith("_id") and isinstance(v, str) else refs(v)
-                    for k, v in node.items()}
+            return {k: walk(v, k) for k, v in node.items()}
         if isinstance(node, list):
-            return [refs(v) for v in node]
+            return [walk(v, key) for v in node]
+        if isinstance(node, str) and key and (
+                (key.endswith("_id") and key not in _NOT_REFERENCES) or key == "sensor"):
+            return renames.get(node, node)
         return node
 
-    out = dict(raw)
-    out["buses"] = [{**b, "id": renames[b["id"]]} if isinstance(b, dict) and b.get("id") in renames else b
-                    for b in buses]
-    out["connections"] = [
-        {**c, "target": {**c["target"], "bus_id": renames[c["target"]["bus_id"]]}}
-        if isinstance(c, dict) and isinstance(c.get("target"), dict)
-        and c["target"].get("bus_id") in renames else c
-        for c in raw.get("connections") or []
-    ]
-    out["components"] = [{**c, "params": refs(c["params"])} if isinstance(c, dict) and "params" in c else c
-                         for c in raw.get("components") or []]
-    if "esphome_extras" in raw:
-        out["esphome_extras"] = refs(raw["esphome_extras"])
+    out = walk(raw)
+    for section in ("components", "buses"):
+        out[section] = [{**x, "id": renames.get(x["id"], x["id"])} if isinstance(x, dict) and "id" in x else x
+                        for x in out.get(section) or []]
     return out
 
 
-REPAIRS: list[tuple[str, "Callable[[dict], dict]"]] = [
+def _rename_reserved_bus_ids(raw: dict, library: "Callable[[], Library]") -> dict:
+    """A bus named after an ESPHome peripheral (`spi0`, `uart0`, ...)
+    makes ESPHome refuse the whole render. Older onboard seeding wrote
+    exactly that, so rename the bus the way the studio names one now
+    (`spi_bus0`) and follow every reference."""
+    from wirestudio.model import RESERVED_BUS_IDS
+
+    buses = [b for b in raw.get("buses") or [] if isinstance(b, dict)]
+    taken = {b.get("id") for b in buses}
+    renames: dict[str, str] = {}
+    for b in buses:
+        if b.get("id") in RESERVED_BUS_IDS:
+            renames[b["id"]] = _free_bus_id(b, taken)
+            taken.add(renames[b["id"]])
+    return _apply_id_renames(raw, renames)
+
+
+def _rename_integration_name_ids(raw: dict, library: "Callable[[], Library]") -> dict:
+    """A component or bus whose id names an ESPHome integration the design
+    loads (`bh1750` on a BH1750, `i2c` on an I2C bus) makes ESPHome refuse
+    the render; the studio accepted such ids before 0.47.0. Rename it to
+    the next free suffixed id and follow every reference. A design that
+    does not render is left alone; the render reports it."""
+    from pydantic import ValidationError
+
+    from wirestudio.generate.yaml_gen import esphome_id_conflicts, esphome_integration_names
+    from wirestudio.model import Design
+
+    components = [c for c in raw.get("components") or [] if isinstance(c, dict)]
+    buses = [b for b in raw.get("buses") or [] if isinstance(b, dict)]
+    names = esphome_integration_names()
+    if not any(x.get("id") in names for x in components + buses):
+        return raw
+    try:
+        conflicts = esphome_id_conflicts(Design.model_validate(raw), library())
+    except (ValidationError, FileNotFoundError, ValueError):
+        return raw
+    taken = {x.get("id") for x in components + buses}
+    renames: dict[str, str] = {}
+    for c in components:
+        if c.get("id") in conflicts:
+            n = 1
+            while (new := f"{c['id']}_{n}") in taken:
+                n += 1
+            renames[c["id"]] = new
+            taken.add(new)
+    for b in buses:
+        if b.get("id") in conflicts:
+            renames[b["id"]] = _free_bus_id(b, taken)
+            taken.add(renames[b["id"]])
+    return _apply_id_renames(raw, renames)
+
+
+REPAIRS: list[tuple[str, "Callable[[dict, Callable[[], Library]], dict]"]] = [
     ("rename_reserved_bus_ids", _rename_reserved_bus_ids),
+    ("rename_integration_name_ids", _rename_integration_name_ids),
 ]
 
 
@@ -252,17 +299,21 @@ def migrate(raw: dict, library=None) -> Migration:
             f"schema_version {version!r} is not one this wirestudio can read "
             f"(it writes {CURRENT_SCHEMA_VERSION}); the design may come from a newer release"
         )
-    document = raw
-    while version != CURRENT_SCHEMA_VERSION:
-        step = next(s for s in STEPS if s.from_version == version)
+    def resolved() -> "Library":
+        nonlocal library
         if library is None:
             from wirestudio.library import default_library
             library = default_library()
-        document = {**step.apply(document, library), "schema_version": step.to_version}
+        return library
+
+    document = raw
+    while version != CURRENT_SCHEMA_VERSION:
+        step = next(s for s in STEPS if s.from_version == version)
+        document = {**step.apply(document, resolved()), "schema_version": step.to_version}
         result.applied.append(step.name)
         version = step.to_version
     for name, repair in REPAIRS:
-        repaired = repair(document)
+        repaired = repair(document, resolved)
         if repaired is not document:
             document = repaired
             result.applied.append(name)

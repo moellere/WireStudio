@@ -72,6 +72,7 @@ include = ["wirestudio*"]
 # tries to read components/ + boards/.
 "wirestudio.library" = ["components/*.yaml", "boards/*.yaml", "modules/*.yaml"]
 "wirestudio.agent" = ["*.yaml"]
+"wirestudio.generate" = ["esphome_integrations.txt"]
 "wirestudio.schema" = ["*.json"]
 "wirestudio.examples" = ["*.json"]
 "wirestudio.targets.lorawan" = ["templates/*.j2"]

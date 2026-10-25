@@ -207,3 +207,15 @@ def test_connector_adds_with_unassigned_positions(library):
     add_component_with_connections(design, library, library_id="connector_1x04", label="Plug", instance_id_hint="plug")
     targets = [c["target"] for c in design["connections"] if c["component_id"] == "plug"]
     assert len(targets) == 4 and all(t == {"kind": "net", "component_id": "", "net": ""} for t in targets)
+
+
+def test_a_hint_esphome_refuses_is_suffixed(library):
+    """`bh1750` as the id of a bh1750 collides with the integration the
+    render loads, so ESPHome refuses it; `fan` on an output is fine."""
+    design = _empty_design()
+    instance_id, _ = add_component_with_connections(design, library, library_id="bh1750", instance_id_hint="bh1750")
+    assert instance_id == "bh1750_1"
+    assert [c["id"] for c in design["components"]] == ["bh1750_1"]
+    assert {c["component_id"] for c in design["connections"]} == {"bh1750_1"}
+    instance_id, _ = add_component_with_connections(design, library, library_id="gpio_output", instance_id_hint="fan")
+    assert instance_id == "fan"

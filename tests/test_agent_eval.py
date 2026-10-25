@@ -345,3 +345,21 @@ def test_a_replayed_call_must_fit_the_tool_schema(library):
         ev.apply_calls(design, [("add_bus", {"id": "w", "type": "1wire", "pin": "D5", "bogus": 1})], library)
     with pytest.raises(RuntimeError, match="not an agent tool"):
         ev.apply_calls(design, [("create_design", {})], library)
+
+
+def test_first_i2c_part_survives_the_library_id_as_hint(library, tmp_path):
+    """The hint a model reaches for first, the library id, names the
+    integration the part loads; the studio suffixes it instead of handing
+    ESPHome an id it refuses (#410)."""
+    task = BY_ID["first-i2c-part"]
+
+    def hinting(t, design):
+        final = copy.deepcopy(design)
+        log = ev.apply_calls(final, [("add_component", {"library_id": "bh1750", "instance_id_hint": "bh1750"}),
+                                     ("solve_pins", {})], library)
+        return final, log, {}, ""
+
+    [r] = ev.run_tasks([task], library, hinting, esphome=esphome_available(), workdir=tmp_path,
+                       log=lambda s: None)
+    assert r.passed, r.reasons
+    assert r.tools == ["add_component", "solve_pins"]
