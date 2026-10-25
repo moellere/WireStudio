@@ -420,12 +420,14 @@ progress. It describes the UI as built, so adopting it is a refactor
 with a few deliberate fixes, not a redesign. It lands before the 1.0
 release PR and does not touch the green-week clock.
 
-- **Tokens are the source.** The package's `tokens.json` goes in the
-  tree at `web/design/tokens.json`; a script writes the `@theme` block
-  and the `[data-theme="light"]` overrides in `web/src/index.css` from
-  it, and a test fails when the two disagree. The emerald, amber and
-  rose dark values the CSS now inherits from Tailwind's defaults are
-  stated in the tokens.
+- **Tokens are the source.** Done: the package's `tokens.json` is in
+  the tree at `web/design/tokens.json`; `npm run theme`
+  (`web/scripts/theme.mjs`) writes the color, shadow and font variables
+  of the `@theme` block and the `[data-theme="light"]` overrides in
+  `web/src/index.css` from it, and the CI `web` job fails when the two
+  disagree. The emerald, amber and rose dark values, Tailwind's
+  defaults, are stated in the tokens. Spacing, radius and size tokens
+  document Tailwind's own scale and are not generated.
 - **The inline patterns become components.** Done: `Section`,
   `KeyValueRow`, `ListRow`, `Chip`, `Code`, `Notice`, `PinTag` and
   `CompatibilityRow` are exported from `ui.tsx` and the screens use
@@ -433,10 +435,12 @@ release PR and does not touch the green-week clock.
   renditions. `WarningList` and `RequirementList` stay in
   `Inspector.tsx`: they are forms bound to `design.json` with one use
   each. Per-dialog markup is left alone unless it repeats one of them.
-- **The contrast flag is fixed.** `ink-faint` reads 4.0:1 on
-  `surface-0` in dark and 4.4:1 in light. It carries section and field
-  labels, so it moves to at least 4.5:1 in both themes, or those labels
-  move to `ink-dim`.
+- **The contrast flag is fixed.** Done: `ink-faint` is
+  `oklch(0.61 0.012 260)` in dark and `oklch(0.52 0.012 260)` in light,
+  4.6:1 or better on `surface-0` to `surface-2` in both themes. It stays
+  4.1:1 on `surface-3`, so it is not for text on a hovered control. The
+  primary button's label (`accent-50` on `accent-600`, 3.9:1) is a known
+  flag left as built.
 - **Code owns it afterwards.** Once adopted, the artifact is re-synced
   from code (`/design-sync`, `editing: "code"`) and its README is the
   contributor reference for UI work; `CONTRIBUTING.md` points at it.

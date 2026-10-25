@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
+    "theme": "node scripts/theme.mjs",
     "test:watch": "vitest"
   },
   "dependencies": {

@@ -4,24 +4,19 @@
 @import "@fontsource/jetbrains-mono/500.css";
 
 @theme {
+  /* tokens:dark:begin -- generated from design/tokens.json by `npm run theme` */
   --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", "Cascadia Code", monospace;
-
-  /* Layered surfaces, darkest (page) to lightest (raised controls). */
   --color-surface-0: oklch(0.16 0.008 260);
   --color-surface-1: oklch(0.185 0.008 260);
   --color-surface-2: oklch(0.22 0.009 260);
   --color-surface-3: oklch(0.26 0.01 260);
-
   --color-line: oklch(0.28 0.01 260);
   --color-line-strong: oklch(0.34 0.012 260);
-
   --color-ink: oklch(0.93 0.005 260);
   --color-ink-dim: oklch(0.72 0.01 260);
-  --color-ink-faint: oklch(0.55 0.012 260);
+  --color-ink-faint: oklch(0.61 0.012 260);
   --color-ink-ghost: oklch(0.42 0.012 260);
-
-  /* Copper accent -- the wire. */
   --color-accent-50: oklch(0.95 0.02 45);
   --color-accent-200: oklch(0.85 0.07 45);
   --color-accent-300: oklch(0.78 0.11 45);
@@ -29,14 +24,26 @@
   --color-accent-500: oklch(0.66 0.16 40);
   --color-accent-600: oklch(0.58 0.15 38);
   --color-accent-700: oklch(0.5 0.13 36);
-
-  /* Agent / AI surfaces. */
   --color-agent-300: oklch(0.78 0.12 300);
   --color-agent-400: oklch(0.7 0.16 300);
   --color-agent-500: oklch(0.6 0.19 300);
-
+  --color-emerald-100: oklch(0.95 0.052 163.051);
+  --color-emerald-200: oklch(0.905 0.093 164.15);
+  --color-emerald-300: oklch(0.845 0.143 164.978);
+  --color-emerald-400: oklch(0.765 0.177 163.223);
+  --color-emerald-500: oklch(0.696 0.17 162.48);
+  --color-amber-100: oklch(0.962 0.059 95.617);
+  --color-amber-200: oklch(0.924 0.12 95.746);
+  --color-amber-300: oklch(0.879 0.169 91.605);
+  --color-amber-400: oklch(0.828 0.189 84.429);
+  --color-amber-500: oklch(0.769 0.188 70.08);
+  --color-rose-200: oklch(0.892 0.058 10.001);
+  --color-rose-300: oklch(0.81 0.117 11.638);
+  --color-rose-400: oklch(0.712 0.194 13.428);
+  --color-rose-500: oklch(0.645 0.246 16.439);
   --shadow-panel: 0 0 0 1px oklch(0.28 0.01 260 / 60%), 0 8px 32px oklch(0 0 0 / 45%);
   --shadow-pop: 0 1px 2px oklch(0 0 0 / 30%);
+  /* tokens:dark:end */
 
   --animate-dialog-in: dialog-in 160ms cubic-bezier(0.16, 1, 0.3, 1);
   --animate-overlay-in: overlay-in 160ms ease-out;
@@ -56,30 +63,22 @@
 :root[data-theme="light"] {
   color-scheme: light;
 
+  /* tokens:light:begin -- generated from design/tokens.json by `npm run theme` */
   --color-surface-0: oklch(0.965 0.003 260);
   --color-surface-1: oklch(0.99 0.002 260);
   --color-surface-2: oklch(0.935 0.004 260);
   --color-surface-3: oklch(0.9 0.005 260);
-
   --color-line: oklch(0.885 0.005 260);
   --color-line-strong: oklch(0.8 0.008 260);
-
   --color-ink: oklch(0.25 0.012 260);
   --color-ink-dim: oklch(0.44 0.012 260);
-  --color-ink-faint: oklch(0.55 0.012 260);
+  --color-ink-faint: oklch(0.52 0.012 260);
   --color-ink-ghost: oklch(0.68 0.01 260);
-
-  /* Accent text shades darken for contrast on light surfaces; the
-     500/600/700 button range keeps its dark-mode values. */
   --color-accent-200: oklch(0.45 0.12 40);
   --color-accent-300: oklch(0.5 0.13 38);
   --color-accent-400: oklch(0.55 0.15 40);
-
   --color-agent-300: oklch(0.45 0.14 300);
   --color-agent-400: oklch(0.5 0.16 300);
-
-  /* Semantic chip text: the dark-mode 100-400 shades flip to their
-     dark counterparts so text stays readable on x-500/10 chips. */
   --color-emerald-100: oklch(0.37 0.08 166);
   --color-emerald-200: oklch(0.42 0.09 166);
   --color-emerald-300: oklch(0.47 0.1 165);
@@ -91,9 +90,9 @@
   --color-rose-200: oklch(0.44 0.16 15);
   --color-rose-300: oklch(0.49 0.17 15);
   --color-rose-400: oklch(0.54 0.18 16);
-
   --shadow-panel: 0 0 0 1px oklch(0.8 0.008 260 / 70%), 0 8px 32px oklch(0 0 0 / 14%);
   --shadow-pop: 0 1px 2px oklch(0 0 0 / 12%);
+  /* tokens:light:end */
 }
 
 @layer base {
