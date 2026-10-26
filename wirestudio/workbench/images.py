@@ -56,6 +56,7 @@ def _release(framework: str, board: LibraryBoard) -> tuple[str, int, str]:
 
 
 async def _esphome(board: LibraryBoard, library: Library, dashboard, functional_pin: str | None) -> Image:
+    from wirestudio.esphome_dashboard import DashboardUnavailable
     from wirestudio.generate.yaml_gen import render_yaml
     from wirestudio.mcp.hardware import is_merged_image
     from wirestudio.model import Design
@@ -71,17 +72,20 @@ async def _esphome(board: LibraryBoard, library: Library, dashboard, functional_
         "components": [], "buses": [], "connections": [],
         **(design_fields(functional_pin) if functional_pin else {}),
     })
-    pushed = await dashboard.push_device(name, render_yaml(design, library))
-    tail: list[str] = []
-    done = None
-    async for event in dashboard.compile(pushed.filename):
-        if event["type"] == "log":
-            tail = (tail + [event["data"]])[-20:]
-        else:
-            done = event
-    if not done or not done.get("ok"):
-        raise ImageUnavailable("ESPHome compile failed: " + " | ".join(t.strip() for t in tail[-5:]))
-    blob = await dashboard.firmware(pushed.filename, factory=True)
+    try:
+        pushed = await dashboard.push_device(name, render_yaml(design, library))
+        tail: list[str] = []
+        done = None
+        async for event in dashboard.compile(pushed.filename):
+            if event["type"] == "log":
+                tail = (tail + [event["data"]])[-20:]
+            else:
+                done = event
+        if not done or not done.get("ok"):
+            raise ImageUnavailable("ESPHome compile failed: " + " | ".join(t.strip() for t in tail[-5:]))
+        blob = await dashboard.firmware(pushed.filename, factory=True)
+    except DashboardUnavailable as e:
+        raise ImageUnavailable(f"ESPHome dashboard: {e}") from None
     if not blob or not is_merged_image(blob):
         raise ImageUnavailable("dashboard returned no merged factory image")
     return Image("esphome", 0x0, blob, "dashboard build")

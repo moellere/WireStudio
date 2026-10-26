@@ -590,3 +590,27 @@ def test_the_functional_image_carries_wifi_the_api_and_the_switch():
     doc = yaml.safe_load(text.replace("!secret ", ""))
     assert doc["api"] == {} and doc["esphome"]["name"] == "hw-gate-esp32-devkitc-v4"
     assert doc["switch"] == [{"platform": "gpio", "pin": "GPIO4", "name": "Gate switch", "id": "gate_switch"}]
+
+
+async def test_an_unreachable_dashboard_fails_the_flash_not_the_gate():
+    """covbench one-off, 2026-10-26: a dashboard the gate cannot resolve
+    raised out of the ESPHome image build and ended the run with a
+    traceback instead of a report."""
+    from wirestudio.esphome_dashboard import DashboardUnavailable
+
+    class DeadDashboard:
+        def is_configured(self):
+            return True
+
+        async def push_device(self, name, yaml_text):
+            raise DashboardUnavailable("dashboard websocket failed: [Errno -3] Temporary failure in name resolution")
+
+    report = gate.Report()
+    bench = FlashBench([FakeSlot("AUTO-1")], BOOTS)
+    cfg = {"devices": [{"slot": "AUTO-1", "board": "esp32-devkitc-v4", "flash": ["esphome"]}]}
+    await gate.run(cfg, report, client=bench, dashboard=DeadDashboard())
+
+    [row] = [r for r in report.rows if r[0] == "flash"]
+    assert row[:3] == ("flash", "AUTO-1/esphome", False)
+    assert "name resolution" in row[3]
+    assert not bench.writes
