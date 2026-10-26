@@ -19,7 +19,7 @@ import type {
 import { LeftSidebar, type CommunityList } from "./components/LeftSidebar";
 import { DesignPane } from "./components/DesignPane";
 import { StartPanel } from "./components/StartPanel";
-import { Inspector, type Selection } from "./components/Inspector";
+import { Inspector, LibraryPage, type LibraryPageTarget, type Selection } from "./components/Inspector";
 import { UsbDetectDialog } from "./components/UsbDetectDialog";
 import { AgentSidebar } from "./components/AgentSidebar";
 import { ProblemsPanel } from "./components/ProblemsPanel";
@@ -123,6 +123,7 @@ export default function App() {
     warnings: SolverWarning[];
   } | null>(null);
   const [solving, setSolving] = useState(false);
+  const [libraryPage, setLibraryPage] = useState<LibraryPageTarget | null>(null);
 
   const [savedDesigns, setSavedDesigns] = useState<SavedDesignSummary[] | null>(null);
   const [selectedSaved, setSelectedSaved] = useState<string | null>(null);
@@ -231,7 +232,7 @@ export default function App() {
     try {
       await api.deleteBoard(id);
       await refreshBoards();
-      setSelection((sel) => (sel.kind === "board" && sel.id === id ? { kind: "design" } : sel));
+      setLibraryPage((p) => (p?.kind === "board" && p.id === id ? null : p));
     } catch (e) {
       setBootError(e instanceof Error ? e.message : String(e));
     }
@@ -242,7 +243,7 @@ export default function App() {
     try {
       await api.deleteComponent(id);
       await refreshComponents();
-      setSelection((sel) => (sel.kind === "component" && sel.id === id ? { kind: "design" } : sel));
+      setLibraryPage((p) => (p?.kind === "component" && p.id === id ? null : p));
     } catch (e) {
       setBootError(e instanceof Error ? e.message : String(e));
     }
@@ -510,13 +511,14 @@ export default function App() {
       await api.communityInstall(kind, id);
       await (kind === "boards" ? refreshBoards() : refreshComponents());
       await loadCommunityLibrary();
-      setSelection({ kind: kind === "boards" ? "board" : "component", id });
+      setLibraryPage({ kind: kind === "boards" ? "board" : "component", id });
     } catch (e) {
       setBootError(e instanceof Error ? e.message : String(e));
     }
   }
 
   async function handleSelectCommunity(slug: string) {
+    setLibraryPage(null);
     try {
       const { design: d, installed_components, installed_boards } = await api.communityImport(slug);
       if (installed_components.length > 0) setComponents(await api.listComponents());
@@ -534,6 +536,7 @@ export default function App() {
   }
 
   function handleAdoptDetectedDesign(d: Design) {
+    setLibraryPage(null);
     setOriginalDesign(d);
     setDesign(d);
     setSelectedExample(null);  // detached from the examples sidebar
@@ -544,6 +547,7 @@ export default function App() {
   }
 
   function handleAdoptNewDesign(d: Design) {
+    setLibraryPage(null);
     setOriginalDesign(d);
     setDesign(d);
     setSelectedExample(null);
@@ -554,6 +558,7 @@ export default function App() {
   }
 
   async function handleSelectSaved(id: string) {
+    setLibraryPage(null);
     try {
       const d = await api.getSavedDesign(id);
       setOriginalDesign(d);
@@ -800,18 +805,32 @@ export default function App() {
           selectedCommunity={selectedCommunity}
           onSelectCommunity={handleSelectCommunity}
           selectedSaved={selectedSaved}
-          onSelectExample={(id) => { setSelectedSaved(null); setSelectedCommunity(null); setSelectedExample(id); }}
+          onSelectExample={(id) => { setLibraryPage(null); setSelectedSaved(null); setSelectedCommunity(null); setSelectedExample(id); }}
           onSelectSaved={handleSelectSaved}
           onDeleteSaved={handleDeleteSaved}
-          onSelectBoard={(id) => setSelection({ kind: "board", id })}
-          onSelectComponent={(id) => setSelection({ kind: "component", id })}
+          onSelectBoard={(id) => setLibraryPage({ kind: "board", id })}
+          onSelectComponent={(id) => setLibraryPage({ kind: "component", id })}
           onNewComponent={() => setLibraryEditor({ kind: "component", title: "New component", yaml: NEW_COMPONENT_TEMPLATE, overwrite: false })}
           communityLibrary={communityLibrary}
           onInstallLibrary={handleInstallLibrary}
           onNewBoard={() => setLibraryEditor({ kind: "board", title: "New board", yaml: NEW_BOARD_TEMPLATE, overwrite: false })}
           onInsertModule={handleInsertModule}
         />
-        {design ? (
+        {libraryPage ? (
+          <LibraryPage
+            page={libraryPage}
+            libraryBoards={boards}
+            libraryComponents={components}
+            designReady={!!design}
+            onBack={() => setLibraryPage(null)}
+            onAddComponent={handleAddComponent}
+            onEditComponent={(id, source) => handleEditLibrary("component", id, source)}
+            onDeleteComponent={handleDeleteComponent}
+            onEditBoard={(id, source) => handleEditLibrary("board", id, source)}
+            onDeleteBoard={handleDeleteBoard}
+            onShareLibrary={communityStatus?.enabled ? (kind, id) => setLibraryShare({ kind, id }) : undefined}
+          />
+        ) : design ? (
           <div className="flex min-h-0 min-w-0 flex-col">
             <DesignPane design={design} render={render} renderError={renderError} advancedMode={advancedMode} />
             <ProblemsPanel
@@ -829,7 +848,7 @@ export default function App() {
               boardCount={boards?.length ?? 0}
               saved={savedDesigns}
               error={renderError}
-              onOpenExample={() => examples?.[0] && setSelectedExample(examples[0].id)}
+              onOpenExample={() => { if (examples?.[0]) { setLibraryPage(null); setSelectedExample(examples[0].id); } }}
               onNewFromBoard={() => setShowNewDialog(true)}
               onConnectDevice={() => setShowUsbDialog(true)}
               onOpenSaved={handleSelectSaved}
@@ -850,11 +869,6 @@ export default function App() {
           onDesignChange={handleDesignChange}
           onAddComponent={handleAddComponent}
           onRemoveComponent={handleRemoveComponent}
-          onEditComponent={(id, source) => handleEditLibrary("component", id, source)}
-          onDeleteComponent={handleDeleteComponent}
-          onEditBoard={(id, source) => handleEditLibrary("board", id, source)}
-          onDeleteBoard={handleDeleteBoard}
-          onShareLibrary={communityStatus?.enabled ? (kind, id) => setLibraryShare({ kind, id }) : undefined}
         />
       </main>
       {libraryEditor && (
@@ -868,7 +882,7 @@ export default function App() {
             const kind = libraryEditor.kind;
             setLibraryEditor(null);
             await (kind === "board" ? refreshBoards() : refreshComponents());
-            setSelection({ kind, id });
+            setLibraryPage({ kind, id });
           }}
         />
       )}

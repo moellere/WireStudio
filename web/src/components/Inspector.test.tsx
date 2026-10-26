@@ -14,7 +14,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { Inspector, type Selection } from "./Inspector";
+import { Inspector, LibraryPage, type Selection } from "./Inspector";
 import { api } from "../api/client";
 import type { BoardSummary, ComponentSummary, Design } from "../types/api";
 
@@ -100,6 +100,14 @@ function noopProps() {
     onDesignChange: vi.fn(),
     onAddComponent: vi.fn(),
     onRemoveComponent: vi.fn(),
+  };
+}
+
+function libraryProps() {
+  return {
+    designReady: false,
+    onBack: vi.fn(),
+    onAddComponent: vi.fn(),
     onEditComponent: vi.fn(),
     onDeleteComponent: vi.fn(),
     onEditBoard: vi.fn(),
@@ -427,18 +435,17 @@ describe("flash size override", () => {
   });
 });
 
-describe("BoardInspector library actions", () => {
+describe("LibraryPage board actions", () => {
   const board = { name: "LOLIN S2 Mini", chip_variant: "esp32s2", framework: "arduino", rails: [], gpio_capabilities: {} };
 
   it("offers a copy of a bundled board and nothing to delete", async () => {
     mockApi.getBoard.mockResolvedValue(board);
-    const props = noopProps();
+    const props = libraryProps();
     render(
-      <Inspector
+      <LibraryPage
         {...props}
-        selection={{ kind: "board", id: "esp32-devkitc-v4" }}
-        design={null} boardData={null} libraryBoards={libraryBoards}
-        libraryComponents={libraryComponents} compatibilityWarnings={[]}
+        page={{ kind: "board", id: "esp32-devkitc-v4" }}
+        libraryBoards={libraryBoards} libraryComponents={libraryComponents}
       />,
     );
     await userEvent.click(await screen.findByRole("button", { name: "Copy as new" }));
@@ -448,14 +455,13 @@ describe("BoardInspector library actions", () => {
 
   it("edits and deletes a user board", async () => {
     mockApi.getBoard.mockResolvedValue(board);
-    const props = noopProps();
+    const props = libraryProps();
     const user: BoardSummary = { ...s3Board, id: "lolin-s2-mini", source: "user" };
     render(
-      <Inspector
+      <LibraryPage
         {...props}
-        selection={{ kind: "board", id: "lolin-s2-mini" }}
-        design={null} boardData={null} libraryBoards={[...libraryBoards, user]}
-        libraryComponents={libraryComponents} compatibilityWarnings={[]}
+        page={{ kind: "board", id: "lolin-s2-mini" }}
+        libraryBoards={[...libraryBoards, user]} libraryComponents={libraryComponents}
       />,
     );
     await userEvent.click(await screen.findByRole("button", { name: "Edit YAML" }));
@@ -470,12 +476,11 @@ describe("BoardInspector library actions", () => {
     const onShareLibrary = vi.fn();
     const user: BoardSummary = { ...s3Board, id: "lolin-s2-mini", source: "user" };
     render(
-      <Inspector
-        {...noopProps()}
+      <LibraryPage
+        {...libraryProps()}
         onShareLibrary={onShareLibrary}
-        selection={{ kind: "board", id: "lolin-s2-mini" }}
-        design={null} boardData={null} libraryBoards={[...libraryBoards, user]}
-        libraryComponents={libraryComponents} compatibilityWarnings={[]}
+        page={{ kind: "board", id: "lolin-s2-mini" }}
+        libraryBoards={[...libraryBoards, user]} libraryComponents={libraryComponents}
       />,
     );
     await userEvent.click(await screen.findByRole("button", { name: "Share" }));

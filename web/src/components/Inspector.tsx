@@ -29,8 +29,6 @@ import { Chip, KeyValueRow, Section } from "./ui";
 
 export type Selection =
   | { kind: "design" }
-  | { kind: "board"; id: string }
-  | { kind: "component"; id: string }
   | { kind: "component_instance"; id: string };
 
 interface Props {
@@ -47,19 +45,12 @@ interface Props {
   onDesignChange: (updater: (d: Design) => Design) => void;
   onAddComponent: (libraryId: string) => void;
   onRemoveComponent: (instanceId: string) => void;
-  onEditComponent: (libraryId: string, source: "bundled" | "user") => void;
-  onDeleteComponent: (libraryId: string) => void;
-  onEditBoard: (libraryId: string, source: "bundled" | "user") => void;
-  onDeleteBoard: (libraryId: string) => void;
-  /** Share a user entry to the community catalogue; absent when it is off. */
-  onShareLibrary?: (kind: "components" | "boards", libraryId: string) => void;
 }
 
 export function Inspector({
   selection, design, boardData, libraryBoards, libraryComponents,
   compatibilityWarnings,
   onSelect, onParamChange, onConnectionChange, onLockedPinChange, onDesignChange,
-  onEditComponent, onDeleteComponent, onEditBoard, onDeleteBoard, onShareLibrary,
   onAddComponent, onRemoveComponent,
 }: Props) {
   return (
@@ -78,8 +69,6 @@ export function Inspector({
           <div className="text-[10px] font-semibold uppercase tracking-widest text-ink-faint">Inspector</div>
           <div className="mt-1 flex items-center gap-2 truncate text-sm font-medium text-ink">
             {selection.kind === "design" && <><LayoutGrid className="h-4 w-4 text-ink-dim" /> Design Overview</>}
-            {selection.kind === "board" && <><Cpu className="h-4 w-4 text-ink-dim" /> Board Details</>}
-            {selection.kind === "component" && <><ComponentIcon className="h-4 w-4 text-ink-dim" /> Library Component</>}
             {selection.kind === "component_instance" && <><ComponentIcon className="h-4 w-4 text-ink-dim" /> Component Instance</>}
           </div>
         </div>
@@ -96,26 +85,6 @@ export function Inspector({
             onDesignChange={onDesignChange}
             onAddComponent={onAddComponent}
             onRemoveComponent={onRemoveComponent}
-          />
-        )}
-        {selection.kind === "board" && (
-          <BoardInspector
-            id={selection.id}
-            source={libraryBoards?.find((b) => b.id === selection.id)?.source ?? "bundled"}
-            onEdit={onEditBoard}
-            onDelete={onDeleteBoard}
-            onShare={onShareLibrary && ((id) => onShareLibrary("boards", id))}
-          />
-        )}
-        {selection.kind === "component" && (
-          <LibraryComponentInspector
-            id={selection.id}
-            source={libraryComponents?.find((c) => c.id === selection.id)?.source ?? "bundled"}
-            designReady={!!design}
-            onAdd={onAddComponent}
-            onEdit={onEditComponent}
-            onDelete={onDeleteComponent}
-            onShare={onShareLibrary && ((id) => onShareLibrary("components", id))}
           />
         )}
         {selection.kind === "component_instance" && (
@@ -493,6 +462,68 @@ function Field({
         className="mt-0.5 w-full rounded-md border border-line bg-surface-1 px-2 py-1 text-xs text-ink focus:border-accent-500/60 focus:outline-none"
       />
     </div>
+  );
+}
+
+export type LibraryPageTarget = { kind: "board" | "component"; id: string };
+
+export function LibraryPage({
+  page, libraryBoards, libraryComponents, designReady, onBack,
+  onAddComponent, onEditComponent, onDeleteComponent, onEditBoard, onDeleteBoard, onShareLibrary,
+}: {
+  page: LibraryPageTarget;
+  libraryBoards: BoardSummary[] | null;
+  libraryComponents: ComponentSummary[] | null;
+  designReady: boolean;
+  onBack: () => void;
+  onAddComponent: (libraryId: string) => void;
+  onEditComponent: (libraryId: string, source: "bundled" | "user") => void;
+  onDeleteComponent: (libraryId: string) => void;
+  onEditBoard: (libraryId: string, source: "bundled" | "user") => void;
+  onDeleteBoard: (libraryId: string) => void;
+  /** Share a user entry to the community catalogue; absent when it is off. */
+  onShareLibrary?: (kind: "components" | "boards", libraryId: string) => void;
+}) {
+  const Icon = page.kind === "board" ? Cpu : ComponentIcon;
+  return (
+    <section className="flex min-h-0 min-w-0 flex-col">
+      <div className="flex items-center gap-3 border-b border-line px-4 py-2.5">
+        <button
+          onClick={onBack}
+          className="rounded-md border border-line px-2 py-1 text-xs text-ink-dim transition-colors hover:bg-surface-2 hover:text-ink"
+        >
+          {designReady ? "← Back to design" : "← Back"}
+        </button>
+        <Icon className="h-4 w-4 text-ink-dim" />
+        <span className="text-xs font-semibold uppercase tracking-wider text-ink-faint">
+          {page.kind === "board" ? "Library board" : "Library component"}
+        </span>
+        <span className="font-mono text-xs text-ink-dim">{page.id}</span>
+      </div>
+      <div className="min-h-0 flex-1 overflow-auto">
+        <div className="mx-auto max-w-3xl p-6 text-sm">
+          {page.kind === "board" ? (
+            <BoardInspector
+              id={page.id}
+              source={libraryBoards?.find((b) => b.id === page.id)?.source ?? "bundled"}
+              onEdit={onEditBoard}
+              onDelete={onDeleteBoard}
+              onShare={onShareLibrary && ((id) => onShareLibrary("boards", id))}
+            />
+          ) : (
+            <LibraryComponentInspector
+              id={page.id}
+              source={libraryComponents?.find((c) => c.id === page.id)?.source ?? "bundled"}
+              designReady={designReady}
+              onAdd={onAddComponent}
+              onEdit={onEditComponent}
+              onDelete={onDeleteComponent}
+              onShare={onShareLibrary && ((id) => onShareLibrary("components", id))}
+            />
+          )}
+        </div>
+      </div>
+    </section>
   );
 }
 

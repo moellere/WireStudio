@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { FolderHeart, FolderOpen, Cpu, Component, Boxes, Users } from "lucide-react";
+import { FolderHeart } from "lucide-react";
 import { Loading, Empty } from "./Status";
 import type {
   BoardSummary,
@@ -46,44 +46,61 @@ interface Props {
   onInsertModule: (id: string) => void;
 }
 
+const GROUP_TABS: Record<"open" | "library", Tab[]> = {
+  open: ["examples", "gallery", "saved"],
+  library: ["boards", "components", "modules"],
+};
+
 export function LeftSidebar(props: Props) {
-  const [tab, setTab] = useState<Tab>("examples");
+  const [tab, setTabState] = useState<Tab>("examples");
+  const [lastTab, setLastTab] = useState<Record<"open" | "library", Tab>>({ open: "examples", library: "boards" });
+  const group = GROUP_TABS.open.includes(tab) ? "open" : "library";
+  function setTab(t: Tab) {
+    setTabState(t);
+    setLastTab((l) => ({ ...l, [GROUP_TABS.open.includes(t) ? "open" : "library"]: t }));
+  }
   const [search, setSearch] = useState("");
 
   return (
     <aside className="flex min-h-0 flex-col border-r border-line bg-surface-0">
-      <div className="flex border-b border-line p-2 gap-1 bg-surface-0">
-        {(["examples", "gallery", "saved", "boards", "components", "modules"] as const)
-          .filter((t) => t !== "gallery" || props.community !== null)
-          .map((t) => {
-          const Icon =
-            t === "examples" ? FolderOpen
-            : t === "gallery" ? Users
-            : t === "saved" ? FolderHeart
-            : t === "boards" ? Cpu
-            : t === "modules" ? Boxes
-            : Component;
-          return (
+      <div className="space-y-2 p-3 pb-0">
+        <div role="tablist" aria-label="Sidebar" className="flex gap-1 rounded-lg bg-surface-1 p-1 ring-1 ring-inset ring-line">
+          {(["open", "library"] as const).map((g) => (
             <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`flex flex-1 flex-col items-center gap-1 rounded-md py-2 transition-colors ${
-                tab === t
-                  ? "bg-surface-2 text-ink ring-1 ring-line-strong/50"
-                  : "text-ink-dim hover:bg-surface-1 hover:text-ink"
+              key={g}
+              role="tab"
+              aria-selected={group === g}
+              onClick={() => setTab(g === group ? tab : lastTab[g])}
+              className={`flex-1 rounded-md px-2 py-1.5 text-xs font-medium capitalize transition-colors ${
+                group === g
+                  ? "bg-surface-2 text-ink ring-1 ring-inset ring-line-strong/50"
+                  : "text-ink-dim hover:text-ink"
               }`}
-              title={t === "gallery" ? "Community designs" : t.charAt(0).toUpperCase() + t.slice(1)}
             >
-              <Icon className="h-4 w-4" />
-              <span className="text-[10px] font-medium capitalize tracking-wide">
+              {g}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-1">
+          {GROUP_TABS[group]
+            .filter((t) => t !== "gallery" || props.community !== null)
+            .map((t) => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                aria-pressed={tab === t}
+                className={`rounded-md px-2 py-1 text-xs font-medium capitalize transition-colors ${
+                  tab === t ? "bg-surface-2 text-ink" : "text-ink-dim hover:text-ink"
+                }`}
+                title={t === "gallery" ? "Community designs" : t.charAt(0).toUpperCase() + t.slice(1)}
+              >
                 {t}
                 {t === "saved" && props.saved && props.saved.length > 0 && (
                   <span className="ml-1 opacity-70">({props.saved.length})</span>
                 )}
-              </span>
-            </button>
-          );
-        })}
+              </button>
+            ))}
+        </div>
       </div>
 
       <div className="p-3 pb-2">

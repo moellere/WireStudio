@@ -90,6 +90,7 @@ describe("LeftSidebar community library", () => {
 
   it("offers what this studio does not have, with its author", async () => {
     const onInstall = withLibrary();
+    await userEvent.click(screen.getByRole("tab", { name: "library" }));
     await userEvent.click(screen.getByTitle("Components"));
     const section = screen.getByRole("region", { name: "Community components" });
     expect(section).toHaveTextContent("NPN LED driver");
@@ -101,6 +102,7 @@ describe("LeftSidebar community library", () => {
 
   it("lists community boards in the Boards tab", async () => {
     const onInstall = withLibrary();
+    await userEvent.click(screen.getByRole("tab", { name: "library" }));
     await userEvent.click(screen.getByTitle("Boards"));
     await userEvent.click(screen.getByRole("button", { name: "Install" }));
     expect(onInstall).toHaveBeenCalledWith("boards", "lolin-s2-mini");
