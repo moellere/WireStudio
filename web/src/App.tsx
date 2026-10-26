@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { ComponentType, ReactNode } from "react";
 import { api, ApiError, UNAUTHORIZED_EVENT } from "./api/client";
 import { ApiTokenDialog } from "./components/ApiTokenDialog";
 import type {
@@ -70,7 +71,7 @@ import {
   type ConnectionTarget,
   type LibraryComponentDetail,
 } from "./lib/design";
-import { Chip } from "./components/ui";
+import { Button, Chip } from "./components/ui";
 
 export default function App() {
   const [examples, setExamples] = useState<ExampleSummary[] | null>(null);
@@ -674,197 +675,80 @@ export default function App() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1 rounded-lg bg-surface-1 p-1 ring-1 ring-inset ring-line">
-            <button
-              onClick={() => setShowNewDialog(true)}
-              className="flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium text-ink-dim transition-colors hover:bg-surface-2 hover:text-ink"
-              title="Create a fresh design from a board"
-            >
-              <FilePlus className="h-4 w-4" />
-              <span className="hidden sm:inline">New</span>
-            </button>
-
-            <button
+        <div className="flex items-center gap-2">
+          <ToolGroup label="Design">
+            <ToolButton icon={FilePlus} label="New" onClick={() => setShowNewDialog(true)} title="Create a fresh design from a board" />
+            <ToolButton
+              icon={Save}
+              label={savingState === "saving" ? "Saving..." : savingState === "saved" ? "Saved" : "Save"}
               disabled={!design || savingState === "saving"}
               onClick={handleSave}
-              className={`flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium transition-colors disabled:opacity-40 ${
-                savingState === "saved"
-                  ? "bg-emerald-500/20 text-emerald-300"
-                  : "text-ink-dim enabled:hover:bg-surface-2 enabled:hover:text-ink"
-              }`}
               title="Persist the current design to designs/<id>.json on the server"
-            >
-              <Save className="h-4 w-4" />
-              <span className="hidden sm:inline">
-                {savingState === "saving" ? "Saving..." : savingState === "saved" ? "Saved" : "Save"}
-              </span>
-            </button>
-
+              className={savingState === "saved" ? "bg-emerald-500/20 text-emerald-300" : ""}
+            />
             {communityStatus?.enabled && (
-              <button
-                disabled={!design}
-                onClick={() => setShowShareDialog(true)}
-                className="flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium text-ink-dim transition-colors enabled:hover:bg-surface-2 enabled:hover:text-ink disabled:opacity-40"
-                title="Share this design to the community catalogue"
-              >
-                <Share2 className="h-4 w-4" />
-                <span className="hidden sm:inline">Share</span>
-              </button>
+              <ToolButton icon={Share2} label="Share" disabled={!design} onClick={() => setShowShareDialog(true)} title="Share this design to the community catalogue" />
             )}
+            <ToolButton icon={RotateCcw} label="Reset" disabled={!dirty} onClick={handleReset} title="Reset to last saved state" />
+          </ToolGroup>
 
-            <div className="mx-1 h-4 w-px bg-line-strong"></div>
+          <ToolGroup label="Parts">
+            <ToolButton icon={Plus} label="Add by function" wide disabled={!design} onClick={() => setShowCapabilityDialog(true)} title="Pick a capability and add a matching component" />
+            <ToolButton icon={Boxes} label="Inventory" wide onClick={() => setShowInventoryDialog(true)} title="View and edit your component inventory; check the open design against what's on hand" />
+            <ToolButton icon={Usb} label="Connect device" wide onClick={() => setShowUsbDialog(true)} title="Detect a connected ESP via WebSerial" />
+          </ToolGroup>
 
-            <button
-              disabled={!dirty}
-              onClick={handleReset}
-              className="flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium text-ink-dim transition-colors enabled:hover:bg-surface-2 enabled:hover:text-ink disabled:opacity-40"
-              title="Reset to last saved state"
-            >
-              <RotateCcw className="h-4 w-4" />
-              <span className="hidden lg:inline">Reset</span>
-            </button>
-
-            <button
-              disabled={!design}
-              onClick={handleDownload}
-              className="flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium text-ink-dim transition-colors enabled:hover:bg-surface-2 enabled:hover:text-ink disabled:opacity-40"
-              title="Download design as JSON"
-              aria-label="Download design as JSON"
-            >
-              <Download className="h-4 w-4" />
-            </button>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowUsbDialog(true)}
-              className="flex items-center gap-1.5 rounded-md bg-surface-2 px-3 py-1.5 text-xs font-medium text-ink ring-1 ring-inset ring-line transition-colors hover:bg-surface-3 hover:ring-line-strong"
-              title="Detect a connected ESP via WebSerial"
-            >
-              <Usb className="h-4 w-4 text-ink-faint" />
-              Connect Device
-            </button>
-
-            <button
-              disabled={!design}
-              onClick={() => setShowCapabilityDialog(true)}
-              className="flex items-center gap-1.5 rounded-md bg-surface-2 px-3 py-1.5 text-xs font-medium text-ink ring-1 ring-inset ring-line transition-colors enabled:hover:bg-surface-3 enabled:hover:ring-line-strong disabled:opacity-40"
-              title="Pick a capability and add a matching component"
-            >
-              <Plus className="h-4 w-4 text-ink-faint" />
-              Add by Function
-            </button>
-
-            <button
-              onClick={() => setShowInventoryDialog(true)}
-              className="flex items-center gap-1.5 rounded-md bg-surface-2 px-3 py-1.5 text-xs font-medium text-ink ring-1 ring-inset ring-line transition-colors hover:bg-surface-3 hover:ring-line-strong"
-              title="View and edit your component inventory; check the open design against what's on hand"
-            >
-              <Boxes className="h-4 w-4 text-ink-faint" />
-              Inventory
-            </button>
-
-            <button
+          <ToolGroup label="Check">
+            <Button
+              variant="primary"
+              className="whitespace-nowrap"
               disabled={!design || solving}
               onClick={handleSolvePins}
-              className="flex items-center gap-1.5 rounded-md bg-accent-600 px-3 py-1.5 text-xs font-medium text-accent-50 shadow-pop transition-colors enabled:hover:bg-accent-500 disabled:opacity-40"
               title="Auto-assign every unbound connection"
             >
               <Wand2 className="h-4 w-4" />
-              {solving ? "Solving..." : "Solve Pins"}
-            </button>
-          </div>
+              {solving ? "Solving..." : "Solve pins"}
+            </Button>
+            <label
+              className="flex cursor-pointer items-center gap-1.5 px-1.5 text-[10px] font-medium uppercase tracking-wider text-ink-faint transition-colors hover:text-ink"
+              title="Strict mode: generation fails when warn/error compatibility entries or design warnings remain. Saved on the design."
+            >
+              <input
+                type="checkbox"
+                checked={strictMode}
+                onChange={(e) =>
+                  setDesign((d) => (d ? { ...d, strict: e.target.checked } : d))
+                }
+                className="h-3 w-3 rounded-sm"
+              />
+              Strict
+            </label>
+          </ToolGroup>
 
-          {advancedMode && (
-            <div className="flex items-center gap-1 border-l border-line pl-3">
-              <button
-                disabled={!design}
-                onClick={() => setShowSchematicDialog(true)}
-                className="flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium text-ink-faint transition-colors enabled:hover:bg-surface-2 enabled:hover:text-ink disabled:opacity-40"
-                title="Preview the schematic, download it as .kicad_sch, or export a PCB board"
-                aria-label="Schematic (KiCad export)"
-              >
-                <Cpu className="h-4 w-4" />
-              </button>
-              <button
-                disabled={!design}
-                onClick={() => setShowEnclosureDialog(true)}
-                className="flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium text-ink-faint transition-colors enabled:hover:bg-surface-2 enabled:hover:text-ink disabled:opacity-40"
-                title="Generate a parametric .scad enclosure shell or search community models"
-                aria-label="Enclosure"
-              >
-                <Box className="h-4 w-4" />
-              </button>
-              <button
-                disabled={!design}
-                onClick={() => setShowFleetDialog(true)}
-                className="flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium text-ink-faint transition-colors enabled:hover:bg-surface-2 enabled:hover:text-ink disabled:opacity-40"
-                title="Push the rendered YAML to the fleet-for-esphome add-on"
-                aria-label="Push to fleet"
-              >
-                <UploadCloud className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => setShowFlashDialog(true)}
-                className="flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium text-ink-faint transition-colors hover:bg-surface-2 hover:text-ink"
-                title="Flash firmware over WebSerial (ESPHome, Tasmota, LoRaWAN)"
-                aria-label="Flash firmware"
-              >
-                <Radio className="h-4 w-4" />
-              </button>
-              <button
-                disabled={!design}
-                onClick={() => setShowProvisionEsphomeDialog(true)}
-                className="flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium text-ink-faint transition-colors enabled:hover:bg-surface-2 enabled:hover:text-ink disabled:opacity-40"
-                title="Provision a LoRaWAN device for the lorawan-for-esphome external-component path"
-                aria-label="Provision LoRaWAN device"
-              >
-                <KeyRound className="h-4 w-4" />
-              </button>
+          <ToolGroup label="Output">
+            {advancedMode && (
+              <>
+                <ToolButton icon={Radio} label="Flash" iconOnly onClick={() => setShowFlashDialog(true)} title="Flash firmware over WebSerial (ESPHome, Tasmota, LoRaWAN)" />
+                <ToolButton icon={UploadCloud} label="Push" iconOnly disabled={!design} onClick={() => setShowFleetDialog(true)} title="Push the rendered YAML to the fleet-for-esphome add-on" />
+                <ToolButton icon={KeyRound} label="Provision" iconOnly disabled={!design} onClick={() => setShowProvisionEsphomeDialog(true)} title="Provision a LoRaWAN device for the lorawan-for-esphome external-component path" />
+                <ToolButton icon={Cpu} label="Schematic" iconOnly disabled={!design} onClick={() => setShowSchematicDialog(true)} title="Preview the schematic, download it as .kicad_sch, or export a PCB board" />
+                <ToolButton icon={Box} label="Enclosure" iconOnly disabled={!design} onClick={() => setShowEnclosureDialog(true)} title="Generate a parametric .scad enclosure shell or search community models" />
+              </>
+            )}
+            <ToolButton icon={Download} label="Export" wide iconOnly={advancedMode} disabled={!design} onClick={handleDownload} title="Download design as JSON" />
+          </ToolGroup>
 
-              <div className="mx-1 h-4 w-px bg-line"></div>
-
+          <div className="flex items-center gap-1 border-l border-line pl-3">
+            {advancedMode && (
               <button
                 onClick={() => setShowAgent(true)}
                 className="flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium text-agent-300 transition-colors hover:bg-agent-500/10"
                 title="Open the design agent"
               >
                 <Bot className="h-4 w-4" />
-                <span className="hidden lg:inline">Agent</span>
+                <span className="hidden 2xl:inline">Agent</span>
               </button>
-            </div>
-          )}
-
-          <div className="flex items-center gap-2 border-l border-line pl-3">
-            <div className="flex flex-col gap-1">
-              <label
-                className="flex cursor-pointer items-center gap-1.5 text-[10px] font-medium tracking-wider text-ink-faint transition-colors hover:text-ink"
-                title="Strict mode: generation fails when warn/error compatibility entries or design warnings remain. Saved on the design."
-              >
-                <input
-                  type="checkbox"
-                  checked={strictMode}
-                  onChange={(e) =>
-                    setDesign((d) => (d ? { ...d, strict: e.target.checked } : d))
-                  }
-                  className="h-3 w-3 rounded-sm"
-                />
-                STRICT
-              </label>
-              <label
-                className="flex cursor-pointer items-center gap-1.5 text-[10px] font-medium tracking-wider text-ink-faint transition-colors hover:text-ink"
-                title="Advanced mode reveals Agent, Schematic, Enclosure, and Fleet options"
-              >
-                <input
-                  type="checkbox"
-                  checked={advancedMode}
-                  onChange={(e) => setAdvancedMode(e.target.checked)}
-                  className="h-3 w-3 rounded-sm accent-agent-500"
-                />
-                ADVANCED
-              </label>
-            </div>
+            )}
 
             <FeedbackLink
               version={version}
@@ -1067,7 +951,13 @@ export default function App() {
           }
         />
       )}
-      {showSettingsDialog && <SettingsDialog onClose={() => setShowSettingsDialog(false)} />}
+      {showSettingsDialog && (
+        <SettingsDialog
+          onClose={() => setShowSettingsDialog(false)}
+          advancedMode={advancedMode}
+          onAdvancedModeChange={setAdvancedMode}
+        />
+      )}
       {libraryShare && communityStatus?.enabled && (
         <LibraryShareDialog
           kind={libraryShare.kind}
@@ -1087,5 +977,42 @@ export default function App() {
         onDesignReplaced={handleAgentDesignReplaced}
       />
     </div>
+  );
+}
+
+function ToolGroup({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div role="group" aria-label={label} className="flex items-center gap-1 rounded-lg bg-surface-1 p-1 ring-1 ring-inset ring-line">
+      <span className="hidden whitespace-nowrap px-1.5 text-[10px] font-medium uppercase tracking-wider text-ink-faint 2xl:inline">{label}</span>
+      {children}
+    </div>
+  );
+}
+
+function ToolButton({
+  icon: Icon, label, onClick, disabled, title, wide = false, iconOnly = false, className = "",
+}: {
+  icon: ComponentType<{ className?: string }>;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  title: string;
+  wide?: boolean;
+  iconOnly?: boolean;
+  className?: string;
+}) {
+  return (
+    <button
+      disabled={disabled}
+      onClick={onClick}
+      title={title}
+      aria-label={label}
+      className={`flex items-center gap-1.5 rounded-md p-1.5 text-xs font-medium text-ink-dim transition-colors enabled:hover:bg-surface-2 enabled:hover:text-ink disabled:opacity-40 ${className}`}
+    >
+      <Icon className="h-4 w-4" />
+      {!iconOnly && (
+        <span className={`whitespace-nowrap ${wide ? "hidden 2xl:inline" : "hidden lg:inline"}`}>{label}</span>
+      )}
+    </button>
   );
 }

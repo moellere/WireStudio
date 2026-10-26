@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The header is grouped by phase and the design header is one line.**
+  Design, Parts, Check and Output groups replace the single row that
+  overflowed below 1400px; the Advanced toggle moved into Settings. The
+  design pane's header is name, id, board and counts on one line, with
+  the description behind a disclosure, and the wiring legend moved into
+  the tab bar. Roadmap section 10, items 5 and 6.
+
 - **The workbench fits a 1280px screen.** The three columns are bounded
   (sidebar 16-18rem, design pane at least 32rem, inspector 20-26rem), so
   wide wiring or YAML scrolls inside the design pane instead of pushing
