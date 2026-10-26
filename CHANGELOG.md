@@ -20,6 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **An unreachable ESPHome dashboard ended the hardware gate with a
+  traceback.** The ESPHome image build let the dashboard client's error
+  escape, so one bad dashboard lost the whole night's report. It is now
+  a failed `flash` row for that framework and the run carries on.
+
 - **The header overflowed between 1536 and 1760px.** With advanced mode
   on and unsaved changes, the group names and long labels that appeared
   at 1536px pushed the theme, settings and docs buttons off screen, and
