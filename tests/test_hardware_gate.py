@@ -299,7 +299,8 @@ def fake_images(monkeypatch):
 
     unavailable: dict[str, str] = {}
 
-    async def image_for(framework, board, library, *, dashboard=None):
+    async def image_for(framework, board, library, *, dashboard=None, functional_pin=None):
+        unavailable.setdefault("_pins", []).append(functional_pin)
         if framework in unavailable:
             raise images.ImageUnavailable(unavailable[framework])
         offset = 0x1000 if framework == "micropython" and board.chip_variant == "esp32" else 0x0
@@ -427,3 +428,165 @@ def test_a_valid_flash_entry_loads(tmp_path):
     p.write_text("devices:\n  - slot: SLOT2\n    board: heltec-wifi-lora32-v3\n"
                  "    flash: [esphome, meshtastic]\n")
     assert gate._load_config(p)["devices"][0]["flash"] == ["esphome", "meshtastic"]
+
+
+# --- functional (phase 4) ------------------------------------------------
+
+class FakeAPI:
+    """Stands in for aioesphomeapi.APIClient. `follows` is whether the switch
+    state tracks the command, as working firmware's does."""
+
+    def __init__(self, name="hw-gate-esp32-devkitc-v4", entities=None, follows=True, refuse=False):
+        self.name, self.follows, self.refuse = name, follows, refuse
+        self.entities = entities if entities is not None else [
+            type("SwitchInfo", (), {"key": 7, "object_id": "gate_switch", "name": "Gate switch"})()]
+        self.commands: list[bool] = []
+        self.hosts: list[str] = []
+        self._cb = None
+
+    def __call__(self, host, port, password):
+        self.hosts.append(host)
+        return self
+
+    async def connect(self, login=False):
+        if self.refuse:
+            raise ConnectionRefusedError("[Errno 111] Connection refused")
+
+    async def device_info(self):
+        return type("DeviceInfo", (), {"name": self.name, "esphome_version": "2026.8.1"})()
+
+    async def list_entities_services(self):
+        return self.entities, []
+
+    def subscribe_states(self, cb):
+        self._cb = cb
+
+    def switch_command(self, key, state):
+        self.commands.append(state)
+        if self.follows:
+            self._cb(type("SwitchState", (), {"key": key, "state": state})())
+
+    async def disconnect(self, force=False):
+        pass
+
+
+FUNCTIONAL_CONFIG = {
+    "devices": [{"slot": "AUTO-1", "board": "esp32-devkitc-v4", "flash": ["esphome"], "functional": True}],
+}
+
+FUNCTIONAL_BOOTS = {"esphome": [
+    "[I][app:117]: setup() finished successfully!",
+    "[C][wifi:630]:   IP Address: 10.250.4.77",
+]}
+
+
+@pytest.fixture
+def quick_ip(monkeypatch):
+    from wirestudio.workbench import functional
+
+    real = functional.wait_for_ip
+
+    async def wait_for_ip(client, slot, since, timeout_s=60.0):
+        return await real(client, slot, since, timeout_s=0)
+
+    monkeypatch.setattr(functional, "wait_for_ip", wait_for_ip)
+
+
+def _rows(report, stage):
+    return [r for r in report.rows if r[0] == stage]
+
+
+async def test_functional_round_trips_the_gate_switch(fake_images, quick_ip):
+    report, api = gate.Report(), FakeAPI()
+    bench = FlashBench([FakeSlot("AUTO-1")], FUNCTIONAL_BOOTS)
+    await gate.run(FUNCTIONAL_CONFIG, report, client=bench, api_factory=api)
+
+    assert fake_images["_pins"] == ["GPIO4"]
+    assert api.hosts == ["10.250.4.77"] and api.commands == [True, False]
+    [row] = _rows(report, "functional")
+    assert row[:3] == ("functional", "AUTO-1/esphome", True), row
+    assert "Gate switch on -> off" in row[3]
+
+
+async def test_functional_is_off_unless_the_roster_asks(fake_images):
+    report, api = gate.Report(), FakeAPI()
+    cfg = {"devices": [{"slot": "AUTO-1", "board": "esp32-devkitc-v4", "flash": ["esphome"]}]}
+    await gate.run(cfg, report, client=FlashBench([FakeSlot("AUTO-1")], FUNCTIONAL_BOOTS), api_factory=api)
+    assert fake_images["_pins"] == [None] and not _rows(report, "functional") and not api.hosts
+
+
+async def test_firmware_that_never_joins_wifi_fails(fake_images, quick_ip):
+    report = gate.Report()
+    bench = FlashBench([FakeSlot("AUTO-1")], {"esphome": FUNCTIONAL_BOOTS["esphome"][:1]})
+    await gate.run(FUNCTIONAL_CONFIG, report, client=bench, api_factory=FakeAPI())
+    [row] = _rows(report, "functional")
+    assert not row[2] and "did not join WiFi" in row[3]
+
+
+@pytest.mark.parametrize("api, says", [
+    (FakeAPI(refuse=True), "did not answer"),
+    (FakeAPI(name="something-else"), "answers as 'something-else'"),
+    (FakeAPI(entities=[]), "no 'Gate switch' entity"),
+    (FakeAPI(follows=False), "state stayed unreported"),
+])
+async def test_an_api_that_misbehaves_fails(fake_images, quick_ip, api, says):
+    report = gate.Report()
+    bench = FlashBench([FakeSlot("AUTO-1")], FUNCTIONAL_BOOTS)
+    await gate.run(FUNCTIONAL_CONFIG, report, client=bench, api_factory=api)
+    [row] = _rows(report, "functional")
+    assert not row[2] and says in row[3], row
+
+
+async def test_functional_host_skips_the_log(fake_images):
+    report, api = gate.Report(), FakeAPI()
+    cfg = {"devices": [dict(FUNCTIONAL_CONFIG["devices"][0], functional_host="hw-gate.local",
+                            functional_pin="GPIO27")]}
+    bench = FlashBench([FakeSlot("AUTO-1")], {"esphome": FUNCTIONAL_BOOTS["esphome"][:1]})
+    await gate.run(cfg, report, client=bench, api_factory=api)
+    assert api.hosts == ["hw-gate.local"] and fake_images["_pins"] == ["GPIO27"]
+    assert _rows(report, "functional")[0][2]
+
+
+@pytest.mark.parametrize("entry, match", [
+    ("flash: [micropython]\n    board: esp32-devkitc-v4\n    functional: true", "add esphome"),
+    ("flash: [esphome]\n    board: esp32-devkitc-v4\n    functional: true\n    functional_pin: GPIO99",
+     "not a GPIO"),
+])
+def test_a_bad_functional_entry_is_rejected(tmp_path, entry, match):
+    p = tmp_path / "r.yaml"
+    p.write_text(f"devices:\n  - slot: SLOT2\n    {entry}\n")
+    with pytest.raises(gate.ConfigError, match=match):
+        gate._load_config(p)
+
+
+def test_the_free_pin_avoids_straps_buses_and_the_console():
+    from wirestudio.workbench.functional import FunctionalError, free_pin
+
+    assert free_pin({"GPIO0": ["gpio", "strap"], "GPIO1": ["gpio", "serial_tx"],
+                     "GPIO21": ["gpio", "i2c_sda"], "GPIO34": ["gpio", "input_only"],
+                     "GPIO4": ["gpio", "adc", "pwm"]}) == "GPIO4"
+    with pytest.raises(FunctionalError):
+        free_pin({"GPIO0": ["gpio", "boot_high"]})
+
+
+def test_the_functional_image_carries_wifi_the_api_and_the_switch():
+    import yaml
+
+    from wirestudio.generate.yaml_gen import render_yaml
+    from wirestudio.library import default_library
+    from wirestudio.model import Design
+    from wirestudio.workbench.functional import design_fields
+
+    lib = default_library()
+    board = lib.board("esp32-devkitc-v4")
+    design = Design.model_validate({
+        "schema_version": "1.0", "id": "hw-gate-esp32-devkitc-v4", "name": "gate",
+        "board": {"library_id": board.id, "mcu": board.mcu, "framework": board.framework},
+        "power": {"supply": "usb-5v", "rail_voltage_v": 5.0}, "buses": [],
+        **design_fields("GPIO4"),
+    })
+    text = render_yaml(design, lib)
+    assert "ssid: !secret wifi_ssid" in text and "password: !secret wifi_password" in text
+    doc = yaml.safe_load(text.replace("!secret ", ""))
+    assert doc["api"] == {} and doc["esphome"]["name"] == "hw-gate-esp32-devkitc-v4"
+    assert doc["switch"] == [{"platform": "gpio", "pin": "GPIO4", "name": "Gate switch", "id": "gate_switch"}]

@@ -64,6 +64,12 @@ devices:
 #    name: spare ESP32-S3
 #    board: esp32-s3-devkitc-1
 #    flash: [esphome, circuitpython, micropython]
+#    # Phase 4: give the ESPHome image WiFi (the dashboard's wifi_ssid /
+#    # wifi_password secrets), the native API and a "Gate switch" on a free
+#    # pin, then round-trip the switch over the API. Optional:
+#    # functional_pin picks the pin, functional_host skips reading the
+#    # address from the boot log.
+#    functional: true
 #
 #  - slot: SLOT3
 #    name: spare Heltec V3

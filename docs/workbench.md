@@ -196,6 +196,7 @@ the usual ChirpStack environment, and for an `esphome` flash
 | `uplinks` | ChirpStack saw the DevEUI within `max_uplink_silence_s` |
 | `flash` | each framework in a device's `flash:` list is written to its slot, with a full erase |
 | `boot` | the written firmware printed its boot marker |
+| `functional` | on a `functional: true` device, the ESPHome firmware joined WiFi, its native API answers under the design's name, and the gate switch round-trips on and off |
 
 The roster is deployment state — slot labels and DevEUIs describe one
 physical bench — so it is not shipped in the package.
@@ -253,6 +254,33 @@ writes its factory image; `circuitpython`, `micropython` and
 `meshtastic` download the newest stable release the flash dialog
 serves. Every write erases the chip first, because each framework
 leaves its own filesystem behind.
+
+**The functional stage** (workbench phase 4) goes one step past
+`boot`. With `functional: true` on an entry that flashes `esphome`, the
+gate's design gains WiFi from the dashboard's `wifi_ssid` and
+`wifi_password` secrets, an unencrypted native API, and one
+`gpio_output` switch, "Gate switch", on a free pin (the first GPIO that
+is not a strap, a default bus pin or the console; `functional_pin`
+overrides it). Nothing is wired to the pin. After the boot marker the
+gate reads the device's address from the `IP Address:` line ESPHome logs
+on joining (or uses `functional_host`), connects with `aioesphomeapi`
+(the `bench` extra, in the `-full` image), checks the device answers as
+`hw-gate-<board>` and lists the switch, and commands it on and off,
+waiting for each state to come back. That is the round trip Home
+Assistant makes, on firmware generated from a design:
+
+```yaml
+  - slot: AUTO-1
+    name: covbench ESP32 dev board
+    board: esp32-devkitc-v4
+    flash: [esphome, circuitpython, micropython]
+    functional: true
+```
+
+ESPHome's setup waits for WiFi, so a device that cannot join fails
+`boot` with the WiFi lines in its tail rather than reaching
+`functional`. The gate's pod must be able to reach the device's address;
+the reference cluster routes to the bench LAN.
 
 A flash device skips the `serial` stage: what it prints at rest depends
 on which framework the previous run left. `boot` asserts the markers in
