@@ -24,6 +24,8 @@ SWITCH_LABEL = "Gate switch"
 API_PORT = 6053
 
 _IP = re.compile(r"IP Address: (\d{1,3}(?:\.\d{1,3}){3})")
+# ESPHome's scan list: "- 'ssid' (bssid) ▂▄▆█ Ch:11 -97dB".
+_RSSI = re.compile(r"Ch:\s*\d+\s+(-\d+)\s*dB")
 # A free pin carries none of these: they boot-strap the chip, belong to the
 # console or a default bus, or cannot drive an output.
 _RESERVED = ("strap", "boot", "serial", "uart", "input_only", "spi", "i2c", "usb", "psram", "flash")
@@ -62,6 +64,16 @@ async def wait_for_ip(client, slot: str, since: float, timeout_s: float = 60.0) 
         await asyncio.sleep(2)
 
 
+async def last_rssi(client, slot: str, since: float) -> int | None:
+    """The newest signal level the firmware logged from a WiFi scan."""
+    rssi = None
+    for line in await client.output(slot, lines=1000, since=since):
+        m = _RSSI.search(str(line.get("text", line) if isinstance(line, dict) else line))
+        if m:
+            rssi = int(m.group(1))
+    return rssi
+
+
 @dataclass
 class Result:
     ok: bool
@@ -77,8 +89,12 @@ async def verify(host: str, expected_name: str, *, api_factory=None, timeout_s: 
     api = api_factory(host, API_PORT, "")
     try:
         await asyncio.wait_for(api.connect(login=True), timeout_s)
+    except TimeoutError:
+        return Result(False, f"native API at {host}:{API_PORT} did not answer within {int(timeout_s)}s")
     except Exception as e:
-        return Result(False, f"native API at {host}:{API_PORT} did not answer: {e}")
+        from wirestudio.errors import describe
+
+        return Result(False, f"native API at {host}:{API_PORT} did not answer: {describe(e)}")
     try:
         info = await api.device_info()
         if info.name != expected_name:

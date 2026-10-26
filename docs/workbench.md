@@ -279,7 +279,14 @@ Assistant makes, on firmware generated from a design:
 
 ESPHome's setup waits for WiFi, so a device that cannot join fails
 `boot` with the WiFi lines in its tail rather than reaching
-`functional`. The gate's pod must be able to reach the device's address;
+`functional`. A device that joins but sits at the edge of the access
+point's range drops and rejoins, and its API times out the way broken
+firmware's would; the failure row then carries the signal the device
+logged from its last scan, and -85 dBm or weaker is called out as too
+weak to hold a link. The first covbench run, on 2026-10-26, was exactly
+that: the bench's bare ESP32 dev board saw its access point at -97 dBm.
+The board needs to be within reach of an access point before
+`functional: true` goes into the nightly roster. The gate's pod must be able to reach the device's address;
 the reference cluster routes to the bench LAN.
 
 A flash device skips the `serial` stage: what it prints at rest depends

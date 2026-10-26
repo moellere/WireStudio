@@ -20,6 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The functional stage says why a device's API did not answer.** A
+  timeout read "did not answer: " with nothing after it; it now gives
+  the wait, and the row adds the WiFi signal the device logged, naming
+  -85 dBm or weaker as too weak to hold a link. Found on the first
+  covbench run, where the board joined at -97 dBm.
+
 - **An unreachable ESPHome dashboard ended the hardware gate with a
   traceback.** The ESPHome image build let the dashboard client's error
   escape, so one bad dashboard lost the whole night's report. It is now
