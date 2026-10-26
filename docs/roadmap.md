@@ -484,7 +484,10 @@ component changes. In payoff order:
    Reset), Parts (Add by function, Inventory, Connect device; the mock
    had no place for them), Check (Solve pins, strict) and Output (Flash,
    Push, Provision, Schematic, Enclosure, Export). Group names and the
-   longer labels show from 1536px; Output is icon-only in advanced mode.
+   longer labels show from 1800px and the Design labels from 1366px;
+   Output is icon-only in advanced mode. The `ui-themes` gate sweeps
+   1280-1920px with advanced mode and unsaved changes, the widest
+   header, and fails if the page outgrows the window.
    Advanced moved into Settings.
 6. **The design header is one line.** Done: name, id, board chip and,
    when the pane is wide enough, counts; the description is behind a

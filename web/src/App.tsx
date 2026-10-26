@@ -767,7 +767,7 @@ export default function App() {
                 title="Open the design agent"
               >
                 <Bot className="h-4 w-4" />
-                <span className="hidden 2xl:inline">Agent</span>
+                <span className="hidden min-[1800px]:inline">Agent</span>
               </button>
             )}
 
@@ -1056,7 +1056,7 @@ export default function App() {
 function ToolGroup({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div role="group" aria-label={label} className="flex items-center gap-1 rounded-lg bg-surface-1 p-1 ring-1 ring-inset ring-line">
-      <span className="hidden whitespace-nowrap px-1.5 text-[10px] font-medium uppercase tracking-wider text-ink-faint 2xl:inline">{label}</span>
+      <span className="hidden whitespace-nowrap px-1.5 text-[10px] font-medium uppercase tracking-wider text-ink-faint min-[1800px]:inline">{label}</span>
       {children}
     </div>
   );
@@ -1084,7 +1084,7 @@ function ToolButton({
     >
       <Icon className="h-4 w-4" />
       {!iconOnly && (
-        <span className={`whitespace-nowrap ${wide ? "hidden 2xl:inline" : "hidden lg:inline"}`}>{label}</span>
+        <span className={`whitespace-nowrap ${wide ? "hidden min-[1800px]:inline" : "hidden min-[1366px]:inline"}`}>{label}</span>
       )}
     </button>
   );

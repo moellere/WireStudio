@@ -7,7 +7,9 @@ bundled example in a headless Chromium per theme, and fails when:
 - `<html data-theme>` does not follow the stored theme,
 - the page background or a section heading does not resolve to the
   `surface-0` / `ink-faint` value `web/design/tokens.json` gives that theme,
-- the two themes render the same background.
+- the two themes render the same background,
+- at any of `WIDTHS`, with advanced mode on and an unsaved edit (the
+  widest header), the page is wider than the window.
 
 Screenshots land in `--out` (default `ui-screenshots/`) for review.
 
@@ -34,6 +36,7 @@ TOKENS = ROOT / "web" / "design" / "tokens.json"
 DIST = ROOT / "web" / "dist"
 EXAMPLE = "Garage motion sensor"
 THEMES = ("dark", "light")
+WIDTHS = (1280, 1366, 1440, 1536, 1600, 1680, 1760, 1920)
 
 
 def token(name: str, theme: str) -> str:
@@ -97,6 +100,25 @@ def check_theme(browser, base: str, theme: str, out: Path) -> list[str]:
     return [f"[{theme}] {e}" for e in errors] + ([] if errors else [f"[{theme}] bg {background}"])
 
 
+def check_widths(browser, base: str) -> list[str]:
+    failures: list[str] = []
+    for width in WIDTHS:
+        ctx = browser.new_context(viewport={"width": width, "height": 900})
+        ctx.add_init_script("localStorage.setItem('wirestudio:ui:advanced', '1')")
+        page = ctx.new_page()
+        page.goto(base)
+        page.get_by_role("button", name="Open an example").click()
+        page.locator("h3", has_text="Components").first.wait_for(timeout=30_000)
+        page.get_by_role("tab", name="Warnings").first.click()
+        page.get_by_text("+ Add warning").click()
+        page.get_by_text("Unsaved changes").wait_for()
+        doc = page.evaluate("document.documentElement.scrollWidth")
+        if doc > width:
+            failures.append(f"[{width}px] page is {doc}px wide with advanced mode and unsaved changes")
+        ctx.close()
+    return failures
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--out", type=Path, default=ROOT / "ui-screenshots")
@@ -118,6 +140,7 @@ def main() -> int:
         with sync_playwright() as p:
             browser = p.chromium.launch()
             results = [r for t in THEMES for r in check_theme(browser, base, t, args.out)]
+            results += check_widths(browser, base)
             browser.close()
     finally:
         server.terminate()
