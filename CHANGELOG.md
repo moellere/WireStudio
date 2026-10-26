@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Resizable columns, an icon rail and a docked agent.** Drag either
+  gutter (or focus it and use the arrow keys) to resize the sidebar or
+  inspector; the widths are remembered. Below 1366px the sidebar starts
+  as an icon rail. From 1536px the agent opens as a fourth column beside
+  the inspector instead of covering it. Roadmap section 10, items 1
+  and 4.
+
 - **The sidebar separates what to open from the library.** Open
   (Examples, Gallery, Saved) and Library (Boards, Components, Modules)
   replace six icon tabs whose labels were cut off, and a library board

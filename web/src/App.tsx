@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ComponentType, ReactNode } from "react";
+import type { ComponentType, CSSProperties, KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import { api, ApiError, UNAUTHORIZED_EVENT } from "./api/client";
 import { ApiTokenDialog } from "./components/ApiTokenDialog";
 import type {
@@ -38,6 +38,7 @@ import { ShareDialog } from "./components/ShareDialog";
 import { LibraryShareDialog } from "./components/LibraryShareDialog";
 import { useDebouncedValue } from "./lib/debounce";
 import { useAdvancedMode } from "./lib/uiMode";
+import { CENTRE_MIN_PX, RAIL_PX, useWorkbenchLayout } from "./lib/layout";
 import { useTheme } from "./lib/theme";
 import {
   Bot,
@@ -110,6 +111,7 @@ export default function App() {
    *  flow (board + components + buses + YAML preview). Persists to
    *  localStorage. */
   const [advancedMode, setAdvancedMode] = useAdvancedMode();
+  const wb = useWorkbenchLayout();
   const [theme, setTheme] = useTheme();
 
   const [boardData, setBoardData] = useState<unknown | null>(null);
@@ -631,6 +633,20 @@ export default function App() {
     }
   }
 
+  const sidebarPx = wb.sidebarCollapsed ? RAIL_PX : wb.layout.sidebar;
+  const agentDocked = showAgent && wb.dockAgent;
+  const gridColumns = [
+    `${sidebarPx}px`,
+    `minmax(${CENTRE_MIN_PX}px, 1fr)`,
+    `${wb.inspectorWidth}px`,
+    ...(agentDocked ? [`${wb.layout.agent}px`] : []),
+  ].join(" ");
+  /** The most a side column can grow to while the design pane keeps its minimum. */
+  function roomFor(current: number): number {
+    const used = sidebarPx + wb.inspectorWidth + (agentDocked ? wb.layout.agent : 0);
+    return current + Math.max(0, window.innerWidth - used - CENTRE_MIN_PX);
+  }
+
   if (bootError) {
     const unauthorized = bootError.startsWith("401:");
     return (
@@ -793,8 +809,10 @@ export default function App() {
           </div>
         </div>
       </header>
-      <main className="grid min-h-0 grid-cols-[minmax(16rem,18rem)_minmax(32rem,1fr)_minmax(20rem,26rem)]">
+      <main className="relative grid min-h-0" style={{ gridTemplateColumns: gridColumns }}>
         <LeftSidebar
+          collapsed={wb.sidebarCollapsed}
+          onCollapsedChange={wb.setSidebarCollapsed}
           examples={examples}
           saved={savedDesigns}
           boards={boards}
@@ -870,6 +888,37 @@ export default function App() {
           onAddComponent={handleAddComponent}
           onRemoveComponent={handleRemoveComponent}
         />
+        <AgentSidebar
+          open={showAgent}
+          docked={agentDocked}
+          design={design}
+          onClose={() => setShowAgent(false)}
+          onDesignReplaced={handleAgentDesignReplaced}
+        />
+        {!wb.sidebarCollapsed && (
+          <ResizeHandle
+            label="Resize the sidebar"
+            style={{ left: wb.layout.sidebar - 3 }}
+            value={wb.layout.sidebar}
+            onChange={(px) => wb.resize("sidebar", Math.min(px, roomFor(wb.layout.sidebar)))}
+          />
+        )}
+        <ResizeHandle
+          label="Resize the inspector"
+          invert
+          style={{ right: wb.inspectorWidth + (agentDocked ? wb.layout.agent : 0) - 3 }}
+          value={wb.inspectorWidth}
+          onChange={(px) => wb.resize("inspector", Math.min(px, roomFor(wb.inspectorWidth)))}
+        />
+        {agentDocked && (
+          <ResizeHandle
+            label="Resize the agent"
+            invert
+            style={{ right: wb.layout.agent - 3 }}
+            value={wb.layout.agent}
+            onChange={(px) => wb.resize("agent", Math.min(px, roomFor(wb.layout.agent)))}
+          />
+        )}
       </main>
       {libraryEditor && (
         <LibraryEditorDialog
@@ -1000,12 +1049,6 @@ export default function App() {
         <ShareDialog design={design} status={communityStatus} onClose={() => setShowShareDialog(false)} />
       )}
       {tokenDialog}
-      <AgentSidebar
-        open={showAgent}
-        design={design}
-        onClose={() => setShowAgent(false)}
-        onDesignReplaced={handleAgentDesignReplaced}
-      />
     </div>
   );
 }
@@ -1044,5 +1087,50 @@ function ToolButton({
         <span className={`whitespace-nowrap ${wide ? "hidden 2xl:inline" : "hidden lg:inline"}`}>{label}</span>
       )}
     </button>
+  );
+}
+
+function ResizeHandle({
+  label, style, value, onChange, invert = false,
+}: {
+  label: string;
+  style: CSSProperties;
+  value: number;
+  onChange: (px: number) => void;
+  invert?: boolean;
+}) {
+  function onPointerDown(e: ReactPointerEvent<HTMLDivElement>) {
+    e.preventDefault();
+    const startX = e.clientX;
+    const start = value;
+    const move = (ev: PointerEvent) => onChange(start + (invert ? startX - ev.clientX : ev.clientX - startX));
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      document.body.style.cursor = "";
+    };
+    document.body.style.cursor = "col-resize";
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  }
+  function onKeyDown(e: ReactKeyboardEvent<HTMLDivElement>) {
+    const step = e.shiftKey ? 64 : 16;
+    if (e.key === "ArrowLeft") onChange(value + (invert ? step : -step));
+    else if (e.key === "ArrowRight") onChange(value + (invert ? -step : step));
+    else return;
+    e.preventDefault();
+  }
+  return (
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={label}
+      aria-valuenow={value}
+      tabIndex={0}
+      onPointerDown={onPointerDown}
+      onKeyDown={onKeyDown}
+      style={style}
+      className="absolute inset-y-0 z-10 w-1.5 cursor-col-resize transition-colors hover:bg-accent-500/40 focus-visible:bg-accent-500/60 focus-visible:outline-none"
+    />
   );
 }

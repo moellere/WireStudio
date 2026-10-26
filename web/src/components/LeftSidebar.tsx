@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { FolderHeart } from "lucide-react";
+import { Boxes, ChevronsLeft, ChevronsRight, Component, Cpu, FolderHeart, FolderOpen, Users } from "lucide-react";
 import { Loading, Empty } from "./Status";
 import type {
   BoardSummary,
@@ -23,6 +23,9 @@ export interface CommunityList {
 }
 
 interface Props {
+  /** An icon rail instead of the full sidebar. */
+  collapsed: boolean;
+  onCollapsedChange: (collapsed: boolean) => void;
   examples: ExampleSummary[] | null;
   saved: SavedDesignSummary[] | null;
   boards: BoardSummary[] | null;
@@ -46,6 +49,15 @@ interface Props {
   onInsertModule: (id: string) => void;
 }
 
+const TAB_ICON: Record<Tab, typeof FolderOpen> = {
+  examples: FolderOpen,
+  gallery: Users,
+  saved: FolderHeart,
+  boards: Cpu,
+  components: Component,
+  modules: Boxes,
+};
+
 const GROUP_TABS: Record<"open" | "library", Tab[]> = {
   open: ["examples", "gallery", "saved"],
   library: ["boards", "components", "modules"],
@@ -61,10 +73,51 @@ export function LeftSidebar(props: Props) {
   }
   const [search, setSearch] = useState("");
 
+  if (props.collapsed) {
+    return (
+      <aside aria-label="Sidebar" className="flex min-h-0 flex-col items-center gap-1 border-r border-line bg-surface-0 p-2">
+        {(["open", "library"] as const).map((g, gi) => (
+          <div key={g} className="flex flex-col items-center gap-1">
+            {gi > 0 && <div className="my-1 h-px w-6 bg-line" />}
+            {GROUP_TABS[g]
+              .filter((t) => t !== "gallery" || props.community !== null)
+              .map((t) => {
+                const Icon = TAB_ICON[t];
+                const label = t === "gallery" ? "Community designs" : t.charAt(0).toUpperCase() + t.slice(1);
+                return (
+                  <button
+                    key={t}
+                    onClick={() => { setTab(t); props.onCollapsedChange(false); }}
+                    aria-label={label}
+                    title={label}
+                    className={`rounded-md p-2 transition-colors ${
+                      tab === t ? "bg-surface-2 text-ink" : "text-ink-dim hover:bg-surface-1 hover:text-ink"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                  </button>
+                );
+              })}
+          </div>
+        ))}
+        <div className="flex-1" />
+        <button
+          onClick={() => props.onCollapsedChange(false)}
+          aria-label="Expand sidebar"
+          title="Expand sidebar"
+          className="rounded-md p-2 text-ink-faint transition-colors hover:bg-surface-1 hover:text-ink"
+        >
+          <ChevronsRight className="h-4 w-4" />
+        </button>
+      </aside>
+    );
+  }
+
   return (
     <aside className="flex min-h-0 flex-col border-r border-line bg-surface-0">
       <div className="space-y-2 p-3 pb-0">
-        <div role="tablist" aria-label="Sidebar" className="flex gap-1 rounded-lg bg-surface-1 p-1 ring-1 ring-inset ring-line">
+        <div className="flex items-center gap-1">
+        <div role="tablist" aria-label="Sidebar" className="flex flex-1 gap-1 rounded-lg bg-surface-1 p-1 ring-1 ring-inset ring-line">
           {(["open", "library"] as const).map((g) => (
             <button
               key={g}
@@ -80,6 +133,15 @@ export function LeftSidebar(props: Props) {
               {g}
             </button>
           ))}
+        </div>
+        <button
+          onClick={() => props.onCollapsedChange(true)}
+          aria-label="Collapse sidebar"
+          title="Collapse sidebar"
+          className="rounded-md p-1.5 text-ink-faint transition-colors hover:bg-surface-1 hover:text-ink"
+        >
+          <ChevronsLeft className="h-4 w-4" />
+        </button>
         </div>
         <div className="flex gap-1">
           {GROUP_TABS[group]

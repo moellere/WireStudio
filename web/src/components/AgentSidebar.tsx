@@ -25,12 +25,14 @@ interface ChatMessage {
 
 interface Props {
   open: boolean;
+  /** A column of the workbench grid; otherwise it covers the right edge. */
+  docked: boolean;
   design: Design | null;
   onClose: () => void;
   onDesignReplaced: (next: Design) => void;
 }
 
-export function AgentSidebar({ open, design, onClose, onDesignReplaced }: Props) {
+export function AgentSidebar({ open, docked, design, onClose, onDesignReplaced }: Props) {
   const [status, setStatus] = useState<{ available: boolean; reason: string | null } | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -148,7 +150,13 @@ export function AgentSidebar({ open, design, onClose, onDesignReplaced }: Props)
   if (!open) return null;
 
   return (
-    <aside className="fixed inset-y-0 right-0 z-40 flex w-[28rem] max-w-[90vw] flex-col border-l border-line bg-surface-0 shadow-2xl">
+    <aside
+      className={
+        docked
+          ? "flex min-h-0 flex-col border-l border-line bg-surface-0"
+          : "fixed inset-y-0 right-0 z-40 flex w-[28rem] max-w-[90vw] flex-col border-l border-line bg-surface-0 shadow-2xl"
+      }
+    >
       <header className="flex items-center justify-between border-b border-line px-4 py-3">
         <div>
           <div className="text-sm font-semibold text-ink">Agent</div>
