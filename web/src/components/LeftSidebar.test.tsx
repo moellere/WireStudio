@@ -16,6 +16,7 @@ function sidebar(community: CommunityList | null, onSelectCommunity = vi.fn()) {
   const noop = () => {};
   render(
     <LeftSidebar
+      collapsed={false} onCollapsedChange={noop}
       examples={[]} saved={[]} boards={[]} components={[]} modules={[]}
       community={community} selectedExample={null} selectedCommunity={null} selectedSaved={null}
       onSelectExample={noop} onSelectCommunity={onSelectCommunity} onSelectSaved={noop}
@@ -77,6 +78,7 @@ describe("LeftSidebar community library", () => {
     const noop = () => {};
     render(
       <LeftSidebar
+        collapsed={false} onCollapsedChange={noop}
         examples={[]} saved={[]} boards={[]} components={[]} modules={[]}
         community={{ items: [], error: null }} communityLibrary={library} onInstallLibrary={onInstall}
         selectedExample={null} selectedCommunity={null} selectedSaved={null}
@@ -109,3 +111,34 @@ describe("LeftSidebar community library", () => {
   });
 });
 
+describe("LeftSidebar rail", () => {
+  it("opens the sidebar on the tab whose icon was clicked", async () => {
+    const noop = () => {};
+    const onCollapsedChange = vi.fn();
+    const { rerender } = render(
+      <LeftSidebar
+        collapsed onCollapsedChange={onCollapsedChange}
+        examples={[]} saved={[]} boards={[]} components={[]} modules={[]}
+        community={null} selectedExample={null} selectedCommunity={null} selectedSaved={null}
+        onSelectExample={noop} onSelectCommunity={noop} onSelectSaved={noop}
+        onDeleteSaved={noop} onSelectBoard={noop} onSelectComponent={noop}
+        onNewComponent={noop} onNewBoard={noop} onInsertModule={noop}
+      />,
+    );
+    expect(screen.queryByRole("searchbox")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Modules" }));
+    expect(onCollapsedChange).toHaveBeenCalledWith(false);
+    rerender(
+      <LeftSidebar
+        collapsed={false} onCollapsedChange={onCollapsedChange}
+        examples={[]} saved={[]} boards={[]} components={[]} modules={[]}
+        community={null} selectedExample={null} selectedCommunity={null} selectedSaved={null}
+        onSelectExample={noop} onSelectCommunity={noop} onSelectSaved={noop}
+        onDeleteSaved={noop} onSelectBoard={noop} onSelectComponent={noop}
+        onNewComponent={noop} onNewBoard={noop} onInsertModule={noop}
+      />,
+    );
+    expect(screen.getByRole("tab", { name: "library" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByPlaceholderText("Filter modules...")).toBeInTheDocument();
+  });
+});

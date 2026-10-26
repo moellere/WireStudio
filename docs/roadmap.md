@@ -458,12 +458,13 @@ buries what the checker says. The fixes are composition in `App.tsx`,
 `LeftSidebar.tsx`, `DesignPane.tsx` and `Inspector.tsx`; no token or
 component changes. In payoff order:
 
-1. **Column bounds.** Done: the grid is
-   `minmax(16rem,18rem) minmax(32rem,1fr) minmax(20rem,26rem)`. Before,
-   the design pane's content set the centre column's minimum, so the
+1. **Column bounds.** Done: the design pane keeps at least 32rem, and
+   before that the content set the centre column's minimum, so the
    workbench was 1524px wide and clipped the inspector at 1280 and 1440.
-   Left: the sidebar collapses to an icon rail below 1280, and drag
-   handles on both gutters.
+   Both gutters have drag handles (pointer or arrow keys), and the
+   widths are remembered. Below 1366px the sidebar starts as a 56px icon
+   rail and the inspector at 320px; a rail icon opens the sidebar on
+   that tab.
 2. **A Problems panel** under the design pane. Done: Compatibility,
    Warnings (the design's editable `warnings[]`) and Solver as tabs with
    counts, collapsible and remembered; a solve switches to its tab. The
@@ -475,8 +476,10 @@ component changes. In payoff order:
    Modules), each group remembering its last tab. A library board or
    component opens in the centre pane with Back and Add, so the
    inspector always shows the design.
-4. **The agent docks** as a fourth column that narrows the design pane,
-   width remembered, instead of covering the inspector it edits.
+4. **The agent docks.** Done: from 1536px the agent is a fourth column
+   (420px, resizable, remembered) beside a visible inspector; narrower
+   windows keep the overlay, since the design pane would drop below its
+   minimum.
 5. **The header groups by phase.** Done: Design (New, Save, Share,
    Reset), Parts (Add by function, Inventory, Connect device; the mock
    had no place for them), Check (Solve pins, strict) and Output (Flash,
@@ -486,7 +489,7 @@ component changes. In payoff order:
 6. **The design header is one line.** Done: name, id, board chip and,
    when the pane is wide enough, counts; the description is behind a
    disclosure. The wiring legend sits in the tab bar beside Copy when the
-   pane is at least 48rem wide, above the diagram otherwise.
+   pane is at least 56rem wide, above the diagram otherwise.
 7. **The empty centre is a start panel.** Done: open an example, start
    from a board, connect a device, and the four most recent saved
    designs. The studio no longer opens the first example on load.

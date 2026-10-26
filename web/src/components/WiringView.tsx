@@ -96,7 +96,7 @@ function edgePath(x1: number, y1: number, x2: number, y2: number): string {
 
 export function WiringLegend() {
   return (
-    <div className="flex items-center gap-x-3 text-[11px] text-ink-faint">
+    <div className="flex items-center gap-x-3 whitespace-nowrap text-[11px] text-ink-faint">
       <span className="flex items-center gap-1.5"><i className="h-0.5 w-4 rounded bg-rose-400" /> power</span>
       <span className="flex items-center gap-1.5"><i className="h-0.5 w-4 rounded bg-amber-400" /> 3V3</span>
       <span className="flex items-center gap-1.5"><i className="h-0.5 w-4 rounded bg-ink-faint" /> ground</span>

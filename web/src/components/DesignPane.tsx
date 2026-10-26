@@ -125,7 +125,7 @@ export function DesignPane({ design, render, renderError, advancedMode }: Props)
         </div>
         <div className="flex items-center gap-3">
           {tab === "wiring" && design && (
-            <div className="hidden @3xl:block"><WiringLegend /></div>
+            <div className="hidden @4xl:block"><WiringLegend /></div>
           )}
           <button
             onClick={copy}
@@ -159,7 +159,7 @@ export function DesignPane({ design, render, renderError, advancedMode }: Props)
           </div>
         ) : tab === "wiring" ? (
           <>
-            <div className="mb-3 @3xl:hidden"><WiringLegend /></div>
+            <div className="mb-3 @4xl:hidden"><WiringLegend /></div>
             <WiringView design={design} />
           </>
         ) : tab === "schematic" || tab === "pcb" ? (
