@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Checker findings, design warnings and the solver result share a
+  Problems panel** under the design pane, as count-badged tabs that
+  collapse to one line. They no longer sit below the fold of the
+  inspector, and the solver result is a tab instead of a banner across
+  the window. Roadmap section 10, item 2.
+
 - **The studio opens on a start panel.** With no design loaded the
   centre offers an example, a new design from a board, a connected
   device and the four most recent saved designs, instead of loading the

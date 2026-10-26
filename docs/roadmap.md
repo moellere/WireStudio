@@ -464,9 +464,12 @@ component changes. In payoff order:
    workbench was 1524px wide and clipped the inspector at 1280 and 1440.
    Left: the sidebar collapses to an icon rail below 1280, and drag
    handles on both gutters.
-2. **A Problems panel** under the design pane: Compatibility, Warnings
-   and the solver result as count-badged tabs, the solver banner a row
-   there. The inspector keeps Board, Components, Buses and Fleet.
+2. **A Problems panel** under the design pane. Done: Compatibility,
+   Warnings (the design's editable `warnings[]`) and Solver as tabs with
+   counts, collapsible and remembered; a solve switches to its tab. The
+   full-width solver banner is gone. The inspector keeps Board,
+   Components, Buses, Requirements and Fleet, and a component's own
+   findings stay on its page.
 3. **The sidebar splits** into Open (Examples, Gallery, Saved) and
    Library (Boards, Components, Modules); a library item opens in the
    centre pane with Add, so the inspector always shows the design.
