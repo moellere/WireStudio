@@ -464,9 +464,12 @@ component changes. In payoff order:
    workbench was 1524px wide and clipped the inspector at 1280 and 1440.
    Left: the sidebar collapses to an icon rail below 1280, and drag
    handles on both gutters.
-2. **A Problems panel** under the design pane: Compatibility, Warnings
-   and the solver result as count-badged tabs, the solver banner a row
-   there. The inspector keeps Board, Components, Buses and Fleet.
+2. **A Problems panel** under the design pane. Done: Compatibility,
+   Warnings (the design's editable `warnings[]`) and Solver as tabs with
+   counts, collapsible and remembered; a solve switches to its tab. The
+   full-width solver banner is gone. The inspector keeps Board,
+   Components, Buses, Requirements and Fleet, and a component's own
+   findings stay on its page.
 3. **The sidebar splits** into Open (Examples, Gallery, Saved) and
    Library (Boards, Components, Modules); a library item opens in the
    centre pane with Add, so the inspector always shows the design.
@@ -482,8 +485,9 @@ component changes. In payoff order:
    when the pane is wide enough, counts; the description is behind a
    disclosure. The wiring legend sits in the tab bar beside Copy when the
    pane is at least 48rem wide, above the diagram otherwise.
-7. **The empty centre is a start panel:** open an example, start from a
-   board, connect a device, and recent saved designs.
+7. **The empty centre is a start panel.** Done: open an example, start
+   from a board, connect a device, and the four most recent saved
+   designs. The studio no longer opens the first example on load.
 
 Items 2 and 3 are the restructuring; the rest are small. The
 `ui-themes` gate covers each step, and its screenshots are the review.

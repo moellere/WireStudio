@@ -159,11 +159,11 @@ describe("DesignInspector composition", () => {
         compatibilityWarnings={[]}
       />,
     );
-    // Components (2), Buses (1), Requirements (1), Warnings (0).
+    // Components (2), Buses (1), Requirements (1); warnings live in the Problems panel.
     expect(screen.getByText(/Components \(2\)/)).toBeInTheDocument();
     expect(screen.getByText(/Buses \(1\)/)).toBeInTheDocument();
     expect(screen.getByText(/Requirements \(1\)/)).toBeInTheDocument();
-    expect(screen.getByText(/Warnings \(0\)/)).toBeInTheDocument();
+    expect(screen.queryByText(/Warnings \(\d+\)/)).not.toBeInTheDocument();
   });
 
   it("clicking a component row fires onSelect with kind=component_instance", async () => {
@@ -208,22 +208,7 @@ describe("DesignInspector composition", () => {
     expect(props.onRemoveComponent).toHaveBeenCalledWith("bme1");
   });
 
-  it("hides the Compatibility section when there are no warnings", () => {
-    render(
-      <Inspector
-        {...noopProps()}
-        selection={designSelection}
-        design={design()}
-        boardData={boardData}
-        libraryBoards={libraryBoards}
-        libraryComponents={libraryComponents}
-        compatibilityWarnings={[]}
-      />,
-    );
-    expect(screen.queryByText(/Compatibility \(\d+\)/)).not.toBeInTheDocument();
-  });
-
-  it("shows the Compatibility section with the count when warnings are present", () => {
+  it("leaves compatibility findings to the Problems panel", () => {
     render(
       <Inspector
         {...noopProps()}
@@ -237,7 +222,7 @@ describe("DesignInspector composition", () => {
         ]}
       />,
     );
-    expect(screen.getByText(/Compatibility \(1\)/)).toBeInTheDocument();
+    expect(screen.queryByText(/Compatibility \(\d+\)/)).not.toBeInTheDocument();
   });
 
   it("shows the Fleet section only when the design has a fleet block", () => {

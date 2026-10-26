@@ -18,10 +18,11 @@ import type {
 } from "./types/api";
 import { LeftSidebar, type CommunityList } from "./components/LeftSidebar";
 import { DesignPane } from "./components/DesignPane";
+import { StartPanel } from "./components/StartPanel";
 import { Inspector, type Selection } from "./components/Inspector";
 import { UsbDetectDialog } from "./components/UsbDetectDialog";
 import { AgentSidebar } from "./components/AgentSidebar";
-import { SolveResultBanner } from "./components/SolveResultBanner";
+import { ProblemsPanel } from "./components/ProblemsPanel";
 import { NewDesignDialog } from "./components/NewDesignDialog";
 import { FeedbackLink } from "./components/FeedbackLink";
 import { PushToFleetDialog } from "./components/PushToFleetDialog";
@@ -174,7 +175,6 @@ export default function App() {
         setComponents(co);
         setModules(md);
         setSavedDesigns(sv);
-        if (ex.length > 0) setSelectedExample(ex[0].id);
         void loadCommunity();
       } catch (e) {
         const msg = e instanceof ApiError
@@ -649,7 +649,7 @@ export default function App() {
   }
 
   return (
-    <div className="grid h-full grid-rows-[auto_auto_1fr] bg-surface-0 text-ink">
+    <div className="grid h-full grid-rows-[auto_1fr] bg-surface-0 text-ink">
       <header className="flex h-14 items-center justify-between border-b border-line bg-surface-0 px-4">
         <div className="flex items-center gap-4">
           <div className="flex items-baseline gap-2">
@@ -788,14 +788,6 @@ export default function App() {
           </div>
         </div>
       </header>
-      {solveBanner && (
-        <SolveResultBanner
-          assigned={solveBanner.assigned}
-          unresolved={solveBanner.unresolved}
-          warnings={solveBanner.warnings}
-          onDismiss={() => setSolveBanner(null)}
-        />
-      )}
       <main className="grid min-h-0 grid-cols-[minmax(16rem,18rem)_minmax(32rem,1fr)_minmax(20rem,26rem)]">
         <LeftSidebar
           examples={examples}
@@ -819,7 +811,31 @@ export default function App() {
           onNewBoard={() => setLibraryEditor({ kind: "board", title: "New board", yaml: NEW_BOARD_TEMPLATE, overwrite: false })}
           onInsertModule={handleInsertModule}
         />
-        <DesignPane design={design} render={render} renderError={renderError} advancedMode={advancedMode} />
+        {design ? (
+          <div className="flex min-h-0 min-w-0 flex-col">
+            <DesignPane design={design} render={render} renderError={renderError} advancedMode={advancedMode} />
+            <ProblemsPanel
+              design={design}
+              compatibilityWarnings={render?.compatibility_warnings ?? []}
+              solve={solveBanner}
+              onDismissSolve={() => setSolveBanner(null)}
+              onDesignChange={handleDesignChange}
+            />
+          </div>
+        ) : (
+          <div className="@container min-h-0 min-w-0">
+            <StartPanel
+              exampleCount={examples?.length ?? 0}
+              boardCount={boards?.length ?? 0}
+              saved={savedDesigns}
+              error={renderError}
+              onOpenExample={() => examples?.[0] && setSelectedExample(examples[0].id)}
+              onNewFromBoard={() => setShowNewDialog(true)}
+              onConnectDevice={() => setShowUsbDialog(true)}
+              onOpenSaved={handleSelectSaved}
+            />
+          </div>
+        )}
         <Inspector
           selection={selection}
           design={design}

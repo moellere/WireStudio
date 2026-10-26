@@ -7,29 +7,25 @@ import {
   readComponents,
   readConnections,
   readRequirements,
-  readWarnings,
   type ComponentInstance,
   type ConnectionRow,
   type ConnectionTarget,
-  type DesignWarning,
   type Requirement,
   addRequirement,
-  addWarning,
   removeRequirement,
-  removeWarning,
   setBoardFlashSize,
   setBoardLibraryId,
   setBoardRevision,
   FLASH_SIZE_OVERRIDES_MB,
   setFleetField,
   updateRequirement,
-  updateWarning,
 } from "../lib/design";
 import { ParamForm } from "./ParamForm";
 import { ConnectionForm } from "./ConnectionForm";
 import { PinoutView } from "./PinoutView";
 import { BusList } from "./BusList";
-import { Chip, CompatibilityRow, KeyValueRow, Section } from "./ui";
+import { CompatibilityList } from "./ProblemsPanel";
+import { Chip, KeyValueRow, Section } from "./ui";
 
 export type Selection =
   | { kind: "design" }
@@ -155,7 +151,6 @@ function DesignInspector({
 }) {
   const components = useMemo(() => (design ? readComponents(design) : []), [design]);
   const requirements = useMemo(() => (design ? readRequirements(design) : []), [design]);
-  const warnings = useMemo(() => (design ? readWarnings(design) : []), [design]);
 
   if (!design) return <div className="text-xs text-ink-faint">No design loaded.</div>;
 
@@ -233,27 +228,12 @@ function DesignInspector({
         />
       </Section>
 
-      {compatibilityWarnings.length > 0 && (
-        <Section title={`Compatibility (${compatibilityWarnings.length})`}>
-          <CompatibilityList warnings={compatibilityWarnings} />
-        </Section>
-      )}
-
       <Section title={`Requirements (${requirements.length})`}>
         <RequirementList
           items={requirements}
           onUpdate={(i, patch) => onDesignChange((d) => updateRequirement(d, i, patch))}
           onAdd={() => onDesignChange((d) => addRequirement(d))}
           onRemove={(i) => onDesignChange((d) => removeRequirement(d, i))}
-        />
-      </Section>
-
-      <Section title={`Warnings (${warnings.length})`}>
-        <WarningList
-          items={warnings}
-          onUpdate={(i, patch) => onDesignChange((d) => updateWarning(d, i, patch))}
-          onAdd={() => onDesignChange((d) => addWarning(d))}
-          onRemove={(i) => onDesignChange((d) => removeWarning(d, i))}
         />
       </Section>
 
@@ -463,70 +443,6 @@ function RequirementList({
         className="w-full rounded-md border border-dashed border-line px-2 py-1 text-xs text-ink-faint hover:border-line-strong hover:text-ink-dim"
       >
         + Add requirement
-      </button>
-    </div>
-  );
-}
-
-function WarningList({
-  items, onUpdate, onAdd, onRemove,
-}: {
-  items: DesignWarning[];
-  onUpdate: (i: number, patch: Partial<DesignWarning>) => void;
-  onAdd: () => void;
-  onRemove: (i: number) => void;
-}) {
-  return (
-    <div className="space-y-2">
-      {items.map((w, i) => (
-        <div
-          key={i}
-          className={`rounded-md border p-2 ${
-            w.level === "warn"
-              ? "border-amber-500/40 bg-amber-500/5"
-              : w.level === "error"
-                ? "border-rose-500/40 bg-rose-500/10"
-                : "border-line bg-surface-2/40"
-          }`}
-        >
-          <div className="mb-1 flex items-center gap-2">
-            <select
-              value={w.level}
-              onChange={(e) => onUpdate(i, { level: e.target.value as DesignWarning["level"] })}
-              className="rounded-md border border-line bg-surface-1 px-1.5 py-0.5 text-[11px] text-ink"
-            >
-              {(["info", "warn", "error"] as const).map((k) => (
-                <option key={k} value={k}>{k}</option>
-              ))}
-            </select>
-            <input
-              type="text"
-              value={w.code}
-              onChange={(e) => onUpdate(i, { code: e.target.value })}
-              placeholder="code"
-              className="flex-1 rounded-md border border-line bg-surface-1 px-1.5 py-0.5 font-mono text-[11px] text-ink"
-            />
-            <button
-              onClick={() => onRemove(i)}
-              className="rounded-md border border-line px-1.5 py-0.5 text-[11px] text-ink-dim hover:bg-surface-2 hover:text-ink"
-              title="Remove warning"
-            >
-              ✕
-            </button>
-          </div>
-          <textarea
-            value={w.text}
-            onChange={(e) => onUpdate(i, { text: e.target.value })}
-            rows={2}
-            className="w-full resize-none rounded-md border border-line bg-surface-1 px-2 py-1 text-xs text-ink focus:border-accent-500/60 focus:outline-none"
-          />
-        </div>
-      ))}
-      <button
-        onClick={onAdd}
-        className="w-full rounded-md border border-dashed border-line px-2 py-1 text-xs text-ink-faint hover:border-line-strong hover:text-ink-dim"
-      >
-        + Add warning
       </button>
     </div>
   );
@@ -992,18 +908,6 @@ function FullComponentView(
         <p className="text-[11px] text-ink-dim">{String(c.notes)}</p>
       )}
     </div>
-  );
-}
-
-function CompatibilityList({ warnings }: { warnings: CompatibilityWarning[] }) {
-  return (
-    <ul className="space-y-1.5">
-      {warnings.map((w, i) => (
-        <CompatibilityRow key={i} severity={w.severity} code={w.code} where={`${w.pin} · ${w.component_id}.${w.pin_role}`}>
-          {w.message}
-        </CompatibilityRow>
-      ))}
-    </ul>
   );
 }
 
