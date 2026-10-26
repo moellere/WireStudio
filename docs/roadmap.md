@@ -96,15 +96,17 @@ the gate.
 
 ### Functional loop (workbench phase 4)
 
-Not started. For the ESPHome tier it is the difference between "boots"
-and "works": provision against the bench's AP, assert the device's
-native API answers and the expected entities appear (a sensor reading,
-a switch that toggles), assert an MQTT publish for the `base_mqtt`
-shape. For radio boards an SDR power-spectrum capture during TX catches
-the deaf-radio wiring bug (an undriven FEM pin) that serial cannot.
-Phase 4 is a 1.0 stretch goal: it raises the ESPHome tier from
-*compiles and boots* to *behaves*, but 1.0 can ship without it if the
-flash stage is in.
+The ESPHome half is written: a flash entry with `functional: true` gets
+WiFi, the native API and a gate switch in its ESPHome image, and the
+`functional` stage asserts the device joined the network, answers under
+its design's name, lists the switch and round-trips it on and off over
+the API (`docs/workbench.md`, "The gate"). It turns on for covbench once
+a release carrying it is the gate's image and the roster entry sets the
+flag. Still to do: an MQTT publish for the `base_mqtt` shape, and the
+SDR power-spectrum capture during TX that catches the deaf-radio wiring
+bug (an undriven FEM pin) serial cannot. Phase 4 stays a 1.0 stretch
+goal: it raises the ESPHome tier from *compiles and boots* to
+*behaves*, but 1.0 can ship without it.
 
 ## 3. Framework parity and library coverage
 

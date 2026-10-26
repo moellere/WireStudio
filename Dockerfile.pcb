@@ -64,7 +64,7 @@ COPY pyproject.toml ./
 COPY wirestudio/ ./wirestudio/
 COPY README.md ./
 
-RUN python3 -m venv /opt/venv && /opt/venv/bin/pip install --no-cache-dir ".[pcb]"
+RUN python3 -m venv /opt/venv && /opt/venv/bin/pip install --no-cache-dir ".[pcb,bench]"
 
 COPY --from=web-builder /web/dist /app/web-dist
 

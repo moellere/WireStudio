@@ -44,6 +44,11 @@ lorawan = [
     "paho-mqtt>=1.6",
     "pyserial>=3.5",
 ]
+# Workbench phase 4: the nightly gate talks to the flashed device's native
+# API. Only the hardware gate imports it, lazily.
+bench = [
+    "aioesphomeapi>=46",
+]
 # Pip-installable half of the KiCad pipeline (schematic generation +
 # PNG rasterize). kicad-cli, pcbnew, and the footprint/symbol libraries
 # are native installs -- system KiCad or the -pcb/-full Docker images.

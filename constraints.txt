@@ -19,17 +19,22 @@
 #   3. paste below, run the suite, commit in its own change
 #
 # Generated 2026-08-22 from the wirestudio 0.28.0-full image serving prod.
+aioesphomeapi==46.22.0
+aiohappyeyeballs==2.7.1
 ajsonrpc==1.2.0
 annotated-doc==0.0.5
 annotated-types==0.8.0
 anthropic==1.0.0
 anyio==4.14.2
+async-interrupt==1.2.2
 attrs==26.1.0
+backports-zstd==1.8.0
 bottle==0.13.4
 cairocffi==1.7.1
 CairoSVG==2.9.0
 certifi==2026.7.22
 cffi==2.1.1
+chacha20poly1305-reuseable==0.13.2
 charset-normalizer==3.5.1
 chirpstack-api==4.19.0
 click==8.3.3
@@ -59,6 +64,7 @@ httptools==0.8.0
 httpx==0.28.1
 httpx2==2.12.0
 idna==3.19
+ifaddr==0.2.0
 InSpice==1.6.3.3
 Jinja2==3.1.6
 jiter==0.16.0
@@ -74,6 +80,7 @@ matplotlib==3.11.1
 mcp==2.0.0
 mcp-types==2.0.0
 mdurl==0.1.2
+noiseprotocol==0.3.1
 numpy==2.4.6
 opentelemetry-api==1.44.0
 packaging==26.3
@@ -114,6 +121,8 @@ tinycss2==1.5.1
 truststore==0.10.4
 typing_extensions==4.16.0
 typing-inspection==0.4.4
+tzdata==2026.5
+tzlocal==5.4.5
 urllib3==2.7.0
 uvicorn==0.40.0
 uvloop==0.22.1
@@ -122,3 +131,4 @@ webencodings==0.6.1
 websockets==17.0.1
 wrapt==2.3.0
 wsproto==1.3.2
+zeroconf==0.151.5

@@ -15,6 +15,9 @@ What this asserts
   flash      each framework listed under a device's `flash:` is written
              to its slot with a full erase
   boot       the written firmware printed its boot marker (boot.py)
+  functional for an ESPHome flash on a `functional: true` device: it
+             joined WiFi, its native API answers under the design's name,
+             and the gate switch round-trips on and off (functional.py)
 
 The first four are non-destructive and are a real regression detector
 for the bench itself. A wedged USB bridge went unnoticed for days
@@ -97,6 +100,11 @@ def _check_flash_entry(path: Path, i: int, dev: dict) -> None:
         default_library().board(dev["board"])
     except FileNotFoundError:
         raise ConfigError(f"{where}: unknown board '{dev['board']}'") from None
+    if dev.get("functional") and "esphome" not in flash:
+        raise ConfigError(f"{where}: `functional` checks an ESPHome flash; add esphome to `flash`")
+    pin = dev.get("functional_pin")
+    if pin is not None and pin not in default_library().board(dev["board"]).gpio_capabilities:
+        raise ConfigError(f"{where}: `functional_pin` {pin} is not a GPIO on {dev['board']}")
 
 
 class Report:
@@ -113,9 +121,10 @@ class Report:
         return [r for r in self.rows if not r[2]]
 
 
-async def run(config: dict, report: Report, client=None, chirp=None, dashboard=None) -> None:
-    """`client` / `chirp` / `dashboard` are injectable so the stages can be
-    tested without a bench; production passes none of them."""
+async def run(config: dict, report: Report, client=None, chirp=None, dashboard=None,
+              api_factory=None) -> None:
+    """`client` / `chirp` / `dashboard` / `api_factory` are injectable so the
+    stages can be tested without a bench; production passes none of them."""
     from wirestudio.workbench import WorkbenchClient, WorkbenchUnavailable
 
     devices = config.get("devices") or []
@@ -254,11 +263,11 @@ async def run(config: dict, report: Report, client=None, chirp=None, dashboard=N
         library = default_library()
         for dev in flashers:
             for framework in dev["flash"]:
-                await _flash_one(dev, framework, client, report, library, dashboard)
+                await _flash_one(dev, framework, client, report, library, dashboard, api_factory)
 
 
 async def _flash_one(dev: dict, framework: str, client, report: Report, library,
-                     dashboard) -> None:
+                     dashboard, api_factory=None) -> None:
     from wirestudio.errors import describe
     from wirestudio.workbench import images
     from wirestudio.workbench.boot import verify_boot
@@ -266,8 +275,17 @@ async def _flash_one(dev: dict, framework: str, client, report: Report, library,
     label = dev["slot"]
     subject = f"{label}/{framework}"
     board = library.board(dev["board"])
+    functional_pin = None
+    if framework == "esphome" and dev.get("functional"):
+        from wirestudio.workbench.functional import FunctionalError, free_pin
+
+        try:
+            functional_pin = dev.get("functional_pin") or free_pin(board.gpio_capabilities)
+        except FunctionalError as e:
+            report.add("functional", subject, False, str(e))
     try:
-        image = await images.image_for(framework, board, library, dashboard=dashboard)
+        image = await images.image_for(framework, board, library, dashboard=dashboard,
+                                       functional_pin=functional_pin)
     except images.ImageUnavailable as e:
         report.add("flash", subject, False, str(e))
         return
@@ -281,6 +299,7 @@ async def _flash_one(dev: dict, framework: str, client, report: Report, library,
         return
     report.add("flash", subject, True, f"{image.version}, {len(image.data)} bytes at {image.offset:#x}")
 
+    booted_at = time.time()
     try:
         res = await verify_boot(client, label, framework, reset=True)
     except Exception as e:
@@ -288,12 +307,38 @@ async def _flash_one(dev: dict, framework: str, client, report: Report, library,
         return
     if res.get("booted"):
         report.add("boot", subject, True, res["checks"][0].get("line") or "")
+        if functional_pin:
+            await _functional(dev, subject, board, client, report, booted_at, api_factory)
     else:
         tail = " | ".join(str(e.get("text", e) if isinstance(e, dict) else e).strip()
                           for e in res.get("recent_output", [])[-5:])
         report.add("boot", subject, False,
                    f"no '{res['checks'][0]['pattern']}' within "
                    f"{int(res['checks'][0]['timeout_s'])}s; last output: {tail or 'nothing'}")
+
+async def _functional(dev: dict, subject: str, board, client, report: Report, since: float,
+                      api_factory) -> None:
+    from wirestudio.errors import describe
+    from wirestudio.workbench import functional
+
+    host = dev.get("functional_host")
+    if not host:
+        try:
+            host = await functional.wait_for_ip(client, dev["slot"], since)
+        except Exception as e:
+            report.add("functional", subject, False, describe(e))
+            return
+    if not host:
+        report.add("functional", subject, False,
+                   "no 'IP Address' in the boot log within 60s -- the firmware did not join WiFi")
+        return
+    try:
+        res = await functional.verify(host, f"hw-gate-{board.id}", api_factory=api_factory)
+    except Exception as e:
+        report.add("functional", subject, False, describe(e))
+        return
+    report.add("functional", subject, res.ok, res.detail)
+
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)

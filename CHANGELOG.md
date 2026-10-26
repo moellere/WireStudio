@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **The hardware gate checks that ESPHome firmware works, not only that
+  it boots** (workbench phase 4). A flash entry with `functional: true`
+  builds its ESPHome image with WiFi, the native API and one GPIO
+  switch; after the boot marker the new `functional` stage finds the
+  device's address in its boot log, connects with `aioesphomeapi`,
+  checks its name and entities, and switches the switch on and off over
+  the API. `aioesphomeapi` is the new `bench` extra, installed in the
+  `-full` image.
+
 ### Fixed
 
 - **The header overflowed between 1536 and 1760px.** With advanced mode
