@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The studio opens on a start panel.** With no design loaded the
+  centre offers an example, a new design from a board, a connected
+  device and the four most recent saved designs, instead of loading the
+  first example on its own. Roadmap section 10, item 7.
+
 - **The header is grouped by phase and the design header is one line.**
   Design, Parts, Check and Output groups replace the single row that
   overflowed below 1400px; the Advanced toggle moved into Settings. The

@@ -18,6 +18,7 @@ import type {
 } from "./types/api";
 import { LeftSidebar, type CommunityList } from "./components/LeftSidebar";
 import { DesignPane } from "./components/DesignPane";
+import { StartPanel } from "./components/StartPanel";
 import { Inspector, type Selection } from "./components/Inspector";
 import { UsbDetectDialog } from "./components/UsbDetectDialog";
 import { AgentSidebar } from "./components/AgentSidebar";
@@ -174,7 +175,6 @@ export default function App() {
         setComponents(co);
         setModules(md);
         setSavedDesigns(sv);
-        if (ex.length > 0) setSelectedExample(ex[0].id);
         void loadCommunity();
       } catch (e) {
         const msg = e instanceof ApiError
@@ -819,7 +819,22 @@ export default function App() {
           onNewBoard={() => setLibraryEditor({ kind: "board", title: "New board", yaml: NEW_BOARD_TEMPLATE, overwrite: false })}
           onInsertModule={handleInsertModule}
         />
-        <DesignPane design={design} render={render} renderError={renderError} advancedMode={advancedMode} />
+        {design ? (
+          <DesignPane design={design} render={render} renderError={renderError} advancedMode={advancedMode} />
+        ) : (
+          <div className="@container min-h-0 min-w-0">
+            <StartPanel
+              exampleCount={examples?.length ?? 0}
+              boardCount={boards?.length ?? 0}
+              saved={savedDesigns}
+              error={renderError}
+              onOpenExample={() => examples?.[0] && setSelectedExample(examples[0].id)}
+              onNewFromBoard={() => setShowNewDialog(true)}
+              onConnectDevice={() => setShowUsbDialog(true)}
+              onOpenSaved={handleSelectSaved}
+            />
+          </div>
+        )}
         <Inspector
           selection={selection}
           design={design}
