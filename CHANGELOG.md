@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.48.1] — 2026-10-26
+
 ### Added
 
 - **The hardware gate checks that ESPHome firmware works, not only that
@@ -3693,7 +3695,8 @@ ConnectionForm, EnclosureDialog, Inspector, CapabilityPickerDialog,
 PinoutView, PushToFleetDialog, SchematicDialog. ruff + tsc + vite
 build clean across the whole arc.
 
-[Unreleased]: https://github.com/moellere/wirestudio/compare/v0.48.0...HEAD
+[Unreleased]: https://github.com/moellere/wirestudio/compare/v0.48.1...HEAD
+[0.48.1]: https://github.com/moellere/wirestudio/compare/v0.48.0...v0.48.1
 [0.48.0]: https://github.com/moellere/wirestudio/compare/v0.47.0...v0.48.0
 [0.47.0]: https://github.com/moellere/wirestudio/compare/v0.46.0...v0.47.0
 [0.46.0]: https://github.com/moellere/wirestudio/compare/v0.45.0...v0.46.0
