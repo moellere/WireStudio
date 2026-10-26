@@ -124,16 +124,16 @@ Inspector surfaces:
   Form ⇄ Pinout view toggle for drag-and-drop pin assignment, 🔓/🔒
   per-row pin lock.
 
-Header buttons: **New design**, **Reset**, **Save**, **Share**, **Download JSON**,
-**Solve pins**, **strict** (toggle), **Connect device** (USB
-bootstrap), **Add by function** (capability picker), **Inventory**,
-**Flash firmware** (the unified flash dialog), **Provision LoRaWAN
-device** (key icon),
-**Schematic** (KiCad export), **Enclosure** (parametric `.scad` +
-Thingiverse search), **Push to fleet** (fleet add-on or ESPHome
-dashboard), **Agent** (chat sidebar),
-**Settings** (gear). Advanced mode reveals the Agent, Schematic,
-Enclosure, and Fleet options.
+The header groups its buttons by phase. **Design**: New, Save,
+Share, Reset. **Parts**: Add by function (capability picker), Inventory,
+Connect device (USB bootstrap). **Check**: Solve pins and the **strict**
+toggle. **Output**: Flash firmware, Push to fleet, Provision LoRaWAN
+device, Schematic (KiCad export), Enclosure (parametric `.scad` +
+Thingiverse search) and Export (design JSON). Then Agent (chat sidebar),
+feedback, theme, **Settings** (gear) and the API docs. Advanced mode,
+switched in Settings, reveals the Agent, the schematic and PCB tabs, and
+every Output button but Export. Below 1536px wide the group names and
+the longer labels hide; hover a button for its name.
 
 **Community designs.** The sidebar's **Gallery** tab lists the
 designs in the community catalogue,

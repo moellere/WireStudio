@@ -1,10 +1,10 @@
 import { useState, useMemo, useEffect } from "react";
-import { Copy, Check } from "lucide-react";
+import { Copy, Check, ChevronDown } from "lucide-react";
 import type { Design, RenderResponse } from "../types/api";
 import { Loading } from "./Status";
-import { WiringView } from "./WiringView";
+import { WiringLegend, WiringView } from "./WiringView";
 import { ServerRenderView } from "./ServerRenderView";
-import { Notice } from "./ui";
+import { Chip, Code, Notice } from "./ui";
 
 type Tab = "wiring" | "ascii" | "yaml" | "json" | "schematic" | "pcb";
 
@@ -22,6 +22,7 @@ export function DesignPane({ design, render, renderError, advancedMode }: Props)
     if (!advancedMode && (tab === "schematic" || tab === "pcb")) setTab("wiring");
   }, [advancedMode, tab]);
   const [copied, setCopied] = useState(false);
+  const [showDescription, setShowDescription] = useState(false);
 
   const meta = useMemo(() => (design ? readMeta(design) : null), [design]);
 
@@ -54,25 +55,34 @@ export function DesignPane({ design, render, renderError, advancedMode }: Props)
   }
 
   return (
-    <section className="flex min-h-0 flex-col">
-      <div className="border-b border-line px-4 py-3">
+    <section className="@container flex min-h-0 min-w-0 flex-col">
+      <div className="border-b border-line px-4 py-2.5">
         {meta ? (
           <>
-            <div className="flex items-baseline gap-2">
-              <h2 className="text-base font-semibold tracking-tight text-ink">{meta.name}</h2>
-              <code className="font-mono text-xs text-ink-faint">{meta.id}</code>
+            <div className="flex min-w-0 items-center gap-3">
+              <h2 className="min-w-[6rem] truncate text-base font-semibold tracking-tight text-ink">{meta.name}</h2>
+              <span className="shrink-0 text-xs"><Code>{meta.id}</Code></span>
+              <Chip variant="mcu" className="shrink-0 text-xs">{meta.boardId}</Chip>
+              <span
+                className="hidden shrink-0 text-xs text-ink-faint @2xl:inline"
+                title={`mcu ${meta.mcu}${meta.framework ? `, ${meta.framework}` : ""}`}
+              >
+                {meta.componentCount} components · {meta.busCount} buses · {meta.connectionCount} connections
+              </span>
+              {meta.description && (
+                <button
+                  onClick={() => setShowDescription((v) => !v)}
+                  aria-expanded={showDescription}
+                  className="ml-auto flex shrink-0 items-center gap-1 rounded-md px-1.5 py-1 text-xs text-ink-faint transition-colors hover:bg-surface-2 hover:text-ink"
+                >
+                  Description
+                  <ChevronDown className={`h-3 w-3 transition-transform ${showDescription ? "rotate-180" : ""}`} />
+                </button>
+              )}
             </div>
-            {meta.description && (
-              <p className="mt-1 max-w-prose text-sm text-ink-dim">{meta.description}</p>
+            {showDescription && meta.description && (
+              <p className="mt-1.5 max-w-prose text-sm text-ink-dim">{meta.description}</p>
             )}
-            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-faint">
-              <span>board: <code className="font-mono text-ink-dim">{meta.boardId}</code></span>
-              <span>mcu: <code className="font-mono text-ink-dim">{meta.mcu}</code></span>
-              {meta.framework && <span>framework: <code className="font-mono text-ink-dim">{meta.framework}</code></span>}
-              <span>{meta.componentCount} components</span>
-              <span>{meta.busCount} buses</span>
-              <span>{meta.connectionCount} connections</span>
-            </div>
           </>
         ) : (
           <div className="text-sm text-ink-faint">No design loaded.</div>
@@ -113,15 +123,20 @@ export function DesignPane({ design, render, renderError, advancedMode }: Props)
             );
           })}
         </div>
-        <button
-          onClick={copy}
-          disabled={!content}
-          title={`Copy the ${tab.toUpperCase()} to the clipboard`}
-          className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-ink-faint transition-colors enabled:hover:bg-surface-2 enabled:hover:text-ink disabled:opacity-40"
-        >
-          {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
-          {copied ? "Copied" : "Copy"}
-        </button>
+        <div className="flex items-center gap-3">
+          {tab === "wiring" && design && (
+            <div className="hidden @3xl:block"><WiringLegend /></div>
+          )}
+          <button
+            onClick={copy}
+            disabled={!content}
+            title={`Copy the ${tab.toUpperCase()} to the clipboard`}
+            className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-ink-faint transition-colors enabled:hover:bg-surface-2 enabled:hover:text-ink disabled:opacity-40"
+          >
+            {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+            {copied ? "Copied" : "Copy"}
+          </button>
+        </div>
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto p-4 font-mono text-[13px] leading-snug">
@@ -143,7 +158,10 @@ export function DesignPane({ design, render, renderError, advancedMode }: Props)
             Pick an example or board to start a design.
           </div>
         ) : tab === "wiring" ? (
-          <WiringView design={design} />
+          <>
+            <div className="mb-3 @3xl:hidden"><WiringLegend /></div>
+            <WiringView design={design} />
+          </>
         ) : tab === "schematic" || tab === "pcb" ? (
           <ServerRenderView design={design} kind={tab} />
         ) : content ? (

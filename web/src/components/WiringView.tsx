@@ -94,6 +94,19 @@ function edgePath(x1: number, y1: number, x2: number, y2: number): string {
   return `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`;
 }
 
+export function WiringLegend() {
+  return (
+    <div className="flex items-center gap-x-3 text-[11px] text-ink-faint">
+      <span className="flex items-center gap-1.5"><i className="h-0.5 w-4 rounded bg-rose-400" /> power</span>
+      <span className="flex items-center gap-1.5"><i className="h-0.5 w-4 rounded bg-amber-400" /> 3V3</span>
+      <span className="flex items-center gap-1.5"><i className="h-0.5 w-4 rounded bg-ink-faint" /> ground</span>
+      <span className="flex items-center gap-1.5"><i className="h-0.5 w-4 rounded bg-emerald-400" /> i2c</span>
+      <span className="flex items-center gap-1.5"><i className="h-0.5 w-4 rounded bg-agent-400" /> spi</span>
+      <span className="flex items-center gap-1.5"><i className="h-0.5 w-4 rounded bg-accent-400" /> gpio / data</span>
+    </div>
+  );
+}
+
 export function WiringView({ design }: { design: Design }) {
   const [hover, setHover] = useState<string | null>(null);
 
@@ -104,15 +117,6 @@ export function WiringView({ design }: { design: Design }) {
 
   return (
     <div className="overflow-auto">
-      <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-ink-faint">
-        <span className="flex items-center gap-1.5"><i className="h-0.5 w-4 rounded bg-rose-400" /> power</span>
-        <span className="flex items-center gap-1.5"><i className="h-0.5 w-4 rounded bg-amber-400" /> 3V3</span>
-        <span className="flex items-center gap-1.5"><i className="h-0.5 w-4 rounded bg-ink-faint" /> ground</span>
-        <span className="flex items-center gap-1.5"><i className="h-0.5 w-4 rounded bg-emerald-400" /> i2c</span>
-        <span className="flex items-center gap-1.5"><i className="h-0.5 w-4 rounded bg-agent-400" /> spi</span>
-        <span className="flex items-center gap-1.5"><i className="h-0.5 w-4 rounded bg-accent-400" /> gpio / data</span>
-      </div>
-
       <svg
         viewBox={`0 0 ${COMP_X + CARD_W + 10} ${model.height}`}
         className="min-w-[820px] font-sans"

@@ -472,13 +472,16 @@ component changes. In payoff order:
    centre pane with Add, so the inspector always shows the design.
 4. **The agent docks** as a fourth column that narrows the design pane,
    width remembered, instead of covering the inspector it edits.
-5. **The header groups by phase:** Design (New, Open, Save, Share),
-   Check (Solve Pins, strict beside it), Output (Flash, Push, Provision,
-   Export), with an overflow menu below `lg`; Advanced moves into
-   Settings.
-6. **The design header is one line** (name, id, board chip, counts) with
-   the description behind a disclosure; the legend moves into the wiring
-   view's toolbar.
+5. **The header groups by phase.** Done: Design (New, Save, Share,
+   Reset), Parts (Add by function, Inventory, Connect device; the mock
+   had no place for them), Check (Solve pins, strict) and Output (Flash,
+   Push, Provision, Schematic, Enclosure, Export). Group names and the
+   longer labels show from 1536px; Output is icon-only in advanced mode.
+   Advanced moved into Settings.
+6. **The design header is one line.** Done: name, id, board chip and,
+   when the pane is wide enough, counts; the description is behind a
+   disclosure. The wiring legend sits in the tab bar beside Copy when the
+   pane is at least 48rem wide, above the diagram otherwise.
 7. **The empty centre is a start panel:** open an example, start from a
    board, connect a device, and recent saved designs.
 

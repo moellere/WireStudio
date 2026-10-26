@@ -17,7 +17,13 @@ function errMessage(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
 
-export function SettingsDialog({ onClose }: { onClose: () => void }) {
+export function SettingsDialog({
+  onClose, advancedMode, onAdvancedModeChange,
+}: {
+  onClose: () => void;
+  advancedMode: boolean;
+  onAdvancedModeChange: (next: boolean) => void;
+}) {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -78,11 +84,28 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
   return (
     <Dialog
       title="Settings"
-      subtitle="Connection and access for external clients."
+      subtitle="Interface mode, and connection and access for external clients."
       onClose={onClose}
       maxWidth="max-w-xl"
     >
       <div className="space-y-4 text-sm">
+        <section className="rounded-md border border-line bg-surface-2/40 p-3">
+          <label className="flex cursor-pointer items-start gap-2">
+            <input
+              type="checkbox"
+              checked={advancedMode}
+              onChange={(e) => onAdvancedModeChange(e.target.checked)}
+              className="mt-0.5 h-3.5 w-3.5 rounded-sm accent-agent-500"
+            />
+            <span>
+              <span className="block font-medium text-ink">Advanced mode</span>
+              <span className="block text-xs text-ink-dim">
+                Shows the agent, the schematic and PCB tabs, and the Flash, Push, Provision,
+                Schematic and Enclosure outputs. Remembered in this browser.
+              </span>
+            </span>
+          </label>
+        </section>
         <section className="rounded-md border border-line bg-surface-2/40 p-3">
           <div className="flex items-center gap-2">
             <KeyRound className="h-4 w-4 text-ink-dim" />
