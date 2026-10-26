@@ -470,9 +470,11 @@ component changes. In payoff order:
    full-width solver banner is gone. The inspector keeps Board,
    Components, Buses, Requirements and Fleet, and a component's own
    findings stay on its page.
-3. **The sidebar splits** into Open (Examples, Gallery, Saved) and
-   Library (Boards, Components, Modules); a library item opens in the
-   centre pane with Add, so the inspector always shows the design.
+3. **The sidebar splits.** Done: an Open / Library segmented control
+   over text sub-tabs (Examples, Gallery, Saved; Boards, Components,
+   Modules), each group remembering its last tab. A library board or
+   component opens in the centre pane with Back and Add, so the
+   inspector always shows the design.
 4. **The agent docks** as a fourth column that narrows the design pane,
    width remembered, instead of covering the inspector it edits.
 5. **The header groups by phase.** Done: Design (New, Save, Share,

@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The sidebar separates what to open from the library.** Open
+  (Examples, Gallery, Saved) and Library (Boards, Components, Modules)
+  replace six icon tabs whose labels were cut off, and a library board
+  or component opens in the centre pane instead of replacing the
+  inspector. Roadmap section 10, item 3.
+
 - **Checker findings, design warnings and the solver result share a
   Problems panel** under the design pane, as count-badged tabs that
   collapse to one line. They no longer sit below the fold of the
