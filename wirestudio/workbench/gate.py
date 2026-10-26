@@ -337,7 +337,18 @@ async def _functional(dev: dict, subject: str, board, client, report: Report, si
     except Exception as e:
         report.add("functional", subject, False, describe(e))
         return
-    report.add("functional", subject, res.ok, res.detail)
+    detail = res.detail
+    if not res.ok:
+        # A device at the edge of the access point's range joins, drops and
+        # rejoins; its API then times out like broken firmware would. The
+        # signal it logged tells the two apart.
+        try:
+            rssi = await functional.last_rssi(client, dev["slot"], since)
+        except Exception:
+            rssi = None
+        if rssi is not None:
+            detail += f" (the device logged WiFi at {rssi} dBm{'; too weak to hold a link' if rssi <= -85 else ''})"
+    report.add("functional", subject, res.ok, detail)
 
 
 def main() -> int:

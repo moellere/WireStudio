@@ -476,7 +476,7 @@ FUNCTIONAL_CONFIG = {
 
 FUNCTIONAL_BOOTS = {"esphome": [
     "[I][app:117]: setup() finished successfully!",
-    "[C][wifi:630]:   IP Address: 10.250.4.77",
+    "[C][wifi:630]:   IP Address: 192.0.2.77",
 ]}
 
 
@@ -502,7 +502,7 @@ async def test_functional_round_trips_the_gate_switch(fake_images, quick_ip):
     await gate.run(FUNCTIONAL_CONFIG, report, client=bench, api_factory=api)
 
     assert fake_images["_pins"] == ["GPIO4"]
-    assert api.hosts == ["10.250.4.77"] and api.commands == [True, False]
+    assert api.hosts == ["192.0.2.77"] and api.commands == [True, False]
     [row] = _rows(report, "functional")
     assert row[:3] == ("functional", "AUTO-1/esphome", True), row
     assert "Gate switch on -> off" in row[3]
@@ -614,3 +614,31 @@ async def test_an_unreachable_dashboard_fails_the_flash_not_the_gate():
     assert row[:3] == ("flash", "AUTO-1/esphome", False)
     assert "name resolution" in row[3]
     assert not bench.writes
+
+
+async def test_a_weak_link_is_named_in_the_failure(fake_images, quick_ip, monkeypatch):
+    """covbench one-off, 2026-10-26: the board joined its access point at -97 dBm,
+    dropped and rejoined, and its API timed out with an empty message."""
+    report = gate.Report()
+    boots = {"esphome": FUNCTIONAL_BOOTS["esphome"] + [
+        "[I][wifi:1588]: - 'bench-ap' (02:00:00:00:00:01) ▂▄▆█ Ch:11 -97dB P:0"]}
+
+    class Hangs(FakeAPI):
+        async def connect(self, login=False):
+            import asyncio
+            await asyncio.sleep(3600)
+
+    from wirestudio.workbench import functional
+
+    real_verify = functional.verify
+
+    async def quick_verify(host, name, *, api_factory=None, timeout_s=30.0):
+        return await real_verify(host, name, api_factory=api_factory, timeout_s=0.05)
+
+    monkeypatch.setattr(functional, "verify", quick_verify)
+    await gate.run(FUNCTIONAL_CONFIG, report, client=FlashBench([FakeSlot("AUTO-1")], boots),
+                   api_factory=Hangs())
+    [row] = _rows(report, "functional")
+    assert not row[2]
+    assert "did not answer within 0s" in row[3]
+    assert "-97 dBm; too weak to hold a link" in row[3]
