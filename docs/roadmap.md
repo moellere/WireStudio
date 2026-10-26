@@ -449,6 +449,42 @@ release PR and does not touch the green-week clock.
   syncs rebuild the bundle from code; the artifact is read-only between
   them.
 
+## 10. Workbench layout
+
+A layout review of the built app at 1280, 1440 and 1920 px wide
+(design session, 2026-10-26; a mock of the proposed arrangement follows
+as its own artifact) found the workbench does not fit common screens and
+buries what the checker says. The fixes are composition in `App.tsx`,
+`LeftSidebar.tsx`, `DesignPane.tsx` and `Inspector.tsx`; no token or
+component changes. In payoff order:
+
+1. **Column bounds.** Done: the grid is
+   `minmax(16rem,18rem) minmax(32rem,1fr) minmax(20rem,26rem)`. Before,
+   the design pane's content set the centre column's minimum, so the
+   workbench was 1524px wide and clipped the inspector at 1280 and 1440.
+   Left: the sidebar collapses to an icon rail below 1280, and drag
+   handles on both gutters.
+2. **A Problems panel** under the design pane: Compatibility, Warnings
+   and the solver result as count-badged tabs, the solver banner a row
+   there. The inspector keeps Board, Components, Buses and Fleet.
+3. **The sidebar splits** into Open (Examples, Gallery, Saved) and
+   Library (Boards, Components, Modules); a library item opens in the
+   centre pane with Add, so the inspector always shows the design.
+4. **The agent docks** as a fourth column that narrows the design pane,
+   width remembered, instead of covering the inspector it edits.
+5. **The header groups by phase:** Design (New, Open, Save, Share),
+   Check (Solve Pins, strict beside it), Output (Flash, Push, Provision,
+   Export), with an overflow menu below `lg`; Advanced moves into
+   Settings.
+6. **The design header is one line** (name, id, board chip, counts) with
+   the description behind a disclosure; the legend moves into the wiring
+   view's toolbar.
+7. **The empty centre is a start panel:** open an example, start from a
+   board, connect a device, and recent saved designs.
+
+Items 2 and 3 are the restructuring; the rest are small. The
+`ui-themes` gate covers each step, and its screenshots are the review.
+
 ## Out of scope for 1.0
 
 Stated so nobody waits on them.
@@ -488,6 +524,7 @@ The dependency order, not a calendar:
    browse, import and share in the studio.
 8. Docs consolidation, last. The `1.0` schema cut is in.
 9. The design system (done 2026-10-25, released in 0.47.0).
+10. The workbench layout, before the 1.0 release PR.
 
 The release that carries the schema cut, the two-tier status table,
 the upgrade test, the community catalogue and the adopted design system

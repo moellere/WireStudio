@@ -912,7 +912,7 @@ export default function App() {
           onDismiss={() => setSolveBanner(null)}
         />
       )}
-      <main className="grid min-h-0 grid-cols-[18rem_1fr_24rem]">
+      <main className="grid min-h-0 grid-cols-[minmax(16rem,18rem)_minmax(32rem,1fr)_minmax(20rem,26rem)]">
         <LeftSidebar
           examples={examples}
           saved={savedDesigns}

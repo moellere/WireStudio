@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The workbench fits a 1280px screen.** The three columns are bounded
+  (sidebar 16-18rem, design pane at least 32rem, inspector 20-26rem), so
+  wide wiring or YAML scrolls inside the design pane instead of pushing
+  the inspector and the header's right-hand controls off screen. Roadmap
+  section 10 lists the rest of the layout review.
+
 - **Roadmap section 9 (design system) is complete.** The design
   system artifact is re-synced from code and now follows it; the roadmap
   and HANDOFF record the sync recipe.
