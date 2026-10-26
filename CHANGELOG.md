@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The header overflowed between 1536 and 1760px.** With advanced mode
+  on and unsaved changes, the group names and long labels that appeared
+  at 1536px pushed the theme, settings and docs buttons off screen, and
+  the "Unsaved changes" chip wrapped. The labels now appear from 1800px
+  (the Design labels from 1366px) and the chip stays on one line. The
+  `ui-themes` gate now sweeps 1280-1920px in that state.
+
 ## [0.48.0] — 2026-10-26
 
 ### Changed

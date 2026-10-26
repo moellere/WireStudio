@@ -132,8 +132,9 @@ device, Schematic (KiCad export), Enclosure (parametric `.scad` +
 Thingiverse search) and Export (design JSON). Then Agent (chat sidebar),
 feedback, theme, **Settings** (gear) and the API docs. Advanced mode,
 switched in Settings, reveals the Agent, the schematic and PCB tabs, and
-every Output button but Export. Below 1536px wide the group names and
-the longer labels hide; hover a button for its name.
+every Output button but Export. Below 1800px wide the group names and
+the longer labels hide, and below 1366px the Design labels too; hover a
+button for its name.
 
 **Community designs.** The sidebar's **Gallery** tab lists the
 designs in the community catalogue,

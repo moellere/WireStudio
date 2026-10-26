@@ -148,7 +148,7 @@ const CHIP_VARIANT: Record<ChipVariant, string> = {
   source:
     "rounded bg-accent-500/10 px-1 py-0.5 text-[9px] font-medium uppercase tracking-wider text-accent-200 " +
     "ring-1 ring-accent-500/30",
-  state: "rounded-md bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-400 ring-1 ring-amber-500/30",
+  state: "whitespace-nowrap rounded-md bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-400 ring-1 ring-amber-500/30",
 };
 
 export function Chip({ variant, className = "", children }: { variant: ChipVariant; className?: string; children: ReactNode }) {
