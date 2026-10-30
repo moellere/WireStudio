@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **A functional gate run broke the next night's ESPHome compile.** It
+  built under the same device name as the nightly board-only image, and
+  ESPHome's cache, cleared on the config change, crashed the next
+  compile on a missing file. The functional build is now `hw-fn-<board>`.
+
 ## [0.48.1] — 2026-10-26
 
 ### Added

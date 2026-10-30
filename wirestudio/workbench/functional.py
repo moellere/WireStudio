@@ -35,6 +35,15 @@ class FunctionalError(Exception):
     pass
 
 
+def device_name(board_id: str, functional: bool) -> str:
+    """The ESPHome name the gate builds under. The functional build gets its
+    own: ESPHome keys its build cache on the name and clears it when the
+    config changes, and on 2026-10-26 a one-off functional build followed
+    by the nightly board-only build under one name crashed that compile on
+    a cache file the first had removed."""
+    return f"{'hw-fn' if functional else 'hw-gate'}-{board_id}"
+
+
 def free_pin(gpio_capabilities: dict[str, list[str]]) -> str:
     for pin, tags in gpio_capabilities.items():
         if "gpio" in tags and not any(t.startswith(_RESERVED) for t in tags):

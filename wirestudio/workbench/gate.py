@@ -333,7 +333,7 @@ async def _functional(dev: dict, subject: str, board, client, report: Report, si
                    "no 'IP Address' in the boot log within 60s -- the firmware did not join WiFi")
         return
     try:
-        res = await functional.verify(host, f"hw-gate-{board.id}", api_factory=api_factory)
+        res = await functional.verify(host, functional.device_name(board.id, True), api_factory=api_factory)
     except Exception as e:
         report.add("functional", subject, False, describe(e))
         return

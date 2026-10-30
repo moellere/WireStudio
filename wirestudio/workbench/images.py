@@ -60,11 +60,11 @@ async def _esphome(board: LibraryBoard, library: Library, dashboard, functional_
     from wirestudio.generate.yaml_gen import render_yaml
     from wirestudio.mcp.hardware import is_merged_image
     from wirestudio.model import Design
-    from wirestudio.workbench.functional import design_fields
+    from wirestudio.workbench.functional import design_fields, device_name
 
     if dashboard is None or not dashboard.is_configured():
         raise ImageUnavailable("ESPHome needs ESPHOME_DASHBOARD_URL to compile")
-    name = f"hw-gate-{board.id}"
+    name = device_name(board.id, functional_pin is not None)
     design = Design.model_validate({
         "schema_version": "1.0", "id": name, "name": f"Hardware gate ({board.name})",
         "board": {"library_id": board.id, "mcu": board.mcu, "framework": board.framework},
