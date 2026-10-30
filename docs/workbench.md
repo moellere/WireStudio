@@ -265,7 +265,7 @@ overrides it). Nothing is wired to the pin. After the boot marker the
 gate reads the device's address from the `IP Address:` line ESPHome logs
 on joining (or uses `functional_host`), connects with `aioesphomeapi`
 (the `bench` extra, in the `-full` image), checks the device answers as
-`hw-gate-<board>` and lists the switch, and commands it on and off,
+`hw-fn-<board>` and lists the switch, and commands it on and off,
 waiting for each state to come back. That is the round trip Home
 Assistant makes, on firmware generated from a design:
 
@@ -286,7 +286,14 @@ logged from its last scan, and -85 dBm or weaker is called out as too
 weak to hold a link. The first covbench run, on 2026-10-26, was exactly
 that: the bench's bare ESP32 dev board saw its access point at -97 dBm.
 The board needs to be within reach of an access point before
-`functional: true` goes into the nightly roster. The gate's pod must be able to reach the device's address;
+`functional: true` goes into the nightly roster.
+
+The functional build compiles under its own name, `hw-fn-<board>`,
+not the board-only build's `hw-gate-<board>`. ESPHome keys its build
+cache on the device name and clears it when the config changes; when a
+one-off functional build and the nightly board-only build shared a name,
+the next nightly compile crashed on a cache file the first had removed
+(2026-10-27). The gate's pod must be able to reach the device's address;
 the reference cluster routes to the bench LAN.
 
 A flash device skips the `serial` stage: what it prints at rest depends

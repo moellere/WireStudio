@@ -436,7 +436,7 @@ class FakeAPI:
     """Stands in for aioesphomeapi.APIClient. `follows` is whether the switch
     state tracks the command, as working firmware's does."""
 
-    def __init__(self, name="hw-gate-esp32-devkitc-v4", entities=None, follows=True, refuse=False):
+    def __init__(self, name="hw-fn-esp32-devkitc-v4", entities=None, follows=True, refuse=False):
         self.name, self.follows, self.refuse = name, follows, refuse
         self.entities = entities if entities is not None else [
             type("SwitchInfo", (), {"key": 7, "object_id": "gate_switch", "name": "Gate switch"})()]
@@ -580,7 +580,7 @@ def test_the_functional_image_carries_wifi_the_api_and_the_switch():
     lib = default_library()
     board = lib.board("esp32-devkitc-v4")
     design = Design.model_validate({
-        "schema_version": "1.0", "id": "hw-gate-esp32-devkitc-v4", "name": "gate",
+        "schema_version": "1.0", "id": "hw-fn-esp32-devkitc-v4", "name": "gate",
         "board": {"library_id": board.id, "mcu": board.mcu, "framework": board.framework},
         "power": {"supply": "usb-5v", "rail_voltage_v": 5.0}, "buses": [],
         **design_fields("GPIO4"),
@@ -588,7 +588,7 @@ def test_the_functional_image_carries_wifi_the_api_and_the_switch():
     text = render_yaml(design, lib)
     assert "ssid: !secret wifi_ssid" in text and "password: !secret wifi_password" in text
     doc = yaml.safe_load(text.replace("!secret ", ""))
-    assert doc["api"] == {} and doc["esphome"]["name"] == "hw-gate-esp32-devkitc-v4"
+    assert doc["api"] == {} and doc["esphome"]["name"] == "hw-fn-esp32-devkitc-v4"
     assert doc["switch"] == [{"platform": "gpio", "pin": "GPIO4", "name": "Gate switch", "id": "gate_switch"}]
 
 
@@ -642,3 +642,37 @@ async def test_a_weak_link_is_named_in_the_failure(fake_images, quick_ip, monkey
     assert not row[2]
     assert "did not answer within 0s" in row[3]
     assert "-97 dBm; too weak to hold a link" in row[3]
+
+
+def test_the_functional_build_has_its_own_device_name():
+    """covbench, 2026-10-27: a functional one-off and the nightly board-only
+    build shared a name, and ESPHome's cache crashed the next compile."""
+    from wirestudio.workbench.functional import device_name
+
+    assert device_name("esp32-devkitc-v4", True) != device_name("esp32-devkitc-v4", False)
+    # ESPHome caps a device name at 31 characters; the longest library board id must fit.
+    from wirestudio.library import default_library
+
+    longest = max((b.id for b in default_library().list_boards()), key=len)
+    assert len(device_name(longest, False)) <= 31 and len(device_name(longest, True)) <= 31, longest
+
+
+async def test_the_image_is_built_under_the_name_its_mode_uses(monkeypatch):
+    from wirestudio.workbench import images
+
+    pushed = []
+
+    class Dash:
+        def is_configured(self):
+            return True
+
+        async def push_device(self, name, yaml_text):
+            pushed.append(name)
+            raise images.ImageUnavailable("stop here")
+
+    lib = __import__("wirestudio.library", fromlist=["default_library"]).default_library()
+    board = lib.board("esp32-devkitc-v4")
+    for pin in (None, "GPIO4"):
+        with pytest.raises(images.ImageUnavailable):
+            await images.image_for("esphome", board, lib, dashboard=Dash(), functional_pin=pin)
+    assert pushed == ["hw-gate-esp32-devkitc-v4", "hw-fn-esp32-devkitc-v4"]
