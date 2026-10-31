@@ -72,3 +72,28 @@ def test_cache_hit_short_circuits_without_pio(monkeypatch, tmp_path, lib):
     assert result.bin_path == slot / "firmware.bin"
     assert result.log == "cached log"
     assert result.env == "ttgo-lora32-v1"
+
+
+def test_esptool_comes_from_the_lorawan_extra_when_platformio_has_none(monkeypatch, tmp_path):
+    """The -full image's PlatformIO never fetched tool-esptoolpy (that happens
+    on an upload, which the compile worker never does), so merge_bin found no
+    esptool and every LoRaWAN build shipped without a factory image. The
+    extra now installs esptool, and the module is the fallback."""
+    import sys
+
+    monkeypatch.setattr(cw, "_pio_packages_dir", lambda: tmp_path)
+    monkeypatch.setattr(cw.shutil, "which", lambda name: None)
+    assert cw._esptool_cmd() == [sys.executable, "-m", "esptool"]
+
+
+def test_the_factory_merge_runs_on_the_module_esptool(monkeypatch, tmp_path):
+
+    monkeypatch.setattr(cw, "_pio_packages_dir", lambda: tmp_path / "none")
+    monkeypatch.setattr(cw.shutil, "which", lambda name: None)
+    build = tmp_path / "build"
+    build.mkdir()
+    for name, size in (("bootloader.bin", 4096), ("partitions.bin", 3072), ("firmware.bin", 8192)):
+        (build / name).write_bytes(b"\xe9" + b"\x00" * (size - 1))
+    out = tmp_path / "factory.bin"
+    assert cw._merge_factory(build, "esp32", out), "merge_bin failed"
+    assert out.stat().st_size > 0x10000

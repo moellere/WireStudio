@@ -43,6 +43,10 @@ lorawan = [
     "chirpstack-api>=4.7,<5",
     "paho-mqtt>=1.6",
     "pyserial>=3.5",
+    # merge_bin for the blank-board factory image a full-erase flash needs.
+    # PlatformIO only fetches its own esptool on an upload, which the
+    # compile worker never does.
+    "esptool>=5",
 ]
 # Workbench phase 4: the nightly gate talks to the flashed device's native
 # API. Only the hardware gate imports it, lazily.
