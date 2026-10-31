@@ -14,7 +14,7 @@ from dataclasses import dataclass
 
 from wirestudio.library import Library, LibraryBoard
 
-FRAMEWORKS = ("esphome", "circuitpython", "micropython", "meshtastic")
+FRAMEWORKS = ("esphome", "circuitpython", "micropython", "meshtastic", "lorawan")
 
 
 class ImageUnavailable(RuntimeError):

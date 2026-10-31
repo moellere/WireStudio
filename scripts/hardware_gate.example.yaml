@@ -74,4 +74,7 @@ devices:
 #  - slot: SLOT3
 #    name: spare Heltec V3
 #    board: heltec-wifi-lora32-v3
-#    flash: [esphome, meshtastic]
+#    # lorawan: build the standalone firmware, register in ChirpStack, join,
+#    # and wait for ChirpStack to count an uplink. Needs CHIRPSTACK_API_URL /
+#    # _TOKEN. Optional band / sub_band (default US915, 2).
+#    flash: [lorawan, esphome, meshtastic]

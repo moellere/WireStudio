@@ -196,6 +196,8 @@ the usual ChirpStack environment, and for an `esphome` flash
 | `uplinks` | ChirpStack saw the DevEUI within `max_uplink_silence_s` |
 | `flash` | each framework in a device's `flash:` list is written to its slot, with a full erase |
 | `boot` | the written firmware printed its boot marker |
+| `join` | for a `lorawan` flash, the board registered in ChirpStack under its MAC-derived DevEUI and joined, with a session ChirpStack confirms |
+| `uplink` | ChirpStack counted an uplink from that board after the join |
 | `functional` | on a `functional: true` device, the ESPHome firmware joined WiFi, its native API answers under the design's name, and the gate switch round-trips on and off |
 
 The roster is deployment state — slot labels and DevEUIs describe one
@@ -254,6 +256,28 @@ writes its factory image; `circuitpython`, `micropython` and
 `meshtastic` download the newest stable release the flash dialog
 serves. Every write erases the chip first, because each framework
 leaves its own filesystem behind.
+
+**A `lorawan` flash** writes the standalone LoRaWAN firmware and then
+proves the board is on the network, through whatever gateway is in
+range. It runs the same flash, register and prompt flow as the studio's
+bench provisioning: build the board's factory image, write it with a
+full erase, read the eFuse MAC from esptool's output, register the board
+in ChirpStack under the DevEUI derived from it (flushing its DevNonces,
+which a fresh erase restarts), and answer the firmware's band and key
+prompts over the slot's serial port. `join` passes when the firmware
+prints `JOINED` and ChirpStack holds a session; `uplink` passes when the
+session's frame counter moves, because a join request can refresh a
+device's last-seen time and only the counter proves a data frame
+arrived. The run needs `CHIRPSTACK_API_URL` and `CHIRPSTACK_API_TOKEN`,
+and `band` / `sub_band` on the entry default to US915 sub-band 2. Put it
+before the framework the board should rest on:
+
+```yaml
+  - slot: AUTO-2
+    name: covbench TTGO T3 V1.6.1
+    board: ttgo-lora32-v2
+    flash: [lorawan, meshtastic]
+```
 
 **The functional stage** (workbench phase 4) goes one step past
 `boot`. With `functional: true` on an entry that flashes `esphome`, the
