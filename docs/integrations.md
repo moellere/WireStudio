@@ -53,8 +53,13 @@ Claude subscription) or `ANTHROPIC_API_KEY`. It is held to
 
 The `agent-eval` workflow runs the replay on every PR that touches the
 agent, and nightly runs the Claude Code driver with the
-`CLAUDE_CODE_OAUTH_TOKEN` repository secret and the embedded agent with
-`ANTHROPIC_API_KEY` when that secret is set.
+`CLAUDE_CODE_OAUTH_TOKEN` repository secret, so the schedule bills the
+subscription and nothing else. The embedded agent calls the API on the
+`ANTHROPIC_API_KEY` secret and is metered, so it is scored only on a
+dispatched run with the `embedded` input ticked (it skips with a notice
+when that secret is missing). A subscription token is honoured for
+Claude Code alone, which is why the embedded agent cannot be moved onto
+it: a subscription-funded score of the agent is the Claude Code job.
 
 ## Fleet handoff
 
