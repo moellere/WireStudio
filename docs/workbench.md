@@ -269,8 +269,14 @@ prints `JOINED` and ChirpStack holds a session; `uplink` passes when the
 session's frame counter moves, because a join request can refresh a
 device's last-seen time and only the counter proves a data frame
 arrived. The run needs `CHIRPSTACK_API_URL` and `CHIRPSTACK_API_TOKEN`,
-and `band` / `sub_band` on the entry default to US915 sub-band 2. Put it
-before the framework the board should rest on:
+and `band` / `sub_band` on the entry default to US915 sub-band 2. The
+compile runs in the gate's pod, which the `-full` image supports with
+two settings the studio's own pod does not need: run the gate as the
+container's `args` (not `command`), so the image's entrypoint links the
+prebuilt PlatformIO toolchain into a writable core dir, and point
+`PLATFORMIO_CORE_DIR` and `WIRESTUDIO_FW_CACHE` at the pod's writable
+`/tmp` (the image defaults them to `/data`, which a gate pod does not
+mount). Put the entry before the framework the board should rest on:
 
 ```yaml
   - slot: AUTO-2

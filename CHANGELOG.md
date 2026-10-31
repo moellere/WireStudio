@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **LoRaWAN builds shipped without a blank-board factory image.** The
+  merge needs esptool, and the `-full` image had none: PlatformIO fetches
+  its own only on an upload, which the compile worker never does. The
+  `lorawan` extra now installs esptool, so a full-erase flash of the
+  standalone firmware has the bootloader and partition table it needs.
+
 - **A functional gate run broke the next night's ESPHome compile.** It
   built under the same device name as the nightly board-only image, and
   ESPHome's cache, cleared on the config change, crashed the next
