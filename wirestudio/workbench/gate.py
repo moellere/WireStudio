@@ -15,6 +15,9 @@ What this asserts
   flash      each framework listed under a device's `flash:` is written
              to its slot with a full erase
   boot       the written firmware printed its boot marker (boot.py)
+  join       for a `lorawan` flash: the device registered in ChirpStack
+             under its MAC-derived DevEUI and joined (lorawan_gate.py)
+  uplink     ChirpStack counted an uplink from it after the join
   functional for an ESPHome flash on a `functional: true` device: it
              joined WiFi, its native API answers under the design's name,
              and the gate switch round-trips on and off (functional.py)
@@ -100,6 +103,8 @@ def _check_flash_entry(path: Path, i: int, dev: dict) -> None:
         default_library().board(dev["board"])
     except FileNotFoundError:
         raise ConfigError(f"{where}: unknown board '{dev['board']}'") from None
+    if "lorawan" in flash and not default_library().board(dev["board"]).has_radio:
+        raise ConfigError(f"{where}: cannot flash lorawan: {dev['board']} has no LoRa radio")
     if dev.get("functional") and "esphome" not in flash:
         raise ConfigError(f"{where}: `functional` checks an ESPHome flash; add esphome to `flash`")
     pin = dev.get("functional_pin")
@@ -122,9 +127,10 @@ class Report:
 
 
 async def run(config: dict, report: Report, client=None, chirp=None, dashboard=None,
-              api_factory=None) -> None:
-    """`client` / `chirp` / `dashboard` / `api_factory` are injectable so the
-    stages can be tested without a bench; production passes none of them."""
+              api_factory=None, lorawan=None) -> None:
+    """`client` / `chirp` / `dashboard` / `api_factory` / `lorawan` are
+    injectable so the stages can be tested without a bench; production
+    passes none of them."""
     from wirestudio.workbench import WorkbenchClient, WorkbenchUnavailable
 
     devices = config.get("devices") or []
@@ -263,7 +269,10 @@ async def run(config: dict, report: Report, client=None, chirp=None, dashboard=N
         library = default_library()
         for dev in flashers:
             for framework in dev["flash"]:
-                await _flash_one(dev, framework, client, report, library, dashboard, api_factory)
+                if framework == "lorawan":
+                    await _flash_lorawan(dev, client, report, library, chirp, lorawan)
+                else:
+                    await _flash_one(dev, framework, client, report, library, dashboard, api_factory)
 
 
 async def _flash_one(dev: dict, framework: str, client, report: Report, library,
@@ -315,6 +324,26 @@ async def _flash_one(dev: dict, framework: str, client, report: Report, library,
         report.add("boot", subject, False,
                    f"no '{res['checks'][0]['pattern']}' within "
                    f"{int(res['checks'][0]['timeout_s'])}s; last output: {tail or 'nothing'}")
+
+async def _flash_lorawan(dev: dict, client, report: Report, library, chirp, runner) -> None:
+    subject = f"{dev['slot']}/lorawan"
+    if chirp is None:
+        from wirestudio.targets.lorawan import chirpstack as cs
+
+        chirp = cs.ChirpStackClient()
+    if not chirp.is_configured():
+        report.add("flash", subject, False,
+                   "a lorawan flash registers the board in ChirpStack; set CHIRPSTACK_API_URL and _TOKEN")
+        return
+    if runner is None:
+        from wirestudio.workbench import lorawan_gate
+
+        runner = lorawan_gate.run
+    board = library.board(dev["board"])
+    rows = await asyncio.to_thread(runner, dev, board, library, workbench=client, chirpstack=chirp)
+    for row in rows:
+        report.add(row.stage, subject, row.ok, row.detail)
+
 
 async def _functional(dev: dict, subject: str, board, client, report: Report, since: float,
                       api_factory) -> None:

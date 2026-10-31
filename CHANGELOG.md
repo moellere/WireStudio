@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **The hardware gate can prove a board joins LoRaWAN and uplinks.** A
+  `lorawan` entry in a device's `flash:` list builds the standalone
+  firmware, writes it with a full erase, registers the board in
+  ChirpStack under its MAC-derived DevEUI, answers its key prompts over
+  serial, and then asserts the join (`join`) and that ChirpStack counted
+  an uplink after it (`uplink`).
+
 ### Fixed
 
 - **A functional gate run broke the next night's ESPHome compile.** It
