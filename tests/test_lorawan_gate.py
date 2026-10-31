@@ -62,6 +62,8 @@ def joins(monkeypatch):
 
     def answer_prompts(url, rules, *, done, secrets, timeout, min_interval):
         yield {"type": "log", "data": "Enter LoRaWAN band"}
+        for line in outcome.get("then", []):
+            yield {"type": "log", "data": line}
         yield {"type": "done", "matched": outcome["matched"]}
 
     monkeypatch.setattr(workbench_provision, "answer_prompts", answer_prompts)
@@ -86,8 +88,10 @@ def test_a_join_and_an_uplink_pass(joins):
 
 def test_a_device_that_reports_join_failed_fails_the_join(joins):
     joins["matched"] = "JOIN FAILED"
+    joins["then"] = ["radio.begin() failed: -2"]
     rows = _run(Chirp())
     assert rows[-1].stage == "join" and not rows[-1].ok and "JOIN FAILED" in rows[-1].detail
+    assert "the device last printed: Enter LoRaWAN band | radio.begin() failed: -2" in rows[-1].detail
 
 
 def test_joined_without_a_chirpstack_session_fails_the_join(joins):

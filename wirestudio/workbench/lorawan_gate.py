@@ -89,6 +89,7 @@ def run(dev: dict, board, library, *, workbench, chirpstack, image: bytes | None
     rows: list[Row] = []
     phase = "flash"
     done: dict = {}
+    tail: list[str] = []
     try:
         for event in provision_events(
             design, library, slot=dev["slot"], workbench=workbench, chirpstack=chirpstack,
@@ -99,10 +100,19 @@ def run(dev: dict, board, library, *, workbench, chirpstack, image: bytes | None
                 if event["phase"] == "detect":
                     rows.append(Row("flash", True, f"{len(image)} bytes at 0x0, DevEUI {event['dev_eui']}"))
                 phase = {"register": "register", "provision": "join", "verify": "join"}.get(event["phase"], phase)
+            elif event["type"] == "log" and phase == "join":
+                line = str(event.get("data", "")).strip()
+                if line:
+                    tail = (tail + [line])[-6:]
             elif event["type"] == "done":
                 done = event
     except Exception as e:
-        rows.append(Row(phase, False, describe(e)))
+        # The serial dialogue is where a join goes quiet: unanswered prompts,
+        # a radio that never transmits, a gateway that never hears it. What
+        # the device last printed tells them apart; the prompt driver has
+        # already redacted the key from these lines.
+        said = f"; the device last printed: {' | '.join(tail)}" if phase == "join" and tail else ""
+        rows.append(Row(phase, False, describe(e) + said))
         return rows
 
     joined_at = time.monotonic()

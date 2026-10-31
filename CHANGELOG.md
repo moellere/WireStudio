@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A failed LoRaWAN join in the hardware gate shows what the device
+  said.** The `join` row now carries the last lines the firmware printed
+  during the key prompts (keys redacted), so a night that fails there
+  says whether the prompts went unanswered or the join itself failed.
+
 - **LoRaWAN builds shipped without a blank-board factory image.** The
   merge needs esptool, and the `-full` image had none: PlatformIO fetches
   its own only on an upload, which the compile worker never does. The
