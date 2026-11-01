@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   serial, and then asserts the join (`join`) and that ChirpStack counted
   an uplink after it (`uplink`).
 
+### Changed
+
+- **The nightly agent eval bills the subscription only.** The schedule
+  now runs the reference replay and the Claude Code driver
+  (`CLAUDE_CODE_OAUTH_TOKEN`). The embedded agent calls the API on
+  `ANTHROPIC_API_KEY` and was metering a Sonnet pass over the 28 tasks
+  every night; it is now scored only on a dispatched run with the new
+  `embedded` input ticked, and still skips with a notice when the secret
+  is missing. It cannot be moved onto the subscription: that token is
+  honoured for Claude Code alone, so a subscription-funded score of the
+  agent is the Claude Code job.
+
 ### Fixed
 
 - **A failed LoRaWAN join in the hardware gate shows what the device

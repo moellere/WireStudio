@@ -266,12 +266,13 @@ Section 4 covers the rest.
   the render), the asked-for change is present, and the turn stayed
   within budget. The `agent-eval` workflow replays the reference
   solutions through the same scorer on every PR that touches the
-  agent, and runs the model nightly and on dispatch with the score in
+  agent, and runs Claude Code nightly and on dispatch with the score in
   the job summary; `gate.min_pass` holds the pass count. The README
   row is promoted. The nightly run uses Claude Code over the MCP
   endpoint on the owner's subscription (`CLAUDE_CODE_OAUTH_TOKEN`),
-  held to `gate.claude_code_min_pass`; the embedded agent is scored
-  too whenever `ANTHROPIC_API_KEY` is set. Both gates are 25 of 28:
+  held to `gate.claude_code_min_pass`, and nothing on the schedule
+  bills the API; the embedded agent (`ANTHROPIC_API_KEY`, metered) is
+  scored on a dispatched run with `embedded` ticked. Both gates are 25 of 28:
   the embedded agent scored 26 twice on one commit (2026-10-24, its
   first scored runs) and Claude Code 27 twice and 26 once the same day.
   A model swap is a dispatched run and a diff of two summaries.

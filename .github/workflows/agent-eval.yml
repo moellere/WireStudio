@@ -15,9 +15,13 @@ name: agent-eval
 #     CLAUDE_CODE_OAUTH_TOKEN repository secret (`claude setup-token`, a
 #     subscription); a run without it fails loudly. Held to
 #     gate.claude_code_min_pass.
-#   - model: the embedded agent, which calls the API directly. Runs when
-#     the ANTHROPIC_API_KEY repository secret is set and skips with a
-#     notice otherwise. Held to gate.min_pass.
+#   - model: the embedded agent, which calls the API directly on the
+#     ANTHROPIC_API_KEY repository secret and is metered. It runs only on
+#     a dispatch with `embedded` ticked, and skips with a notice when the
+#     secret is missing. Held to gate.min_pass. A subscription token is
+#     honoured for Claude Code alone, so nothing on the schedule bills the
+#     API: the nightly score of the agent on the subscription is the
+#     claude-code job.
 # The markdown summary is each job's summary; results.json its artifact.
 
 on:
@@ -38,6 +42,11 @@ on:
         description: "Comma-separated task ids (default: all)"
         required: false
         default: ""
+      embedded:
+        description: "Also score the embedded agent (bills ANTHROPIC_API_KEY)"
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -108,7 +117,7 @@ jobs:
           if-no-files-found: ignore
 
   model:
-    if: github.event_name != 'pull_request'
+    if: github.event_name == 'workflow_dispatch' && inputs.embedded == true
     needs: solutions
     runs-on: ubuntu-latest
     timeout-minutes: 45
