@@ -3,8 +3,9 @@
 Draft. At release this text opens the `[1.0.0]` section of
 `CHANGELOG.md`, which the release workflow publishes as the GitHub
 release body; the feature entries accumulated under `[Unreleased]` stay
-below it. Items marked **at release** are filled in when the flash
-stage of the hardware gate has run and the schema is cut.
+below it. The tier cells were filled after the flash bench's first green
+week (2026-10-28 to 11-03; green every night since); the upgrade result
+below is filled in by the release PR.
 
 These notes cover what changes for someone upgrading from 0.46.0 and
 what each part of the studio now promises. Coming from an earlier
@@ -72,6 +73,8 @@ backup if you may roll back.
 
 ## Tier changes
 
+Every row is now *Verified* or *Experimental*; the *Works* tiers are gone.
+
 | Row | 0.40.0 | 0.46.0 | 1.0 | Gate |
 |---|---|---|---|---|
 | MCP server | Works | Verified | Verified | the `mcp` client drives the mounted server over Streamable HTTP with the token, every PR |
@@ -82,10 +85,10 @@ backup if you may roll back.
 | WLED target | (new) | Verified | Verified | goldens every PR; the usermod build against WLED v0.15.2 on PRs that touch it and nightly |
 | LoRaWAN target | Works (hardware-validated) | Verified | Verified | firmware builds on PRs that touch the target and daily; the nightly hardware gate hears the bench's T-Beam |
 | LoRaWAN external-component path | Works (hardware-validated) | Verified | Verified | `esphome config` every PR; the nightly hardware gate hears three bench boards on it |
-| Remote workbench | Works (hardware-validated) | Works (hardware-validated) | **at release** | same, plus the transport tests |
-| Meshtastic flashing + config | Works | Works | **at release** | a nightly flash of a radio board, or Experimental |
-| CircuitPython flashing | Works | Works | **at release** | a nightly flash with a boot verdict, or Experimental |
-| MicroPython flashing + main.py | Works | Works | **at release** | a nightly flash with a boot verdict, or Experimental |
+| Remote workbench | Works (hardware-validated) | Works (hardware-validated) | Verified | the nightly flash bench drives a live bench through the workbench client (slot health, full-erase flashes, reset, boot verdict), plus the transport tests every PR |
+| Meshtastic flashing + config | Works | Works | Verified | a nightly full-erase flash of a TTGO T3 and its boot banner; the config push against a fake device every PR |
+| CircuitPython flashing | Works | Works | Verified | a nightly full-erase flash of an ESP32 dev board and its banner; the generated starters parse every PR |
+| MicroPython flashing + main.py | Works | Works | Verified | a nightly full-erase flash of an ESP32 dev board and its REPL banner; `main.py` parse and the raw-REPL push against a fake board every PR |
 
 Every other row keeps its tier. ESPHome output validates on releases
 2026.3 through 2026.9 (`docs/esphome-support.md`); the pin is 2026.6.5.

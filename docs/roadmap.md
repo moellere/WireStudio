@@ -64,10 +64,10 @@ The middle tier today, and what moves each row.
 | Row | What promotes it | If that cannot happen |
 |---|---|---|
 | LoRaWAN standalone and external-component paths | **promoted.** The firmware builds and `esphome config` gate the code every PR; the nightly hardware gate asserts the four Wyola boards running the two paths are on the bench, logging and heard by ChirpStack within the hour. Not reflashed nightly (a rejoin and a DevNonce each time) | |
-| Remote workbench | same gate, plus the transport tests already there | same |
-| Meshtastic flash + config | nightly flash of a radio board, boot verdict by banner once one is established upstream, config read back | demote to *Experimental* |
-| CircuitPython flash + code.py | nightly flash, boot verdict by the serial banner, `code.py` runs without a traceback on the serial console | demote |
-| MicroPython flash + main.py | nightly flash, REPL banner, `main.py` runs without a traceback | demote |
+| Remote workbench | **promoted** (2026-11-08). The nightly flash bench drives a live bench through the workbench client every night, plus the transport tests | |
+| Meshtastic flash + config | **promoted** (2026-11-08). Nightly full-erase flash of a TTGO T3 with its boot banner; the config push is tested against a fake device every PR rather than read back on hardware | |
+| CircuitPython flash + code.py | **promoted** (2026-11-08). Nightly full-erase flash with its banner; the starters parse every PR but are not run on hardware | |
+| MicroPython flash + main.py | **promoted** (2026-11-08). Nightly full-erase flash with the REPL banner; `main.py` parses and the raw-REPL push is tested against a fake board every PR, not run on hardware | |
 | Component authoring | **promoted.** A user component goes through `esphome config` in the config gate; `tests/test_component_corpus.py` holds the check gate to a corpus of bad components | |
 | ESPHome dashboard compile | **promoted.** The nightly `dashboard` job runs a real ESPHome Device Builder, open and password-protected, and pushes, compiles and fetches through the studio's client with the wire assumptions asserted | |
 | MCP server | **promoted.** `tests/test_mcp_client.py` drives the mounted server with the `mcp` package's client, every PR; the suite itself now runs in CI (`tests.yml`), which no row could claim before | |

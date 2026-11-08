@@ -102,29 +102,22 @@ closed its last issues (#344, #345, #346) on 2026-10-24, and the open issues
 are #357 (built; close at 1.0), #312 (only the ATOM U left) and #219 (not a
 blocker). What remains, in order:
 
-1. **The flash stage's first green week on covbench.** Night 1 of 7 was
-   2026-10-24: 11 checks, all four frameworks flashed and booted. The
-   CronJob runs 04:30 America/Denver; a red night restarts the count, so
-   the earliest promote/demote pass is 2026-10-30. Nothing to build here.
-2. **The promote/demote pass** (roadmap sections 2 and 7). The README
-   status table holds four *Works* rows: Remote workbench, Meshtastic,
-   MicroPython, CircuitPython. Each goes to *Verified* citing the flash
-   bench through `docs/workbench.md` ("The reference deployment: two
-   benches", added in #406), or to *Experimental* with its caveat. The
-   same pass fills the five **at release** cells in
-   `docs/release-notes-1.0.md`: those four rows and the Agent row's
-   score. Claude Code scored 27, 27 and 26 of 28 on 2026-10-24 and 28
-   on 2026-10-25 (run 40199003816); the gate is 25.
-3. **Both eval gates are set** (done 2026-10-24). The `ANTHROPIC_API_KEY`
-   secret is in place; the embedded agent scored 26 of 28 on two runs
-   (40118320452, 40118970332), so `gate.min_pass` is 25, and Claude Code's
-   gate rose to 25 on 27, 27 and 26. The release notes' Agent cell is
-   filled. The embedded agent's `first-i2c-part` miss was a studio bug,
-   #410, fixed on main after the scored runs. The first run on the
-   fixed main (40199003816, 2026-10-25) scored the embedded agent 26
-   (its two misses, `mosfet-driver` and `third-probe`, are tool-call
-   budgets) and Claude Code 28 of 28; one more run like it and both
-   gates can move up.
+1. **The flash stage's first green week on covbench.** Done: one red
+   night (2026-10-27, an ESPHome cache crash caused by a functional
+   one-off sharing the nightly build's device name, fixed in #433), then
+   green every night from 2026-10-28; the first full week ended 11-03.
+2. **The promote/demote pass** (roadmap sections 2 and 7). Done
+   2026-11-08: Remote workbench, Meshtastic, MicroPython and CircuitPython
+   are *Verified*, each citing the flash bench through `docs/workbench.md`
+   ("The reference deployment: two benches"). The nightly proves flash
+   and boot; Meshtastic's config push, the `code.py` starters and the
+   `main.py` push are verified against fakes every PR, and each row says
+   so. The four tier cells in `docs/release-notes-1.0.md` are filled; the
+   upgrade result there is the release PR's.
+3. **Both eval gates are set** (done 2026-10-24; reshaped by #437 on
+   11-01). The nightly scores Claude Code over MCP on the subscription;
+   the embedded agent is scored on a dispatched run with `embedded`
+   ticked. Both gates are 25 of 28.
 4. **Adopt the design system** (roadmap section 9). Done 2026-10-25 and
    shipped in 0.47.0: #417 shared components, #418 tokens-generated theme
    and the `ink-faint` fix, #419 the `ui-themes` gate, and the artifact
