@@ -48,13 +48,16 @@ jobs:
         # (esphome-config.yml), the stables since, and the floor the
         # table claims. Add a release here when it lands; the leg's
         # JSON joins the table on the next refresh.
-        esphome_version: ["2026.3.3", "2026.4.5", "2026.5.3", "2026.6.5", "2026.7.4", "2026.8.2", "2026.9.1"]
+        esphome_version: ["2026.3.3", "2026.4.5", "2026.5.3", "2026.6.5", "2026.7.4", "2026.8.2", "2026.9.1", "2026.10.2"]
     steps:
       - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.11"
+          # ESPHome 2026.7 and later require Python 3.12; on 3.11 pip cannot
+          # install them, so those legs failed on install, not on our YAML
+          # (the 2026-11-02 and 11-09 sweeps).
+          python-version: "3.12"
           cache: pip
 
       - name: Install studio + ESPHome ${{ matrix.esphome_version }}
