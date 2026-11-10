@@ -224,6 +224,7 @@ _GAP = 3.0           # between parts
 _KEYHOLE_ZONE = 19.0  # floor kept clear at the top for wall screws
 _FENCE_T = 1.2       # face-down cradle wall
 _FENCE_CLEAR = 0.4
+_VENT_SIDE = 30.0    # slotted length of a side wall beside a vented part
 
 
 @dataclass
@@ -236,13 +237,18 @@ class _Part:
     x: float = 0.0
     y: float = 0.0
     up: str = "back"
+    port_end: str = "front"
 
     def local(self, mx: float, my: float) -> tuple[float, float]:
         """Part PCB coordinates -> offset within its placed outline.
         Lid parts turn so their length runs across the box and their
-        top edge faces `up`; base parts sit as drawn."""
+        top edge faces `up`; base parts turn so their x = length end
+        meets the port wall."""
         pcb = self.enc.pcb
         if self.enc.mount == "base":
+            # Far end (x = length) against the port wall.
+            if self.port_end == "back":
+                return pcb.length_mm - mx, pcb.width_mm - my
             return mx, my
         if self.up == "back":
             return pcb.width_mm - my, mx
@@ -302,7 +308,7 @@ def _layout(encl: BoardEnclosure, ports: list[BoardPort], parts: list[_Part],
     base = [p for p in parts if p.enc.mount == "base"]
     lid = [p for p in parts if p.enc.mount == "lid"]
     for p in parts:
-        p.up = up
+        p.up, p.port_end = up, port_end
         pcb = p.enc.pcb
         p.l, p.w = (pcb.length_mm, pcb.width_mm) if p.enc.mount == "base" else (pcb.width_mm, pcb.length_mm)
 
@@ -693,10 +699,13 @@ def _vents(p: _Part, lay: _Layout, cut: dict[str, list[str]]) -> None:
                              f"yappRectangle, yappCenter, yappCoordBoxInside]")
 
     row("cutoutsBack" if lay.port_end == "back" else "cutoutsFront", p.y, p.w)
+    # Side slots only along the end at the port wall, where the sensor is.
+    span = min(p.l, _VENT_SIDE)
+    start = p.x if lay.port_end == "back" else p.x + p.l - span
     if p.y <= _EDGE + 0.01:
-        row("cutoutsLeft", p.x, p.l)
+        row("cutoutsLeft", start, span)
     if lay.inner_w - (p.y + p.w) <= _EDGE + 0.01:
-        row("cutoutsRight", p.x, p.l)
+        row("cutoutsRight", start, span)
 
 
 def _keyholes(lay: _Layout, cut: dict[str, list[str]]) -> None:

@@ -434,7 +434,10 @@ class PartEnclosure(_Strict):
 
     mount: lid -- screwed to posts under the lid, component side up,
       its `features` cut through the lid; base -- on standoffs on the
-      floor beside the board.
+      floor beside the board, its x = length end against the board's
+      port wall.
+    pcb: the footprint as wired; a connector leaving an edge adds its
+      plug's reach to the length or width.
     lid_gap_mm: lid parts only; from the underside of the lid to the
       PCB's top, set by the tallest thing that must stay under the lid.
     height_above_pcb_mm / height_below_pcb_mm: the part's extent each
