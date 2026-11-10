@@ -459,6 +459,10 @@ cutoutsRight = [
 {cutouts_right}
 ];
 
+lightTubes = [
+{light_tubes}
+];
+
 snapJoins = [
   [cavity_l/2 + wall, 5, yappLeft, yappRight, yappCenter]
 ];
@@ -496,6 +500,7 @@ def _panel_scad(design: Design, board_name: str, encl: BoardEnclosure,
     cut: dict[str, list[str]] = {k: [] for k in
                                  ("lid", "base", "cutoutsBack", "cutoutsFront", "cutoutsLeft", "cutoutsRight")}
     keys = 0
+    tubes: list[str] = []
     notes: list[str] = []
 
     if not face_down:
@@ -547,8 +552,22 @@ def _panel_scad(design: Design, board_name: str, encl: BoardEnclosure,
             u, v = p.local(f.x_mm, f.y_mm)
             if f.kind == "window":
                 # Lid parts lie turned: the feature's width runs along Y.
-                cut["lid"].append(f"  [{_r(u)}, {_r(v)}, {_r(f.height_mm)}, {_r(f.width_mm)}, 0, yappRectangle, "
-                                  f"0, 0, yappCenter, yappCoordPCB, {pcb_ref(p)}]")
+                if f.glass_top_mm is None:
+                    cut["lid"].append(f"  [{_r(u)}, {_r(v)}, {_r(f.height_mm)}, {_r(f.width_mm)}, 0, yappRectangle, "
+                                      f"0, 0, yappCenter, yappCoordPCB, {pcb_ref(p)}]")
+                    continue
+                # A bezel: a light tube is a frame from the lid down to
+                # just above the glass, open through the lid; stepped
+                # cutouts, widest and shallowest at the face, taper it.
+                # A light tube's length runs along Y, a cutout's width along X.
+                tubes.append(f"  [{_r(u)}, {_r(v)}, {_r(f.width_mm)}, {_r(f.height_mm)}, {_BEZEL_WALL}, "
+                             f"{_r(f.glass_top_mm + 0.1)}, yappRectangle, 0, {inside_h} - {gap}, 0, "
+                             f"yappCoordPCB, {pcb_ref(p)}]")
+                for i in range(1, _TAPER_STEPS + 1):
+                    grow = 2 * f.taper_mm * i / _TAPER_STEPS
+                    depth = f"lid_t*{_r((_TAPER_STEPS + 1 - i) / (_TAPER_STEPS + 1))}"
+                    cut["lid"].append(f"  [{_r(u)}, {_r(v)}, {_r(f.height_mm + grow)}, {_r(f.width_mm + grow)}, 0, "
+                                      f"yappRectangle, {depth}, 0, yappCenter, yappCoordPCB, {pcb_ref(p)}]")
             elif f.kind == "hole":
                 cut["lid"].append(f"  [{_r(u)}, {_r(v)}, 0, 0, {_r(f.diameter_mm / 2)}, yappCircle, "
                                   f"0, 0, yappCenter, yappCoordPCB, {pcb_ref(p)}]")
@@ -604,11 +623,14 @@ def _panel_scad(design: Design, board_name: str, encl: BoardEnclosure,
         cutouts_front=_rows(cut["cutoutsFront"]),
         cutouts_left=_rows(cut["cutoutsLeft"]),
         cutouts_right=_rows(cut["cutoutsRight"]),
+        light_tubes=_rows(tubes),
         hooks=hooks,
     )
     return header + "\n// === YAPP_Box generator ===\n" + generator + params
 
 
+_BEZEL_WALL = 1.2   # frame round a display window, down to its glass
+_TAPER_STEPS = 4    # stepped taper of a bezel opening, face to frame
 _KEY_LEN = 12.0   # flexure key, tip to hinge
 _KEY_SLOT = 0.8
 _KEY_HINGE = 3.0

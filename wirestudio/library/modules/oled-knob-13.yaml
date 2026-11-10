@@ -33,8 +33,11 @@ components:
 # (actuator top 3.7), and the EC11, whose base is the tallest part at
 # 4.5 with its shaft 15.15 above that. The lid sits 4.7 above the PCB,
 # clear of all of it; the shaft comes through a round hole and the
-# knob cap goes on from outside after assembly. The window shows the
-# glass less 1 each side.
+# knob cap goes on from outside after assembly. The window is the
+# display's active area plus a margin, 32.6 x 17.6, centred above the
+# glass centre (the ribbon end is blank); a frame drops onto the glass
+# and the opening tapers 2.0 each side to the face, after Enoch's
+# display-cover-v16.
 enclosure:
   mount: lid
   pcb: {length_mm: 65.0, width_mm: 35.0, thickness_mm: 1.5}
@@ -47,7 +50,7 @@ enclosure:
   height_above_pcb_mm: 19.65
   height_below_pcb_mm: 17.0
   features:
-    - {kind: window, x_mm: 21.4, y_mm: 17.6, width_mm: 32.7, height_mm: 21.2}
+    - {kind: window, x_mm: 21.25, y_mm: 19.15, width_mm: 32.6, height_mm: 17.6, glass_top_mm: 3.6, taper_mm: 2.0}
     - {kind: hole, x_mm: 53.1, y_mm: 17.6, diameter_mm: 9.0}
     - {kind: button, x_mm: 53.1, y_mm: 5.6, diameter_mm: 4.5, top_mm: 3.7}
     - {kind: button, x_mm: 53.1, y_mm: 29.6, diameter_mm: 4.5, top_mm: 3.7}

@@ -405,7 +405,10 @@ class PanelFeature(_Strict):
     centred at (x_mm, y_mm) in the part's PCB coordinates seen from the
     component side.
 
-    window: a rectangular opening (a display's glass).
+    window: a rectangular opening (a display's glass). With
+      glass_top_mm, a frame drops from the lid to just above the glass
+      (its top, above the PCB), and taper_mm widens the opening by that
+      much each side toward the face, so the display sits in a bezel.
     hole: a round opening something passes through (a knob, a lens).
     button: a tact switch under the panel; the enclosure prints a
       plunger for it. top_mm is the actuator's height above the PCB.
@@ -417,6 +420,8 @@ class PanelFeature(_Strict):
     height_mm: Optional[float] = None
     diameter_mm: Optional[float] = None
     top_mm: Optional[float] = None
+    glass_top_mm: Optional[float] = None
+    taper_mm: float = 0.0
 
     @model_validator(mode="after")
     def _shape(self) -> "PanelFeature":

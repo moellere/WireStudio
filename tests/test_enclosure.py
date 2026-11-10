@@ -131,16 +131,19 @@ def test_wall_panel_places_every_part(lib):
     for name in ('"board"', '"pir"', '"climate"', '"oled-knob-13-1"'):
         assert name in pcbs
     # Lid parts hang from the lid: negative standoff.
-    assert '"pir", 24.3, 32.3' in pcbs and ", -5, " in pcbs
+    assert '"pir", 24.3, 32.3' in pcbs and ", -3.5, " in pcbs
     assert "(face down), wall mount" in scad
 
 
 def test_lid_features_cut_the_lid(lib):
     lid = _block(generate_scad(_design("wall-panel"), lib), "cutoutsLid")
-    # PIR dome, OLED window (turned: its width runs along Y), encoder shaft.
+    # PIR dome, encoder shaft, and the OLED bezel's taper: four steps
+    # from the 17.6 x 32.6 window (turned: its width runs along Y) out to
+    # 2.0 more each side at the face, shallowest widest.
     assert "11.8, yappCircle" in lid and '"pir"' in lid
-    assert "21.2, 32.7, 0, yappRectangle" in lid
     assert "4.5, yappCircle" in lid
+    assert "18.6, 33.6, 0, yappRectangle, lid_t*0.8," in lid
+    assert "21.6, 36.6, 0, yappRectangle, lid_t*0.2," in lid
     # Two flexure keys: three slots and a thinned hinge each.
     assert lid.count("lid_t/2") == 2
 
@@ -200,3 +203,10 @@ def test_enclosure_options_alone_switch_to_the_panel_layout(lib):
     scad = generate_scad(design, lib)
     assert "(face up), wall mount" in scad
     assert _block(scad, "cutoutsBase").count("yappCircle") == 2
+
+
+def test_oled_bezel_frame_drops_to_the_glass(lib):
+    tubes = _block(generate_scad(_design("wall-panel"), lib), "lightTubes")
+    # 32.6 along Y (a light tube's length), 1.2 wall, bottom 0.1 over the
+    # 3.6 glass, measured from the module PCB 4.7 under the lid.
+    assert "32.6, 17.6, 1.2, 3.7, yappRectangle, 0, base_wall_h + lid_wall_h - 4.7" in tubes
