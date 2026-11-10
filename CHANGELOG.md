@@ -51,6 +51,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The OLED sits in a bezel, the PIR closer to the lid.** A lid
+  `window` can name `glass_top_mm` and `taper_mm`: a frame drops from the
+  lid to just above the glass and the opening widens toward the face in
+  four steps, after a printed display cover. The oled-knob-13 window is
+  now its active area (32.6 x 17.6) with a 2.0 taper; the HC-SR501 sits
+  3.5 under the lid, fitted on the second wall-panel round.
 - **The wall-panel enclosure fits its parts.** The first fit print
   showed the YD-ESP32-23's antenna plate riding on the cradle fence (it
   reaches 7 past the PCB, not 5: the board is now 64.0 long) and the
