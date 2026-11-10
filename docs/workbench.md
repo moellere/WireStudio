@@ -122,9 +122,9 @@ ones but none blocks the others' value.
    credentials. The cost is that the gate cannot annotate a PR.
 
    The flashing half writes each framework listed for a dedicated
-   board with a full erase and asserts its boot marker, which is what
-   lets the "Works (lighter checks)" tiers hold hardware-validated
-   status continuously. It runs only on devices whose roster entry
+   board with a full erase and asserts its boot marker. Its first green
+   week (2026-10-28 to 11-03) moved the remote workbench, Meshtastic,
+   CircuitPython and MicroPython rows from *Works* to *Verified*. It runs only on devices whose roster entry
    lists `flash:`; see [The gate](#the-gate).
 4. **Functional loop + RF truth.** AP provision + MQTT/API entity
    assertions for generated ESPHome devices; SDR TX power check for

@@ -93,6 +93,9 @@ CONTRIBUTING.md          substantive bar a change has to clear (the YAML gate, e
 
 ## Roadmap
 
+The tier on each entry below mirrors its row in the README status
+table, which is the contract; where they differ, the README is right.
+
 The path from here to 1.0 is in [`roadmap.md`](roadmap.md). What
 follows is the per-area status, ordered by how much it raises the
 floor on whether the studio is actually useful. Per-release deltas
@@ -178,7 +181,7 @@ and the `-pcb` image variant that carries the toolchain. A route
 reports KiCad's DRC of the result, takes a via cost and keepout
 rectangles, and fills the board's GND pour on the bottom layer.
 
-**Tasmota target (0.22).** *Works.* Emits a Tasmota device template --
+**Tasmota target (0.22).** *Verified.* Emits a Tasmota device template --
 a pure mapping of solved pins to Tasmota GPIO function ids -- via
 `POST /tasmota/template`, the target seam, and
 `python -m wirestudio.targets.tasmota`. Function ids and per-chip
@@ -206,14 +209,14 @@ build-flag form), and `wled_build` clones the release and runs
 cached by a hash of the override. The `wled-firmware` workflow builds
 the bundled usermod example against the release.
 
-**Meshtastic flashing (0.23).** *Works.* The unified flash dialog
+**Meshtastic flashing (0.23).** *Verified.* The unified flash dialog
 fetches the official Meshtastic release factory image through the
 server proxy (`GET /meshtastic/firmware`, board-to-variant map for
 Heltec V2/V3/V4, T-Beam, TTGO LoRa32) and flashes it at 0x0 over the
 same WebSerial path. Not a target plugin -- devices run stock firmware,
 nothing is generated from the design.
 
-**Meshtastic config push.** *Works.* After the flash (or against any
+**Meshtastic config push.** *Verified* (against a fake device; not on hardware nightly). After the flash (or against any
 node already on a serial port) the dialog pushes region, modem preset,
 owner names and the primary channel as protobufs through
 `@meshtastic/core` over `@meshtastic/transport-web-serial`, reusing the
@@ -224,7 +227,7 @@ the design (device name, a LoRaWAN region mapped to its Meshtastic
 counterpart). A workbench-slot flash has no serial session to push
 through; plug the node in and use *Configure connected node*.
 
-**CircuitPython flashing (0.24).** *Works.* The unified flash
+**CircuitPython flashing (0.24).** *Verified.* The unified flash
 dialog gains a CircuitPython framework: `GET /circuitpython/firmware`
 proxies the official release image from downloads.circuitpython.org
 (combined binary at 0x0, full erase), resolving the newest stable from
@@ -236,7 +239,7 @@ and warned about in the UI); ESP8266 has no CircuitPython port.
 board's library metadata (Vext power-up, LED blink, I2C scan, pin
 listing) with save-to-CIRCUITPY and download buttons post-flash.
 
-**CircuitPython codegen.** *Works.* Full code.py generation from the
+**CircuitPython codegen.** *Verified* (generated `code.py` parses; not run on hardware nightly). Full code.py generation from the
 design — the LoRaWAN-fragment pattern applied to Python. 36 library
 components carry a `circuitpython:` block (explicit imports, Adafruit
 bundle deps, Jinja2 setup/loop fragments); the generator resolves
@@ -247,7 +250,7 @@ the flash dialog prefers design code over the board starter and
 surfaces deps + unmapped-component warnings. Unmapped parts degrade
 to a comment, never a broken file.
 
-**Inventory and circuit building (0.33 -- 0.35).** *Works.* The
+**Inventory and circuit building (0.33 -- 0.35).** *Verified.* The
 library goes below the module level: a component may be a
 **subcircuit** of discrete parts (`hbridge`, `hbridge_mosfet`, and five
 building blocks -- `led_indicator`, `npn_low_side_driver`,
@@ -274,7 +277,7 @@ accepts the best-ranked proposal on every short line at once, so a
 board whose drawer is one part off is fixed in one click and the
 check re-run shows the new BOM.
 
-**Compile through an ESPHome dashboard.** *Works.* A second build path
+**Compile through an ESPHome dashboard.** *Verified.* A second build path
 beside fleet-for-esphome: `ESPHOME_DASHBOARD_URL` points at the HA
 add-on (port exposed) or a standalone ESPHome Device Builder (ESPHome 2026.6+); the push dialog and
 the `esphome_dashboard_*` MCP tools write the YAML, start a compile,
@@ -283,7 +286,7 @@ fleet path. The wire format (the Device Builder's WebSocket API) was validated a
 ESPHome 2026.10.0 builder, with and without a password, and is isolated in one module;
 see `docs/integrations.md`.
 
-**MicroPython flashing + codegen.** *Works.* The CircuitPython pattern
+**MicroPython flashing + codegen.** *Verified.* The CircuitPython pattern
 applied upstream. `GET /micropython/firmware` proxies the newest stable
 micropython.org image for the board's chip: every library board maps to
 a generic port image (`ESP32_GENERIC`, `_S3`, `_C3`, `_C6`,
@@ -406,24 +409,23 @@ caveats still stand.
    reach and removes the inbound execution path; the cost is that the
    gate cannot annotate a PR, so a failed Job is the report.
 
-   The **flashing** half — a representative example per framework
-   flashed to a dedicated slot, which is what would let the "Works
-   (lighter checks)" tiers hold hardware-validated status continuously
-   — is deliberately not enabled yet. It needs a board nothing else
-   depends on: every device on the reference bench carries real traffic,
-   and a nightly reflash costs a rejoin, a DevNonce and about ten
-   minutes off air each time. Details in
-   [workbench.md](workbench.md#the-gate).
-4. **Functional loop + RF truth.** Flash generated ESPHome firmware,
-   provision against the workbench's AP, assert the device's API/MQTT
-   entities appear; for radio boards, an SDR power-spectrum capture
-   during TX catches deaf-radio wiring bugs (e.g. undriven FEM pins)
-   that serial output cannot.
+   The **flashing** half runs on a second bench whose boards exist
+   only for the gate: each night it writes ESPHome, CircuitPython,
+   MicroPython and Meshtastic with a full erase and asserts each boot
+   marker. Its first green week (2026-10-28 to 11-03) moved the remote
+   workbench, Meshtastic, CircuitPython and MicroPython rows from *Works*
+   to *Verified*. Details in [workbench.md](workbench.md#the-gate).
+4. **Functional loop + RF truth.** The ESPHome half is written and
+   proven once on hardware: a `functional: true` roster entry gets WiFi,
+   the native API and a gate switch, and the gate asserts the device
+   joined, answers under its design's name and round-trips the switch.
+   A `lorawan` flash registers, joins and waits for an uplink. Neither is
+   in the nightly roster yet; the MQTT check and the SDR TX capture are
+   still to do.
 
-**LoRaWAN target (0.13 standalone, 0.16+ external-component).** *Works —
-hardware-validated on the standalone path; external-component path
-shipped, hardware join verification in progress.* Two paths share the
-`wirestudio.targets` plugin seam:
+**LoRaWAN target (0.13 standalone, 0.16+ external-component).**
+*Verified, both paths.* Two paths share the `wirestudio.targets`
+plugin seam:
 
 - **Standalone Arduino path** (`target: "lorawan"`). Builds RadioLib +
   LoRaWAN_ESP32 firmware for US915 radio boards (TTGO LoRa32 / T-Beam,

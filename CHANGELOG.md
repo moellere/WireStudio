@@ -18,6 +18,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Every status row is Verified or Experimental.** After the nightly
+  flash bench's first green week (2026-10-28 to 11-03), the README
+  promotes Remote workbench, Meshtastic flashing + config, MicroPython
+  flashing + main.py and CircuitPython flashing from the *Works* tiers to
+  *Verified*, each row saying what the nightly proves on hardware (flash
+  and boot) and what CI proves against fakes. The 1.0 release notes'
+  tier cells are filled, and `docs/index.md`'s per-area tiers now match
+  the README.
+
 - **The nightly agent eval bills the subscription only.** The schedule
   now runs the reference replay and the Claude Code driver
   (`CLAUDE_CODE_OAUTH_TOKEN`). The embedded agent calls the API on
