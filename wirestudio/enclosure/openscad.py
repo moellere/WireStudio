@@ -13,6 +13,7 @@ boards without an `enclosure:` block raise cleanly.
 """
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
@@ -540,8 +541,11 @@ def _panel_scad(design: Design, board_name: str, encl: BoardEnclosure,
         under = f"{inside_h} - {gap} - {t}"
         for h in e.mount_holes:
             u, v = p.local(h.x_mm, h.y_mm)
-            stands.append(f"  [{_r(u)}, {_r(v)}, {under}, -1, {_r(h.hole_diameter_mm + 3)}, "
-                          f"{_r(0.8 * h.hole_diameter_mm)}, 0, 1, 0, "
+            post = _post_d(e, h)
+            # A slimmed post sits close to something; keep its fillet small.
+            fillet = 1 if post >= h.hole_diameter_mm + 3 else 0.3
+            stands.append(f"  [{_r(u)}, {_r(v)}, {under}, -1, {_r(post)}, "
+                          f"{_r(0.8 * h.hole_diameter_mm)}, 0, {fillet}, 0, "
                           f"yappLidOnly, yappHole, {pcb_ref(p)}]")
         for f in e.features:
             u, v = p.local(f.x_mm, f.y_mm)
@@ -602,6 +606,26 @@ def _panel_scad(design: Design, board_name: str, encl: BoardEnclosure,
         hooks=hooks,
     )
     return header + "\n// === YAPP_Box generator ===\n" + generator + params
+
+
+_POST_GAP = 0.4   # lid post to a lid feature's footprint
+
+
+def _post_d(e: PartEnclosure, h: MountHole) -> float:
+    """A lid post's diameter: the hole plus 3, slimmed so it keeps
+    _POST_GAP clear of the part's lid features (a window, a hole or its
+    keepout square), but never under a 1 mm wall round the screw."""
+    room = (h.hole_diameter_mm + 3) / 2
+    for f in e.features:
+        if f.kind == "button":
+            continue
+        if f.kind == "hole" and f.keepout_mm is None:
+            dist = math.hypot(h.x_mm - f.x_mm, h.y_mm - f.y_mm) - f.diameter_mm / 2
+        else:
+            hw, hh = (f.width_mm / 2, f.height_mm / 2) if f.kind == "window" else (f.keepout_mm / 2,) * 2
+            dist = math.hypot(max(abs(h.x_mm - f.x_mm) - hw, 0.0), max(abs(h.y_mm - f.y_mm) - hh, 0.0))
+        room = min(room, dist - _POST_GAP)
+    return round(max(2 * room, 0.8 * h.hole_diameter_mm + 2), 2)
 
 
 _KEY_LEN = 12.0   # flexure key, tip to hinge

@@ -51,6 +51,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Lid posts no longer crowd a PIR lens.** The wall-panel fit print
+  put the HC-SR501's 5 mm posts against the lens hole, leaving its
+  skirt no room. A lid `hole` can now name a `keepout_mm` square, and a
+  lid post slims (to a 1 mm wall at least) to stay clear of the part's
+  windows, holes and keepouts; the PIR's posts are now 4.2 mm.
 - **The KiCad gates run again.** `ubuntu-latest` moved to 26.04, for
   which the KiCad 8 PPA publishes nothing, so kicad-render, pcb-drc and
   pcb-route failed installing KiCad; they now pin `ubuntu-24.04`.

@@ -99,7 +99,8 @@ lorawan:
 
 # Enclosure geometry (mm): the common HC-SR501 board, 32.3 x 24.3 with
 # two 2.0 holes 28 apart on the centre line. The 23 Fresnel dome pokes
-# through the lid; its square skirt (about 4.5 tall) stops under it.
+# through the lid; its square skirt (23 across, about 4.5 tall) stops
+# under it, between the posts, which the keepout keeps slim enough.
 # Pots, jumper and the 3-pin header face the floor, 17 deep as wired.
 enclosure:
   mount: lid
@@ -111,4 +112,4 @@ enclosure:
   height_above_pcb_mm: 14.0
   height_below_pcb_mm: 17.0
   features:
-    - {kind: hole, x_mm: 16.15, y_mm: 12.15, diameter_mm: 23.6}
+    - {kind: hole, x_mm: 16.15, y_mm: 12.15, diameter_mm: 23.6, keepout_mm: 23.0}

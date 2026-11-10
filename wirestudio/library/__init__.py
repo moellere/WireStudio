@@ -407,6 +407,8 @@ class PanelFeature(_Strict):
 
     window: a rectangular opening (a display's glass).
     hole: a round opening something passes through (a knob, a lens).
+      keepout_mm is the side of a square under the lid, centred on it,
+      that posts must clear (a PIR lens's skirt).
     button: a tact switch under the panel; the enclosure prints a
       plunger for it. top_mm is the actuator's height above the PCB.
     """
@@ -417,6 +419,7 @@ class PanelFeature(_Strict):
     height_mm: Optional[float] = None
     diameter_mm: Optional[float] = None
     top_mm: Optional[float] = None
+    keepout_mm: Optional[float] = None
 
     @model_validator(mode="after")
     def _shape(self) -> "PanelFeature":

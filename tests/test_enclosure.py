@@ -184,3 +184,13 @@ def test_enclosure_options_alone_switch_to_the_panel_layout(lib):
     scad = generate_scad(design, lib)
     assert "(face up), wall mount" in scad
     assert _block(scad, "cutoutsBase").count("yappCircle") == 2
+
+
+def test_lid_posts_slim_to_clear_a_lens_skirt(lib):
+    """HC-SR501 holes sit 14 from the lens centre and its skirt is 23
+    across: a 5 mm post would touch it, so the post slims to 4.2."""
+    stands = _block(generate_scad(_design("wall-panel"), lib), "pcbStands")
+    pir = [ln for ln in stands.splitlines() if '"pir"' in ln]
+    assert len(pir) == 2 and all(", -1, 4.2, 1.6, 0, 0.3, 0," in ln for ln in pir)
+    module = [ln for ln in stands.splitlines() if '"oled-knob-13-1"' in ln and ", 6.2, " in ln]
+    assert len(module) == 4
