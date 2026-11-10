@@ -25,12 +25,16 @@ components:
   - id_hint: btn2
     library_id: gpio_input
     label: Button B
-# Enclosure geometry (mm), measured from the module's STL: 65 x 35 PCB,
-# M3 holes 59 x 29 apart. Component side: the 1.3in OLED glass (34.75 x
-# 23.25, top 3.25 above the PCB), the EC11 knob (14.25 across, body
-# 6.1 tall) and the two tact switches above and below it (actuator top
-# 3.7). The lid sits on the encoder body, so the glass is recessed ~3
-# under it; the window shows the glass less 1 each side.
+# Enclosure geometry (mm): 65 x 35 PCB, M3 holes 59 x 29 apart, from
+# the module's STL; heights measured on the module after the first
+# wall-panel fit print, where a 6.4 lid gap sank the panel too deep to
+# press the knob. Component side: the 1.3in OLED glass (34.75 x 23.25,
+# about 3.6 tall), the two tact switches above and below the encoder
+# (actuator top 3.7), and the EC11, whose base is the tallest part at
+# 4.5 with its shaft 15.15 above that. The lid sits 4.7 above the PCB,
+# clear of all of it; the shaft comes through a round hole and the
+# knob cap goes on from outside after assembly. The window shows the
+# glass less 1 each side.
 enclosure:
   mount: lid
   pcb: {length_mm: 65.0, width_mm: 35.0, thickness_mm: 1.5}
@@ -39,11 +43,11 @@ enclosure:
     - {x_mm: 62.1, y_mm: 3.1, hole_diameter_mm: 3.2}
     - {x_mm: 3.1, y_mm: 32.1, hole_diameter_mm: 3.2}
     - {x_mm: 62.1, y_mm: 32.1, hole_diameter_mm: 3.2}
-  lid_gap_mm: 6.4
-  height_above_pcb_mm: 23.5
+  lid_gap_mm: 4.7
+  height_above_pcb_mm: 19.65
   height_below_pcb_mm: 17.0
   features:
     - {kind: window, x_mm: 21.4, y_mm: 17.6, width_mm: 32.7, height_mm: 21.2}
-    - {kind: hole, x_mm: 53.1, y_mm: 17.6, diameter_mm: 15.4}
+    - {kind: hole, x_mm: 53.1, y_mm: 17.6, diameter_mm: 9.0}
     - {kind: button, x_mm: 53.1, y_mm: 5.6, diameter_mm: 4.5, top_mm: 3.7}
     - {kind: button, x_mm: 53.1, y_mm: 29.6, diameter_mm: 4.5, top_mm: 3.7}

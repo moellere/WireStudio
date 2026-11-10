@@ -557,7 +557,12 @@ def _panel_scad(design: Design, board_name: str, encl: BoardEnclosure,
                 for (cx, cy, sx, sy), depth in key:
                     cut["lid"].append(f"  [{_r(cx)}, {_r(cy)}, {_r(sx)}, {_r(sy)}, 0, yappRectangle, "
                                       f"{depth}, 0, yappCenter, yappCoordPCB, {pcb_ref(p)}]")
-                nub = _r(e.lid_gap_mm - f.top_mm - 0.4)
+                # Under half a millimetre of nub, the tongue presses the
+                # switch itself.
+                nub_len = e.lid_gap_mm - f.top_mm - 0.4
+                if nub_len < 0.5:
+                    continue
+                nub = _r(nub_len)
                 stands.append(f"  [{_r(u)}, {_r(v)}, {inside_h} - {nub} - {t}, -1, 3, 0.1, 0, 1, 0, "
                               f"yappLidOnly, yappHole, {pcb_ref(p)}]")
                 keys += 1

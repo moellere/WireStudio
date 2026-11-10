@@ -137,19 +137,35 @@ def test_wall_panel_places_every_part(lib):
 
 def test_lid_features_cut_the_lid(lib):
     lid = _block(generate_scad(_design("wall-panel"), lib), "cutoutsLid")
-    # PIR dome, OLED window (turned: its width runs along Y), knob.
+    # PIR dome, OLED window (turned: its width runs along Y), encoder shaft.
     assert "11.8, yappCircle" in lid and '"pir"' in lid
     assert "21.2, 32.7, 0, yappRectangle" in lid
-    assert "7.7, yappCircle" in lid
+    assert "4.5, yappCircle" in lid
     # Two flexure keys: three slots and a thinned hinge each.
     assert lid.count("lid_t/2") == 2
 
 
-def test_key_nubs_and_lid_posts_hang_from_the_lid(lib):
+def test_lid_posts_hang_from_the_lid(lib):
     stands = _block(generate_scad(_design("wall-panel"), lib), "pcbStands")
-    assert stands.count("yappLidOnly") == 4 + 2 + 2   # module posts, PIR posts, key nubs
+    # Module posts, PIR posts, and a 0.6 nub under each key.
+    assert stands.count("yappLidOnly") == 4 + 2 + 2
     assert stands.count("yappBaseOnly") == 1          # the DHT post
-    assert "base_wall_h + lid_wall_h - 6.4 - 1.5" in stands
+    assert "base_wall_h + lid_wall_h - 4.7 - 1.5" in stands
+    nubs = [ln for ln in stands.splitlines() if ", -1, 3, 0.1, " in ln]
+    assert len(nubs) == 2 and all("- 0.6 - 1.5" in ln for ln in nubs)
+
+
+def test_a_key_too_close_to_its_switch_gets_no_nub(lib):
+    data = json.loads((EXAMPLES_DIR / "wall-panel.json").read_text())
+    design = Design.model_validate(data)
+    module = lib.module("oled-knob-13")
+    shallow = module.enclosure.model_copy(update={"lid_gap_mm": 4.2})
+    lib._modules["oled-knob-13"] = module.model_copy(update={"enclosure": shallow})
+    try:
+        stands = _block(generate_scad(design, lib), "pcbStands")
+    finally:
+        lib._modules["oled-knob-13"] = module
+    assert ", -1, 3, 0.1, " not in stands
 
 
 def test_face_down_board_turns_its_ports_and_gets_a_cradle(lib):
@@ -175,7 +191,7 @@ def test_cavity_height_stacks_what_overlaps(lib):
     scad = generate_scad(_design("wall-panel"), lib)
     line = next(ln for ln in scad.splitlines() if ln.startswith("cavity_h = "))
     # The face-down board as wired under the OLED module as wired.
-    assert "component_h + board_t + underside_h + 6.4 + 1.5 + 17" in line
+    assert "component_h + board_t + underside_h + 4.7 + 1.5 + 17" in line
 
 
 def test_enclosure_options_alone_switch_to_the_panel_layout(lib):
