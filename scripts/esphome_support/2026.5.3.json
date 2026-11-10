@@ -1,6 +1,6 @@
 {
  "esphome": "2026.5.3",
- "date": "2026-10-19",
+ "date": "2026-11-10",
  "command": "config",
  "examples": {
   "access-panel": {

@@ -39,6 +39,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The ESPHome support sweep ran on a Python ESPHome 2026.7+ cannot use.**
+  Those releases require Python 3.12 and the sweep installed them on 3.11,
+  so the 2026.7.4, 8.2 and 9.1 legs failed at `pip install` while the
+  run still reported success, and 2026.10 never appeared. The sweep now
+  runs on 3.12 and covers 2026.10.2; every example validates on 2026.3.3
+  through 2026.10.2, and the support table says so.
+
 - **A failed LoRaWAN join in the hardware gate shows what the device
   said.** The `join` row now carries the last lines the firmware printed
   during the key prompts (keys redacted), so a night that fails there
