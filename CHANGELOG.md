@@ -51,6 +51,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The KiCad gates run again.** `ubuntu-latest` moved to 26.04, for
+  which the KiCad 8 PPA publishes nothing, so kicad-render, pcb-drc and
+  pcb-route failed installing KiCad; they now pin `ubuntu-24.04`.
 - **The ESPHome support sweep ran on a Python ESPHome 2026.7+ cannot use.**
   Those releases require Python 3.12 and the sweep installed them on 3.11,
   so the 2026.7.4, 8.2 and 9.1 legs failed at `pip install` while the

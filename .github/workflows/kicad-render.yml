@@ -42,7 +42,9 @@ env:
 
 jobs:
   kicad-render:
-    runs-on: ubuntu-latest
+    # The KiCad 8 PPA publishes no build for 26.04 (resolute), which
+    # ubuntu-latest became in 11/2026.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
 
