@@ -51,6 +51,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The wall-panel enclosure fits its parts.** The first fit print
+  showed the YD-ESP32-23's antenna plate riding on the cradle fence (it
+  reaches 7 past the PCB, not 5: the board is now 64.0 long) and the
+  OLED/knob module sunk too deep to press the knob (its tallest part is
+  the encoder base at 4.5, so the lid now sits 4.7 above the PCB with a
+  9.0 shaft hole). A key's nub is left out when it would be under 0.5;
+  the tongue presses the switch itself.
 - **The KiCad gates run again.** `ubuntu-latest` moved to 26.04, for
   which the KiCad 8 PPA publishes nothing, so kicad-render, pcb-drc and
   pcb-route failed installing KiCad; they now pin `ubuntu-24.04`.

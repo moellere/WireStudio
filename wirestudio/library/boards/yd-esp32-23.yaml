@@ -69,16 +69,17 @@ gpio_capabilities:
   GPIO46: [gpio, strap, boot_low, pwm]
   GPIO47: [gpio, pwm]
   GPIO48: [gpio, builtin_led, pwm]
-# Enclosure geometry (mm), measured off the board photos against the
-# 2.54 mm header pitch (no maker drawing): PCB 56.5 x 28.0 plus the
-# WROOM-1 antenna overhanging the far end by 5.0, header rows 25.4
-# apart. USB end at x=0; both USB-C receptacles (8.94 x 3.26) sit
-# symmetric about the centre line, 12.8 apart. The component side tops
-# out at the USB-C shells; underneath, header plastic plus a Dupont
-# housing is 17.
+# Enclosure geometry (mm). PCB about 57 long (off the board photos
+# against the 2.54 mm header pitch) and 28.0 wide, header rows 25.4
+# apart; the WROOM-1 antenna plate, 18 wide, reaches 7 past the far end
+# (measured on the board after the first wall-panel fit print, where a
+# 5.0 guess left it riding on the cradle fence). USB end at x=0, the
+# two USB-C receptacles (8.94 x 3.26) flush with it and symmetric about
+# the centre line, 12.8 apart. The component side tops out at the USB-C
+# shells; underneath, header plastic plus a Dupont housing is 17.
 enclosure:
   pcb:
-    length_mm: 61.5
+    length_mm: 64.0
     width_mm: 28.0
     thickness_mm: 1.6
   mount_holes: []
