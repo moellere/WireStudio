@@ -320,6 +320,15 @@ class LoRaWAN(_Strict):
     payload: list[PayloadField] = Field(default_factory=list)
 
 
+class EnclosureOptions(_Strict):
+    """How the generated enclosure is built. face_down turns the board
+    over onto the floor so header pins point at the lid and take Dupont
+    jumpers from the front; wall adds keyhole slots to the base and
+    hangs the box with the board's ports facing down."""
+    board_orientation: Literal["face_up", "face_down"] = "face_up"
+    mount: Literal["desk", "wall"] = "desk"
+
+
 class Design(_Strict):
     # Every version `wirestudio.migrate` can read; a document is brought to
     # `migrate.CURRENT_SCHEMA_VERSION` before it is validated here.
@@ -361,3 +370,4 @@ class Design(_Strict):
     # entry or design warning blocks generation. Lives on the design so
     # generation stays a pure function of design.json.
     strict: bool = False
+    enclosure: Optional[EnclosureOptions] = None

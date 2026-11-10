@@ -147,3 +147,20 @@ wled:
   pin_defines: {DATA: USERMOD_DHT_PIN}
   param_defines:
     model: {define: USERMOD_DHT_DHTTYPE, values: {DHT11: 11, DHT22: 22, AM2302: 22, RHT03: 22}}
+
+# Enclosure geometry (mm): the common black 3-pin AM2302 module, 37.5
+# long over the DHT22 body (which overhangs the PCB's far end) and 15.2
+# across the body; one 3.0 hole 5.9 from the header end on the centre
+# line. The right-angle header leaves that end, so length_mm adds 20
+# for its pins and a Dupont housing and the hole moves with it. The
+# body stands 8.5 above the PCB. The far (sensor) end goes against the
+# board's port wall, the bottom when wall mounted, and the walls beside
+# it are slotted so it reads room air.
+enclosure:
+  mount: base
+  pcb: {length_mm: 57.5, width_mm: 15.2, thickness_mm: 1.6}
+  mount_holes:
+    - {x_mm: 25.9, y_mm: 7.6, hole_diameter_mm: 3.0}
+  height_above_pcb_mm: 8.5
+  height_below_pcb_mm: 2.0
+  vent: true

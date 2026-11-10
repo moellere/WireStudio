@@ -311,6 +311,16 @@
 
     "strict": { "type": "boolean", "default": false, "description": "When true, warn/error compatibility entries and design warnings block generation instead of surfacing permissively." },
 
+    "enclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "How the generated enclosure is built. Only the enclosure generator reads it.",
+      "properties": {
+        "board_orientation": { "type": "string", "enum": ["face_up", "face_down"], "default": "face_up", "description": "face_down turns the board over onto the floor, header pins toward the lid, so Dupont jumpers plug in from the front." },
+        "mount": { "type": "string", "enum": ["desk", "wall"], "default": "desk", "description": "wall adds keyhole slots to the base and hangs the box with the board's ports facing down." }
+      }
+    },
+
     "lorawan": {
       "type": "object",
       "additionalProperties": false,

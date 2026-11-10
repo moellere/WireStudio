@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Enclosures built around the design's parts, wall mount included.**
+  Components and modules can carry an `enclosure:` block: lid parts hang
+  on posts under the lid with their display window, knob hole, PIR dome
+  hole and tact-switch keys (a flexure tongue with a nub, printed in
+  place) cut through it; base parts stand beside the board, vented when
+  they sense room air. A new optional design `enclosure` block turns the
+  board face down so its headers take Dupont jumpers from the front, and
+  adds keyhole slots for a wall. The HC-SR501, the DHT module and the
+  `oled-knob-13` module carry the metadata; the new YD-ESP32-23 board
+  (ESP32-S3 N16R8, two USB-C) and the `wall-panel` example put them
+  together. `enclosure-render` now renders every panel example as well
+  as every bare board.
 - **The hardware gate can prove a board joins LoRaWAN and uplinks.** A
   `lorawan` entry in a device's `flash:` list builds the standalone
   firmware, writes it with a full erase, registers the board in
@@ -39,6 +51,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The KiCad gates run again.** `ubuntu-latest` moved to 26.04, for
+  which the KiCad 8 PPA publishes nothing, so kicad-render, pcb-drc and
+  pcb-route failed installing KiCad; they now pin `ubuntu-24.04`.
 - **The ESPHome support sweep ran on a Python ESPHome 2026.7+ cannot use.**
   Those releases require Python 3.12 and the sweep installed them on 3.11,
   so the 2026.7.4, 8.2 and 9.1 legs failed at `pip install` while the

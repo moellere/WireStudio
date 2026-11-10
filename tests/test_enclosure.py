@@ -42,7 +42,7 @@ def _block(scad: str, name: str) -> str:
 
 
 def test_emits_tunables_block_at_top(lib):
-    scad = generate_scad(_design("garage-motion"), lib)
+    scad = generate_scad(_design("access-panel"), lib)
     head = scad[: scad.find("// === YAPP_Box generator ===")]
     for tunable in ("wall = ", "floor = ", "lid_t = ", "clearance = ", "standoff_h = ",
                     "standoff_d = ", "standoff_hole = ", "port_clearance = ",
@@ -51,7 +51,7 @@ def test_emits_tunables_block_at_top(lib):
 
 
 def test_pcb_dimensions_appear_verbatim(lib):
-    scad = generate_scad(_design("garage-motion"), lib)  # esp32-devkitc-v4
+    scad = generate_scad(_design("access-panel"), lib)  # esp32-devkitc-v4
     assert "board_l = 54.4;" in scad
     assert "board_w = 28.6;" in scad
     assert "board_t = 1.6;" in scad
@@ -59,7 +59,7 @@ def test_pcb_dimensions_appear_verbatim(lib):
 
 
 def test_mount_holes_become_base_standoffs(lib):
-    stands = _block(generate_scad(_design("garage-motion"), lib), "pcbStands")
+    stands = _block(generate_scad(_design("access-panel"), lib), "pcbStands")
     # esp32-devkitc-v4 has two holes at (3.0, 14.3) and (51.4, 14.3).
     assert "[3.0, 14.3, yappBaseOnly, yappHole, yappNoFillet]" in stands
     assert "[51.4, 14.3, yappBaseOnly, yappHole, yappNoFillet]" in stands
@@ -90,8 +90,8 @@ def test_unknown_board_raises_enclosure_unavailable(lib):
 
 
 def test_design_id_and_board_name_appear_in_header(lib):
-    scad = generate_scad(_design("garage-motion"), lib)
-    assert "design: garage-motion-v1" in scad
+    scad = generate_scad(_design("access-panel"), lib)
+    assert "design: access-panel\n" in scad
     assert "Board: ESP32-DevKitC-V4" in scad
 
 
@@ -99,7 +99,7 @@ def test_output_inlines_the_pinned_generator(lib):
     """No include<>/use<>: the file renders on a machine without YAPP,
     which is what print-warden and a plain download need. The YAPP
     parameters follow the generator so their assignments win."""
-    scad = generate_scad(_design("garage-motion"), lib)
+    scad = generate_scad(_design("access-panel"), lib)
     assert "include <" not in scad
     assert "use <" not in scad
     assert yapp_generator() in scad
@@ -109,8 +109,78 @@ def test_output_inlines_the_pinned_generator(lib):
 
 
 def test_base_and_lid_heights_clear_the_tallest_part(lib):
-    scad = generate_scad(_design("garage-motion"), lib)
+    scad = generate_scad(_design("access-panel"), lib)
     assert "base_wall_h = max(ridge, standoff_h + board_t + component_h + 1 - lid_wall_h);" in scad
     assert "ridge = max(ridge_h, 1.8 * wall);" in scad
     assert "printLidShell = true;" in scad
     assert "[shell_l/2, 5, yappLeft, yappRight, yappCenter]" in _block(scad, "snapJoins")
+
+
+# --- Panel layout: parts with `enclosure:` metadata --------------------
+
+def test_designs_without_panel_parts_keep_the_board_only_shell(lib):
+    scad = generate_scad(_design("access-panel"), lib)
+    assert '"Main", board_l, board_w' in scad
+    assert "cavity_l" not in scad
+
+
+def test_wall_panel_places_every_part(lib):
+    scad = generate_scad(_design("wall-panel"), lib)
+    pcbs = _block(scad, "pcb")
+    assert '["Main", cavity_l, cavity_w' in pcbs
+    for name in ('"board"', '"pir"', '"climate"', '"oled-knob-13-1"'):
+        assert name in pcbs
+    # Lid parts hang from the lid: negative standoff.
+    assert '"pir", 24.3, 32.3' in pcbs and ", -5, " in pcbs
+    assert "(face down), wall mount" in scad
+
+
+def test_lid_features_cut_the_lid(lib):
+    lid = _block(generate_scad(_design("wall-panel"), lib), "cutoutsLid")
+    # PIR dome, OLED window (turned: its width runs along Y), knob.
+    assert "11.8, yappCircle" in lid and '"pir"' in lid
+    assert "21.2, 32.7, 0, yappRectangle" in lid
+    assert "7.7, yappCircle" in lid
+    # Two flexure keys: three slots and a thinned hinge each.
+    assert lid.count("lid_t/2") == 2
+
+
+def test_key_nubs_and_lid_posts_hang_from_the_lid(lib):
+    stands = _block(generate_scad(_design("wall-panel"), lib), "pcbStands")
+    assert stands.count("yappLidOnly") == 4 + 2 + 2   # module posts, PIR posts, key nubs
+    assert stands.count("yappBaseOnly") == 1          # the DHT post
+    assert "base_wall_h + lid_wall_h - 6.4 - 1.5" in stands
+
+
+def test_face_down_board_turns_its_ports_and_gets_a_cradle(lib):
+    scad = generate_scad(_design("wall-panel"), lib)
+    back = _block(scad, "cutoutsBack")
+    assert back.count("// usb_c") == 2
+    assert "-(board_t + 1.65)" in back
+    assert "module hookBaseInside()" in scad
+    assert "standoffHeight = 0;" in scad
+
+
+def test_wall_mount_adds_keyholes_and_vents_the_dht(lib):
+    scad = generate_scad(_design("wall-panel"), lib)
+    base = _block(scad, "cutoutsBase")
+    assert base.count("4.25, yappCircle") == 2
+    assert base.count("10, 4.2, 0, yappRectangle") == 2
+    # DHT against the bottom (port) wall and the right wall: slots in both.
+    assert "yappCoordBoxInside" in _block(scad, "cutoutsBack")
+    assert _block(scad, "cutoutsRight").count("yappCoordBoxInside") > 3
+
+
+def test_cavity_height_stacks_what_overlaps(lib):
+    scad = generate_scad(_design("wall-panel"), lib)
+    line = next(ln for ln in scad.splitlines() if ln.startswith("cavity_h = "))
+    # The face-down board as wired under the OLED module as wired.
+    assert "component_h + board_t + underside_h + 6.4 + 1.5 + 17" in line
+
+
+def test_enclosure_options_alone_switch_to_the_panel_layout(lib):
+    data = json.loads((EXAMPLES_DIR / "access-panel.json").read_text())
+    design = Design.model_validate({**data, "enclosure": {"mount": "wall"}})
+    scad = generate_scad(design, lib)
+    assert "(face up), wall mount" in scad
+    assert _block(scad, "cutoutsBase").count("yappCircle") == 2

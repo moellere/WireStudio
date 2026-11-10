@@ -13,11 +13,18 @@ boards without an `enclosure:` block raise cleanly.
 """
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
 
-from wirestudio.library import BoardEnclosure, BoardPort, Library, MountHole
-from wirestudio.model import Design
+from wirestudio.library import (
+    BoardEnclosure,
+    BoardPort,
+    Library,
+    MountHole,
+    PartEnclosure,
+)
+from wirestudio.model import Design, EnclosureOptions
 
 YAPP_DIR = Path(__file__).parent / "yapp"
 YAPP_REF = "f9400c419ef1dea7dc0b3607876989b4f3faa2b7"
@@ -161,6 +168,8 @@ class EnclosureUnavailable(ValueError):
 def generate_scad(design: Design, library: Library) -> str:
     """Render the YAPP_Box enclosure for the design's board: base and
     lid, standoffs under the mount holes, a cutout for every port.
+    Parts with `enclosure:` metadata (or a design `enclosure` block)
+    switch to the panel layout in `_panel_scad`.
     Tunables (wall thickness, clearance, standoff geometry) sit at the
     top of the output as plain OpenSCAD assignments so the user, or
     `openscad -D`, can adjust fit without re-rendering from the studio.
@@ -174,6 +183,10 @@ def generate_scad(design: Design, library: Library) -> str:
             f"the parametric generator can't produce a shell. "
             f"Modules without a clear PCB outline (ESP-01S etc.) are intentional."
         )
+
+    parts = _panel_parts(design, library)
+    if parts or design.enclosure is not None:
+        return _panel_scad(design, board.name, encl, parts, design.enclosure or EnclosureOptions())
 
     generator = yapp_generator()
     version = generator.split('Version="', 1)[1].split('"', 1)[0]
@@ -198,3 +211,532 @@ def generate_scad(design: Design, library: Library) -> str:
     # The generator assigns its own defaults; the parameters come after
     # it so OpenSCAD's last assignment, ours, wins.
     return header + "\n// === YAPP_Box generator ===\n" + generator + params
+
+
+# --- Panel layout -----------------------------------------------------
+# Parts with `enclosure:` metadata share one cavity with the board. Base
+# parts stand beside the board at its port end; lid parts hang from the
+# lid in a column, component side up, their features cut through it.
+# Positions are computed here, so the layout constants are not tunables.
+
+_EDGE = 1.0          # cavity wall to the nearest part
+_GAP = 3.0           # between parts
+_KEYHOLE_ZONE = 19.0  # floor kept clear at the top for wall screws
+_FENCE_T = 1.2       # face-down cradle wall
+_FENCE_CLEAR = 0.4
+_VENT_SIDE = 30.0    # slotted length of a side wall beside a vented part
+
+
+@dataclass
+class _Part:
+    name: str
+    label: str
+    enc: PartEnclosure
+    l: float = 0.0
+    w: float = 0.0
+    x: float = 0.0
+    y: float = 0.0
+    up: str = "back"
+    port_end: str = "front"
+
+    def local(self, mx: float, my: float) -> tuple[float, float]:
+        """Part PCB coordinates -> offset within its placed outline.
+        Lid parts turn so their length runs across the box and their
+        top edge faces `up`; base parts turn so their x = length end
+        meets the port wall."""
+        pcb = self.enc.pcb
+        if self.enc.mount == "base":
+            # Far end (x = length) against the port wall.
+            if self.port_end == "back":
+                return pcb.length_mm - mx, pcb.width_mm - my
+            return mx, my
+        if self.up == "back":
+            return pcb.width_mm - my, mx
+        return my, pcb.length_mm - mx
+
+
+@dataclass
+class _Layout:
+    inner_l: float
+    inner_w: float
+    bx: float
+    by: float
+    up: str
+    port_end: str
+    board_right: bool
+    parts: list[_Part] = field(default_factory=list)
+
+
+def _panel_parts(design: Design, library: Library) -> list[_Part]:
+    parts: list[_Part] = []
+    modules: set[str] = set()
+    for c in design.components:
+        if c.module is not None:
+            if c.module.instance in modules:
+                continue
+            modules.add(c.module.instance)
+            mod = library.module(c.module.module_id)
+            if mod.enclosure is not None:
+                parts.append(_Part(c.module.instance, mod.name, mod.enclosure))
+            continue
+        enc = library.component(c.library_id).enclosure
+        if enc is not None:
+            parts.append(_Part(c.id, c.label, enc))
+    return parts
+
+
+def _face_down_ports(ports: list[BoardPort], width: float) -> list[BoardPort]:
+    """Turning the board over about its length swaps the long edges and
+    mirrors positions along the short ones."""
+    out = []
+    for p in ports:
+        if p.edge in ("short_a", "short_b"):
+            out.append(p.model_copy(update={"offset_mm": round(width - p.offset_mm - p.width_mm, 3)}))
+        else:
+            out.append(p.model_copy(update={"edge": "long_b" if p.edge == "long_a" else "long_a"}))
+    return out
+
+
+def _layout(encl: BoardEnclosure, ports: list[BoardPort], parts: list[_Part],
+            wall_mount: bool) -> _Layout:
+    edges = {p.edge for p in ports}
+    up = "front" if "short_a" in edges else "back"
+    port_end = "back" if up == "front" else "front"
+    board_right = "long_b" in edges and "long_a" not in edges
+    L, W = encl.pcb.length_mm, encl.pcb.width_mm
+
+    base = [p for p in parts if p.enc.mount == "base"]
+    lid = [p for p in parts if p.enc.mount == "lid"]
+    for p in parts:
+        p.up, p.port_end = up, port_end
+        pcb = p.enc.pcb
+        p.l, p.w = (pcb.length_mm, pcb.width_mm) if p.enc.mount == "base" else (pcb.width_mm, pcb.length_mm)
+
+    base_l = 2 * _EDGE + max([L] + [p.l for p in base]) + (_KEYHOLE_ZONE if wall_mount else 0)
+    base_w = 2 * _EDGE + W + sum(_GAP + p.w for p in base)
+    lid_l = 2 * _EDGE + sum(p.l for p in lid) + _GAP * max(len(lid) - 1, 0)
+    lid_w = 2 * _EDGE + max([p.w for p in lid], default=0)
+    inner_l, inner_w = max(base_l, lid_l), max(base_w, lid_w)
+
+    def at_port_end(length: float) -> float:
+        return _EDGE if port_end == "back" else inner_l - _EDGE - length
+
+    bx = at_port_end(L)
+    by = inner_w - _EDGE - W if board_right else _EDGE
+    # Base parts fill in from the far side wall, so a vented part gets
+    # two outside walls.
+    cursor = _EDGE if board_right else inner_w - _EDGE
+    for p in base:
+        p.x = at_port_end(p.l)
+        if board_right:
+            p.y = cursor
+            cursor += p.w + _GAP
+        else:
+            p.y = cursor - p.w
+            cursor = p.y - _GAP
+
+    slack = (inner_l - lid_l) / 2
+    cursor = _EDGE + slack if up == "back" else inner_l - _EDGE - slack
+    for p in lid:
+        p.y = (inner_w - p.w) / 2
+        if up == "back":
+            p.x = cursor
+            cursor += p.l + _GAP
+        else:
+            p.x = cursor - p.l
+            cursor = p.x - _GAP
+    return _Layout(inner_l, inner_w, bx, by, up, port_end, board_right, parts)
+
+
+def _r(v: float) -> str:
+    return f"{round(v, 2):g}"
+
+
+def _overlap(a: tuple[float, float, float, float], b: tuple[float, float, float, float]) -> bool:
+    ax, ay, al, aw = a
+    bx, by, bl, bw = b
+    return ax < bx + bl and bx < ax + al and ay < by + bw and by < ay + aw
+
+
+_PANEL_HEADER = """\
+// Generated by wirestudio for design: {design_id}
+// Board: {board_name} ({orientation}), {mount} mount
+//
+// A YAPP_Box enclosure with the design's panel parts: base parts beside
+// the board, lid parts on posts under the lid with their displays,
+// knobs, lenses and buttons cut through it. Wirestudio computed the
+// layout; the tunables below adjust wall, fit and height, not placement.
+// YAPP_Box generator {yapp_version} by Willem Aandewiel, MIT licence,
+// https://github.com/mrWheel/YAPP_Box (commit {yapp_ref}), inlined.
+//
+{part_notes}
+// === Tunables ===
+wall = 2.0;            // wall thickness (mm)
+floor = 2.0;           // base plane thickness (mm)
+lid_t = 2.0;           // lid plane thickness (mm)
+standoff_h = 4.0;      // base parts sit at least this far above the floor
+standoff_d = 5.0;      // board standoff outer diameter
+standoff_hole = 2.5;   // hole through the board standoffs
+port_clearance = 0.5;  // extra mm around each port cutout
+component_h = {component_h};      // tallest part on the board's component side
+underside_h = {underside_h};      // below the board as wired (header + Dupont)
+ridge_h = 4.0;         // depth of the ridge where base and lid meet
+headroom = 1.0;        // air above the tallest stack
+
+// === Board geometry (mm, from library) ===
+board_l = {board_l};
+board_w = {board_w};
+board_t = {board_t};
+
+// === Cavity (mm, from the layout) ===
+cavity_l = {cavity_l};
+cavity_w = {cavity_w};
+
+// === Derived ===
+// The cavity is the tallest base stack plus whatever hangs from the lid
+// over it. The lid walls take half of it, the base the rest, and no less
+// than the ridge YAPP cuts into the base wall.
+cavity_h = max([{stacks}]) + headroom;
+ridge = max(ridge_h, 1.8 * wall);
+lid_wall_h = max(ridge + 2, cavity_h / 2);
+base_wall_h = max(ridge, cavity_h - lid_wall_h);
+"""
+
+_PANEL_PARAMETERS = """\
+
+// === YAPP parameters ===
+printBaseShell = true;
+printLidShell = true;
+printSwitchExtenders = false;
+printDisplayClips = false;
+showSideBySide = true;
+
+// "Main" is the cavity; the board and each part are named PCBs in it.
+pcbLength = cavity_l;
+pcbWidth = cavity_w;
+pcbThickness = board_t;
+standoffHeight = 0;
+standoffDiameter = standoff_d;
+standoffPinDiameter = standoff_hole;
+standoffHoleSlack = 0.4;
+pcb = [
+{pcbs}
+];
+
+paddingBack = 0;
+paddingFront = 0;
+paddingLeft = 0;
+paddingRight = 0;
+wallThickness = wall;
+basePlaneThickness = floor;
+lidPlaneThickness = lid_t;
+ridgeHeight = ridge;
+ridgeSlack = 0.3;
+roundRadius = 1.0;
+lidWallHeight = lid_wall_h;
+baseWallHeight = base_wall_h;
+
+pcbStands = [
+{stands}
+];
+
+cutoutsLid = [
+{cutouts_lid}
+];
+cutoutsBase = [
+{cutouts_base}
+];
+cutoutsBack = [
+{cutouts_back}
+];
+cutoutsFront = [
+{cutouts_front}
+];
+cutoutsLeft = [
+{cutouts_left}
+];
+cutoutsRight = [
+{cutouts_right}
+];
+
+snapJoins = [
+  [cavity_l/2 + wall, 5, yappLeft, yappRight, yappCenter]
+];
+
+{hooks}
+YAPPgenerate();
+"""
+
+
+def _rows(rows: list[str]) -> str:
+    return ",\n".join(rows) if rows else "  // none"
+
+
+def _panel_scad(design: Design, board_name: str, encl: BoardEnclosure,
+                parts: list[_Part], opts: EnclosureOptions) -> str:
+    face_down = opts.board_orientation == "face_down"
+    wall_mount = opts.mount == "wall"
+    W = encl.pcb.width_mm
+    ports = _face_down_ports(encl.ports, W) if face_down else list(encl.ports)
+    lay = _layout(encl, ports, parts, wall_mount)
+    bx, by = lay.bx, lay.by
+
+    def pcb_ref(p: _Part) -> str:
+        return f'[yappPCBName, "{p.name}"]'
+
+    board_top = "component_h + board_t + underside_h" if face_down else "standoff_h + board_t + component_h"
+    board_rect = (bx, by, encl.pcb.length_mm, W)
+    base_items: list[tuple[tuple[float, float, float, float], str]] = [(board_rect, board_top)]
+    board_so = "component_h" if face_down else "standoff_h"
+    pcbs = ['  ["Main", cavity_l, cavity_w, 0, 0, board_t, 0, standoff_d, standoff_hole, 0.4]',
+            f'  ["board", board_l, board_w, {_r(bx)}, {_r(by)}, board_t, {board_so}, standoff_d, standoff_hole, 0.4]']
+    board_ref = '[yappPCBName, "board"]'
+    inside_h = "base_wall_h + lid_wall_h"
+    stands: list[str] = []
+    cut: dict[str, list[str]] = {k: [] for k in
+                                 ("lid", "base", "cutoutsBack", "cutoutsFront", "cutoutsLeft", "cutoutsRight")}
+    keys = 0
+    notes: list[str] = []
+
+    if not face_down:
+        for h in encl.mount_holes:
+            stands.append(f"  [{h.x_mm}, {h.y_mm}, yappBaseOnly, yappHole, yappNoFillet, {board_ref}]")
+    for p in ports:
+        face = _FACES.get(p.edge)
+        if face is None:
+            continue
+        z = f"-(board_t + {p.height_above_pcb_mm})" if face_down else f"{p.height_above_pcb_mm}"
+        cut[face].append(
+            f"  // {p.kind}\n"
+            f"  [{p.offset_mm} + {p.width_mm}/2, {z}, "
+            f"{p.width_mm} + 2*port_clearance, {p.height_mm} + 2*port_clearance, 0, "
+            f"yappRectangle, yappCenter, yappCoordPCB, {board_ref}]"
+        )
+
+    lid_items: list[tuple[tuple[float, float, float, float], str]] = []
+    for p in lay.parts:
+        e = p.enc
+        t = e.pcb.thickness_mm
+        where = "under the lid" if e.mount == "lid" else "on the floor"
+        notes.append(f"//   {p.label} ({p.name}): {_r(p.l)} x {_r(p.w)} mm {where}")
+        if e.mount == "base":
+            so = f"max(standoff_h, {_r(e.height_below_pcb_mm + 1)})"
+            base_items.append(((p.x, p.y, p.l, p.w), f"{so} + {t} + {_r(e.height_above_pcb_mm)}"))
+            pcbs.append(f'  ["{p.name}", {_r(p.l)}, {_r(p.w)}, {_r(p.x)}, {_r(p.y)}, {t}, {so}, 5, 2.5, 0]')
+            for h in e.mount_holes:
+                u, v = p.local(h.x_mm, h.y_mm)
+                pin = _r(0.8 * h.hole_diameter_mm)
+                stands.append(f"  [{_r(u)}, {_r(v)}, {so}, -1, {_r(h.hole_diameter_mm + 3)}, {pin}, 0, 1, 0, "
+                              f"yappBaseOnly, yappHole, {pcb_ref(p)}]")
+            if e.vent:
+                _vents(p, lay, cut)
+            continue
+
+        gap = _r(e.lid_gap_mm)
+        lid_items.append(((p.x, p.y, p.l, p.w), f"{gap} + {t} + {_r(e.height_below_pcb_mm)}"))
+        pcbs.append(f'  ["{p.name}", {_r(p.l)}, {_r(p.w)}, {_r(p.x)}, {_r(p.y)}, {t}, -{gap}, 5, 2.5, 0]')
+        # A lid stand's height is where the PCB's underside sits above
+        # the floor; YAPP runs the stand from the lid down to its top.
+        under = f"{inside_h} - {gap} - {t}"
+        for h in e.mount_holes:
+            u, v = p.local(h.x_mm, h.y_mm)
+            stands.append(f"  [{_r(u)}, {_r(v)}, {under}, -1, {_r(h.hole_diameter_mm + 3)}, "
+                          f"{_r(0.8 * h.hole_diameter_mm)}, 0, 1, 0, "
+                          f"yappLidOnly, yappHole, {pcb_ref(p)}]")
+        for f in e.features:
+            u, v = p.local(f.x_mm, f.y_mm)
+            if f.kind == "window":
+                # Lid parts lie turned: the feature's width runs along Y.
+                cut["lid"].append(f"  [{_r(u)}, {_r(v)}, {_r(f.height_mm)}, {_r(f.width_mm)}, 0, yappRectangle, "
+                                  f"0, 0, yappCenter, yappCoordPCB, {pcb_ref(p)}]")
+            elif f.kind == "hole":
+                cut["lid"].append(f"  [{_r(u)}, {_r(v)}, 0, 0, {_r(f.diameter_mm / 2)}, yappCircle, "
+                                  f"0, 0, yappCenter, yappCoordPCB, {pcb_ref(p)}]")
+            else:
+                key = _key_rects(p, f)
+                for (cx, cy, sx, sy), depth in key:
+                    cut["lid"].append(f"  [{_r(cx)}, {_r(cy)}, {_r(sx)}, {_r(sy)}, 0, yappRectangle, "
+                                      f"{depth}, 0, yappCenter, yappCoordPCB, {pcb_ref(p)}]")
+                nub = _r(e.lid_gap_mm - f.top_mm - 0.4)
+                stands.append(f"  [{_r(u)}, {_r(v)}, {inside_h} - {nub} - {t}, -1, 3, 0.1, 0, 1, 0, "
+                              f"yappLidOnly, yappHole, {pcb_ref(p)}]")
+                keys += 1
+
+    if wall_mount:
+        _keyholes(lay, cut)
+        zone_x = 0.0 if lay.up == "back" else lay.inner_l - _KEYHOLE_ZONE
+        base_items.append(((zone_x, 0.0, _KEYHOLE_ZONE, lay.inner_w), "4"))  # screw heads
+
+    stacks = [s for _, s in base_items] + [s for _, s in lid_items]
+    stacks += [f"{bs} + {ls}" for br, bs in base_items for lr, ls in lid_items if _overlap(br, lr)]
+
+    hooks = _cradle(lay, encl) if face_down else ""
+    generator = yapp_generator()
+    version = generator.split('Version="', 1)[1].split('"', 1)[0]
+    header = _PANEL_HEADER.format(
+        design_id=design.id,
+        board_name=board_name,
+        orientation="face down" if face_down else "face up",
+        mount=opts.mount,
+        yapp_version=version,
+        yapp_ref=YAPP_REF[:12],
+        part_notes="// Parts:\n" + "\n".join(notes) + "\n" if notes else "",
+        component_h=encl.component_height_max_mm,
+        underside_h=encl.underside_height_mm,
+        board_l=encl.pcb.length_mm,
+        board_w=W,
+        board_t=encl.pcb.thickness_mm,
+        cavity_l=_r(lay.inner_l),
+        cavity_w=_r(lay.inner_w),
+        stacks=", ".join(dict.fromkeys(stacks)),
+    )
+    params = _PANEL_PARAMETERS.format(
+        pcbs=",\n".join(pcbs),
+        stands=_rows(stands),
+        cutouts_lid=_rows(cut["lid"]),
+        cutouts_base=_rows(cut["base"]),
+        cutouts_back=_rows(cut["cutoutsBack"]),
+        cutouts_front=_rows(cut["cutoutsFront"]),
+        cutouts_left=_rows(cut["cutoutsLeft"]),
+        cutouts_right=_rows(cut["cutoutsRight"]),
+        hooks=hooks,
+    )
+    return header + "\n// === YAPP_Box generator ===\n" + generator + params
+
+
+_KEY_LEN = 12.0   # flexure key, tip to hinge
+_KEY_SLOT = 0.8
+_KEY_HINGE = 3.0
+
+
+def _key_rects(p: _Part, f) -> list[tuple[tuple[float, float, float, float], str]]:
+    """A flexure key over a tact switch: a tongue cut free of the lid on
+    three sides, its hinge thinned from outside, a nub under its tip
+    (a lid stand) to press the switch. YAPP's own push buttons need ~4.5
+    between switch and lid; a panel module rarely leaves that.
+
+    The tongue runs in the first direction that keeps it, its slot and
+    its hinge clear of the part's other features and mount posts.
+    Returns lid cutouts as ((centre x, centre y, size x, size y), depth)
+    in the part's YAPP frame; depth "0" cuts through."""
+    e = p.enc
+    r = f.diameter_mm / 2
+    half = r + 0.25
+    blocked = []
+    for g in e.features:
+        if g is f:
+            continue
+        if g.kind == "window":
+            blocked.append((g.x_mm - g.width_mm / 2, g.y_mm - g.height_mm / 2, g.width_mm, g.height_mm))
+        else:
+            gd = g.diameter_mm if g.kind == "hole" else g.diameter_mm + 2 * _KEY_SLOT
+            blocked.append((g.x_mm - gd / 2, g.y_mm - gd / 2, gd, gd))
+    for h in e.mount_holes:
+        pd = h.hole_diameter_mm + 3
+        blocked.append((h.x_mm - pd / 2, h.y_mm - pd / 2, pd, pd))
+
+    def rect(dx: int, dy: int) -> tuple[float, float, float, float]:
+        """The tongue plus its slot, its tip a radius past the switch."""
+        tip = r + _KEY_SLOT
+        far = _KEY_LEN - r
+        if dx:
+            x0 = f.x_mm - tip if dx > 0 else f.x_mm - far
+            return (x0, f.y_mm - half - _KEY_SLOT, tip + far, 2 * (half + _KEY_SLOT))
+        y0 = f.y_mm - tip if dy > 0 else f.y_mm - far
+        return (f.x_mm - half - _KEY_SLOT, y0, 2 * (half + _KEY_SLOT), tip + far)
+
+    pcb = e.pcb
+    for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+        # (dx, dy) points from the switch to the hinge.
+        rx, ry, rl, rw = rect(dx, dy)
+        inside = rx >= 0 and ry >= 0 and rx + rl <= pcb.length_mm and ry + rw <= pcb.width_mm
+        if inside and not any(_overlap((rx, ry, rl, rw), b) for b in blocked):
+            break
+    else:
+        raise EnclosureUnavailable(
+            f"no room for a key over the button at ({f.x_mm}, {f.y_mm}) on {p.label}")
+
+    tip = r
+    hinge = _KEY_LEN - r
+    s = _KEY_SLOT
+    # Module-frame rectangles: (x0, y0, x1, y1).
+    if dx:
+        hx = f.x_mm + dx * hinge
+        tx = f.x_mm - dx * tip
+        lo, hi = sorted((hx, tx))
+        mod = [((lo, f.y_mm - half - s, hi, f.y_mm - half), "0"),
+               ((lo, f.y_mm + half, hi, f.y_mm + half + s), "0"),
+               ((min(tx, tx - dx * s), f.y_mm - half - s, max(tx, tx - dx * s), f.y_mm + half + s), "0"),
+               ((min(hx, hx - dx * _KEY_HINGE), f.y_mm - half, max(hx, hx - dx * _KEY_HINGE), f.y_mm + half),
+                "lid_t/2")]
+    else:
+        hy = f.y_mm + dy * hinge
+        ty = f.y_mm - dy * tip
+        lo, hi = sorted((hy, ty))
+        mod = [((f.x_mm - half - s, lo, f.x_mm - half, hi), "0"),
+               ((f.x_mm + half, lo, f.x_mm + half + s, hi), "0"),
+               ((f.x_mm - half - s, min(ty, ty - dy * s), f.x_mm + half + s, max(ty, ty - dy * s)), "0"),
+               ((f.x_mm - half, min(hy, hy - dy * _KEY_HINGE), f.x_mm + half, max(hy, hy - dy * _KEY_HINGE)),
+                "lid_t/2")]
+    out = []
+    for (x0, y0, x1, y1), depth in mod:
+        (u0, v0), (u1, v1) = p.local(x0, y0), p.local(x1, y1)
+        out.append((((u0 + u1) / 2, (v0 + v1) / 2, abs(u1 - u0), abs(v1 - v0)), depth))
+    return out
+
+
+def _vents(p: _Part, lay: _Layout, cut: dict[str, list[str]]) -> None:
+    """Vertical slots in each wall the part stands against, so a
+    temperature or humidity sensor reads the room, not the box."""
+    slot, pitch = 1.6, 3.2
+    height = "min(10, base_wall_h - ridge - 3)"
+
+    def row(face: str, start: float, span: float) -> None:
+        n = int((span - 2) // pitch)
+        first = start + (span - (n - 1) * pitch) / 2
+        for i in range(n):
+            cut[face].append(f"  [{_r(first + i * pitch)}, 2 + {height}/2, {slot}, {height}, 0, "
+                             f"yappRectangle, yappCenter, yappCoordBoxInside]")
+
+    row("cutoutsBack" if lay.port_end == "back" else "cutoutsFront", p.y, p.w)
+    # Side slots only along the end at the port wall, where the sensor is.
+    span = min(p.l, _VENT_SIDE)
+    start = p.x if lay.port_end == "back" else p.x + p.l - span
+    if p.y <= _EDGE + 0.01:
+        row("cutoutsLeft", start, span)
+    if lay.inner_w - (p.y + p.w) <= _EDGE + 0.01:
+        row("cutoutsRight", start, span)
+
+
+def _keyholes(lay: _Layout, cut: dict[str, list[str]]) -> None:
+    """Two keyhole slots in the floor's top zone. The screw head passes
+    the round end; the box then drops so the shaft rides up the slot."""
+    # Head hole 14 from the top wall, slot running 10 up from its centre.
+    head_x = 14.0 if lay.up == "back" else lay.inner_l - 14.0
+    slot_x = head_x - 5 if lay.up == "back" else head_x + 5
+    for y in (lay.inner_w / 4, 3 * lay.inner_w / 4):
+        cut["base"].append(f"  [{_r(head_x)}, {_r(y)}, 0, 0, 4.25, yappCircle, 0, 0, yappCenter, yappCoordBoxInside]")
+        cut["base"].append(f"  [{_r(slot_x)}, {_r(y)}, 10, 4.2, 0, yappRectangle, 0, 0, yappCenter, yappCoordBoxInside]")
+
+
+def _cradle(lay: _Layout, encl: BoardEnclosure) -> str:
+    """A low fence round a face-down board, open at the port wall: the
+    board rests on its tallest parts and the fence keeps it in place
+    while jumpers are pushed onto the headers."""
+    o = _FENCE_CLEAR + _FENCE_T
+    L, W = encl.pcb.length_mm, encl.pcb.width_mm
+    x0, y0 = lay.bx - o, lay.by - o
+    far_x = lay.bx + L + _FENCE_CLEAR if lay.port_end == "back" else x0
+    return f"""\
+// Face-down cradle: the board rests on its tallest parts inside this fence.
+module hookBaseInside()
+{{
+  // YAPP hands this hook the cavity's inside corner as its origin.
+  fence_h = component_h + board_t + 1.2;
+  {{
+    translate([{_r(x0)}, {_r(y0)}, 0]) cube([{_r(L + 2 * o)}, {_FENCE_T}, fence_h]);
+    translate([{_r(x0)}, {_r(lay.by + W + _FENCE_CLEAR)}, 0]) cube([{_r(L + 2 * o)}, {_FENCE_T}, fence_h]);
+    translate([{_r(far_x)}, {_r(y0)}, 0]) cube([{_FENCE_T}, {_r(W + 2 * o)}, fence_h]);
+  }}
+}}
+"""
