@@ -101,7 +101,6 @@ lorawan:
 # two 2.0 holes 28 apart on the centre line. The 23 Fresnel dome pokes
 # through the lid; its square skirt stops under it, 3.5 from the PCB
 # (fitted on the first wall-panel print).
-# Pots, jumper and the 3-pin header face the floor, 17 deep as wired.
 enclosure:
   mount: lid
   pcb: {length_mm: 32.3, width_mm: 24.3, thickness_mm: 1.6}
@@ -110,6 +109,10 @@ enclosure:
     - {x_mm: 30.15, y_mm: 12.15, hole_diameter_mm: 2.0}
   lid_gap_mm: 3.5
   height_above_pcb_mm: 14.0
-  height_below_pcb_mm: 17.0
+  # Pots and the H/L jumper under the PCB; the 3-pin header at the edge
+  # takes a Dupont housing, 17 deep as wired.
+  height_below_pcb_mm: 6.0
+  connectors:
+    - {x_mm: 16.15, y_mm: 22.3, width_mm: 8.5, height_mm: 3.5, depth_mm: 17.0}
   features:
     - {kind: hole, x_mm: 16.15, y_mm: 12.15, diameter_mm: 23.6}

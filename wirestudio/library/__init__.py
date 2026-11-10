@@ -434,6 +434,19 @@ class PanelFeature(_Strict):
         return self
 
 
+class PartConnector(_Strict):
+    """A header that hangs below a part as wired: a strip centred at
+    (x_mm, y_mm) in the part's PCB coordinates, width_mm along x,
+    height_mm along y, reaching depth_mm below the PCB with its Dupont
+    housing. Only these strips, not the whole part, are stacked against
+    what lies under them."""
+    x_mm: float
+    y_mm: float
+    width_mm: float
+    height_mm: float
+    depth_mm: float
+
+
 class PartEnclosure(_Strict):
     """How a component or module sits in the design's enclosure.
 
@@ -446,7 +459,8 @@ class PartEnclosure(_Strict):
     lid_gap_mm: lid parts only; from the underside of the lid to the
       PCB's top, set by the tallest thing that must stay under the lid.
     height_above_pcb_mm / height_below_pcb_mm: the part's extent each
-      side of the PCB, connectors included as wired.
+      side of the PCB; below, its components only when `connectors`
+      lists the headers, otherwise everything as wired.
     vent: slot the walls beside the part (temperature/humidity sensors).
     """
     pcb: PcbDimensions
@@ -456,6 +470,7 @@ class PartEnclosure(_Strict):
     height_above_pcb_mm: float = 5.0
     height_below_pcb_mm: float = 0.0
     features: list[PanelFeature] = Field(default_factory=list)
+    connectors: list[PartConnector] = Field(default_factory=list)
     vent: bool = False
 
 

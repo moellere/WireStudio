@@ -57,6 +57,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   four steps, after a printed display cover. The oled-knob-13 window is
   now its active area (32.6 x 17.6) with a 2.0 taper; the HC-SR501 sits
   3.5 under the lid, fitted on the second wall-panel round.
+- **A shallower wall panel.** Lid parts can list their headers as
+  `connectors`, strips with their own wired depth, so only those strips
+  stack against what lies under them; the lid walls are now just deep
+  enough for the lid's parts and the base takes the rest. The wall-panel
+  cavity drops from 46 to 34 mm and its lid walls from 23 to 11.
 - **The wall-panel enclosure fits its parts.** The first fit print
   showed the YD-ESP32-23's antenna plate riding on the cradle fence (it
   reaches 7 past the PCB, not 5: the board is now 64.0 long) and the

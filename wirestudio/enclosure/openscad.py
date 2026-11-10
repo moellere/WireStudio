@@ -394,11 +394,12 @@ cavity_w = {cavity_w};
 
 // === Derived ===
 // The cavity is the tallest base stack plus whatever hangs from the lid
-// over it. The lid walls take half of it, the base the rest, and no less
-// than the ridge YAPP cuts into the base wall.
+// over it. The lid walls are just deep enough for the parts on the lid
+// (their connectors may reach below); the base takes the rest, and no
+// less than the ridge YAPP cuts into its wall.
 cavity_h = max([{stacks}]) + headroom;
 ridge = max(ridge_h, 1.8 * wall);
-lid_wall_h = max(ridge + 2, cavity_h / 2);
+lid_wall_h = min(max([ridge + 2, {lid_bodies}]), cavity_h - ridge);
 base_wall_h = max(ridge, cavity_h - lid_wall_h);
 """
 
@@ -519,6 +520,7 @@ def _panel_scad(design: Design, board_name: str, encl: BoardEnclosure,
         )
 
     lid_items: list[tuple[tuple[float, float, float, float], str]] = []
+    lid_bodies: list[str] = []
     for p in lay.parts:
         e = p.enc
         t = e.pcb.thickness_mm
@@ -538,7 +540,14 @@ def _panel_scad(design: Design, board_name: str, encl: BoardEnclosure,
             continue
 
         gap = _r(e.lid_gap_mm)
-        lid_items.append(((p.x, p.y, p.l, p.w), f"{gap} + {t} + {_r(e.height_below_pcb_mm)}"))
+        body = f"{gap} + {t} + {_r(e.height_below_pcb_mm)}"
+        lid_items.append(((p.x, p.y, p.l, p.w), body))
+        lid_bodies.append(body)
+        for c in e.connectors:
+            (u0, v0), (u1, v1) = (p.local(c.x_mm - c.width_mm / 2, c.y_mm - c.height_mm / 2),
+                                  p.local(c.x_mm + c.width_mm / 2, c.y_mm + c.height_mm / 2))
+            lid_items.append(((p.x + min(u0, u1), p.y + min(v0, v1), abs(u1 - u0), abs(v1 - v0)),
+                              f"{gap} + {t} + {_r(c.depth_mm)}"))
         pcbs.append(f'  ["{p.name}", {_r(p.l)}, {_r(p.w)}, {_r(p.x)}, {_r(p.y)}, {t}, -{gap}, 5, 2.5, 0]')
         # A lid stand's height is where the PCB's underside sits above
         # the floor; YAPP runs the stand from the lid down to its top.
@@ -613,6 +622,7 @@ def _panel_scad(design: Design, board_name: str, encl: BoardEnclosure,
         cavity_l=_r(lay.inner_l),
         cavity_w=_r(lay.inner_w),
         stacks=", ".join(dict.fromkeys(stacks)),
+        lid_bodies=", ".join(dict.fromkeys(lid_bodies)) or "0",
     )
     params = _PANEL_PARAMETERS.format(
         pcbs=",\n".join(pcbs),
