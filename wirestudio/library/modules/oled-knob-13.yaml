@@ -48,7 +48,11 @@ enclosure:
     - {x_mm: 62.1, y_mm: 32.1, hole_diameter_mm: 3.2}
   lid_gap_mm: 4.7
   height_above_pcb_mm: 19.65
-  height_below_pcb_mm: 17.0
+  height_below_pcb_mm: 2.0
+  # The 9-pin header along the top edge (CON..VCC); its Dupont housing
+  # hangs 7.5 below the PCB, and the leads bend away under it.
+  connectors:
+    - {x_mm: 22.3, y_mm: 33.1, width_mm: 24.0, height_mm: 3.5, depth_mm: 12.0}
   features:
     - {kind: window, x_mm: 21.25, y_mm: 19.15, width_mm: 32.6, height_mm: 17.6, glass_top_mm: 3.6, taper_mm: 2.0}
     - {kind: hole, x_mm: 53.1, y_mm: 17.6, diameter_mm: 9.0}

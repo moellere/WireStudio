@@ -193,8 +193,16 @@ def test_wall_mount_adds_keyholes_and_vents_the_dht(lib):
 def test_cavity_height_stacks_what_overlaps(lib):
     scad = generate_scad(_design("wall-panel"), lib)
     line = next(ln for ln in scad.splitlines() if ln.startswith("cavity_h = "))
-    # The face-down board as wired under the OLED module as wired.
-    assert "component_h + board_t + underside_h + 4.7 + 1.5 + 17" in line
+    # The face-down board as wired under the PIR's body; the PIR's and
+    # the module's headers hang where the board is not.
+    assert "component_h + board_t + underside_h + 3.5 + 1.6 + 6" in line
+    assert "component_h + board_t + underside_h + 3.5 + 1.6 + 17" not in line
+    assert "component_h + board_t + underside_h + 4.7 + 1.5 + 12" not in line
+
+
+def test_lid_walls_hold_only_the_lid_parts(lib):
+    scad = generate_scad(_design("wall-panel"), lib)
+    assert "lid_wall_h = min(max([ridge + 2, 3.5 + 1.6 + 6, 4.7 + 1.5 + 2]), cavity_h - ridge);" in scad
 
 
 def test_enclosure_options_alone_switch_to_the_panel_layout(lib):
