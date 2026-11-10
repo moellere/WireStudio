@@ -146,14 +146,33 @@ export THINGIVERSE_API_KEY=...
 python -m wirestudio.api
 ```
 
+Parts that carry their own `enclosure:` block go into the shell with the
+board. A `mount: lid` part (the HC-SR501, the `oled-knob-13` OLED +
+encoder module) hangs on posts under the lid, turned so its length runs
+across the box, and its `features` cut through the lid: a `window` for a
+display, a `hole` for a knob or a PIR dome, a `button` over a tact switch.
+A button gets a flexure key, a tongue cut free of the lid on three sides
+with a nub under its tip, so nothing extra is printed or assembled. A
+`mount: base` part (the DHT module) stands on the floor beside the board
+at its port end; `vent: true` slots the walls next to it. The cavity is
+as tall as the tallest base stack plus whatever hangs from the lid over
+it, each counted with its connectors as wired.
+
+The design's optional `enclosure` block sets two things.
+`board_orientation: face_down` turns the board over onto the floor inside
+a low fence, so header pins point at the lid and take Dupont jumpers from
+the front. `mount: wall` keeps the floor's top end clear for two keyhole
+slots, with the board's ports facing down. `wall-panel` is the worked
+example: a YD-ESP32-23 face down, an HC-SR501, a DHT22 and the OLED/knob
+module, wall mounted.
+
 The generated shell is gate-verified: the [`enclosure-render`](../.github/workflows/enclosure-render.yml)
-workflow renders every enclosure-capable board's `.scad` through real
-OpenSCAD (`scripts/check_enclosures.py`) and fails the PR unless it
+workflow renders a bare shell for every enclosure-capable board, and the
+full enclosure of every example that places panel parts, through real
+OpenSCAD (`scripts/check_enclosures.py`), and fails the PR unless each
 produces a non-empty, manifold (closed, non-self-intersecting) solid.
-The geometry is board-driven — it depends on the board's `enclosure:`
-block, not the design's components — so the gate walks boards, not
-examples. Boards without a clear PCB outline (modules like the ESP-01S)
-have no `enclosure:` block and are skipped by design.
+Boards without a clear PCB outline (modules like the ESP-01S) have no
+`enclosure:` block and are skipped by design.
 
 ### Printing it through print-warden
 

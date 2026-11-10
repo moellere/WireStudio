@@ -147,3 +147,17 @@ wled:
   pin_defines: {DATA: USERMOD_DHT_PIN}
   param_defines:
     model: {define: USERMOD_DHT_DHTTYPE, values: {DHT11: 11, DHT22: 22, AM2302: 22, RHT03: 22}}
+
+# Enclosure geometry (mm): the 3-pin AM2302/DHT22 module, about 40 x 23
+# with one 3.0 hole at the end away from the sensor; the white sensor
+# body stands 8.5 above the PCB. Nominal, not measured. It goes on the
+# floor at the board's port end, the bottom when wall mounted, and the
+# walls beside it are slotted so it reads room air.
+enclosure:
+  mount: base
+  pcb: {length_mm: 40.0, width_mm: 23.0, thickness_mm: 1.6}
+  mount_holes:
+    - {x_mm: 3.5, y_mm: 11.5, hole_diameter_mm: 3.0}
+  height_above_pcb_mm: 8.5
+  height_below_pcb_mm: 2.0
+  vent: true

@@ -131,6 +131,9 @@ and migrated on load (`wirestudio.migrate`); see
 | `origin.license` | string | yes |  |  |
 | `target` | enum |  | `"esphome"`, `"lorawan"` | What generate produces: ESPHome YAML or standalone LoRaWAN firmware. The Tasmota template is an export of an esphome design (POST /tasmota/template), not a target value. |
 | `strict` | boolean |  | default `false` | When true, warn/error compatibility entries and design warnings block generation instead of surfacing permissively. |
+| `enclosure` | object |  |  | How the generated enclosure is built. Only the enclosure generator reads it. |
+| `enclosure.board_orientation` | enum |  | `"face_up"`, `"face_down"` | face_down turns the board over onto the floor, header pins toward the lid, so Dupont jumpers plug in from the front. |
+| `enclosure.mount` | enum |  | `"desk"`, `"wall"` | wall adds keyhole slots to the base and hangs the box with the board's ports facing down. |
 | `lorawan` | object |  |  |  |
 | `lorawan.region` | enum |  | `"US915"`, `"EU868"`, `"AU915"`, `"AS923"` |  |
 | `lorawan.sub_band` | integer |  | default `2` |  |

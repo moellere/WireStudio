@@ -339,6 +339,7 @@ class LibraryComponent(_Strict):
     wled: Optional[WledSpec] = None
     circuitpython: Optional[CircuitPythonSpec] = None
     micropython: Optional[MicroPythonSpec] = None
+    enclosure: Optional["PartEnclosure"] = None
 
 
 class Rail(_Strict):
@@ -387,11 +388,67 @@ class BoardPort(_Strict):
 class BoardEnclosure(_Strict):
     """Geometry needed to autogenerate a parametric enclosure shell or
     rank a community-uploaded model. Optional on each board -- modules
-    that plug into a host PCB (ESP-01S etc.) skip the block."""
+    that plug into a host PCB (ESP-01S etc.) skip the block.
+
+    `underside_height_mm` is what hangs below the PCB as wired: header
+    plastic plus a Dupont housing. It sizes the box when the board is
+    mounted face down, headers toward the lid."""
     pcb: PcbDimensions
     mount_holes: list[MountHole] = Field(default_factory=list)
     ports: list[BoardPort] = Field(default_factory=list)
     component_height_max_mm: float = 12.0
+    underside_height_mm: float = 0.0
+
+
+class PanelFeature(_Strict):
+    """Something on a part that the enclosure exposes through its panel,
+    centred at (x_mm, y_mm) in the part's PCB coordinates seen from the
+    component side.
+
+    window: a rectangular opening (a display's glass).
+    hole: a round opening something passes through (a knob, a lens).
+    button: a tact switch under the panel; the enclosure prints a
+      plunger for it. top_mm is the actuator's height above the PCB.
+    """
+    kind: Literal["window", "hole", "button"]
+    x_mm: float
+    y_mm: float
+    width_mm: Optional[float] = None
+    height_mm: Optional[float] = None
+    diameter_mm: Optional[float] = None
+    top_mm: Optional[float] = None
+
+    @model_validator(mode="after")
+    def _shape(self) -> "PanelFeature":
+        if self.kind == "window" and (self.width_mm is None or self.height_mm is None):
+            raise ValueError("a window needs width_mm and height_mm")
+        if self.kind in ("hole", "button") and self.diameter_mm is None:
+            raise ValueError(f"a {self.kind} needs diameter_mm")
+        if self.kind == "button" and self.top_mm is None:
+            raise ValueError("a button needs top_mm")
+        return self
+
+
+class PartEnclosure(_Strict):
+    """How a component or module sits in the design's enclosure.
+
+    mount: lid -- screwed to posts under the lid, component side up,
+      its `features` cut through the lid; base -- on standoffs on the
+      floor beside the board.
+    lid_gap_mm: lid parts only; from the underside of the lid to the
+      PCB's top, set by the tallest thing that must stay under the lid.
+    height_above_pcb_mm / height_below_pcb_mm: the part's extent each
+      side of the PCB, connectors included as wired.
+    vent: slot the walls beside the part (temperature/humidity sensors).
+    """
+    pcb: PcbDimensions
+    mount_holes: list[MountHole] = Field(default_factory=list)
+    mount: Literal["lid", "base"]
+    lid_gap_mm: float = 2.0
+    height_above_pcb_mm: float = 5.0
+    height_below_pcb_mm: float = 0.0
+    features: list[PanelFeature] = Field(default_factory=list)
+    vent: bool = False
 
 
 class KicadSymbolRef(_Strict):
@@ -702,6 +759,7 @@ class LibraryModule(_Strict):
     aliases: list[str] = Field(default_factory=list)
     use_cases: list[str] = Field(default_factory=list)
     components: list[ModuleComponent]
+    enclosure: Optional[PartEnclosure] = None
 
 
 class Library:
