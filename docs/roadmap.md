@@ -1,10 +1,11 @@
 # Roadmap to 1.0
 
-Written against 0.39.0 (2026-10-18). Per-release deltas stay in
+Written against 0.39.0 (2026-10-18); closed by 1.0.0 (2026-11-10),
+when every item below was done and every status row was *Verified* or
+*Experimental*. It stays as the record of what 1.0 promises and what it
+left out on purpose. Per-release deltas stay in
 [`CHANGELOG.md`](../CHANGELOG.md); the status table in the
 [README](../README.md#status) is the live record of what is verified.
-This page says what 1.0 means, what has to land to get there, and what
-is deliberately left out.
 
 ## What 1.0 means
 
@@ -352,9 +353,9 @@ Section 4 covers the rest.
   frameworks' outputs and the PCB / fab path, and every bundled
   example in its table.
 - Release notes for 1.0 list the migrations and the tier changes, not
-  the features. Drafted in [`release-notes-1.0.md`](release-notes-1.0.md);
-  the `0.3 → 1.0` step is written, and the rows the flash stage decides
-  are filled in at release.
+  the features. Done: [`release-notes-1.0.md`](release-notes-1.0.md) is
+  the `[1.0.0]` section of the CHANGELOG, with the flash stage's tier
+  cells and the upgrade result against 0.48.1.
 
 ## 8. Community designs and templates
 
@@ -542,9 +543,13 @@ The dependency order, not a calendar:
    browse, import and share in the studio.
 8. Docs consolidation, last. The `1.0` schema cut is in.
 9. The design system (done 2026-10-25, released in 0.47.0).
-10. The workbench layout, before the 1.0 release PR.
+10. The workbench layout (done 2026-10-26, released in 0.48.0).
 
 The release that carries the schema cut, the two-tier status table,
 the upgrade test, the community catalogue and the adopted design system
 is 1.0. Phase 4 of the workbench, the JLCPCB order and
 the printed enclosure are each welcome before it and not required by it.
+At 1.0, phase 4's ESPHome functional check and LoRaWAN join are written
+and the functional check has passed once on hardware; neither is in the
+nightly roster yet, and the JLCPCB order and the printed enclosure are
+still open.

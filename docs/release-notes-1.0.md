@@ -1,16 +1,9 @@
-# wirestudio 1.0 release notes (draft)
+# wirestudio 1.0 release notes
 
-Draft. At release this text opens the `[1.0.0]` section of
-`CHANGELOG.md`, which the release workflow publishes as the GitHub
-release body; the feature entries accumulated under `[Unreleased]` stay
-below it. The tier cells were filled after the flash bench's first green
-week (2026-10-28 to 11-03; green every night since); the upgrade result
-below is filled in by the release PR.
-
-These notes cover what changes for someone upgrading from 0.46.0 and
+These notes cover what changes for someone upgrading from 0.48.1 and
 what each part of the studio now promises. Coming from an earlier
 release, read the last section too: the migrations run automatically
-from any release, but 0.41.0 through 0.46.0 changed some outputs on the
+from any release, but 0.41.0 through 0.47.0 changed some outputs on the
 way.
 
 ## What 1.0 promises
@@ -26,7 +19,7 @@ way.
   when the surface breaks; everything else is *Experimental* and says
   what it lacks.
 
-## Upgrading from 0.46.0
+## Upgrading from 0.48.1
 
 Back up the data directory first (`docs/deployment.md`, "Backup and
 restore"). For the SQLite layout, copy the databases with
@@ -34,15 +27,16 @@ restore"). For the SQLite layout, copy the databases with
 while the studio runs; a plain copy of a WAL database is not.
 
 Nothing else is manual. The `upgrade` workflow seeds a data directory
-with the newest release on PyPI (0.46.0) through its own REST API, in
-both store layouts, and 1.0 must load every design at the current
-schema, render it as the original renders, and read back the user
-library, inventory, sessions and store versions. **At release:** the
-result against 0.46.0.
+with the newest release on PyPI through its own REST API, in both store
+layouts, and 1.0 must load every design at the current schema, render
+it as the original renders, and read back the user library, inventory,
+sessions and store versions. Against 0.48.1 (run 42762770042,
+2026-11-10): 76 designs seeded in both layouts, all 152 loads rendered,
+none differently from 0.48.1.
 
 ### design.json
 
-0.43.0 through 0.46.0 already write `schema_version` 1.0, so their
+0.43.0 through 0.48.1 already write `schema_version` 1.0, so their
 designs load unchanged. Every path that reads a design (the file and
 SQLite stores, every REST endpoint that takes one, MCP `create_design`,
 the generate CLI) runs the migration chain first, so a file from an
@@ -75,13 +69,13 @@ backup if you may roll back.
 
 Every row is now *Verified* or *Experimental*; the *Works* tiers are gone.
 
-| Row | 0.40.0 | 0.46.0 | 1.0 | Gate |
+| Row | 0.40.0 | 0.48.1 | 1.0 | Gate |
 |---|---|---|---|---|
 | MCP server | Works | Verified | Verified | the `mcp` client drives the mounted server over Streamable HTTP with the token, every PR |
 | Component authoring | Works | Verified | Verified | a user component and its synthetic design through `esphome config`, and a corpus of bad components, every PR |
 | Board authoring | (new) | Verified | Verified | every bundled board through the board gate, and a user board with its onboard peripherals through `esphome config`, every PR |
 | ESPHome dashboard compile | Works | Verified | Verified | push, compile and fetch against a live ESPHome dashboard, nightly |
-| Agent | Experimental | Verified | Verified | the 28-task eval through Claude Code over MCP, nightly, held to `gate.claude_code_min_pass` (25 of 28; Claude Code scored 27 twice and 26 once on 2026-10-24, the embedded agent 26 twice, each gate one below its lower run) |
+| Agent | Experimental | Verified | Verified | the 28-task eval through Claude Code over MCP, nightly on the subscription, held to `gate.claude_code_min_pass` (25 of 28; 27, 28, 27 and 25 on 2026-11-06 to 11-09); the embedded agent is scored on a dispatched run against `gate.min_pass` (25) |
 | WLED target | (new) | Verified | Verified | goldens every PR; the usermod build against WLED v0.15.2 on PRs that touch it and nightly |
 | LoRaWAN target | Works (hardware-validated) | Verified | Verified | firmware builds on PRs that touch the target and daily; the nightly hardware gate hears the bench's T-Beam |
 | LoRaWAN external-component path | Works (hardware-validated) | Verified | Verified | `esphome config` every PR; the nightly hardware gate hears three bench boards on it |
@@ -91,7 +85,8 @@ Every row is now *Verified* or *Experimental*; the *Works* tiers are gone.
 | MicroPython flashing + main.py | Works | Works | Verified | a nightly full-erase flash of an ESP32 dev board and its REPL banner; `main.py` parse and the raw-REPL push against a fake board every PR |
 
 Every other row keeps its tier. ESPHome output validates on releases
-2026.3 through 2026.9 (`docs/esphome-support.md`); the pin is 2026.6.5.
+2026.3 through 2026.10: all 75 bundled examples pass `esphome config` on
+each (`docs/esphome-support.md`, swept 2026-11-10); the pin is 2026.6.5.
 
 ## Coming from an earlier release
 
@@ -100,6 +95,14 @@ upgrades straight to 1.0. Releases write these schema versions: 0.40.0
 and earlier 0.1, 0.41.0 through 0.42.2 0.3, and 0.43.0 on 1.0. What
 changed on the way, newest first:
 
+- **Example ids are file names (0.47.0).** `GET /examples` lists each
+  bundled example under the id `GET /examples/{id}` loads it by, its
+  file name (`garage-motion`), where it used to give the design's own
+  `id` (`garage-motion-v1`), which three examples could not be loaded
+  by. A client that stored an example id from the list should store the
+  new one.
+- **The studio opens on a start panel (0.48.0).** It no longer loads
+  the first example on its own; a browser session starts empty.
 - **IO-expander pins reach the expander (0.46.0).** A part wired to an
   expander pin now lands on the expander's own GPx pad in the
   schematic, the netlist and the PCB. Before, each such net had one
