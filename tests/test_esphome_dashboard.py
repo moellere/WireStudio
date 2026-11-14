@@ -9,7 +9,7 @@ import httpx
 import pytest
 
 from wirestudio.esphome_dashboard import (
-    DashboardClient, DashboardJobs, DashboardUnavailable, PushResult,
+    DashboardClient, DashboardJobs, DashboardUnavailable, PushResult, dashboard_clients, pick_dashboard,
 )
 
 pytestmark = pytest.mark.anyio
@@ -302,7 +302,11 @@ async def test_routes_unconfigured(monkeypatch, tmp_path):
 async def test_push_compile_poll_and_firmware(monkeypatch, tmp_path):
     dash = FakeDashboard()
     client = _app(monkeypatch, tmp_path, dash)
-    assert client.get("/esphome/status").json() == {"available": True, "reason": None, "url": "http://dash.test:6052"}
+    assert client.get("/esphome/status").json() == {
+        "available": True, "reason": None, "url": "http://dash.test:6052",
+        "targets": [{"name": "default", "label": "ESPHome dashboard", "url": "http://dash.test:6052",
+                     "available": True, "reason": None, "default": True}],
+    }
     design = json.loads((EXAMPLES / "garage-motion.json").read_text())
     r = client.post("/esphome/push", json={"design": design, "device_name": "garage-motion"})
     assert r.status_code == 200, r.text
@@ -328,6 +332,75 @@ async def test_push_compile_poll_and_firmware(monkeypatch, tmp_path):
     # Without compile there is no run.
     r = client.post("/esphome/push", json={"design": design, "compile": False})
     assert r.json()["run_id"] is None and r.json()["created"] is False
+
+
+def test_dashboard_clients_from_env():
+    legacy = dashboard_clients({"ESPHOME_DASHBOARD_URL": "http://one:6052/", "ESPHOME_DASHBOARD_USERNAME": "u"})
+    assert [(c.name, c.base_url, c.username) for c in legacy] == [("default", "http://one:6052", "u")]
+    assert not dashboard_clients({})[0].is_configured()
+
+    named = dashboard_clients({
+        "ESPHOME_DASHBOARDS": "HA, cluster,ha,lab-2",
+        "ESPHOME_DASHBOARD_URL": "http://ignored:6052",
+        "ESPHOME_DASHBOARD_HA_URL": "http://ha:6052", "ESPHOME_DASHBOARD_HA_LABEL": "Home Assistant",
+        "ESPHOME_DASHBOARD_HA_USERNAME": "wire", "ESPHOME_DASHBOARD_HA_PASSWORD": "pw",
+        "ESPHOME_DASHBOARD_CLUSTER_URL": "http://cluster:6052",
+    })
+    assert [(c.name, c.label, c.base_url) for c in named] == [
+        ("ha", "Home Assistant", "http://ha:6052"), ("cluster", "cluster", "http://cluster:6052"), ("lab-2", "lab-2", ""),
+    ]
+    assert (named[0].username, named[0].password, named[1].username) == ("wire", "pw", None)
+
+    assert pick_dashboard(named).name == "ha"
+    assert pick_dashboard(named, "Cluster").name == "cluster"
+    with pytest.raises(ValueError, match="ESPHOME_DASHBOARD_LAB_2_URL"):
+        pick_dashboard(named, "lab-2")
+    with pytest.raises(ValueError, match="configured: ha, cluster, lab-2"):
+        pick_dashboard(named, "nope")
+    with pytest.raises(DashboardUnavailable):
+        pick_dashboard(dashboard_clients({}))
+
+
+async def test_named_login_error_names_its_own_variables():
+    dash = FakeDashboard(password="pw")
+    ok, reason = await dash.client(name="ha", env_prefix="ESPHOME_DASHBOARD_HA").is_available()
+    assert not ok and "ESPHOME_DASHBOARD_HA_USERNAME" in reason
+
+
+async def test_push_to_a_named_target(monkeypatch, tmp_path):
+    ha, cluster = FakeDashboard(), FakeDashboard()
+    clients = [ha.client(name="ha", label="Home Assistant"), cluster.client(name="cluster", label="Cluster builder"),
+               DashboardClient("", name="spare", label="spare", env_prefix="ESPHOME_DASHBOARD_SPARE")]
+    client = TestClient(create_app(
+        sessions=FileSessionStore(root=tmp_path / "sessions"),
+        designs=FileDesignStore(root=tmp_path / "designs"),
+        dashboard_client_factory=lambda: clients,
+        dashboard_jobs=DashboardJobs(),
+    ))
+    status = client.get("/esphome/status").json()
+    assert status["available"] is True
+    assert [(t["name"], t["label"], t["available"], t["default"]) for t in status["targets"]] == [
+        ("ha", "Home Assistant", True, True), ("cluster", "Cluster builder", True, False), ("spare", "spare", False, False),
+    ]
+    assert status["targets"][2]["reason"] == "ESPHOME_DASHBOARD_SPARE_URL not set"
+
+    design = json.loads((EXAMPLES / "garage-motion.json").read_text())
+    r = client.post("/esphome/push", json={"design": design, "compile": False})
+    assert r.json()["target"] == "ha" and "garage-motion.yaml" in ha.written and not cluster.written
+
+    r = client.post("/esphome/push", json={"design": design, "target": "cluster"})
+    assert r.status_code == 200, r.text
+    assert r.json()["target"] == "cluster" and "garage-motion.yaml" in cluster.written
+    run_id = r.json()["run_id"]
+    _wait_finished(client, run_id)
+    assert client.get(f"/esphome/jobs/{run_id}").json()["target"] == "cluster"
+    # The image comes from the dashboard that built it, not the default one.
+    ha.firmware["garage-motion.yaml"] = {"firmware.ota.bin": b"wrong"}
+    cluster.firmware["garage-motion.yaml"] = {"firmware.ota.bin": b"right"}
+    assert client.get(f"/esphome/jobs/{run_id}/firmware").content == b"right"
+
+    assert client.post("/esphome/push", json={"design": design, "target": "nope"}).status_code == 422
+    assert client.post("/esphome/push", json={"design": design, "target": "spare"}).status_code == 422
 
 
 async def test_push_inlines_lorawan_secrets(monkeypatch, tmp_path):
@@ -381,9 +454,13 @@ async def test_mcp_dashboard_tools(tmp_path):
     def payload(result):
         return json.loads(result.content[0].text)
 
-    assert payload(await server.call_tool("esphome_dashboard_status", {}))["available"] is True
+    status = payload(await server.call_tool("esphome_dashboard_status", {}))
+    assert status["available"] is True and [t["name"] for t in status["targets"]] == ["default"]
+    refused = payload(await server.call_tool("esphome_dashboard_push", {"design_id": "garage-motion", "target": "ha"}))
+    assert refused["ok"] is False and "unknown dashboard target" in refused["error"]
     pushed = payload(await server.call_tool("esphome_dashboard_push", {"design_id": "garage-motion"}))
     assert pushed["ok"] and pushed["filename"] == "garage-motion.yaml" and pushed["run_id"]
+    assert pushed["target"] == "default"
     run_id = pushed["run_id"]
     for _ in range(50):
         log = payload(await server.call_tool("esphome_dashboard_job_log", {"run_id": run_id}))

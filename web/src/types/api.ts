@@ -211,16 +211,27 @@ export interface SaveDesignResponse {
   saved_at: string;
 }
 
+export interface DashboardTarget {
+  name: string;
+  label: string;
+  url?: string | null;
+  available: boolean;
+  reason?: string | null;
+  default: boolean;
+}
+
 export interface DashboardStatus {
   available: boolean;
   reason?: string | null;
   url?: string | null;
+  targets?: DashboardTarget[];
 }
 
 export interface DashboardPushResponse {
   filename: string;
   created: boolean;
   run_id?: string | null;
+  target?: string;
 }
 
 export interface DashboardRunStatus {
@@ -229,6 +240,7 @@ export interface DashboardRunStatus {
   verdict: string; // running | passed | failed
   error: string | null;
   started_at: string;
+  target?: string;
 }
 
 export interface FleetStatus {

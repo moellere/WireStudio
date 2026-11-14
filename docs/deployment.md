@@ -43,6 +43,7 @@ of them, just with the corresponding feature turned off. See
 | `WIRESTUDIO_API_TOKEN` | bearer token for everything else under the API (`/health` and `/mcp` excepted). Unset leaves the REST surface open, as before; set it before exposing the studio beyond a private network. The web UI asks for it once and keeps it in the browser |
 | `CHIRPSTACK_API_URL` + `CHIRPSTACK_API_TOKEN` | LoRaWAN device provisioning against ChirpStack (`/lorawan/provision`, `/lorawan/provision-esphome`) |
 | `ESPHOME_DASHBOARD_URL` (+ `ESPHOME_DASHBOARD_USERNAME` / `_PASSWORD`) | compile through an ESPHome Device Builder (`/esphome/*`); the port-exposed add-on or a standalone builder (ESPHome 2026.6+), not the HA ingress path |
+| `ESPHOME_DASHBOARDS` (+ `ESPHOME_DASHBOARD_<NAME>_URL` / `_USERNAME` / `_PASSWORD` / `_LABEL`) | several builders as named push targets, first is the default; see [integrations](integrations.md) |
 | `WORKBENCH_URL` (+ `WORKBENCH_TOKEN`) | remote flash + LoRaWAN bring-up against an Embedded AI Harness (`/workbench/*`) |
 | `WIRESTUDIO_DESIGNS_REPO` | the community catalogue the Gallery tab and Share use (`/community/*`); `owner/repo`, default `moellere/wirestudio-designs`, empty to turn it off. Needs outbound HTTPS to `raw.githubusercontent.com` |
 | `LIBRARY_USER_DIR` | where studio-authored components and boards are saved (`/data/library` in the image) |

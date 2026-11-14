@@ -473,6 +473,7 @@ export const api = {
     design: Design;
     compile: boolean;
     device_name?: string;
+    target?: string;
     strict?: boolean;
     lorawan_secrets?: Record<string, string>;
   }) =>

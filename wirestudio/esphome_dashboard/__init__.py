@@ -28,7 +28,7 @@ import json
 import os
 import secrets
 from contextlib import asynccontextmanager
-from collections.abc import AsyncIterator, Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Optional
@@ -41,6 +41,7 @@ WS_PATH = "/ws"
 DOWNLOAD_PATH = "/api/firmware/download"
 
 _TIMEOUT = 15.0
+NOT_CONFIGURED = "ESPHome dashboard not configured (set ESPHOME_DASHBOARD_URL)"
 _ARTIFACT_TIMEOUT = 120.0
 
 
@@ -141,7 +142,13 @@ class DashboardClient:
         password: Optional[str] = None,
         transport: Optional[httpx.AsyncBaseTransport] = None,
         ws_connect: Optional[WsConnect] = None,
+        name: str = "default",
+        label: str = "ESPHome dashboard",
+        env_prefix: str = "ESPHOME_DASHBOARD",
     ) -> None:
+        self.name = name
+        self.label = label
+        self._env = env_prefix
         self.base_url = (base_url if base_url is not None else os.environ.get("ESPHOME_DASHBOARD_URL", "")).rstrip("/")
         self.username = username if username is not None else os.environ.get("ESPHOME_DASHBOARD_USERNAME")
         self.password = password if password is not None else os.environ.get("ESPHOME_DASHBOARD_PASSWORD")
@@ -175,12 +182,12 @@ class DashboardClient:
             if info["requires_auth"]:
                 if not (self.username and self.password):
                     raise DashboardUnavailable(
-                        "dashboard requires a login; set ESPHOME_DASHBOARD_USERNAME and ESPHOME_DASHBOARD_PASSWORD"
+                        f"dashboard requires a login; set {self._env}_USERNAME and {self._env}_PASSWORD"
                     )
                 try:
                     await conn.call("auth/login", {"username": self.username, "password": self.password})
                 except _CommandError as e:
-                    raise DashboardUnavailable("dashboard rejected ESPHOME_DASHBOARD_USERNAME / PASSWORD") from e
+                    raise DashboardUnavailable(f"dashboard rejected {self._env}_USERNAME / PASSWORD") from e
             yield conn
         except _CommandError as e:
             raise DashboardUnavailable(f"dashboard refused the command: {e}") from e
@@ -299,6 +306,73 @@ class DashboardClient:
         return resp.content or None
 
 
+def dashboard_clients(env: Optional[Mapping[str, str]] = None) -> list[DashboardClient]:
+    """The configured dashboards, default first.
+
+    `ESPHOME_DASHBOARDS` names them, comma-separated, and each name N
+    reads `ESPHOME_DASHBOARD_<N>_URL`, `_USERNAME`, `_PASSWORD` and
+    `_LABEL`. Without it there is one, from `ESPHOME_DASHBOARD_URL` and
+    its credentials. A name with no URL is a deployment mistake and is
+    kept, unconfigured, so status can say which one."""
+    env = os.environ if env is None else env
+    names = [n.strip().lower() for n in env.get("ESPHOME_DASHBOARDS", "").split(",") if n.strip()]
+    if not names:
+        return [DashboardClient(
+            env.get("ESPHOME_DASHBOARD_URL", ""),
+            username=env.get("ESPHOME_DASHBOARD_USERNAME"),
+            password=env.get("ESPHOME_DASHBOARD_PASSWORD"),
+        )]
+    clients = []
+    for name in dict.fromkeys(names):
+        key = "ESPHOME_DASHBOARD_" + "".join(ch if ch.isalnum() else "_" for ch in name).upper()
+        clients.append(DashboardClient(
+            env.get(f"{key}_URL", ""),
+            username=env.get(f"{key}_USERNAME"),
+            password=env.get(f"{key}_PASSWORD"),
+            name=name,
+            label=env.get(f"{key}_LABEL") or name,
+            env_prefix=key,
+        ))
+    return clients
+
+
+def pick_dashboard(clients: list[DashboardClient], target: Optional[str] = None) -> DashboardClient:
+    """The named dashboard, or the first configured one. Raises
+    DashboardUnavailable when none is configured, ValueError on an
+    unknown or unconfigured name."""
+    configured = [c for c in clients if c.is_configured()]
+    if not target:
+        if not configured:
+            raise DashboardUnavailable(NOT_CONFIGURED)
+        return configured[0]
+    wanted = target.strip().lower()
+    for c in clients:
+        if c.name == wanted:
+            if not c.is_configured():
+                raise ValueError(f"dashboard target {wanted!r} is not configured (set {c._env}_URL)")
+            return c
+    known = ", ".join(c.name for c in clients)
+    raise ValueError(f"unknown dashboard target {target!r} (configured: {known})")
+
+
+async def dashboard_statuses(clients: list[DashboardClient]) -> list[dict]:
+    """One row per dashboard: name, label, url, available, reason, default."""
+    async def one(c: DashboardClient) -> tuple[bool, Optional[str]]:
+        if not c.is_configured():
+            return False, f"{c._env}_URL not set"
+        return await c.is_available()
+
+    results = await asyncio.gather(*(one(c) for c in clients))
+    default = next((c for c in clients if c.is_configured()), None)
+    return [
+        {
+            "name": c.name, "label": c.label,
+            "url": c.base_url or None, "available": ok, "reason": reason, "default": c is default,
+        }
+        for c, (ok, reason) in zip(clients, results)
+    ]
+
+
 async def _default_ws_connect(url: str, headers: dict[str, str]):
     import websockets
     return await websockets.connect(url, additional_headers=headers, max_size=None)
@@ -316,6 +390,8 @@ class DashboardJob:
     run_id: str
     filename: str
     started_at: str
+    target: str = "default"
+    client: Optional[DashboardClient] = field(default=None, repr=False)
     log: str = ""
     finished: bool = False
     ok: Optional[bool] = None
@@ -342,6 +418,7 @@ class DashboardJobs:
         job = DashboardJob(
             run_id=secrets.token_urlsafe(8), filename=filename,
             started_at=datetime.now(timezone.utc).isoformat(),
+            target=client.name, client=client,
         )
         self._jobs[job.run_id] = job
         job.task = asyncio.create_task(self._run(client, job))

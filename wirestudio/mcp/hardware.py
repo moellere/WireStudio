@@ -180,14 +180,15 @@ def register_hardware_tools(
 
     _register_printwarden_tools(mcp, library, _load_model, _printwarden)
 
-    def _dashboard() -> Any:
-        if dashboard_factory is not None:
-            return dashboard_factory()
-        from wirestudio.esphome_dashboard import DashboardClient
-        return DashboardClient()
+    def _dashboards() -> list:
+        from wirestudio.esphome_dashboard import dashboard_clients
+        if dashboard_factory is None:
+            return dashboard_clients()
+        made = dashboard_factory()
+        return made if isinstance(made, list) else [made]
 
     from wirestudio.esphome_dashboard import DashboardJobs
-    _register_dashboard_tools(mcp, library, _load_model, _dashboard, dashboard_jobs or DashboardJobs())
+    _register_dashboard_tools(mcp, library, _load_model, _dashboards, dashboard_jobs or DashboardJobs())
 
 
 # ---------------------------------------------------------------------------
@@ -967,35 +968,42 @@ def _register_dashboard_tools(
     mcp: MCPServer,
     library: Library,
     load_model: Callable[[Optional[str]], tuple[Optional[Design], Optional[dict]]],
-    dashboard: Callable[[], Any],
+    dashboards: Callable[[], list],
     jobs: Any,
 ) -> None:
     """The other compile path: an ESPHome dashboard (HA add-on or
     standalone) that schedules its own workers. Same tool shape as the
     fleet trio so a client can poll either."""
-    _NOT_CONFIGURED = "ESPHome dashboard not configured (set ESPHOME_DASHBOARD_URL)"
+    from wirestudio.esphome_dashboard import DashboardUnavailable, dashboard_statuses, pick_dashboard
 
     @mcp.tool(
         name="esphome_dashboard_status",
         description=(
             "Is an ESPHome dashboard configured and reachable? Check "
-            "before esphome_dashboard_push. This is the HA add-on / "
-            "standalone dashboard path; fleet_status covers fleet-for-esphome."
+            "before esphome_dashboard_push. `targets` lists every "
+            "configured dashboard (name, label, available, default); the "
+            "top-level fields describe the default one. This is the HA "
+            "add-on / standalone dashboard path; fleet_status covers "
+            "fleet-for-esphome."
         ),
     )
     async def esphome_dashboard_status() -> dict:
-        dc = dashboard()
-        if not dc.is_configured():
-            return {"ok": True, "available": False, "reason": "ESPHOME_DASHBOARD_URL not set", "url": None}
-        ok, reason = await dc.is_available()
-        return {"ok": True, "available": ok, "reason": reason, "url": dc.base_url}
+        targets = await dashboard_statuses(dashboards())
+        default = next((t for t in targets if t["default"]), None)
+        if default is None:
+            return {"ok": True, "available": False, "reason": "ESPHOME_DASHBOARD_URL not set",
+                    "url": None, "targets": targets}
+        return {"ok": True, "available": default["available"], "reason": default["reason"],
+                "url": default["url"], "targets": targets}
 
     @mcp.tool(
         name="esphome_dashboard_push",
         description=(
             "Render a design to ESPHome YAML, write it to the dashboard as "
             "<device>.yaml and, by default, start a compile there (the "
-            "dashboard dispatches to its own workers). Returns run_id for "
+            "dashboard dispatches to its own workers). `target` names one "
+            "of the dashboards from esphome_dashboard_status; omitted, the "
+            "default one is used. Returns run_id for "
             "esphome_dashboard_job_status / esphome_dashboard_job_log. The "
             "run id is studio-local and does not survive a restart."
         ),
@@ -1004,6 +1012,7 @@ def _register_dashboard_tools(
         design_id: Optional[str] = None,
         device_name: Optional[str] = None,
         compile: bool = True,
+        target: Optional[str] = None,
     ) -> dict:
         design, err = load_model(design_id)
         if err:
@@ -1021,9 +1030,10 @@ def _register_dashboard_tools(
             or (design.fleet.device_name if design.fleet and design.fleet.device_name else None)
             or design.id
         )
-        dc = dashboard()
-        if not dc.is_configured():
-            return _err(_NOT_CONFIGURED)
+        try:
+            dc = pick_dashboard(dashboards(), target)
+        except (DashboardUnavailable, ValueError) as e:
+            return _err(str(e))
         try:
             result = await dc.push_device(name, yaml_text)
         except ValueError as e:
@@ -1031,7 +1041,8 @@ def _register_dashboard_tools(
         except Exception as e:
             return _err(f"dashboard unreachable: {describe(e)}")
         run_id = jobs.start(dc, result.filename).run_id if compile else None
-        return {"ok": True, "filename": result.filename, "created": result.created, "run_id": run_id}
+        return {"ok": True, "filename": result.filename, "created": result.created,
+                "run_id": run_id, "target": dc.name}
 
     @mcp.tool(
         name="esphome_dashboard_job_status",
@@ -1042,7 +1053,8 @@ def _register_dashboard_tools(
         if job is None:
             return _err(f"no dashboard compile with run_id {run_id!r}")
         return {"ok": True, "run_id": job.run_id, "filename": job.filename,
-                "verdict": job.verdict, "error": job.error, "started_at": job.started_at}
+                "verdict": job.verdict, "error": job.error, "started_at": job.started_at,
+                "target": job.target}
 
     @mcp.tool(
         name="esphome_dashboard_job_log",

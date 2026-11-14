@@ -370,16 +370,27 @@ class EnclosurePrintJob(_S):
     log: list = Field(default_factory=list, description="The job's transition log.")
 
 
-class DashboardStatus(_S):
-    available: bool = Field(description="True when ESPHOME_DASHBOARD_URL is set and the dashboard answers /devices.")
-    reason: Optional[str] = Field(default=None, description="Why it is unavailable, when it is.")
+class DashboardTarget(_S):
+    name: str = Field(description="Target name, as passed to /esphome/push.")
+    label: str = Field(description="Name to show for it.")
     url: Optional[str] = Field(default=None, description="The configured dashboard URL.")
+    available: bool = Field(description="True when the URL is set and the dashboard answers.")
+    reason: Optional[str] = Field(default=None, description="Why it is unavailable, when it is.")
+    default: bool = Field(default=False, description="True for the target a push without `target` goes to.")
+
+
+class DashboardStatus(_S):
+    available: bool = Field(description="True when the default dashboard is configured and answers.")
+    reason: Optional[str] = Field(default=None, description="Why it is unavailable, when it is.")
+    url: Optional[str] = Field(default=None, description="The default dashboard's URL.")
+    targets: list[DashboardTarget] = Field(default_factory=list, description="Every configured dashboard, default first.")
 
 
 class DashboardPushRequest(_S):
     design: dict = Field(description="The design.json to render and push to the dashboard.")
     compile: bool = Field(default=True, description="Start a compile on the dashboard after writing the YAML.")
     device_name: Optional[str] = Field(default=None, description="Filename stem on the dashboard; defaults to fleet.device_name, then the design id.")
+    target: Optional[str] = Field(default=None, description="Dashboard to push to, by name from /esphome/status; the default one when omitted.")
     strict: bool = Field(default=False, description="Refuse the push when warn/error compatibility issues remain.")
     lorawan_secrets: Optional[dict[str, str]] = Field(
         default=None,
@@ -391,6 +402,7 @@ class DashboardPushResponse(_S):
     filename: str = Field(description="Filename the YAML was written under on the dashboard.")
     created: bool = Field(description="True if the dashboard did not have this filename before.")
     run_id: Optional[str] = Field(default=None, description="Compile run id (studio-local), when compile was requested.")
+    target: str = Field(default="default", description="Name of the dashboard the YAML went to.")
 
 
 class DashboardRunStatus(_S):
@@ -399,6 +411,7 @@ class DashboardRunStatus(_S):
     verdict: str = Field(description="running | passed | failed.")
     error: Optional[str] = Field(default=None, description="Relay-side failure, when the compile never produced an exit code.")
     started_at: str
+    target: str = Field(default="default", description="Name of the dashboard running the compile.")
 
 
 class FleetJobLogResponse(_S):

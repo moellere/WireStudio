@@ -161,7 +161,14 @@ from wirestudio.kicad.render import (
     render_schematic,
     render_status,
 )
-from wirestudio.esphome_dashboard import DashboardClient, DashboardJobs, DashboardUnavailable
+from wirestudio.esphome_dashboard import (
+    DashboardClient,
+    DashboardJobs,
+    DashboardUnavailable,
+    dashboard_clients,
+    dashboard_statuses,
+    pick_dashboard,
+)
 from wirestudio.inventory.buy import buy_list, buy_list_to_dict
 from wirestudio.jlcpcb import check_bom, jlcpcb_status, report_to_dict
 from wirestudio.recommend.recommender import Constraints, recommend_components
@@ -1622,22 +1629,32 @@ def create_app(
     # ---------------------------------------------------------------------
     # ESPHome Device Builder: the other compile path (HA add-on / esphome dashboard)
     # ---------------------------------------------------------------------
-    make_dashboard = dashboard_client_factory or DashboardClient
     jobs = dashboard_jobs or DashboardJobs()
 
-    def _dashboard() -> DashboardClient:
-        dc = make_dashboard()
-        if not dc.is_configured():
-            raise HTTPException(status_code=503, detail="ESPHome dashboard not configured (set ESPHOME_DASHBOARD_URL)")
-        return dc
+    def _dashboards() -> list[DashboardClient]:
+        if dashboard_client_factory is None:
+            return dashboard_clients()
+        made = dashboard_client_factory()
+        return made if isinstance(made, list) else [made]
+
+    def _dashboard(target: Optional[str] = None) -> DashboardClient:
+        try:
+            return pick_dashboard(_dashboards(), target)
+        except DashboardUnavailable as e:
+            raise HTTPException(status_code=503, detail=str(e)) from e
+        except ValueError as e:
+            raise HTTPException(status_code=422, detail=str(e)) from e
 
     @app.get("/esphome/status", response_model=DashboardStatus, tags=["esphome"])
     async def esphome_dashboard_status() -> DashboardStatus:
-        dc = make_dashboard()
-        if not dc.is_configured():
-            return DashboardStatus(available=False, reason="ESPHOME_DASHBOARD_URL not set", url=None)
-        ok, reason = await dc.is_available()
-        return DashboardStatus(available=ok, reason=reason, url=dc.base_url)
+        """The default dashboard's reachability, plus one row per
+        configured dashboard for a target picker."""
+        targets = await dashboard_statuses(_dashboards())
+        default = next((t for t in targets if t["default"]), None)
+        if default is None:
+            return DashboardStatus(available=False, reason="ESPHOME_DASHBOARD_URL not set", url=None, targets=targets)
+        return DashboardStatus(available=default["available"], reason=default["reason"],
+                               url=default["url"], targets=targets)
 
     @app.post("/esphome/push", response_model=DashboardPushResponse, tags=["esphome"])
     async def esphome_dashboard_push(req: DashboardPushRequest) -> DashboardPushResponse:
@@ -1664,7 +1681,7 @@ def create_app(
                     "warnings": blockers,
                 })
         name = req.device_name or (d.fleet.device_name if d.fleet and d.fleet.device_name else None) or d.id
-        dc = _dashboard()
+        dc = _dashboard(req.target)
         try:
             result = await dc.push_device(name, yaml_text)
         except ValueError as e:
@@ -1672,7 +1689,7 @@ def create_app(
         except DashboardUnavailable as e:
             raise HTTPException(status_code=502, detail=str(e)) from e
         run_id = jobs.start(dc, result.filename).run_id if req.compile else None
-        return DashboardPushResponse(filename=result.filename, created=result.created, run_id=run_id)
+        return DashboardPushResponse(filename=result.filename, created=result.created, run_id=run_id, target=dc.name)
 
     @app.get("/esphome/jobs/{run_id}", response_model=DashboardRunStatus, tags=["esphome"])
     async def esphome_dashboard_job_status(run_id: str) -> DashboardRunStatus:
@@ -1680,7 +1697,7 @@ def create_app(
         if job is None:
             raise HTTPException(status_code=404, detail=f"no dashboard compile with run_id {run_id!r} (jobs do not survive a studio restart)")
         return DashboardRunStatus(run_id=job.run_id, filename=job.filename, verdict=job.verdict,
-                                  error=job.error, started_at=job.started_at)
+                                  error=job.error, started_at=job.started_at, target=job.target)
 
     @app.get("/esphome/jobs/{run_id}/log", response_model=FleetJobLogResponse, tags=["esphome"])
     async def esphome_dashboard_job_log(run_id: str, offset: int = 0) -> FleetJobLogResponse:
@@ -1724,7 +1741,7 @@ def create_app(
         if not job.finished or not job.ok:
             raise HTTPException(status_code=404, detail=f"run {run_id!r} has no successful build yet ({job.verdict})")
         try:
-            blob = await _dashboard().firmware(job.filename, factory=factory)
+            blob = await job.client.firmware(job.filename, factory=factory)
         except DashboardUnavailable as e:
             raise HTTPException(status_code=502, detail=str(e)) from e
         if blob is None:

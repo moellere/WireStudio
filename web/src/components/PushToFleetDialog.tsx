@@ -51,9 +51,10 @@ const BACKENDS: Record<Backend, {
   subtitle: string;
   envHint: string;
   status: () => Promise<FleetStatus | DashboardStatus>;
-  push: (body: { design: Design; compile: boolean; device_name?: string; strict: boolean }) => Promise<FleetPushResponse | DashboardPushResponse>;
+  push: (body: { design: Design; compile: boolean; device_name?: string; strict: boolean; target?: string }) => Promise<FleetPushResponse | DashboardPushResponse>;
   jobLog: (runId: string, offset: number) => Promise<FleetJobLogResponse>;
   runStatus: (runId: string) => Promise<{ verdict: string }>;
+  firmware: (runId: string) => Promise<Uint8Array>;
   streamPath: (runId: string) => string;
 }> = {
   fleet: {
@@ -64,6 +65,7 @@ const BACKENDS: Record<Backend, {
     push: (body) => api.fleetPush(body),
     jobLog: (runId, offset) => api.fleetJobLog(runId, offset),
     runStatus: (runId) => api.fleetRunStatus(runId),
+    firmware: (runId) => api.fleetFirmware(runId, { factory: true }),
     streamPath: (runId) => `/api/fleet/jobs/${encodeURIComponent(runId)}/log/stream`,
   },
   dashboard: {
@@ -74,6 +76,7 @@ const BACKENDS: Record<Backend, {
     push: (body) => api.esphomeDashboardPush(body),
     jobLog: (runId, offset) => api.esphomeDashboardJobLog(runId, offset),
     runStatus: (runId) => api.esphomeDashboardRunStatus(runId),
+    firmware: (runId) => api.esphomeDashboardFirmware(runId, { factory: true }),
     streamPath: (runId) => `/api/esphome/jobs/${encodeURIComponent(runId)}/log/stream`,
   },
 };
@@ -81,8 +84,14 @@ const BACKENDS: Record<Backend, {
 export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
   const [backend, setBackend] = useState<Backend>("fleet");
   const [dashboardStatus, setDashboardStatus] = useState<DashboardStatus | null>(null);
+  const [dashTarget, setDashTarget] = useState<string | null>(null);
   const be = BACKENDS[backend];
-  const [status, setStatus] = useState<FleetStatus | null>(null);
+  const [backendStatus, setStatus] = useState<FleetStatus | null>(null);
+  const targets = dashboardStatus?.targets ?? [];
+  const chosenTarget = backend === "dashboard"
+    ? targets.find((t) => t.name === dashTarget) ?? targets.find((t) => t.default)
+    : undefined;
+  const status: FleetStatus | DashboardStatus | null = chosenTarget ?? backendStatus;
   const [statusError, setStatusError] = useState<string | null>(null);
   const fleet = (design.fleet as Record<string, unknown> | undefined) ?? undefined;
   const fleetDeviceName = typeof fleet?.device_name === "string" ? fleet.device_name : "";
@@ -101,6 +110,48 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
   const logScrollRef = useRef<HTMLPreElement | null>(null);
   const pollAbortRef = useRef<{ stop: boolean }>({ stop: false });
   const eventSourceRef = useRef<EventSource | null>(null);
+
+  type FlashState =
+    | { kind: "idle" }
+    | { kind: "fetching" }
+    | { kind: "flashing"; written: number; total: number }
+    | { kind: "flashed"; bytes: number }
+    | { kind: "error"; message: string };
+  const [flashState, setFlashState] = useState<FlashState>({ kind: "idle" });
+  const [serialLog, setSerialLog] = useState<string>("");
+  const flashSessionRef = useRef<{ close: () => Promise<void> } | null>(null);
+  useEffect(() => () => {
+    void flashSessionRef.current?.close();
+  }, []);
+
+  /** Write the image this run built to a board on local USB: the merged
+   *  image at 0x0 after a full erase, as for a first flash. */
+  async function handleFlash(runId: string) {
+    setFlashState({ kind: "fetching" });
+    setSerialLog("");
+    try {
+      await flashSessionRef.current?.close();
+      flashSessionRef.current = null;
+      const data = await be.firmware(runId);
+      const { flashFirmware } = await import("../lib/flash");
+      setFlashState({ kind: "flashing", written: 0, total: data.byteLength });
+      flashSessionRef.current = await flashFirmware({
+        images: [{ data, address: 0x0 }],
+        eraseAll: true,
+        onProgress: (written, total) => setFlashState({ kind: "flashing", written, total }),
+        onSerial: (text) => setSerialLog((prev) => (prev + text).slice(-8000)),
+      });
+      setFlashState({ kind: "flashed", bytes: data.byteLength });
+    } catch (e) {
+      const detail = e instanceof ApiError ? (e.body as { detail?: unknown } | undefined)?.detail : undefined;
+      setFlashState({
+        kind: "error",
+        message: e instanceof ApiError
+          ? `${e.status}: ${typeof detail === "string" ? detail : e.message}`
+          : e instanceof Error ? e.message : String(e),
+      });
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -142,7 +193,9 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
     setLogText("");
     setPushError(null);
     try {
-      setStatus(await BACKENDS[next].status());
+      const s = await BACKENDS[next].status();
+      setStatus(s);
+      if (next === "dashboard") setDashboardStatus(s);
     } catch (e) {
       setStatusError(e instanceof Error ? e.message : String(e));
     }
@@ -289,12 +342,14 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
     setPushError(null);
     setResult(null);
     setVerdict(null);
+    setFlashState({ kind: "idle" });
     try {
       const r = await be.push({
         design,
         compile,
         device_name: deviceName.trim() || undefined,
         strict,
+        target: chosenTarget?.name,
       });
       setResult(r as FleetPushResponse);
       if (r.run_id) {
@@ -365,6 +420,30 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
             </button>
           ))}
         </div>
+
+        {backend === "dashboard" && targets.length > 1 && (
+          <div className="space-y-1">
+            <FieldLabel>dashboard</FieldLabel>
+            <select
+              aria-label="Dashboard"
+              value={chosenTarget?.name ?? ""}
+              onChange={(e) => {
+                setDashTarget(e.target.value);
+                setResult(null);
+                setVerdict(null);
+                setLogText("");
+                setPushError(null);
+              }}
+              className="w-full rounded-md border border-line bg-surface-2/60 px-2 py-1 text-xs text-ink"
+            >
+              {targets.map((t) => (
+                <option key={t.name} value={t.name}>
+                  {t.label}{t.default ? " (default)" : ""}{t.available ? "" : " — unavailable"}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Status section */}
         <div className="rounded-md border border-line bg-surface-2/40 p-3">
@@ -438,7 +517,8 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
           <div className="rounded-md bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100 ring-1 ring-emerald-500/30">
             <div>
               {result.created ? "Created" : "Updated"}{" "}
-              <code className="rounded-md bg-emerald-500/15 px-1">{result.filename}</code> on the fleet.
+              <code className="rounded-md bg-emerald-500/15 px-1">{result.filename}</code> on{" "}
+              {backend === "fleet" ? "the fleet" : chosenTarget && targets.length > 1 ? chosenTarget.label : "the dashboard"}.
             </div>
             {result.run_id && (
               <div className="mt-1 text-emerald-200/80">
@@ -481,6 +561,39 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
             </pre>
             {logError && (
               <div className="text-[11px] text-rose-400">log error: {logError}</div>
+            )}
+            {verdict?.verdict === "passed" && (
+              <div className="space-y-1 pt-1">
+                <div className="flex items-center gap-2">
+                  <Button
+                    disabled={flashState.kind === "fetching" || flashState.kind === "flashing"}
+                    onClick={() => void handleFlash(result.run_id!)}
+                    title="Erases the board, then writes the image this compile built"
+                  >
+                    {flashState.kind === "fetching"
+                      ? "Fetching image…"
+                      : flashState.kind === "flashing"
+                        ? `Flashing ${Math.round((flashState.written / Math.max(flashState.total, 1)) * 100)}%`
+                        : flashState.kind === "flashed" ? "Flash another" : "Flash over USB"}
+                  </Button>
+                  <span className="text-[11px] text-ink-faint">
+                    Full erase, then the built image at 0x0. Needs a WebSerial browser.
+                  </span>
+                </div>
+                {flashState.kind === "flashed" && (
+                  <div className="text-[11px] text-emerald-300">
+                    Wrote {flashState.bytes.toLocaleString()} bytes; the board has reset into it.
+                  </div>
+                )}
+                {flashState.kind === "error" && (
+                  <div className="text-[11px] text-rose-400">flash failed: {flashState.message}</div>
+                )}
+                {serialLog && (
+                  <pre className="max-h-40 overflow-auto rounded-lg bg-surface-0 p-2 font-mono text-[12px] leading-relaxed text-ink-dim ring-1 ring-line">
+                    {serialLog}
+                  </pre>
+                )}
+              </div>
             )}
           </div>
         )}

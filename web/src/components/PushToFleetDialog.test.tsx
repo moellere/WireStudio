@@ -31,9 +31,13 @@ vi.mock("../api/client", async () => {
       esphomeDashboardPush: vi.fn(),
       esphomeDashboardJobLog: vi.fn(),
       esphomeDashboardRunStatus: vi.fn(),
+      esphomeDashboardFirmware: vi.fn(),
     },
   };
 });
+
+const flashFirmware = vi.hoisted(() => vi.fn());
+vi.mock("../lib/flash", () => ({ flashFirmware }));
 
 const mockApi = api as unknown as {
   fleetStatus: ReturnType<typeof vi.fn>;
@@ -44,6 +48,7 @@ const mockApi = api as unknown as {
   esphomeDashboardPush: ReturnType<typeof vi.fn>;
   esphomeDashboardJobLog: ReturnType<typeof vi.fn>;
   esphomeDashboardRunStatus: ReturnType<typeof vi.fn>;
+  esphomeDashboardFirmware: ReturnType<typeof vi.fn>;
 };
 
 const design: Design = {
@@ -64,6 +69,8 @@ beforeEach(() => {
   mockApi.esphomeDashboardPush.mockReset();
   mockApi.esphomeDashboardJobLog.mockReset();
   mockApi.esphomeDashboardRunStatus.mockReset();
+  mockApi.esphomeDashboardFirmware.mockReset();
+  flashFirmware.mockReset();
   mockApi.fleetStatus.mockReset();
   mockApi.fleetPush.mockReset();
   mockApi.fleetJobLog.mockReset();
@@ -376,6 +383,47 @@ describe("ESPHome dashboard build path", () => {
     await waitFor(() => expect(mockApi.esphomeDashboardPush).toHaveBeenCalled());
     expect(mockApi.fleetPush).not.toHaveBeenCalled();
     expect(mockApi.esphomeDashboardPush.mock.calls[0][0]).toMatchObject({ compile: false, device_name: "garage-motion" });
+  });
+
+  it("offers a picker when several dashboards are configured and pushes to the chosen one", async () => {
+    mockApi.fleetStatus.mockResolvedValue({ available: false, reason: "FLEET_URL not set", url: null });
+    mockApi.esphomeDashboardStatus.mockResolvedValue({
+      available: true, reason: null, url: "http://ha:6052",
+      targets: [
+        { name: "ha", label: "Home Assistant", url: "http://ha:6052", available: true, reason: null, default: true },
+        { name: "cluster", label: "Cluster builder", url: "http://cluster:6052", available: true, reason: null, default: false },
+      ],
+    });
+    mockApi.esphomeDashboardPush.mockResolvedValue({ filename: "garage-motion.yaml", created: true, run_id: null, target: "cluster" });
+    render(<PushToFleetDialog design={design} onClose={vi.fn()} />);
+    const picker = await screen.findByRole("combobox", { name: "Dashboard" });
+    expect(picker).toHaveValue("ha");
+    expect(screen.getByText(/connected · http:\/\/ha:6052/)).toBeInTheDocument();
+    await userEvent.selectOptions(picker, "cluster");
+    expect(screen.getByText(/connected · http:\/\/cluster:6052/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /push/i }));
+    await waitFor(() => expect(mockApi.esphomeDashboardPush).toHaveBeenCalled());
+    expect(mockApi.esphomeDashboardPush.mock.calls[0][0]).toMatchObject({ target: "cluster" });
+    expect(await screen.findByText(/on Cluster builder\./)).toBeInTheDocument();
+  });
+
+  it("flashes the image a passed compile built", async () => {
+    mockApi.fleetStatus.mockResolvedValue({ available: false, reason: "FLEET_URL not set", url: null });
+    mockApi.esphomeDashboardStatus.mockResolvedValue({ available: true, reason: null, url: "http://ha:6052" });
+    mockApi.esphomeDashboardPush.mockResolvedValue({ filename: "garage-motion.yaml", created: true, run_id: "r1" });
+    mockApi.esphomeDashboardJobLog.mockResolvedValue({ log: "[SUCCESS]\n", offset: 10, finished: true });
+    mockApi.esphomeDashboardRunStatus.mockResolvedValue({ run_id: "r1", filename: "garage-motion.yaml", verdict: "passed", error: null, started_at: "" });
+    const image = new Uint8Array([0xe9, 1, 2, 3]);
+    mockApi.esphomeDashboardFirmware.mockResolvedValue(image);
+    flashFirmware.mockResolvedValue({ close: vi.fn().mockResolvedValue(undefined) });
+    render(<PushToFleetDialog design={design} onClose={vi.fn()} />);
+    await waitFor(() => expect(screen.getByText(/connected · http:\/\/ha:6052/)).toBeInTheDocument());
+    await userEvent.click(screen.getByRole("checkbox"));
+    await userEvent.click(screen.getByRole("button", { name: /push & compile/i }));
+    await userEvent.click(await screen.findByRole("button", { name: "Flash over USB" }));
+    await waitFor(() => expect(screen.getByText(/Wrote 4 bytes/)).toBeInTheDocument());
+    expect(mockApi.esphomeDashboardFirmware).toHaveBeenCalledWith("r1", { factory: true });
+    expect(flashFirmware.mock.calls[0][0]).toMatchObject({ images: [{ data: image, address: 0 }], eraseAll: true });
   });
 
   it("switching the build path re-probes its status", async () => {
