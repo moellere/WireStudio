@@ -61,6 +61,9 @@ from wirestudio.api.schemas import (
     DashboardPushResponse,
     DashboardPushRequest,
     DashboardStatus,
+    RepoPushRequest,
+    RepoPushResponse,
+    RepoStatus,
     ComponentYamlRequest,
     InventoryPartCheckLine,
     InventorySubstitute,
@@ -161,6 +164,7 @@ from wirestudio.kicad.render import (
     render_schematic,
     render_status,
 )
+from wirestudio.esphome_repo import RepoClient, RepoFileExists, RepoUnavailable
 from wirestudio.esphome_dashboard import (
     DashboardClient,
     DashboardJobs,
@@ -270,6 +274,7 @@ def create_app(
     fleet_client_factory=None,
     dashboard_client_factory=None,
     dashboard_jobs: Optional[DashboardJobs] = None,
+    repo_client_factory=None,
     event_bus: Optional[DesignEventBus] = None,
     active_design: Optional[ActiveDesignTracker] = None,
     inventory: Optional[InventoryStore] = None,
@@ -330,6 +335,7 @@ def create_app(
     # Tests substitute a factory that returns a FleetClient bound to an
     # httpx.MockTransport so we never hit the network in CI.
     make_fleet: callable = fleet_client_factory or (lambda: FleetClient())
+    make_repo: callable = repo_client_factory or (lambda: RepoClient())
     make_printwarden: callable = printwarden_client_factory or (lambda: PrintWardenClient())
 
     limiter = Limiter(key_func=get_remote_address)
@@ -344,6 +350,7 @@ def create_app(
             inventory=inventory_store,
             workbench_factory=workbench_client_factory,
             fleet_factory=make_fleet,
+            repo_factory=make_repo,
             printwarden_factory=make_printwarden,
         )
         if mcp_enabled
@@ -1747,6 +1754,49 @@ def create_app(
         if blob is None:
             raise HTTPException(status_code=404, detail="the dashboard has no image for this configuration")
         return Response(content=blob, media_type="application/octet-stream")
+
+    @app.get("/esphome-repo/status", response_model=RepoStatus, tags=["esphome"])
+    async def esphome_repo_status() -> RepoStatus:
+        rc = make_repo()
+        ok, reason = await rc.is_available()
+        return RepoStatus(available=ok, reason=reason, repo=rc.repo or None,
+                          branch=rc.branch if rc.repo else None, url=rc.url)
+
+    @app.post("/esphome-repo/push", response_model=RepoPushResponse, tags=["esphome"])
+    async def esphome_repo_push(req: RepoPushRequest) -> RepoPushResponse:
+        """Render the design and commit it to the configured GitHub
+        repository as <device>.yaml. Nothing is compiled. A file last
+        changed outside WireStudio answers 409 unless `overwrite` is set.
+        Same strict gate as the fleet push."""
+        d = _validate_design(req.design)
+        try:
+            yaml_text = get_target(d.target).generate(d, lib).get("firmware.yaml")
+        except (FileNotFoundError, ValueError, KeyError) as e:
+            raise HTTPException(status_code=422, detail=str(e)) from e
+        if not yaml_text:
+            raise HTTPException(status_code=422, detail=f"target '{d.target}' does not produce firmware.yaml")
+        if req.strict or d.strict:
+            blockers = strict_blockers(req.design, lib)
+            if blockers:
+                raise HTTPException(status_code=422, detail={
+                    "error": "strict_mode_blocked",
+                    "message": f"strict mode refused the push: {len(blockers)} issue{'s' if len(blockers) != 1 else ''} need attention",
+                    "blockers": [asdict(b) for b in blockers],
+                })
+        name = req.device_name or (d.fleet.device_name if d.fleet and d.fleet.device_name else None) or d.id
+        rc = make_repo()
+        if not rc.is_configured():
+            raise HTTPException(status_code=503, detail="repository not configured (set ESPHOME_REPO and ESPHOME_REPO_TOKEN)")
+        try:
+            result = await rc.push_device(name, yaml_text, overwrite=req.overwrite, design_id=d.id)
+        except ValueError as e:
+            raise HTTPException(status_code=422, detail=str(e)) from e
+        except RepoFileExists as e:
+            raise HTTPException(status_code=409, detail={"error": "file_exists", "message": str(e)}) from e
+        except RepoUnavailable as e:
+            raise HTTPException(status_code=502, detail=str(e)) from e
+        return RepoPushResponse(filename=result.filename, created=result.created, changed=result.changed,
+                                commit=result.commit, url=result.url)
 
     @app.get("/fleet/status", response_model=FleetStatus, tags=["fleet"])
     async def fleet_status() -> FleetStatus:

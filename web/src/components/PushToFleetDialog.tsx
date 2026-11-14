@@ -3,7 +3,8 @@ import { api, ApiError } from "../api/client";
 import type { Design, FleetPushResponse, FleetRunStatus, DashboardPushResponse,
   DashboardStatus,
   FleetJobLogResponse,
-  FleetStatus } from "../types/api";
+  FleetStatus,
+  RepoPushResponse } from "../types/api";
 import { Button, Code, Dialog, FieldLabel, Input } from "./ui";
 
 const LOG_POLL_INTERVAL_MS = 1500;
@@ -42,16 +43,22 @@ interface Props {
  * Status is fetched on open so we can disable the button + show why the
  * fleet isn't reachable when it isn't.
  */
-/** Where the YAML goes and who compiles it. Both answer the same
- * status / push / log / verdict calls, so the dialog only swaps the table. */
-type Backend = "fleet" | "dashboard";
+/** Where the YAML goes and who compiles it. The compiling ones answer the
+ * same status / push / log / verdict calls, so the dialog only swaps the
+ * table; the repository only stores the file. */
+type Backend = "fleet" | "dashboard" | "repo";
+
+const noCompile = () => Promise.reject(new Error("this path does not compile"));
 
 const BACKENDS: Record<Backend, {
   label: string;
+  title: string;
+  place: string;
   subtitle: string;
   envHint: string;
+  compiles: boolean;
   status: () => Promise<FleetStatus | DashboardStatus>;
-  push: (body: { design: Design; compile: boolean; device_name?: string; strict: boolean; target?: string }) => Promise<FleetPushResponse | DashboardPushResponse>;
+  push: (body: { design: Design; compile: boolean; device_name?: string; strict: boolean; target?: string }, overwrite: boolean) => Promise<FleetPushResponse | DashboardPushResponse | RepoPushResponse>;
   jobLog: (runId: string, offset: number) => Promise<FleetJobLogResponse>;
   runStatus: (runId: string) => Promise<{ verdict: string }>;
   firmware: (runId: string) => Promise<Uint8Array>;
@@ -59,6 +66,9 @@ const BACKENDS: Record<Backend, {
 }> = {
   fleet: {
     label: "fleet-for-esphome",
+    title: "Push to fleet",
+    place: "the fleet",
+    compiles: true,
     subtitle: "Send the rendered YAML to fleet-for-esphome (ha-addon).",
     envHint: "FLEET_URL and FLEET_TOKEN",
     status: () => api.fleetStatus(),
@@ -70,6 +80,9 @@ const BACKENDS: Record<Backend, {
   },
   dashboard: {
     label: "ESPHome dashboard",
+    title: "Push to ESPHome dashboard",
+    place: "the dashboard",
+    compiles: true,
     subtitle: "Write the rendered YAML to an ESPHome dashboard (HA add-on or standalone) and compile there.",
     envHint: "ESPHOME_DASHBOARD_URL",
     status: () => api.esphomeDashboardStatus(),
@@ -78,6 +91,20 @@ const BACKENDS: Record<Backend, {
     runStatus: (runId) => api.esphomeDashboardRunStatus(runId),
     firmware: (runId) => api.esphomeDashboardFirmware(runId, { factory: true }),
     streamPath: (runId) => `/api/esphome/jobs/${encodeURIComponent(runId)}/log/stream`,
+  },
+  repo: {
+    label: "ESPHome repo",
+    title: "Push to ESPHome repo",
+    place: "the repository",
+    subtitle: "Commit the rendered YAML to the GitHub repository of ESPHome configs. Nothing is compiled.",
+    envHint: "ESPHOME_REPO and ESPHOME_REPO_TOKEN",
+    compiles: false,
+    status: () => api.esphomeRepoStatus(),
+    push: ({ design, device_name, strict }, overwrite) => api.esphomeRepoPush({ design, device_name, strict, overwrite }),
+    jobLog: noCompile,
+    runStatus: noCompile,
+    firmware: noCompile,
+    streamPath: () => "",
   },
 };
 
@@ -99,7 +126,8 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
   const [deviceName, setDeviceName] = useState<string>(fleetDeviceName || designId);
   const [compile, setCompile] = useState<boolean>(false);
   const [pushing, setPushing] = useState(false);
-  const [result, setResult] = useState<FleetPushResponse | null>(null);
+  const [overwrite, setOverwrite] = useState<boolean>(false);
+  const [result, setResult] = useState<(FleetPushResponse & Partial<RepoPushResponse>) | null>(null);
   const [pushError, setPushError] = useState<string | null>(null);
 
   const [logText, setLogText] = useState<string>("");
@@ -157,9 +185,10 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
     let cancelled = false;
     (async () => {
       try {
-        const [fleetS, dashS] = await Promise.all([
+        const [fleetS, dashS, repoS] = await Promise.all([
           api.fleetStatus(),
           api.esphomeDashboardStatus().catch(() => ({ available: false, reason: "unreachable" } as DashboardStatus)),
+          api.esphomeRepoStatus().catch(() => ({ available: false, reason: "unreachable" } as FleetStatus)),
         ]);
         if (cancelled) return;
         setDashboardStatus(dashS);
@@ -167,6 +196,9 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
         if (!fleetS.available && dashS.available) {
           setBackend("dashboard");
           setStatus(dashS);
+        } else if (!fleetS.available && repoS.available) {
+          setBackend("repo");
+          setStatus(repoS);
         } else {
           setStatus(fleetS);
         }
@@ -344,14 +376,15 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
     setVerdict(null);
     setFlashState({ kind: "idle" });
     try {
-      const r = await be.push({
+      const pushed = be.push({
         design,
-        compile,
+        compile: compile && be.compiles,
         device_name: deviceName.trim() || undefined,
         strict,
         target: chosenTarget?.name,
-      });
-      setResult(r as FleetPushResponse);
+      }, overwrite);
+      const r = await pushed as FleetPushResponse & Partial<RepoPushResponse>;
+      setResult(r);
       if (r.run_id) {
         // Fire-and-forget: SSE first, polling as a fallback. Both paths
         // respect the abort/event-source refs cleaned up on unmount.
@@ -373,6 +406,11 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
           // compatibility flow.
           const d = detail as { message?: string; warnings?: unknown[] };
           msg = `${e.status}: ${d.message ?? "strict mode refused the push"}`;
+        } else if (
+          typeof detail === "object" && detail !== null &&
+          (detail as { error?: string }).error === "file_exists"
+        ) {
+          msg = `${(detail as { message?: string }).message ?? "the file already exists"}. Tick "Replace an existing file" to commit over it.`;
         } else {
           msg = `${e.status}: ${typeof detail === "string" ? detail : e.message}`;
         }
@@ -389,7 +427,7 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
 
   return (
     <Dialog
-      title={backend === "fleet" ? "Push to fleet" : "Push to ESPHome dashboard"}
+      title={be.title}
       subtitle={be.subtitle}
       onClose={onClose}
       maxWidth="max-w-xl"
@@ -397,7 +435,7 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
         <>
           <Button onClick={onClose}>{result ? "Done" : "Cancel"}</Button>
           <Button variant="primary" disabled={!canPush} onClick={handlePush}>
-            {pushing ? "Pushing…" : compile ? "Push & compile →" : "Push →"}
+            {pushing ? "Pushing…" : compile && be.compiles ? "Push & compile →" : "Push →"}
           </Button>
         </>
       }
@@ -479,7 +517,7 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
             className="font-mono text-xs"
           />
           <p className="text-[11px] text-ink-faint">
-            Will be saved on the {backend === "fleet" ? "fleet" : "dashboard"} as <code>{deviceName.trim() || "<name>"}.yaml</code>.
+            Will be saved {backend === "repo" ? "in" : "on"} {be.place} as <code>{deviceName.trim() || "<name>"}.yaml</code>.
             Lowercase letters, digits, and hyphens only (max 64).
           </p>
         </div>
@@ -492,20 +530,37 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
           </div>
         )}
 
-        <label className="flex cursor-pointer items-start gap-2 rounded-md border border-line bg-surface-2/40 px-3 py-2">
-          <input
-            type="checkbox"
-            checked={compile}
-            onChange={(e) => setCompile(e.target.checked)}
-            className="mt-0.5 h-3.5 w-3.5"
-          />
-          <span className="text-xs">
-            <span className="text-ink">Compile after upload</span>
-            <span className="ml-2 text-ink-faint">
-              Enqueues an OTA build for this device on the fleet.
+        {be.compiles ? (
+          <label className="flex cursor-pointer items-start gap-2 rounded-md border border-line bg-surface-2/40 px-3 py-2">
+            <input
+              type="checkbox"
+              checked={compile}
+              onChange={(e) => setCompile(e.target.checked)}
+              className="mt-0.5 h-3.5 w-3.5"
+            />
+            <span className="text-xs">
+              <span className="text-ink">Compile after upload</span>
+              <span className="ml-2 text-ink-faint">
+                Enqueues an OTA build for this device on the fleet.
+              </span>
             </span>
-          </span>
-        </label>
+          </label>
+        ) : (
+          <label className="flex cursor-pointer items-start gap-2 rounded-md border border-line bg-surface-2/40 px-3 py-2">
+            <input
+              type="checkbox"
+              checked={overwrite}
+              onChange={(e) => setOverwrite(e.target.checked)}
+              className="mt-0.5 h-3.5 w-3.5"
+            />
+            <span className="text-xs">
+              <span className="text-ink">Replace an existing file</span>
+              <span className="ml-2 text-ink-faint">
+                Needed only when the file was last changed outside WireStudio.
+              </span>
+            </span>
+          </label>
+        )}
 
         {pushError && (
           <div className="rounded-md bg-rose-500/10 px-3 py-2 text-xs text-rose-200 ring-1 ring-rose-500/30">
@@ -515,11 +570,25 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
 
         {result && (
           <div className="rounded-md bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100 ring-1 ring-emerald-500/30">
-            <div>
-              {result.created ? "Created" : "Updated"}{" "}
-              <code className="rounded-md bg-emerald-500/15 px-1">{result.filename}</code> on{" "}
-              {backend === "fleet" ? "the fleet" : chosenTarget && targets.length > 1 ? chosenTarget.label : "the dashboard"}.
-            </div>
+            {backend === "repo" ? (
+              <div>
+                {result.changed === false ? "Already up to date: " : result.created ? "Committed new file " : "Committed an update to "}
+                {result.url ? (
+                  <a href={result.url} target="_blank" rel="noreferrer" className="underline">
+                    <code className="rounded-md bg-emerald-500/15 px-1">{result.filename}</code>
+                  </a>
+                ) : (
+                  <code className="rounded-md bg-emerald-500/15 px-1">{result.filename}</code>
+                )}
+                {result.commit ? ` (${result.commit.slice(0, 7)})` : ""}.
+              </div>
+            ) : (
+              <div>
+                {result.created ? "Created" : "Updated"}{" "}
+                <code className="rounded-md bg-emerald-500/15 px-1">{result.filename}</code> on{" "}
+                {chosenTarget && targets.length > 1 ? chosenTarget.label : be.place}.
+              </div>
+            )}
             {result.run_id && (
               <div className="mt-1 text-emerald-200/80">
                 Compile enqueued: <code>{result.run_id}</code>

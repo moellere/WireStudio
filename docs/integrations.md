@@ -139,6 +139,30 @@ re-push starts a fresh run. A builder behind HA ingress alone (no
 exposed port) is not reachable this way, because ingress needs an HA
 session.
 
+### A git repository of configs
+
+Where the ESPHome configs live in a GitHub repository and a sync job
+carries them to the builder (an HA add-on reading `/config/esphome`, for
+one), the studio can commit a design's YAML there instead of talking to
+the builder:
+
+```sh
+export ESPHOME_REPO=you/esphome
+export ESPHOME_REPO_TOKEN=...        # fine-grained token: Contents read/write on that repository only
+export ESPHOME_REPO_BRANCH=main      # default
+export ESPHOME_REPO_PATH=            # a subdirectory; default is the repository root
+```
+
+`POST /esphome-repo/push` (the "ESPHome repo" path in the push dialog,
+`esphome_repo_push` over MCP) commits `<device>.yaml` to the branch
+through the GitHub contents API, with a commit message starting
+`wirestudio:`. Nothing is compiled; that stays with whatever reads the
+repository. A push of unchanged YAML makes no commit. A file whose last
+commit does not start with `wirestudio:` is somebody's hand-written
+config: the push answers 409 and leaves it alone unless `overwrite` is
+set. LoRaWAN keys are never inlined on this path; the YAML keeps its
+`!secret` references, which the builder's own `secrets.yaml` resolves.
+
 The legacy Tornado dashboard (`/login`, `/edit`, `/download.bin`) was
 removed in ESPHome 2026.10 and the studio no longer speaks it; the
 legacy `/compile` route is not used either.

@@ -129,6 +129,7 @@ def register_hardware_tools(
     fleet_factory: Optional[Callable[[], Any]] = None,
     dashboard_factory: Optional[Callable[[], Any]] = None,
     dashboard_jobs: Any = None,
+    repo_factory: Optional[Callable[[], Any]] = None,
     printwarden_factory: Optional[Callable[[], Any]] = None,
 ) -> None:
     """Register the hardware tool surface on `mcp`.
@@ -189,6 +190,15 @@ def register_hardware_tools(
 
     from wirestudio.esphome_dashboard import DashboardJobs
     _register_dashboard_tools(mcp, library, _load_model, _dashboards, dashboard_jobs or DashboardJobs())
+
+    def _repo() -> Any:
+        if repo_factory is not None:
+            return repo_factory()
+        from wirestudio.esphome_repo import RepoClient
+
+        return RepoClient()
+
+    _register_repo_tools(mcp, library, _load_model, _repo)
 
 
 # ---------------------------------------------------------------------------
@@ -962,6 +972,71 @@ def _register_fleet_tools(
         except Exception as e:
             return _err(f"firmware not available for run {run_id}: {describe(e)}")
         return {"ok": True, "run_id": run_id, "factory": factory, "bytes": len(blob)}
+
+
+def _register_repo_tools(
+    mcp: MCPServer,
+    library: Library,
+    load_model: Callable[[Optional[str]], tuple[Optional[Design], Optional[dict]]],
+    repo: Callable[[], Any],
+) -> None:
+    """Commit a design's YAML to the GitHub repository of ESPHome configs."""
+
+    @mcp.tool(
+        name="esphome_repo_status",
+        description=(
+            "Is a GitHub repository of ESPHome configs configured and "
+            "writable? Check before esphome_repo_push."
+        ),
+    )
+    async def esphome_repo_status() -> dict:
+        rc = repo()
+        ok, reason = await rc.is_available()
+        return {"ok": True, "available": ok, "reason": reason, "repo": rc.repo or None,
+                "branch": rc.branch if rc.repo else None, "url": rc.url}
+
+    @mcp.tool(
+        name="esphome_repo_push",
+        description=(
+            "Render a design to ESPHome YAML and commit it to the "
+            "configured GitHub repository as <device>.yaml. Nothing is "
+            "compiled; whatever syncs that repository carries the file on. "
+            "A file whose last commit was not made by WireStudio is left "
+            "alone unless overwrite is true; ask the user before setting "
+            "it. `changed` is false when the file already held this YAML."
+        ),
+    )
+    async def esphome_repo_push(
+        design_id: Optional[str] = None,
+        device_name: Optional[str] = None,
+        overwrite: bool = False,
+    ) -> dict:
+        design, err = load_model(design_id)
+        if err:
+            return err
+        from wirestudio.esphome_repo import RepoFileExists
+        from wirestudio.targets import get_target
+
+        try:
+            yaml_text = get_target(design.target).generate(design, library).get("firmware.yaml")
+        except (FileNotFoundError, ValueError, KeyError) as e:
+            return _err(str(e))
+        if not yaml_text:
+            return _err(f"target '{design.target}' does not produce firmware.yaml")
+        name = (
+            device_name
+            or (design.fleet.device_name if design.fleet and design.fleet.device_name else None)
+            or design.id
+        )
+        rc = repo()
+        try:
+            result = await rc.push_device(name, yaml_text, overwrite=overwrite, design_id=design.id)
+        except (ValueError, RepoFileExists) as e:
+            return _err(str(e))
+        except Exception as e:
+            return _err(f"repository push failed: {describe(e)}")
+        return {"ok": True, "filename": result.filename, "created": result.created,
+                "changed": result.changed, "commit": result.commit, "url": result.url}
 
 
 def _register_dashboard_tools(

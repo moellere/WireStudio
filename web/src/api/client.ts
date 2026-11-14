@@ -59,6 +59,8 @@ import type {
   WorkbenchFlashEvent,
   WorkbenchBootResult,
   WorkbenchOutputLine,
+  RepoPushResponse,
+  RepoStatus,
 } from "../types/api";
 
 // In dev, Vite proxies /api/* to the studio API on :8765 (see vite.config.ts).
@@ -467,6 +469,10 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ id }),
     }),
+
+  esphomeRepoStatus: () => request<RepoStatus>("/esphome-repo/status"),
+  esphomeRepoPush: (body: { design: Design; device_name?: string; overwrite?: boolean; strict?: boolean }) =>
+    request<RepoPushResponse>("/esphome-repo/push", { method: "POST", body: JSON.stringify(body) }),
 
   esphomeDashboardStatus: () => request<DashboardStatus>("/esphome/status"),
   esphomeDashboardPush: (body: {

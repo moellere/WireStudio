@@ -314,6 +314,8 @@ print-warden. They are registered by default; pass `hardware=False` to
 | `esphome_dashboard_push` | yes | render + write `<device>.yaml` to the dashboard (`target` picks one, default otherwise), optionally compile → `run_id` (studio-local, lost on restart) |
 | `esphome_dashboard_job_status` | no | compile verdict for a dashboard run |
 | `esphome_dashboard_job_log` | no | incremental dashboard build log |
+| `esphome_repo_status` | no | is a GitHub repository of ESPHome configs configured and writable |
+| `esphome_repo_push` | yes | render + commit `<device>.yaml` to that repository; no compile; `overwrite` to replace a file last changed outside WireStudio |
 | `print_warden_status` | no | is print-warden configured and reachable; its printers and locations |
 | `print_enclosure` | yes | generate the enclosure shell, upload, slice and queue it on print-warden → warden `job_id`; never starts the print |
 | `print_job_status` | no | a warden job's state, log and start-policy verdict |
