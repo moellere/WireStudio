@@ -12,4 +12,4 @@ resources:
 
 images:
   - name: ghcr.io/moellere/wirestudio
-    newTag: "1.1.0-full"
+    newTag: "1.2.0-full"
