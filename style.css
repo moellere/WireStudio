@@ -391,3 +391,104 @@ a:hover { text-decoration: underline; }
 @media (max-width: 760px) {
   .branch { grid-template-columns: 1fr; }
 }
+
+/* --- 1.0: release pill, screenshots, spotlight, quickstart ------------- */
+
+.release-pill {
+  display: inline-block;
+  margin-bottom: 22px;
+  padding: 5px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg-soft);
+  color: var(--ink-soft);
+  font-size: 0.88rem;
+}
+.release-pill strong { color: var(--accent); }
+.release-pill:hover { border-color: var(--ink-soft); text-decoration: none; }
+
+.shot {
+  max-width: 940px;
+  margin: 52px auto 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 24px 50px -28px rgba(15, 19, 32, 0.45);
+}
+.shot-bar {
+  display: flex;
+  gap: 7px;
+  padding: 11px 14px;
+  background: var(--bg-soft);
+  border-bottom: 1px solid var(--line);
+}
+.shot-bar span {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #cfd4de;
+}
+.shot img { display: block; width: 100%; height: auto; }
+.shot-caption {
+  max-width: 620px;
+  margin: 16px auto 0;
+  color: var(--ink-soft);
+  font-size: 0.88rem;
+}
+
+.axis-item .label small code,
+.card p code { font-size: 0.9em; }
+
+.spotlight { padding: 80px 0; }
+.spotlight-inner {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+  align-items: center;
+}
+.spotlight-text h2 {
+  font-size: clamp(1.6rem, 3.5vw, 2.1rem);
+  letter-spacing: -0.02em;
+  font-weight: 800;
+  line-height: 1.2;
+}
+.spotlight-text p { margin-top: 16px; color: var(--ink-soft); }
+.spotlight-links { display: flex; flex-wrap: wrap; gap: 8px 22px; font-weight: 600; }
+.spotlight-art img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+}
+
+.features { background: var(--bg-soft); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+
+.quickstart { padding: 80px 0 0; }
+.quickstart h2 {
+  text-align: center;
+  font-size: clamp(1.6rem, 3.5vw, 2.1rem);
+  letter-spacing: -0.02em;
+  font-weight: 800;
+}
+.quickstart .code-card { margin-top: 30px; }
+.quick-note {
+  max-width: 620px;
+  margin: 20px auto 0;
+  text-align: center;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+}
+html { scroll-padding-top: 80px; scroll-behavior: smooth; }
+
+@media (max-width: 760px) {
+  .spotlight { padding: 56px 0; }
+  .spotlight-inner { grid-template-columns: 1fr; gap: 28px; }
+  .quickstart { padding: 56px 0 0; }
+  .site-header nav { gap: 14px; }
+  .shot { margin-top: 36px; }
+}
+@media (max-width: 420px) {
+  .site-header nav a:first-child { display: none; }
+}
