@@ -80,7 +80,8 @@ compile to its own workers.
 Detailed docs live in [`docs/`](docs/):
 
 - [Documentation index](docs/index.md) — architecture, repo layout, per-area status.
-- [Roadmap to 1.0](docs/roadmap.md) — what 1.0 promises and what has to land.
+- [1.0 release notes](docs/release-notes-1.0.md) — what 1.0 promises, upgrading, tier changes.
+- [Roadmap to 1.0](docs/roadmap.md) — the closed record of what 1.0 took and what it left out.
 - [User guide](docs/user_guide.md) — Web UI, inspector, header actions, HTTP API, examples.
 - [Deployment](docs/deployment.md) — self-host with Docker or Kubernetes.
 - [Integrations](docs/integrations.md) — agent, fleet handoff, enclosure search, KiCad.
@@ -91,7 +92,8 @@ Detailed docs live in [`docs/`](docs/):
 
 ## Status
 
-`v0.46.0` — on PyPI (`pip install wirestudio`). The studio has wide
+`v1.0.0` — on PyPI (`pip install wirestudio`). What 1.0 promises, and
+how to upgrade, is in the [release notes](docs/release-notes-1.0.md). The studio has wide
 surface area (YAML, schematic, PCB + fab outputs, enclosure,
 subcircuits with electrical rules, inventory matching, component
 authoring, agent, MCP server, two ESPHome build paths, remote
@@ -129,7 +131,7 @@ Tiers, in priority order:
 | **Verified** | Board authoring | write a board YAML in the studio or through `board_create`; the same gate as `board_check` (schema, every bus / onboard / radio pin against `gpio_capabilities`, KiCad symbol pins and footprint, enclosure geometry, ESPHome's board table, an ESPHome render with the onboard peripherals) before it lands in the user library | every bundled board passes the gate (`tests/test_board_check.py`); a user-authored board with its onboard peripherals goes through upstream `esphome config`, every PR ([gate](.github/workflows/esphome-config.yml)); the pinout is not checked against the datasheet |
 | **Verified** | ESPHome dashboard compile | push the rendered YAML to a running ESPHome Device Builder (`/esphome/push`), start a compile there, stream the log and serve the firmware, with the same job shapes as the fleet path | nightly, against a live Device Builder (ESPHome 2026.10.0) open and password-protected: push, compile over the WebSocket API, fetch the image, with the client's wire assumptions asserted ([dashboard](.github/workflows/esphome-compile.yml)); client + route tests against a fake of the same in `tests/test_esphome_dashboard.py` |
 | **Verified** | CircuitPython flashing | proxy the official release image (`/circuitpython/firmware`) for ESP32/S3/C3/C6 boards, flash via the unified dialog, serve a generated starter `code.py` (`/circuitpython/code`) | nightly, the hardware gate writes the current release image to an ESP32 dev board with a full erase and asserts the CircuitPython banner ([gate](docs/workbench.md#the-reference-deployment-two-benches)); endpoint tests with mocked upstream, every board-id mapping verified against downloads.circuitpython.org, and the generated starters parse as Python, every PR. The starter `code.py` is not run on hardware nightly |
-| **Verified** | MCP server | 53 tools over the Model Context Protocol: 31 design / library / inventory / fab, plus 22 that reach hardware — workbench flash and boot verification, LoRaWAN compile / provision / activation, fleet and dashboard push + build status, and job polling for the long ones | the `mcp` package's own client connects to the mounted server over Streamable HTTP with the bearer token, lists the tools, drives a design from `create_design` to `render` and reads a resource, every PR (`tests/test_mcp_client.py`); tool / auth / resource tests in `tests/test_mcp_*.py`; the hardware tools drive the real clients against wire-level fakes, and were exercised against a live bench, ChirpStack and fleet during bring-up |
+| **Verified** | MCP server | 62 tools over the Model Context Protocol: 37 design / library / inventory / fab, plus 25 that reach hardware — workbench flash and boot verification, LoRaWAN compile / provision / activation, fleet and dashboard push + build status, enclosure printing through print-warden, and job polling for the long ones | the `mcp` package's own client connects to the mounted server over Streamable HTTP with the bearer token, lists the tools, drives a design from `create_design` to `render` and reads a resource, every PR (`tests/test_mcp_client.py`); tool / auth / resource tests in `tests/test_mcp_*.py`; the hardware tools drive the real clients against wire-level fakes, and were exercised against a live bench, ChirpStack and fleet during bring-up |
 | **Experimental** | Thingiverse search relay | rank community models for a board | smoke-tested; depends on a third-party search API that ranks unevenly |
 | **Verified** | Agent (Claude tool-using) | natural-language design driving | scored nightly against the 28-task list in `wirestudio/agent/eval_tasks.yaml`: the design it hands back passes `esphome config`, carries the asked-for change, and the turn stayed within its tool-call budget ([gate](.github/workflows/agent-eval.yml)); every task's reference solution passes the same scorer on every PR (`tests/test_agent_eval.py`). The nightly run drives the studio through Claude Code over MCP with the `CLAUDE_CODE_OAUTH_TOKEN` secret (a subscription), so the schedule bills nothing else; the embedded agent, which calls the API on `ANTHROPIC_API_KEY`, is scored on a dispatched run with `embedded` ticked. Both gates are 25 of 28 (`gate.min_pass`, `gate.claude_code_min_pass`), one below the lower of two runs on one commit |
 | **Verified** | PCB autorouting | Freerouting roundtrip — board → Specctra DSN → routed → SES import, GND pour filled; via cost and keepout rectangles as parameters; KiCad's DRC of the routed board reported back; SSE route endpoint, `route_pcb` MCP/agent tool, web-UI Route button, `?route=true` fab exports, `-pcb` image variant | representative examples route with zero unconnected items, a filled pour and a clean routed DRC; a high via cost must remove vias and a keepout must clear the track under it ([gate](.github/workflows/pcb-route.yml)) |
@@ -157,7 +159,7 @@ built from the weekly `esphome-matrix` sweep.
 docker run --rm -p 8765:8765 \
   -e ANTHROPIC_API_KEY=sk-ant-... \
   -v wirestudio-data:/data \
-  ghcr.io/moellere/wirestudio:0.35.0
+  ghcr.io/moellere/wirestudio:1.0.0
 ```
 
 Open <http://localhost:8765>. The image bundles the FastAPI server +
@@ -203,7 +205,7 @@ The [User guide](docs/user_guide.md) walks the panes and header actions.
 ## Tests
 
 ```sh
-python -m pytest                          # ~1220 cases
+python -m pytest                          # ~2200 cases
 python -m ruff check .                    # lint
 cd web && npx vitest run                  # vitest + jsdom
 pip install 'esphome==2026.6.5'
