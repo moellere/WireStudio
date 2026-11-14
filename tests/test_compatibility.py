@@ -426,3 +426,17 @@ def test_a_third_remote_receiver_on_a_classic_esp32_warns(lib):
 def test_receivers_with_rmt_symbols_set_do_not_warn(lib):
     d = _with_receivers(_load("garage-motion"), 3, rmt_symbols=128)
     assert _by_code(check_pin_compatibility(d, lib), "rmt_memory") == []
+
+
+def test_rail_with_a_note_warns_once_when_something_is_powered_from_it(lib):
+    d = _load("garage-motion")
+    d["board"]["library_id"] = "yd-esp32-23"
+    d["connections"] = [
+        {"component_id": "a", "pin_role": "VCC", "target": {"kind": "rail", "rail": "5V"}},
+        {"component_id": "b", "pin_role": "VCC", "target": {"kind": "rail", "rail": "5V"}},
+        {"component_id": "a", "pin_role": "GND", "target": {"kind": "rail", "rail": "GND"}},
+    ]
+    [w] = _by_code(check_pin_compatibility(d, lib), "rail_note")
+    assert (w.severity, w.pin, w.component_id) == ("warn", "5V", "a")
+    assert "IN-OUT" in w.message
+    assert _by_code(check_pin_compatibility(_load("garage-motion"), lib), "rail_note") == []

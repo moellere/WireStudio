@@ -17,6 +17,9 @@ restrictions that conflict with the use:
 - `locked_pin_invalid`  -- a component's `locked_pins[role]` points at a
                             board pin whose capabilities don't satisfy the
                             library role's required kind
+- `rail_note`           -- something is powered from a rail the board file
+                            says is only live under a condition (a solder
+                            jumper, a diode)
 - `reserved_id`         -- a bus id ESPHome reserves (uart0, spi0, ...);
                             `esphome config` refuses the render
 
@@ -299,7 +302,19 @@ def check_pin_compatibility(design: dict, library: Library) -> list[Compatibilit
     # on a non-ADC pin is a mistake worth surfacing).
     out.extend(_locked_pin_warnings(components_by_id, lib_components, board))
 
-    # 8. RMT memory. A classic ESP32 has 512 RMT symbols and ESPHome gives
+    # 8. Rails that are only live under a condition the board file notes.
+    noted = {r.name: r.note for r in board.rails if r.note}
+    for conn in design.get("connections") or []:
+        target = conn.get("target") or {}
+        note = noted.pop(target.get("rail"), None) if target.get("kind") == "rail" else None
+        if note:
+            out.append(CompatibilityWarning(
+                severity="warn", code="rail_note", pin=target["rail"],
+                component_id=str(conn.get("component_id")), pin_role=str(conn.get("pin_role")),
+                message=f"{target['rail']} rail on {board.name}: {note}",
+            ))
+
+    # 9. RMT memory. A classic ESP32 has 512 RMT symbols and ESPHome gives
     # each remote_receiver 192 by default, so a third one fails at boot.
     if board.chip_variant == "esp32":
         receivers = [c for c in design.get("components") or []

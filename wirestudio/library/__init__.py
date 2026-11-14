@@ -346,6 +346,10 @@ class Rail(_Strict):
     name: str
     voltage: float
     source: Optional[str] = None
+    # A condition on the rail being live at its header pin (a solder
+    # jumper, a diode). Surfaces as a `rail_note` warning on a design that
+    # powers something from it.
+    note: Optional[str] = None
 
 
 class PcbDimensions(_Strict):
