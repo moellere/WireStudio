@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] — 2026-11-14
+
 ### Added
 
 - **`rail_note` warning.** A board rail can carry a `note` for a condition
@@ -4028,7 +4030,8 @@ ConnectionForm, EnclosureDialog, Inspector, CapabilityPickerDialog,
 PinoutView, PushToFleetDialog, SchematicDialog. ruff + tsc + vite
 build clean across the whole arc.
 
-[Unreleased]: https://github.com/moellere/wirestudio/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/moellere/wirestudio/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/moellere/wirestudio/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/moellere/wirestudio/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/moellere/wirestudio/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/moellere/wirestudio/compare/v0.48.1...v1.0.0
