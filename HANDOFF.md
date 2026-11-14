@@ -94,47 +94,44 @@ can promote shared ones into the bundled library.
   bump (the catalogue refuses a bundled id). Each promotion is the user's
   call. None has happened yet; the catalogue's library is empty.
 
-## Road to 1.0
+## 1.0
 
-`docs/roadmap.md` has the plan; its "Sequencing" list is done except the
-flash stage's evidence. Sections 1, 3, 5, 6 and 8 are complete, section 4
-closed its last issues (#344, #345, #346) on 2026-10-24, and the open issues
-are #357 (built; close at 1.0), #312 (only the ATOM U left) and #219 (not a
-blocker). What remains, in order:
+Released 2026-11-14 (the `[1.0.0]` CHANGELOG section is
+`docs/release-notes-1.0.md`). `docs/roadmap.md` is closed: every
+section done, every README status row *Verified* or *Experimental*.
+What it took, briefly: the schema cut (0.43.0), the agent eval and MCP
+conformance gates, the community catalogue, the design system (0.47.0),
+the workbench layout (0.48.0), the flash bench's first green week
+(2026-10-28 to 11-03; its one red night, 10-27, was a functional
+one-off sharing the nightly build's device name, fixed in #433), the
+promote pass (#438), the upgrade test against 0.48.1 (76 designs,
+both layouts, no render differences), and enclosures built around the
+design's panel parts, fitted on a printed wall panel (#441 to #445).
 
-1. **The flash stage's first green week on covbench.** Done: one red
-   night (2026-10-27, an ESPHome cache crash caused by a functional
-   one-off sharing the nightly build's device name, fixed in #433), then
-   green every night from 2026-10-28; the first full week ended 11-03.
-2. **The promote/demote pass** (roadmap sections 2 and 7). Done
-   2026-11-08: Remote workbench, Meshtastic, MicroPython and CircuitPython
-   are *Verified*, each citing the flash bench through `docs/workbench.md`
-   ("The reference deployment: two benches"). The nightly proves flash
-   and boot; Meshtastic's config push, the `code.py` starters and the
-   `main.py` push are verified against fakes every PR, and each row says
-   so. The four tier cells in `docs/release-notes-1.0.md` are filled; the
-   upgrade result there is the release PR's.
-3. **Both eval gates are set** (done 2026-10-24; reshaped by #437 on
-   11-01). The nightly scores Claude Code over MCP on the subscription;
-   the embedded agent is scored on a dispatched run with `embedded`
-   ticked. Both gates are 25 of 28.
-4. **Adopt the design system** (roadmap section 9). Done 2026-10-25 and
-   shipped in 0.47.0: #417 shared components, #418 tokens-generated theme
-   and the `ink-faint` fix, #419 the `ui-themes` gate, and the artifact
-   (https://claude.ai/artifact/757SNFzUieMBwgzSLb2p24) re-synced from
-   code at version 11 with `editing: "code"`. A re-sync is a Vite lib
-   build (iife, react and react-dom as globals, `react/jsx-runtime`
-   shimmed over `React.createElement`) of an entry re-exporting `ui.tsx`,
-   `Status.tsx` and `SolveResultBanner.tsx`, with the Tailwind output's
-   `var(--color-X)` mapped to `var(--X)`.
-5. **The 1.0 release PR**, with the user's OK: the notes' text opens the
-   `[1.0.0]` section of CHANGELOG with the `[Unreleased]` entries beneath
-   it, `wirestudio/__init__.py` moves, and the `upgrade` workflow's result
-   against 0.46.0 (or whatever is newest on PyPI) goes in the notes. The
-   roadmap's "Written against 0.39.0" header and its section 2 table get
-   their final wording in the same PR.
-6. Not required for 1.0: workbench phase 4, the JLCPCB order, the printed
-   enclosure.
+## After 1.0
+
+Not required for 1.0, in rough order:
+
+1. **Phase 4 into the nightly roster** (moellere/argocd, master):
+   - AUTO-1 `functional: true` (passed on hardware 2026-10-31 after an
+     antenna swap).
+   - AUTO-2 `flash: [lorawan, meshtastic]`, once its antenna is sorted:
+     the Covington gateway (US915 sub-band 2, correct) heard almost
+     nothing from it. The covbench CronJob also needs the gate run as
+     `args` (keeps the image entrypoint), `PLATFORMIO_CORE_DIR` and
+     `WIRESTUDIO_FW_CACHE` under `/tmp`, and the `CHIRPSTACK_*` env the
+     Wyola CronJob has (`docs/workbench.md`).
+   - Then the MQTT check and the SDR TX capture.
+2. **#219**: `esptool flash-id` on the four boards it names; none is on
+   a bench.
+3. The JLCPCB order. The enclosure was printed and fitted before the
+   release (the `wall-panel` example, #441 to #445); a photo of the
+   assembled panel for the docs is still wanted, and the build needs a
+   5 V rail shared between its parts, which could be a library floor
+   part.
+4. Library: add `WAVESHARE_RES_3_5` to `ili9xxx`'s model enum and
+   default `invert_colors` (ESPHome now requires it); a user design for
+   the Waveshare 3.5" RPi LCD (A) uses both.
 
 ## Open threads
 
