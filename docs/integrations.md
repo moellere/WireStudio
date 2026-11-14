@@ -108,6 +108,28 @@ ghcr.io/esphome/esphome dashboard /config`) wants the same pair in
 `ESPHOME_DASHBOARD_USERNAME` / `_PASSWORD`. The URL is the builder's
 own, with no path: the studio connects to `/ws` under it.
 
+More than one builder can be configured. `ESPHOME_DASHBOARDS` names
+them, comma-separated, and the first is the default; each name reads
+its own `ESPHOME_DASHBOARD_<NAME>_URL`, `_USERNAME`, `_PASSWORD` and
+`_LABEL` (the name shown in the push dialog). With the list set, the
+unprefixed `ESPHOME_DASHBOARD_URL` is not a push target; the hardware
+gate and the workbench image builder still read it.
+
+```sh
+export ESPHOME_DASHBOARDS=ha,cluster
+export ESPHOME_DASHBOARD_HA_URL=http://homeassistant.local:6052
+export ESPHOME_DASHBOARD_HA_LABEL="Home Assistant"
+export ESPHOME_DASHBOARD_HA_USERNAME=... ESPHOME_DASHBOARD_HA_PASSWORD=...
+export ESPHOME_DASHBOARD_CLUSTER_URL=http://device-builder:6052
+```
+
+`GET /esphome/status` lists them under `targets`, `POST /esphome/push`
+takes a `target` name, and the push dialog shows a picker. A compile's
+image is fetched from the builder that ran it. Once a compile passes,
+the dialog can flash that image to a board on local USB (a full erase,
+then the merged image at 0x0), so a build on a builder with no route to
+the device still ends up on it.
+
 `GET /esphome/status` probes `devices/list`; `POST /esphome/push` returns
 a studio-local `run_id` that `GET /esphome/jobs/{run_id}`,
 `.../log`, `.../log/stream` (SSE) and `.../firmware` poll -- the same

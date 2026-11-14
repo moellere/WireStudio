@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Several ESPHome dashboards as push targets.** `ESPHOME_DASHBOARDS`
+  names them (first is the default) and each reads its own
+  `ESPHOME_DASHBOARD_<NAME>_URL`, `_USERNAME`, `_PASSWORD` and `_LABEL`.
+  `GET /esphome/status` and `esphome_dashboard_status` list them under
+  `targets`; `POST /esphome/push` and `esphome_dashboard_push` take a
+  `target`; the push dialog shows a picker when there is more than one.
+  A compile's image is fetched from the dashboard that built it. Without
+  `ESPHOME_DASHBOARDS`, `ESPHOME_DASHBOARD_URL` stays the single target.
+- **Flash a compiled image from the push dialog.** After a compile
+  passes, on fleet-for-esphome or a dashboard, "Flash over USB" fetches
+  the merged image and writes it over WebSerial (full erase, image at
+  0x0), for a builder that cannot reach the device over the network.
+
 ### Fixed
 
 - **`ili9xxx` always emits `invert_colors`, and knows the Waveshare

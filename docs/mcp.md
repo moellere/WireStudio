@@ -310,8 +310,8 @@ print-warden. They are registered by default; pass `hardware=False` to
 | `fleet_job_status` | no | compile verdict for a run |
 | `fleet_job_log` | no | incremental build log |
 | `fleet_firmware_info` | no | artifact size + availability (never the bytes) |
-| `esphome_dashboard_status` | no | is a standalone ESPHome dashboard configured and reachable |
-| `esphome_dashboard_push` | yes | render + write `<device>.yaml` to the dashboard, optionally compile → `run_id` (studio-local, lost on restart) |
+| `esphome_dashboard_status` | no | is an ESPHome dashboard configured and reachable; `targets` lists every configured one |
+| `esphome_dashboard_push` | yes | render + write `<device>.yaml` to the dashboard (`target` picks one, default otherwise), optionally compile → `run_id` (studio-local, lost on restart) |
 | `esphome_dashboard_job_status` | no | compile verdict for a dashboard run |
 | `esphome_dashboard_job_log` | no | incremental dashboard build log |
 | `print_warden_status` | no | is print-warden configured and reachable; its printers and locations |
