@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.0.0] — 2026-11-10
+## [1.0.0] — 2026-11-14
 
 These notes cover what changes for someone upgrading from 0.48.1 and
 what each part of the studio now promises. Coming from an earlier
@@ -94,8 +94,21 @@ Every row is now *Verified* or *Experimental*; the *Works* tiers are gone.
 | MicroPython flashing + main.py | Works | Works | Verified | a nightly full-erase flash of an ESP32 dev board and its REPL banner; `main.py` parse and the raw-REPL push against a fake board every PR |
 
 Every other row keeps its tier. ESPHome output validates on releases
-2026.3 through 2026.10: all 75 bundled examples pass `esphome config` on
-each (`docs/esphome-support.md`, swept 2026-11-10); the pin is 2026.6.5.
+2026.3 through 2026.10: the 75 examples bundled at the sweep pass
+`esphome config` on each (`docs/esphome-support.md`, swept 2026-11-10);
+the pin is 2026.6.5, and the `wall-panel` example added since passes on
+it.
+
+The Parametric enclosure row stays *Verified* and covers more. The
+shell is now built around the design's parts as well as its board: a
+component or module with an `enclosure:` block hangs under the lid on
+posts, with its display window, knob hole, sensor hole or tact-switch
+keys cut through, or stands in the base beside the board. A design's
+optional `enclosure` block turns the board face down, so its headers
+take jumpers from the front, and adds keyhole slots for a wall. A design
+with neither gets the same `.scad` as 0.48.1. The `wall-panel` example
+was printed in PETG and fitted to its board and parts before the
+release.
 
 ### Coming from an earlier release
 

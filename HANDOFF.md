@@ -96,7 +96,7 @@ can promote shared ones into the bundled library.
 
 ## 1.0
 
-Released 2026-11-10 (the `[1.0.0]` CHANGELOG section is
+Released 2026-11-14 (the `[1.0.0]` CHANGELOG section is
 `docs/release-notes-1.0.md`). `docs/roadmap.md` is closed: every
 section done, every README status row *Verified* or *Experimental*.
 What it took, briefly: the schema cut (0.43.0), the agent eval and MCP
@@ -104,8 +104,9 @@ conformance gates, the community catalogue, the design system (0.47.0),
 the workbench layout (0.48.0), the flash bench's first green week
 (2026-10-28 to 11-03; its one red night, 10-27, was a functional
 one-off sharing the nightly build's device name, fixed in #433), the
-promote pass (#438), and the upgrade test against 0.48.1 (76 designs,
-both layouts, no render differences).
+promote pass (#438), the upgrade test against 0.48.1 (76 designs,
+both layouts, no render differences), and enclosures built around the
+design's panel parts, fitted on a printed wall panel (#441 to #445).
 
 ## After 1.0
 
@@ -123,7 +124,11 @@ Not required for 1.0, in rough order:
    - Then the MQTT check and the SDR TX capture.
 2. **#219**: `esptool flash-id` on the four boards it names; none is on
    a bench.
-3. The JLCPCB order and the printed enclosure.
+3. The JLCPCB order. The enclosure was printed and fitted before the
+   release (the `wall-panel` example, #441 to #445); a photo of the
+   assembled panel for the docs is still wanted, and the build needs a
+   5 V rail shared between its parts, which could be a library floor
+   part.
 4. Library: add `WAVESHARE_RES_3_5` to `ili9xxx`'s model enum and
    default `invert_colors` (ESPHome now requires it); a user design for
    the Waveshare 3.5" RPi LCD (A) uses both.
