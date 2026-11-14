@@ -2,7 +2,8 @@
 
 [← docs index](index.md)
 
-Every board and component currently shipped. For which entries are
+Every board, component and module currently shipped: 27 boards, 102
+components, 5 modules. For which entries are
 exercised by a bundled example, see
 [library-coverage.md](library-coverage.md).
 
@@ -31,14 +32,15 @@ does not list, and `board_check` checks every revision's pins.
 - `ttgo-lora32-v1` — LilyGO TTGO LoRa32 V1 (ESP32 + onboard SX1276 + onboard SSD1306)
 - `ttgo-lora32-v2` — TTGO LoRa32 V2.1 (T3 v1.6.1; ESP32 + SX1276 + SSD1306, own PlatformIO key)
 - `ttgo-t-beam` — LilyGO TTGO T-Beam v1.x (ESP32 + onboard SX1276 + NEO-6M GPS + AXP192 PMIC + 18650)
-- `heltec-wifi-lora32-v2` — Heltec WiFi LoRa 32 V2 (ESP32 + SX1276 + onboard SSD1306; LoRaWAN hardware-validated)
-- `heltec-wifi-lora32-v3` — Heltec WiFi LoRa 32 V3 (ESP32-S3 + SX1262 + onboard SSD1306; LoRaWAN hardware-validated)
+- `heltec-wifi-lora32-v2` — Heltec WiFi LoRa 32 V2 (ESP32 + SX1276 + onboard SSD1306; LoRaWAN join verified on hardware)
+- `heltec-wifi-lora32-v3` — Heltec WiFi LoRa 32 V3 (ESP32-S3 + SX1262 + onboard SSD1306; LoRaWAN join verified on hardware)
 - `heltec-wifi-lora32-v4` — Heltec WiFi LoRa 32 V4 (ESP32-S3R2 + SX1262 + GC1109/KCT8103L PA to 28dBm + onboard SSD1315)
 - `esp32-c3-devkitm-1` — ESP32-C3-DevKitM-1 (single-core RISC-V, USB-Serial-JTAG, onboard WS2812)
 - `esp32-c3-supermini` — ESP32-C3 SuperMini (tiny C3 breakout, onboard status LED)
 - `esp32-c6-supermini` — ESP32-C6 SuperMini (WiFi 6 / Zigbee-capable C6, onboard WS2812)
 - `esp32-s3-devkitc-1` — ESP32-S3-DevKitC-1 (dual-core Xtensa, native USB, onboard WS2812)
 - `esp32-s3-supermini` — ESP32-S3 SuperMini (compact S3 breakout, onboard WS2812)
+- `yd-esp32-23` — YD-ESP32-23 (VCC-GND YD-ESP32-S3 N16R8; S3 dev board with 16MB flash and 8MB PSRAM)
 - `seeed-xiao-esp32c3` — Seeed Studio XIAO ESP32C3 (thumbnail-size C3 with Grove ecosystem)
 - `esp32cam-ai-thinker` — AI-Thinker ESP32-CAM (ESP32-WROVER-B + OV2640 + microSD)
 - `esp32-wrover-cam` — ESP32-WROVER-CAM (Freenove-style, OV2640 with the WROVER pinout)
@@ -79,6 +81,15 @@ _Environmental sensors:_
 - `grove-aht20` — Seeed Grove AHT20 temp + humidity (I2C; plug-in Grove module)
 - `ds18b20` — Dallas DS18B20 1-Wire temperature sensor (single-pin bus + 4.7kΩ pull-up)
 - `bh1750` — BH1750FVI ambient light sensor in lux (I2C; GY-30 / GY-302 modules)
+- `bme680` — Bosch BME680 temperature/humidity/pressure/gas sensor (I2C)
+- `sht4x` — Sensirion SHT4x temperature + humidity (I2C)
+- `veml7700` — Vishay VEML7700 ambient light sensor in lux (I2C)
+
+_Air quality:_
+- `scd4x` — Sensirion SCD4x true-CO2 sensor (photoacoustic NDIR, I2C)
+- `mhz19` — Winsen MH-Z19 NDIR CO2 sensor (UART)
+- `sgp4x` — Sensirion SGP40 / SGP41 VOC / NOx index sensor (I2C)
+- `pmsx003` — Plantower PMS5003 / PMS7003 particulate matter sensor (UART)
 
 _Specialty sensors:_
 - `max31855` — Maxim K-type thermocouple amplifier (SPI; -270..+1372°C)
@@ -92,11 +103,14 @@ _Presence / distance:_
 - `hc-sr501` — PIR motion sensor (used as a generic PIR)
 - `rcwl-0516` — microwave doppler motion sensor (low-power PIR alternative)
 - `ld2420` — Hi-Link LD2420 24GHz mmWave presence sensor (UART)
+- `ld2410` — Hi-Link LD2410 24GHz mmWave presence sensor (UART)
 - `vl53l0x` — STMicro VL53L0X laser time-of-flight distance (I2C; indoor up to ~1.2m)
 
 _RFID / radios:_
 - `rc522` — MFRC522 RFID reader (SPI, singleton)
 - `rdm6300` — RDM6300 125kHz EM4100 RFID reader (UART, singleton)
+- `pn532` — NXP PN532 NFC / RFID reader (13.56MHz, I2C)
+- `wiegand` — Wiegand keypad / card reader interface (D0/D1)
 - `sx127x` — Semtech SX1276/SX1278 LoRa radio (SPI, singleton)
 - `cc1101` — TI CC1101 sub-GHz transceiver (SPI, singleton)
 - `rf_bridge` — Sonoff RF Bridge 433MHz EFM8 module (UART, singleton)
@@ -108,6 +122,7 @@ _Displays:_
 - `lcd_pcf8574` — HD44780 16x2 / 20x4 LCD via PCF8574 I2C backpack
 - `tm1638` — TM1638 8-digit 7-segment + 8 LEDs + 8 buttons combo
 - `max7219` — MAX7219 7-segment / 8x8 LED matrix driver (SPI)
+- `tm1637` — TM1637 4-digit 7-segment display module
 
 _Touch / input:_
 - `xpt2046` — XPT2046 resistive touchscreen controller (SPI)
@@ -118,6 +133,8 @@ _IO expanders + ADC hubs:_
 - `mcp23017` — 16-bit I2C GPIO expander (Microchip)
 - `mcp23s17` — 16-bit SPI GPIO expander (Microchip); same pins and `mcp23xxx:` discriminator as the MCP23017, hardware address 0-7 on one CS
 - `pcf8574` — NXP PCF8574 / PCF8575 8-/16-bit I2C GPIO expander (cheap, weak open-drain)
+- `sn74hc595` — TI SN74HC595 8-bit shift register (output expander, daisy-chainable)
+- `pca9685` — NXP PCA9685 16-channel 12-bit PWM driver (I2C)
 - `ads1115` — TI 4-channel 16-bit ADC (I2C) hub; rescues ESP32 designs from the ADC2/WiFi conflict
 - `ads1115_channel` — one logical reading on an ADS1115 hub (multiplexer + gain + update_interval per channel)
 - `mcp3008` — Microchip 8-channel 10-bit ADC (SPI) hub; VREF pin sets full scale
@@ -133,6 +150,7 @@ _Generic IO:_
 _Actuators / power:_
 - `uln2003` — ULN2003 stepper driver for the 28BYJ-48 geared stepper
 - `pwm_fan` — 12V 4-wire PWM fan with tachometer feedback
+- `servo` — hobby servo (SG90 / MG90S class, 50Hz PWM)
 - `hbridge` — two-input H-bridge DC motor driver (DRV8833 / TB6612 / L298N / relay pair); bare outputs, interlocked switches, or an hbridge fan
 - `hbridge_mosfet` — the same interface as a discrete IRF4905 / IRFZ44N bridge; its `subcircuit` expands into 15 parts in the schematic, PCB and BOM
 - `usb_c_power_in` — USB-C receptacle feeding the 5 V rail, with the two 5.1k CC pull-downs a C-to-C source needs and a bulk cap; power only, no ESPHome config (`r_cc` / `c_bulk` set the values)
@@ -157,12 +175,17 @@ _Light / audio / camera:_
 - `i2s_microphone` — I2S / PDM microphone (SPM1423 on the M5Stack Atom Echo / AtomU, or a standard I2S mic)
 - `rtttl` — piezo buzzer + RTTTL melody player (PWM output)
 - `remote_transmitter` — IR transmitter / blaster on a single GPIO (the onboard IR LED on the M5Stack Atom family)
+- `remote_receiver` — IR demodulator, or a 433 MHz OOK data line, on a single GPIO
 - `esp32_camera` — ESP32 OV2640 / OV7670 / OV5640 camera
 
 _Power metering:_
 - `cse7766` — Chipsea AC voltage / current / power / energy over UART 4800 8E1 (Athom v2/c3 + Sonoff plugs)
 - `hlw8012` — HLW8012 / BL0937 / CSE7759 AC power meter via 3-pin pulse interface (older Athom v1 + Sonoff POW R1)
 - `bl0906` — Belling 6-channel AC energy meter over UART 19200 (Athom EM6 / whole-home sub-metering)
+- `pzemac` — Peacefair PZEM-004T v3 AC energy monitor (Modbus RTU over UART)
+- `ct_clamp` — current transformer clamp (SCT-013 class, analog)
+- `ina219` — TI INA219 high-side DC current / power monitor (I2C)
+- `battery_adc` — onboard battery sense divider (the boards that route VBAT to an ADC pin)
 - `modbus` + `sdm_meter` — Modbus RTU bus (RS485 via MAX485 transceiver) + Eastron SDM120/220/230/630 single/three-phase DIN-rail meter
 
 _Vendor bridges:_
@@ -185,6 +208,21 @@ mix of expander inputs and outputs.
 The library spans the device classes used across the
 [`moellere/esphome`](https://github.com/moellere/esphome) device
 configurations and keeps growing as new device configs land.
+
+## Modules
+
+`wirestudio/library/modules/`
+
+A module is a named group of components with its wiring already drawn:
+adding one to a design places every member and its connections in one
+step. `inventory_set` takes a module's `library_id` the same way it
+takes a component's.
+
+- `env-display` — BME280 and a 128×64 OLED sharing one I2C bus
+- `fan-controller` — panel potentiometer setting a 4-wire PWM fan, tachometer reported back
+- `motion-light` — HC-SR501 PIR paired with an addressable status LED
+- `oled-knob-13` — 1.3-inch SH1106 OLED, EC11 rotary encoder and two push buttons on one board
+- `relay-4ch` — four independently switched relay / MOSFET outputs
 
 ## Promoting a community entry
 

@@ -94,7 +94,7 @@
   LoRa32 / T-Beam, Heltec WiFi LoRa 32 V2 / V3 / V4):
   - **Flash LoRaWAN firmware** (radio icon, advanced mode) builds the
     standalone RadioLib + LoRaWAN_ESP32 path and flashes over WebSerial
-    with runtime serial provisioning. Hardware-validated.
+    with runtime serial provisioning. The join is verified on hardware.
   - **Provision LoRaWAN device** (key icon) drives the
     `lorawan-for-esphome` external-component path: detect the chip's
     eFuse MAC, mint keys against ChirpStack, push to fleet with the
@@ -111,6 +111,18 @@ search, see [Integrations](integrations.md).
 Run the dev server (see [the README quickstart](../README.md#quickstart)),
 open <http://localhost:5173>. The same UI is served at `/` from the
 production Docker image.
+
+The window has three columns. The left sidebar switches between
+**Open** (the **Examples**, **Gallery** and **Saved** lists, each with a
+filter box) and **Library** (components, boards and modules). The centre
+shows the open design as **Wiring**, **ASCII**, **YAML** or **JSON**,
+with the **Problems** panel beneath it collecting compatibility
+findings, warnings and solver results; a problem names the component or
+pin it is about. The inspector is on the right.
+
+With nothing open the centre shows **Start a design**: open an example,
+start from a board, or connect a device over USB and let the studio
+identify it.
 
 Inspector surfaces:
 
@@ -317,6 +329,7 @@ it without a proxy. Browse the auto-generated OpenAPI docs at
 | [`temp-turns-on-fan.json`](../wirestudio/examples/temp-turns-on-fan.json) | WeMos D1 Mini | Intent-to-device: a multi-channel sensor's temperature channel drives a switch |
 | [`usbc-led-strip.json`](../wirestudio/examples/usbc-led-strip.json) | ESP32-DevKitC-V4 | WS2812B strip fed from its own USB-C receptacle with CC pull-downs, out on a JST-XH plug |
 | [`vent-damper.json`](../wirestudio/examples/vent-damper.json) | ESP32-C3 SuperMini | DRV8833-class H-bridge on a damper gearmotor, exposed as a reversible fan |
+| [`wall-panel.json`](../wirestudio/examples/wall-panel.json) | YD-ESP32-23 | Wall-mounted room panel: PIR, DHT22, and the OLED + encoder module; the enclosure is built around the parts, with keyhole slots for two screws |
 | [`wled-sensor-strip.json`](../wirestudio/examples/wled-sensor-strip.json) | ESP32-DevKitC-V4 | WS2812 strip, button, BME280 and DS18B20; on WLED the sensors are usermods |
 | [`xiao-grove-climate.json`](../wirestudio/examples/xiao-grove-climate.json) | Seeed XIAO ESP32C3 | Grove AHT20 on the Grove I2C connector |
 

@@ -14,23 +14,26 @@ and design constraints.
 with pre-flight, and — from 0.26.0 — the whole LoRaWAN bring-up
 (flash → register in ChirpStack → push keys over the slot's serial
 prompt → verify the join) against a bench slot, with no human at the
-bench. 0.27.0 put the same reach behind MCP tools. Later phases
-(continuous serial relay, scheduled flashing, a live-device CI gate)
-are still scoping; the phase table below marks which is which.
+bench. 0.27.0 put the same reach behind MCP tools. The nightly
+hardware gate (phase 3) has run since 2026-10-28: it flashes ESPHome,
+CircuitPython, MicroPython and Meshtastic to dedicated boards and
+asserts each boot marker. The phase list below marks what has shipped
+and what is still open.
 
 ## Why
 
 The studio verifies artifacts against upstream tools (`esphome config`,
-KiCad netlists, OpenSCAD renders, firmware compiles), but nothing today
-verifies them against silicon:
+KiCad netlists, OpenSCAD renders, firmware compiles). Before the
+workbench nothing verified them against silicon:
 
-- Flashing is WebSerial-only — Chrome/Edge, local USB, human present.
+- Flashing was WebSerial-only — Chrome/Edge, local USB, human present.
   When the boards live at a different site from the developer, that is
   not an inconvenience but a hard stop: there is no path to the silicon
   at all.
-- The Meshtastic and CircuitPython tiers ship with "no live-flash gate";
-  a release can pass every CI check and still fail at boot on hardware.
-- LoRaWAN join verification on the external-component path is a manual,
+- The Meshtastic and CircuitPython rows shipped with "no live-flash
+  gate"; a release could pass every CI check and still fail at boot on
+  hardware.
+- LoRaWAN join verification on the external-component path was a manual,
   one-time claim rather than a repeatable gate — and it can only be made
   where a gateway is in range, which is wherever the bench is, not
   wherever the developer is.
@@ -124,7 +127,7 @@ ones but none blocks the others' value.
    The flashing half writes each framework listed for a dedicated
    board with a full erase and asserts its boot marker. Its first green
    week (2026-10-28 to 11-03) moved the remote workbench, Meshtastic,
-   CircuitPython and MicroPython rows from *Works* to *Verified*. It runs only on devices whose roster entry
+   CircuitPython and MicroPython rows from *Experimental* to *Verified*. It runs only on devices whose roster entry
    lists `flash:`; see [The gate](#the-gate).
 4. **Functional loop + RF truth.** AP provision + MQTT/API entity
    assertions for generated ESPHome devices; SDR TX power check for

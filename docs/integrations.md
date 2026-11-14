@@ -156,7 +156,10 @@ with a nub under its tip, so nothing extra is printed or assembled. A
 `mount: base` part (the DHT module) stands on the floor beside the board
 at its port end; `vent: true` slots the walls next to it. The cavity is
 as tall as the tallest base stack plus whatever hangs from the lid over
-it, each counted with its connectors as wired.
+it, each counted with its connectors as wired: a part's `connectors`
+list gives each header strip that hangs below it (position, footprint
+and depth with its Dupont housing), so only those strips, not the whole
+part, are stacked against what lies under them.
 
 The design's optional `enclosure` block sets two things.
 `board_orientation: face_down` turns the board over onto the floor inside
@@ -352,7 +355,7 @@ it's not half-shipped). The network server is ChirpStack v4 over gRPC;
 TTN / other servers aren't wired yet. The external-component path is
 hardware-join-verified pending a live test against a real gateway.
 
-## Firmware proxies (Tasmota / Meshtastic / CircuitPython)
+## Firmware proxies (Tasmota / Meshtastic / CircuitPython / MicroPython)
 
 The unified flash dialog's non-ESPHome frameworks need no configuration
 — the server proxies the official upstream release images so the
@@ -366,10 +369,29 @@ browser can flash them over WebSerial without CORS trouble:
   release image from downloads.circuitpython.org for ESP32/S3/C3/C6
   boards; `GET /circuitpython/code?board=` serves a generated starter
   `code.py`.
+- **MicroPython** — `GET /micropython/firmware?board=` streams the
+  newest stable micropython.org image for the board's chip (a generic
+  port image; MicroPython addresses pins by GPIO number);
+  `POST /micropython/code` generates `main.py` from the design and
+  `GET /micropython/code?board=` serves a board starter.
 
 Each has a `/firmware/status` endpoint reporting upstream reachability
 (and, for CircuitPython, which boards fall back to a pin-compatible
 generic image); the UI gates its flash buttons on it.
+
+## WLED
+
+`Design.target: "wled"` emits WLED's `cfg.json` from the design
+(`POST /wled/cfg`): LED outputs, buttons, the IR receiver, the relay and
+the bus pins. A stock WLED release image reads it at boot, so a design
+with no sensors needs no build. Sensors are WLED usermods, which have to
+be compiled in: `POST /wled/compile` builds the pinned release with a
+generated `platformio_override.ini` and streams the log, and
+`GET /wled/firmware/{job_id}` returns the image.
+`GET /wled/compile/status` reports whether the build tools (PlatformIO,
+git, node) are present; they are in the `-full` image. A design without
+usermods is refused by the compile route, because the release image is
+already its firmware.
 
 ## MCP server
 

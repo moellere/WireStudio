@@ -7,7 +7,8 @@ under upstream ESPHome.
 ## Documentation
 
 - [User guide](user_guide.md) — the Web UI, inspector, header actions,
-  the CLI, the HTTP API, and the bundled examples.
+  the HTTP API, and the bundled examples. The CLI is in the
+  [README](../README.md#quickstart).
 - [Deployment](deployment.md) — self-host with Docker or Kubernetes.
 - [Integrations](integrations.md) — the agent, fleet handoff, enclosure
   search, and KiCad export, plus the env vars that gate each.
@@ -28,6 +29,13 @@ under upstream ESPHome.
   held to, and why.
 - [design.json reference](design-schema.md) — every field of the
   document, generated from the schema.
+- [Hardware integration spec](integration_spec.md) — what a board or
+  component file carries, how each block is used, and what an entry is
+  checked against.
+- [Intent-to-device](intent-to-device.md) — the `automations` block:
+  triggers, actions, transforms, and how they lower to ESPHome.
+- [1.0 release notes](release-notes-1.0.md) — what 1.0 promises and
+  what changes for an upgrade.
 
 ## Architecture
 
@@ -39,7 +47,7 @@ under upstream ESPHome.
   ├─ wirestudio.library       loads boards/ + components/ YAML (bundled + user dir);
   │                           component check gate, per-block electrical rules
   ├─ wirestudio.generate      design + library → ESPHome YAML + ASCII
-  ├─ wirestudio.targets       generation targets: esphome (wraps generate) + lorawan + tasmota
+  ├─ wirestudio.targets       generation targets: esphome (wraps generate), lorawan, tasmota, wled
   ├─ wirestudio.csp           pin solver + port-compatibility checker
   ├─ wirestudio.recommend     deterministic capability ranking
   ├─ wirestudio.seed          board onboard-peripheral auto-placement
@@ -83,7 +91,7 @@ tests/                   pytest + golden artifacts; vitest tests under web/src
 deploy/                  k8s.yaml, docker-compose.yml, nginx.conf for self-hosting
 Dockerfile               multi-stage build for the published GHCR image
 .github/workflows/       GHA workflow that publishes ghcr.io/.../wirestudio
-scripts/                 dev helpers (currently: examples → `esphome config` gate)
+scripts/                 CI gates (examples, ERC, PCB, enclosures, coverage) and firmware build helpers
 docs/                    this documentation
 CHANGELOG.md             per-release feature deltas
 START.md                 how to resume work, and where things are
@@ -156,8 +164,9 @@ generator + Thingiverse search relay shipped. The
 renders every enclosure-capable board's `.scad` through real OpenSCAD
 and fails the PR unless it produces a non-empty, manifold solid. The
 generator drives [YAPP_Box](https://github.com/mrWheel/YAPP_Box)
-(pinned, inlined): base and lid, ridge, snap joins. Next: more boards'
-`enclosure:` metadata; a fit test printed through print-warden.
+(pinned, inlined): base and lid, ridge, snap joins. The `wall-panel` example was printed in PETG through
+print-warden and fitted to its board and parts (2026-11-12 to 11-13).
+Next: more boards' `enclosure:` metadata.
 
 **Priority 4 — PCB layout.** *Verified (routed).* Shipped in three
 steps: the footprint-coverage gate (every component + board names a
@@ -240,7 +249,7 @@ board's library metadata (Vext power-up, LED blink, I2C scan, pin
 listing) with save-to-CIRCUITPY and download buttons post-flash.
 
 **CircuitPython codegen.** *Verified* (generated `code.py` parses; not run on hardware nightly). Full code.py generation from the
-design — the LoRaWAN-fragment pattern applied to Python. 36 library
+design — the LoRaWAN-fragment pattern applied to Python. 89 library
 components carry a `circuitpython:` block (explicit imports, Adafruit
 bundle deps, Jinja2 setup/loop fragments); the generator resolves
 buses to busio objects, renders each component's wiring, lists the
@@ -295,9 +304,8 @@ needs them), because MicroPython addresses pins by GPIO number and
 nothing depends on a board-specific build; the site publishes no index,
 so the version is read off the board's download page. `main.py` is
 generated from the design over the `machine` API from per-component
-`micropython:` fragments (sixteen components so far: GPIO in/out, PIR
-and radar, ADC, PWM servo and fan, DHT, DS18B20, NeoPixel, HC-SR04,
-rotary encoder, SSD1306, BME280); buses are `SoftI2C` / `SoftSPI` so the
+`micropython:` fragments (89 components carry one, from GPIO in/out,
+ADC and PWM through DHT, DS18B20, NeoPixel, SSD1306 and BME280); buses are `SoftI2C` / `SoftSPI` so the
 same file runs on ESP32 and ESP8266. Drivers outside the firmware are
 `mip` specs listed at the top of the file. The flash dialog pushes the
 file through the raw REPL over the port the flash session hands back,
@@ -316,9 +324,10 @@ equivalently exposed — `/mcp` authenticates with `WIRESTUDIO_MCP_TOKEN`
 while the REST endpoints authenticate with nothing, so publishing those
 instead meant publishing unauthenticated flashing and provisioning.
 
-Seventeen tools now cover the rest of the path: `workbench_status` /
-`workbench_slots` / `workbench_flash`, the `lorawan_*` compile,
-provision and activation tools, the `fleet_*` push/status/log tools, and
+Twenty-five tools now cover the rest of the path: the `workbench_*`
+status, slots, flash and boot-check tools, the `lorawan_*` compile,
+provision and activation tools, the `fleet_*` and `esphome_dashboard_*`
+push/status/log tools, the print-warden enclosure tools, and
 `job_status` / `job_events` / `job_list`.
 
 The open question was how a long SSE compile maps onto a call that
@@ -344,20 +353,19 @@ browser.
 (Raspberry Pi exposing RFC2217 network serial per USB slot, a JSON HTTP
 API, a WiFi AP tester, an MQTT broker, UDP logging, GPIO boot/reset
 control, and an optional RTL-SDR) as the studio's hardware truth layer.
-The studio verifies artifacts against upstream tools; nothing today
-verifies them against silicon — flashing is WebSerial-only (Chrome,
-local USB, human present), and the Meshtastic / CircuitPython /
-LoRaWAN-join tiers all carry a "no live-flash gate" caveat. The
-workbench closes that gap. Client-side only: the studio talks to the
+The studio verifies artifacts against upstream tools; before the
+workbench nothing verified them against silicon — flashing was
+WebSerial-only (Chrome, local USB, human present), and the Meshtastic /
+CircuitPython / LoRaWAN-join rows all carried a "no live-flash gate"
+caveat. The workbench closed that gap. Client-side only: the studio talks to the
 workbench API behind a `WORKBENCH_URL` env gate (the usual integration
 seam), never re-implements slots/serial/RF. Full capability map and
 design constraints in [workbench.md](workbench.md).
 
 Phases, each independently shippable. Note the payoff is not evenly
 distributed: phase 1 is what makes a remote bench reachable at all,
-and it is phase 3's *flashing* half that retires the "no live-flash
-gate" caveats above — which is the half not yet enabled, so those
-caveats still stand.
+and it is phase 3's *flashing* half, running nightly since
+2026-10-28, that retired the "no live-flash gate" caveats above.
 
 1. **Remote flash transport — shipped in 0.25.0**, extended in 0.26.0
    with the headless LoRaWAN bring-up
@@ -413,8 +421,8 @@ caveats still stand.
    only for the gate: each night it writes ESPHome, CircuitPython,
    MicroPython and Meshtastic with a full erase and asserts each boot
    marker. Its first green week (2026-10-28 to 11-03) moved the remote
-   workbench, Meshtastic, CircuitPython and MicroPython rows from *Works*
-   to *Verified*. Details in [workbench.md](workbench.md#the-gate).
+   workbench, Meshtastic, CircuitPython and MicroPython rows from
+   *Experimental* to *Verified*. Details in [workbench.md](workbench.md#the-gate).
 4. **Functional loop + RF truth.** The ESPHome half is written and
    proven once on hardware: a `functional: true` roster entry gets WiFi,
    the native API and a gate switch, and the gate asserts the device

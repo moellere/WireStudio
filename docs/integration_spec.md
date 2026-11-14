@@ -20,14 +20,14 @@ Every downstream artifact is generated from these files plus a user's
 | Automations | `capability` (provides / accepts / checks) |
 | Wiring diagram & schematic | `electrical.pins`, `passives`, `kicad` (symbol, footprint, pin_map) |
 | PCB + fab bundle | `kicad.footprint` |
-| Enclosure generation | board `enclosure` (pcb dims, mount_holes, ports, component_height_max_mm) |
+| Enclosure generation | board `enclosure` (pcb dims, mount_holes, ports, component_height_max_mm); component or module `enclosure` (pcb, mount_holes, `mount: lid \| base`, lid_gap_mm, heights above/below the PCB, `features`, `connectors`, `vent`) |
 | LoRaWAN firmware | board `radio`, component `lorawan` |
 | Tasmota template | component `tasmota` (pins / bus function map) |
 
 A product with only the required fields still works end-to-end for
 YAML generation and wiring; each optional block unlocks the phase it
-feeds. More filled-in blocks means a higher listing tier (see
-Validation tiers).
+feeds, and each is checked by its own gate (see
+[What an entry is checked against](#what-an-entry-is-checked-against)).
 
 ## Submission bundle
 
@@ -54,7 +54,7 @@ products:
     datasheet: datasheets/example-sensor.pdf
     product_url: https://example.com/ex-1234
     purchase_url: https://shop.example.com/ex-1234
-    samples_available: true   # engineering samples for the validated tier
+    samples_available: true   # engineering samples we can test on a bench
 ```
 
 ## Component spec (`components/<id>.yaml`)
@@ -480,16 +480,20 @@ verbatim into `LIBRARY_USER_DIR/boards/<id>.yaml`. It refuses a bundled
 id and an existing user id unless told to overwrite. A bundled board
 wins over a user file with the same id.
 
-## Validation tiers
+## What an entry is checked against
 
-- **spec** — file review only. Product is listed and generates
-  YAML/wiring; marked as unverified.
-- **reviewed** — the vendor has confirmed the electrical block and
-  GPIO tags against the design files. Marked vendor-reviewed.
-- **validated** — we tested an engineering sample end-to-end: pin
-  solve, YAML generation, ESPHome compile, flash, runtime behavior,
-  and where the blocks exist, schematic/PCB export and enclosure fit.
-  Marked validated in the picker.
+The library has no per-entry tier. An entry is in or out, and what
+backs it is the set of gates it passes:
+
+- `component_check` / `board_check` at submission (schema, pins, KiCad
+  symbol and footprint, template render, enclosure geometry).
+- Every example that uses the entry validates under the pinned ESPHome
+  (`esphome config`) and, where the blocks exist, through the schematic,
+  PCB and enclosure gates. [library-coverage.md](library-coverage.md)
+  lists which entries an example exercises.
+- A board on the hardware bench is flashed nightly and its boot marker
+  asserted; see [workbench.md](workbench.md#the-gate). An engineering
+  sample is what gets a board onto that roster.
 
 Reference implementations: `wirestudio/library/components/bme280.yaml`
 (complete component) and `wirestudio/library/boards/esp32-devkitc-v4.yaml`

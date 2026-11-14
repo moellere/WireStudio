@@ -1,14 +1,17 @@
 # MCP server
 
-Wirestudio exposes its design-editing tool surface over the
+Wirestudio exposes its tool surface over the
 [Model Context Protocol](https://modelcontextprotocol.io). Point a host
 LLM client (Claude Code, Claude Desktop) at the daemon and the model
 drives the studio using *your* Claude subscription — wirestudio spends
 no Anthropic credits of its own.
 
-The LLM never sits in a compile or fetch path. MCP is a thin chat
-surface over the **design-editing** tools only; the generators stay
-pure functions of `design.json` + library. Same design in, same YAML /
+The LLM never sits in a generation path. MCP is a thin chat surface
+over 62 tools: 37 that read and edit designs, the library and the
+inventory, and 25 that reach hardware and the services around it (a
+bench, ChirpStack, fleet-for-esphome, an ESPHome dashboard,
+print-warden). The generators stay pure functions of `design.json` +
+library. Same design in, same YAML /
 ASCII / KiCad out, every time.
 
 ## Quick start
@@ -196,9 +199,11 @@ can't be brute-forced by timing.
 ### Viewing and rotating the token
 
 The web UI surfaces the token under the header **Settings** (gear) icon:
-reveal, copy, and regenerate. Two endpoints back it, both on the
-unauthenticated API surface (a client needs to *see* the token before it
-can present it):
+reveal, copy, and regenerate. Two endpoints back it. They sit on the
+REST surface, not behind the MCP token (a client needs to *see* the
+token before it can present it), so they are open on a default install
+and require the API token once `WIRESTUDIO_API_TOKEN` is set; a
+deployed studio should also keep them behind its SSO:
 
 - `GET /mcp/token` → `{ token, managed }`. `managed` is `"file"`
   (rotatable) or `"env"` (set via `WIRESTUDIO_MCP_TOKEN`, read-only).
@@ -266,6 +271,7 @@ and persist back to `designs/<id>.json`.
 | `inventory_list` | no | what is on hand; `kind="part"` for the discrete drawer |
 | `inventory_set` | yes | upsert one entry: `mpn` for a discrete part, `library_id` for a library component/module |
 | `inventory_import` | yes | bulk-load spreadsheet CSV; unusable rows come back in `rejected` with a reason |
+| `apply_substitutions` | yes | accept the best-ranked drawer substitute on every short semiconductor line at once (caveats returned); lines without a proposal are left alone |
 | `inventory_check` | no | cross-check a design's BOM against the drawer; short semiconductors carry `substitutes` with caveats (proposals until `set_part_override`); `pick_list` groups what to pull by drawer location |
 | `buy_list` | no | the check's shortfalls priced on JLCPCB (LCSC id, stock, price, or not found); shortfalls still listed when the API is down |
 
@@ -282,8 +288,9 @@ with a library id.
 
 ### Hardware tools
 
-These reach real hardware — a bench, a ChirpStack server, the fleet
-addon. They are registered by default; pass `hardware=False` to
+These reach real hardware and the services around it — a bench, a
+ChirpStack server, the fleet addon, a standalone ESPHome dashboard,
+print-warden. They are registered by default; pass `hardware=False` to
 `build_mcp_server` to leave them off.
 
 | Tool | Mutates | Notes |
@@ -291,6 +298,7 @@ addon. They are registered by default; pass `hardware=False` to
 | `workbench_status` | no | is a bench configured and reachable |
 | `workbench_slots` | no | slot labels, detected chip, and whether each is flashable now |
 | `workbench_flash` | yes | flash a slot → `job_id` |
+| `workbench_verify_boot` | no | read a slot's serial output and judge the boot for a framework (banner, optional LoRaWAN join); `reset=true` reboots the board first |
 | `lorawan_chirpstack_status` | no | ChirpStack token + reachability probe |
 | `lorawan_compile` | no | build standalone RadioLib firmware → `job_id` |
 | `lorawan_provision` | yes | register in ChirpStack, issue AppKey (standalone path) |
@@ -302,6 +310,10 @@ addon. They are registered by default; pass `hardware=False` to
 | `fleet_job_status` | no | compile verdict for a run |
 | `fleet_job_log` | no | incremental build log |
 | `fleet_firmware_info` | no | artifact size + availability (never the bytes) |
+| `esphome_dashboard_status` | no | is a standalone ESPHome dashboard configured and reachable |
+| `esphome_dashboard_push` | yes | render + write `<device>.yaml` to the dashboard, optionally compile → `run_id` (studio-local, lost on restart) |
+| `esphome_dashboard_job_status` | no | compile verdict for a dashboard run |
+| `esphome_dashboard_job_log` | no | incremental dashboard build log |
 | `print_warden_status` | no | is print-warden configured and reachable; its printers and locations |
 | `print_enclosure` | yes | generate the enclosure shell, upload, slice and queue it on print-warden → warden `job_id`; never starts the print |
 | `print_job_status` | no | a warden job's state, log and start-policy verdict |
@@ -327,7 +339,9 @@ Python SDK that runs into the client's five-second default; see
 **A `job_id` and a `run_id` are not interchangeable.** Fleet builds keep
 their own `run_id`, which belongs to the addon's GitHub run, outlives a
 wirestudio restart, and is polled with `fleet_job_status` — not
-`job_status`.
+`job_status`. An ESPHome dashboard push returns a `run_id` too, polled
+with `esphome_dashboard_job_status`; that one is held by the studio
+process and does not survive a restart.
 
 #### Firmware never crosses the boundary
 
