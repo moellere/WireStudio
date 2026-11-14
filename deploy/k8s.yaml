@@ -78,7 +78,7 @@ spec:
         runAsGroup: 1000
       containers:
         - name: wirestudio
-          image: ghcr.io/moellere/wirestudio:1.0.0
+          image: ghcr.io/moellere/wirestudio:1.1.0
           imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: false

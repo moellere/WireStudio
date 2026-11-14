@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] — 2026-11-14
+
 ### Added
 
 - **Several ESPHome dashboards as push targets.** `ESPHOME_DASHBOARDS`
@@ -3999,7 +4001,8 @@ ConnectionForm, EnclosureDialog, Inspector, CapabilityPickerDialog,
 PinoutView, PushToFleetDialog, SchematicDialog. ruff + tsc + vite
 build clean across the whole arc.
 
-[Unreleased]: https://github.com/moellere/wirestudio/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/moellere/wirestudio/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/moellere/wirestudio/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/moellere/wirestudio/compare/v0.48.1...v1.0.0
 [0.48.1]: https://github.com/moellere/wirestudio/compare/v0.48.0...v0.48.1
 [0.48.0]: https://github.com/moellere/wirestudio/compare/v0.47.0...v0.48.0
