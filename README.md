@@ -92,7 +92,7 @@ Detailed docs live in [`docs/`](docs/):
 
 ## Status
 
-`v1.0.0` — on PyPI (`pip install wirestudio`). What 1.0 promises, and
+`v1.1.0` — on PyPI (`pip install wirestudio`). What 1.0 promises, and
 how to upgrade, is in the [release notes](docs/release-notes-1.0.md). The studio has wide
 surface area (YAML, schematic, PCB + fab outputs, enclosure,
 subcircuits with electrical rules, inventory matching, component
@@ -159,7 +159,7 @@ built from the weekly `esphome-matrix` sweep.
 docker run --rm -p 8765:8765 \
   -e ANTHROPIC_API_KEY=sk-ant-... \
   -v wirestudio-data:/data \
-  ghcr.io/moellere/wirestudio:1.0.0
+  ghcr.io/moellere/wirestudio:1.1.0
 ```
 
 Open <http://localhost:8765>. The image bundles the FastAPI server +
