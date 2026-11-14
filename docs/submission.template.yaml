@@ -27,9 +27,9 @@ products:
     datasheet: ""     # path within the bundle, e.g. datasheets/example-sensor.pdf
     product_url: ""   # documentation or product page
     purchase_url: ""  # where a picker listing should link to buy
-    samples_available: false   # true = engineering samples offered for the
-                               # validated tier (end-to-end hardware testing;
-                               # see "Validation tiers" in the spec)
+    samples_available: false   # true = engineering samples offered for
+                               # bench testing (see "What an entry is
+                               # checked against" in the spec)
 
   # - id: ""
   #   mpn: ""

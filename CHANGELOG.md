@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Docs brought in line with 1.0.** `docs/mcp.md` lists all 62 tools
+  (the six missing were `apply_substitutions`, `workbench_verify_boot`
+  and the four `esphome_dashboard_*` tools) and no longer calls the
+  token endpoints unauthenticated when `WIRESTUDIO_API_TOKEN` is set.
+  `docs/library.md` lists every board and component and gains a modules
+  section. The docs index, user guide, workbench page and
+  `CONTRIBUTING.md` drop pre-1.0 statements (PCB layout "deferred", "no
+  live-flash gate", the *Works* tier, stale counts and paths), the user
+  guide describes the start panel, sidebar and Problems panel, and
+  `docs/integrations.md` covers MicroPython and WLED. The integration
+  spec's three "validation tiers", which no code implemented, are
+  replaced by the gates an entry actually passes.
+- **Deploy manifests.** `deploy/k8s.yaml` pins `1.0.0` (was `0.19.1`);
+  the dev overlay and its docs track `main-full`, the tag the workflow
+  publishes and staging runs, instead of `main-lorawan`.
+
+### Removed
+
+- `Gemini refinements.md`, a stale review plan nothing linked to.
+
 ## [1.0.0] — 2026-11-14
 
 These notes cover what changes for someone upgrading from 0.48.1 and

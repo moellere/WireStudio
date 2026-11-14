@@ -8,9 +8,9 @@ threshold bounds, condition gating). On `main`: the `capability` library block, 
 `trigger.above` / `.below`, `actions[].transform`), generator lowering with
 `!lambda` transforms, per-channel passthroughs and `{above, below, then}`
 range entries, the permissive validator (now catching bounds-on-wrong-event
-and range-without-bounds), and five worked examples (`button-toggles-light`,
+and range-without-bounds), and six worked examples (`button-toggles-light`,
 `motion-turns-on-light`, `encoder-drives-stepper`, `temp-turns-on-fan`,
-`temp-above-turns-on-fan`). Twenty-nine components carry `capability`
+`temp-above-turns-on-fan`, `guarded-button-light`). Fifty-four components carry `capability`
 annotations; the seven phase-3 multi-channel environmental sensors now also
 expose `on_value_range` per channel, so a threshold trigger composes with the
 channel selector cleanly.

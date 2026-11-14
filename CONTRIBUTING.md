@@ -20,15 +20,16 @@ at all:
 3. **Enclosure suggestions.** Parametric `.scad` printable + search
    relay returns relevant community models. Lower bar than (1) and (2)
    — a wrong enclosure is a 3D-print iteration, not a bricked device.
-4. **PCB layout.** Deferred to 1.0+. Don't add surface area here until
-   the three above are tight.
+4. **PCB layout.** Shipped: board emit, Freerouting autoroute and DRC
+   are gated in CI (`pcb-route`). It ranks below the three above; a
+   regression there outranks new PCB surface.
 
 ## The YAML gate
 
 Every PR runs `.github/workflows/esphome-config.yml`, which:
 
 1. Installs the pinned ESPHome (currently `==2026.6.5`).
-2. For every `examples/*.json`, renders YAML through
+2. For every `wirestudio/examples/*.json`, renders YAML through
    `wirestudio.generate.yaml_gen` and runs `esphome config <file>` against
    it.
 3. Fails the merge if any example doesn't validate.
@@ -55,9 +56,10 @@ esphome` fails on the `paho-mqtt` wheel, drop into a fresh venv first:
 
 ### Adding a new component or board
 
-1. Add the `library/components/<id>.yaml` (or `library/boards/<id>.yaml`)
+1. Add the `wirestudio/library/components/<id>.yaml` (or
+   `wirestudio/library/boards/<id>.yaml`)
    entry.
-2. Add or update at least one `examples/*.json` that exercises it.
+2. Add or update at least one `wirestudio/examples/*.json` that exercises it.
 3. Add the matching golden under `tests/golden/`.
 4. Run `python scripts/check_examples.py` locally. Fix anything that
    fails before opening a PR.
@@ -298,9 +300,9 @@ wall. `tests/test_enclosure_gate.py` mirrors it and skips when
 ## Tests
 
 ```sh
-python -m pytest          # ~297 cases, ~10s
+python -m pytest          # ~2200 cases, several minutes
 python -m ruff check .    # lint
-cd web && npx vitest run  # ~125 cases (vitest + jsdom)
+cd web && npx vitest run  # vitest + jsdom
 ```
 
 Goldens in `tests/golden/` are pinned. When the generator output
@@ -308,7 +310,7 @@ legitimately changes, regenerate them in the same PR as the code
 change:
 
 ```sh
-for f in examples/*.json; do
+for f in wirestudio/examples/*.json; do
     name=$(basename "$f" .json)
     python -m wirestudio.generate "$f" \
         --out-yaml "tests/golden/${name}.yaml" \

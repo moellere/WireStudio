@@ -13,9 +13,9 @@ spec:
     server: https://kubernetes.default.svc
     namespace: wirestudio-dev
   syncPolicy:
-    # Staging: the overlay tracks the rolling :main-lorawan tag. To roll
+    # Staging: the overlay tracks the rolling :main-full tag. To roll
     # forward on every push to main, pair with argocd-image-updater (it
-    # digest-pins :main-lorawan and writes the new digest back to git);
+    # digest-pins :main-full and writes the new digest back to git);
     # without it, this is a static pin like prod. selfHeal reverts manual
     # cluster edits; prune removes orphans.
     automated:

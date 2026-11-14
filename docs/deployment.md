@@ -154,7 +154,7 @@ so both run side by side from one source tree with independent PVCs.
 | App | Overlay | Image | Upgrades when |
 |---|---|---|---|
 | `wirestudio-prod` | `deploy/overlays/prod` | pinned release, e.g. `:1.0.0-full` | the tag changes in git (bump by hand or via image-updater) |
-| `wirestudio-dev` | `deploy/overlays/dev` | rolling `:main-lorawan` | image-updater digest-pins a new `main` build |
+| `wirestudio-dev` | `deploy/overlays/dev` | rolling `:main-full` | image-updater digest-pins a new `main` build |
 
 ```sh
 kubectl apply -f deploy/argocd/wirestudio-prod.yaml
@@ -182,10 +182,10 @@ changes in git. Two ways to move it forward:
   writes the newest matching tag (with digest) back to git, so a pushed
   image deploys itself with no manual step. This is how the upstream
   cluster runs both apps:
-  - **staging** tracks `:main-lorawan` with `updateStrategy: digest` —
+  - **staging** tracks `:main-full` with `updateStrategy: digest` —
     every merge to `main` redeploys.
   - **prod** follows the newest release with `updateStrategy: newest-build`
-    and `allowTags: "regexp:^[0-9]+\.[0-9]+\.[0-9]+-lorawan$"` — a pushed
+    and `allowTags: "regexp:^[0-9]+\.[0-9]+\.[0-9]+-full$"` — a pushed
     `vX.Y.Z` tag rolls prod on its own.
 
   > The `regexp:` prefix on `allowTags` is required. A bare pattern is
