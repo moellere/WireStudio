@@ -11,7 +11,14 @@ platformio_board: esp32-s3-devkitc-1
 flash_size_mb: 16
 
 rails:
-  - {name: "5V",  voltage: 5.0, source: usb}
+  - name: "5V"
+    voltage: 5.0
+    source: usb
+    note: >-
+      the 5V header pin is an input as shipped: a diode sits between it and
+      USB power, so a part wired to it gets nothing from USB-C alone. Bridge
+      the IN-OUT solder pads on the back to put USB 5V on the pin, and then
+      never feed external 5V into it while USB is connected.
   - {name: "3V3", voltage: 3.3, source: onboard_regulator}
   - {name: "GND", voltage: 0.0}
 

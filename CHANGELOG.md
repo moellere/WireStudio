@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`rail_note` warning.** A board rail can carry a `note` for a condition
+  on it being live at the header pin; a design that powers something from
+  that rail gets the note as a warning. The YD-ESP32-23's 5V pin is the
+  first: it is an input until the IN-OUT solder pads are bridged, so a 5V
+  part gets nothing from USB-C alone.
+
 ## [1.2.0] — 2026-11-14
 
 ### Added
