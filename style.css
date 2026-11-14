@@ -4,8 +4,8 @@
   --bg-card: #ffffff;
   --ink: #1a1d24;
   --ink-soft: #565d6d;
-  --accent: #3b5bdb;
-  --accent-dark: #2f49b0;
+  --accent: #c25430;
+  --accent-dark: #9f4229;
   --line: #e3e6ec;
   --code-bg: #0f1320;
   --code-ink: #d6dbe8;
@@ -337,7 +337,7 @@ a:hover { text-decoration: underline; }
   text-align: left;
 }
 .axis-run { border-top: 3px solid var(--accent); }
-.axis-build { border-top: 3px solid #f59e0b; }
+.axis-build { border-top: 3px solid #3d6b8f; }
 .axis-head { font-weight: 800; font-size: 1.12rem; letter-spacing: -0.01em; }
 .axis-sub { color: var(--ink-soft); font-size: 0.84rem; margin: 2px 0 6px; }
 .axis-item {
@@ -372,7 +372,6 @@ a:hover { text-decoration: underline; }
   white-space: nowrap;
 }
 .badge.verified { background: #e6f7ef; color: #1d8a5b; }
-.badge.hw { background: #e7edfd; color: var(--accent-dark); }
 .badge.caveat { background: #fdf0dd; color: #b45309; }
 .badge.planned { background: var(--bg-soft); color: var(--ink-soft); }
 .badge.works { background: #f0e9fd; color: #6d28d9; }
