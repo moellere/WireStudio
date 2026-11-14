@@ -4,13 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>wirestudio — from intent to a buildable IoT device</title>
-<meta name="description" content="Start with what the device should do. wirestudio turns a goal — or the parts you pick — into a complete, verified set of artifacts: the firmware to run it (ESPHome / LoRaWAN) and the hardware to build it (schematic, PCB, enclosure, BOM).">
+<meta name="description" content="Describe what an ESP32 device should do, or pick the parts. wirestudio produces the firmware to run it (ESPHome, LoRaWAN, Tasmota, WLED and more) and the hardware to build it: wiring, KiCad schematic and PCB, a printable enclosure and a BOM. Open source, 1.0.">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <meta property="og:title" content="wirestudio — from intent to a buildable device">
-<meta property="og:description" content="Describe the function; get the whole device. One design.json yields firmware to run it (ESPHome / LoRaWAN) and hardware to build it (schematic, PCB, enclosure, BOM) — deterministically.">
+<meta property="og:description" content="One design.json yields the firmware to run a device and the hardware to build it: wiring, KiCad schematic and PCB, a printable enclosure and a BOM. Every output is checked against the tool that consumes it.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://wirestudio.io">
-<link rel="stylesheet" href="style.css?v=20260728">
+<meta property="og:image" content="https://wirestudio.io/img/studio.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="style.css?v=20261114">
 </head>
 <body>
 
@@ -21,7 +23,8 @@
       <span>wirestudio</span>
     </a>
     <nav>
-      <a href="https://github.com/moellere/wirestudio#readme">Docs</a>
+      <a href="#quickstart">Quickstart</a>
+      <a href="https://github.com/moellere/wirestudio/blob/main/docs/user_guide.md">Docs</a>
       <a href="https://github.com/moellere/wirestudio" class="nav-cta">GitHub</a>
     </nav>
   </div>
@@ -31,47 +34,50 @@
 
   <section class="hero">
     <div class="container">
+      <a class="release-pill" href="https://github.com/moellere/wirestudio/blob/main/docs/release-notes-1.0.md">
+        <strong>1.0</strong> is out &middot; release notes &rarr;
+      </a>
       <h1>From intent to a buildable device.</h1>
       <p class="lede">
-        Start with what the device should <em>do</em> — describe the
-        function in plain language, or pick parts by capability. wirestudio
-        turns that intent into a complete, verified set of artifacts:
-        the <strong>firmware to run it</strong> and the
-        <strong>hardware to build it</strong> — code, schematic, PCB,
-        enclosure, and BOM, all from one source of truth.
+        Describe what an ESP32 device should <em>do</em>, or pick the
+        parts yourself. wirestudio solves the pins and produces the
+        <strong>firmware to run it</strong> and the
+        <strong>hardware to build it</strong>: wiring, schematic, PCB,
+        enclosure and BOM, all generated from one design file.
       </p>
       <div class="cta-row">
-        <a class="btn btn-primary" href="https://github.com/moellere/wirestudio#getting-started">Get started</a>
+        <a class="btn btn-primary" href="#quickstart">Get started</a>
         <a class="btn btn-ghost" href="https://github.com/moellere/wirestudio">View on GitHub</a>
       </div>
 
-      <div class="code-card" aria-hidden="true">
-        <div class="code-bar"><span></span><span></span><span></span></div>
-        <pre><code><span class="c-prompt">$</span> wirestudio <span class="c-dim">"battery LoRa soil sensor — moisture + GPS"</span>
-<span class="c-ok">✓</span> design.json          <span class="c-dim">board + parts chosen, pins solved</span>
-<span class="c-ok">✓</span> firmware             <span class="c-dim">ESPHome · LoRaWAN · Tasmota · more</span>
-<span class="c-ok">✓</span> schematic + PCB      <span class="c-dim">.kicad_sch · .kicad_pcb · Gerbers</span>
-<span class="c-ok">✓</span> enclosure + BOM      <span class="c-dim">OpenSCAD shell · ordered parts list</span></code></pre>
-      </div>
+      <figure class="shot">
+        <div class="shot-bar"><span></span><span></span><span></span></div>
+        <img src="img/studio.png" width="1920" height="1200"
+             alt="The wirestudio web UI with the wall control panel example open: library on the left, the wiring diagram in the centre, and the inspector and problems panel on the right.">
+      </figure>
+      <p class="shot-caption">
+        The bundled <code>wall-panel</code> example in the studio: an
+        ESP32-S3, a PIR, a DHT22 and an OLED + encoder module, wired and checked.
+      </p>
     </div>
   </section>
 
   <section class="stats">
     <div class="container stats-inner">
-      <div class="stat"><strong>64</strong><span>components</span></div>
-      <div class="stat"><strong>26</strong><span>boards</span></div>
-      <div class="stat"><strong>60</strong><span>example designs</span></div>
-      <div class="stat"><strong>5</strong><span>firmware frameworks</span></div>
+      <div class="stat"><strong>102</strong><span>components</span></div>
+      <div class="stat"><strong>27</strong><span>boards</span></div>
+      <div class="stat"><strong>76</strong><span>example designs</span></div>
+      <div class="stat"><strong>6</strong><span>firmware frameworks</span></div>
     </div>
   </section>
 
   <section class="how">
     <div class="container">
-      <h2>Intent in. A whole device out.</h2>
+      <h2>One design file. Both halves of the device.</h2>
       <p class="how-lede">
-        A goal (or a parts pick) becomes a single <code>design.json</code> —
-        the only state. Pure generators turn it into both halves of a real
-        device: the software that runs it and the hardware you actually build.
+        A goal or a parts pick becomes a single <code>design.json</code>,
+        the only state. Generators that are pure functions of that file
+        produce the software that runs the device and the hardware you build.
       </p>
       <div class="flow">
         <div class="node node-source">goal / parts</div>
@@ -82,38 +88,50 @@
 
           <div class="axis axis-run">
             <div class="axis-head">Run it</div>
-            <div class="axis-sub">pick a target framework — the software &amp; network identity</div>
+            <div class="axis-sub">pick a firmware target</div>
             <div class="axis-item">
-              <span class="label">ESPHome YAML<small>WiFi / sensor devices &rarr; Home Assistant</small></span>
+              <span class="label">ESPHome YAML<small>every example passes upstream <code>esphome config</code> on each PR</small></span>
               <span class="badge verified">verified</span>
             </div>
             <div class="axis-item">
-              <span class="label">LoRaWAN firmware<small>RadioLib &middot; ChirpStack &middot; Home Assistant</small></span>
-              <span class="badge hw">hardware-validated</span>
-            </div>
-            <div class="axis-item">
-              <span class="label">Tasmota template<small>solved pins &rarr; device template + serial config push</small></span>
+              <span class="label">LoRaWAN firmware<small>RadioLib &middot; ChirpStack &middot; Home Assistant; joined on real boards nightly</small></span>
               <span class="badge verified">verified</span>
             </div>
             <div class="axis-item">
-              <span class="label">Meshtastic &middot; CircuitPython<small>official images, one WebSerial flash dialog</small></span>
-              <span class="badge works">works</span>
+              <span class="label">Tasmota &middot; WLED<small>device template and <code>cfg.json</code> from the solved pins</small></span>
+              <span class="badge verified">verified</span>
+            </div>
+            <div class="axis-item">
+              <span class="label">CircuitPython &middot; MicroPython<small>official image plus a generated <code>code.py</code> / <code>main.py</code></small></span>
+              <span class="badge verified">verified</span>
+            </div>
+            <div class="axis-item">
+              <span class="label">Meshtastic<small>official image, then region, preset and channel pushed over serial</small></span>
+              <span class="badge verified">verified</span>
             </div>
           </div>
 
           <div class="axis axis-build">
             <div class="axis-head">Build it</div>
-            <div class="axis-sub">the physical object — fabricate &amp; house it</div>
+            <div class="axis-sub">the physical object</div>
             <div class="axis-item">
-              <span class="label">KiCad schematic<small>.kicad_sch via SKiDL</small></span>
+              <span class="label">Wiring diagram<small>interactive, plus an ASCII block for the YAML header</small></span>
               <span class="badge verified">verified</span>
             </div>
             <div class="axis-item">
-              <span class="label">PCB + fab bundle<small>.kicad_pcb &middot; Freerouting autoroute &middot; Gerber / drill / CPL / BOM</small></span>
+              <span class="label">KiCad schematic<small><code>.kicad_sch</code>, opened by real KiCad in CI with ERC</small></span>
               <span class="badge verified">verified</span>
             </div>
             <div class="axis-item">
-              <span class="label">Enclosure<small>parametric OpenSCAD shell</small></span>
+              <span class="label">PCB + fab bundle<small><code>.kicad_pcb</code> &middot; Freerouting &middot; DRC &middot; Gerber, drill, CPL, BOM</small></span>
+              <span class="badge verified">verified</span>
+            </div>
+            <div class="axis-item">
+              <span class="label">Enclosure<small>OpenSCAD, rendered to a manifold solid on each PR</small></span>
+              <span class="badge verified">verified</span>
+            </div>
+            <div class="axis-item">
+              <span class="label">BOM + buy list<small>checked against your parts drawer</small></span>
               <span class="badge verified">verified</span>
             </div>
           </div>
@@ -121,15 +139,44 @@
         </div>
       </div>
       <p class="flow-legend">
-        <strong>verified</strong> = gated against upstream tools every PR &middot;
-        <strong>hardware-validated</strong> = proven on a real device &middot;
-        <strong>works</strong> = shipped with lighter checks (mocked-upstream tests, no live-flash gate)
+        <strong>verified</strong> means a CI or nightly job runs the output
+        through the tool that consumes it and fails when it breaks. The
+        <a href="https://github.com/moellere/wirestudio#status">status table</a>
+        names the job for every row.
       </p>
       <p class="how-note">
         No LLM sits in a compile or fetch path. The agent edits the design;
-        deterministic generators produce the artifacts — so every device is
-        reproducible, diffable, and cheap to regenerate.
+        deterministic generators produce the artifacts, so a device is
+        reproducible, diffable and cheap to regenerate.
       </p>
+    </div>
+  </section>
+
+  <section class="spotlight">
+    <div class="container spotlight-inner">
+      <div class="spotlight-text">
+        <h2>An enclosure built around the parts</h2>
+        <p>
+          The enclosure generator reads the design, not just the board
+          outline. Displays, knobs, lenses and buttons get openings in the
+          lid and posts behind it; floor parts get standoffs; the board
+          gets a cradle and its port cutouts; a wall-mount option adds
+          keyholes. Room for headers and jumper wires is part of the
+          layout.
+        </p>
+        <p>
+          This is the <code>wall-panel</code> example as generated. It was
+          printed in PETG and fitted to its board and parts before 1.0.
+        </p>
+        <p class="spotlight-links">
+          <a href="https://github.com/moellere/wirestudio/blob/main/docs/user_guide.md">User guide</a>
+          <a href="https://github.com/moellere/wirestudio/blob/main/docs/library.md">Boards with enclosure data</a>
+        </p>
+      </div>
+      <div class="spotlight-art">
+        <img src="img/enclosure-open.png" width="1140" height="1140"
+             alt="Generated wall-panel enclosure with the lid lifted off: the board in its cradle in the base, the PIR dome, OLED window and encoder shaft through the lid.">
+      </div>
     </div>
   </section>
 
@@ -140,88 +187,128 @@
 
         <article class="card">
           <h3>Design from intent</h3>
-          <p>Describe what the device should do, or pick parts by function.
-          The agent assembles a coherent design — board, components, wiring —
-          that you refine, instead of starting from a blank canvas.</p>
+          <p>Describe the function, or pick parts by capability. The
+          agent assembles a board, components and wiring that you then
+          refine in the studio, instead of starting from a blank canvas.</p>
         </article>
 
         <article class="card">
-          <h3>Verified ESPHome YAML</h3>
-          <p>Every bundled example is run through upstream
-          <code>esphome config</code> on each change. The output is real
-          ESPHome, not a plausible guess.</p>
+          <h3>Pin solver and checks</h3>
+          <p>Assigns legal GPIOs and reports boot-strap pins, ADC2 with
+          WiFi, voltage mismatches, missing pull-ups and locked-pin
+          conflicts before anything is flashed.</p>
         </article>
 
         <article class="card">
-          <h3>LoRaWAN + Home Assistant</h3>
-          <p>Builds RadioLib firmware for US915 radio boards, flashes it
-          over WebSerial, provisions the device against ChirpStack, and
-          surfaces its sensors + GPS as Home Assistant entities and a
-          map tracker.</p>
+          <h3>ESPHome YAML you can trust</h3>
+          <p>Every bundled example runs through upstream
+          <code>esphome config</code> on each change, with a nightly
+          compile. Secrets stay in <code>secrets.yaml</code>.</p>
         </article>
 
         <article class="card">
-          <h3>KiCad schematic + PCB</h3>
-          <p>Emits a SKiDL script for a <code>.kicad_sch</code> and a
-          placed <code>.kicad_pcb</code>, autoroutes it with Freerouting,
-          and packages Gerber/drill/CPL/BOM for the fab. No LLM placing
-          wires.</p>
+          <h3>LoRaWAN to Home Assistant</h3>
+          <p>Builds RadioLib firmware for US915 radio boards, flashes it,
+          provisions the device in ChirpStack and surfaces its sensors
+          and GPS as Home Assistant entities.</p>
         </article>
 
         <article class="card">
-          <h3>Parametric enclosure</h3>
-          <p>Generates an OpenSCAD shell from board mount-hole and
-          port geometry, so the box fits the design you just drew.</p>
-        </article>
-
-        <article class="card">
-          <h3>CSP pin solver</h3>
-          <p>Assigns legal GPIOs automatically and surfaces boot-strap,
-          ADC2-on-WiFi, voltage, and locked-pin conflicts before you
-          ever flash a board.</p>
-        </article>
-
-        <article class="card">
-          <h3>MCP server</h3>
-          <p>Drives the design tools from Claude Code or Claude Desktop
-          over the Model Context Protocol — on your subscription, no
-          API keys to wire up.</p>
+          <h3>KiCad schematic and PCB</h3>
+          <p>Writes a <code>.kicad_sch</code> and a placed
+          <code>.kicad_pcb</code>, autoroutes with Freerouting and
+          packages Gerber, drill, CPL and BOM for the fab.</p>
         </article>
 
         <article class="card">
           <h3>One flash dialog</h3>
-          <p>Five firmware frameworks — ESPHome, Tasmota, LoRaWAN,
-          Meshtastic, CircuitPython — flashed over WebSerial from the
-          browser. Official release images fetched through the studio;
-          CircuitPython lands with a generated starter
-          <code>code.py</code>.</p>
+          <p>ESPHome, Tasmota, LoRaWAN, Meshtastic, CircuitPython and
+          MicroPython flash over WebSerial from the browser. Official
+          release images are fetched through the studio.</p>
         </article>
 
         <article class="card">
-          <h3>Fleet handoff</h3>
-          <p>Pushes finished YAML to a
+          <h3>Inventory and buy list</h3>
+          <p>Track the parts drawer, check a design's BOM against it,
+          accept ranked substitutes for what is missing, and get a buy
+          list for the rest.</p>
+        </article>
+
+        <article class="card">
+          <h3>MCP server</h3>
+          <p>62 tools over the Model Context Protocol. Drive the design,
+          library, fab and hardware tools from Claude Code or Claude
+          Desktop on your subscription.</p>
+        </article>
+
+        <article class="card">
+          <h3>Remote workbench</h3>
+          <p>Flash and provision boards on a bench elsewhere on the
+          network. The project's own bench runs a hardware gate every
+          night against real boards.</p>
+        </article>
+
+        <article class="card">
+          <h3>Compile and deploy</h3>
+          <p>Hand finished YAML to an ESPHome dashboard or to
           <a href="https://github.com/weirded/fleet-for-esphome">fleet-for-esphome</a>
-          add-on for compile and OTA deploy with live log streaming.</p>
+          for compile and OTA, with the build log streamed back.</p>
         </article>
 
         <article class="card">
-          <h3>Local inventory</h3>
-          <p>Track parts on hand, cross-check a design's BOM against the
-          drawer (have / partial / need), and let the recommender prefer
-          parts you already own.</p>
+          <h3>A library you can extend</h3>
+          <p>Components and boards are YAML files carrying the electrical
+          facts ESPHome does not: pins, passives, current draw, footprints
+          and enclosure geometry. Add your own in the studio.</p>
+        </article>
+
+        <article class="card">
+          <h3>Stable from 1.0</h3>
+          <p>A design saved under 1.0 loads under every 1.x. Older
+          documents and stores migrate themselves on open.</p>
         </article>
 
       </div>
     </div>
   </section>
 
+  <section class="quickstart" id="quickstart">
+    <div class="container">
+      <h2>Quickstart</h2>
+      <p class="how-lede">
+        The Docker image carries the API server and the web UI in one process.
+      </p>
+      <div class="code-card">
+        <div class="code-bar"><span></span><span></span><span></span></div>
+        <pre><code><span class="c-dim"># studio at http://localhost:8765</span>
+<span class="c-prompt">$</span> docker run --rm -p 8765:8765 \
+    -v wirestudio-data:/data \
+    ghcr.io/moellere/wirestudio:1.0.0
+
+<span class="c-dim"># or from PyPI</span>
+<span class="c-prompt">$</span> pip install wirestudio
+<span class="c-prompt">$</span> python -m wirestudio.api</code></pre>
+      </div>
+      <p class="quick-note">
+        Add <code>-e ANTHROPIC_API_KEY=...</code> to enable the built-in
+        agent; everything else works without it. The
+        <a href="https://github.com/moellere/wirestudio#quickstart">README</a>
+        covers the CLI, the
+        <a href="https://github.com/moellere/wirestudio/blob/main/docs/deployment.md">deployment guide</a>
+        covers image tags and Kubernetes, and
+        <a href="https://github.com/moellere/wirestudio/blob/main/docs/mcp.md">the MCP guide</a>
+        covers editor setup.
+      </p>
+    </div>
+  </section>
+
   <section class="closing">
     <div class="container">
       <h2>Open source, MIT licensed</h2>
-      <p>Install it, run the HTTP API, or drive it from your editor.</p>
+      <p>Issues and library additions are welcome.</p>
       <div class="cta-row">
-        <a class="btn btn-primary" href="https://github.com/moellere/wirestudio#getting-started">Get started</a>
-        <a class="btn btn-ghost" href="https://github.com/moellere/wirestudio">Star on GitHub</a>
+        <a class="btn btn-primary" href="https://github.com/moellere/wirestudio">Star on GitHub</a>
+        <a class="btn btn-ghost" href="https://github.com/moellere/wirestudio/blob/main/CONTRIBUTING.md">Contribute</a>
       </div>
     </div>
   </section>
@@ -233,10 +320,11 @@
     <span>wirestudio — MIT licensed</span>
     <span class="footer-links">
       <a href="https://github.com/moellere/wirestudio">GitHub</a>
-      <a href="https://github.com/moellere/wirestudio#readme">Docs</a>
-      <a href="https://esphome.io">ESPHome</a>
+      <a href="https://github.com/moellere/wirestudio/blob/main/docs/user_guide.md">Docs</a>
+      <a href="https://pypi.org/project/wirestudio/">PyPI</a>
+      <a href="https://github.com/moellere/wirestudio/blob/main/CHANGELOG.md">Changelog</a>
     </span>
-    <span class="disclaimer">Produces ESPHome configs; not affiliated with the ESPHome project.</span>
+    <span class="disclaimer">Produces configurations for ESPHome, Tasmota, WLED, Meshtastic, CircuitPython and MicroPython; not affiliated with those projects.</span>
   </div>
 </footer>
 
