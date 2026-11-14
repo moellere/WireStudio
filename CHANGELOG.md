@@ -15,6 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   first: it is an input until the IN-OUT solder pads are bridged, so a 5V
   part gets nothing from USB-C alone.
 
+### Fixed
+
+- **YD-ESP32-23 defaults to 8MB flash.** The board file said 16MB (the
+  N16R8 module); the default unit is N8R8, and declaring more flash than
+  the chip has boot-loops it. An N16R8 unit sets `board.flash_size_mb: 16`
+  in its design.
+
 ## [1.2.0] — 2026-11-14
 
 ### Added

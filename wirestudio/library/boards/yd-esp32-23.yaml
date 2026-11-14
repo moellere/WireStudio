@@ -1,14 +1,15 @@
 id: yd-esp32-23
-name: YD-ESP32-23 (VCC-GND YD-ESP32-S3 N16R8)
+name: YD-ESP32-23 (VCC-GND YD-ESP32-S3 N8R8)
 mcu: esp32
 chip_variant: esp32s3
 framework: arduino
 platformio_board: esp32-s3-devkitc-1
 # VCC-GND Studio's DevKitC-1 clone, PCB "YD-ESP32-23 2022-V1.3":
-# ESP32-S3-WROOM-1 N16R8, two USB-C ports (CH343P UART "COM" and native
-# USB), a WS2812 on GPIO48 behind the RGB jumper. Same header pinout as
+# ESP32-S3-WROOM-1 N8R8 by default (an N16R8 unit takes
+# board.flash_size_mb: 16 in the design), two USB-C ports (CH343P UART
+# "COM" and native USB), a WS2812 on GPIO48 behind the RGB jumper. Same header pinout as
 # the DevKitC-1. https://github.com/rtek1000/YD-ESP32-23
-flash_size_mb: 16
+flash_size_mb: 8
 
 rails:
   - name: "5V"
@@ -28,7 +29,7 @@ rails:
 #   GPIO0  = boot mode (HIGH normal, LOW download). Tied to BOOT button.
 #   GPIO45 = VDD_SPI voltage select. Default LOW = 3.3V.
 #   GPIO46 = ROM print. LOW = silent at boot.
-# The N16R8 module's 8MB PSRAM is octal, so GPIO35-GPIO37 carry the
+# The module's 8MB PSRAM is octal, so GPIO35-GPIO37 carry the
 # PSRAM bus and are left out of the capabilities below.
 # ADC1 covers GPIO1-GPIO10; ADC2 covers GPIO11-GPIO20 and is unusable
 # while WiFi is active. Prefer ADC1.

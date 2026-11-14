@@ -40,7 +40,7 @@ does not list, and `board_check` checks every revision's pins.
 - `esp32-c6-supermini` — ESP32-C6 SuperMini (WiFi 6 / Zigbee-capable C6, onboard WS2812)
 - `esp32-s3-devkitc-1` — ESP32-S3-DevKitC-1 (dual-core Xtensa, native USB, onboard WS2812)
 - `esp32-s3-supermini` — ESP32-S3 SuperMini (compact S3 breakout, onboard WS2812)
-- `yd-esp32-23` — YD-ESP32-23 (VCC-GND YD-ESP32-S3 N16R8; S3 dev board with 16MB flash and 8MB PSRAM)
+- `yd-esp32-23` — YD-ESP32-23 (VCC-GND YD-ESP32-S3 N8R8; S3 dev board with 8MB flash and 8MB PSRAM)
 - `seeed-xiao-esp32c3` — Seeed Studio XIAO ESP32C3 (thumbnail-size C3 with Grove ecosystem)
 - `esp32cam-ai-thinker` — AI-Thinker ESP32-CAM (ESP32-WROVER-B + OV2640 + microSD)
 - `esp32-wrover-cam` — ESP32-WROVER-CAM (Freenove-style, OV2640 with the WROVER pinout)
