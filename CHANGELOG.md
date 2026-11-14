@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`ili9xxx` always emits `invert_colors`, and knows the Waveshare
+  3.5" panel.** ESPHome requires `invert_colors` on this platform, so a
+  design that left the param unset generated YAML that failed to
+  validate; it is now emitted as `false` unless set. The model enum
+  gains `WAVESHARE_RES_3_5` (the Waveshare 3.5" RPi LCD (A)), which
+  previously needed a hand-written `init_sequence`.
 - **Docs brought in line with 1.0.** `docs/mcp.md` lists all 62 tools
   (the six missing were `apply_substitutions`, `workbench_verify_boot`
   and the four `esphome_dashboard_*` tools) and no longer calls the

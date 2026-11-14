@@ -8,7 +8,8 @@ from fastapi.testclient import TestClient
 
 from wirestudio.api.app import create_app
 from wirestudio.library import Library, default_library
-from wirestudio.library.check import check_component_yaml, create_component
+from wirestudio.generate.yaml_gen import render_yaml
+from wirestudio.library.check import check_component_yaml, create_component, synthetic_design
 
 BUNDLED = Path(__file__).resolve().parent.parent / "wirestudio" / "library"
 HBRIDGE = (BUNDLED / "components" / "hbridge_mosfet.yaml").read_text()
@@ -254,3 +255,11 @@ def test_parametric_value_without_a_default_is_an_error(lib):
     assert any("r_led" in e and "does not render" in e for e in report.errors)
     bad_syntax = DRAFT.replace('value: "220"', 'value: "{{ params.r_led"')
     assert any("does not render" in e for e in check_component_yaml(bad_syntax, lib).errors)
+
+
+def test_ili9xxx_always_emits_invert_colors(lib):
+    design = synthetic_design(lib.component("ili9xxx"), lib, on_buses=True)
+    design.components[0].params = {"model": "WAVESHARE_RES_3_5"}
+    out = render_yaml(design, lib)
+    assert "model: WAVESHARE_RES_3_5" in out
+    assert "invert_colors: false" in out

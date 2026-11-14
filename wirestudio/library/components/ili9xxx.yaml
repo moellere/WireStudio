@@ -35,9 +35,7 @@ esphome:
         dc_pin: {{ pins.DC | tojson }}
         reset_pin: {{ pins.RESET | tojson }}
         id: {{ id }}
-    {%- if params.invert_colors is defined %}
-        invert_colors: {{ params.invert_colors | tojson }}
-    {%- endif %}
+        invert_colors: {{ params.invert_colors | default(false) | tojson }}
     {%- if params.color_order is defined %}
         color_order: {{ params.color_order }}
     {%- endif %}
@@ -82,10 +80,11 @@ micropython:
 params_schema:
   model:
     type: string
-    enum: [M5STACK, M5CORE, TFT_2_4, TFT_2_4R, ILI9341, ILI9342, ILI9481, ILI9486, ILI9488, ILI9488_A, ST7796]
+    enum: [M5STACK, M5CORE, TFT_2_4, TFT_2_4R, ILI9341, ILI9342, ILI9481, ILI9486, ILI9488, ILI9488_A, ST7796, WAVESHARE_RES_3_5]
     default: ILI9341
   invert_colors:
     type: boolean
+    default: false
   color_order:
     type: string
     enum: [bgr, rgb]
@@ -97,7 +96,7 @@ params_schema:
     type: string
     default: "5s"
 
-notes: "MISO is required only if your code reads back from the panel (touch-on-the-same-bus boards do, the typical ESPHome lambda flow does not). The 3.5\" Pi-style ILI9486 panels need an `init_sequence` override -- copy from the in-tree 35display.yaml for the Waveshare/Adafruit-style boards. Backlight on most clones is a passive 5V LED; tie it to a GPIO via `backlight_pin` in a `light:` block if you need PWM dimming."
+notes: "MISO is required only if your code reads back from the panel (touch-on-the-same-bus boards do, the typical ESPHome lambda flow does not). The Waveshare 3.5\" RPi LCD (A) is `model: WAVESHARE_RES_3_5`; other 3.5\" Pi-style ILI9486 panels need an `init_sequence` override. ESPHome requires `invert_colors`, so it is always emitted (false unless set). Backlight on most clones is a passive 5V LED; tie it to a GPIO via `backlight_pin` in a `light:` block if you need PWM dimming."
 # KiCad symbol mapping (0.9). Generic header for the ILI9341 / 9488 /
 # 9486 family of SPI displays. Pin count varies (8-14) by breakout;
 # 14 is the upper bound that covers most commodity boards.
