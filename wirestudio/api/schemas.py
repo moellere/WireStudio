@@ -414,6 +414,29 @@ class DashboardRunStatus(_S):
     target: str = Field(default="default", description="Name of the dashboard running the compile.")
 
 
+class RepoStatus(_S):
+    available: bool = Field(description="True when the repository is configured and the token can read its branch.")
+    reason: Optional[str] = Field(default=None, description="Why it is unavailable, when it is.")
+    repo: Optional[str] = Field(default=None, description="owner/name of the configured repository.")
+    branch: Optional[str] = Field(default=None, description="Branch commits go to.")
+    url: Optional[str] = Field(default=None, description="Web URL of the directory files are committed to.")
+
+
+class RepoPushRequest(_S):
+    design: dict = Field(description="The design.json to render and commit.")
+    device_name: Optional[str] = Field(default=None, description="Filename stem; defaults to fleet.device_name, then the design id.")
+    overwrite: bool = Field(default=False, description="Replace a file whose last commit was not made by WireStudio.")
+    strict: bool = Field(default=False, description="Refuse the push when warn/error compatibility issues remain.")
+
+
+class RepoPushResponse(_S):
+    filename: str = Field(description="Filename the YAML was committed under.")
+    created: bool = Field(description="True if the repository did not have this file before.")
+    changed: bool = Field(description="False when the file already held this YAML and nothing was committed.")
+    commit: Optional[str] = Field(default=None, description="SHA of the commit, when one was made.")
+    url: Optional[str] = Field(default=None, description="Web URL of the file.")
+
+
 class FleetJobLogResponse(_S):
     log: str = Field(description="Compile log text from the requested offset.")
     offset: int = Field(description="Byte offset to pass on the next poll to resume the log.")

@@ -234,6 +234,22 @@ export interface DashboardPushResponse {
   target?: string;
 }
 
+export interface RepoStatus {
+  available: boolean;
+  reason?: string | null;
+  repo?: string | null;
+  branch?: string | null;
+  url?: string | null;
+}
+
+export interface RepoPushResponse {
+  filename: string;
+  created: boolean;
+  changed: boolean;
+  commit?: string | null;
+  url?: string | null;
+}
+
 export interface DashboardRunStatus {
   run_id: string;
   filename: string;

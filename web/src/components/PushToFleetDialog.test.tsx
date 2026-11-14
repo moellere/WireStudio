@@ -14,7 +14,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { PushToFleetDialog } from "./PushToFleetDialog";
-import { api } from "../api/client";
+import { api, ApiError } from "../api/client";
 import type { Design } from "../types/api";
 
 vi.mock("../api/client", async () => {
@@ -27,6 +27,8 @@ vi.mock("../api/client", async () => {
       fleetPush: vi.fn(),
       fleetJobLog: vi.fn(),
       fleetRunStatus: vi.fn(),
+      esphomeRepoStatus: vi.fn(),
+      esphomeRepoPush: vi.fn(),
       esphomeDashboardStatus: vi.fn(),
       esphomeDashboardPush: vi.fn(),
       esphomeDashboardJobLog: vi.fn(),
@@ -44,6 +46,8 @@ const mockApi = api as unknown as {
   fleetPush: ReturnType<typeof vi.fn>;
   fleetJobLog: ReturnType<typeof vi.fn>;
   fleetRunStatus: ReturnType<typeof vi.fn>;
+  esphomeRepoStatus: ReturnType<typeof vi.fn>;
+  esphomeRepoPush: ReturnType<typeof vi.fn>;
   esphomeDashboardStatus: ReturnType<typeof vi.fn>;
   esphomeDashboardPush: ReturnType<typeof vi.fn>;
   esphomeDashboardJobLog: ReturnType<typeof vi.fn>;
@@ -65,6 +69,8 @@ const design: Design = {
 } as Design;
 
 beforeEach(() => {
+  mockApi.esphomeRepoStatus.mockReset().mockResolvedValue({ available: false, reason: "ESPHOME_REPO and ESPHOME_REPO_TOKEN not set" });
+  mockApi.esphomeRepoPush.mockReset();
   mockApi.esphomeDashboardStatus.mockReset().mockResolvedValue({ available: false, reason: "ESPHOME_DASHBOARD_URL not set", url: null });
   mockApi.esphomeDashboardPush.mockReset();
   mockApi.esphomeDashboardJobLog.mockReset();
@@ -434,5 +440,38 @@ describe("ESPHome dashboard build path", () => {
     await userEvent.click(screen.getByRole("radio", { name: /ESPHome dashboard/i }));
     await waitFor(() => expect(screen.getByText(/ESPHOME_DASHBOARD_URL not set/)).toBeInTheDocument());
     expect(screen.getByText(/Set/).textContent).toContain("ESPHOME_DASHBOARD_URL");
+  });
+});
+
+describe("ESPHome repo path", () => {
+  it("commits without compiling and asks before replacing a hand-written file", async () => {
+    mockApi.fleetStatus.mockResolvedValue({ available: false, reason: "FLEET_URL not set", url: null });
+    mockApi.esphomeRepoStatus.mockResolvedValue({
+      available: true, reason: null, repo: "me/esphome", branch: "main", url: "https://github.com/me/esphome/tree/main",
+    });
+    mockApi.esphomeRepoPush
+      .mockRejectedValueOnce(new ApiError(409, "Conflict", {
+        detail: { error: "file_exists", message: "garage-motion.yaml is already in me/esphome and was last changed outside WireStudio" },
+      }))
+      .mockResolvedValueOnce({
+        filename: "garage-motion.yaml", created: false, changed: true, commit: "0123456789abcdef",
+        url: "https://github.com/me/esphome/blob/main/garage-motion.yaml",
+      });
+    render(<PushToFleetDialog design={design} onClose={vi.fn()} />);
+    await waitFor(() => expect(screen.getByText(/connected · https:\/\/github.com\/me\/esphome/)).toBeInTheDocument());
+    expect(screen.getByRole("radio", { name: /ESPHome repo/i })).toHaveAttribute("aria-checked", "true");
+    expect(screen.queryByText(/Compile after upload/)).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /push/i }));
+    await waitFor(() => expect(screen.getByText(/is already in me\/esphome/)).toBeInTheDocument());
+    expect(mockApi.esphomeRepoPush.mock.calls[0][0]).toMatchObject({ device_name: "garage-motion", overwrite: false });
+
+    await userEvent.click(screen.getByRole("checkbox", { name: /Replace an existing file/i }));
+    await userEvent.click(screen.getByRole("button", { name: /push/i }));
+    await waitFor(() => expect(screen.getByText(/Committed an update to/)).toBeInTheDocument());
+    expect(mockApi.esphomeRepoPush.mock.calls[1][0]).toMatchObject({ overwrite: true });
+    expect(screen.getByRole("link", { name: "garage-motion.yaml" })).toHaveAttribute(
+      "href", "https://github.com/me/esphome/blob/main/garage-motion.yaml");
+    expect(screen.getByText(/0123456/)).toBeInTheDocument();
   });
 });

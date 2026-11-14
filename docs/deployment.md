@@ -41,6 +41,7 @@ of them, just with the corresponding feature turned off. See
 | `THINGIVERSE_API_KEY` | enclosure search (`/enclosure/search`) |
 | `WIRESTUDIO_MCP_TOKEN` | bearer token for the `/mcp` endpoint (auto-generated if unset) |
 | `WIRESTUDIO_API_TOKEN` | bearer token for everything else under the API (`/health` and `/mcp` excepted). Unset leaves the REST surface open, as before; set it before exposing the studio beyond a private network. The web UI asks for it once and keeps it in the browser |
+| `ESPHOME_REPO` + `ESPHOME_REPO_TOKEN` (+ `ESPHOME_REPO_BRANCH`, `ESPHOME_REPO_PATH`) | commit a design's YAML to a GitHub repository of ESPHome configs (`/esphome-repo/*`); the token needs contents read/write on that one repository |
 | `CHIRPSTACK_API_URL` + `CHIRPSTACK_API_TOKEN` | LoRaWAN device provisioning against ChirpStack (`/lorawan/provision`, `/lorawan/provision-esphome`) |
 | `ESPHOME_DASHBOARD_URL` (+ `ESPHOME_DASHBOARD_USERNAME` / `_PASSWORD`) | compile through an ESPHome Device Builder (`/esphome/*`); the port-exposed add-on or a standalone builder (ESPHome 2026.6+), not the HA ingress path |
 | `ESPHOME_DASHBOARDS` (+ `ESPHOME_DASHBOARD_<NAME>_URL` / `_USERNAME` / `_PASSWORD` / `_LABEL`) | several builders as named push targets, first is the default; see [integrations](integrations.md) |

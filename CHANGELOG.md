@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Push a design to a GitHub repository of ESPHome configs.** With
+  `ESPHOME_REPO` and `ESPHOME_REPO_TOKEN` set, `POST /esphome-repo/push`,
+  the `esphome_repo_push` MCP tool and an "ESPHome repo" path in the push
+  dialog commit the rendered YAML as `<device>.yaml` through the GitHub
+  contents API; nothing is compiled. A file last changed outside
+  WireStudio is left alone unless `overwrite` is set, and unchanged YAML
+  makes no commit.
+
 ## [1.1.0] — 2026-11-14
 
 ### Added

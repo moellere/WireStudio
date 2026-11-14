@@ -75,6 +75,8 @@ HARDWARE_TOOLS = {
     "esphome_dashboard_push",
     "esphome_dashboard_job_status",
     "esphome_dashboard_job_log",
+    "esphome_repo_status",
+    "esphome_repo_push",
     "fleet_status",
     "fleet_push",
     "fleet_job_status",
