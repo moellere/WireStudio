@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Design } from "../types/api";
 
 /**
@@ -6,7 +6,8 @@ import type { Design } from "../types/api";
  * drawn as an SVG net graph: board pins/rails on the left, buses in a
  * middle lane, components on the right. Hovering a row or edge
  * highlights its net. Layout is computed from row indexes -- no
- * physical placement is implied.
+ * physical placement is implied. The drawing renders at its own size:
+ * it never scales up, scales down to MIN_SCALE, then scrolls.
  */
 
 interface Conn {
@@ -36,6 +37,10 @@ const BUS_X = 330;
 const COMP_X = 640;
 const TOP = 14;
 const CARD_GAP = 18;
+const VIEW_W = COMP_X + CARD_W + 10;
+const MIN_SCALE = 0.85;
+const LANE_GAP = 6;
+const FADE = 28;
 
 const RAIL_ORDER: Record<string, number> = { "5V": 0, VIN: 0, "3V3": 1, GND: 2 };
 
@@ -72,6 +77,31 @@ function targetLabel(t: Record<string, unknown> | null): string {
   return kind;
 }
 
+function cubic(a: number, b: number, c: number, d: number, t: number): number {
+  const u = 1 - t;
+  return u * u * u * a + 3 * u * u * t * b + 3 * u * t * t * c + t * t * t * d;
+}
+
+/** Whether the direct curve between a component row and a board row passes through a bus card. */
+function crossesBus(x1: number, y1: number, x2: number, y2: number, busCards: Array<{ y: number; h: number }>): boolean {
+  const mx = (x1 + x2) / 2;
+  for (let t = 0.05; t < 1; t += 0.05) {
+    const x = cubic(x1, mx, mx, x2, t);
+    if (x < BUS_X - 2 || x > BUS_X + CARD_W + 2) continue;
+    const y = cubic(y1, y1, y2, y2, t);
+    if (busCards.some((b) => y > b.y - 3 && y < b.y + b.h + 3)) return true;
+  }
+  return false;
+}
+
+/** Fit a card head into CARD_W: the title keeps up to 18 characters, the subtitle gets the rest. */
+function fitHead(title: string, subtitle: string | undefined): [string, string] {
+  const t = trunc(title, subtitle ? 18 : 28);
+  if (!subtitle) return [t, ""];
+  const room = Math.floor((CARD_W - 28 - t.length * 7) / 6);
+  return [t, trunc(subtitle, Math.max(room, 4))];
+}
+
 /** Net key shared by every row/edge belonging to the same electrical net. */
 function netKey(t: Record<string, unknown> | null): string | null {
   if (!t || !t.kind) return null;
@@ -85,7 +115,15 @@ function netKey(t: Record<string, unknown> | null): string | null {
   return null;
 }
 
-function edgePath(x1: number, y1: number, x2: number, y2: number): string {
+function edgePath(x1: number, y1: number, x2: number, y2: number, via?: number): string {
+  if (via !== undefined) {
+    const busL = BUS_X;
+    const busR = BUS_X + CARD_W;
+    return (
+      `M ${x2} ${y2} C ${x2 + 50} ${y2}, ${busL - 50} ${via}, ${busL} ${via} ` +
+      `L ${busR} ${via} C ${busR + 45} ${via}, ${x1 - 45} ${y1}, ${x1} ${y1}`
+    );
+  }
   if (x1 === x2) {
     const bow = x1 - 40;
     return `M ${x1} ${y1} C ${bow} ${y1}, ${bow} ${y2}, ${x2} ${y2}`;
@@ -115,20 +153,46 @@ export function WiringView({ design }: { design: Design }) {
   const dim = (key: string | null) =>
     hover !== null && key !== hover ? "opacity-20" : "";
 
+  const scroller = useRef<HTMLDivElement | null>(null);
+  const [cut, setCut] = useState({ left: false, right: false });
+
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    const measure = () => {
+      const left = el.scrollLeft > 1;
+      const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 1;
+      setCut((c) => (c.left === left && c.right === right ? c : { left, right }));
+    };
+    measure();
+    el.addEventListener("scroll", measure, { passive: true });
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+    observer?.observe(el);
+    return () => {
+      el.removeEventListener("scroll", measure);
+      observer?.disconnect();
+    };
+  }, []);
+
+  const mask = cut.left || cut.right
+    ? `linear-gradient(to right, ${cut.left ? "transparent" : "black"}, black ${FADE}px, ` +
+      `black calc(100% - ${FADE}px), ${cut.right ? "transparent" : "black"})`
+    : undefined;
+
   return (
-    <div className="overflow-auto">
+    <div ref={scroller} className="overflow-auto" style={{ maskImage: mask, WebkitMaskImage: mask }}>
       <svg
-        viewBox={`0 0 ${COMP_X + CARD_W + 10} ${model.height}`}
-        className="min-w-[820px] font-sans"
-        style={{ width: "100%" }}
+        viewBox={`0 0 ${VIEW_W} ${model.height}`}
+        className="block w-full font-sans"
+        style={{ minWidth: Math.round(VIEW_W * MIN_SCALE), maxWidth: VIEW_W }}
         onMouseLeave={() => setHover(null)}
       >
-        {/* edges under nodes */}
+        {/* Edges sit under the cards; a board-to-component edge that would run behind a bus card detours below the bus column instead. */}
         {model.edges.map((e, i) => (
           <path
             key={i}
-            d={edgePath(e.x1, e.y1, e.x2, e.y2)}
-            className={`fill-none ${e.cls} ${e.dashed ? "" : ""} ${dim(e.net)} transition-opacity`}
+            d={edgePath(e.x1, e.y1, e.x2, e.y2, e.via)}
+            className={`fill-none ${e.cls} ${dim(e.net)} transition-opacity`}
             strokeWidth={e.net === hover ? 2.2 : 1.4}
             strokeDasharray={e.dashed ? "4 3" : undefined}
             strokeLinecap="round"
@@ -136,67 +200,72 @@ export function WiringView({ design }: { design: Design }) {
           />
         ))}
 
-        {model.cards.map((card) => (
-          <g key={card.key}>
-            <rect
-              x={card.x}
-              y={card.y}
-              width={CARD_W}
-              height={card.h}
-              rx={8}
-              className={`fill-surface-1 stroke-line ${dim(card.net)} transition-opacity`}
-            />
-            <text
-              x={card.x + 10}
-              y={card.y + 19}
-              className={`fill-ink text-[12px] font-semibold ${dim(card.net)}`}
-              onMouseEnter={card.net ? () => setHover(card.net) : undefined}
-            >
-              {trunc(card.title, card.subtitle ? 17 : 28)}
-            </text>
-            {card.subtitle && (
+        {model.cards.map((card) => {
+          const [title, subtitle] = fitHead(card.title, card.subtitle);
+          return (
+            <g key={card.key}>
+              <rect
+                x={card.x}
+                y={card.y}
+                width={CARD_W}
+                height={card.h}
+                rx={8}
+                className={`fill-surface-1 stroke-line ${dim(card.net)} transition-opacity`}
+              />
               <text
-                x={card.x + CARD_W - 10}
+                x={card.x + 10}
                 y={card.y + 19}
-                textAnchor="end"
-                className={`fill-ink-faint font-mono text-[10px] ${dim(card.net)}`}
+                className={`fill-ink text-[12px] font-semibold ${card.mono ? "font-mono" : ""} ${dim(card.net)}`}
+                onMouseEnter={card.net ? () => setHover(card.net) : undefined}
               >
-                {trunc(card.subtitle, 16)}
+                {title !== card.title && <title>{card.title}</title>}
+                {title}
               </text>
-            )}
-            {card.rows.map((r, i) => {
-              const y = card.y + HEAD_H + PAD_Y + i * ROW_H + ROW_H / 2;
-              return (
-                <g
-                  key={i}
-                  onMouseEnter={() => setHover(r.net)}
-                  className={`${dim(r.net)} transition-opacity`}
+              {subtitle && (
+                <text
+                  x={card.x + CARD_W - 10}
+                  y={card.y + 19}
+                  textAnchor="end"
+                  className={`fill-ink-faint text-[10px] ${card.mono ? "" : "font-mono"} ${dim(card.net)}`}
                 >
-                  <rect
-                    x={card.x + 4}
-                    y={y - ROW_H / 2 + 1}
-                    width={CARD_W - 8}
-                    height={ROW_H - 2}
-                    rx={4}
-                    className={r.net === hover ? "fill-accent-500/10" : "fill-transparent"}
-                  />
-                  <circle cx={r.dotLeft ? card.x : card.x + CARD_W} cy={y} r={3} className={`${r.dotCls} stroke-none`} />
-                  <text x={card.x + 12} y={y + 4} className="fill-ink font-mono text-[11px]">
-                    {r.label}
-                  </text>
-                  <text
-                    x={card.x + CARD_W - 12}
-                    y={y + 4}
-                    textAnchor="end"
-                    className={`font-mono text-[10px] ${r.value === "unassigned" ? "fill-rose-400" : "fill-ink-faint"}`}
+                  {subtitle !== card.subtitle && <title>{card.subtitle}</title>}
+                  {subtitle}
+                </text>
+              )}
+              {card.rows.map((r, i) => {
+                const y = card.y + HEAD_H + PAD_Y + i * ROW_H + ROW_H / 2;
+                return (
+                  <g
+                    key={i}
+                    onMouseEnter={() => setHover(r.net)}
+                    className={`${dim(r.net)} transition-opacity`}
                   >
-                    {r.value}
-                  </text>
-                </g>
-              );
-            })}
-          </g>
-        ))}
+                    <rect
+                      x={card.x + 4}
+                      y={y - ROW_H / 2 + 1}
+                      width={CARD_W - 8}
+                      height={ROW_H - 2}
+                      rx={4}
+                      className={r.net === hover ? "fill-accent-500/10" : "fill-transparent"}
+                    />
+                    <circle cx={r.dotLeft ? card.x : card.x + CARD_W} cy={y} r={3} className={`${r.dotCls} stroke-none`} />
+                    <text x={card.x + 12} y={y + 4} className="fill-ink font-mono text-[11px]">
+                      {r.label}
+                    </text>
+                    <text
+                      x={card.x + CARD_W - 12}
+                      y={y + 4}
+                      textAnchor="end"
+                      className={`font-mono text-[10px] ${r.value === "unassigned" ? "fill-rose-400" : "fill-ink-faint"}`}
+                    >
+                      {r.value}
+                    </text>
+                  </g>
+                );
+              })}
+            </g>
+          );
+        })}
       </svg>
     </div>
   );
@@ -214,6 +283,8 @@ interface Card {
   key: string;
   title: string;
   subtitle?: string;
+  /** The title is a machine id and the subtitle is prose, not the reverse. */
+  mono?: boolean;
   x: number;
   y: number;
   h: number;
@@ -229,6 +300,8 @@ interface Edge {
   cls: string;
   net: string;
   dashed?: boolean;
+  /** Lane below the bus column that the edge crosses in. */
+  via?: number;
 }
 
 function buildModel(design: Design) {
@@ -394,8 +467,9 @@ function buildModel(design: Design) {
     const h = HEAD_H + PAD_Y * 2 + rows.length * ROW_H;
     cards.push({
       key: `comp:${comp.id}`,
-      title: comp.label || comp.id,
-      subtitle: comp.library_id,
+      title: comp.id,
+      subtitle: comp.label || comp.library_id,
+      mono: true,
       x: COMP_X,
       y: compY,
       h,
@@ -461,9 +535,21 @@ function buildModel(design: Design) {
     }
   }
 
+  const busCards = cards.filter((c) => c.x === BUS_X);
+  const detours = edges.filter(
+    (e) => e.x1 === COMP_X && e.x2 === BOARD_X + CARD_W && crossesBus(e.x1, e.y1, e.x2, e.y2, busCards),
+  );
+  // One lane per net, in board row order, so a net's edges share a trunk and lanes do not cross on the way in.
+  const laneOf = new Map<string, number>();
+  for (const e of [...detours].sort((a, b) => a.y2 - b.y2)) {
+    if (!laneOf.has(e.net)) laneOf.set(e.net, busY - CARD_GAP + 12 + laneOf.size * LANE_GAP);
+  }
+  for (const e of detours) e.via = laneOf.get(e.net);
+
   const height = Math.max(
     boardCard.y + boardCard.h,
     busY,
+    busY - CARD_GAP + 12 + laneOf.size * LANE_GAP,
     compY,
   ) + 14;
 

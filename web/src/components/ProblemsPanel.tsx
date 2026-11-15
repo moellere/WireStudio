@@ -61,11 +61,12 @@ export function ProblemsPanel({
     setCollapsed(false);
   }, [solve]);
 
-  useEffect(() => {
-    if (showCompatibility === 0) return;
+  const [shownCompatibility, setShownCompatibility] = useState(showCompatibility);
+  if (showCompatibility !== shownCompatibility) {
+    setShownCompatibility(showCompatibility);
     setTab("compatibility");
     setCollapsed(false);
-  }, [showCompatibility]);
+  }
 
   const compatTone = compatibilityWarnings.some((w) => w.severity === "error")
     ? "rose"

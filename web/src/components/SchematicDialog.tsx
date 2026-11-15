@@ -411,10 +411,8 @@ python ${id}.skidl.py
             <Notice tone="amber" title="Board export is unavailable on this server">
               <div className="mt-1">
                 The board export needs the KiCad footprint and symbol libraries on the server.
-                {pcbStatus.reason && <> ({pcbStatus.reason})</>}
-                {fabStatus && !fabStatus.gerbers && (
-                  <> Gerbers also need <Code>kicad-cli</Code>{fabStatus.reason && <> ({fabStatus.reason})</>}. The BOM is always available.</>
-                )}
+                {pcbStatus.reason && <> ({pcbStatus.reason})</>}{" "}
+                The BOM below is always available.
               </div>
             </Notice>
           )}
