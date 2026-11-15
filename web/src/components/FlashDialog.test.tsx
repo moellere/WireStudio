@@ -166,7 +166,7 @@ describe("FlashDialog", () => {
     });
     renderDialog();
     await waitFor(() =>
-      expect(screen.getByText(/firmware download unavailable/i)).toBeInTheDocument(),
+      expect(screen.getByText(/firmware download is unavailable/i)).toBeInTheDocument(),
     );
     expect(screen.getByRole("button", { name: /flash tasmota/i })).toBeDisabled();
   });

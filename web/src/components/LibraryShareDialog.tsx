@@ -46,7 +46,7 @@ export function LibraryShareDialog({ kind, id, status, onClose }: {
       title={`Share ${id} to the community library`}
       subtitle={<>Library entries in <code className="font-mono">{status.repo}</code> are {status.library_license}: anyone may use them, and a maintainer may promote one into WireStudio's bundled library, crediting you.</>}
       onClose={onClose}
-      maxWidth="max-w-lg"
+      maxWidth="max-w-xl"
       footer={
         <div className="flex items-center justify-end gap-2">
           <Button onClick={onClose}>{done ? "Close" : "Cancel"}</Button>

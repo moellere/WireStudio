@@ -4,7 +4,7 @@ import { api, lorawanCompile } from "../api/client";
 import { isWebSerialSupported } from "../lib/usb-detect";
 import { APP_PARTITION_OFFSET, flashFirmware, type FlashSession } from "../lib/flash";
 import { createSerialProvisioner, macToEui64 } from "../lib/provision";
-import { Button, Dialog } from "./ui";
+import { Button, Code, Dialog, Notice } from "./ui";
 
 type Phase =
   | "loading"
@@ -577,15 +577,14 @@ function BoardPicker({
 
 function UnsupportedNotice() {
   return (
-    <div className="rounded-md bg-amber-500/10 p-3 text-xs text-amber-100 ring-1 ring-amber-500/30">
-      <div className="mb-1 font-semibold">WebSerial isn&apos;t available here.</div>
-      <div>
+    <Notice tone="amber" title="WebSerial is unavailable here">
+      <div className="mt-1">
         Flashing needs a Chromium browser (Chrome, Edge, Brave; not Firefox/Safari)
         <b> and</b> a secure context. On Chrome this usually means the page isn&apos;t
-        secure: open it over <code>https://</code> or <code>http://localhost</code> (e.g. an
-        SSH tunnel) — a plain <code>http://&lt;ip&gt;</code> LAN address disables WebSerial.
+        secure: open it over <Code>https://</Code> or <Code>http://localhost</Code> (e.g. an
+        SSH tunnel). A plain <Code>http://&lt;ip&gt;</Code> LAN address disables WebSerial.
       </div>
-    </div>
+    </Notice>
   );
 }
 

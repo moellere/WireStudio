@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import type { ReactNode, ButtonHTMLAttributes, InputHTMLAttributes, SelectHTMLAttributes } from "react";
 import { X } from "lucide-react";
 
@@ -82,9 +83,28 @@ interface DialogProps {
   maxWidth?: string;
 }
 
+const FooterSlot = createContext<HTMLElement | null>(null);
+
+function FooterContent({ note, children }: { note?: ReactNode; children?: ReactNode }) {
+  return (
+    <>
+      <div className="min-w-0 text-xs text-ink-dim">{note}</div>
+      <div className="flex shrink-0 items-center gap-2">{children}</div>
+    </>
+  );
+}
+
+/** Fills the enclosing Dialog's footer from a child that owns the action's state. */
+export function DialogFooter({ note, children }: { note?: ReactNode; children?: ReactNode }) {
+  const slot = useContext(FooterSlot);
+  return slot ? createPortal(<FooterContent note={note}>{children}</FooterContent>, slot) : null;
+}
+
 export function Dialog({
   title, subtitle, onClose, children, footer, footerNote, headerActions, maxWidth = "max-w-xl",
 }: DialogProps) {
+  const [footerSlot, setFooterSlot] = useState<HTMLElement | null>(null);
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -120,13 +140,15 @@ export function Dialog({
             </button>
           </div>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
-        {(footer || footerNote) && (
-          <div className="flex items-center justify-between gap-4 border-t border-line bg-surface-0/50 px-5 py-3">
-            <div className="min-w-0 text-xs text-ink-dim">{footerNote}</div>
-            <div className="flex shrink-0 items-center gap-2">{footer}</div>
-          </div>
-        )}
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+          <FooterSlot.Provider value={footerSlot}>{children}</FooterSlot.Provider>
+        </div>
+        <div
+          ref={setFooterSlot}
+          className="flex items-center justify-between gap-4 border-t border-line bg-surface-0/50 px-5 py-3 empty:hidden"
+        >
+          {(footer || footerNote) && <FooterContent note={footerNote}>{footer}</FooterContent>}
+        </div>
       </div>
     </div>
   );

@@ -1,13 +1,12 @@
 /**
- * Schematic export dialog. Two paths:
- *  - Download a SKiDL Python script the user runs locally to produce a
- *    `<design_id>.kicad_sch` (always available).
- *  - Render an inline SVG preview, when the server has `kicad-cli` + SKiDL
- *    installed. The preview is feature-gated the same way the agent and
- *    fleet features are: probe `/design/kicad/render/status` and degrade
- *    to a notice when the tools are missing.
+ * Schematic and PCB dialog, one tab per output: the drawn .kicad_sch with an
+ * inline preview, the SKiDL script (always available), the placed .kicad_pcb
+ * with fab outputs, and the Freerouting autoroute. Each server-side output is
+ * feature-gated the way the agent and fleet features are: probe its status
+ * endpoint and degrade to one notice on the tab when the tools are missing.
  */
 import { useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { api, ApiError, kicadRoute } from "../api/client";
 import type {
   DrcSummary,
@@ -18,7 +17,7 @@ import type {
   KicadRouteStatus,
   KicadSchStatus,
 } from "../types/api";
-import { Button, Dialog } from "./ui";
+import { Button, Code, Dialog, Input, Notice, Section, Tabs } from "./ui";
 import { RouteDrcReport } from "./RouteDrcReport";
 
 interface Props {
@@ -45,7 +44,11 @@ function saveBlob(part: BlobPart, filename: string, type: string) {
   URL.revokeObjectURL(url);
 }
 
+type Tab = "schematic" | "skidl" | "pcb" | "route";
+
 export function SchematicDialog({ design, onClose }: Props) {
+  const [tab, setTab] = useState<Tab>("schematic");
+  const id = typeof design.id === "string" ? design.id : "design";
   const [downloading, setDownloading] = useState(false);
   const [downloaded, setDownloaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -207,8 +210,6 @@ export function SchematicDialog({ design, onClose }: Props) {
     }
   }
 
-  const id = design.id ?? "design";
-
   async function handleRoute() {
     setRouting(true);
     setRouteLog("");
@@ -270,91 +271,105 @@ export function SchematicDialog({ design, onClose }: Props) {
     }
   }
 
+  const tabs: { id: Tab; label: ReactNode }[] = [
+    { id: "schematic", label: <TabLabel missing={schStatus?.available === false || renderStatus?.available === false}>Schematic</TabLabel> },
+    { id: "skidl", label: "SKiDL script" },
+    { id: "pcb", label: <TabLabel missing={pcbStatus?.available === false}>PCB board</TabLabel> },
+    { id: "route", label: <TabLabel missing={routeStatus?.available === false}>Autoroute</TabLabel> },
+  ];
+
+  const footer: Record<Tab, ReactNode> = {
+    schematic: (
+      <>
+        <Button onClick={handleRender} disabled={rendering || !renderStatus?.available}>
+          {rendering ? "Rendering…" : svgUrl ? "Re-render" : "Render schematic"}
+        </Button>
+        <Button variant="primary" onClick={handleDownloadSch} disabled={schDownloading || !schStatus?.available}>
+          {schDownloading ? "Writing…" : "Download .kicad_sch"}
+        </Button>
+      </>
+    ),
+    skidl: (
+      <Button variant="primary" onClick={handleDownload} disabled={downloading}>
+        {downloading ? "Generating…" : "Download .skidl.py"}
+      </Button>
+    ),
+    pcb: (
+      <Button variant="primary" onClick={handleDownloadPcb} disabled={pcbDownloading || !pcbStatus?.available}>
+        {pcbDownloading ? "Generating…" : "Download .kicad_pcb"}
+      </Button>
+    ),
+    route: (
+      <>
+        {routeKey && <Button onClick={handleDownloadRouted}>Download routed .kicad_pcb</Button>}
+        <Button variant="primary" onClick={handleRoute} disabled={routing || !routeStatus?.available}>
+          {routing ? "Routing…" : routeKey ? "Route again" : "Route board"}
+        </Button>
+      </>
+    ),
+  };
+
+  const footerNote: Record<Tab, ReactNode> = {
+    schematic: schDownloaded ? <>Downloaded <Code>{id}.kicad_sch</Code></> : null,
+    skidl: downloaded ? <>Downloaded <Code>{id}.skidl.py</Code></> : null,
+    pcb: pcbDownloaded ? <>Downloaded <Code>{id}.kicad_pcb</Code></> : null,
+    route: routeKey ? "Routed. Results are cached per design." : null,
+  };
+
   return (
     <Dialog
-      title="KiCad export"
-      subtitle="Preview the schematic, download it for KiCad, or export a PCB board."
+      title="Schematic and PCB"
+      subtitle={<>KiCad 8 files for <span className="font-mono">{id}</span>, drawn by the studio.</>}
       onClose={onClose}
       maxWidth="max-w-3xl"
+      footer={footer[tab]}
+      footerNote={footerNote[tab]}
     >
-      <div className="space-y-4 text-sm text-ink-dim">
-        {/* --- Inline preview --------------------------------------- */}
-        <section className="space-y-2">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
-            Preview
-          </div>
-          {renderStatus === null ? (
-            <div className="text-xs text-ink-faint">Checking renderer…</div>
-          ) : renderStatus.available ? (
-            <>
-              <Button variant="primary" onClick={handleRender} disabled={rendering}>
-                {rendering ? "Rendering…" : svgUrl ? "Re-render" : "Render schematic"}
-              </Button>
-              {svgUrl && (
-                <div className="overflow-auto rounded-md border border-line bg-white p-2">
-                  <img src={svgUrl} alt="rendered schematic" className="mx-auto block" />
-                </div>
-              )}
-              {renderError && (
-                <div className="rounded-md bg-rose-500/10 px-2 py-1.5 text-xs text-rose-200 ring-1 ring-rose-500/30">
-                  {renderError}
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="rounded-md border border-line bg-surface-2/40 px-2 py-1.5 text-xs text-ink-dim">
-              Inline preview needs <code className="text-ink">kicad-cli</code> and the
-              KiCad symbol libraries on the server.
-              {renderStatus.reason && (
-                <span className="text-ink-faint"> ({renderStatus.reason})</span>
-              )}{" "}
-              Download the script below and render it locally instead.
-            </div>
-          )}
-        </section>
+      <Tabs label="KiCad outputs" tabs={tabs} value={tab} onChange={setTab} className="-mx-5 -mt-4 mb-4 px-2" />
 
-        {/* --- Download the schematic (.kicad_sch) ------------------- */}
-        <section className="space-y-3 border-t border-line pt-3">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
-            Download schematic
-          </div>
-          <p className="text-xs leading-relaxed text-ink-dim">
-            A KiCad 8 <code className="text-ink">.kicad_sch</code> drawn by the studio:
+      {tab === "schematic" && (
+        <div className="space-y-3 text-xs leading-relaxed text-ink-dim">
+          <p>
+            A KiCad 8 <Code>.kicad_sch</Code> drawn by the studio:
             the board with every pin labelled or flagged, peripherals beside it,
             and each subcircuit drawn as a circuit where its library entry has a
             layout. Symbols are embedded, so it opens with no library setup.
           </p>
-          {schStatus === null ? (
-            <div className="text-xs text-ink-faint">Checking symbol libraries…</div>
-          ) : schStatus.available ? (
-            <Button variant="primary" onClick={handleDownloadSch} disabled={schDownloading}>
-              {schDownloading
-                ? "Writing…"
-                : schDownloaded
-                  ? "Downloaded ✓ — write again"
-                  : "Download .kicad_sch →"}
-            </Button>
-          ) : (
-            <div className="rounded-md border border-line bg-surface-2/40 px-2 py-1.5 text-xs text-ink-dim">
-              Writing the schematic needs the KiCad symbol libraries on the server.
-              {schStatus.reason && <span className="text-ink-faint"> ({schStatus.reason})</span>}{" "}
-              The SKiDL script below works without them.
+          {(schStatus === null || renderStatus === null) && (
+            <div className="text-ink-faint">Checking server tools…</div>
+          )}
+          {schStatus?.available === false ? (
+            <Notice tone="amber" title="Schematic export is unavailable on this server">
+              <div className="mt-1">
+                Writing the schematic needs the KiCad symbol libraries on the server.
+                {schStatus.reason && <> ({schStatus.reason})</>}{" "}
+                The SKiDL script works without them.
+              </div>
+            </Notice>
+          ) : renderStatus?.available === false && (
+            <Notice tone="amber" title="Schematic preview is unavailable on this server">
+              <div className="mt-1">
+                The inline preview needs <Code>kicad-cli</Code> and the KiCad symbol
+                libraries on the server.
+                {renderStatus.reason && <> ({renderStatus.reason})</>}{" "}
+                Open the download in KiCad, or run the SKiDL script and render it locally instead.
+              </div>
+            </Notice>
+          )}
+          {svgUrl && (
+            <div className="overflow-auto rounded-md border border-line bg-white p-2">
+              <img src={svgUrl} alt="rendered schematic" className="mx-auto block" />
             </div>
           )}
-          {schError && (
-            <div className="rounded-md bg-rose-500/10 px-2 py-1.5 text-xs text-rose-200 ring-1 ring-rose-500/30">
-              {schError}
-            </div>
-          )}
-        </section>
+          {renderError && <ErrorBanner>{renderError}</ErrorBanner>}
+          {schError && <ErrorBanner>{schError}</ErrorBanner>}
+        </div>
+      )}
 
-        {/* --- Download the SKiDL script ----------------------------- */}
-        <section className="space-y-3 border-t border-line pt-3">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
-            Download script
-          </div>
-          <p className="text-xs leading-relaxed text-ink-dim">
-            A self-contained <code className="text-ink">.skidl.py</code> file.
+      {tab === "skidl" && (
+        <div className="space-y-3 text-xs leading-relaxed text-ink-dim">
+          <p>
+            A self-contained <Code>.skidl.py</Code> file.
             Run it with{" "}
             <a
               href="https://devbisme.github.io/skidl/"
@@ -368,8 +383,8 @@ export function SchematicDialog({ design, onClose }: Props) {
           </p>
           <pre className="overflow-x-auto rounded-lg bg-surface-0 p-2 font-mono text-[12px] leading-relaxed text-ink ring-1 ring-line">
 {`pip install skidl
-python ${design.id ?? "design"}.skidl.py
-# produces ${design.id ?? "design"}.kicad_sch in the cwd`}
+python ${id}.skidl.py
+# produces ${id}.kicad_sch in the cwd`}
           </pre>
           <p className="text-[11px] text-ink-faint">
             Components without a <code>kicad:</code> mapping in the studio
@@ -380,102 +395,129 @@ python ${design.id ?? "design"}.skidl.py
             the script (e.g., the BME280's VCC role becomes VDD on the
             schematic to match the Bosch symbol's pin name).
           </p>
-          <Button variant="primary" onClick={handleDownload} disabled={downloading}>
-            {downloading
-              ? "Generating…"
-              : downloaded
-                ? "Downloaded ✓ — generate again"
-                : "Download .skidl.py →"}
-          </Button>
-          {error && (
-            <div className="rounded-md bg-rose-500/10 px-2 py-1.5 text-xs text-rose-200 ring-1 ring-rose-500/30">
-              {error}
-            </div>
-          )}
-        </section>
+          {error && <ErrorBanner>{error}</ErrorBanner>}
+        </div>
+      )}
 
-        {/* --- PCB board (.kicad_pcb) -------------------------------- */}
-        <section className="space-y-2 border-t border-line pt-3">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
-            PCB board
-          </div>
-          <p className="text-xs leading-relaxed text-ink-dim">
-            A <code className="text-ink">.kicad_pcb</code> with every
-            part placed on a grid and pads wired to nets — open it in KiCad's
-            PCB editor with a full ratsnest and route it yourself, or
-            autoroute it below.
+      {tab === "pcb" && (
+        <div className="space-y-3 text-xs leading-relaxed text-ink-dim">
+          <p>
+            A <Code>.kicad_pcb</Code> with every part placed on a grid and pads
+            wired to nets. Open it in KiCad's PCB editor with a full ratsnest
+            and route it yourself, or autoroute it on the Autoroute tab.
           </p>
-          {pcbStatus === null ? (
-            <div className="text-xs text-ink-faint">Checking…</div>
-          ) : pcbStatus.available ? (
-            <Button variant="primary" onClick={handleDownloadPcb} disabled={pcbDownloading}>
-              {pcbDownloading
-                ? "Generating…"
-                : pcbDownloaded
-                  ? "Downloaded ✓ — generate again"
-                  : "Download .kicad_pcb →"}
-            </Button>
-          ) : (
-            <div className="rounded-md border border-line bg-surface-2/40 px-2 py-1.5 text-xs text-ink-dim">
-              The board export needs the KiCad footprint + symbol libraries
-              on the server.
-              {pcbStatus.reason && (
-                <span className="text-ink-faint"> ({pcbStatus.reason})</span>
-              )}
-            </div>
+          {pcbStatus === null && <div className="text-ink-faint">Checking server tools…</div>}
+          {pcbStatus?.available === false && (
+            <Notice tone="amber" title="Board export is unavailable on this server">
+              <div className="mt-1">
+                The board export needs the KiCad footprint and symbol libraries on the server.
+                {pcbStatus.reason && <> ({pcbStatus.reason})</>}
+                {fabStatus && !fabStatus.gerbers && (
+                  <> Gerbers also need <Code>kicad-cli</Code>{fabStatus.reason && <> ({fabStatus.reason})</>}. The BOM is always available.</>
+                )}
+              </div>
+            </Notice>
           )}
-          {pcbError && (
-            <div className="rounded-md bg-rose-500/10 px-2 py-1.5 text-xs text-rose-200 ring-1 ring-rose-500/30">
-              {pcbError}
-            </div>
-          )}
-        </section>
+          {pcbError && <ErrorBanner>{pcbError}</ErrorBanner>}
 
-        {/* --- Autoroute (Freerouting) ------------------------------- */}
-        <section className="space-y-2 border-t border-line pt-3">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
-            Autoroute
-          </div>
-          <p className="text-xs leading-relaxed text-ink-dim">
-            Route the board with Freerouting on the server and download the
-            routed <code className="text-ink">.kicad_pcb</code>. Results
-            are cached — re-routing an unchanged design is instant.
-          </p>
-          {routeStatus === null ? (
-            <div className="text-xs text-ink-faint">Checking…</div>
-          ) : routeStatus.available ? (
-            <>
-              <div className="grid grid-cols-[auto_1fr] items-center gap-x-2 gap-y-1 text-xs text-ink-dim">
-                <label htmlFor="route-via-costs" title="Higher trades vias for longer tracks; empty is Freerouting's default">Via cost</label>
+          <Section title="Fab outputs">
+            <div className="space-y-2">
+              <p>
+                BOM and pick-and-place (CPL) for assembly, and a Gerber and drill bundle
+                for a board house. Check <em>Routed</em> to autoroute before
+                exporting; unrouted Gerbers carry pads but no traces.
+              </p>
+              <label
+                className={`flex w-fit items-center gap-2 ${fabStatus?.route ? "text-ink-dim" : "text-ink-ghost"}`}
+                title={
+                  fabStatus && !fabStatus.route
+                    ? fabStatus.route_reason ?? "Needs the route toolchain on the server"
+                    : undefined
+                }
+              >
                 <input
+                  type="checkbox"
+                  checked={fabRouted}
+                  disabled={!fabStatus?.route}
+                  onChange={(e) => setFabRouted(e.target.checked)}
+                />
+                Routed (autoroute before export)
+              </label>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  onClick={() => handleFab("bom", () => api.fabBom(design), `${id}-bom.csv`, "text/csv")}
+                  disabled={fabBusy !== null}
+                >
+                  {fabBusy === "bom" ? "…" : "BOM .csv"}
+                </Button>
+                <Button
+                  onClick={() => handleFab("cpl", () => api.fabCpl(design), `${id}-cpl.csv`, "text/csv")}
+                  disabled={fabBusy !== null || !fabStatus?.cpl}
+                  title={fabStatus && !fabStatus.cpl ? "Needs the footprint libraries on the server" : undefined}
+                >
+                  {fabBusy === "cpl" ? "…" : "CPL .csv"}
+                </Button>
+                <Button
+                  onClick={() => handleFab("package", () => api.fabPackage(design, fabRouted), `${id}-fab.zip`, "application/zip")}
+                  disabled={fabBusy !== null || !fabStatus?.gerbers}
+                  title={fabStatus && !fabStatus.gerbers ? "Needs kicad-cli and the libraries on the server" : undefined}
+                >
+                  {fabBusy === "package"
+                    ? fabRouted ? "Routing and generating…" : "Generating…"
+                    : "Fab package .zip"}
+                </Button>
+              </div>
+              {pcbStatus?.available && fabStatus && !fabStatus.gerbers && (
+                <div className="text-[11px] text-ink-faint">
+                  Gerbers need <Code>kicad-cli</Code> on the server
+                  {fabStatus.reason && <span> ({fabStatus.reason})</span>}. The BOM is always available.
+                </div>
+              )}
+              {fabError && <ErrorBanner>{fabError}</ErrorBanner>}
+            </div>
+          </Section>
+        </div>
+      )}
+
+      {tab === "route" && (
+        <div className="space-y-3 text-xs leading-relaxed text-ink-dim">
+          <p>
+            Route the board with Freerouting on the server and download the
+            routed <Code>.kicad_pcb</Code>. Results are cached, so re-routing
+            an unchanged design is instant.
+          </p>
+          {routeStatus === null && <div className="text-ink-faint">Checking server tools…</div>}
+          {routeStatus?.available === false && (
+            <Notice tone="amber" title="Autorouting is unavailable on this server">
+              <div className="mt-1">
+                It needs the route toolchain on the server: <Code>pcbnew</Code>, Java
+                and the Freerouting jar. The <Code>-pcb</Code> image variant has all three.
+                {routeStatus.reason && <> ({routeStatus.reason})</>}
+              </div>
+            </Notice>
+          )}
+          {routeStatus?.available && (
+            <>
+              <div className="grid grid-cols-[4.5rem_1fr] items-center gap-x-2 gap-y-1.5">
+                <label htmlFor="route-via-costs" title="Higher trades vias for longer tracks; empty is Freerouting's default">Via cost</label>
+                <Input
+                  compact
                   id="route-via-costs"
                   inputMode="numeric"
                   value={viaCosts}
                   onChange={(e) => setViaCosts(e.target.value.replace(/[^0-9]/g, ""))}
                   placeholder="default"
-                  className="w-24 rounded-md border border-line bg-surface-1 px-2 py-1 text-ink"
+                  className="w-24"
                 />
                 <label htmlFor="route-keepouts" title="x,y,w,h in the board's mm (open the placed .kicad_pcb to read them); add ,tracks or ,vias to keep out only one; separate with ;">Keepouts</label>
-                <input
+                <Input
+                  compact
+                  mono
                   id="route-keepouts"
                   value={keepouts}
                   onChange={(e) => setKeepouts(e.target.value)}
                   placeholder="x,y,w,h; …"
-                  className="rounded-md border border-line bg-surface-1 px-2 py-1 font-mono text-ink"
                 />
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button variant="primary" onClick={handleRoute} disabled={routing}>
-                  {routing ? "Routing…" : routeKey ? "Route again" : "Route board"}
-                </Button>
-                {routeKey && (
-                  <button
-                    onClick={handleDownloadRouted}
-                    className="rounded-md bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-200 ring-1 ring-emerald-500/30 transition-colors hover:bg-emerald-500/20"
-                  >
-                    Download routed .kicad_pcb →
-                  </button>
-                )}
               </div>
               {(routing || routeLog) && (
                 <pre
@@ -487,89 +529,27 @@ python ${design.id ?? "design"}.skidl.py
               )}
               {routeKey && <RouteDrcReport drc={routeDrc} />}
             </>
-          ) : (
-            <div className="rounded-md border border-line bg-surface-2/40 px-2 py-1.5 text-xs text-ink-dim">
-              Autorouting needs the route toolchain on the server (pcbnew,
-              Java, and the Freerouting jar) — use the{" "}
-              <code className="text-ink">-pcb</code> image variant.
-              {routeStatus.reason && (
-                <span className="text-ink-faint"> ({routeStatus.reason})</span>
-              )}
-            </div>
           )}
-          {routeError && (
-            <div className="rounded-md bg-rose-500/10 px-2 py-1.5 text-xs text-rose-200 ring-1 ring-rose-500/30">
-              {routeError}
-            </div>
-          )}
-        </section>
-
-        {/* --- Fab outputs (BOM / CPL / Gerbers) --------------------- */}
-        <section className="space-y-2 border-t border-line pt-3">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
-            Fab outputs
-          </div>
-          <p className="text-xs leading-relaxed text-ink-dim">
-            BOM + pick-and-place (CPL) for assembly, and a Gerber/drill bundle
-            for a board house. Check <em>Routed</em> to autoroute before
-            exporting; unrouted Gerbers carry pads but no traces.
-          </p>
-          <label
-            className={`flex w-fit items-center gap-2 text-xs ${
-              fabStatus?.route ? "text-ink-dim" : "text-ink-ghost"
-            }`}
-            title={
-              fabStatus && !fabStatus.route
-                ? fabStatus.route_reason ?? "Needs the route toolchain on the server"
-                : undefined
-            }
-          >
-            <input
-              type="checkbox"
-              checked={fabRouted}
-              disabled={!fabStatus?.route}
-              onChange={(e) => setFabRouted(e.target.checked)}
-            />
-            Routed (autoroute before export)
-          </label>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              onClick={() => handleFab("bom", () => api.fabBom(design), `${id}-bom.csv`, "text/csv")}
-              disabled={fabBusy !== null}
-            >
-              {fabBusy === "bom" ? "…" : "BOM .csv"}
-            </Button>
-            <Button
-              onClick={() => handleFab("cpl", () => api.fabCpl(design), `${id}-cpl.csv`, "text/csv")}
-              disabled={fabBusy !== null || !fabStatus?.cpl}
-              title={fabStatus && !fabStatus.cpl ? "Needs the footprint libraries on the server" : undefined}
-            >
-              {fabBusy === "cpl" ? "…" : "CPL .csv"}
-            </Button>
-            <Button
-              variant="primary"
-              onClick={() => handleFab("package", () => api.fabPackage(design, fabRouted), `${id}-fab.zip`, "application/zip")}
-              disabled={fabBusy !== null || !fabStatus?.gerbers}
-              title={fabStatus && !fabStatus.gerbers ? "Needs kicad-cli + the libraries on the server" : undefined}
-            >
-              {fabBusy === "package"
-                ? fabRouted ? "Routing + generating…" : "Generating…"
-                : "Fab package .zip →"}
-            </Button>
-          </div>
-          {fabStatus && !fabStatus.gerbers && (
-            <div className="text-[11px] text-ink-faint">
-              Gerbers need <code className="text-ink-dim">kicad-cli</code> on the server
-              {fabStatus.reason && <span> ({fabStatus.reason})</span>}. BOM is always available.
-            </div>
-          )}
-          {fabError && (
-            <div className="rounded-md bg-rose-500/10 px-2 py-1.5 text-xs text-rose-200 ring-1 ring-rose-500/30">
-              {fabError}
-            </div>
-          )}
-        </section>
-      </div>
+          {routeError && <ErrorBanner>{routeError}</ErrorBanner>}
+        </div>
+      )}
     </Dialog>
+  );
+}
+
+function TabLabel({ missing, children }: { missing: boolean; children: ReactNode }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      {children}
+      {missing && <span role="img" aria-label="needs server setup" className="h-1.5 w-1.5 rounded-full bg-amber-400" />}
+    </span>
+  );
+}
+
+function ErrorBanner({ children }: { children: ReactNode }) {
+  return (
+    <div role="alert" className="rounded-md border border-rose-500/40 bg-rose-500/10 px-2 py-1.5 text-xs text-rose-200">
+      {children}
+    </div>
   );
 }

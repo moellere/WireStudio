@@ -384,7 +384,7 @@ describe("ESPHome dashboard build path", () => {
     mockApi.esphomeDashboardPush.mockResolvedValue({ filename: "garage-motion.yaml", created: true, run_id: null });
     render(<PushToFleetDialog design={design} onClose={vi.fn()} />);
     await waitFor(() => expect(screen.getByText(/connected · http:\/\/ha:6052/)).toBeInTheDocument());
-    expect(screen.getByRole("radio", { name: /ESPHome dashboard/i })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("tab", { name: /ESPHome dashboard/i })).toHaveAttribute("aria-selected", "true");
     await userEvent.click(screen.getByRole("button", { name: /push/i }));
     await waitFor(() => expect(mockApi.esphomeDashboardPush).toHaveBeenCalled());
     expect(mockApi.fleetPush).not.toHaveBeenCalled();
@@ -437,7 +437,7 @@ describe("ESPHome dashboard build path", () => {
     mockApi.esphomeDashboardStatus.mockResolvedValue({ available: false, reason: "ESPHOME_DASHBOARD_URL not set", url: null });
     render(<PushToFleetDialog design={design} onClose={vi.fn()} />);
     await waitFor(() => expect(screen.getByText(/connected · http:\/\/addon/)).toBeInTheDocument());
-    await userEvent.click(screen.getByRole("radio", { name: /ESPHome dashboard/i }));
+    await userEvent.click(screen.getByRole("tab", { name: /ESPHome dashboard/i }));
     await waitFor(() => expect(screen.getByText(/ESPHOME_DASHBOARD_URL not set/)).toBeInTheDocument());
     expect(screen.getByText(/Set/).textContent).toContain("ESPHOME_DASHBOARD_URL");
   });
@@ -459,7 +459,7 @@ describe("ESPHome repo path", () => {
       });
     render(<PushToFleetDialog design={design} onClose={vi.fn()} />);
     await waitFor(() => expect(screen.getByText(/connected · https:\/\/github.com\/me\/esphome/)).toBeInTheDocument());
-    expect(screen.getByRole("radio", { name: /ESPHome repo/i })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("tab", { name: /ESPHome repo/i })).toHaveAttribute("aria-selected", "true");
     expect(screen.queryByText(/Compile after upload/)).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: /push/i }));

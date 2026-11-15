@@ -9,7 +9,7 @@ import {
 } from "../lib/meshtastic";
 import { pushMainPy } from "../lib/micropython";
 import { tasmotaConfigCommands, type TasmotaTemplate } from "../lib/tasmota";
-import { Button, Dialog, FieldLabel, Input } from "./ui";
+import { Button, Dialog, DialogFooter, FieldLabel, Input, Notice } from "./ui";
 import { LorawanFlashDialog } from "./LorawanFlashDialog";
 
 type Framework = "esphome" | "tasmota" | "lorawan" | "meshtastic" | "circuitpython" | "micropython";
@@ -148,7 +148,7 @@ export function FlashDialog({ design, boards, onClose, onOpenFleet }: Props) {
 
   return (
     <Dialog
-      title="Flash device"
+      title="Flash firmware"
       subtitle="Pick the firmware framework; flashing always runs over WebSerial."
       onClose={onClose}
       maxWidth="max-w-2xl"
@@ -180,10 +180,12 @@ export function FlashDialog({ design, boards, onClose, onOpenFleet }: Props) {
               fleet compiles and updates the device; no serial connection
               needed after first provisioning.
             </p>
-            <Button variant="primary" onClick={() => { onClose(); onOpenFleet(); }}>
-              <UploadCloud className="h-3.5 w-3.5" />
-              Push to fleet
-            </Button>
+            <DialogFooter>
+              <Button variant="primary" onClick={() => { onClose(); onOpenFleet(); }}>
+                <UploadCloud className="h-3.5 w-3.5" />
+                Push to fleet
+              </Button>
+            </DialogFooter>
           </div>
         )}
 
@@ -352,10 +354,9 @@ function MeshtasticFlash({ design, boards }: { design: Design | null; boards: Bo
   return (
     <div className="space-y-3">
       {status !== null && !status.available && (
-        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
-          <div className="font-semibold">Firmware download unavailable</div>
+        <Notice tone="amber" title="Firmware download is unavailable on this server">
           <div className="mt-1">{status.reason}</div>
-        </div>
+        </Notice>
       )}
 
       <FlashTargetPicker
@@ -364,23 +365,23 @@ function MeshtasticFlash({ design, boards }: { design: Design | null; boards: Bo
         disabled={phase === "fetching" || phase === "flashing"}
       />
 
-      <div className="flex items-center justify-between gap-3 text-xs text-ink-dim">
-        <div>
+      <div className="text-xs text-ink-dim">
           {!design
             ? "Open a design with a supported radio board (Heltec V2/V3/V4, T-Beam, TTGO LoRa32)."
             : supported
               ? <>Flashing the official Meshtastic {status?.version ?? "release"} factory image for <code className="font-mono text-ink">{board?.name ?? boardLibraryId}</code>, full-chip erase.</>
               : <>No Meshtastic firmware mapping for <code className="font-mono text-ink">{board?.name ?? boardLibraryId}</code>. Supported: Heltec V2/V3/V4, T-Beam, TTGO LoRa32.</>}
-        </div>
-        <Button
-          variant="primary"
-          disabled={!supported || !status?.available || phase === "fetching" || phase === "flashing"}
-          onClick={handleFlash}
-        >
-          <Zap className="h-3.5 w-3.5" />
-          {phase === "fetching" ? "Fetching…" : phase === "flashing" ? `Flashing ${(progress * 100).toFixed(0)}%` : "Flash Meshtastic"}
-        </Button>
       </div>
+      <DialogFooter>
+        <Button
+            variant="primary"
+            disabled={!supported || !status?.available || phase === "fetching" || phase === "flashing"}
+            onClick={handleFlash}
+          >
+            <Zap className="h-3.5 w-3.5" />
+            {phase === "fetching" ? "Fetching…" : phase === "flashing" ? `Flashing ${(progress * 100).toFixed(0)}%` : "Flash Meshtastic"}
+          </Button>
+      </DialogFooter>
 
       {log.length > 0 && (
         <pre className="max-h-32 overflow-auto rounded-lg bg-surface-0 p-2 font-mono text-[11px] leading-snug text-ink-dim ring-1 ring-line">
@@ -640,10 +641,9 @@ function CircuitPythonFlash({ design, boards }: { design: Design | null; boards:
   return (
     <div className="space-y-3">
       {status !== null && !status.available && (
-        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
-          <div className="font-semibold">Firmware download unavailable</div>
+        <Notice tone="amber" title="Firmware download is unavailable on this server">
           <div className="mt-1">{status.reason}</div>
-        </div>
+        </Notice>
       )}
 
       {generic && (
@@ -661,23 +661,23 @@ function CircuitPythonFlash({ design, boards }: { design: Design | null; boards:
         disabled={phase === "fetching" || phase === "flashing"}
       />
 
-      <div className="flex items-center justify-between gap-3 text-xs text-ink-dim">
-        <div>
+      <div className="text-xs text-ink-dim">
           {!design
             ? "Open a design with an ESP32-family board (ESP8266 has no CircuitPython port)."
             : supported
               ? <>Flashing CircuitPython {status?.version ?? ""} (<code className="font-mono text-ink">{image}</code>) for <code className="font-mono text-ink">{board?.name ?? boardLibraryId}</code>, full-chip erase.</>
               : <>No CircuitPython build for <code className="font-mono text-ink">{board?.name ?? boardLibraryId}</code>. ESP32/S3/C3/C6 boards are supported; ESP8266 is not.</>}
-        </div>
-        <Button
-          variant="primary"
-          disabled={!supported || !status?.available || phase === "fetching" || phase === "flashing"}
-          onClick={handleFlash}
-        >
-          <Zap className="h-3.5 w-3.5" />
-          {phase === "fetching" ? "Fetching…" : phase === "flashing" ? `Flashing ${(progress * 100).toFixed(0)}%` : "Flash CircuitPython"}
-        </Button>
       </div>
+      <DialogFooter>
+        <Button
+            variant="primary"
+            disabled={!supported || !status?.available || phase === "fetching" || phase === "flashing"}
+            onClick={handleFlash}
+          >
+            <Zap className="h-3.5 w-3.5" />
+            {phase === "fetching" ? "Fetching…" : phase === "flashing" ? `Flashing ${(progress * 100).toFixed(0)}%` : "Flash CircuitPython"}
+          </Button>
+      </DialogFooter>
 
       {log.length > 0 && (
         <pre className="max-h-32 overflow-auto rounded-lg bg-surface-0 p-2 font-mono text-[11px] leading-snug text-ink-dim ring-1 ring-line">
@@ -886,31 +886,30 @@ function MicroPythonFlash({ design, boards }: { design: Design | null; boards: B
   return (
     <div className="space-y-3">
       {status !== null && !status.available && (
-        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
-          <div className="font-semibold">Firmware download unavailable</div>
+        <Notice tone="amber" title="Firmware download is unavailable on this server">
           <div className="mt-1">{status.reason}</div>
-        </div>
+        </Notice>
       )}
 
       <FlashTargetPicker target={target} onChange={setTarget} disabled={busy} />
 
-      <div className="flex items-center justify-between gap-3 text-xs text-ink-dim">
-        <div>
+      <div className="text-xs text-ink-dim">
           {!design
             ? "Open a design to flash its board."
             : supported
               ? <>Flashing MicroPython {status?.version ?? ""} (<code className="font-mono text-ink">{image}</code>) for <code className="font-mono text-ink">{board?.name ?? boardLibraryId}</code>, full-chip erase. Pins are GPIO numbers, so the generic port image fits every board.</>
               : <>No MicroPython port for <code className="font-mono text-ink">{board?.name ?? boardLibraryId}</code>.</>}
-        </div>
-        <Button
-          variant="primary"
-          disabled={!supported || !status?.available || busy}
-          onClick={handleFlash}
-        >
-          <Zap className="h-3.5 w-3.5" />
-          {phase === "fetching" ? "Fetching…" : phase === "flashing" ? `Flashing ${(progress * 100).toFixed(0)}%` : "Flash MicroPython"}
-        </Button>
       </div>
+      <DialogFooter>
+        <Button
+            variant="primary"
+            disabled={!supported || !status?.available || busy}
+            onClick={handleFlash}
+          >
+            <Zap className="h-3.5 w-3.5" />
+            {phase === "fetching" ? "Fetching…" : phase === "flashing" ? `Flashing ${(progress * 100).toFixed(0)}%` : "Flash MicroPython"}
+          </Button>
+      </DialogFooter>
 
       {log.length > 0 && (
         <pre className="max-h-32 overflow-auto rounded-lg bg-surface-0 p-2 font-mono text-[11px] leading-snug text-ink-dim ring-1 ring-line">
@@ -1080,29 +1079,28 @@ function TasmotaFlash({ design, boards }: { design: Design | null; boards: Board
   return (
     <div className="space-y-3">
       {status !== null && !status.available && (
-        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
-          <div className="font-semibold">Firmware download unavailable</div>
+        <Notice tone="amber" title="Firmware download is unavailable on this server">
           <div className="mt-1">{status.reason}</div>
-        </div>
+        </Notice>
       )}
 
       <FlashTargetPicker target={target} onChange={setTarget} disabled={busy} />
 
-      <div className="flex items-center justify-between gap-3 text-xs text-ink-dim">
-        <div>
+      <div className="text-xs text-ink-dim">
           {chip
             ? <>Flashing the official Tasmota release for <code className="font-mono text-ink">{chip}</code> ({board?.name}), full-chip erase.</>
             : "Open a design to derive the chip, or connect any supported board."}
-        </div>
-        <Button
-          variant="primary"
-          disabled={!chip || !status?.available || busy}
-          onClick={handleFlash}
-        >
-          <Zap className="h-3.5 w-3.5" />
-          {phase === "fetching" ? "Fetching…" : phase === "flashing" ? `Flashing ${(progress * 100).toFixed(0)}%` : "Flash Tasmota"}
-        </Button>
       </div>
+      <DialogFooter>
+        <Button
+            variant="primary"
+            disabled={!chip || !status?.available || busy}
+            onClick={handleFlash}
+          >
+            <Zap className="h-3.5 w-3.5" />
+            {phase === "fetching" ? "Fetching…" : phase === "flashing" ? `Flashing ${(progress * 100).toFixed(0)}%` : "Flash Tasmota"}
+          </Button>
+      </DialogFooter>
 
       {log.length > 0 && (
         <pre className="max-h-32 overflow-auto rounded-lg bg-surface-0 p-2 font-mono text-[11px] leading-snug text-ink-dim ring-1 ring-line">

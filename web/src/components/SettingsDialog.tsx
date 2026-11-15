@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Check, Copy, Eye, EyeOff, KeyRound, RotateCcw } from "lucide-react";
 import { ApiError, api, getApiToken, setApiToken, type McpTokenInfo } from "../api/client";
-import { Button, Code, Dialog } from "./ui";
+import { Button, Code, Dialog, Notice } from "./ui";
 
 type LoadState =
   | { kind: "loading" }
@@ -123,9 +123,9 @@ export function SettingsDialog({
           )}
 
           {state.kind === "absent" && (
-            <div className="mt-3 text-xs text-amber-300">
-              This server was built without the MCP endpoint, so there is no token.
-            </div>
+            <Notice tone="amber" title="The MCP endpoint is unavailable on this server" className="mt-3 text-xs">
+              <div className="mt-1">This server was built without it, so there is no token.</div>
+            </Notice>
           )}
 
           {state.kind === "error" && (

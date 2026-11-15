@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Boxes, Download, Search, Trash2, Upload, X } from "lucide-react";
+import { Download, Search, Trash2, Upload } from "lucide-react";
 import { api } from "../api/client";
 import type { AppliedSubstitution, Design, BuyListResponse, InventoryCheckResponse, InventoryEntry, InventorySubstitute } from "../types/api";
-import { Button } from "./ui";
+import { Button, Dialog, Notice } from "./ui";
 
 type Part = { id: string; name: string; kind: "component" | "module" };
 
@@ -216,49 +216,48 @@ export function InventoryDialog({
     }
   }
 
-  return (
-    <div
-      className="fixed inset-0 z-50 flex animate-overlay-in items-center justify-center bg-black/60 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className="flex max-h-[85vh] w-[min(720px,92vw)] animate-dialog-in flex-col overflow-hidden rounded-xl bg-surface-1 shadow-panel"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between border-b border-line px-5 py-4">
-          <div className="flex items-center gap-2 text-sm font-semibold text-ink">
-            <Boxes className="h-4 w-4 text-ink-dim" />
-            Component Inventory
-          </div>
-          <div className="flex items-center gap-1">
-            <button onClick={exportCsv} title="Export inventory as CSV" aria-label="Export CSV"
-              className="rounded-md p-1.5 text-ink-faint transition-colors hover:bg-surface-2 hover:text-ink">
-              <Download className="h-4 w-4" />
-            </button>
-            <button onClick={() => fileRef.current?.click()} title="Import inventory from CSV" aria-label="Import CSV"
-              className="rounded-md p-1.5 text-ink-faint transition-colors hover:bg-surface-2 hover:text-ink">
-              <Upload className="h-4 w-4" />
-            </button>
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".csv,text/csv"
-              className="hidden"
-              onChange={(ev) => {
-                const f = ev.target.files?.[0];
-                if (f) void importCsv(f);
-                ev.target.value = "";
-              }}
-            />
-            <button onClick={onClose} aria-label="Close" className="rounded-md p-1.5 text-ink-faint transition-colors hover:bg-surface-2 hover:text-ink">
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
+  const iconButton = "rounded-md p-1.5 text-ink-faint transition-colors hover:bg-surface-2 hover:text-ink";
 
-        <div className="space-y-4 overflow-y-auto px-5 py-4">
+  return (
+    <Dialog
+      title="Inventory"
+      subtitle="What is in the drawer, and how the open design's BOM compares."
+      onClose={onClose}
+      maxWidth="max-w-2xl"
+      headerActions={
+        <>
+          <button onClick={exportCsv} title="Export inventory as CSV" aria-label="Export CSV" className={iconButton}>
+            <Download className="h-4 w-4" />
+          </button>
+          <button onClick={() => fileRef.current?.click()} title="Import inventory from CSV" aria-label="Import CSV" className={`mr-2 ${iconButton}`}>
+            <Upload className="h-4 w-4" />
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".csv,text/csv"
+            className="hidden"
+            onChange={(ev) => {
+              const f = ev.target.files?.[0];
+              if (f) void importCsv(f);
+              ev.target.value = "";
+            }}
+          />
+        </>
+      }
+      footerNote={design ? "Check the open design against the drawer." : undefined}
+      footer={design ? (
+        <>
+          <Button variant="secondary" onClick={runBuyList} disabled={buying} title="What the drawer is short, priced on JLCPCB">
+            {buying ? "Pricing…" : "Buy list"}
+          </Button>
+          <Button variant="primary" onClick={runCheck}>Check BOM</Button>
+        </>
+      ) : undefined}
+    >
+      <div className="space-y-4">
           {error && (
-            <div className="rounded-md bg-rose-500/10 p-2 text-xs text-rose-200 ring-1 ring-rose-500/30">{error}</div>
+            <div role="alert" className="rounded-md border border-rose-500/40 bg-rose-500/10 p-2 text-xs text-rose-200">{error}</div>
           )}
 
           {/* Add a part */}
@@ -378,24 +377,14 @@ export function InventoryDialog({
           </section>
 
           {/* Design BOM check */}
-          {design && (
-            <section className="border-t border-line pt-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-ink-dim">Check the open design</span>
-                <span className="flex gap-1.5">
-                  <Button size="sm" onClick={runCheck}>
-                    Check BOM
-                  </Button>
-                  <Button size="sm" variant="secondary" onClick={runBuyList} disabled={buying}
-                    title="What the drawer is short, priced on JLCPCB">
-                    {buying ? "Pricing…" : "Buy list"}
-                  </Button>
-                </span>
-              </div>
+          {design && (buy || check) && (
+            <section className="space-y-2 border-t border-line pt-3">
               {buy && (
-                <div className="mt-2 space-y-1 text-xs">
+                <div className="space-y-1 text-xs">
                   {!buy.available && (
-                    <p className="text-amber-300">JLCPCB unavailable{buy.reason ? `: ${buy.reason}` : ""}. Shortfalls listed unpriced.</p>
+                    <Notice tone="amber" title="JLCPCB pricing is unavailable on this server">
+                      <div className="mt-1">{buy.reason ? `${buy.reason}. ` : ""}Shortfalls are listed unpriced.</div>
+                    </Notice>
                   )}
                   {buy.lines.length === 0 ? (
                     <p className="text-ink-faint">Nothing to buy: the drawer covers this design.</p>
@@ -422,7 +411,7 @@ export function InventoryDialog({
                 </div>
               )}
               {check && (
-                <div className="mt-2 space-y-2">
+                <div className="space-y-2">
                   <div className="flex gap-2 text-[11px]">
                     {(["have", "partial", "need"] as const).map((s) => (
                       <span key={s} className={`rounded px-1.5 py-0.5 ring-1 ${STATUS_STYLE[s]}`}>
@@ -536,8 +525,7 @@ export function InventoryDialog({
               )}
             </section>
           )}
-        </div>
       </div>
-    </div>
+    </Dialog>
   );
 }

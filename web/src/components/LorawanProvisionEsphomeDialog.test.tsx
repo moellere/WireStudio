@@ -264,7 +264,7 @@ describe("chirpstack reachability gating", () => {
     render(<LorawanProvisionEsphomeDialog design={design()} onClose={() => {}} />);
     // Banner with the gRPC reason renders.
     await waitFor(() =>
-      expect(screen.getByText(/ChirpStack unavailable/i)).toBeTruthy(),
+      expect(screen.getByText(/ChirpStack is unavailable/i)).toBeTruthy(),
     );
     expect(screen.getByText(/UNAUTHENTICATED/i)).toBeTruthy();
     // Provision stays disabled even with a valid DevEUI typed -- there's

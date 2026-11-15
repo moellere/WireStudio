@@ -133,11 +133,25 @@ afterEach(() => {
 });
 
 
+async function openTab(name: RegExp) {
+  await userEvent.click(screen.getByRole("tab", { name }));
+}
+
+describe("SchematicDialog — tabs", () => {
+  it("opens on the schematic and marks tabs whose output needs server setup", async () => {
+    render(<SchematicDialog design={design} onClose={() => {}} />);
+    expect(screen.getByRole("dialog", { name: "Schematic and PCB" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /Schematic/ })).toHaveAttribute("aria-selected", "true");
+    await waitFor(() => expect(screen.getAllByLabelText("needs server setup")).toHaveLength(3));
+    expect(screen.getByRole("tab", { name: "SKiDL script" })).toBeInTheDocument();
+  });
+});
+
 describe("SchematicDialog — download schematic", () => {
   it("explains what is missing when the symbol libraries are absent", async () => {
     render(<SchematicDialog design={design} onClose={() => {}} />);
     await screen.findByText(/needs the KiCad symbol libraries/);
-    expect(screen.queryByRole("button", { name: /Download \.kicad_sch/ })).toBeNull();
+    expect(screen.getByRole("button", { name: /Download \.kicad_sch/ })).toBeDisabled();
   });
 
   it("downloads the .kicad_sch when the server can write it", async () => {
@@ -145,9 +159,10 @@ describe("SchematicDialog — download schematic", () => {
     mockApi.kicadSch.mockResolvedValue("(kicad_sch (version 20231120))\n");
     render(<SchematicDialog design={design} onClose={() => {}} />);
     const btn = await screen.findByRole("button", { name: /Download \.kicad_sch/ });
+    await waitFor(() => expect(btn).toBeEnabled());
     await userEvent.click(btn);
     await waitFor(() => expect(mockApi.kicadSch).toHaveBeenCalledWith(design));
-    await screen.findByText(/Downloaded ✓ — write again/);
+    await screen.findByText(/Downloaded/);
   });
 
   it("surfaces a 503 from the writer in a rose banner", async () => {
@@ -157,7 +172,9 @@ describe("SchematicDialog — download schematic", () => {
       detail: "no symbol 'Foo' in KiCad library Bar",
     }));
     render(<SchematicDialog design={design} onClose={() => {}} />);
-    await userEvent.click(await screen.findByRole("button", { name: /Download \.kicad_sch/ }));
+    const btn = await screen.findByRole("button", { name: /Download \.kicad_sch/ });
+    await waitFor(() => expect(btn).toBeEnabled());
+    await userEvent.click(btn);
     await screen.findByText(/no symbol 'Foo'/);
   });
 });
@@ -167,14 +184,16 @@ describe("SchematicDialog — download script", () => {
   it("downloads on click and shows the success state", async () => {
     mockApi.kicadSchematic.mockResolvedValue("from skidl import Part\n");
     render(<SchematicDialog design={design} onClose={() => {}} />);
+    await openTab(/SKiDL script/);
     const btn = await screen.findByRole("button", { name: /Download \.skidl\.py/ });
     await userEvent.click(btn);
     await waitFor(() => expect(mockApi.kicadSchematic).toHaveBeenCalledWith(design));
-    await waitFor(() => screen.getByText(/Downloaded ✓/));
+    await waitFor(() => screen.getByText(/Downloaded/));
   });
 
-  it("renders a usage snippet referencing the design id", () => {
+  it("renders a usage snippet referencing the design id", async () => {
     render(<SchematicDialog design={design} onClose={() => {}} />);
+    await openTab(/SKiDL script/);
     expect(screen.getByText(/python garage-motion\.skidl\.py/)).toBeInTheDocument();
     expect(screen.getByText(/produces garage-motion\.kicad_sch/)).toBeInTheDocument();
   });
@@ -189,13 +208,15 @@ describe("SchematicDialog — download script", () => {
       }),
     );
     render(<SchematicDialog design={design} onClose={() => {}} />);
+    await openTab(/SKiDL script/);
     const btn = await screen.findByRole("button", { name: /Download \.skidl\.py/ });
     await userEvent.click(btn);
     await waitFor(() => screen.getByText(/design.id is required/));
   });
 
-  it("links to the SKiDL docs", () => {
+  it("links to the SKiDL docs", async () => {
     render(<SchematicDialog design={design} onClose={() => {}} />);
+    await openTab(/SKiDL script/);
     const link = screen.getByRole("link", { name: /SKiDL/i });
     expect(link).toHaveAttribute("href", "https://devbisme.github.io/skidl/");
   });
@@ -210,9 +231,10 @@ describe("SchematicDialog — download script", () => {
 
 describe("SchematicDialog — inline preview", () => {
   it("shows a notice when the renderer is unavailable", async () => {
+    mockApi.kicadSchStatus.mockResolvedValue({ available: true, symbol_dir: "/libs", reason: null });
     render(<SchematicDialog design={design} onClose={() => {}} />);
     await waitFor(() => screen.getByText(/render it locally instead/));
-    expect(screen.queryByRole("button", { name: /Render schematic/ })).toBeNull();
+    expect(screen.getByRole("button", { name: /Render schematic/ })).toBeDisabled();
   });
 
   it("renders an SVG preview when the renderer is available", async () => {
@@ -220,6 +242,7 @@ describe("SchematicDialog — inline preview", () => {
     mockApi.kicadRender.mockResolvedValue("<svg><rect/></svg>");
     render(<SchematicDialog design={design} onClose={() => {}} />);
     const btn = await screen.findByRole("button", { name: /Render schematic/ });
+    await waitFor(() => expect(btn).toBeEnabled());
     await userEvent.click(btn);
     await waitFor(() => expect(mockApi.kicadRender).toHaveBeenCalledWith(design));
     await waitFor(() =>
@@ -239,6 +262,7 @@ describe("SchematicDialog — inline preview", () => {
     );
     render(<SchematicDialog design={design} onClose={() => {}} />);
     const btn = await screen.findByRole("button", { name: /Render schematic/ });
+    await waitFor(() => expect(btn).toBeEnabled());
     await userEvent.click(btn);
     await waitFor(() => screen.getByText(/kicad-cli failed: bad symbol/));
   });
@@ -247,18 +271,21 @@ describe("SchematicDialog — inline preview", () => {
 describe("SchematicDialog — PCB board", () => {
   it("shows a notice when the libraries are unavailable", async () => {
     render(<SchematicDialog design={design} onClose={() => {}} />);
+    await openTab(/PCB board/);
     await waitFor(() => screen.getByText(/board export needs the KiCad footprint/));
-    expect(screen.queryByRole("button", { name: /Download \.kicad_pcb/ })).toBeNull();
+    expect(screen.getByRole("button", { name: /Download \.kicad_pcb/ })).toBeDisabled();
   });
 
   it("downloads a .kicad_pcb when the libraries are available", async () => {
     mockApi.kicadPcbStatus.mockResolvedValue(PCB_AVAILABLE);
     mockApi.kicadPcb.mockResolvedValue("(kicad_pcb)\n");
     render(<SchematicDialog design={design} onClose={() => {}} />);
+    await openTab(/PCB board/);
     const btn = await screen.findByRole("button", { name: /Download \.kicad_pcb/ });
+    await waitFor(() => expect(btn).toBeEnabled());
     await userEvent.click(btn);
     await waitFor(() => expect(mockApi.kicadPcb).toHaveBeenCalledWith(design));
-    await waitFor(() => screen.getByText(/Downloaded ✓/));
+    await waitFor(() => screen.getByText(/Downloaded/));
   });
 });
 
@@ -266,6 +293,7 @@ describe("SchematicDialog — fab outputs", () => {
   it("downloads the BOM (always available) and gates the Gerber package on kicad-cli", async () => {
     mockApi.fabBom.mockResolvedValue("Comment,Designator\n");
     render(<SchematicDialog design={design} onClose={() => {}} />);
+    await openTab(/PCB board/);
     const bom = await screen.findByRole("button", { name: /BOM \.csv/ });
     await userEvent.click(bom);
     await waitFor(() => expect(mockApi.fabBom).toHaveBeenCalledWith(design));
@@ -277,6 +305,7 @@ describe("SchematicDialog — fab outputs", () => {
     mockApi.fabStatus.mockResolvedValue(FAB_FULL);
     mockApi.fabPackage.mockResolvedValue(new Blob(["zip"]));
     render(<SchematicDialog design={design} onClose={() => {}} />);
+    await openTab(/PCB board/);
     const pkg = await screen.findByRole("button", { name: /Fab package/ });
     await waitFor(() => expect(pkg).toBeEnabled());
     await userEvent.click(pkg);
@@ -287,6 +316,7 @@ describe("SchematicDialog — fab outputs", () => {
     mockApi.fabStatus.mockResolvedValue(FAB_ROUTED);
     mockApi.fabPackage.mockResolvedValue(new Blob(["zip"]));
     render(<SchematicDialog design={design} onClose={() => {}} />);
+    await openTab(/PCB board/);
     const routed = await screen.findByRole("checkbox", { name: /Routed/ });
     await waitFor(() => expect(routed).toBeEnabled());
     await userEvent.click(routed);
@@ -298,9 +328,10 @@ describe("SchematicDialog — fab outputs", () => {
 describe("SchematicDialog — autoroute", () => {
   it("shows the toolchain notice when routing is unavailable", async () => {
     render(<SchematicDialog design={design} onClose={() => {}} />);
+    await openTab(/Autoroute/);
     expect(await screen.findByText(/route toolchain/)).toBeInTheDocument();
     expect(screen.getByText(/Freerouting jar not found/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Route board/ })).toBeNull();
+    expect(screen.getByRole("button", { name: /Route board/ })).toBeDisabled();
   });
 
   it("routes, streams the log, and offers the routed board download", async () => {
@@ -311,7 +342,10 @@ describe("SchematicDialog — autoroute", () => {
       yield { type: "done", ok: true, routed: true, cache_key: "0123456789abcdef", cache_hit: false };
     });
     render(<SchematicDialog design={design} onClose={() => {}} />);
-    await userEvent.click(await screen.findByRole("button", { name: /Route board/ }));
+    await openTab(/Autoroute/);
+    const route = await screen.findByRole("button", { name: /Route board/ });
+    await waitFor(() => expect(route).toBeEnabled());
+    await userEvent.click(route);
     expect(await screen.findByText(/12 of 12 routed/)).toBeInTheDocument();
     const download = await screen.findByRole("button", { name: /Download routed/ });
     await userEvent.click(download);
@@ -327,7 +361,10 @@ describe("SchematicDialog — autoroute", () => {
       yield { type: "done", ok: false, routed: false, cache_key: "0123456789abcdef", cache_hit: false };
     });
     render(<SchematicDialog design={design} onClose={() => {}} />);
-    await userEvent.click(await screen.findByRole("button", { name: /Route board/ }));
+    await openTab(/Autoroute/);
+    const route = await screen.findByRole("button", { name: /Route board/ });
+    await waitFor(() => expect(route).toBeEnabled());
+    await userEvent.click(route);
     expect(await screen.findByText(/without a routed board/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Download routed/ })).toBeNull();
   });
