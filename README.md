@@ -1,12 +1,13 @@
 # wirestudio
 
-Hardware design tool for ESPHome devices. A single `design.json`
+Hardware design tool for microcontroller devices. A single `design.json`
 (board + components + connections) drives every artifact: solved pin
-assignments, electrical validation, compile-clean ESPHome YAML, an
-ASCII wiring diagram, a KiCad schematic and placed PCB, a JLCPCB fab
-bundle (BOM / CPL / Gerber / drill), and a parametric OpenSCAD
-enclosure. Drive it from the web UI, the built-in agent, or any MCP
-client.
+assignments, electrical validation, firmware for the framework you pick
+(compile-clean ESPHome YAML, a Tasmota template, a WLED build, LoRaWAN
+firmware, Meshtastic, CircuitPython or MicroPython), an ASCII wiring
+diagram, a KiCad schematic and placed PCB, a JLCPCB fab bundle (BOM /
+CPL / Gerber / drill), and a parametric OpenSCAD enclosure. Drive it
+from the web UI, the built-in agent, or any MCP client.
 
 Stock ESPHome's Device Builder covers picking a board and adding
 components. wirestudio works below the YAML: the component library
