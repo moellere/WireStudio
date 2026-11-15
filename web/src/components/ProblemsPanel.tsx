@@ -10,7 +10,7 @@ import {
   type DesignWarning,
 } from "../lib/design";
 import { SolveResultBanner } from "./SolveResultBanner";
-import { CompatibilityRow } from "./ui";
+import { CompatibilityRow, Input, Select } from "./ui";
 
 export interface SolveResult {
   assigned: PinAssignment[];
@@ -36,9 +36,13 @@ interface Props {
   solve: SolveResult | null;
   onDismissSolve: () => void;
   onDesignChange: (updater: (d: Design) => Design) => void;
+  /** Bump to open the panel on its Compatibility tab. */
+  showCompatibility?: number;
 }
 
-export function ProblemsPanel({ design, compatibilityWarnings, solve, onDismissSolve, onDesignChange }: Props) {
+export function ProblemsPanel({
+  design, compatibilityWarnings, solve, onDismissSolve, onDesignChange, showCompatibility = 0,
+}: Props) {
   const [tab, setTab] = useState<Tab>("compatibility");
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const warnings = useMemo(() => readWarnings(design), [design]);
@@ -56,6 +60,12 @@ export function ProblemsPanel({ design, compatibilityWarnings, solve, onDismissS
     setTab("solver");
     setCollapsed(false);
   }, [solve]);
+
+  useEffect(() => {
+    if (showCompatibility === 0) return;
+    setTab("compatibility");
+    setCollapsed(false);
+  }, [showCompatibility]);
 
   const compatTone = compatibilityWarnings.some((w) => w.severity === "error")
     ? "rose"
@@ -161,7 +171,7 @@ function ProblemTab({
       }`}
     >
       {children}
-      <span className={`rounded px-1 font-mono text-[10px] ${badge}`}>{count}</span>
+      {count > 0 && <span className={`rounded px-1 font-mono text-[10px] ${badge}`}>{count}</span>}
     </button>
   );
 }
@@ -200,25 +210,29 @@ function WarningList({
           }`}
         >
           <div className="mb-1 flex items-center gap-2">
-            <select
+            <Select
+              aria-label="Level"
               value={w.level}
               onChange={(e) => onUpdate(i, { level: e.target.value as DesignWarning["level"] })}
-              className="rounded-md border border-line bg-surface-1 px-1.5 py-0.5 text-[11px] text-ink"
+              className="w-20 shrink-0"
             >
               {(["info", "warn", "error"] as const).map((k) => (
                 <option key={k} value={k}>{k}</option>
               ))}
-            </select>
-            <input
+            </Select>
+            <Input
+              compact
+              mono
               type="text"
+              aria-label="Code"
               value={w.code}
               onChange={(e) => onUpdate(i, { code: e.target.value })}
               placeholder="code"
-              className="flex-1 rounded-md border border-line bg-surface-1 px-1.5 py-0.5 font-mono text-[11px] text-ink"
+              className="flex-1"
             />
             <button
               onClick={() => onRemove(i)}
-              className="rounded-md border border-line px-1.5 py-0.5 text-[11px] text-ink-dim hover:bg-surface-2 hover:text-ink"
+              className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-md border border-line text-xs text-ink-faint transition-colors hover:border-rose-500/40 hover:bg-rose-500/10 hover:text-rose-300"
               title="Remove warning"
             >
               ✕
@@ -234,7 +248,7 @@ function WarningList({
       ))}
       <button
         onClick={onAdd}
-        className="w-full rounded-md border border-dashed border-line px-2 py-1 text-xs text-ink-faint hover:border-line-strong hover:text-ink-dim"
+        className="h-[26px] w-full rounded-md border border-dashed border-line px-2 text-xs text-ink-faint hover:border-line-strong hover:text-ink-dim"
       >
         + Add warning
       </button>

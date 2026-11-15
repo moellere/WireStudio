@@ -134,6 +134,7 @@ export default function App() {
   const [showEnclosureDialog, setShowEnclosureDialog] = useState(false);
   const [showSchematicDialog, setShowSchematicDialog] = useState(false);
   const [showCapabilityDialog, setShowCapabilityDialog] = useState(false);
+  const [showCompatibility, setShowCompatibility] = useState(0);
   const [showFlashDialog, setShowFlashDialog] = useState(false);
   const [showProvisionEsphomeDialog, setShowProvisionEsphomeDialog] = useState(false);
   const [showInventoryDialog, setShowInventoryDialog] = useState(false);
@@ -857,6 +858,7 @@ export default function App() {
               solve={solveBanner}
               onDismissSolve={() => setSolveBanner(null)}
               onDesignChange={handleDesignChange}
+              showCompatibility={showCompatibility}
             />
           </div>
         ) : (
@@ -887,6 +889,8 @@ export default function App() {
           onDesignChange={handleDesignChange}
           onAddComponent={handleAddComponent}
           onRemoveComponent={handleRemoveComponent}
+          onAddByFunction={() => setShowCapabilityDialog(true)}
+          onShowProblems={() => setShowCompatibility((n) => n + 1)}
         />
         <AgentSidebar
           open={showAgent}

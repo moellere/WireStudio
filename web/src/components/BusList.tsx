@@ -16,6 +16,7 @@ import {
   updateBus,
 } from "../lib/design";
 import type { CompatibilityWarning, Design } from "../types/api";
+import { Button, Chip, Input, Select } from "./ui";
 
 const ALL_BUS_TYPES: BusType[] = ["i2c", "spi", "uart", "i2s", "1wire"];
 
@@ -104,16 +105,18 @@ export function BusList({
       )}
 
       <div className="flex items-center gap-2">
-        <select
+        <Select
+          aria-label="Bus type"
           value={pickedType}
           onChange={(e) => setPickedType(e.target.value as BusType)}
-          className="rounded-md border border-line bg-surface-1 px-1.5 py-0.5 text-xs text-ink focus:border-accent-500/60 focus:outline-none"
+          className="w-24"
         >
           {ALL_BUS_TYPES.map((t) => (
             <option key={t} value={t}>{t}</option>
           ))}
-        </select>
-        <button
+        </Select>
+        <Button
+          size="sm"
           onClick={() =>
             onChange((d) =>
               addBus(
@@ -123,15 +126,15 @@ export function BusList({
               ),
             )
           }
-          className="rounded-md border border-line px-2 py-0.5 text-xs text-ink-dim hover:bg-surface-2"
+          className="h-[26px]"
           title={`Add a ${pickedType} bus${
             defaultBuses[pickedType]
               ? " on the board's defaults"
               : " on auto-selected free pins"
           }`}
         >
-          + add bus
-        </button>
+          Add bus
+        </Button>
       </div>
     </div>
   );
@@ -182,9 +185,10 @@ function BusCard({
   return (
     <div className="rounded-md border border-line bg-surface-2/40 p-2">
       <div className="mb-1.5 flex items-center justify-between gap-2">
-        <div className="flex items-baseline gap-2">
+        <div className="flex items-center gap-2">
           <input
             type="text"
+            aria-label="Bus id"
             value={draftId}
             onChange={(e) => setDraftId(e.target.value)}
             onBlur={commitRename}
@@ -205,7 +209,7 @@ function BusCard({
                 ? `Another bus already uses '${draftId.trim()}'.`
                 : "Press Enter or click away to apply. Esc to revert."
             }
-            className={`w-28 rounded-md border bg-surface-1 px-1.5 py-0.5 font-mono text-xs focus:outline-none ${
+            className={`h-[26px] w-28 rounded-md border bg-surface-1 px-2 font-mono text-xs focus:outline-none ${
               draftCollides
                 ? "border-rose-500/50 text-rose-200 focus:border-rose-500"
                 : draftDirty
@@ -213,14 +217,12 @@ function BusCard({
                   : "border-line text-ink focus:border-accent-500/60"
             }`}
           />
-          <span className="rounded-md border border-line px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-ink-dim">
-            {type}
-          </span>
+          <Chip variant="category">{type}</Chip>
         </div>
         <button
           onClick={onRemove}
           title={`Remove ${id}`}
-          className="rounded-md border border-line px-1.5 py-0.5 text-xs text-ink-faint transition-colors hover:border-rose-500/40 hover:bg-rose-500/10 hover:text-rose-300"
+          className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-md border border-line text-xs text-ink-faint transition-colors hover:border-rose-500/40 hover:bg-rose-500/10 hover:text-rose-300"
         >
           ✕
         </button>
@@ -249,7 +251,8 @@ function BusCard({
           <span className="w-16 text-[11px] text-ink-faint">
             {type === "uart" ? "baud" : "freq Hz"}
           </span>
-          <input
+          <Input
+            compact
             type="number"
             value={type === "uart" ? (baud ?? "") : (freq ?? "")}
             onChange={(e) => {
@@ -259,7 +262,7 @@ function BusCard({
               onChange(type === "uart" ? { baud_rate: n } : { frequency_hz: n });
             }}
             placeholder={type === "uart" ? "9600" : "100000"}
-            className="w-32 rounded-md border border-line bg-surface-1 px-1.5 py-0.5 text-xs text-ink focus:border-accent-500/60 focus:outline-none"
+            className="w-32"
           />
         </div>
       )}
@@ -308,23 +311,14 @@ function PinField({
     <>
       <span className="text-[11px] uppercase tracking-wider text-ink-faint">{label}</span>
       {gpioPins.length > 0 ? (
-        <select
-          value={inOptions ? value : ""}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-full min-w-0 rounded-md border border-line bg-surface-1 px-1.5 py-0.5 text-xs text-ink focus:border-accent-500/60 focus:outline-none"
-        >
+        <Select mono aria-label={label} value={inOptions ? value : ""} onChange={(e) => onChange(e.target.value)}>
           <option value="">(unset{!inOptions && value ? `: ${value}` : ""})</option>
           {gpioPins.map((p) => (
             <option key={p} value={p}>{p}{note(p)}</option>
           ))}
-        </select>
+        </Select>
       ) : (
-        <input
-          type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="rounded-md border border-line bg-surface-1 px-1.5 py-0.5 text-xs text-ink focus:border-accent-500/60 focus:outline-none"
-        />
+        <Input compact mono type="text" aria-label={label} value={value} onChange={(e) => onChange(e.target.value)} />
       )}
     </>
   );

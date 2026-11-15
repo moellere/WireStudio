@@ -8,6 +8,7 @@
  */
 
 import { useState } from "react";
+import { Input, Select } from "./ui";
 
 interface SchemaEntry {
   type?: "string" | "integer" | "number" | "boolean" | "object" | "array";
@@ -37,7 +38,7 @@ export function ParamForm({ schema, values, onChange }: Props) {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="grid grid-cols-2 gap-x-3 gap-y-2.5">
       {allKeys.map((key) => {
         const entry = schema[key];
         const current = values?.[key];
@@ -60,17 +61,24 @@ function ParamRow({
   current: unknown;
   onChange: (key: string, value: unknown) => void;
 }) {
+  const defaultText = entry.default === undefined
+    ? null
+    : typeof entry.default === "string" ? entry.default : JSON.stringify(entry.default);
   const labelEl = (
     <div className="flex items-baseline justify-between gap-2">
-      <label htmlFor={`param-${k}`} className="font-mono text-xs text-ink">{k}</label>
-      {entry.default !== undefined && (
-        <span className="text-[11px] text-ink-faint">default: {JSON.stringify(entry.default)}</span>
+      <label htmlFor={`param-${k}`} className="min-w-0 truncate font-mono text-xs text-ink" title={k}>{k}</label>
+      {defaultText !== null && (
+        <span className="max-w-[45%] shrink-0 truncate text-[11px] text-ink-faint" title={`default: ${defaultText}`}>
+          {defaultText}
+        </span>
       )}
     </div>
   );
+  // Scalars sit two to a row; JSON editors need the full width.
+  const wide = entry.type === "object" || entry.type === "array";
 
   return (
-    <div>
+    <div className={wide ? "col-span-2" : "min-w-0"}>
       {labelEl}
       <div className="mt-1">{renderControl(k, entry, current, onChange)}</div>
       {entry.description && (
@@ -90,28 +98,23 @@ function renderControl(
   if (entry.enum && entry.enum.length > 0) {
     const v = current !== undefined ? String(current) : "";
     return (
-      <select
-        id={id}
-        value={v}
-        onChange={(e) => onChange(k, coerceToType(e.target.value, entry.type))}
-        className="w-full rounded-md border border-line bg-surface-1 px-2 py-1 text-sm text-ink focus:border-accent-500/60 focus:outline-none"
-      >
+      <Select id={id} mono value={v} onChange={(e) => onChange(k, coerceToType(e.target.value, entry.type))}>
         {entry.enum.map((opt) => (
           <option key={String(opt)} value={String(opt)}>{String(opt)}</option>
         ))}
-      </select>
+      </Select>
     );
   }
 
   if (entry.type === "boolean") {
     return (
-      <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-ink-dim">
+      <label className="inline-flex h-[26px] cursor-pointer items-center gap-2 font-mono text-xs text-ink-dim">
         <input
           id={id}
           type="checkbox"
           checked={Boolean(current)}
           onChange={(e) => onChange(k, e.target.checked)}
-          className="h-4 w-4 cursor-pointer"
+          className="h-3.5 w-3.5 cursor-pointer"
         />
         <span>{current ? "true" : "false"}</span>
       </label>
@@ -120,7 +123,9 @@ function renderControl(
 
   if (entry.type === "integer" || entry.type === "number") {
     return (
-      <input
+      <Input
+        compact
+        mono
         id={id}
         type="number"
         step={entry.type === "integer" ? 1 : "any"}
@@ -134,7 +139,6 @@ function renderControl(
           if (Number.isNaN(n)) return;
           onChange(k, n);
         }}
-        className="w-full rounded-md border border-line bg-surface-1 px-2 py-1 text-sm text-ink focus:border-accent-500/60 focus:outline-none"
       />
     );
   }
@@ -152,12 +156,13 @@ function renderControl(
 
   // Default: string.
   return (
-    <input
+    <Input
+      compact
+      mono
       id={id}
       type="text"
       value={current === undefined || current === null ? "" : String(current)}
       onChange={(e) => onChange(k, e.target.value)}
-      className="w-full rounded-md border border-line bg-surface-1 px-2 py-1 text-sm text-ink focus:border-accent-500/60 focus:outline-none"
     />
   );
 }
@@ -258,14 +263,21 @@ function coerceToType(s: string, t: SchemaEntry["type"]): unknown {
 }
 
 function ExtraField({ k, value }: { k: string; value: unknown }) {
+  // A string shows as written (a lambda keeps its line breaks); anything else as JSON.
+  const text = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+  const wide = text.length > 16 || text.includes("\n");
   return (
-    <div>
-      <div className="flex items-baseline justify-between">
-        <span className="font-mono text-xs text-ink">{k}</span>
-        <span className="text-[11px] text-ink-faint">not in schema</span>
+    <div className={wide ? "col-span-2" : "min-w-0"}>
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="min-w-0 truncate font-mono text-xs text-ink" title={k}>{k}</span>
+        <span className="shrink-0 text-[11px] text-ink-faint">not in schema</span>
       </div>
-      <pre className="mt-1 overflow-auto rounded-md border border-line bg-surface-1 p-2 text-[11px] text-ink-dim">
-        {JSON.stringify(value, null, 2)}
+      <pre
+        className={`mt-1 rounded-md border border-line bg-surface-1 px-2 font-mono text-[11px] text-ink-dim ${
+          wide ? "max-h-40 overflow-auto whitespace-pre-wrap break-words py-1.5 leading-4" : "h-[26px] overflow-hidden leading-[24px]"
+        }`}
+      >
+        {text}
       </pre>
     </div>
   );

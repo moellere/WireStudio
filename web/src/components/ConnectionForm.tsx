@@ -7,7 +7,9 @@
  */
 
 import { useMemo } from "react";
+import { Lock, LockOpen } from "lucide-react";
 import type { ComponentSummary } from "../types/api";
+import { Input, Select } from "./ui";
 import {
   pinCaveat,
   readUsedPins,
@@ -126,7 +128,7 @@ export function ConnectionForm({
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1">
       {rows.map((row) => (
         <Row
           key={row.index}
@@ -180,93 +182,103 @@ function Row({
   }, [componentIds, row.component_id]);
 
   return (
-    <div className="rounded-md border border-line bg-surface-2/40 p-2">
-      <div className="mb-1.5 flex items-baseline justify-between">
-        <span className="font-mono text-xs text-ink">{row.pin_role}</span>
-        <select
+    <div>
+      <div className="grid grid-cols-[4.75rem_4.25rem_minmax(0,1fr)_auto] items-center gap-1.5">
+        <span className="truncate font-mono text-xs text-ink" title={row.pin_role}>{row.pin_role}</span>
+        <Select
+          aria-label={`${row.pin_role} kind`}
           value={t.kind}
           onChange={(e) => onKindChange(e.target.value as Kind)}
-          className="rounded-md border border-line bg-surface-1 px-1.5 py-0.5 text-[11px] text-ink focus:border-accent-500/60 focus:outline-none"
+          className="w-full px-1"
         >
           {KINDS.map((k) => (
             <option key={k} value={k}>{k}</option>
           ))}
-        </select>
-      </div>
+        </Select>
 
-      {t.kind === "rail" && (
-        <SelectInput
-          label="rail"
-          value={t.rail}
-          options={railNames}
-          onChange={(v) => onChange({ kind: "rail", rail: v })}
-        />
-      )}
+        {t.kind === "rail" && (
+          <SelectInput
+            label={`${row.pin_role} rail`}
+            value={t.rail}
+            options={railNames}
+            onChange={(v) => onChange({ kind: "rail", rail: v })}
+          />
+        )}
+        {t.kind === "gpio" && (
+          <SelectInput
+            label={`${row.pin_role} pin`}
+            value={t.pin}
+            options={gpioPins}
+            allowFree
+            renderLabel={pinLabel(t.pin)}
+            onChange={(v) => onChange({ kind: "gpio", pin: v })}
+          />
+        )}
+        {t.kind === "bus" && (
+          <SelectInput
+            label={`${row.pin_role} bus`}
+            value={t.bus_id}
+            options={busIds}
+            renderLabel={(id) => busDict.get(id) || id}
+            onChange={(v) => onChange({ kind: "bus", bus_id: v })}
+          />
+        )}
+        {t.kind === "expander_pin" && (
+          <SelectInput
+            label={`${row.pin_role} expander`}
+            value={t.expander_id}
+            options={expanderIds}
+            renderLabel={(id) => expanderDict.get(id) || id}
+            onChange={(v) => onChange({ ...t, expander_id: v })}
+          />
+        )}
+        {t.kind === "component" && (
+          <SelectInput
+            label={`${row.pin_role} hub`}
+            value={t.component_id}
+            options={availableComponentIds}
+            renderLabel={(id) => componentDict.get(id) || id}
+            onChange={(v) => onChange({ kind: "component", component_id: v })}
+          />
+        )}
+        {t.kind === "net" && (
+          <SelectInput
+            label={`${row.pin_role} component`}
+            value={t.component_id}
+            options={availableComponentIds}
+            renderLabel={(id) => componentDict.get(id) || id}
+            onChange={(v) => onChange({ kind: "net", component_id: v, net: "" })}
+          />
+        )}
 
-      {t.kind === "gpio" && (
-        <div className="flex items-center gap-1">
-          <div className="flex-1">
-            <SelectInput
-              label="pin"
-              value={t.pin}
-              options={gpioPins}
-              allowFree
-              renderLabel={pinLabel(t.pin)}
-              onChange={(v) => onChange({ kind: "gpio", pin: v })}
-            />
-          </div>
+        {t.kind === "gpio" ? (
           <LockToggle
+            role={row.pin_role}
             lockedPin={row.locked_pin}
             currentPin={t.pin}
             onLock={() => onLockedPinChange(t.pin || null)}
             onUnlock={() => onLockedPinChange(null)}
           />
-        </div>
-      )}
+        ) : (
+          <span className="w-[26px]" />
+        )}
+      </div>
+
       {t.kind === "gpio" && row.locked_pin && row.locked_pin !== t.pin && (
-        <div className="mt-1 rounded-md border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-200">
+        <div className="ml-[5.125rem] mt-1 rounded-md border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-200">
           locked to <code>{row.locked_pin}</code> but bound to <code>{t.pin || "<unset>"}</code>;
           solver will flag a mismatch.
         </div>
       )}
-
-      {t.kind === "bus" && (
-        <SelectInput
-          label="bus"
-          value={t.bus_id}
-          options={busIds}
-          renderLabel={(id) => busDict.get(id) || id}
-          onChange={(v) => onChange({ kind: "bus", bus_id: v })}
-        />
-      )}
-
       {t.kind === "expander_pin" && (
-        <ExpanderControls
-          target={t}
-          expanderIds={expanderIds}
-          expanderDict={expanderDict}
-          onChange={onChange}
-        />
+        <div className="ml-[5.125rem] mt-1">
+          <ExpanderControls target={t} onChange={onChange} />
+        </div>
       )}
-
-      {t.kind === "component" && (
-        <SelectInput
-          label="hub"
-          value={t.component_id}
-          options={availableComponentIds}
-          renderLabel={(id) => componentDict.get(id) || id}
-          onChange={(v) => onChange({ kind: "component", component_id: v })}
-        />
-      )}
-
       {t.kind === "net" && (
-        <NetControls
-          target={t}
-          componentIds={availableComponentIds}
-          componentDict={componentDict}
-          roles={rolesByComponent.get(t.component_id) ?? []}
-          onChange={onChange}
-        />
+        <div className="ml-[5.125rem] mt-1">
+          <NetControls target={t} roles={rolesByComponent.get(t.component_id) ?? []} onChange={onChange} />
+        </div>
       )}
     </div>
   );
@@ -279,39 +291,31 @@ function Row({
  * position unused.
  */
 function NetControls({
-  target, componentIds, componentDict, roles, onChange,
+  target, roles, onChange,
 }: {
   target: Extract<ConnectionTarget, { kind: "net" }>;
-  componentIds: string[];
-  componentDict: Map<string, string>;
   roles: string[];
   onChange: (t: ConnectionTarget) => void;
 }) {
   const listId = `net-roles-${target.component_id || "none"}`;
   return (
-    <div className="space-y-1.5">
-      <SelectInput
-        label="component"
-        value={target.component_id}
-        options={componentIds}
-        renderLabel={(id) => componentDict.get(id) || id}
-        onChange={(v) => onChange({ kind: "net", component_id: v, net: "" })}
+    <div className="flex items-center gap-2">
+      <span className="w-12 shrink-0 text-[11px] text-ink-faint">net</span>
+      <Input
+        compact
+        mono
+        aria-label="net"
+        list={listId}
+        value={target.net}
+        placeholder="role or subcircuit node"
+        onChange={(e) => onChange({ ...target, net: e.target.value })}
+        className="flex-1"
       />
-      <div className="flex items-center gap-2">
-        <span className="w-16 text-[11px] text-ink-faint">net</span>
-        <input
-          list={listId}
-          value={target.net}
-          placeholder="role or subcircuit node"
-          onChange={(e) => onChange({ ...target, net: e.target.value })}
-          className="flex-1 rounded-md border border-line bg-surface-1 px-1.5 py-0.5 font-mono text-xs text-ink focus:border-accent-500/60 focus:outline-none"
-        />
-        <datalist id={listId}>
-          {roles.map((r) => (
-            <option key={r} value={r} />
-          ))}
-        </datalist>
-      </div>
+      <datalist id={listId}>
+        {roles.map((r) => (
+          <option key={r} value={r} />
+        ))}
+      </datalist>
     </div>
   );
 }
@@ -330,27 +334,30 @@ function NetControls({
  * in the design pane; this control gives the user a one-click escape.
  */
 function LockToggle({
-  lockedPin, currentPin, onLock, onUnlock,
+  role, lockedPin, currentPin, onLock, onUnlock,
 }: {
+  role: string;
   lockedPin: string | null;
   currentPin: string;
   onLock: () => void;
   onUnlock: () => void;
 }) {
+  const base = "flex h-[26px] shrink-0 items-center justify-center gap-1 rounded-md border text-[10px] uppercase tracking-wider transition-colors";
   if (lockedPin === null) {
     return (
       <button
         type="button"
         onClick={onLock}
         disabled={!currentPin}
+        aria-label={currentPin ? `lock ${role} to ${currentPin}` : `lock ${role}`}
         title={
           currentPin
             ? `Lock this role to ${currentPin}; the pin solver will not move it.`
             : "Pick a pin first, then lock it."
         }
-        className="shrink-0 rounded-md border border-line px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-ink-dim enabled:hover:border-line-strong enabled:hover:text-ink disabled:opacity-40"
+        className={`${base} w-[26px] border-line text-ink-faint enabled:hover:border-line-strong enabled:hover:text-ink disabled:opacity-40`}
       >
-        🔓 lock
+        <LockOpen className="h-3.5 w-3.5" />
       </button>
     );
   }
@@ -359,42 +366,36 @@ function LockToggle({
     <button
       type="button"
       onClick={onUnlock}
+      aria-label={`${role} is locked to ${lockedPin}; unlock`}
       title={
         diverged
           ? `Locked to ${lockedPin} (bound: ${currentPin || "<unset>"}). Click to unlock.`
           : `Locked to ${lockedPin}. Click to unlock.`
       }
-      className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] uppercase tracking-wider ${
+      className={`${base} ${
         diverged
-          ? "border-amber-600/50 bg-amber-900/20 text-amber-200 hover:bg-amber-900/30"
-          : "border-emerald-600/50 bg-emerald-900/20 text-emerald-200 hover:bg-emerald-900/30"
+          ? "border-amber-600/50 bg-amber-900/20 px-1.5 text-amber-200 hover:bg-amber-900/30"
+          : "w-[26px] border-emerald-600/50 bg-emerald-900/20 text-emerald-200 hover:bg-emerald-900/30"
       }`}
     >
-      🔒 {lockedPin}
+      <Lock className="h-3.5 w-3.5" />
+      {diverged && <span className="font-mono normal-case">{lockedPin}</span>}
     </button>
   );
 }
 
 function ExpanderControls({
-  target, expanderIds, expanderDict, onChange,
+  target, onChange,
 }: {
   target: Extract<ConnectionTarget, { kind: "expander_pin" }>;
-  expanderIds: string[];
-  expanderDict: Map<string, string>;
   onChange: (t: ConnectionTarget) => void;
 }) {
   return (
-    <div className="space-y-1.5">
-      <SelectInput
-        label="expander"
-        value={target.expander_id}
-        options={expanderIds}
-        renderLabel={(id) => expanderDict.get(id) || id}
-        onChange={(v) => onChange({ ...target, expander_id: v })}
-      />
-      <div className="flex items-center gap-2">
-        <span className="w-16 text-[11px] text-ink-faint">number</span>
-        <input
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-ink-faint">
+      <label className="flex items-center gap-1">
+        number
+        <Input
+          compact
           type="number"
           min={0}
           value={target.number}
@@ -403,31 +404,31 @@ function ExpanderControls({
             if (Number.isNaN(n)) return;
             onChange({ ...target, number: n });
           }}
-          className="w-20 rounded-md border border-line bg-surface-1 px-1.5 py-0.5 text-xs text-ink focus:border-accent-500/60 focus:outline-none"
+          className="w-14"
         />
-      </div>
-      <div className="flex items-center gap-2">
-        <span className="w-16 text-[11px] text-ink-faint">mode</span>
-        <select
+      </label>
+      <label className="flex min-w-0 flex-1 items-center gap-1">
+        mode
+        <Select
           value={target.mode ?? ""}
           onChange={(e) => onChange({ ...target, mode: e.target.value || undefined })}
-          className="flex-1 rounded-md border border-line bg-surface-1 px-1.5 py-0.5 text-xs text-ink focus:border-accent-500/60 focus:outline-none"
+          className="min-w-0 flex-1"
         >
           <option value="">(unset)</option>
           {["INPUT", "INPUT_PULLUP", "INPUT_PULLDOWN", "OUTPUT", "OUTPUT_OPEN_DRAIN"].map((m) => (
             <option key={m} value={m}>{m}</option>
           ))}
-        </select>
-      </div>
-      <div className="flex items-center gap-2">
-        <span className="w-16 text-[11px] text-ink-faint">inverted</span>
+        </Select>
+      </label>
+      <label className="flex cursor-pointer items-center gap-1">
         <input
           type="checkbox"
           checked={Boolean(target.inverted)}
           onChange={(e) => onChange({ ...target, inverted: e.target.checked })}
           className="h-3.5 w-3.5 cursor-pointer"
         />
-      </div>
+        inverted
+      </label>
     </div>
   );
 }
@@ -435,6 +436,7 @@ function ExpanderControls({
 function SelectInput({
   label, value, options, onChange, allowFree = false, renderLabel,
 }: {
+  /** Accessible name; the row's kind select already says what this is. */
   label: string;
   value: string;
   options: string[];
@@ -443,32 +445,28 @@ function SelectInput({
   renderLabel?: (opt: string) => string;
 }) {
   const inOptions = options.includes(value);
+  if (options.length === 0) {
+    return (
+      <Input
+        compact
+        mono
+        type="text"
+        aria-label={label}
+        value={value}
+        readOnly={!allowFree}
+        onChange={(e) => allowFree && onChange(e.target.value)}
+      />
+    );
+  }
   return (
-    <div className="flex items-center gap-2">
-      <span className="w-16 text-[11px] text-ink-faint">{label}</span>
-      {options.length > 0 ? (
-        <select
-          value={inOptions ? value : ""}
-          onChange={(e) => onChange(e.target.value)}
-          className="flex-1 rounded-md border border-line bg-surface-1 px-1.5 py-0.5 text-xs text-ink focus:border-accent-500/60 focus:outline-none"
-        >
-          {!inOptions && (
-            <option value="" disabled>(invalid: {value || "<unset>"})</option>
-          )}
-          {options.map((o) => (
-            <option key={o} value={o}>{renderLabel ? renderLabel(o) : o}</option>
-          ))}
-        </select>
-      ) : (
-        <input
-          type="text"
-          value={value}
-          readOnly={!allowFree}
-          onChange={(e) => allowFree && onChange(e.target.value)}
-          className="flex-1 rounded-md border border-line bg-surface-1 px-1.5 py-0.5 text-xs text-ink focus:border-accent-500/60 focus:outline-none"
-        />
+    <Select mono aria-label={label} value={inOptions ? value : ""} onChange={(e) => onChange(e.target.value)}>
+      {!inOptions && (
+        <option value="" disabled>(invalid: {value || "<unset>"})</option>
       )}
-    </div>
+      {options.map((o) => (
+        <option key={o} value={o}>{renderLabel ? renderLabel(o) : o}</option>
+      ))}
+    </Select>
   );
 }
 

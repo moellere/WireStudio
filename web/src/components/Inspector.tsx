@@ -24,8 +24,11 @@ import { ParamForm } from "./ParamForm";
 import { ConnectionForm } from "./ConnectionForm";
 import { PinoutView } from "./PinoutView";
 import { BusList } from "./BusList";
-import { CompatibilityList } from "./ProblemsPanel";
-import { Chip, KeyValueRow, Section } from "./ui";
+import { Button, Chip, Input, KeyValueRow, Section, Select } from "./ui";
+
+const REMOVE_BUTTON =
+  "flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-md border border-line text-xs text-ink-faint " +
+  "transition-colors hover:border-rose-500/40 hover:bg-rose-500/10 hover:text-rose-300";
 
 export type Selection =
   | { kind: "design" }
@@ -45,13 +48,17 @@ interface Props {
   onDesignChange: (updater: (d: Design) => Design) => void;
   onAddComponent: (libraryId: string) => void;
   onRemoveComponent: (instanceId: string) => void;
+  /** Opens the capability picker. */
+  onAddByFunction?: () => void;
+  /** Opens the problems panel on its Compatibility tab. */
+  onShowProblems?: () => void;
 }
 
 export function Inspector({
   selection, design, boardData, libraryBoards, libraryComponents,
   compatibilityWarnings,
   onSelect, onParamChange, onConnectionChange, onLockedPinChange, onDesignChange,
-  onAddComponent, onRemoveComponent,
+  onAddComponent, onRemoveComponent, onAddByFunction, onShowProblems,
 }: Props) {
   return (
     <aside className="flex min-h-0 flex-col border-l border-line bg-surface-0">
@@ -85,6 +92,7 @@ export function Inspector({
             onDesignChange={onDesignChange}
             onAddComponent={onAddComponent}
             onRemoveComponent={onRemoveComponent}
+            onAddByFunction={onAddByFunction}
           />
         )}
         {selection.kind === "component_instance" && (
@@ -97,6 +105,7 @@ export function Inspector({
             onParamChange={onParamChange}
             onConnectionChange={onConnectionChange}
             onLockedPinChange={onLockedPinChange}
+            onShowProblems={onShowProblems}
           />
         )}
       </div>
@@ -106,7 +115,7 @@ export function Inspector({
 
 function DesignInspector({
   design, boardData, libraryBoards, libraryComponents, compatibilityWarnings,
-  onSelect, onDesignChange, onAddComponent, onRemoveComponent,
+  onSelect, onDesignChange, onAddComponent, onRemoveComponent, onAddByFunction,
 }: {
   design: Design | null;
   boardData: unknown;
@@ -117,6 +126,7 @@ function DesignInspector({
   onDesignChange: (updater: (d: Design) => Design) => void;
   onAddComponent: (libraryId: string) => void;
   onRemoveComponent: (instanceId: string) => void;
+  onAddByFunction?: () => void;
 }) {
   const components = useMemo(() => (design ? readComponents(design) : []), [design]);
   const requirements = useMemo(() => (design ? readRequirements(design) : []), [design]);
@@ -151,39 +161,35 @@ function DesignInspector({
       </Section>
 
       <Section title={`Components (${components.length})`}>
-        <div className="mb-2">
-          <AddComponentControl
-            libraryComponents={libraryComponents}
-            onAdd={onAddComponent}
-          />
-        </div>
         {components.length === 0 ? (
           <div className="text-xs text-ink-faint">no components</div>
         ) : (
           <ul className="space-y-1">
             {components.map((c) => (
-              <li key={c.id} className="flex items-stretch gap-1">
+              <li key={c.id} className="flex items-center gap-1">
                 <button
                   onClick={() => onSelect({ kind: "component_instance", id: c.id })}
-                  className="flex-1 rounded-md border border-line bg-surface-2/40 px-2 py-1.5 text-left transition-colors hover:bg-surface-2"
+                  title={`${c.label} (${c.library_id})`}
+                  className="flex h-[26px] min-w-0 flex-1 items-center gap-2 rounded-md border border-line bg-surface-2/40 px-2 text-left text-xs transition-colors hover:bg-surface-2"
                 >
-                  <div className="flex items-baseline justify-between gap-2">
-                    <span className="font-mono text-xs text-ink">{c.id}</span>
-                    <span className="font-mono text-[11px] text-ink-faint">{c.library_id}</span>
-                  </div>
-                  <div className="mt-0.5 truncate text-xs text-ink-dim">{c.label}</div>
+                  <span className="shrink-0 font-mono text-ink">{c.id}</span>
+                  <span className="min-w-0 flex-1 truncate text-ink-dim">{c.label}</span>
+                  <span className="shrink-0 font-mono text-[11px] text-ink-faint">{c.library_id}</span>
                 </button>
-                <button
-                  onClick={() => onRemoveComponent(c.id)}
-                  title={`Remove ${c.id}`}
-                  className="rounded-md border border-line px-2 text-xs text-ink-faint transition-colors hover:border-rose-500/40 hover:bg-rose-500/10 hover:text-rose-300"
-                >
+                <button onClick={() => onRemoveComponent(c.id)} title={`Remove ${c.id}`} className={REMOVE_BUTTON}>
                   ✕
                 </button>
               </li>
             ))}
           </ul>
         )}
+        <div className="mt-1.5">
+          <AddComponentControl
+            libraryComponents={libraryComponents}
+            onAdd={onAddComponent}
+            onAddByFunction={onAddByFunction}
+          />
+        </div>
       </Section>
 
       <Section title={`Buses (${buses.length})`}>
@@ -219,10 +225,11 @@ function DesignInspector({
 }
 
 function AddComponentControl({
-  libraryComponents, onAdd,
+  libraryComponents, onAdd, onAddByFunction,
 }: {
   libraryComponents: ComponentSummary[] | null;
   onAdd: (libraryId: string) => void;
+  onAddByFunction?: () => void;
 }) {
   const [picked, setPicked] = useState<string>("");
 
@@ -240,13 +247,14 @@ function AddComponentControl({
   }, [libraryComponents]);
 
   return (
-    <div className="space-y-1.5">
-      <select
+    <div className="flex items-center gap-1.5">
+      <Select
+        aria-label="Component to add"
         value={picked}
         onChange={(e) => setPicked(e.target.value)}
-        className="w-full min-w-0 max-w-full rounded-md border border-dashed border-line bg-surface-1 px-2 py-1 text-xs text-ink-dim focus:border-accent-500/60 focus:outline-none"
+        className="flex-1 text-ink-dim"
       >
-        <option value="">+ Add component...</option>
+        <option value="">Add component...</option>
         {categories.map((cat) => (
           <optgroup key={cat} label={cat}>
             {byCategory[cat].map((c) => (
@@ -254,18 +262,30 @@ function AddComponentControl({
             ))}
           </optgroup>
         ))}
-      </select>
-      <button
+      </Select>
+      <Button
+        size="sm"
+        className="h-[26px] shrink-0"
         disabled={!picked}
         onClick={() => {
           if (!picked) return;
           onAdd(picked);
           setPicked("");
         }}
-        className="w-full rounded-md border border-line px-2 py-1 text-xs text-ink-dim transition-colors enabled:hover:bg-surface-2 enabled:hover:text-ink disabled:opacity-40"
       >
         Add
-      </button>
+      </Button>
+      {onAddByFunction && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-[26px] shrink-0 whitespace-nowrap"
+          onClick={onAddByFunction}
+          title="Pick a capability and add a matching component"
+        >
+          By function
+        </Button>
+      )}
     </div>
   );
 }
@@ -279,21 +299,23 @@ function RevisionPicker({
 }) {
   if (!libraryBoard?.revisions.length) return null;
   return (
-    <div className="mt-2">
-      <label htmlFor="board-revision" className="block text-[11px] text-ink-faint">
-        revision
-      </label>
-      <select
-        id="board-revision"
-        value={revision ?? ""}
-        onChange={(e) => onChange(e.target.value === "" ? null : e.target.value)}
-        className="mt-0.5 w-full rounded-md border border-line bg-surface-1 px-2 py-1 text-xs text-ink focus:border-accent-500/60 focus:outline-none"
-      >
-        <option value="">Board default</option>
-        {libraryBoard.revisions.map((rev) => (
-          <option key={rev} value={rev}>{rev}</option>
-        ))}
-      </select>
+    <div className="mt-1.5">
+      <div className="flex items-center gap-2">
+        <label htmlFor="board-revision" className="w-[4.5rem] shrink-0 text-[11px] text-ink-faint">
+          revision
+        </label>
+        <Select
+          id="board-revision"
+          value={revision ?? ""}
+          onChange={(e) => onChange(e.target.value === "" ? null : e.target.value)}
+          className="flex-1"
+        >
+          <option value="">Board default</option>
+          {libraryBoard.revisions.map((rev) => (
+            <option key={rev} value={rev}>{rev}</option>
+          ))}
+        </Select>
+      </div>
       {revision === null && (
         <p className="mt-1 text-[11px] text-amber-300">
           This board's wiring differs by revision. Read it off the silkscreen;
@@ -316,23 +338,25 @@ function FlashSizeOverride({
   const boardSize = libraryBoard.flash_size_mb;
   const raised = override !== null && boardSize !== null && override > boardSize;
   return (
-    <div className="mt-2">
-      <label htmlFor="flash-size-override" className="block text-[11px] text-ink-faint">
-        flash size
-      </label>
-      <select
-        id="flash-size-override"
-        value={override === null ? "" : String(override)}
-        onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
-        className="mt-0.5 w-full rounded-md border border-line bg-surface-1 px-2 py-1 text-xs text-ink focus:border-accent-500/60 focus:outline-none"
-      >
-        <option value="">
-          {boardSize ? `Board default (${boardSize}MB)` : "Board default"}
-        </option>
-        {FLASH_SIZE_OVERRIDES_MB.map((mb) => (
-          <option key={mb} value={mb}>{mb}MB</option>
-        ))}
-      </select>
+    <div className="mt-1.5">
+      <div className="flex items-center gap-2">
+        <label htmlFor="flash-size-override" className="w-[4.5rem] shrink-0 text-[11px] text-ink-faint">
+          flash size
+        </label>
+        <Select
+          id="flash-size-override"
+          value={override === null ? "" : String(override)}
+          onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
+          className="flex-1"
+        >
+          <option value="">
+            {boardSize ? `Board default (${boardSize}MB)` : "Board default"}
+          </option>
+          {FLASH_SIZE_OVERRIDES_MB.map((mb) => (
+            <option key={mb} value={mb}>{mb}MB</option>
+          ))}
+        </Select>
+      </div>
       {raised && (
         <p className="mt-1 text-[11px] text-amber-300">
           Above the board file's {boardSize}MB. Declaring more flash than the
@@ -353,18 +377,18 @@ function BoardPicker({
 }) {
   if (!options) return <Loading />;
   return (
-    <select
+    <Select
+      aria-label="Board"
       value={currentLibraryId}
       onChange={(e) => {
         const next = options.find((b) => b.id === e.target.value);
         if (next) onChange(next.id, next.mcu);
       }}
-      className="w-full rounded-md border border-line bg-surface-1 px-2 py-1 text-sm text-ink focus:border-accent-500/60 focus:outline-none"
     >
       {options.map((b) => (
         <option key={b.id} value={b.id}>{b.name} ({b.chip_variant})</option>
       ))}
-    </select>
+    </Select>
   );
 }
 
@@ -377,39 +401,37 @@ function RequirementList({
   onRemove: (i: number) => void;
 }) {
   return (
-    <div className="space-y-2">
+    <div className="space-y-1">
       {items.map((r, i) => (
-        <div key={i} className="rounded-md border border-line bg-surface-2/40 p-2">
-          <div className="mb-1 flex items-center gap-2">
-            <select
-              value={r.kind}
-              onChange={(e) => onUpdate(i, { kind: e.target.value as Requirement["kind"] })}
-              className="rounded-md border border-line bg-surface-1 px-1.5 py-0.5 text-[11px] text-ink"
-            >
-              {(["capability", "environment", "constraint"] as const).map((k) => (
-                <option key={k} value={k}>{k}</option>
-              ))}
-            </select>
-            <span className="font-mono text-[11px] text-ink-faint">{r.id}</span>
-            <button
-              onClick={() => onRemove(i)}
-              className="ml-auto rounded-md border border-line px-1.5 py-0.5 text-[11px] text-ink-dim hover:bg-surface-2 hover:text-ink"
-              title="Remove requirement"
-            >
-              ✕
-            </button>
-          </div>
-          <input
+        <div key={i} className="flex items-center gap-1.5">
+          <span className="w-5 shrink-0 font-mono text-[11px] text-ink-faint">{r.id}</span>
+          <Select
+            aria-label={`${r.id} kind`}
+            value={r.kind}
+            onChange={(e) => onUpdate(i, { kind: e.target.value as Requirement["kind"] })}
+            className="w-[6.5rem] shrink-0"
+          >
+            {(["capability", "environment", "constraint"] as const).map((k) => (
+              <option key={k} value={k}>{k}</option>
+            ))}
+          </Select>
+          <Input
+            compact
             type="text"
+            aria-label={`${r.id} text`}
+            title={r.text}
             value={r.text}
             onChange={(e) => onUpdate(i, { text: e.target.value })}
-            className="w-full rounded-md border border-line bg-surface-1 px-2 py-1 text-xs text-ink focus:border-accent-500/60 focus:outline-none"
+            className="flex-1"
           />
+          <button onClick={() => onRemove(i)} className={REMOVE_BUTTON} title="Remove requirement">
+            ✕
+          </button>
         </div>
       ))}
       <button
         onClick={onAdd}
-        className="w-full rounded-md border border-dashed border-line px-2 py-1 text-xs text-ink-faint hover:border-line-strong hover:text-ink-dim"
+        className="h-[26px] w-full rounded-md border border-dashed border-line px-2 text-xs text-ink-faint hover:border-line-strong hover:text-ink-dim"
       >
         + Add requirement
       </button>
@@ -425,7 +447,7 @@ function FleetEditor({
 }) {
   const tags = Array.isArray(fleet.tags) ? (fleet.tags as string[]).join(", ") : "";
   return (
-    <div className="space-y-2 text-xs">
+    <div className="space-y-1 text-xs">
       <Field
         label="device_name"
         value={String(fleet.device_name ?? "")}
@@ -452,14 +474,16 @@ function Field({
   placeholder?: string;
 }) {
   return (
-    <div>
-      <label className="block text-[11px] text-ink-faint">{label}</label>
-      <input
+    <div className="flex items-center gap-2">
+      <label htmlFor={`fleet-${label}`} className="w-[4.5rem] shrink-0 text-[11px] text-ink-faint">{label}</label>
+      <Input
+        compact
+        id={`fleet-${label}`}
         type="text"
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
-        className="mt-0.5 w-full rounded-md border border-line bg-surface-1 px-2 py-1 text-xs text-ink focus:border-accent-500/60 focus:outline-none"
+        className="flex-1"
       />
     </div>
   );
@@ -499,11 +523,10 @@ export function LibraryPage({
           {page.kind === "board" ? "Library board" : "Library component"}
         </span>
         <span className="font-mono text-xs text-ink-dim">{page.id}</span>
-      </div>
-      <div className="min-h-0 flex-1 overflow-auto">
-        <div className="mx-auto max-w-3xl p-6 text-sm">
+        <div className="ml-auto flex items-center gap-2">
           {page.kind === "board" ? (
-            <BoardInspector
+            <LibraryEntryActions
+              kind="board"
               id={page.id}
               source={libraryBoards?.find((b) => b.id === page.id)?.source ?? "bundled"}
               onEdit={onEditBoard}
@@ -511,15 +534,33 @@ export function LibraryPage({
               onShare={onShareLibrary && ((id) => onShareLibrary("boards", id))}
             />
           ) : (
-            <LibraryComponentInspector
-              id={page.id}
-              source={libraryComponents?.find((c) => c.id === page.id)?.source ?? "bundled"}
-              designReady={designReady}
-              onAdd={onAddComponent}
-              onEdit={onEditComponent}
-              onDelete={onDeleteComponent}
-              onShare={onShareLibrary && ((id) => onShareLibrary("components", id))}
-            />
+            <>
+              <LibraryEntryActions
+                kind="component"
+                id={page.id}
+                source={libraryComponents?.find((c) => c.id === page.id)?.source ?? "bundled"}
+                onEdit={onEditComponent}
+                onDelete={onDeleteComponent}
+                onShare={onShareLibrary && ((id) => onShareLibrary("components", id))}
+              />
+              <Button
+                variant="primary"
+                disabled={!designReady}
+                onClick={() => onAddComponent(page.id)}
+                title={designReady ? "Add this component to the open design" : "Open or create a design first"}
+              >
+                Add to design
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+      <div className="min-h-0 flex-1 overflow-auto">
+        <div className={`p-6 text-sm ${page.kind === "board" ? "max-w-3xl" : "max-w-xl"}`}>
+          {page.kind === "board" ? (
+            <BoardInspector id={page.id} />
+          ) : (
+            <LibraryComponentInspector id={page.id} />
           )}
         </div>
       </div>
@@ -527,15 +568,7 @@ export function LibraryPage({
   );
 }
 
-function BoardInspector({
-  id, source, onEdit, onDelete, onShare,
-}: {
-  id: string;
-  source: "bundled" | "user";
-  onEdit: (libraryId: string, source: "bundled" | "user") => void;
-  onDelete: (libraryId: string) => void;
-  onShare?: (libraryId: string) => void;
-}) {
+function BoardInspector({ id }: { id: string }) {
   const board = useFetched(() => api.getBoard(id), [id]);
   if (!board) return <Loading />;
   const b = board as Record<string, unknown>;
@@ -557,8 +590,6 @@ function BoardInspector({
           )}
         </div>
       </div>
-
-      <LibraryEntryActions kind="board" id={id} source={source} onEdit={onEdit} onDelete={onDelete} onShare={onShare} />
 
       <div className="space-y-3 rounded-md border border-line bg-surface-2/40 p-4 text-xs">
         <div className="flex justify-between items-center border-b border-line/50 pb-2">
@@ -613,47 +644,28 @@ function LibraryEntryActions({
   onShare?: (libraryId: string) => void;
 }) {
   return (
-    <div className="flex gap-2 text-xs">
-      <button
+    <>
+      {source === "user" && (
+        <Button variant="danger" onClick={() => onDelete(id)} title="Remove from the user library">
+          Delete
+        </Button>
+      )}
+      {source === "user" && onShare && (
+        <Button onClick={() => onShare(id)} title={`Share this ${kind} to the community library`}>
+          Share
+        </Button>
+      )}
+      <Button
         onClick={() => onEdit(id, source)}
-        className="rounded-md bg-surface-2 px-2 py-1 text-ink-dim ring-1 ring-inset ring-line hover:bg-surface-3 hover:text-ink"
         title={source === "user" ? `Edit this ${kind}'s YAML` : `Start a new ${kind} from this one's YAML`}
       >
         {source === "user" ? "Edit YAML" : "Copy as new"}
-      </button>
-      {source === "user" && onShare && (
-        <button
-          onClick={() => onShare(id)}
-          className="rounded-md bg-surface-2 px-2 py-1 text-ink-dim ring-1 ring-inset ring-line hover:bg-surface-3 hover:text-ink"
-          title={`Share this ${kind} to the community library`}
-        >
-          Share
-        </button>
-      )}
-      {source === "user" && (
-        <button
-          onClick={() => onDelete(id)}
-          className="rounded-md bg-surface-2 px-2 py-1 text-rose-300 ring-1 ring-inset ring-line hover:bg-surface-3"
-          title="Remove from the user library"
-        >
-          Delete
-        </button>
-      )}
-    </div>
+      </Button>
+    </>
   );
 }
 
-function LibraryComponentInspector({
-  id, source, designReady, onAdd, onEdit, onDelete, onShare,
-}: {
-  id: string;
-  source: "bundled" | "user";
-  designReady: boolean;
-  onAdd: (libraryId: string) => void;
-  onEdit: (libraryId: string, source: "bundled" | "user") => void;
-  onDelete: (libraryId: string) => void;
-  onShare?: (libraryId: string) => void;
-}) {
+function LibraryComponentInspector({ id }: { id: string }) {
   const comp = useFetched(() => api.getComponent(id), [id]);
   if (!comp) return <Loading />;
 
@@ -668,17 +680,6 @@ function LibraryComponentInspector({
         </div>
       </div>
 
-      <button
-        disabled={!designReady}
-        onClick={() => onAdd(id)}
-        title={designReady ? "Add this component to the open design" : "Open or create a design first"}
-        className="w-full rounded-md bg-accent-600 px-3 py-1.5 text-xs font-medium text-accent-50 shadow-pop transition-colors enabled:hover:bg-accent-500 disabled:opacity-40"
-      >
-        Add to design
-      </button>
-
-      <LibraryEntryActions kind="component" id={id} source={source} onEdit={onEdit} onDelete={onDelete} onShare={onShare} />
-
       <div className="rounded-md border border-line bg-surface-2/40 p-4 text-xs">
         {c.notes ? (
           <div className="text-ink-dim leading-relaxed">{String(c.notes)}</div>
@@ -687,14 +688,16 @@ function LibraryComponentInspector({
         )}
       </div>
 
-      <FullComponentView comp={comp} compact hideNotes />
+      <div className="max-w-sm">
+        <FullComponentView comp={comp} compact hideNotes />
+      </div>
     </div>
   );
 }
 
 function ComponentInstanceInspector({
   instanceId, design, boardData, libraryComponents, compatibilityWarnings,
-  onParamChange, onConnectionChange, onLockedPinChange,
+  onParamChange, onConnectionChange, onLockedPinChange, onShowProblems,
 }: {
   instanceId: string;
   design: Design | null;
@@ -704,6 +707,7 @@ function ComponentInstanceInspector({
   onParamChange: (componentInstanceId: string, paramKey: string, value: unknown) => void;
   onConnectionChange: (connectionIndex: number, target: ConnectionTarget) => void;
   onLockedPinChange: (componentId: string, pinRole: string, pin: string | null) => void;
+  onShowProblems?: () => void;
 }) {
   const components = useMemo(() => (design ? readComponents(design) : []), [design]);
   const connectionRows = useMemo(() => (design ? readConnections(design, instanceId) : []), [design, instanceId]);
@@ -739,6 +743,10 @@ function ComponentInstanceInspector({
         {inst.role && <div className="text-xs text-ink-faint">role: {inst.role}</div>}
       </div>
 
+      {mineWarnings.length > 0 && (
+        <CompatibilitySummary warnings={mineWarnings} onShowProblems={onShowProblems} />
+      )}
+
       <Section title="Parameters">
         <ParamForm
           schema={schema}
@@ -763,15 +771,37 @@ function ComponentInstanceInspector({
 
       <DiscretePartsSection design={design} instanceId={inst.id} />
 
-      {mineWarnings.length > 0 ? (
-        <Section title={`Compatibility (${mineWarnings.length})`}>
-          <CompatibilityList warnings={mineWarnings} />
-        </Section>
-      ) : null}
-
       <Section title={`From the library (${inst.library_id})`}>
         <FullComponentView comp={comp} compact />
       </Section>
+    </div>
+  );
+}
+
+/** The checker's findings for one component, one line each; the messages live in the problems panel. */
+function CompatibilitySummary({
+  warnings, onShowProblems,
+}: { warnings: CompatibilityWarning[]; onShowProblems?: () => void }) {
+  const tone = warnings.some((w) => w.severity === "error")
+    ? "border-rose-500/40 bg-rose-500/10 text-rose-200"
+    : warnings.some((w) => w.severity === "warn")
+      ? "border-amber-500/40 bg-amber-500/10 text-amber-100"
+      : "border-accent-500/40 bg-accent-500/5 text-accent-200";
+  return (
+    <div className={`rounded-md border px-2 py-1.5 text-xs ${tone}`}>
+      <ul className="space-y-0.5 font-mono text-[11px]">
+        {warnings.map((w, i) => (
+          <li key={i} className="flex items-baseline justify-between gap-2" title={w.message}>
+            <span className="truncate">[{w.severity}] {w.code}</span>
+            <span className="shrink-0 opacity-80">{w.pin} · {w.pin_role}</span>
+          </li>
+        ))}
+      </ul>
+      {onShowProblems && (
+        <button onClick={onShowProblems} className="mt-1 text-[11px] underline hover:no-underline">
+          Show in Problems
+        </button>
+      )}
     </div>
   );
 }
