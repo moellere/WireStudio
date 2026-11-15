@@ -64,10 +64,13 @@ export function DesignPane({ design, render, renderError, advancedMode }: Props)
               <span className="shrink-0 text-xs"><Code>{meta.id}</Code></span>
               <Chip variant="mcu" className="shrink-0 text-xs">{meta.boardId}</Chip>
               {/* The counts take only leftover room: when they do not fit they wrap
-                  to a second line this one-line box hides, so the name keeps its width. */}
-              <div className="flex h-4 min-w-0 flex-1 flex-wrap overflow-hidden">
-                <span className="w-px shrink-0" />
+                  to a second line this one-line box hides, so the name keeps its width.
+                  The spacer is a full line tall; a zero-height first line would leave
+                  the wrapped counts in view, cut off at the box edge. */}
+              <div className="flex h-4 min-w-0 flex-1 flex-wrap content-start overflow-hidden">
+                <span className="h-4 w-px shrink-0" />
                 <span
+                  data-testid="design-counts"
                   className="whitespace-nowrap text-xs leading-4 text-ink-faint"
                   title={`mcu ${meta.mcu}${meta.framework ? `, ${meta.framework}` : ""}`}
                 >

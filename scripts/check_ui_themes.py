@@ -9,7 +9,9 @@ bundled example in a headless Chromium per theme, and fails when:
   `surface-0` / `ink-faint` value `web/design/tokens.json` gives that theme,
 - the two themes render the same background,
 - at any of `WIDTHS`, with advanced mode on and an unsaved edit (the
-  widest header), the page is wider than the window.
+  widest header), the page is wider than the window,
+- at any of `WIDTHS`, the design header's counts show cut off; they
+  must show whole or not at all.
 
 Screenshots land in `--out` (default `ui-screenshots/`) for review.
 
@@ -100,6 +102,17 @@ def check_theme(browser, base: str, theme: str, out: Path) -> list[str]:
     return [f"[{theme}] {e}" for e in errors] + ([] if errors else [f"[{theme}] bg {background}"])
 
 
+COUNTS_CUT_OFF = """(() => {
+  const counts = document.querySelector('[data-testid="design-counts"]');
+  if (!counts) return false;
+  const box = counts.parentElement.getBoundingClientRect();
+  const r = counts.getBoundingClientRect();
+  const w = Math.min(r.right, box.right) - Math.max(r.left, box.left);
+  const h = Math.min(r.bottom, box.bottom) - Math.max(r.top, box.top);
+  return h > 1 && w > 0 && w < r.width - 1;
+})()"""
+
+
 def check_widths(browser, base: str) -> list[str]:
     failures: list[str] = []
     for width in WIDTHS:
@@ -115,6 +128,8 @@ def check_widths(browser, base: str) -> list[str]:
         doc = page.evaluate("document.documentElement.scrollWidth")
         if doc > width:
             failures.append(f"[{width}px] page is {doc}px wide with advanced mode and unsaved changes")
+        if page.evaluate(COUNTS_CUT_OFF):
+            failures.append(f"[{width}px] design header counts are cut off")
         ctx.close()
     return failures
 
