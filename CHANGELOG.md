@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   titled by instance id. Inspector and editor controls share one 26px
   size; connections are one line each, parameters two columns, and the
   instance view links its findings to Problems instead of repeating them.
+  The design header keeps the name and drops its counts whole when they
+  do not fit.
 - **Dialogs share one shell.** Inventory is a real dialog (Escape closes
   it). Actions sit in the footer. Schematic is four tabs (Schematic,
   SKiDL script, PCB board, Autoroute). A feature the server cannot run
