@@ -150,11 +150,11 @@ def test_lid_features_cut_the_lid(lib):
 
 def test_lid_posts_hang_from_the_lid(lib):
     stands = _block(generate_scad(_design("wall-panel"), lib), "pcbStands")
-    # Module posts and PIR posts; the keys sit 0.1 over their switches,
+    # Module posts and PIR posts; the keys sit 0.3 over their switches,
     # so the tongues press them without a nub.
     assert stands.count("yappLidOnly") == 4 + 2
     assert stands.count("yappBaseOnly") == 1          # the DHT post
-    assert "base_wall_h + lid_wall_h - 3.8 - 1.5" in stands
+    assert "base_wall_h + lid_wall_h - 4 - 1.5" in stands
     assert ", -1, 3, 0.1, " not in stands
 
 
@@ -197,12 +197,12 @@ def test_cavity_height_stacks_what_overlaps(lib):
     # the module's headers hang where the board is not.
     assert "component_h + board_t + underside_h + 3.5 + 1.6 + 6" in line
     assert "component_h + board_t + underside_h + 3.5 + 1.6 + 17" not in line
-    assert "component_h + board_t + underside_h + 3.8 + 1.5 + 12" not in line
+    assert "component_h + board_t + underside_h + 4 + 1.5 + 12" not in line
 
 
 def test_lid_walls_hold_only_the_lid_parts(lib):
     scad = generate_scad(_design("wall-panel"), lib)
-    assert "lid_wall_h = min(max([ridge + 2, 3.5 + 1.6 + 6, 3.8 + 1.5 + 2]), cavity_h - ridge);" in scad
+    assert "lid_wall_h = min(max([ridge + 2, 3.5 + 1.6 + 6, 4 + 1.5 + 2]), cavity_h - ridge);" in scad
 
 
 def test_enclosure_options_alone_switch_to_the_panel_layout(lib):
@@ -216,5 +216,5 @@ def test_enclosure_options_alone_switch_to_the_panel_layout(lib):
 def test_oled_bezel_frame_drops_to_the_glass(lib):
     tubes = _block(generate_scad(_design("wall-panel"), lib), "lightTubes")
     # 32.6 along Y (a light tube's length), 1.2 wall, bottom 0.1 over the
-    # 3.6 glass, measured from the module PCB 3.8 under the lid.
-    assert "32.6, 17.6, 1.2, 3.7, yappRectangle, 0, base_wall_h + lid_wall_h - 3.8" in tubes
+    # 3.6 glass, measured from the module PCB 4.0 under the lid.
+    assert "32.6, 17.6, 1.2, 3.7, yappRectangle, 0, base_wall_h + lid_wall_h - 4" in tubes
