@@ -26,6 +26,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   package metadata and image label describe a hardware design tool for
   microcontroller devices, with the seven firmware frameworks it emits.
 
+### Fixed
+
+- **wall-panel knob module sits 0.9 closer to the face.** The
+  `oled-knob-13` lid gap drops from 4.7 to 3.8 (just clear of the tact
+  switches and the OLED glass) and the encoder hole widens to 15.4 so the
+  EC11 base rises into it. The display is less recessed and the knob cap
+  clears the face far enough to press. Only the lid changes.
+
 ## [1.3.0] — 2026-11-14
 
 ### Added
