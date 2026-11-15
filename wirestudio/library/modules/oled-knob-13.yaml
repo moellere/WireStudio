@@ -33,9 +33,11 @@ components:
 # across) with its shaft 15.15 above that. A 6.4 lid gap sank the panel
 # too deep to press the knob; 4.7, clear of the EC11 base, still left the
 # glass recessed and the knob cap too close to the face to click. The
-# lid now sits 3.8 above the PCB, just clear of the switches and the
-# glass, and the EC11 base rises 0.7 into a 15.4 hole that the knob cap
-# covers; the cap goes on from outside after assembly. The window is the
+# module's own front case (oled_encoder_case_front_enc_1_3_in.stl) puts
+# its face 6.0 above the PCB: posts 4.5 under a 1.5 plate. With this
+# lid's 2.0 plane the lid sits 4.0 above the PCB, clear of the switches
+# and the glass, and the EC11 base rises 0.5 into a 15.4 hole that the
+# knob cap covers; the cap goes on from outside after assembly. The window is the
 # display's active area plus a margin, 32.6 x 17.6, centred above the
 # glass centre (the ribbon end is blank); a frame drops onto the glass
 # and the opening tapers 2.0 each side to the face, after Enoch's
@@ -48,7 +50,7 @@ enclosure:
     - {x_mm: 62.1, y_mm: 3.1, hole_diameter_mm: 3.2}
     - {x_mm: 3.1, y_mm: 32.1, hole_diameter_mm: 3.2}
     - {x_mm: 62.1, y_mm: 32.1, hole_diameter_mm: 3.2}
-  lid_gap_mm: 3.8
+  lid_gap_mm: 4.0
   height_above_pcb_mm: 19.65
   height_below_pcb_mm: 2.0
   # The 9-pin header along the top edge (CON..VCC); its Dupont housing

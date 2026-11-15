@@ -28,9 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **wall-panel knob module sits 0.9 closer to the face.** The
-  `oled-knob-13` lid gap drops from 4.7 to 3.8 (just clear of the tact
-  switches and the OLED glass) and the encoder hole widens to 15.4 so the
+- **wall-panel knob module sits 0.7 closer to the face.** The
+  `oled-knob-13` lid gap drops from 4.7 to 4.0, which puts the face 6.0
+  above the module PCB as the module's own front case does and the encoder hole widens to 15.4 so the
   EC11 base rises into it. The display is less recessed and the knob cap
   clears the face far enough to press. Only the lid changes.
 
