@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import type { Design } from "../types/api";
 import { api, ApiError } from "../api/client";
-import { Button, Notice } from "./ui";
+import { Button, Code, Notice } from "./ui";
 
 interface Status {
   available: boolean;
@@ -58,7 +58,7 @@ export function ServerRenderView({ design, kind }: { design: Design; kind: "sche
   const label = kind === "schematic" ? "schematic" : "placed board";
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 font-sans">
       <div className="flex items-center justify-between gap-3">
         <div className="text-xs text-ink-faint">
           {status === null
@@ -76,14 +76,13 @@ export function ServerRenderView({ design, kind }: { design: Design; kind: "sche
       </div>
 
       {status !== null && !status.available && (
-        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
-          <div className="font-semibold">Preview unavailable on this server</div>
+        <Notice tone="amber" title="Preview is unavailable on this server" className="font-sans text-xs">
           <div className="mt-1">{status.reason}</div>
-          <div className="mt-2 text-amber-200/80">
-            The {label} preview needs the KiCad toolchain server-side; the
-            <code className="mx-1 font-mono">-full</code> Docker image includes it.
+          <div className="mt-2">
+            The {label} preview needs the KiCad toolchain server-side; the{" "}
+            <Code>-full</Code> Docker image includes it.
           </div>
-        </div>
+        </Notice>
       )}
 
       {error && (

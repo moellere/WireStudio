@@ -28,7 +28,7 @@ import type {
   EnclosureSourceStatus,
   PrintWardenPrinter,
 } from "../types/api";
-import { Button, Code, Dialog, FieldLabel, Input } from "./ui";
+import { Button, Code, Dialog, DialogFooter, FieldLabel, Input, Notice, Tabs } from "./ui";
 
 type Tab = "generate" | "print" | "search";
 
@@ -57,21 +57,13 @@ export function EnclosureDialog({ design, boardLibraryId, boardName, onClose }: 
       onClose={onClose}
       maxWidth="max-w-2xl"
     >
-      <div className="-mx-5 -mt-4 mb-4 flex border-b border-line text-xs">
-        {(["generate", "print", "search"] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`px-3 py-2 transition-colors ${
-              tab === t
-                ? "border-b-2 border-accent-400 text-ink"
-                : "text-ink-dim hover:text-ink"
-            }`}
-          >
-            {TAB_LABEL[t]}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        label="Enclosure source"
+        value={tab}
+        onChange={setTab}
+        className="-mx-5 -mt-4 mb-4 px-2"
+        tabs={(["generate", "print", "search"] as const).map((t) => ({ id: t, label: TAB_LABEL[t] }))}
+      />
 
       <div className="text-sm">
         {tab === "generate" ? (
@@ -135,9 +127,11 @@ function GenerateTab({ design }: { design: Design }) {
         for printing. Built on YAPP_Box: base and lid side by side, with a ridge and
         snap joins where they meet.
       </p>
-      <Button variant="primary" onClick={handleGenerate} disabled={downloading}>
-        {downloading ? "Generating…" : downloaded ? "Downloaded ✓ — generate again" : "Generate enclosure →"}
-      </Button>
+      <DialogFooter note={downloaded ? <>Downloaded <Code>{`${design.id ?? "design"}.scad`}</Code></> : null}>
+        <Button variant="primary" onClick={handleGenerate} disabled={downloading}>
+          {downloading ? "Generating…" : "Generate enclosure"}
+        </Button>
+      </DialogFooter>
       {error && (
         <div className="rounded-md bg-rose-500/10 px-2 py-1.5 text-xs text-rose-200 ring-1 ring-rose-500/30">
           {error}
@@ -285,16 +279,13 @@ function PrintTab({ design }: { design: Design }) {
   if (!status) return <div className="text-xs text-ink-faint">Checking print-warden…</div>;
   if (!status.available) {
     return (
-      <div className="space-y-2">
-        <div className="rounded-md bg-amber-500/10 px-2 py-1.5 text-xs text-amber-200 ring-1 ring-amber-500/30">
-          print-warden unavailable: {status.reason ?? "unknown"}
-        </div>
-        <p className="text-[11px] text-ink-faint">
-          Set <code className="text-ink-dim">PRINT_WARDEN_URL</code> (and
-          <code className="text-ink-dim"> PRINT_WARDEN_TOKEN</code> if the warden has one) on the studio API
+      <Notice tone="amber" title="print-warden is unavailable on this server">
+        <div className="mt-1">
+          {status.reason ?? "unknown"}. Set <Code>PRINT_WARDEN_URL</Code> (and{" "}
+          <Code>PRINT_WARDEN_TOKEN</Code> if the warden has one) on the studio API
           and restart it. The Generate tab still downloads the .scad for a manual print.
-        </p>
-      </div>
+        </div>
+      </Notice>
     );
   }
 
@@ -374,9 +365,11 @@ function PrintTab({ design }: { design: Design }) {
         </div>
       )}
 
-      <Button variant="primary" onClick={handleSend} disabled={!ready}>
-        {sending ? "Sending…" : result ? "Sent ✓ — send again" : "Send to print-warden →"}
-      </Button>
+      <DialogFooter note={result ? "Sent to print-warden." : null}>
+        <Button variant="primary" onClick={handleSend} disabled={!ready}>
+          {sending ? "Sending…" : "Send to print-warden"}
+        </Button>
+      </DialogFooter>
 
       {sendError && (
         <div className="rounded-md bg-rose-500/10 px-2 py-1.5 text-xs text-rose-200 ring-1 ring-rose-500/30">
@@ -512,20 +505,18 @@ function SearchTab({ boardLibraryId, boardName }: { boardLibraryId: string; boar
       {sources.length > 0 && (
         <div className="space-y-1">
           {sources.map((s) => (
-            <div
-              key={s.source}
-              className={`rounded-md px-2 py-1 text-[11px] ring-1 ${
-                s.available
-                  ? "bg-emerald-500/10 text-emerald-200 ring-emerald-500/30"
-                  : "bg-amber-500/10 text-amber-200 ring-amber-500/30"
-              }`}
-            >
-              <span className="font-mono">{s.source}</span>
-              {s.available ? " · available" : ` · unavailable: ${s.reason ?? "unknown"}`}
-              {s.configure_hint && !s.available && (
-                <div className="mt-0.5 text-[10px] text-amber-200/80">{s.configure_hint}</div>
-              )}
-            </div>
+            s.available ? (
+              <div key={s.source} className="text-[11px] text-emerald-300">
+                <span className="font-mono">{s.source}</span> · available
+              </div>
+            ) : (
+              <Notice key={s.source} tone="amber" title={`${s.source} search is unavailable on this server`}>
+                <div className="mt-1">
+                  {s.reason ?? "unknown"}
+                  {s.configure_hint && <div className="mt-0.5">{s.configure_hint}</div>}
+                </div>
+              </Notice>
+            )
           ))}
         </div>
       )}

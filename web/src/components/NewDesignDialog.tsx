@@ -131,7 +131,7 @@ export function NewDesignDialog({ boards, onCancel, onAdopt }: Props) {
                       onChange={() => setPickedBoardId(b.id)}
                       className="h-3.5 w-3.5"
                     />
-                    {b.image ? (
+                    {b.image && (
                       <img
                         src={b.image}
                         alt=""
@@ -141,10 +141,6 @@ export function NewDesignDialog({ boards, onCancel, onAdopt }: Props) {
                         }}
                         className="h-10 w-10 shrink-0 rounded-md bg-white/5 object-contain"
                       />
-                    ) : (
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-2 text-[9px] text-ink-ghost">
-                        no img
-                      </div>
                     )}
                     <span className="flex-1 text-xs">
                       <span className="text-ink">{b.name}</span>

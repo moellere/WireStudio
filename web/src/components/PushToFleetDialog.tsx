@@ -5,7 +5,7 @@ import type { Design, FleetPushResponse, FleetRunStatus, DashboardPushResponse,
   FleetJobLogResponse,
   FleetStatus,
   RepoPushResponse } from "../types/api";
-import { Button, Code, Dialog, FieldLabel, Input } from "./ui";
+import { Button, Code, Dialog, FieldLabel, Input, Notice, Select, Tabs } from "./ui";
 
 const LOG_POLL_INTERVAL_MS = 1500;
 
@@ -441,28 +441,28 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
       }
     >
       <div className="space-y-4 text-sm">
-        <div className="flex gap-1 rounded-md bg-surface-2/60 p-1 text-xs" role="radiogroup" aria-label="Build path">
-          {(Object.keys(BACKENDS) as Backend[]).map((key) => (
-            <button
-              key={key}
-              type="button"
-              role="radio"
-              aria-checked={backend === key}
-              onClick={() => backend !== key && void switchBackend(key)}
-              className={`flex-1 rounded px-2 py-1 ${backend === key ? "bg-surface-1 text-ink shadow-pop" : "text-ink-dim hover:text-ink"}`}
-            >
-              {BACKENDS[key].label}
-              {key === "dashboard" && dashboardStatus?.available && backend !== key && (
-                <span className="ml-1 text-emerald-400">•</span>
-              )}
-            </button>
-          ))}
-        </div>
+        <Tabs
+          label="Build path"
+          value={backend}
+          onChange={(key) => backend !== key && void switchBackend(key)}
+          className="-mx-5 -mt-4 px-2"
+          tabs={(Object.keys(BACKENDS) as Backend[]).map((key) => ({
+            id: key,
+            label: (
+              <span className="inline-flex items-center gap-1.5">
+                {BACKENDS[key].label}
+                {key === "dashboard" && dashboardStatus?.available && backend !== key && (
+                  <span role="img" aria-label="connected" className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                )}
+              </span>
+            ),
+          }))}
+        />
 
         {backend === "dashboard" && targets.length > 1 && (
           <div className="space-y-1">
             <FieldLabel>dashboard</FieldLabel>
-            <select
+            <Select
               aria-label="Dashboard"
               value={chosenTarget?.name ?? ""}
               onChange={(e) => {
@@ -472,38 +472,32 @@ export function PushToFleetDialog({ design, strict = false, onClose }: Props) {
                 setLogText("");
                 setPushError(null);
               }}
-              className="w-full rounded-md border border-line bg-surface-2/60 px-2 py-1 text-xs text-ink"
             >
               {targets.map((t) => (
                 <option key={t.name} value={t.name}>
-                  {t.label}{t.default ? " (default)" : ""}{t.available ? "" : " — unavailable"}
+                  {t.label}{t.default ? " (default)" : ""}{t.available ? "" : " (unavailable)"}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
         )}
 
-        {/* Status section */}
-        <div className="rounded-md border border-line bg-surface-2/40 p-3">
-          <div className="text-[11px] uppercase tracking-wider text-ink-faint">{be.label} status</div>
-          {statusError ? (
-            <div className="mt-1 text-xs text-rose-400">error: {statusError}</div>
-          ) : status === null ? (
-            <div className="mt-1 text-xs text-ink-faint">checking…</div>
-          ) : status.available ? (
-            <div className="mt-1 text-xs text-emerald-400">
-              connected · {status.url || be.label}
+        {statusError ? (
+          <Notice tone="rose" title={`Could not reach the ${be.label}`}>
+            <div className="mt-1">error: {statusError}</div>
+          </Notice>
+        ) : status === null ? (
+          <div className="text-xs text-ink-faint">Checking the {be.label}…</div>
+        ) : status.available ? (
+          <div className="text-xs text-emerald-400">connected · {status.url || be.label}</div>
+        ) : (
+          <Notice tone="amber" title={`The ${be.label} is unavailable on this server`}>
+            <div className="mt-1">
+              {status.reason || "unknown"}. Set <Code>{be.envHint}</Code> in the API server's
+              environment, then restart it.
             </div>
-          ) : (
-            <div className="mt-1 space-y-1 text-xs">
-              <div className="text-amber-300">unavailable: {status.reason || "unknown"}</div>
-              <div className="text-ink-faint">
-                Set <Code>{be.envHint}</Code> in the API server's
-                environment, then restart it.
-              </div>
-            </div>
-          )}
-        </div>
+          </Notice>
+        )}
 
         <div className="space-y-1">
           <FieldLabel>device name</FieldLabel>

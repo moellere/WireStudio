@@ -60,20 +60,25 @@ export function DesignPane({ design, render, renderError, advancedMode }: Props)
         {meta ? (
           <>
             <div className="flex min-w-0 items-center gap-3">
-              <h2 className="min-w-[6rem] truncate text-base font-semibold tracking-tight text-ink">{meta.name}</h2>
+              <h2 className="min-w-[6rem] truncate text-base font-semibold tracking-tight text-ink" title={meta.name}>{meta.name}</h2>
               <span className="shrink-0 text-xs"><Code>{meta.id}</Code></span>
               <Chip variant="mcu" className="shrink-0 text-xs">{meta.boardId}</Chip>
-              <span
-                className="hidden shrink-0 text-xs text-ink-faint @2xl:inline"
-                title={`mcu ${meta.mcu}${meta.framework ? `, ${meta.framework}` : ""}`}
-              >
-                {meta.componentCount} components · {meta.busCount} buses · {meta.connectionCount} connections
-              </span>
+              {/* The counts take only leftover room: when they do not fit they wrap
+                  to a second line this one-line box hides, so the name keeps its width. */}
+              <div className="flex h-4 min-w-0 flex-1 flex-wrap overflow-hidden">
+                <span className="w-px shrink-0" />
+                <span
+                  className="whitespace-nowrap text-xs leading-4 text-ink-faint"
+                  title={`mcu ${meta.mcu}${meta.framework ? `, ${meta.framework}` : ""}`}
+                >
+                  {meta.componentCount} components · {meta.busCount} buses · {meta.connectionCount} connections
+                </span>
+              </div>
               {meta.description && (
                 <button
                   onClick={() => setShowDescription((v) => !v)}
                   aria-expanded={showDescription}
-                  className="ml-auto flex shrink-0 items-center gap-1 rounded-md px-1.5 py-1 text-xs text-ink-faint transition-colors hover:bg-surface-2 hover:text-ink"
+                  className="flex shrink-0 items-center gap-1 rounded-md px-1.5 py-1 text-xs text-ink-faint transition-colors hover:bg-surface-2 hover:text-ink"
                 >
                   Description
                   <ChevronDown className={`h-3 w-3 transition-transform ${showDescription ? "rotate-180" : ""}`} />

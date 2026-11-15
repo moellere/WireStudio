@@ -42,7 +42,7 @@ function gpioRow(over: Partial<ConnectionRow> = {}): ConnectionRow {
 }
 
 describe("LockToggle", () => {
-  it("shows '🔓 lock' when no lock is set and the pin is bound", () => {
+  it("offers to lock the bound pin when no lock is set", () => {
     render(
       <ConnectionForm
         rows={[gpioRow()]}
@@ -54,7 +54,7 @@ describe("LockToggle", () => {
       />,
     );
     const btn = screen.getByRole("button", { name: /lock/ });
-    expect(btn).toHaveTextContent("🔓 lock");
+    expect(btn).toHaveAccessibleName("lock OUT to D5");
     expect(btn).not.toBeDisabled();
   });
 
@@ -101,7 +101,7 @@ describe("LockToggle", () => {
       />,
     );
     const badge = screen.getByRole("button", { name: /D5/i });
-    expect(badge).toHaveTextContent("🔒 D5");
+    expect(badge).toHaveAccessibleName("OUT is locked to D5; unlock");
     expect(badge).toHaveClass("border-emerald-600/50");
     expect(screen.queryByText(/will flag a mismatch/i)).not.toBeInTheDocument();
     await userEvent.click(badge);
@@ -120,7 +120,7 @@ describe("LockToggle", () => {
       />,
     );
     const badge = screen.getByRole("button", { name: /D5/i });
-    expect(badge).toHaveTextContent("🔒 D5");
+    expect(badge).toHaveTextContent("D5");
     expect(badge).toHaveClass("border-amber-600/50");
     // The inline warning appears below the row.
     expect(screen.getByText(/solver will flag a mismatch/i)).toBeInTheDocument();

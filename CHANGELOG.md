@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Workbench layout pass.** The wiring diagram renders at its own size
+  instead of stretching, and board-to-component edges that used to run
+  behind a bus card detour below the bus column. Component cards are
+  titled by instance id. Inspector and editor controls share one 26px
+  size; connections are one line each, parameters two columns, and the
+  instance view links its findings to Problems instead of repeating them.
+- **Dialogs share one shell.** Inventory is a real dialog (Escape closes
+  it). Actions sit in the footer. Schematic is four tabs (Schematic,
+  SKiDL script, PCB board, Autoroute). A feature the server cannot run
+  says so in one notice. Titles match their buttons: Flash firmware,
+  Schematic and PCB, Inventory.
+
 ## [1.3.0] — 2026-11-14
 
 ### Added

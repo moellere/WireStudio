@@ -3,7 +3,7 @@
  *
  *   Generate tab — clicks the action and confirms api.enclosureScad
  *                  was called with the live design; surface state
- *                  flips to "Downloaded ✓" on success and to a
+ *                  shows "Downloaded" in the footer on success and to a
  *                  rose error banner on a 422.
  *   Search tab   — first-open kicks off api.enclosureSearch with
  *                  library_id from props and no refinement; per-source
@@ -97,7 +97,7 @@ describe("Generate tab", () => {
     const btn = await screen.findByRole("button", { name: /Generate enclosure/ });
     await userEvent.click(btn);
     await waitFor(() => expect(mockApi.enclosureScad).toHaveBeenCalledWith(design));
-    await waitFor(() => screen.getByText(/Downloaded ✓/));
+    await waitFor(() => screen.getByText(/Downloaded/));
   });
 
   it("surfaces a 422 from the server in a rose-toned banner", async () => {
@@ -164,7 +164,7 @@ describe("Search tab", () => {
     );
 
     // Switch to Search tab.
-    await userEvent.click(screen.getByRole("button", { name: /Search community/ }));
+    await userEvent.click(screen.getByRole("tab", { name: /Search community/ }));
 
     await waitFor(() => expect(mockApi.enclosureSearch).toHaveBeenCalledWith({
       library_id: "esp32-devkitc-v4",
@@ -202,7 +202,7 @@ describe("Search tab", () => {
       />,
     );
 
-    await userEvent.click(screen.getByRole("button", { name: /Search community/ }));
+    await userEvent.click(screen.getByRole("tab", { name: /Search community/ }));
     await waitFor(() => expect(mockApi.enclosureSearch).toHaveBeenCalledTimes(1));
 
     const refinement = screen.getByPlaceholderText(/battery, screw mount, slim/);
@@ -244,7 +244,7 @@ describe("Search tab", () => {
         onClose={() => {}}
       />,
     );
-    await userEvent.click(screen.getByRole("button", { name: /Search community/ }));
+    await userEvent.click(screen.getByRole("tab", { name: /Search community/ }));
     // THINGIVERSE_API_KEY appears twice: in the reason banner and in the
     // configure_hint subline. Either is fine.
     await waitFor(() => expect(screen.getAllByText(/THINGIVERSE_API_KEY/).length).toBeGreaterThan(0));
@@ -277,7 +277,7 @@ describe("Print tab", () => {
         onClose={() => {}}
       />,
     );
-    await userEvent.click(screen.getByRole("button", { name: /Print \(print-warden\)/ }));
+    await userEvent.click(screen.getByRole("tab", { name: /Print \(print-warden\)/ }));
   }
 
   it("shows why the warden is unavailable and how to configure it", async () => {

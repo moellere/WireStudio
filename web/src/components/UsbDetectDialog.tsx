@@ -7,7 +7,7 @@ import {
 } from "../lib/bootstrap";
 import { detectChip, isWebSerialSupported } from "../lib/usb-detect";
 import { api } from "../api/client";
-import { Button, Dialog } from "./ui";
+import { Button, Dialog, Notice } from "./ui";
 
 type Phase =
   | { kind: "idle" }
@@ -111,15 +111,14 @@ export function UsbDetectDialog({ boards, onCancel, onAdopt }: Props) {
 
 function UnsupportedNotice() {
   return (
-    <div className="rounded-md bg-amber-500/10 p-3 text-xs text-amber-100 ring-1 ring-amber-500/30">
-      <div className="mb-1 font-semibold">WebSerial isn't available in this browser.</div>
-      <div>
+    <Notice tone="amber" title="WebSerial is unavailable in this browser">
+      <div className="mt-1">
         USB device detection uses the WebSerial API, which currently ships in
         Chromium-based browsers (Chrome, Edge, Brave, Arc). Firefox and Safari
         don't support it. Switch browsers or pick a board manually from the
         examples sidebar.
       </div>
-    </div>
+    </Notice>
   );
 }
 

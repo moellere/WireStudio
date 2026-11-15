@@ -25,7 +25,7 @@ import type {
 } from "../types/api";
 import { detectChip, isWebSerialSupported } from "../lib/usb-detect";
 import { macToEui64 } from "../lib/provision";
-import { Button, Code, Dialog } from "./ui";
+import { Button, Code, Dialog, Notice } from "./ui";
 
 const ACTIVATION_POLL_INTERVAL_MS = 3000;
 const DEV_EUI_RE = /^[0-9a-fA-F]{16}$/;
@@ -485,23 +485,22 @@ export function LorawanProvisionEsphomeDialog({ design, onClose }: Props) {
               when it returns available=false, the reason is the gRPC status
               from the helper that wraps RpcError -> ChirpStackUnavailable. */}
           {eligible && chirpStatus && !chirpStatus.available && (
-            <div className="rounded-md bg-amber-500/10 px-3 py-2 text-xs text-amber-200 ring-1 ring-amber-500/30">
-              <div className="font-semibold">ChirpStack unavailable</div>
-              <div className="mt-1 text-amber-200/80">
+            <Notice tone="amber" title="ChirpStack is unavailable on this server">
+              <div className="mt-1">
                 {chirpStatus.reason ?? "unknown reason"}
                 {chirpStatus.url && (
                   <>
                     {" "}
-                    (server <code>{chirpStatus.url}</code>)
+                    (server <Code>{chirpStatus.url}</Code>)
                   </>
                 )}
               </div>
-              <div className="mt-1 text-amber-300/70">
-                Check <code>CHIRPSTACK_API_URL</code> / <code>CHIRPSTACK_API_TOKEN</code>
+              <div className="mt-1">
+                Check <Code>CHIRPSTACK_API_URL</Code> and <Code>CHIRPSTACK_API_TOKEN</Code>
                 {" "}on the server; the Bearer token comes from the ChirpStack UI under
                 {" "}<strong>API Keys</strong>, not the JWT signing secret.
               </div>
-            </div>
+            </Notice>
           )}
 
           {error && (

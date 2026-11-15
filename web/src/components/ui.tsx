@@ -1,5 +1,6 @@
-import { useEffect } from "react";
-import type { ReactNode, ButtonHTMLAttributes, InputHTMLAttributes } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import type { ReactNode, ButtonHTMLAttributes, InputHTMLAttributes, SelectHTMLAttributes } from "react";
 import { X } from "lucide-react";
 
 type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "agent";
@@ -35,13 +36,29 @@ export function Button({ variant = "secondary", size = "md", className = "", ...
   );
 }
 
-export function Input({ className = "", ...rest }: InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <input
-      className={`w-full rounded-md border border-line bg-surface-1 px-2.5 py-1.5 text-sm text-ink placeholder:text-ink-ghost transition-colors focus:border-accent-500/60 focus:outline-none ${className}`}
-      {...rest}
-    />
-  );
+// The one control size for dense panels: 26px tall, 12px text. Width comes from the caller.
+const CONTROL =
+  "h-[26px] min-w-0 rounded-md border border-line bg-surface-1 px-2 text-xs text-ink transition-colors " +
+  "placeholder:text-ink-ghost focus:border-accent-500/60 focus:outline-none disabled:opacity-40";
+
+interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
+  compact?: boolean;
+  mono?: boolean;
+}
+
+export function Input({ compact = false, mono = false, className, ...rest }: InputProps) {
+  const base = compact
+    ? `${CONTROL} ${className ?? "w-full"}`
+    : `w-full rounded-md border border-line bg-surface-1 px-2.5 py-1.5 text-sm text-ink placeholder:text-ink-ghost transition-colors focus:border-accent-500/60 focus:outline-none ${className ?? ""}`;
+  return <input className={`${base} ${mono ? "font-mono" : ""}`} {...rest} />;
+}
+
+interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
+  mono?: boolean;
+}
+
+export function Select({ mono = false, className = "w-full", ...rest }: SelectProps) {
+  return <select className={`${CONTROL} ${mono ? "font-mono" : ""} ${className}`} {...rest} />;
 }
 
 export function FieldLabel({ children }: { children: ReactNode }) {
@@ -57,11 +74,37 @@ interface DialogProps {
   subtitle?: ReactNode;
   onClose: () => void;
   children: ReactNode;
+  /** Actions, right-aligned in the footer. */
   footer?: ReactNode;
+  /** Status text, left of the actions. */
+  footerNote?: ReactNode;
+  /** Controls beside the close button, e.g. import and export. */
+  headerActions?: ReactNode;
   maxWidth?: string;
 }
 
-export function Dialog({ title, subtitle, onClose, children, footer, maxWidth = "max-w-xl" }: DialogProps) {
+const FooterSlot = createContext<HTMLElement | null>(null);
+
+function FooterContent({ note, children }: { note?: ReactNode; children?: ReactNode }) {
+  return (
+    <>
+      <div className="min-w-0 text-xs text-ink-dim">{note}</div>
+      <div className="flex shrink-0 items-center gap-2">{children}</div>
+    </>
+  );
+}
+
+/** Fills the enclosing Dialog's footer from a child that owns the action's state. */
+export function DialogFooter({ note, children }: { note?: ReactNode; children?: ReactNode }) {
+  const slot = useContext(FooterSlot);
+  return slot ? createPortal(<FooterContent note={note}>{children}</FooterContent>, slot) : null;
+}
+
+export function Dialog({
+  title, subtitle, onClose, children, footer, footerNote, headerActions, maxWidth = "max-w-xl",
+}: DialogProps) {
+  const [footerSlot, setFooterSlot] = useState<HTMLElement | null>(null);
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -86,21 +129,57 @@ export function Dialog({ title, subtitle, onClose, children, footer, maxWidth = 
             <div className="text-sm font-semibold text-ink">{title}</div>
             {subtitle && <div className="mt-0.5 text-xs text-ink-faint">{subtitle}</div>}
           </div>
-          <button
-            onClick={onClose}
-            aria-label="Close"
-            className="-m-1 rounded-md p-1.5 text-ink-faint transition-colors hover:bg-surface-2 hover:text-ink"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
-        {footer && (
-          <div className="flex items-center justify-end gap-2 border-t border-line bg-surface-0/50 px-5 py-3">
-            {footer}
+          <div className="flex shrink-0 items-center gap-1">
+            {headerActions}
+            <button
+              onClick={onClose}
+              aria-label="Close"
+              className="-m-1 rounded-md p-1.5 text-ink-faint transition-colors hover:bg-surface-2 hover:text-ink"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
-        )}
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+          <FooterSlot.Provider value={footerSlot}>{children}</FooterSlot.Provider>
+        </div>
+        <div
+          ref={setFooterSlot}
+          className="flex items-center justify-between gap-4 border-t border-line bg-surface-0/50 px-5 py-3 empty:hidden"
+        >
+          {(footer || footerNote) && <FooterContent note={footerNote}>{footer}</FooterContent>}
+        </div>
       </div>
+    </div>
+  );
+}
+
+interface TabsProps<T extends string> {
+  label: string;
+  tabs: { id: T; label: ReactNode }[];
+  value: T;
+  onChange: (id: T) => void;
+  className?: string;
+}
+
+export function Tabs<T extends string>({ label, tabs, value, onChange, className = "" }: TabsProps<T>) {
+  return (
+    <div role="tablist" aria-label={label} className={`flex border-b border-line text-xs ${className}`}>
+      {tabs.map((t) => (
+        <button
+          key={t.id}
+          role="tab"
+          aria-selected={value === t.id}
+          onClick={() => onChange(t.id)}
+          className={`px-3 py-2 font-medium transition-colors ${
+            value === t.id
+              ? "border-b-2 border-accent-500 text-ink"
+              : "border-b-2 border-transparent text-ink-faint hover:text-ink-dim"
+          }`}
+        >
+          {t.label}
+        </button>
+      ))}
     </div>
   );
 }

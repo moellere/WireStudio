@@ -45,7 +45,7 @@ export function ShareDialog({ design, status, onClose }: {
       title="Share to the community catalogue"
       subtitle={<>Designs in <code className="font-mono">{status.repo}</code> are {status.license}: anyone may use and adapt them, crediting you.</>}
       onClose={onClose}
-      maxWidth="max-w-lg"
+      maxWidth="max-w-xl"
       footer={
         <div className="flex items-center justify-end gap-2">
           <Button onClick={onClose}>{done ? "Close" : "Cancel"}</Button>
