@@ -26,14 +26,16 @@ components:
     library_id: gpio_input
     label: Button B
 # Enclosure geometry (mm): 65 x 35 PCB, M3 holes 59 x 29 apart, from
-# the module's STL; heights measured on the module after the first
-# wall-panel fit print, where a 6.4 lid gap sank the panel too deep to
-# press the knob. Component side: the 1.3in OLED glass (34.75 x 23.25,
-# about 3.6 tall), the two tact switches above and below the encoder
-# (actuator top 3.7), and the EC11, whose base is the tallest part at
-# 4.5 with its shaft 15.15 above that. The lid sits 4.7 above the PCB,
-# clear of all of it; the shaft comes through a round hole and the
-# knob cap goes on from outside after assembly. The window is the
+# the module's STL; heights measured on the module after the wall-panel
+# fit prints. Component side: the 1.3in OLED glass (34.75 x 23.25, about
+# 3.6 tall), the two tact switches above and below the encoder (actuator
+# top 3.7), and the EC11, whose base is the tallest part at 4.5 (14.25
+# across) with its shaft 15.15 above that. A 6.4 lid gap sank the panel
+# too deep to press the knob; 4.7, clear of the EC11 base, still left the
+# glass recessed and the knob cap too close to the face to click. The
+# lid now sits 3.8 above the PCB, just clear of the switches and the
+# glass, and the EC11 base rises 0.7 into a 15.4 hole that the knob cap
+# covers; the cap goes on from outside after assembly. The window is the
 # display's active area plus a margin, 32.6 x 17.6, centred above the
 # glass centre (the ribbon end is blank); a frame drops onto the glass
 # and the opening tapers 2.0 each side to the face, after Enoch's
@@ -46,7 +48,7 @@ enclosure:
     - {x_mm: 62.1, y_mm: 3.1, hole_diameter_mm: 3.2}
     - {x_mm: 3.1, y_mm: 32.1, hole_diameter_mm: 3.2}
     - {x_mm: 62.1, y_mm: 32.1, hole_diameter_mm: 3.2}
-  lid_gap_mm: 4.7
+  lid_gap_mm: 3.8
   height_above_pcb_mm: 19.65
   height_below_pcb_mm: 2.0
   # The 9-pin header along the top edge (CON..VCC); its Dupont housing
@@ -55,6 +57,6 @@ enclosure:
     - {x_mm: 22.3, y_mm: 33.1, width_mm: 24.0, height_mm: 3.5, depth_mm: 12.0}
   features:
     - {kind: window, x_mm: 21.25, y_mm: 19.15, width_mm: 32.6, height_mm: 17.6, glass_top_mm: 3.6, taper_mm: 2.0}
-    - {kind: hole, x_mm: 53.1, y_mm: 17.6, diameter_mm: 9.0}
+    - {kind: hole, x_mm: 53.1, y_mm: 17.6, diameter_mm: 15.4}
     - {kind: button, x_mm: 53.1, y_mm: 5.6, diameter_mm: 4.5, top_mm: 3.7}
     - {kind: button, x_mm: 53.1, y_mm: 29.6, diameter_mm: 4.5, top_mm: 3.7}
