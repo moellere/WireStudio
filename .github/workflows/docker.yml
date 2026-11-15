@@ -72,7 +72,7 @@ jobs:
             type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
           labels: |
             org.opencontainers.image.title=wirestudio
-            org.opencontainers.image.description=Agent-driven ESPHome device design tool
+            org.opencontainers.image.description=Agent-driven hardware design tool for microcontroller devices
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.licenses=MIT
 

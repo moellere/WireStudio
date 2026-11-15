@@ -22,6 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   SKiDL script, PCB board, Autoroute). A feature the server cannot run
   says so in one notice. Titles match their buttons: Flash firmware,
   Schematic and PCB, Inventory.
+- **Description no longer says ESPHome-only.** The README, docs index,
+  package metadata and image label describe a hardware design tool for
+  microcontroller devices, with the seven firmware frameworks it emits.
 
 ## [1.3.0] — 2026-11-14
 

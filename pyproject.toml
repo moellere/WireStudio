@@ -10,7 +10,7 @@ name = "wirestudio"
 # Single-sourced from wirestudio/__init__.py (see [tool.setuptools.dynamic]).
 # Bump __version__ there; the wheel + `python -m build` read it from the module.
 dynamic = ["version"]
-description = "Agent-driven IoT device design tool that produces ESPHome YAML."
+description = "Agent-driven hardware design tool for microcontroller devices: firmware for ESPHome, Tasmota, WLED, LoRaWAN, Meshtastic, CircuitPython and MicroPython, plus schematic, PCB and enclosure."
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.11"

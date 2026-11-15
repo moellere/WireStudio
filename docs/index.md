@@ -1,8 +1,9 @@
 # wirestudio documentation
 
-Agent-driven IoT device design tool. Describe a goal (or pick parts);
-get ESPHome YAML, an ASCII wiring diagram, and a BOM that compile
-under upstream ESPHome.
+Agent-driven hardware design tool for microcontroller devices.
+Describe a goal (or pick parts); get firmware for ESPHome, Tasmota,
+WLED, LoRaWAN, Meshtastic, CircuitPython or MicroPython, an ASCII
+wiring diagram, a schematic and PCB, an enclosure, and a BOM.
 
 ## Documentation
 
