@@ -411,6 +411,15 @@ rather than degrades. The asymmetry matters:
 So when in doubt, declare the smallest size the board ships with, and
 say so in a comment. Several bundled boards carry exactly that note.
 
+**In-package flash is fixed by the part number.** An Espressif chip
+with an `F` in its name carries its flash inside the package, and the
+digits after `N`/`H` are the size in MB (ESP32-S3 datasheet v2.2,
+Figure 1-1 and Table 1-1: ESP32-S3FN8 is 8 MB). A board built on the
+bare chip, such as the Heltec V3 and the AtomS3/AtomS3 Lite, cannot
+vary by unit, so the chip marking is the verification. Boards built on
+a module (WROOM, WROVER, PICO) take their size from the module marking
+instead, and one board name can cover several modules.
+
 **Boards sold in multiple flash sizes under one name are the trap.** The
 ESP32-S3-DevKitC-1 ships as N8/N8R2/N8R8 (8MB) *and* N32R16V (32MB); no
 static value is right for every unit. Pin the floor and comment that it
