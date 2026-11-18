@@ -337,8 +337,9 @@ Section 4 covers the rest.
   current major and the Node 24 runtime, so the Node 20 deprecation
   warning is gone from the job logs.
 - **Flash size measurement** ([#219](https://github.com/moellere/WireStudio/issues/219)).
-  Code is done; the four named boards need `esptool flash-id` once each
-  when they reach the bench. Not a 1.0 blocker.
+  Done. The Heltec V3, AtomS3 and AtomS3 Lite are ESP32-S3FN8, whose
+  in-package 8 MB the datasheet fixes by part number; the DevKitC-1
+  stays an 8 MB floor with the per-design `board.flash_size_mb` override.
 
 ## 7. Documentation for 1.0
 

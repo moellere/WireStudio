@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Flash size sources settled (#219).** The Heltec V3, AtomS3 and
+  AtomS3 Lite are built on the bare ESP32-S3FN8, whose 8 MB in-package
+  flash the ESP32-S3 datasheet fixes by part number, so their board
+  files cite that instead of "unverified". The ESP32-S3-DevKitC-1 stays
+  an 8 MB floor. The integration spec explains in-package versus module
+  flash.
+
 - **Workbench layout pass.** The wiring diagram renders at its own size
   instead of stretching, and board-to-component edges that used to run
   behind a bus card detour below the bus column. Component cards are

@@ -122,14 +122,12 @@ Not required for 1.0, in rough order:
      `WIRESTUDIO_FW_CACHE` under `/tmp`, and the `CHIRPSTACK_*` env the
      Wyola CronJob has (`docs/workbench.md`).
    - Then the MQTT check and the SDR TX capture.
-2. **#219**: `esptool flash-id` on the four boards it names; none is on
-   a bench.
-3. The JLCPCB order. The enclosure was printed and fitted before the
+2. The JLCPCB order. The enclosure was printed and fitted before the
    release (the `wall-panel` example, #441 to #445); a photo of the
    assembled panel for the docs is still wanted, and the build needs a
    5 V rail shared between its parts, which could be a library floor
    part.
-4. Library: add `WAVESHARE_RES_3_5` to `ili9xxx`'s model enum and
+3. Library: add `WAVESHARE_RES_3_5` to `ili9xxx`'s model enum and
    default `invert_colors` (ESPHome now requires it); a user design for
    the Waveshare 3.5" RPi LCD (A) uses both.
 
@@ -303,8 +301,6 @@ uplink) give room for a short swap.
   recorded, because esptool's final reset fires before the recorder
   reattaches. WireStudio 0.43.0 works around it by resetting through the
   harness after a flash.
-- moellere/WireStudio#219: board `flash_size` measurement. Still blocked on
-  boards; SLOT14 is a V4 already verified at 16 MB.
 
 ## Verification gaps (unchanged since 2026-09-26)
 
