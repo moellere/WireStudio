@@ -169,6 +169,12 @@ generator drives [YAPP_Box](https://github.com/mrWheel/YAPP_Box)
 print-warden and fitted to its board and parts (2026-11-12 to 11-13).
 Next: more boards' `enclosure:` metadata.
 
+<img src="images/wall-panel-front.jpg" width="320" alt="The wall-panel enclosure closed: PIR lens, OLED window and encoder knob on the lid">
+<img src="images/wall-panel-open.jpg" width="320" alt="The wall-panel enclosure open: OLED and encoder module and HC-SR501 on the lid, YD-ESP32-23 in the face-down cradle, DHT22 behind the base vents">
+
+*The `wall-panel` example as built: PIR, OLED and encoder on the lid;
+the YD-ESP32-23 in its cradle and the DHT22 at the vents in the base.*
+
 **Priority 4 — PCB layout.** *Verified (routed).* Shipped in three
 steps: the footprint-coverage gate (every component + board names a
 real KiCad footprint that resolves in the pinned libraries, 0.13), the
