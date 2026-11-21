@@ -122,14 +122,8 @@ Not required for 1.0, in rough order:
      `WIRESTUDIO_FW_CACHE` under `/tmp`, and the `CHIRPSTACK_*` env the
      Wyola CronJob has (`docs/workbench.md`).
    - Then the MQTT check and the SDR TX capture.
-2. The JLCPCB order. The enclosure was printed and fitted before the
-   release (the `wall-panel` example, #441 to #445); a photo of the
-   assembled panel for the docs is still wanted, and the build needs a
-   5 V rail shared between its parts, which could be a library floor
-   part.
-3. Library: add `WAVESHARE_RES_3_5` to `ili9xxx`'s model enum and
-   default `invert_colors` (ESPHome now requires it); a user design for
-   the Waveshare 3.5" RPi LCD (A) uses both.
+2. The JLCPCB order. The `wall-panel` enclosure was printed and fitted
+   (#441 to #445, #461, #462); its photos are in `docs/index.md`.
 
 ## Open threads
 

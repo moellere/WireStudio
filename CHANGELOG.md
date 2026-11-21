@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Wall-panel photos.** `docs/index.md` shows the printed `wall-panel`
+  enclosure closed and open, with its board and parts fitted.
+
 - **Flash size sources settled (#219).** The Heltec V3, AtomS3 and
   AtomS3 Lite are built on the bare ESP32-S3FN8, whose 8 MB in-package
   flash the ESP32-S3 datasheet fixes by part number, so their board
