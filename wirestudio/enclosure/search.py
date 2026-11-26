@@ -16,8 +16,11 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from typing import Optional, Protocol
+from urllib.parse import quote
 
 import httpx
+
+from wirestudio import __version__
 
 
 @dataclass
@@ -102,9 +105,12 @@ class ThingiverseSource:
         return httpx.Client(
             base_url=self.base_url,
             timeout=self.timeout,
+            # Cloudflare in front of the API answers httpx's default
+            # User-Agent with a 403 challenge page.
             headers={
                 "Authorization": f"Bearer {self.token}",
                 "Accept": "application/json",
+                "User-Agent": f"wirestudio/{__version__}",
             },
             transport=self._transport,
         )
@@ -113,9 +119,11 @@ class ThingiverseSource:
         if not self.token:
             return []
         with self._client() as c:
+            # The term goes in the path: `/search?q=` ignores q and
+            # returns the site-wide popular list.
             resp = c.get(
-                "/search",
-                params={"q": query, "type": "things", "per_page": str(limit)},
+                f"/search/{quote(query, safe='')}",
+                params={"type": "things", "per_page": str(limit)},
             )
         if resp.status_code != 200:
             return []
