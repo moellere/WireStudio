@@ -25,7 +25,8 @@ FROM --platform=$BUILDPLATFORM node:20-alpine AS web-builder
 WORKDIR /web
 
 COPY web/package.json web/package-lock.json* ./
-RUN npm ci --no-audit --no-fund
+# Serial install scripts: see the same line in Dockerfile.
+RUN npm ci --no-audit --no-fund --foreground-scripts
 
 COPY web/ ./
 RUN npm run build
@@ -49,6 +50,13 @@ RUN git clone --depth 1 --branch "$KICAD_LIBS_REF" \
     && rm -rf /opt/kicad-libs/footprints/.git /opt/kicad-libs/symbols/.git
 
 COPY --from=eclipse-temurin:25-jre /opt/java/openjdk /opt/java/openjdk
+
+# WLED's usermod build bundles its web UI with npm. Copied from the glibc
+# image: the web-builder stage is Alpine (musl) and its node will not run here.
+COPY --from=node:20-bookworm-slim /usr/local/bin/node /usr/local/bin/node
+COPY --from=node:20-bookworm-slim /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+    && ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
 
 ARG FREEROUTING_VERSION=2.2.4
 ARG FREEROUTING_SHA256=f5ed374182900ccc78e473518bbb9f6b869f4a07159495f663a76f52bb10523b

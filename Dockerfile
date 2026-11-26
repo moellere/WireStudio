@@ -37,7 +37,9 @@ WORKDIR /web
 # Cache npm install separately from sources -- a code-only change
 # shouldn't bust the dep layer.
 COPY web/package.json web/package-lock.json* ./
-RUN npm ci --no-audit --no-fund
+# --foreground-scripts runs install scripts one at a time: the @meshtastic
+# packages each run `npx only-allow`, and in parallel they race on npx's cache.
+RUN npm ci --no-audit --no-fund --foreground-scripts
 
 COPY web/ ./
 RUN npm run build

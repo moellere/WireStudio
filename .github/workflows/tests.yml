@@ -57,7 +57,7 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
 
-      - run: npm ci
+      - run: npm ci --foreground-scripts
 
       - name: Theme matches design/tokens.json
         run: node scripts/theme.mjs --check
@@ -87,7 +87,7 @@ jobs:
 
       - name: Build the web bundle
         working-directory: web
-        run: npm ci && npm run build
+        run: npm ci --foreground-scripts && npm run build
 
       - name: Install studio and Chromium
         run: |

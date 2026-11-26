@@ -2,9 +2,11 @@
 
 [← docs index](index.md)
 
-Every integration below is optional and gated by an env var (or, for
-plain ESPHome, nothing). The studio runs without any of them — the
-corresponding feature is just turned off, and the UI surfaces why.
+Every integration below is optional. Most are turned on by an env var;
+the community catalogue and the JLCPCB parts check are on by default
+against public services and can be pointed elsewhere or turned off. The
+studio runs without any of them — the corresponding feature is just
+turned off, and the UI surfaces why.
 
 ## Agent (Claude tool-using)
 
@@ -324,6 +326,23 @@ for (a bare module's 5V) is noted rather than invented. Boards drawn as
 generic headers have no pin map yet and float; add one to
 `library/boards/<id>.yaml` to wire them.
 
+## JLCPCB parts check
+
+`POST /design/jlcpcb/check` prices the design's BOM against JLCPCB's
+assembly catalogue: LCSC part id, stock, unit price and basic or
+extended tier per line. `POST /design/buy-list` does the same for only
+what the inventory is short of. Both query
+[jlcsearch.tscircuit.com](https://jlcsearch.tscircuit.com), a community
+index of that catalogue, at check time; no part data is stored.
+
+```sh
+export WIRESTUDIO_JLCPCB_API=https://jlcsearch.example   # a self-hosted mirror; default is jlcsearch.tscircuit.com
+```
+
+Both routes always answer 200: with the API unreachable the report comes
+back `available: false` with a `reason`, and `GET /design/jlcpcb/status`
+says the same. Nothing in generation or compile depends on it.
+
 ## LoRaWAN / ChirpStack
 
 Two paths for US915 radio boards — TTGO LoRa32 / T-Beam (SX1276), Heltec
@@ -401,6 +420,27 @@ it's not half-shipped). The network server is ChirpStack v4 over gRPC;
 TTN / other servers aren't wired yet. The external-component path is
 hardware-join-verified pending a live test against a real gateway.
 
+## Workbench
+
+A [SensorsIot Embedded AI Harness](https://github.com/SensorsIot/Embedded-AI-Harness)
+bench (a Raspberry Pi serving its USB-attached boards over the network)
+lets the studio flash, read serial from and provision boards nobody is
+standing next to: list slots with a pre-flight check, write an image to
+a slot, and run the whole LoRaWAN bring-up (flash, register in
+ChirpStack, answer the firmware's key prompt over the slot's serial,
+confirm the join). The same reach is behind the `workbench_*` and
+`lorawan_workbench_provision` MCP tools.
+
+```sh
+export WORKBENCH_URL=http://bench.local:8080
+export WORKBENCH_TOKEN=...   # only if the bench requires one
+```
+
+`GET /workbench/status` reports whether the bench answers. The nightly
+hardware gate that reflashes dedicated bench boards runs from its own
+CronJob, not the studio; the capability map, the gate and its roster are
+in [workbench.md](workbench.md).
+
 ## Firmware proxies (Tasmota / Meshtastic / CircuitPython / MicroPython)
 
 The unified flash dialog's non-ESPHome frameworks need no configuration
@@ -438,6 +478,26 @@ generated `platformio_override.ini` and streams the log, and
 git, node) are present; they are in the `-full` image. A design without
 usermods is refused by the compile route, because the release image is
 already its firmware.
+
+## Community designs
+
+The studio browses, imports and shares designs and library parts
+through a catalogue repository,
+[moellere/wirestudio-designs](https://github.com/moellere/wirestudio-designs)
+by default. Its CI publishes an `index.json` to an `index` branch; browse
+reads that from raw.githubusercontent.com. Import fetches a design only
+through an index entry, never a caller's URL, and installs the
+components and board it ships through the same checks the library
+editor runs. Share packs a design as the folder the catalogue's CI
+expects; you upload it and open the pull request, so the studio holds no
+GitHub token. Designs are CC-BY-4.0, library parts MIT.
+
+```sh
+export WIRESTUDIO_DESIGNS_REPO=you/your-catalogue   # another catalogue
+export WIRESTUDIO_DESIGNS_REPO=                     # empty turns the feature off
+```
+
+`GET /community/status` reports the catalogue in use and its licences.
 
 ## MCP server
 
