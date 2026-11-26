@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **WLED usermod builds run in the `-full` image.** It shipped without
+  Node and npm, which WLED's build needs for its web UI, so
+  `/wled/compile/status` reported unavailable in prod. Node 20 now comes
+  from the official Debian image.
+
+### Changed
+
+- **Integrations doc covers the workbench, the community catalogue and
+  the JLCPCB parts check**, and says which integrations are on by default.
+
 ## [1.4.0] — 2026-11-23
 
 ### Changed
