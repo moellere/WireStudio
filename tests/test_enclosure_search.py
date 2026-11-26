@@ -71,10 +71,12 @@ def _thingiverse_transport(*, status: int = 200, body: dict | list | None = None
     }
 
     def handler(req: httpx.Request) -> httpx.Response:
-        assert req.url.path == "/search", req.url.path
+        assert req.url.path.startswith("/search/"), req.url.path
         assert req.headers.get("authorization") == "Bearer tk-1"
+        assert req.headers.get("user-agent", "").startswith("wirestudio/")
         if expected_query is not None:
-            assert req.url.params.get("q") == expected_query, req.url.params
+            assert req.url.path == f"/search/{expected_query}", req.url.path
+            assert "q" not in req.url.params, req.url.params
         return httpx.Response(status, json=payload)
 
     return httpx.MockTransport(handler)
@@ -106,6 +108,18 @@ def test_thingiverse_search_passes_the_query_through():
         transport=_thingiverse_transport(expected_query="WeMos D1 Mini enclosure case"),
     )
     s.search("WeMos D1 Mini enclosure case", limit=5)
+
+
+def test_thingiverse_search_encodes_a_slash_in_the_term():
+    seen = []
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        seen.append(req.url.raw_path)
+        return httpx.Response(200, json={"hits": []})
+
+    s = ThingiverseSource(token="tk-1", transport=httpx.MockTransport(handler))
+    s.search("ESP32 1/2 case", limit=5)
+    assert seen[0].startswith(b"/search/ESP32%201%2F2%20case?"), seen[0]
 
 
 def test_thingiverse_search_handles_legacy_list_response():

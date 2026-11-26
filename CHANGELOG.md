@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Thingiverse enclosure search returns matching models.** The client
+  sent the term as `?q=`, which the API ignores, so every search came
+  back as the site's popular list; the term now goes in the path. It
+  also sends a `wirestudio/<version>` User-Agent, since Cloudflare in
+  front of the API answers httpx's default with a 403.
+
 - **WLED usermod builds run in the `-full` image.** It shipped without
   Node and npm, which WLED's build needs for its web UI, so
   `/wled/compile/status` reported unavailable in prod. Node 20 now comes
