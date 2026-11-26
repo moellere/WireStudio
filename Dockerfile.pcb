@@ -25,7 +25,8 @@ FROM --platform=$BUILDPLATFORM node:20-alpine AS web-builder
 WORKDIR /web
 
 COPY web/package.json web/package-lock.json* ./
-RUN npm ci --no-audit --no-fund
+# Serial install scripts: see the same line in Dockerfile.
+RUN npm ci --no-audit --no-fund --foreground-scripts
 
 COPY web/ ./
 RUN npm run build

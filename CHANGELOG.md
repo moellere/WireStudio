@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Node and npm, which WLED's build needs for its web UI, so
   `/wled/compile/status` reported unavailable in prod. Node 20 now comes
   from the official Debian image.
+- **Web dependency installs no longer fail at random.** The
+  `@meshtastic` packages each run `npx only-allow` on install; run in
+  parallel they raced on npx's cache and broke image builds and CI
+  (#454, the 1.4.0 `full-image` build). `npm ci` now runs install
+  scripts one at a time.
 
 ### Changed
 
