@@ -41,7 +41,7 @@ dev = [
 lorawan = [
     "grpcio>=1.60",
     "chirpstack-api>=4.7,<5",
-    "paho-mqtt>=1.6",
+    "paho-mqtt>=2.0",
     "pyserial>=3.5",
     # merge_bin for the blank-board factory image a full-erase flash needs.
     # PlatformIO only fetches its own esptool on an upload, which the

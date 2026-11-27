@@ -55,7 +55,8 @@ def _release(framework: str, board: LibraryBoard) -> tuple[str, int, str]:
     raise LookupError(f"'{framework}' is not a release-image framework")
 
 
-async def _esphome(board: LibraryBoard, library: Library, dashboard, functional_pin: str | None) -> Image:
+async def _esphome(board: LibraryBoard, library: Library, dashboard, functional_pin: str | None,
+                   mqtt=None) -> Image:
     from wirestudio.esphome_dashboard import DashboardUnavailable
     from wirestudio.generate.yaml_gen import render_yaml
     from wirestudio.mcp.hardware import is_merged_image
@@ -70,7 +71,7 @@ async def _esphome(board: LibraryBoard, library: Library, dashboard, functional_
         "board": {"library_id": board.id, "mcu": board.mcu, "framework": board.framework},
         "power": {"supply": "usb-5v", "rail_voltage_v": 5.0},
         "components": [], "buses": [], "connections": [],
-        **(design_fields(functional_pin) if functional_pin else {}),
+        **(design_fields(functional_pin, mqtt, name) if functional_pin else {}),
     })
     try:
         pushed = await dashboard.push_device(name, render_yaml(design, library))
@@ -92,12 +93,12 @@ async def _esphome(board: LibraryBoard, library: Library, dashboard, functional_
 
 
 async def image_for(framework: str, board: LibraryBoard, library: Library, *, dashboard=None,
-                    functional_pin: str | None = None) -> Image:
+                    functional_pin: str | None = None, mqtt=None) -> Image:
     """The image the gate writes to `board` for `framework`. With
     `functional_pin`, the ESPHome image also carries WiFi, the API and the
-    phase-4 gate switch on that pin."""
+    phase-4 gate switch on that pin; with `mqtt` as well, an MQTT client."""
     if framework == "esphome":
-        return await _esphome(board, library, dashboard, functional_pin)
+        return await _esphome(board, library, dashboard, functional_pin, mqtt)
     try:
         if framework == "meshtastic":
             from wirestudio.api.meshtastic import install_image

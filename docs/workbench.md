@@ -206,6 +206,7 @@ the usual ChirpStack environment, and for an `esphome` flash
 | `join` | for a `lorawan` flash, the board registered in ChirpStack under its MAC-derived DevEUI and joined, with a session ChirpStack confirms |
 | `uplink` | ChirpStack counted an uplink from that board after the join |
 | `functional` | on a `functional: true` device, the ESPHome firmware joined WiFi, its native API answers under the design's name, and the gate switch round-trips on and off |
+| `mqtt` | on a device with `mqtt: true` as well, the same firmware reports `online` on the broker in `GATE_MQTT_BROKER` and the gate switch round-trips over MQTT |
 
 The roster is deployment state — slot labels and DevEUIs describe one
 physical bench — so it is not shipped in the package.
@@ -332,6 +333,30 @@ one-off functional build and the nightly board-only build shared a name,
 the next nightly compile crashed on a cache file the first had removed
 (2026-10-27). The gate's pod must be able to reach the device's address;
 the reference cluster routes to the bench LAN.
+
+**The MQTT stage** checks the other way Home Assistant talks to a
+device. With `mqtt: true` next to `functional: true`, the functional
+build also gets an `mqtt:` block: the broker and username from the
+gate's `GATE_MQTT_BROKER` (`host[:port]`, default port 1883) and
+`GATE_MQTT_USERNAME`, the password as `!secret
+wirestudio_gate_mqtt_password` from the dashboard's `secrets.yaml`
+(`GATE_MQTT_PASSWORD_SECRET` renames it), `topic_prefix: hw-fn-<board>`
+and `discovery: false`, so the bench device never appears in Home
+Assistant. After the API check the gate logs in with the same username
+and `GATE_MQTT_PASSWORD`, waits for the retained `online` on
+`hw-fn-<board>/status`, then publishes `ON` and `OFF` to the gate
+switch's `command` topic and waits for each on its `state` topic. The
+password lives in two places, the dashboard's secrets and the gate's
+own, and never in the roster; give the gate its own broker login rather
+than a device's.
+
+```yaml
+  - slot: AUTO-2
+    board: ttgo-lora32-v2
+    flash: [esphome, lorawan, meshtastic]
+    functional: true
+    mqtt: true
+```
 
 A flash device skips the `serial` stage: what it prints at rest depends
 on which framework the previous run left. `boot` asserts the markers in

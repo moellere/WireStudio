@@ -7,8 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Hardware gate MQTT check.** A roster entry with `mqtt: true` next to
+  `functional: true` builds the functional ESPHome firmware with an MQTT
+  client (discovery off) and asserts, over the broker in
+  `GATE_MQTT_BROKER`, that the device reports `online` and that the gate
+  switch round-trips on and off. The device reads its password from the
+  dashboard's secrets, the gate from `GATE_MQTT_PASSWORD`.
+
 ### Changed
 
+- `paho-mqtt` floor raised to 2.0 in the `lorawan` extra (the gate uses
+  its version-2 callback API).
 - **HANDOFF and the workbench phase list match the gate as it runs.**
   The API functional and LoRaWAN checks are marked as running nightly;
   what is left of phase 4 is AP provisioning, the MQTT check and the SDR
