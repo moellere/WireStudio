@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **HANDOFF and the workbench phase list match the gate as it runs.**
+  The API functional and LoRaWAN checks are marked as running nightly;
+  what is left of phase 4 is AP provisioning, the MQTT check and the SDR
+  TX capture.
+
 ## [1.4.2] — 2026-11-27
 
 ### Fixed

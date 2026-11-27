@@ -112,16 +112,12 @@ design's panel parts, fitted on a printed wall panel (#441 to #445).
 
 Not required for 1.0, in rough order:
 
-1. **Phase 4 into the nightly roster** (moellere/argocd, master):
-   - AUTO-1 `functional: true` (passed on hardware 2026-10-31 after an
-     antenna swap).
-   - AUTO-2 `flash: [lorawan, meshtastic]`, once its antenna is sorted:
-     the Covington gateway (US915 sub-band 2, correct) heard almost
-     nothing from it. The covbench CronJob also needs the gate run as
-     `args` (keeps the image entrypoint), `PLATFORMIO_CORE_DIR` and
-     `WIRESTUDIO_FW_CACHE` under `/tmp`, and the `CHIRPSTACK_*` env the
-     Wyola CronJob has (`docs/workbench.md`).
-   - Then the MQTT check and the SDR TX capture.
+1. **Phase 4, the rest.** In the covbench nightly since 2026-11-25: the
+   ESPHome functional check (WiFi + native API switch round trip) on the
+   AUTO-2 T3, and `lorawan` flash, join and uplink on the same board.
+   The AUTO-1 bare ESP32 keeps CircuitPython and MicroPython only; its
+   PCB antenna hears the AP at -93 dBm. Open: the MQTT entity check, AP
+   provisioning through the bench SoftAP, and the SDR TX power capture.
 2. The JLCPCB order. The `wall-panel` enclosure was printed and fitted
    (#441 to #445, #461, #462); its photos are in `docs/index.md`.
 
