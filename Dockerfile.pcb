@@ -72,7 +72,16 @@ COPY pyproject.toml ./
 COPY wirestudio/ ./wirestudio/
 COPY README.md ./
 
-RUN python3 -m venv /opt/venv && /opt/venv/bin/pip install --no-cache-dir ".[pcb,bench]"
+# The venv runs on a standalone CPython with its own OpenSSL (3.5) rather
+# than this Debian bookworm base's OpenSSL 3.0, whose TLS handshake
+# Cloudflare challenges (Thingiverse search got a 403 from 3.0 and 3.3
+# clients; 3.5 passes).
+COPY --from=ghcr.io/astral-sh/uv:0.12.21 /uv /usr/local/bin/uv
+ENV UV_PYTHON_INSTALL_DIR=/opt/uv-python
+RUN uv python install 3.11 \
+    && uv venv --seed --python 3.11 --python-preference only-managed /opt/venv \
+    && chmod -R a+rX /opt/uv-python \
+    && /opt/venv/bin/pip install --no-cache-dir ".[pcb,bench]"
 
 COPY --from=web-builder /web/dist /app/web-dist
 
