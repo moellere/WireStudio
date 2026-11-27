@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Hardware gate signal check.** For every roster DevEUI, ChirpStack's
+  gateway RSSI and SNR over the last 24 hours are compared with the
+  device's own previous 7 days. A drop of more than 10 dB, SNR under
+  -7.5 dB or no uplinks fails the new `signal` row. Thresholds:
+  `signal_max_drop_db`, `signal_min_snr_db`.
 - **Hardware gate provisioning check.** A roster entry with
   `provision: true` builds ESPHome with no WiFi credentials (a fallback
   hotspot, captive portal and web server), then has the bench submit
