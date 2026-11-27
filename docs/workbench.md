@@ -131,7 +131,11 @@ ones but none blocks the others' value.
    lists `flash:`; see [The gate](#the-gate).
 4. **Functional loop + RF truth.** AP provision + MQTT/API entity
    assertions for generated ESPHome devices; SDR TX power check for
-   radio boards.
+   radio boards. The native API check (join WiFi, find the device under
+   its design name, round-trip a switch) and the LoRaWAN join + uplink
+   check run nightly on covbench since 2026-11-25. Open: AP provisioning
+   through the bench SoftAP, the MQTT entity check, and the SDR TX power
+   capture.
 
 ## Design constraints
 
