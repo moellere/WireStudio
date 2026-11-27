@@ -18,6 +18,7 @@ import pytest
 
 from wirestudio.enclosure.search import (
     PrintablesSource,
+    SearchFailed,
     SearchResponse,
     ThingiverseSource,
     _thingiverse_to_hit,
@@ -138,14 +139,22 @@ def test_thingiverse_search_handles_legacy_list_response():
     assert hits[0].title == "Legacy"
 
 
-def test_thingiverse_search_returns_empty_on_http_error():
-    """Auth failures, server errors, etc. degrade to no hits rather
-    than crashing the dialog."""
+def test_thingiverse_search_raises_on_a_rejected_token():
     s = ThingiverseSource(
         token="tk-1",
         transport=_thingiverse_transport(status=401, body={"error": "bad token"}),
     )
-    assert s.search("anything", limit=5) == []
+    with pytest.raises(SearchFailed, match="THINGIVERSE_API_KEY"):
+        s.search("anything", limit=5)
+
+
+def test_thingiverse_search_names_the_cloudflare_challenge():
+    def handler(req: httpx.Request) -> httpx.Response:
+        return httpx.Response(403, html="<html><title>Just a moment...</title></html>")
+
+    s = ThingiverseSource(token="tk-1", transport=httpx.MockTransport(handler))
+    with pytest.raises(SearchFailed, match="Cloudflare"):
+        s.search("anything", limit=5)
 
 
 def test_thingiverse_to_hit_handles_string_creator():
@@ -196,13 +205,16 @@ def test_aggregator_caps_at_limit():
     assert len(out.results) == 3
 
 
-def test_aggregator_swallows_per_source_failures():
+def test_aggregator_reports_a_failed_source_with_its_reason():
     from wirestudio.enclosure.search import EnclosureHit
-    bad = _StubSource("bad", raises=httpx.ConnectError("boom"))
+    bad = _StubSource("bad", raises=SearchFailed("refused (HTTP 403)"))
+    down = _StubSource("down", raises=httpx.ConnectError("boom"))
     good = _StubSource("good", hits=[EnclosureHit("good", "1", "G1", None, None, "u")])
-    out = search_enclosures("q", sources=[bad, good], limit=10)
-    # The bad source still appears in statuses; the good one's hit is preserved.
-    assert {s.source for s in out.sources} == {"bad", "good"}
+    out = search_enclosures("q", sources=[bad, down, good], limit=10)
+    by = {s.source: s for s in out.sources}
+    assert not by["bad"].available and by["bad"].reason == "refused (HTTP 403)"
+    assert not by["down"].available and "ConnectError" in by["down"].reason
+    assert by["good"].available
     assert [h.id for h in out.results] == ["1"]
 
 

@@ -47,6 +47,10 @@ class SourceStatus:
     configure_hint: Optional[str] = None
 
 
+class SearchFailed(Exception):
+    """A configured source could not answer; the message is shown to the user."""
+
+
 @dataclass
 class SearchResponse:
     query: str
@@ -125,8 +129,12 @@ class ThingiverseSource:
                 f"/search/{quote(query, safe='')}",
                 params={"type": "things", "per_page": str(limit)},
             )
+        if resp.status_code == 401:
+            raise SearchFailed("Thingiverse rejected THINGIVERSE_API_KEY (HTTP 401)")
+        if resp.status_code == 403 and "Just a moment" in resp.text:
+            raise SearchFailed("Thingiverse's Cloudflare check refused this server's request (HTTP 403)")
         if resp.status_code != 200:
-            return []
+            raise SearchFailed(f"Thingiverse answered HTTP {resp.status_code}")
         body = resp.json()
         # Thingiverse wraps results in `hits` (newer API) or returns the
         # raw list (older API); accept both shapes.
@@ -196,22 +204,26 @@ def search_enclosures(
 
     Returns the per-source status alongside the merged result list so
     the UI can surface "thingiverse: 12 hits / printables: deferred"
-    without a separate round-trip. Per-source failures are absorbed
-    silently; the source's status entry already explains why it's not
-    contributing hits.
+    without a separate round-trip. A source that fails mid-search is
+    reported unavailable with the reason, so the UI shows why instead
+    of an empty result list.
     """
     sources = sources if sources is not None else default_sources()
     statuses: list[SourceStatus] = []
     hits: list[EnclosureHit] = []
     for s in sources:
-        statuses.append(s.status())
+        status = s.status()
         try:
             hits.extend(s.search(query, limit=limit))
-        except (httpx.HTTPError, ValueError):
-            # Failures degrade to "no hits from this source" -- the
-            # status entry already carries the user-visible reason
-            # for any auth/configuration gap.
-            pass
+        except SearchFailed as e:
+            status = SourceStatus(source=s.name, available=False, reason=str(e))
+        except httpx.HTTPError as e:
+            status = SourceStatus(source=s.name, available=False,
+                                  reason=f"{s.name} could not be reached ({type(e).__name__})")
+        except ValueError:
+            status = SourceStatus(source=s.name, available=False,
+                                  reason=f"{s.name} sent a response that is not valid JSON")
+        statuses.append(status)
     return SearchResponse(query=query, sources=statuses, results=hits[:limit])
 
 
