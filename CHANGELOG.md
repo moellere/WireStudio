@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Thingiverse search works from the `-full` image.** Cloudflare in
+  front of the Thingiverse API challenged the image's TLS handshake
+  (Debian bookworm's OpenSSL 3.0), so every search from prod got a 403.
+  The studio's venv now runs on a standalone CPython 3.11 with OpenSSL
+  3.5, installed by uv; KiCad's own Python, which the pcbnew bridge
+  uses, is unchanged.
+
 - **Enclosure search says why a source failed.** A Thingiverse search
   that was refused, rejected the key or could not connect came back as
   an empty result list. The source is now reported unavailable with the
