@@ -15,9 +15,12 @@ gate would otherwise need the dashboard's key.
 from __future__ import annotations
 
 import asyncio
+import os
 import re
+import threading
 import time
 from dataclasses import dataclass
+from typing import Optional
 
 SWITCH_ID = "gate_switch"
 SWITCH_LABEL = "Gate switch"
@@ -51,13 +54,45 @@ def free_pin(gpio_capabilities: dict[str, list[str]]) -> str:
     raise FunctionalError("no free GPIO on this board for the gate switch; set `functional_pin`")
 
 
-def design_fields(pin: str) -> dict:
-    """What the functional gate adds to the gate's otherwise empty design."""
-    return {
+@dataclass(frozen=True)
+class MqttConfig:
+    """The broker the MQTT stage uses. The device reads its password from the
+    dashboard's secrets.yaml under `password_secret`; the gate reads the same
+    password from its own environment."""
+    host: str
+    port: int
+    username: str
+    password: str
+    password_secret: str = "wirestudio_gate_mqtt_password"
+
+    @classmethod
+    def from_env(cls) -> Optional["MqttConfig"]:
+        broker = os.environ.get("GATE_MQTT_BROKER", "").strip()
+        if not broker:
+            return None
+        host, _, port = broker.partition(":")
+        return cls(host=host, port=int(port or 1883),
+                   username=os.environ.get("GATE_MQTT_USERNAME", ""),
+                   password=os.environ.get("GATE_MQTT_PASSWORD", ""),
+                   password_secret=os.environ.get("GATE_MQTT_PASSWORD_SECRET", "wirestudio_gate_mqtt_password"))
+
+
+def design_fields(pin: str, mqtt: Optional[MqttConfig] = None, prefix: Optional[str] = None) -> dict:
+    """What the functional gate adds to the gate's otherwise empty design.
+    With `mqtt`, the device also connects to that broker under `prefix`, with
+    Home Assistant discovery off so the bench device never shows up there."""
+    fields: dict = {
         "fleet": {"secrets_ref": {"wifi_ssid": "!secret wifi_ssid", "wifi_password": "!secret wifi_password"}},
         "components": [{"id": SWITCH_ID, "library_id": "gpio_output", "label": SWITCH_LABEL, "params": {}}],
         "connections": [{"component_id": SWITCH_ID, "pin_role": "OUT", "target": {"kind": "gpio", "pin": pin}}],
     }
+    if mqtt is not None:
+        fields["esphome_extras"] = {"mqtt": {
+            "broker": mqtt.host, "port": mqtt.port, "username": mqtt.username,
+            "password": f"!secret {mqtt.password_secret}",
+            "discovery": False, "topic_prefix": prefix,
+        }}
+    return fields
 
 
 async def wait_for_ip(client, slot: str, since: float, timeout_s: float = 60.0) -> str | None:
@@ -139,3 +174,72 @@ async def verify(host: str, expected_name: str, *, api_factory=None, timeout_s: 
                             f"{SWITCH_LABEL} on -> off")
     finally:
         await api.disconnect()
+
+
+def verify_mqtt(cfg: MqttConfig, prefix: str, *, client_factory=None, timeout_s: float = 30.0) -> Result:
+    """Over the broker: the device's retained birth message says `online`, and
+    commanding the gate switch on and off comes back on its state topic."""
+    if client_factory is None:
+        import paho.mqtt.client as mqtt
+
+        def client_factory():
+            return mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=f"wirestudio-gate-{prefix}")
+
+    status_topic = f"{prefix}/status"
+    state_topic = f"{prefix}/switch/{SWITCH_ID}/state"
+    command_topic = f"{prefix}/switch/{SWITCH_ID}/command"
+    seen: dict[str, str] = {}
+    changed = threading.Condition()
+    connected = threading.Event()
+    refused: list = []
+
+    def on_connect(client, userdata, flags, reason_code, properties=None):
+        if getattr(reason_code, "is_failure", False):
+            refused.append(reason_code)
+        else:
+            client.subscribe([(status_topic, 0), (state_topic, 0)])
+        connected.set()
+
+    def on_message(client, userdata, msg):
+        with changed:
+            seen[msg.topic] = msg.payload.decode(errors="replace")
+            changed.notify_all()
+
+    def wait_for(topic: str, value: str, within: float) -> bool:
+        deadline = time.monotonic() + within
+        with changed:
+            while seen.get(topic) != value:
+                left = deadline - time.monotonic()
+                if left <= 0:
+                    return False
+                changed.wait(left)
+        return True
+
+    client = client_factory()
+    if cfg.username:
+        client.username_pw_set(cfg.username, cfg.password)
+    client.on_connect = on_connect
+    client.on_message = on_message
+    where = f"{cfg.host}:{cfg.port}"
+    try:
+        client.connect(cfg.host, cfg.port, keepalive=30)
+    except OSError as e:
+        return Result(False, f"broker {where} did not accept a connection: {e}")
+    client.loop_start()
+    try:
+        if not connected.wait(10):
+            return Result(False, f"broker {where} did not answer the MQTT handshake within 10s")
+        if refused:
+            return Result(False, f"broker {where} refused the gate's login: {refused[0]}")
+        if not wait_for(status_topic, "online", timeout_s):
+            return Result(False, f"no 'online' on {status_topic} within {int(timeout_s)}s "
+                                 f"(last: {seen.get(status_topic, 'nothing')})")
+        for value in ("ON", "OFF"):
+            client.publish(command_topic, value)
+            if not wait_for(state_topic, value, 5):
+                return Result(False, f"{SWITCH_LABEL} commanded {value} over MQTT, {state_topic} "
+                                     f"stayed {seen.get(state_topic, 'unreported')}")
+        return Result(True, f"mqtt at {where} under {prefix}/; {SWITCH_LABEL} ON -> OFF")
+    finally:
+        client.loop_stop()
+        client.disconnect()

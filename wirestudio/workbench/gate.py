@@ -21,6 +21,9 @@ What this asserts
   functional for an ESPHome flash on a `functional: true` device: it
              joined WiFi, its native API answers under the design's name,
              and the gate switch round-trips on and off (functional.py)
+  mqtt       with `mqtt: true` as well: the same device, built with an
+             MQTT client, reports `online` on the broker in
+             GATE_MQTT_BROKER and the switch round-trips over MQTT
 
 The first four are non-destructive and are a real regression detector
 for the bench itself. A wedged USB bridge went unnoticed for days
@@ -107,6 +110,8 @@ def _check_flash_entry(path: Path, i: int, dev: dict) -> None:
         raise ConfigError(f"{where}: cannot flash lorawan: {dev['board']} has no LoRa radio")
     if dev.get("functional") and "esphome" not in flash:
         raise ConfigError(f"{where}: `functional` checks an ESPHome flash; add esphome to `flash`")
+    if dev.get("mqtt") and not dev.get("functional"):
+        raise ConfigError(f"{where}: `mqtt` checks the functional build; set `functional: true`")
     pin = dev.get("functional_pin")
     if pin is not None and pin not in default_library().board(dev["board"]).gpio_capabilities:
         raise ConfigError(f"{where}: `functional_pin` {pin} is not a GPIO on {dev['board']}")
@@ -292,9 +297,16 @@ async def _flash_one(dev: dict, framework: str, client, report: Report, library,
             functional_pin = dev.get("functional_pin") or free_pin(board.gpio_capabilities)
         except FunctionalError as e:
             report.add("functional", subject, False, str(e))
+    mqtt = None
+    if functional_pin and dev.get("mqtt"):
+        from wirestudio.workbench.functional import MqttConfig
+
+        mqtt = MqttConfig.from_env()
+        if mqtt is None:
+            report.add("mqtt", subject, False, "an `mqtt` check needs GATE_MQTT_BROKER (and _USERNAME, _PASSWORD)")
     try:
         image = await images.image_for(framework, board, library, dashboard=dashboard,
-                                       functional_pin=functional_pin)
+                                       functional_pin=functional_pin, mqtt=mqtt)
     except images.ImageUnavailable as e:
         report.add("flash", subject, False, str(e))
         return
@@ -317,7 +329,7 @@ async def _flash_one(dev: dict, framework: str, client, report: Report, library,
     if res.get("booted"):
         report.add("boot", subject, True, res["checks"][0].get("line") or "")
         if functional_pin:
-            await _functional(dev, subject, board, client, report, booted_at, api_factory)
+            await _functional(dev, subject, board, client, report, booted_at, api_factory, mqtt)
     else:
         tail = " | ".join(str(e.get("text", e) if isinstance(e, dict) else e).strip()
                           for e in res.get("recent_output", [])[-5:])
@@ -346,7 +358,7 @@ async def _flash_lorawan(dev: dict, client, report: Report, library, chirp, runn
 
 
 async def _functional(dev: dict, subject: str, board, client, report: Report, since: float,
-                      api_factory) -> None:
+                      api_factory, mqtt=None) -> None:
     from wirestudio.errors import describe
     from wirestudio.workbench import functional
 
@@ -378,6 +390,13 @@ async def _functional(dev: dict, subject: str, board, client, report: Report, si
         if rssi is not None:
             detail += f" (the device logged WiFi at {rssi} dBm{'; too weak to hold a link' if rssi <= -85 else ''})"
     report.add("functional", subject, res.ok, detail)
+    if mqtt is not None:
+        try:
+            mres = await asyncio.to_thread(functional.verify_mqtt, mqtt, functional.device_name(board.id, True))
+        except Exception as e:
+            report.add("mqtt", subject, False, describe(e))
+            return
+        report.add("mqtt", subject, mres.ok, mres.detail)
 
 
 def main() -> int:

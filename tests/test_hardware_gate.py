@@ -299,8 +299,9 @@ def fake_images(monkeypatch):
 
     unavailable: dict[str, str] = {}
 
-    async def image_for(framework, board, library, *, dashboard=None, functional_pin=None):
+    async def image_for(framework, board, library, *, dashboard=None, functional_pin=None, mqtt=None):
         unavailable.setdefault("_pins", []).append(functional_pin)
+        unavailable.setdefault("_mqtt", []).append(mqtt)
         if framework in unavailable:
             raise images.ImageUnavailable(unavailable[framework])
         offset = 0x1000 if framework == "micropython" and board.chip_variant == "esp32" else 0x0
@@ -549,6 +550,7 @@ async def test_functional_host_skips_the_log(fake_images):
 
 @pytest.mark.parametrize("entry, match", [
     ("flash: [micropython]\n    board: esp32-devkitc-v4\n    functional: true", "add esphome"),
+    ("flash: [esphome]\n    board: esp32-devkitc-v4\n    mqtt: true", "set `functional: true`"),
     ("flash: [esphome]\n    board: esp32-devkitc-v4\n    functional: true\n    functional_pin: GPIO99",
      "not a GPIO"),
 ])
@@ -676,3 +678,137 @@ async def test_the_image_is_built_under_the_name_its_mode_uses(monkeypatch):
         with pytest.raises(images.ImageUnavailable):
             await images.image_for("esphome", board, lib, dashboard=Dash(), functional_pin=pin)
     assert pushed == ["hw-gate-esp32-devkitc-v4", "hw-fn-esp32-devkitc-v4"]
+
+
+# --- mqtt (phase 4) -------------------------------------------------------
+
+MQTT_CONFIG = {"devices": [dict(FUNCTIONAL_CONFIG["devices"][0], mqtt=True)]}
+
+
+@pytest.fixture
+def broker_env(monkeypatch):
+    monkeypatch.setenv("GATE_MQTT_BROKER", "broker.test:1884")
+    monkeypatch.setenv("GATE_MQTT_USERNAME", "wirestudio-gate")
+    monkeypatch.setenv("GATE_MQTT_PASSWORD", "pw")
+
+
+async def test_mqtt_runs_after_the_api_check(fake_images, quick_ip, broker_env, monkeypatch):
+    from wirestudio.workbench import functional
+
+    calls = []
+
+    def verify_mqtt(cfg, prefix, **kw):
+        calls.append((cfg, prefix))
+        return functional.Result(True, f"mqtt at {cfg.host}:{cfg.port} under {prefix}/; Gate switch ON -> OFF")
+
+    monkeypatch.setattr(functional, "verify_mqtt", verify_mqtt)
+    report = gate.Report()
+    await gate.run(MQTT_CONFIG, report, client=FlashBench([FakeSlot("AUTO-1")], FUNCTIONAL_BOOTS),
+                   api_factory=FakeAPI())
+    [cfg] = [m for m in fake_images["_mqtt"] if m]
+    assert (cfg.host, cfg.port, cfg.username) == ("broker.test", 1884, "wirestudio-gate")
+    assert calls == [(cfg, "hw-fn-esp32-devkitc-v4")]
+    [row] = _rows(report, "mqtt")
+    assert row[:3] == ("mqtt", "AUTO-1/esphome", True), row
+
+
+async def test_mqtt_without_a_broker_fails_and_builds_without_it(fake_images, quick_ip, monkeypatch):
+    monkeypatch.delenv("GATE_MQTT_BROKER", raising=False)
+    report = gate.Report()
+    await gate.run(MQTT_CONFIG, report, client=FlashBench([FakeSlot("AUTO-1")], FUNCTIONAL_BOOTS),
+                   api_factory=FakeAPI())
+    assert fake_images["_mqtt"] == [None]
+    [row] = _rows(report, "mqtt")
+    assert not row[2] and "GATE_MQTT_BROKER" in row[3]
+    assert _rows(report, "functional")[0][2]
+
+
+def test_the_mqtt_build_has_a_secret_password_and_no_discovery():
+    from wirestudio.generate.yaml_gen import render_yaml
+    from wirestudio.library import default_library
+    from wirestudio.model import Design
+    from wirestudio.workbench.functional import MqttConfig, design_fields
+
+    cfg = MqttConfig("broker.test", 1883, "wirestudio-gate", "never-rendered")
+    design = Design.model_validate({
+        "schema_version": "1.0", "id": "hw-fn-x", "name": "x",
+        "board": {"library_id": "esp32-devkitc-v4", "mcu": "esp32"},
+        "power": {"supply": "usb-5v", "rail_voltage_v": 5.0},
+        "buses": [], **design_fields("GPIO4", cfg, "hw-fn-x"),
+    })
+    out = render_yaml(design, default_library())
+    assert "password: !secret wirestudio_gate_mqtt_password" in out
+    assert "never-rendered" not in out
+    assert "discovery: false" in out and "topic_prefix: hw-fn-x" in out
+
+
+class FakeMqtt:
+    """Stands in for a paho client: answers the handshake, replays a retained
+    birth message, and echoes switch commands onto the state topic."""
+
+    def __init__(self, birth="online", echo=True, refuse=None):
+        self.birth, self.echo, self.refuse = birth, echo, refuse
+        self.published: list[tuple[str, str]] = []
+        self.auth = None
+
+    def __call__(self):
+        return self
+
+    def username_pw_set(self, user, password):
+        self.auth = (user, password)
+
+    def connect(self, host, port, keepalive=60):
+        self.where = (host, port)
+
+    def loop_start(self):
+        rc = self.refuse or type("RC", (), {"is_failure": False})()
+        self.on_connect(self, None, None, rc, None)
+
+    def subscribe(self, topics):
+        for topic, _ in topics:
+            if topic.endswith("/status") and self.birth:
+                self._deliver(topic, self.birth)
+
+    def publish(self, topic, payload):
+        self.published.append((topic, payload))
+        if self.echo:
+            self._deliver(topic.replace("/command", "/state"), payload)
+
+    def _deliver(self, topic, payload):
+        self.on_message(self, None, type("Msg", (), {"topic": topic, "payload": payload.encode()})())
+
+    def loop_stop(self):
+        pass
+
+    def disconnect(self):
+        pass
+
+
+def _mqtt_cfg():
+    from wirestudio.workbench.functional import MqttConfig
+    return MqttConfig("broker.test", 1883, "wirestudio-gate", "pw")
+
+
+def test_verify_mqtt_round_trips_the_switch():
+    from wirestudio.workbench.functional import verify_mqtt
+
+    fake = FakeMqtt()
+    res = verify_mqtt(_mqtt_cfg(), "hw-fn-x", client_factory=fake, timeout_s=1)
+    assert res.ok, res.detail
+    assert fake.auth == ("wirestudio-gate", "pw")
+    assert fake.published == [("hw-fn-x/switch/gate_switch/command", "ON"),
+                              ("hw-fn-x/switch/gate_switch/command", "OFF")]
+
+
+@pytest.mark.parametrize("fake, says", [
+    (FakeMqtt(birth=None), "no 'online' on hw-fn-x/status"),
+    (FakeMqtt(birth="offline"), "(last: offline)"),
+    (FakeMqtt(echo=False), "stayed unreported"),
+    (FakeMqtt(refuse=type("RC", (), {"is_failure": True, "__str__": lambda s: "Not authorized"})()),
+     "refused the gate's login: Not authorized"),
+])
+def test_verify_mqtt_failures_say_why(fake, says):
+    from wirestudio.workbench.functional import verify_mqtt
+
+    res = verify_mqtt(_mqtt_cfg(), "hw-fn-x", client_factory=fake, timeout_s=0.2)
+    assert not res.ok and says in res.detail, res.detail
