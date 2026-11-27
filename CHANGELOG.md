@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.3] — 2026-11-27
+
 ### Added
 
 - **Hardware gate signal check.** For every roster DevEUI, ChirpStack's
@@ -4140,7 +4142,8 @@ ConnectionForm, EnclosureDialog, Inspector, CapabilityPickerDialog,
 PinoutView, PushToFleetDialog, SchematicDialog. ruff + tsc + vite
 build clean across the whole arc.
 
-[Unreleased]: https://github.com/moellere/wirestudio/compare/v1.4.2...HEAD
+[Unreleased]: https://github.com/moellere/wirestudio/compare/v1.4.3...HEAD
+[1.4.3]: https://github.com/moellere/wirestudio/compare/v1.4.2...v1.4.3
 [1.4.2]: https://github.com/moellere/wirestudio/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/moellere/wirestudio/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/moellere/wirestudio/compare/v1.3.0...v1.4.0
