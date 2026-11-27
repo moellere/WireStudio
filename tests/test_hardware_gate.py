@@ -179,7 +179,20 @@ OFF_BENCH = {
 }
 
 
-def _chirp_seen(seconds_ago):
+def _metric(label, values):
+    ds = type("DS", (), {"label": label, "data": list(values)})()
+    return type("Metric", (), {"datasets": [ds]})()
+
+
+def _link_metrics(counts, rssi, snr):
+    return type("LinkMetrics", (), {"rx_packets": _metric("rx_count", counts),
+                                    "gw_rssi": _metric("rssi", rssi), "gw_snr": _metric("snr", snr)})()
+
+
+HEALTHY = _link_metrics([12, 12], [-55.0, -55.0], [11.0, 11.0])
+
+
+def _chirp_seen(seconds_ago, recent=HEALTHY, baseline=HEALTHY):
     chirp = FakeChirp({"bb": {"dev_addr": "02", "f_cnt_up": 9}}, {})
 
     class Stubs:
@@ -190,6 +203,11 @@ def _chirp_seen(seconds_ago):
                     class last_seen_at:
                         seconds = int(time.time()) - seconds_ago
                 return R()
+
+            @staticmethod
+            def GetLinkMetrics(req, metadata=None):
+                from chirpstack_api import common
+                return recent if req.aggregation == common.Aggregation.HOUR else baseline
 
     chirp._get_stubs = lambda: Stubs
     chirp._auth = []
@@ -935,3 +953,46 @@ async def test_provision_failures_say_where_it_stopped(bench, says):
     assert not res.ok and says in res.detail, res.detail
     if not bench.refuse:
         assert bench.stopped
+
+
+# --- signal (phase 4) -----------------------------------------------------
+
+def test_signal_weights_buckets_by_packets_and_skips_empty_ones():
+    from wirestudio.workbench import signal
+
+    link = signal._weighted(_link_metrics([10, 0, 30], [-60.0, 0.0, -50.0], [8.0, 0.0, 12.0]))
+    assert link.packets == 40 and link.rssi == pytest.approx(-52.5) and link.snr == pytest.approx(11.0)
+
+
+@pytest.mark.parametrize("recent, baseline, ok, says", [
+    (_link_metrics([12], [-56.0], [11.0]), _link_metrics([280], [-55.0], [11.5]), True, "7-day: rssi -55.0"),
+    (_link_metrics([12], [-70.0], [6.0]), _link_metrics([280], [-55.0], [11.5]), False, "15.0 dB below its own baseline"),
+    (_link_metrics([12], [-110.0], [-9.0]), _link_metrics([280], [-109.0], [-8.5]), False, "snr below -7.5 dB"),
+    (_link_metrics([0], [0.0], [0.0]), HEALTHY, False, "no uplinks in the last 24 h"),
+    (_link_metrics([3], [-74.0], [9.1]), _link_metrics([0], [0.0], [0.0]), True, "no 7-day baseline yet"),
+])
+def test_signal_judgement(recent, baseline, ok, says):
+    from wirestudio.workbench import signal
+
+    got_ok, detail = signal.judge(signal._weighted(recent), signal._weighted(baseline))
+    assert got_ok is ok and says in detail, detail
+
+
+async def test_a_board_whose_signal_dropped_fails_the_signal_stage():
+    report = gate.Report()
+    chirp = _chirp_seen(60, recent=_link_metrics([12], [-75.0], [4.0]),
+                        baseline=_link_metrics([280], [-55.0], [11.0]))
+    bench = FakeBench([FakeSlot("SLOT1")], {"SLOT1": _fresh()})
+    await gate.run(OFF_BENCH, report, client=bench, chirp=chirp)
+    [row] = [r for r in report.rows if r[0] == "signal"]
+    assert row[1] == "TTGO LoRa32 v2" and not row[2] and "below its own baseline" in row[3], row
+    assert [r for r in report.rows if r[0] == "uplinks"][0][2]
+
+
+async def test_signal_thresholds_come_from_the_roster():
+    report = gate.Report()
+    cfg = dict(OFF_BENCH, signal_max_drop_db=25)
+    chirp = _chirp_seen(60, recent=_link_metrics([12], [-75.0], [4.0]),
+                        baseline=_link_metrics([280], [-55.0], [11.0]))
+    await gate.run(cfg, report, client=FakeBench([FakeSlot("SLOT1")], {"SLOT1": _fresh()}), chirp=chirp)
+    assert [r for r in report.rows if r[0] == "signal"][0][2]

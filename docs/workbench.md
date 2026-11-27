@@ -201,6 +201,7 @@ the usual ChirpStack environment, and for an `esphome` flash
 | `slots` | each configured slot is present and `flashable` |
 | `serial` | the slot's recorder captured output within `max_serial_silence_s` |
 | `uplinks` | ChirpStack saw the DevEUI within `max_uplink_silence_s` |
+| `signal` | each DevEUI's gateway RSSI and SNR over the last 24 h, from ChirpStack, holds against its own previous 7 days and stays above the SF7 demodulation floor |
 | `flash` | each framework in a device's `flash:` list is written to its slot, with a full erase |
 | `boot` | the written firmware printed its boot marker |
 | `join` | for a `lorawan` flash, the board registered in ChirpStack under its MAC-derived DevEUI and joined, with a session ChirpStack confirms |
@@ -334,6 +335,21 @@ one-off functional build and the nightly board-only build shared a name,
 the next nightly compile crashed on a cache file the first had removed
 (2026-10-27). The gate's pod must be able to reach the device's address;
 the reference cluster routes to the bench LAN.
+
+**The signal stage** is the RF check for LoRaWAN boards. For every
+roster entry with a `dev_eui`, it reads ChirpStack's link metrics: the
+RSSI and SNR its gateways measured on each uplink, across every channel
+the device hops over. The last 24 hours (hourly buckets, weighted by
+packet count) are set against the 7 days before them (daily buckets). A
+board fails with no uplinks in 24 hours, with SNR under
+`signal_min_snr_db` (default -7.5 dB, where SF7 stops demodulating), or
+with RSSI more than `signal_max_drop_db` (default 10 dB) below its own
+baseline. That is the signature of a loose antenna or a failing radio,
+and it shows while the board still gets through. Both thresholds are
+top-level roster keys. The bench SDR is not used for this: its power
+measurement averages one window, which washes out a ~100 ms LoRa burst,
+and its burst-level mode at the Pi's safe 250 kHz sample rate hears one
+or two of sub-band 2's eight channels.
 
 **The provision stage** checks first-time setup, the path a person
 takes with a new device and a phone. With `provision: true` on an entry

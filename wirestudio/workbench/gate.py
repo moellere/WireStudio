@@ -12,6 +12,8 @@ What this asserts
   slots      each configured slot is present with its proxy running
   serial     the slot's recorder has captured output recently
   uplinks    the device's DevEUI was seen by ChirpStack recently
+  signal     its gateway RSSI and SNR over the last 24 h, from ChirpStack,
+             against its own previous 7 days (signal.py)
   flash      each framework listed under a device's `flash:` is written
              to its slot with a full erase
   boot       the written firmware printed its boot marker (boot.py)
@@ -270,6 +272,22 @@ async def run(config: dict, report: Report, client=None, chirp=None, dashboard=N
                 report.add("uplinks", label, age <= max_offline, detail
                            if age <= max_offline
                            else f"{detail} -- silent for over {int(max_offline)}s")
+
+            # --- signal ---------------------------------------------------
+            from wirestudio.workbench import signal
+
+            min_snr = float(config.get("signal_min_snr_db", signal.MIN_SNR_DB))
+            max_drop = float(config.get("signal_max_drop_db", signal.MAX_DROP_DB))
+            for label, eui in euis:
+                try:
+                    recent, baseline = signal.links(stubs, auth, eui)
+                except Exception as e:
+                    from wirestudio.errors import describe
+
+                    report.add("signal", label, False, describe(e))
+                    continue
+                ok, detail = signal.judge(recent, baseline, min_snr=min_snr, max_drop=max_drop)
+                report.add("signal", label, ok, detail)
 
     # --- flash + boot ---------------------------------------------------
     flashers = [d for d in on_bench
