@@ -56,7 +56,7 @@ def _release(framework: str, board: LibraryBoard) -> tuple[str, int, str]:
 
 
 async def _esphome(board: LibraryBoard, library: Library, dashboard, functional_pin: str | None,
-                   mqtt=None) -> Image:
+                   mqtt=None, provision: bool = False) -> Image:
     from wirestudio.esphome_dashboard import DashboardUnavailable
     from wirestudio.generate.yaml_gen import render_yaml
     from wirestudio.mcp.hardware import is_merged_image
@@ -65,13 +65,16 @@ async def _esphome(board: LibraryBoard, library: Library, dashboard, functional_
 
     if dashboard is None or not dashboard.is_configured():
         raise ImageUnavailable("ESPHome needs ESPHOME_DASHBOARD_URL to compile")
-    name = device_name(board.id, functional_pin is not None)
+    from wirestudio.workbench import provision as prov
+
+    name = prov.ap_ssid(board.id) if provision else device_name(board.id, functional_pin is not None)
     design = Design.model_validate({
         "schema_version": "1.0", "id": name, "name": f"Hardware gate ({board.name})",
         "board": {"library_id": board.id, "mcu": board.mcu, "framework": board.framework},
         "power": {"supply": "usb-5v", "rail_voltage_v": 5.0},
         "components": [], "buses": [], "connections": [],
-        **(design_fields(functional_pin, mqtt, name) if functional_pin else {}),
+        **(design_fields(functional_pin, mqtt, name) if functional_pin
+           else prov.design_fields(name) if provision else {}),
     })
     try:
         pushed = await dashboard.push_device(name, render_yaml(design, library))
@@ -93,12 +96,14 @@ async def _esphome(board: LibraryBoard, library: Library, dashboard, functional_
 
 
 async def image_for(framework: str, board: LibraryBoard, library: Library, *, dashboard=None,
-                    functional_pin: str | None = None, mqtt=None) -> Image:
+                    functional_pin: str | None = None, mqtt=None, provision: bool = False) -> Image:
     """The image the gate writes to `board` for `framework`. With
     `functional_pin`, the ESPHome image also carries WiFi, the API and the
-    phase-4 gate switch on that pin; with `mqtt` as well, an MQTT client."""
+    phase-4 gate switch on that pin; with `mqtt` as well, an MQTT client.
+    With `provision`, it carries no WiFi credentials, only a fallback
+    hotspot and the captive portal."""
     if framework == "esphome":
-        return await _esphome(board, library, dashboard, functional_pin, mqtt)
+        return await _esphome(board, library, dashboard, functional_pin, mqtt, provision)
     try:
         if framework == "meshtastic":
             from wirestudio.api.meshtastic import install_image

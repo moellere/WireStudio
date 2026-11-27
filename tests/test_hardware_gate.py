@@ -299,9 +299,11 @@ def fake_images(monkeypatch):
 
     unavailable: dict[str, str] = {}
 
-    async def image_for(framework, board, library, *, dashboard=None, functional_pin=None, mqtt=None):
+    async def image_for(framework, board, library, *, dashboard=None, functional_pin=None, mqtt=None,
+                        provision=False):
         unavailable.setdefault("_pins", []).append(functional_pin)
         unavailable.setdefault("_mqtt", []).append(mqtt)
+        unavailable.setdefault("_provision", []).append(provision)
         if framework in unavailable:
             raise images.ImageUnavailable(unavailable[framework])
         offset = 0x1000 if framework == "micropython" and board.chip_variant == "esp32" else 0x0
@@ -551,6 +553,9 @@ async def test_functional_host_skips_the_log(fake_images):
 @pytest.mark.parametrize("entry, match", [
     ("flash: [micropython]\n    board: esp32-devkitc-v4\n    functional: true", "add esphome"),
     ("flash: [esphome]\n    board: esp32-devkitc-v4\n    mqtt: true", "set `functional: true`"),
+    ("flash: [micropython]\n    board: esp32-devkitc-v4\n    provision: true", "add esphome"),
+    ("flash: [esphome]\n    board: esp32-devkitc-v4\n    provision: true\n    functional: true",
+     "different ESPHome builds"),
     ("flash: [esphome]\n    board: esp32-devkitc-v4\n    functional: true\n    functional_pin: GPIO99",
      "not a GPIO"),
 ])
@@ -812,3 +817,121 @@ def test_verify_mqtt_failures_say_why(fake, says):
 
     res = verify_mqtt(_mqtt_cfg(), "hw-fn-x", client_factory=fake, timeout_s=0.2)
     assert not res.ok and says in res.detail, res.detail
+
+
+# --- provision (phase 4) --------------------------------------------------
+
+PROVISION_CONFIG = {"devices": [{"slot": "W-SPARE", "board": "esp32-devkitc-v4", "flash": ["esphome"],
+                                 "provision": True}]}
+
+
+async def test_provision_runs_after_boot_with_the_portal_build(fake_images, monkeypatch):
+    from wirestudio.workbench import provision
+
+    hotspots = []
+
+    async def run(client, hotspot, **kw):
+        hotspots.append(hotspot)
+        return provision.Result(True, f"provisioned over the {hotspot!r} portal")
+
+    monkeypatch.setattr(provision, "run", run)
+    report = gate.Report()
+    await gate.run(PROVISION_CONFIG, report, client=FlashBench([FakeSlot("W-SPARE")], BOOTS))
+    assert fake_images["_provision"] == [True] and fake_images["_pins"] == [None]
+    assert hotspots == ["hw-ap-esp32-devkitc-v4"]
+    [row] = _rows(report, "provision")
+    assert row[:3] == ("provision", "W-SPARE/esphome", True), row
+
+
+def test_the_portal_build_has_no_wifi_credentials():
+    from wirestudio.generate.yaml_gen import render_yaml
+    from wirestudio.library import default_library
+    from wirestudio.model import Design
+    from wirestudio.workbench import provision
+
+    name = provision.ap_ssid("esp32-devkitc-v4")
+    design = Design.model_validate({
+        "schema_version": "1.0", "id": name, "name": "x",
+        "board": {"library_id": "esp32-devkitc-v4", "mcu": "esp32"},
+        "power": {"supply": "usb-5v", "rail_voltage_v": 5.0},
+        "buses": [], **provision.design_fields(name),
+    })
+    out = render_yaml(design, default_library())
+    assert "ssid: hw-ap-esp32-devkitc-v4" in out and "captive_portal: {}" in out and "web_server:" in out
+    assert "!secret" not in out and "networks" not in out and "password" not in out
+
+
+def test_the_hotspot_name_fits_an_ssid():
+    from wirestudio.workbench import provision
+    assert len(provision.ap_ssid("x" * 60)) == 32
+
+
+class PortalBench:
+    """The bench's portal and WiFi endpoints. `joins` is whether the device
+    takes the credentials and shows up as a station."""
+
+    def __init__(self, joins=True, ap_up=True, page_status=200, page="<title>hw-ap-esp32-devkitc-v4</title>",
+                 refuse=None):
+        self.joins, self.ap_up, self.page_status, self.page, self.refuse = joins, ap_up, page_status, page, refuse
+        self.portal = None
+        self.stopped = False
+
+    async def enter_portal(self, **body):
+        if self.refuse:
+            return {"ok": False, "error": self.refuse}
+        self.portal = body
+        return {"ok": True}
+
+    async def wifi_ap_status(self):
+        if not self.ap_up:
+            return {"ok": True, "active": False, "ssid": "", "stations": []}
+        stations = [{"mac": "aa:bb:cc:dd:ee:ff", "ip": "192.168.4.23"}] if self.joins else []
+        return {"ok": True, "active": True, "ssid": self.portal["ssid"], "stations": stations}
+
+    async def wifi_http(self, url, method="GET", timeout=10):
+        import base64
+        self.url = url
+        return {"ok": True, "status": self.page_status, "body": base64.b64encode(self.page.encode()).decode()}
+
+    async def wifi_ap_stop(self):
+        self.stopped = True
+        return {"ok": True}
+
+
+async def test_provision_submits_to_esphome_wifisave_and_checks_the_page():
+    from wirestudio.workbench import provision
+
+    bench = PortalBench()
+    res = await provision.run(bench, "hw-ap-esp32-devkitc-v4", join_timeout_s=1, poll_s=0)
+    assert res.ok and "names itself" in res.detail, res.detail
+    p = bench.portal
+    assert p["portal_ssid"] == "hw-ap-esp32-devkitc-v4"
+    assert (p["save_path"], p["field_ssid"], p["field_password"]) == ("/wifisave", "ssid", "psk")
+    assert p["ssid"].startswith("wsgate-") and len(p["password"]) >= 12
+    assert bench.url == "http://192.168.4.23/" and bench.stopped
+
+
+async def test_each_provision_run_uses_fresh_credentials():
+    from wirestudio.workbench import provision
+
+    seen = set()
+    for _ in range(3):
+        bench = PortalBench()
+        await provision.run(bench, "hw-ap-x", join_timeout_s=1, poll_s=0)
+        seen.add((bench.portal["ssid"], bench.portal["password"]))
+    assert len(seen) == 3
+
+
+@pytest.mark.parametrize("bench, says", [
+    (PortalBench(refuse="enter-portal already running"), "refused the portal flow: enter-portal already running"),
+    (PortalBench(ap_up=False), "never brought up"),
+    (PortalBench(joins=False), "did not join"),
+    (PortalBench(page_status=404), "web page answered 404"),
+])
+async def test_provision_failures_say_where_it_stopped(bench, says):
+    from wirestudio.workbench import provision
+
+    res = await provision.run(bench, "hw-ap-x", join_timeout_s=0.05, poll_s=0)
+    assert not res.ok and says in res.detail, res.detail
+    if not bench.refuse:
+        assert bench.stopped

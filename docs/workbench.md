@@ -206,6 +206,7 @@ the usual ChirpStack environment, and for an `esphome` flash
 | `join` | for a `lorawan` flash, the board registered in ChirpStack under its MAC-derived DevEUI and joined, with a session ChirpStack confirms |
 | `uplink` | ChirpStack counted an uplink from that board after the join |
 | `functional` | on a `functional: true` device, the ESPHome firmware joined WiFi, its native API answers under the design's name, and the gate switch round-trips on and off |
+| `provision` | on a `provision: true` device, ESPHome built with no WiFi credentials takes them over its captive portal from the bench, joins the bench's access point and serves its web page |
 | `mqtt` | on a device with `mqtt: true` as well, the same firmware reports `online` on the broker in `GATE_MQTT_BROKER` and the gate switch round-trips over MQTT |
 
 The roster is deployment state — slot labels and DevEUIs describe one
@@ -333,6 +334,30 @@ one-off functional build and the nightly board-only build shared a name,
 the next nightly compile crashed on a cache file the first had removed
 (2026-10-27). The gate's pod must be able to reach the device's address;
 the reference cluster routes to the bench LAN.
+
+**The provision stage** checks first-time setup, the path a person
+takes with a new device and a phone. With `provision: true` on an entry
+that flashes `esphome`, the gate builds `hw-ap-<board>` with no WiFi
+networks at all: a fallback hotspot named `hw-ap-<board>`,
+`captive_portal:` and `web_server:`. After the boot check it calls the
+bench's `POST /api/enter-portal`, which joins that hotspot, submits a
+network name (`wsgate-<random>`) and password made up for this run to
+ESPHome's `/wifisave` form (`ssid`, `psk`), leaves, and brings up the
+bench's own access point with them. The gate polls the bench's access
+point until the device is a station there, fetches `http://<its
+address>/` through the bench's HTTP relay, expects a 200, and stops the
+access point. Nothing comes from a secrets file. It needs a bench with a
+WiFi radio (the Wyola Pi; covbench has none) and a board dedicated to
+it, since every run reflashes it. `provision` and `functional` need
+different builds, so one entry carries one of them.
+
+```yaml
+  - slot: <the spare board's slot>
+    name: Wyola provisioning board
+    board: esp32-devkitc-v4
+    flash: [esphome]
+    provision: true
+```
 
 **The MQTT stage** checks the other way Home Assistant talks to a
 device. With `mqtt: true` next to `functional: true`, the functional
