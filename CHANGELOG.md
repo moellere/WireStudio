@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Enclosure search says why a source failed.** A Thingiverse search
+  that was refused, rejected the key or could not connect came back as
+  an empty result list. The source is now reported unavailable with the
+  reason (for example "Thingiverse's Cloudflare check refused this
+  server's request (HTTP 403)"), which the Enclosure dialog shows.
+
 ## [1.4.1] — 2026-11-26
 
 ### Fixed
