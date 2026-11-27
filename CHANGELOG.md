@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Hardware gate provisioning check.** A roster entry with
+  `provision: true` builds ESPHome with no WiFi credentials (a fallback
+  hotspot, captive portal and web server), then has the bench submit
+  throwaway credentials through the captive portal, waits for the device
+  to join the bench's access point, and fetches its web page through the
+  bench's relay.
 - **Hardware gate MQTT check.** A roster entry with `mqtt: true` next to
   `functional: true` builds the functional ESPHome firmware with an MQTT
   client (discovery off) and asserts, over the broker in

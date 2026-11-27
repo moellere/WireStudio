@@ -306,6 +306,24 @@ class WorkbenchClient:
         return await self._post_json("/api/serial/reset", {"slot": slot},
                                      read_timeout=45.0)
 
+    async def enter_portal(self, **body) -> dict:
+        """Start the bench's captive-portal flow: join the device's open
+        hotspot, submit WiFi credentials to its save form, leave, and bring
+        up the bench's own access point with those credentials. Returns at
+        once; the flow runs on the bench, so poll `wifi_ap_status`."""
+        return await self._post_json("/api/enter-portal", body)
+
+    async def wifi_ap_status(self) -> dict:
+        return await self._get_json("/api/wifi/ap_status")
+
+    async def wifi_ap_stop(self) -> dict:
+        return await self._post_json("/api/wifi/ap_stop", {})
+
+    async def wifi_http(self, url: str, method: str = "GET", timeout: float = 10) -> dict:
+        """Fetch `url` from the bench's WiFi side, where the device lives."""
+        return await self._post_json("/api/wifi/http", {"method": method, "url": url, "timeout": timeout},
+                                     read_timeout=timeout + 15)
+
     async def _get_json(self, path: str) -> dict:
         if not self.is_configured():
             raise WorkbenchUnavailable(

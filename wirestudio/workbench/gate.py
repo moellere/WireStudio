@@ -21,6 +21,10 @@ What this asserts
   functional for an ESPHome flash on a `functional: true` device: it
              joined WiFi, its native API answers under the design's name,
              and the gate switch round-trips on and off (functional.py)
+  provision  on a `provision: true` device: ESPHome built with no WiFi
+             credentials takes them over its captive portal from the
+             bench, joins the bench's access point and serves its page
+             (provision.py)
   mqtt       with `mqtt: true` as well: the same device, built with an
              MQTT client, reports `online` on the broker in
              GATE_MQTT_BROKER and the switch round-trips over MQTT
@@ -110,6 +114,10 @@ def _check_flash_entry(path: Path, i: int, dev: dict) -> None:
         raise ConfigError(f"{where}: cannot flash lorawan: {dev['board']} has no LoRa radio")
     if dev.get("functional") and "esphome" not in flash:
         raise ConfigError(f"{where}: `functional` checks an ESPHome flash; add esphome to `flash`")
+    if dev.get("provision") and "esphome" not in flash:
+        raise ConfigError(f"{where}: `provision` checks an ESPHome flash; add esphome to `flash`")
+    if dev.get("provision") and dev.get("functional"):
+        raise ConfigError(f"{where}: `provision` and `functional` need different ESPHome builds; pick one")
     if dev.get("mqtt") and not dev.get("functional"):
         raise ConfigError(f"{where}: `mqtt` checks the functional build; set `functional: true`")
     pin = dev.get("functional_pin")
@@ -305,8 +313,9 @@ async def _flash_one(dev: dict, framework: str, client, report: Report, library,
         if mqtt is None:
             report.add("mqtt", subject, False, "an `mqtt` check needs GATE_MQTT_BROKER (and _USERNAME, _PASSWORD)")
     try:
+        provision = framework == "esphome" and bool(dev.get("provision"))
         image = await images.image_for(framework, board, library, dashboard=dashboard,
-                                       functional_pin=functional_pin, mqtt=mqtt)
+                                       functional_pin=functional_pin, mqtt=mqtt, provision=provision)
     except images.ImageUnavailable as e:
         report.add("flash", subject, False, str(e))
         return
@@ -330,6 +339,15 @@ async def _flash_one(dev: dict, framework: str, client, report: Report, library,
         report.add("boot", subject, True, res["checks"][0].get("line") or "")
         if functional_pin:
             await _functional(dev, subject, board, client, report, booted_at, api_factory, mqtt)
+        elif provision:
+            from wirestudio.workbench import provision as prov
+
+            try:
+                pres = await prov.run(client, prov.ap_ssid(board.id))
+            except Exception as e:
+                report.add("provision", subject, False, describe(e))
+            else:
+                report.add("provision", subject, pres.ok, pres.detail)
     else:
         tail = " | ".join(str(e.get("text", e) if isinstance(e, dict) else e).strip()
                           for e in res.get("recent_output", [])[-5:])
